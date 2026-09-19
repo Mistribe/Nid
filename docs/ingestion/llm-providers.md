@@ -17,6 +17,7 @@ L'ingestion (étape 4 de la feuille de route) transforme un document déposé pa
 4. **L'IA propose, les humains valident** : rien ne change dans les propositions ni dans la file de validation.
 5. **Les workers restent sans Internet et sans clés d'API** ; toute sortie vers un fournisseur passe par la **passerelle LLM** de `nid-api`.
 6. **Les conditions des fournisseurs sont revues par un humain**, datées, et jamais présumées par le code.
+7. **Les bulletins de paie restent en local** (voir §5.2).
 
 ## 3. Conditions des fournisseurs (vérifiées le 19/09/2026)
 
@@ -87,7 +88,7 @@ Un profil est éligible seulement si **tout** est vrai :
 
 1. il est activé et une clé valide est enregistrée (profils cloud) ;
 2. `trains_on_data` est faux pour la région confirmée ;
-3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6) ;
+3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
 4. le déposant a consenti pour ce document (§6) ;
 5. les capacités couvrent le document (pages, taille, vision) ;
 6. le quota du fournisseur n'est pas épuisé ;

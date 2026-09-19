@@ -22,6 +22,7 @@ L'application est **auto-hébergée**, pensée pour **deux utilisateurs** (le co
 - **Qu'est-ce qui rapporte, qu'est-ce qui ne rapporte pas ?** Gain ou perte par placement.
 - **Comment ça évolue ?** Historique et tendances du patrimoine.
 - **Comment fonctionne notre crédit ?** Part d'intérêts et de capital dans chaque mensualité, capital restant dû, coût total.
+- **Que reste-t-il chaque mois après nos engagements ?** Revenus, part engagée, marge avant les dépenses courantes.
 
 ### 2.2 Pourquoi les outils existants ne conviennent pas
 
@@ -82,7 +83,7 @@ Concepts partagés par tous les modules :
 Trois piliers :
 
 - **Patrimoine** : total, répartition par enveloppe et par propriétaire, valeur nette des biens immobiliers (valeur − capital restant dû).
-- **Engagements** : coûts fixes mensuels (crédits, assurances, abonnements, énergie…) et échéances à venir.
+- **Engagements** : coûts fixes mensuels (crédits, assurances, abonnements, énergie…) et échéances à venir, rapportés aux **revenus** : part des revenus engagée et marge avant dépenses courantes (voir §8b).
 - **Évolution** : courbe du patrimoine dans le temps, contributions de chaque enveloppe.
 
 Exemple de ce que le tableau de bord doit rendre possible (chiffres fictifs) :
@@ -237,6 +238,37 @@ Le tableau calculé peut différer de quelques centimes de celui de la banque (a
 
 ---
 
+## 8b. Module Revenus
+
+Spécification détaillée : `income-data-model.md`.
+
+### 8b.1 Besoin
+
+Savoir **ce qui reste chaque mois après les engagements**. Les revenus sont suivis de façon **déclarative**, sans suivre chaque virement : l'application n'est pas un outil de comptabilité.
+
+### 8b.2 Principe
+
+- Une **source de revenu** (salaire, pension, allocation, revenu d'indépendant…) a des **périodes** avec un **montant net versé** et une fréquence, comme les phases d'un abonnement. Une augmentation ferme une période et en ouvre une nouvelle.
+- Plusieurs **composantes** peuvent courir en parallèle (salaire de base, prime annuelle, 13ᵉ mois).
+- Les revenus **exceptionnels** (prime ponctuelle, remboursement) sont des flux datés.
+- Les **loyers prévus** des biens locatifs et les **revenus du patrimoine encaissés** s'ajoutent, sans double saisie.
+- Le net versé s'entend après cotisations sociales et prélèvement à la source ; **aucun calcul fiscal**.
+
+Exemple (chiffres fictifs) :
+
+> Revenus : 4 480 € par mois (salaires 4 200 €, prime annuelle lissée 150 €, allocations 130 €)
+> Engagements : 1 250 € par mois, soit **27,9 %** des revenus
+> **Marge avant dépenses courantes : 3 230 €**
+
+### 8b.3 Ce que le module affiche
+
+Revenus attendus (lissés par mois, par personne), périodes et historique des changements, prochaines fins de période, part des revenus engagée, marge avant dépenses courantes.
+
+### 8b.4 Points d'attention
+
+- La marge s'appelle **« avant dépenses courantes »**, et non « reste à vivre » : les engagements ne couvrent que ce qui est déclaré, pas l'alimentation ni les dépenses du quotidien (§11).
+- Un revenu est une **donnée très personnelle** : la visibilité est demandée explicitement à la création, et les bulletins de paie sont **toujours traités en local**.
+
 ## 9. Automatisation et IA
 
 ### 9.1 Objectif
@@ -278,7 +310,7 @@ Ordre indicatif, à ajuster selon nos priorités. Chaque étape doit être utili
 | Étape | Contenu | Valeur apportée |
 |---|---|---|
 | **1. Noyau + Abonnements** | Propriétaires, montants, valorisations, flux ; module Abonnements complet ; reprise du JSON existant | Vision claire de tous les abonnements et de leur coût réel |
-| **2. Placements** | Enveloppes, valorisations mensuelles, versements ; gain en € et en % ; premier tableau de bord (patrimoine, engagements, évolution) | Savoir ce qui rapporte |
+| **2. Placements et Revenus** | Enveloppes, valorisations mensuelles, versements ; gain en € et en % ; sources de revenu et périodes ; premier tableau de bord (patrimoine, engagements, revenus et marge, évolution) | Savoir ce qui rapporte et ce qu'il reste après les engagements |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, tableau d'amortissement, valeur nette, coût réel | Comprendre les mensualités et le vrai patrimoine net |
 | **4. Automatisation IA** | Serveur MCP de l'application ; extraction des relevés, factures et tableaux d'amortissement ; file de validation | Réduire la routine mensuelle à une validation |
 | **5. Synchronisation bancaire** | Comptes courants et livrets via DSP2 ; rapprochement avec les abonnements attendus | Détection automatique des prélèvements, hausses de prix, oublis |
@@ -290,6 +322,7 @@ Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'
 
 - Budget détaillé transaction par transaction (l'application bancaire le fait déjà).
 - Catégorisation de toutes les dépenses du quotidien.
+- Suivi de chaque virement de revenu : les revenus sont déclaratifs (§8b).
 - Suivi boursier détaillé à la Ghostfolio (seulement en option, étape 6).
 - Toute opération sur les comptes : l'application est en **lecture seule** vis-à-vis des banques.
 - Conseil financier ou fiscal automatisé.
@@ -348,3 +381,5 @@ Décision prise : **accès depuis l'extérieur hors périmètre du projet** : c'
 | **DSP2** | Directive européenne qui permet d'accéder aux données des comptes de paiement via des API. |
 | **MCP** | Model Context Protocol : protocole qui permet à un assistant IA d'utiliser les fonctions d'une application. |
 | **File de validation** | Liste des données proposées automatiquement, en attente de confirmation. |
+| **Net versé** | Montant réellement reçu sur le compte, après cotisations sociales et prélèvement à la source. |
+| **Marge avant dépenses courantes** | Revenus mensuels lissés moins engagements mensuels déclarés. |

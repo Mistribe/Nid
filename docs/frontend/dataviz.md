@@ -30,6 +30,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Couverture d'un abonnement | **Bande temporelle en SVG** | 5 catégories fixes, libellé direct sur chaque période |
 | Crédit : capital et intérêts par mois | Barres empilées | 2 catégories |
 | Crédit : capital restant dû | Courbe, **graphique séparé** | 1 série |
+| **Utilisation des revenus** | Barre empilée unique : engagements par catégorie, puis marge | Catégories fixes pour les engagements, **ton neutre** pour la marge |
 
 Un crédit demande **deux graphiques**, pas un axe double : les échelles (des centaines de milliers d'euros contre quelques centaines) sont trop différentes.
 

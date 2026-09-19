@@ -8,7 +8,7 @@
 ## 1. Navigation
 
 - **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Validation (avec badge), Plus.
-- **Bureau** : barre latérale avec les mêmes entrées, plus Routine, Immobilier, Import/Export, Sécurité, Réglages.
+- **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import/Export, Sécurité, Réglages.
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer.
 
@@ -19,6 +19,7 @@
 | **Tableau de bord** | Voir §3 |
 | **Abonnements** | Voir §4 |
 | **Placements** | Enveloppes avec valeur, gain en € et en % **avec la mention « avant fiscalité »**, date de dernière valeur (signalée si périmée). Détail : courbe valeur contre versements nets, tableau des valorisations et flux, saisie rapide d'une valeur ; gain depuis la dernière valeur, performance d'une période. Modèle : `../investments-data-model.md` |
+| **Revenus** (étape 2) | Sources et périodes de revenu, historique des changements, prochaines fins de période, revenus lissés par personne, part engagée et marge. À la création d'une source, la question explicite « Ce revenu est-il visible de l'autre adulte ? ». Modèle : `../income-data-model.md` |
 | **Immobilier et crédits** (étape 3) | Fiche bien (valeur nette, plus-value latente brute, coût réel avec détail par composante, rendement locatif, baux et vacance) ; fiche crédit (échéancier, intérêts et capital, capital restant dû, phases, coût total, **comparaison avec le tableau de la banque**, **simulation de remboursement anticipé comparant les deux effets**). Modèle : `../realestate/` |
 | **Routine mensuelle** | Voir §5 |
 | **Boîte de validation** | Voir §6 |
@@ -34,7 +35,8 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 | Bloc | Contenu |
 |---|---|
-| Trois tuiles | **Patrimoine** (total, date des valeurs), **Engagements** (par mois), **Évolution** (écart depuis le début d'année) |
+| Trois tuiles | **Patrimoine** (total, date des valeurs), **Engagements** (par mois, avec la part des revenus engagée), **Évolution** (écart depuis le début d'année) |
+| Revenus et marge | Tuile **Revenus** (équivalent mensuel) et **marge avant dépenses courantes**, « inconnue » tant qu'aucun revenu n'est déclaré |
 | Courbe du patrimoine | Valeur et versements cumulés sur le même axe |
 | Répartition | Par enveloppe (barres) et par personne |
 | À venir | Renouvellements et expirations |

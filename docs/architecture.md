@@ -132,13 +132,14 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 
 ### 5.2 Modules
 
-Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits).
+Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits), celui de Revenus dans `income-data-model.md`.
 
 | Module | Possède | Expose (Contracts) | Dépend de |
 |---|---|---|---|
 | **Core** | `Person` (`adult` lié au `sub` OIDC, ou `dependent` sans connexion), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Document`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposals` | rien |
 | **Subscriptions** | `Subscription`, `BillingPhase`, `Purchase`, `Grant`, caches dérivés `CoveragePeriod`/`Charge` | Contributions au tableau de bord (coût mensuel réel/amorti, échéances), charges attendues | Core |
 | **Investments** | `Envelope` (PEA, assurance-vie, PER, livret…) ; valorisations et flux via Core | Gain €/%, TRI plus tard, contribution au patrimoine | Core |
+| **Income** | `IncomeSource`, `IncomePhase` ; revenus exceptionnels via les flux du Core | Revenus mensuels lissés, part engagée, marge (`IIncomeContribution`, `IIncomeSummary`) | Core |
 | **RealEstate** | `Property`, `Loan`, `LoanPhase`, `LoanEvent`, `Insurance` | Tableau d'amortissement, capital restant dû, valeur nette, engagements | Core |
 | **Ingestion** | Pipeline de documents, table `job`, contrats de jobs, résultats d'extraction | Entrée des propositions vers Core, API interne pour les workers | Core |
 | **Dashboard** | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + `Contracts` des autres |
@@ -147,7 +148,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 ### 5.3 Décisions de conception
 
 1. **Registre `Item` central (Core).** Chaque bien, abonnement, enveloppe ou crédit a une ligne `Item(id, module, kind, visibility)` et ses `Ownership`. Le module garde ses données et référence `item_id` (lien logique, pas de clé étrangère entre schémas). `IAccessPolicy` applique les règles de `Project.md` §5.1 (privé, lecture seule pour l'autre, totaux du foyer hors privé) pour l'API, le tableau de bord et le MCP : un seul endroit à auditer.
-2. **Tableau de bord par contributions enfichables.** Chaque module implémente `INetWorthContribution`, `ICommitmentsContribution`, `IUpcomingEvents`, découvertes par injection de dépendances. Un nouveau module apporte de nouveaux fournisseurs sans modifier Dashboard. La courbe d'évolution est **calculée à la demande** à partir des valorisations, flux et capitaux restants dus ; des instantanés matérialisés ne sont ajoutés que si un besoin réel apparaît.
+2. **Tableau de bord par contributions enfichables.** Chaque module implémente `INetWorthContribution`, `ICommitmentsContribution`, `IIncomeContribution`, `IUpcomingEvents`, découvertes par injection de dépendances. Un nouveau module apporte de nouveaux fournisseurs sans modifier Dashboard. La courbe d'évolution est **calculée à la demande** à partir des valorisations, flux et capitaux restants dus ; des instantanés matérialisés ne sont ajoutés que si un besoin réel apparaît.
 3. **File de validation dans Core, application dans le module.** Une `Proposal` porte un payload typé, sa provenance et son document source. À la validation, Core appelle l'`IProposalHandler` du module concerné, qui écrit dans son schéma. Ingestion ne touche jamais aux données métier.
 4. **`Valuation` et `Flow` génériques (Core)** pour Investments et RealEstate. Subscriptions conserve ses propres `Purchase` / `BillingPhase` : sa logique de couverture n'est pas un `Flow`.
 5. **Calculs = fonctions pures dans `Domain`** (timeline, amortissement, gain, TRI) : aucune entrée/sortie, aucune IA. Les caches dérivés sont reconstruisibles à tout moment.
@@ -361,7 +362,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 ```
 /src
   /Nid.Core/{Contracts,Domain,Application,Infrastructure}
-  /Nid.Subscriptions/…   /Nid.Investments/…   /Nid.RealEstate/…
+  /Nid.Subscriptions/…   /Nid.Investments/…   /Nid.RealEstate/…   /Nid.Income/…
   /Nid.Ingestion/…       /Nid.Dashboard/…     /Nid.Platform/…
   /Nid.Host              (racine de composition : API, BFF, MCP, Quartz)
 /web                     (React + TS + Vite PWA, client généré)

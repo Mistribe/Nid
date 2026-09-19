@@ -38,6 +38,7 @@
 | LLM-6 | Masquage incomplet | LLM02 | Moyenne | Aperçu, confirmation pour scans, mesure du rappel | 4 | Accepté |
 | LLM-7 | Dépassement du budget d'une offre payante | LLM10 | Faible | Plafond à 0 par défaut, estimation, blocage | 4 | Faible |
 | LLM-8 | Panne ou quota d'un fournisseur | — | Faible | Chaîne avec repli local, disjoncteur | 4 | Faible |
+| LLM-9 | Bulletin de paie envoyé à un fournisseur cloud (nom, employeur, numéro de sécurité sociale) | LLM02 | Élevée | Type `payslip` inéligible au cloud, sans contournement | 4 | Aucun |
 
 ## 4. Risques liés au MCP
 
@@ -67,6 +68,7 @@
 | APP-13 | Données tierces empoisonnées (taux, catalogue) | Moyenne | Bornes, commit épinglé, suggestions seulement | 1 | Faible |
 | APP-14 | Divulgation par erreurs ou journaux | Faible | Problem Details, journaux sans données | 1 | Aucun |
 | APP-15 | Compromission d'Authelia | Élevée | Hors application ; double facteur recommandé | 1 | Accepté |
+| APP-16 | Revenu visible de l'autre adulte contre le gré du titulaire | Moyenne | Question explicite à la création, visibilité privée possible, revenus dans le banc anti-fuite | 2 | Faible |
 
 ## 6. Risques d'infrastructure
 
@@ -87,7 +89,7 @@
 | Étape | À avoir avant de livrer |
 |---|---|
 | **1. Noyau + Abonnements** | BFF et CSP ; banc anti-fuite ; `SafeHttpClient` (catalogue, taux) ; icônes ré-encodées ; export CSV neutralisé ; bornes d'import et sessions aléatoires ; jetons personnels et limitation de débit ; politique de dépendances avec SBOM et analyse ; durcissement des conteneurs et réseaux ; sauvegarde **avec test de restauration** |
-| 2. Placements | `large_change` sur les valorisations ; emails sans montants |
+| 2. Placements et Revenus | `large_change` sur les valorisations ; emails sans montants ; question de visibilité à la création d'un revenu et revenus dans le banc anti-fuite |
 | 3. Immobilier et crédits | Écart d'amortissement affiché ; pas de nouvelle surface majeure |
 | **4. Automatisation IA** | Tout `ai-ingestion.md` : extraction sans outils, workers sans Internet, passerelle LLM, profils et consentement, masquage, quotas, corpus de PDF piégés ; **revue de risque avant IMAP ou email** |
 | **5. Banque** | **Lecture seule** (aucune portée d'initiation de paiement) ; jetons chiffrés ; alerte d'expiration du consentement ; conservation minimale des transactions ; revue de risque |
