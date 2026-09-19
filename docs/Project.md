@@ -1,6 +1,6 @@
 # Document de projet — Application de finances du foyer
 
-> Statut : brouillon de direction projet. La direction technique (stack, architecture détaillée, hébergement) fera l'objet d'un document séparé.
+> Statut : brouillon de direction projet. La direction technique (stack, architecture détaillée, hébergement) fait l'objet d'un document séparé : `architecture.md`.
 > Référence associée : `subscription-data-model.md` (spécification détaillée du module Abonnements).
 
 ---
@@ -327,7 +327,7 @@ Décision prise : **sauvegarde et export** :
 - sauvegarde **chiffrée** selon la règle 3-2-1 (plusieurs copies, dont une hors du domicile), qui inclut la base **et** les documents d'origine (PDF) ;
 - **export complet** en JSON/CSV à la demande, pour ne jamais dépendre de l'application.
 
-Décision prise : **accès depuis l'extérieur par VPN** (WireGuard ou Tailscale) : aucun service exposé sur Internet. Les détails d'implémentation relèvent du document technique.
+Décision prise : **accès depuis l'extérieur hors périmètre du projet** : c'est à celui qui héberge l'application de choisir comment l'exposer (VPN, tunnel, reverse proxy). L'application ne demande qu'un accès HTTPS en amont (voir `architecture.md` §10.2).
 
 
 ## 14. Glossaire
