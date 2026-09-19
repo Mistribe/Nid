@@ -40,6 +40,7 @@ L'application est **auto-hébergée**, pensée pour **deux utilisateurs** (le co
 - **Propriété des éléments** : chaque élément (abonnement, compte, placement, bien, crédit) a un ou plusieurs propriétaires, avec une part chacun (voir 5.1). Un élément à deux propriétaires est « commun ».
 - **Visibilité des éléments** : chaque élément est **partagé** (visible par les deux) ou **privé** (visible et modifiable par son seul propriétaire). Voir 5.1.
 - **Utilisateurs d'un service** distincts du propriétaire et du payeur (exemple : un abonnement familial payé par le foyer, utilisé par les deux).
+- **Enfants du foyer** : ils n'ont pas de compte, mais peuvent être propriétaires d'un élément ou utilisateurs d'un service. Les deux adultes gèrent leurs éléments (voir `core-data-model.md` §4).
 - Les deux utilisateurs doivent **avoir envie d'ouvrir l'application** : c'est la condition de succès principale (voir principes).
 
 ## 4. Principes directeurs
