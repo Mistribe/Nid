@@ -433,7 +433,7 @@ Consultées dans la documentation à jour :
 - **SDK MCP C#** : `AddMcpServer().WithHttpTransport(...)`, mode sans session par défaut, `MapMcp()` et `RequireAuthorization()`, `AddAuthorizationFilters()`.
 - **Quartz.NET** : `AddQuartz` / `AddQuartzHostedService`, magasin persistant avec clustering, préfixe de tables qualifié par schéma pour Postgres.
 - **Npgsql EF Core** : plugin `UseNodaTime()`, concurrence optimiste via une propriété `uint` mappée sur `xmin`.
-- **Synapse** (documentation et NuGet) : `[RequestHandler<,>]` et `RegisterGroup` générés par assembly, `[PipelineBehavior]`, validation, événements avec outbox EF Core, contexte par « features », MIT, net8 à net10.
+- **Synapse** (documentation et NuGet) : `[RequestHandler<,>]` et `RegisterGroup` générés par assembly, `[PipelineBehavior]`, validation, événements avec outbox (stockage transactionnel à écrire, pas de paquet EF Core : `spikes.md` §3), contexte par « features », MIT, net8 à net10.
 - **Native AOT** (Microsoft Learn, Npgsql, Quartz.NET, SDK MCP) : voir §4.3.
 - **EF Core** : modèle compilé et requêtes précompilées utilisables sans NativeAOT.
 - **Spikes exécutés** : Synapse, NodaTime et JSON, RFC 8785, échéancier de prêt, EF Core et PostgreSQL (`spikes.md`).
