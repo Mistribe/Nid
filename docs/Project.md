@@ -305,7 +305,7 @@ Réduire la saisie manuelle en récupérant les données automatiquement quand c
 
 ## 10. Feuille de route
 
-Ordre indicatif, à ajuster selon nos priorités. Chaque étape doit être utilisable seule.
+Ordre indicatif, à ajuster selon nos priorités. Chaque étape doit être utilisable seule. **L'état d'avancement (statuts, jalons, risques) est tenu dans `roadmap.md`.**
 
 | Étape | Contenu | Valeur apportée |
 |---|---|---|
