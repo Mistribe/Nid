@@ -102,8 +102,8 @@ Fonction pure `BuildSchedule(loan, phases, insurances, fees, events)` : **décim
 ### 3.1 Conventions
 
 - **Dates d'échéance** : `first_payment_date` + k mois, jour d'ancrage écrasé en fin de mois.
-- **Taux périodique** = taux annuel ÷ 12 (convention 30/360 de `../Project.md` §8.2).
-- **Intérêts** d'une échéance = `round(capital restant avant échéance × taux périodique)`, arrondi selon `rounding_mode` (demi supérieur, ou troncature) au centime.
+- **Taux périodique** = taux annuel ÷ 12 (convention 30/360 de `../Project.md` §8.2), **sans jamais le précalculer**.
+- **Intérêts** d'une échéance = `arrondi(capital restant avant échéance × taux annuel ÷ 12)`, **en multipliant d'abord**, arrondi selon `rounding_mode` (demi supérieur, ou troncature) au centime. **Vérifié** (`../spikes.md` §7) : précalculer `taux ÷ 12` fait basculer l'arrondi d'un centime quand le produit tombe exactement sur un demi-centime (12 écarts sur 3 000 prêts) ; en multipliant d'abord, 0 écart. Toute conversion texte utilise `InvariantCulture`.
 - **Première période** : `full` = un mois complet ; `prorata_actual_365` = `round(principal × taux annuel × jours ÷ 365)` avec jours = `first_payment_date − disbursed_on`.
 
 ### 3.2 Construction

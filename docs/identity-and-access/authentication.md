@@ -29,7 +29,7 @@ Configuration fournie **à titre d'exemple** dans `deploy/` ; le secret vient d'
 | Politique d'autorisation | Choix de l'hébergeur ; l'exemple recommande `two_factor` |
 
 - Côté ASP.NET : handler OpenID Connect + cookie, `SaveTokens = false`, pas de conversion automatique des claims entrants.
-- `name` et `email` peuvent arriver dans l'ID token ou par l'endpoint `userinfo` selon la politique de claims d'Authelia : à vérifier à l'intégration. L'`email` est optionnel : son absence n'empêche pas la connexion.
+- **Par défaut, `profile` et `email` sont servis par l'endpoint `userinfo`, pas par l'ID token** (documentation d'Authelia). Le handler OIDC est donc configuré avec `GetClaimsFromUserInfoEndpoint = true`. Alternative : une `claims_policy` d'Authelia avec `id_token: [...]` (`name`, `email`, `preferred_username`) assignée au client. L'`email` est optionnel : son absence n'empêche pas la connexion.
 
 ## 3. Session
 
@@ -77,5 +77,5 @@ D'après la documentation d'Authelia :
 
 ## 8. Points à vérifier à l'intégration
 
-- Politique de claims d'Authelia (ID token ou `userinfo`).
+- Le flux complet contre un Authelia réel : Authelia n'accepte que le HTTPS et un domaine de cookie qui n'est pas `localhost` ; le compose de développement inclut donc un proxy TLS et un domaine à point (`*.localtest.me`). Voir `../spikes.md` §8.
 - Comportement du plafond d'adultes lors d'une première connexion simultanée des deux adultes (création atomique de la `person`).

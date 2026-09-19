@@ -257,7 +257,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
 - **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
-- Les `DbContext` des modules partagent la connexion et la transaction de l'import. À vérifier au prototypage (même point que l'outbox, `architecture.md` §16).
+- Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes
 
@@ -353,7 +353,7 @@ Le navigateur orchestre (assistant décrit dans `frontend/screens.md`) : lecture
 ## 13. Questions ouvertes
 
 - Association des adultes aux comptes : par `email` du fichier, ou par saisie à l'import (un fichier sans email doit rester importable).
-- Schéma JSON de `nid.data` : généré depuis les types source-générés (`JsonSchemaExporter`, .NET 9+) et publié par `GET /api/v1/platform/import/schema` ; le navigateur le compile au build (`frontend/architecture.md`).
+- Schéma JSON de `nid.data` : généré depuis les types source-générés (`JsonSchemaExporter`, .NET 9+) et publié par `GET /api/v1/platform/import/schema` ; le navigateur le compile au build (`frontend/architecture.md`). **Vérifié** (`spikes.md` §4) : l'exporteur renvoie `true` (tout accepté) pour `LocalDate`, `Instant` et les décimaux à convertisseur ; un `TransformSchemaNode` leur donne un vrai type, et les champs optionnels doivent avoir une valeur par défaut, sinon ils sont `required`.
 - Conversion CSV → `nid.data` : réalisée côté navigateur ; les sections `valuations` et `flows` restent à définir avec les modules Investments et RealEstate.
 - Valeurs par défaut des bornes (§11.5) : à ajuster après mesure sur des imports réels.
 - Format des documents dans l'export (section `documents` référençant les `sha256`).

@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne), `ingestion/llm-providers.md` (fournisseurs LLM et OCR), `security/` (modèle de menaces), `investments-data-model.md` et `realestate/` (modules Investments et RealEstate).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne), `ingestion/llm-providers.md` (fournisseurs LLM et OCR), `security/` (modèle de menaces), `spikes.md` (résultats des spikes), `investments-data-model.md` et `realestate/` (modules Investments et RealEstate).
 
 ---
 
@@ -159,11 +159,11 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 Bibliothèque : `UnambitiousFx.Synapse` et `UnambitiousFx.Synapse.Generator` (MIT ; net8, net9, net10). Médiateur in-process sans réflexion à l'exécution, `ValueTask`, retours en `Result<T>` (`UnambitiousFx.Functional`).
 
 - **Un cas d'usage = une requête + un handler** `[RequestHandler<TRequest, TResponse>]`. Le générateur produit, par assembly, une classe `RegisterGroup` ; le host appelle `cfg.AddRegisterGroup(new …RegisterGroup())` pour chaque module. L'enregistrement est **explicite par module** : un module absent n'est pas chargé.
-- **Commande ou requête** : la documentation consultée les distingue « par intention » et n'expose qu'`IRequestHandler`. Le projet définit ses marqueurs `ICommand` / `IQuery`, imposés par un test d'architecture (à confirmer au prototypage).
-- **Erreurs attendues = `Result.Failure`**, jamais d'exception. Les erreurs portent un **code** (`not_found`, `forbidden`, `conflict`, `validation`…) traduit à un seul endroit en Problem Details / statut HTTP (404, 403, 409, 422) et en erreur d'outil MCP. Les exemples consultés n'utilisent que des échecs à message texte : si le modèle d'erreur de la bibliothèque ne porte pas de code, on l'enveloppe.
-- **Pipelines** (`[PipelineBehavior]`, génériques ouverts fermés par le générateur), dans cet ordre cible : trace / journalisation → acteur (personne, origine API / MCP / job, « agissant pour ») → portée (avec conversion en `Proposal`, D10) → accès à l'élément (`IAccessPolicy`) → `Idempotency-Key` → validation → transaction → handler → garde de sortie (`identity-and-access/authorization.md` §2). Droits privé/partagé, audit et provenance vivent dans ces comportements, pas dans les handlers. L'ordre d'exécution des comportements n'est pas documenté dans ce qui a été lu : à vérifier.
+- **Commande ou requête** : Synapse n'expose que `IRequest` et `IRequest<T>` (vérifié, `spikes.md` §3). Le projet définit ses marqueurs `ICommand` / `IQuery`, imposés par un test d'architecture.
+- **Erreurs attendues = `Result.Failure`**, jamais d'exception. **Vérifié** : le type `Failure` porte un `Code`, un message et des métadonnées, avec des variantes (`NotFoundFailure`, `UnauthorizedFailure`, `UnauthenticatedFailure`, `ValidationFailure`, `TimeoutFailure`) et des codes de la bibliothèque (`VALIDATION`, `NOT_FOUND`, `CONFLICT`, `UNAUTHORIZED`, `UNAUTHENTICATED`, `BAD_REQUEST`, `TIMEOUT`, `ERROR`). On les utilise tels quels et on ajoute des codes propres préfixés par module (`things.name_required`). Ils sont traduits à un seul endroit en Problem Details / statut HTTP et en erreur d'outil MCP ; `UnambitiousFx.Functional.AspNetCore` fournit `AddResultHttp` avec des mappeurs par type d'échec.
+- **Pipelines**, dans cet ordre cible : trace / journalisation → acteur (personne, origine API / MCP / job, « agissant pour ») → portée (avec conversion en `Proposal`, D10) → accès à l'élément (`IAccessPolicy`) → `Idempotency-Key` → validation → transaction → handler → garde de sortie (`identity-and-access/authorization.md` §2). Droits privé/partagé, audit et provenance vivent dans ces comportements, pas dans les handlers. **Vérifié** (`spikes.md` §3) : l'ordre suit `IOrderedPipelineBehavior.Order` (valeur basse = extérieur), quel que soit l'ordre d'enregistrement, et un comportement peut court-circuiter avec un `Result.Failure`. **L'attribut `[PipelineBehavior]` ne s'applique qu'aux handlers de la même assembly** : les comportements communs sont donc enregistrés **par le host en génériques ouverts** (`AddOpenGenericRequestWithResponsePipelineBehavior`), et un test d'architecture vérifie qu'une requête de chaque module traverse toute la chaîne.
 - **Contexte** : `IContextAccessor` et ses « features » transportent l'identité et l'origine de l'appel d'un comportement à l'autre.
-- **Événements** : `IEmitter` et `IEventHandler<T>`. Avec `EmitMode.Outbox` et `IOutboxCommit`, l'événement n'est diffusé qu'**après** la réussite de l'écriture. Stockage de l'outbox via `EfCoreEventOutboxStorage`, dans le schéma Platform. À vérifier : comportement avec un `DbContext` par module (transactions distinctes).
+- **Événements** : `IEmitter` et `IEventHandler<T>`. Avec `EmitMode.Outbox` et `IOutboxCommit`, l'événement n'est diffusé qu'**après** la réussite de l'écriture. **Aucun paquet EF Core n'est publié** : nous écrivons dans Platform un `IEventOutboxStorage` (11 méthodes, dont relances et lettres mortes), **dans la même transaction que l'écriture du module**. Vérifié (`spikes.md` §6) : avec des `DbContext` qui partagent connexion et transaction, le retour arrière efface l'entrée et une autre session ne la voit qu'après le commit. Le stockage **en mémoire** fourni ne doit **jamais** servir en production : l'événement d'une commande échouée reste en attente et part avec le commit d'une autre requête. `IOutboxCommit.CommitAsync` diffuse tout ce qui est en attente.
 - **Frontière avec les Contracts (D14)** :
   - Synapse : points d'entrée (API REST, outils MCP, jobs Quartz, application des propositions) et événements entre modules.
   - Interfaces `Contracts` : lectures synchrones inter-modules et points d'extension à plusieurs fournisseurs (`IAccessPolicy`, `IVisibleItems`, `INetWorthContribution`…). Un fan-out n'est pas une requête unique, et `IAccessPolicy` est sur le chemin critique.
@@ -190,12 +190,14 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 
 | Sujet | Décision |
 |---|---|
-| Argent | `Money(decimal, Currency)`. Postgres `numeric(19,4)` + `char(3)`. Jamais de flottant. Devise d'origine stockée, conversion à l'affichage. |
+| Argent | `Money(decimal, Currency)`. Postgres `numeric(19,4)` + `char(3)`. Jamais de flottant. Devise d'origine stockée, conversion à l'affichage. **Postgres arrondit en silence** au-delà de 4 décimales (0,00005 devient 0,0001, vérifié) : `Money` refuse plus de 4 décimales. |
 | Taux de change | Table `fx_rate` dans Core, devise pivot USD, alimentée par un job Quartz depuis le dépôt `Mistribe/SubTracker-Data`, avec saisie manuelle en secours. Conversion au taux de la date concernée. Détail dans `core-data-model.md` §8. |
 | Arrondis | Précision pleine en interne, arrondi à l'affichage. Crédit : politique d'arrondi **configurable par prêt** pour coller au tableau de la banque, qui fait référence. |
 | Dates | NodaTime `LocalDate` → `date`. Instants en `timestamptz` UTC. Intervalles **semi-ouverts** `[début, fin)` ; `daterange` Postgres quand utile. |
-| Durées | `{count, unit}` (`day`/`week`/`month`/`year`), jamais converties en jours. Arithmétique des mois avec jour d'ancrage et écrasement en fin de mois (voir `subscription-data-model.md`). Le comportement de la bibliothèque de dates est couvert par des tests dédiés (31 janvier + 1 mois, années bissextiles). |
-| Identifiants | UUIDv7 générés côté application (triables par date). |
+| Durées | `{count, unit}` (`day`/`week`/`month`/`year`), jamais converties en jours. Arithmétique des mois avec jour d'ancrage et écrasement en fin de mois (voir `subscription-data-model.md`). **Vérifié avec NodaTime** : l'occurrence k se calcule par `début.PlusMonths(k × n)` **depuis l'ancre**, jamais mois après mois (31/01 puis « + 1 mois » deux fois donne le 28/03 au lieu du 31/03). Tests dédiés (31 janvier, années bissextiles). |
+| Identifiants | UUIDv7 générés côté application, triés **à la milliseconde** : à l'intérieur d'une même milliseconde l'ordre est aléatoire (vérifié), donc jamais une séquence ; départage par `created_at`. |
+| Culture | `InvariantCulture` pour toute conversion décimale ou date en texte. L'hôte est en `fr-FR` : sans cela, `665262.12` ne s'analyse pas (vérifié). |
+| Colonnes | `snake_case` par convention de nommage EF (paquet communautaire `EFCore.NamingConventions` ou convention maison) : EF produit du `PascalCase` par défaut. |
 | Valorisations et flux | **Append-only** : une correction crée une nouvelle ligne (`supersedes_id`) et retire l'ancienne (`retired_at`) dans la même transaction. Historique conservé. Détail dans `core-data-model.md` §5.4. |
 | Provenance | Colonnes communes sur toute donnée saisie ou importée : `source`, `created_via`, `document_id?`, `proposal_id?`, `created_by_person_id`. Valeurs dans `core-data-model.md` §5.1. |
 | Audit | Table `audit_log` append-only (Platform) : qui, quand, entité, action, diff JSONB. Écrite par un interceptor EF. Enregistre aussi « agissant pour » quand l'acteur est le MCP. |
@@ -400,14 +402,18 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 - usage limité à `Application` et au host ; les règles métier restent dans `Domain`, pur et sans dépendance à Synapse ;
 - l'API des handlers (`IRequestHandler`, `Result<T>`) est présente dans chaque cas d'usage : un remplacement serait mécanique mais large. À garder en tête avant de multiplier les comportements de pipeline spécifiques.
 
-**À vérifier au prototypage de Synapse**
+**Vérifié par les spikes** (`spikes.md`)
 
-- Le modèle d'erreur de `Result` porte-t-il un code exploitable pour le mapping HTTP / MCP ?
-- Ordre d'exécution des `[PipelineBehavior]`.
-- Marqueurs `ICommand` / `IQuery` fournis ou à définir ?
-- Outbox EF Core avec un `DbContext` par module.
-- Sérialisation NodaTime avec `System.Text.Json` en source generation.
+- Modèle d'erreur de `Result` avec code : oui.
+- Ordre des comportements : par `IOrderedPipelineBehavior.Order` ; comportements communs enregistrés par le host.
+- Marqueurs `ICommand` / `IQuery` : à définir (Synapse n'a que `IRequest`).
+- Outbox avec un `DbContext` par module : faisable avec une transaction partagée ; stockage transactionnel à écrire.
+- NodaTime avec `System.Text.Json` en source generation, schéma JSON, arithmétique de mois, RFC 8785, échéancier de prêt : voir `spikes.md`.
+
+**Reste à vérifier**
+
 - Propriété `IsAotCompatible` et analyseurs associés sur `Domain` / `Application`.
+- Flux OIDC avec Authelia en réel (HTTPS et domaine à point requis), migrations de plusieurs `DbContext`, Quartz sur Postgres, SDK MCP en exécution (`spikes.md` §9).
 
 **À trancher plus tard**
 
@@ -418,8 +424,7 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 - Fournisseurs LLM : SDK officiels ou appels HTTP directs ; choix des modèles après le jeu d'évaluation ; revérification des conditions des fournisseurs (`ingestion/llm-providers.md` §14).
 - Revue de risque avant IMAP, email et banque (`security/README.md` §9).
 - OAuth via Authelia pour le MCP : à revoir si un client utilisé refuse le jeton statique (`identity-and-access/tokens-and-credentials.md` §5).
-- Politique de claims d'Authelia (ID token ou `userinfo`) : à vérifier à l'intégration.
-- Comportement de la bibliothèque de dates sur l'arithmétique des mois : à valider par tests (§6) ; non vérifié dans la documentation consultée.
+- Flux OIDC avec Authelia exécuté de bout en bout : montage HTTPS local à faire avec le compose de l'étape 1. Les claims `name` et `email` sortent par `userinfo` par défaut (`identity-and-access/authentication.md` §2).
 
 ## 17. Vérifications faites lors de la rédaction
 
@@ -431,3 +436,4 @@ Consultées dans la documentation à jour :
 - **Synapse** (documentation et NuGet) : `[RequestHandler<,>]` et `RegisterGroup` générés par assembly, `[PipelineBehavior]`, validation, événements avec outbox EF Core, contexte par « features », MIT, net8 à net10.
 - **Native AOT** (Microsoft Learn, Npgsql, Quartz.NET, SDK MCP) : voir §4.3.
 - **EF Core** : modèle compilé et requêtes précompilées utilisables sans NativeAOT.
+- **Spikes exécutés** : Synapse, NodaTime et JSON, RFC 8785, échéancier de prêt, EF Core et PostgreSQL (`spikes.md`).

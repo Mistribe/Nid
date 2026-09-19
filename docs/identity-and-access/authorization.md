@@ -20,7 +20,7 @@ Une session navigateur porte toutes les portées ; un jeton (`tokens-and-credent
 
 ## 2. Pipeline
 
-Ordre d'exécution des comportements (`[PipelineBehavior]`) :
+Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, valeur basse = extérieur) :
 
 | Étape | Rôle |
 |---|---|
@@ -32,7 +32,7 @@ Ordre d'exécution des comportements (`[PipelineBehavior]`) :
 | 6. Validation, transaction, handler | |
 | 7. Garde de sortie | Voir §7 |
 
-L'ordre d'exécution des comportements n'est pas documenté dans ce qui a été lu de Synapse : à confirmer au prototypage (`../architecture.md` §16).
+**Vérifié** (`../spikes.md` §3) : l'ordre suit `Order`, quel que soit l'ordre d'enregistrement, et un comportement peut court-circuiter. Les comportements communs sont enregistrés par le host en génériques ouverts, car l'attribut `[PipelineBehavior]` ne s'applique qu'aux handlers de la même assembly.
 
 ## 3. Portées
 

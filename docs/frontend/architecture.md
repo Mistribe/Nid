@@ -117,7 +117,7 @@ Deux traitements lourds tournent hors du fil principal :
 - **`csv-convert`** : lecture en flux d'un CSV et conversion en sections `nid.data`, selon la correspondance de colonnes choisie.
 - **`batch-hash`** : découpage en lots, sérialisation **canonique** et SHA-256 de chaque lot avec Web Crypto (`crypto.subtle`, disponible car le HTTPS est terminé en amont).
 
-La sérialisation canonique suit la **RFC 8785** (JSON Canonicalization Scheme). Le serveur utilise la même règle pour vérifier les empreintes (`../import-format.md` §11.2). Les montants étant des chaînes, aucune divergence de formatage numérique n'est possible.
+La sérialisation canonique suit la **RFC 8785** (JSON Canonicalization Scheme). Le serveur utilise la même règle pour vérifier les empreintes (`../import-format.md` §11.2). Les montants étant des chaînes, aucune divergence de formatage numérique n'est possible. **Vérifié** (`../spikes.md` §5) : 405 documents, dont des cas adverses, donnent des empreintes identiques en JavaScript et en C#. Les surrogates isolées sont refusées côté .NET, ce qui est voulu.
 
 ## 11. Internationalisation et formats
 
