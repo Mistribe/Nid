@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit).
 
 ---
 
@@ -41,11 +41,13 @@ Hors périmètre :
 | D7 | Extraction de documents : **port pluggable, Ollama par défaut** | Décidé |
 | D8 | Jobs domaine en **Quartz.NET in-process** ; jobs d'ingestion en **workers conteneurisés** via table de jobs | Décidé (frontière) ; Quartz **retenu par défaut** |
 | D9 | Registre **`Item` central** dans Core pour propriété et visibilité | **Retenu par défaut** |
-| D10 | Écritures MCP : **proposition par défaut**, écriture directe via scope dédié | **Retenu par défaut** |
+| D10 | Écritures MCP : **proposition par défaut**, écriture directe via la portée `write:direct` | Décidé |
 | D11 | Accès externe : **hors scope**, choix de l'hébergeur | Décidé |
 | D12 | CQRS avec **Synapse** (`UnambitiousFx.Synapse` + générateur), résultats en `Result<T>` (`UnambitiousFx.Functional`) | Décidé |
 | D13 | **Générateurs de sources en priorité** (JSON, Synapse, endpoints, EF, logs…) ; **Native AOT non visé** (§4.3) | Décidé |
 | D14 | Frontière : requêtes Synapse aux points d'entrée et événements entre modules ; interfaces `Contracts` pour les lectures inter-modules et points d'extension | **Retenu par défaut** |
+| D15 | Visibilité respectée par **filtrage applicatif** (pipeline, garde de sortie) et banc anti-fuite en CI ; pas de Row-Level Security | Décidé |
+| D16 | Authentification MCP et automatisations par **jetons d'accès personnels** en v1 ; OAuth via Authelia écarté (pas d'enregistrement dynamique de clients) | Décidé |
 
 ## 4. Stack et topologie
 
@@ -150,7 +152,7 @@ Bibliothèque : `UnambitiousFx.Synapse` et `UnambitiousFx.Synapse.Generator` (MI
 - **Un cas d'usage = une requête + un handler** `[RequestHandler<TRequest, TResponse>]`. Le générateur produit, par assembly, une classe `RegisterGroup` ; le host appelle `cfg.AddRegisterGroup(new …RegisterGroup())` pour chaque module. L'enregistrement est **explicite par module** : un module absent n'est pas chargé.
 - **Commande ou requête** : la documentation consultée les distingue « par intention » et n'expose qu'`IRequestHandler`. Le projet définit ses marqueurs `ICommand` / `IQuery`, imposés par un test d'architecture (à confirmer au prototypage).
 - **Erreurs attendues = `Result.Failure`**, jamais d'exception. Les erreurs portent un **code** (`not_found`, `forbidden`, `conflict`, `validation`…) traduit à un seul endroit en Problem Details / statut HTTP (404, 403, 409, 422) et en erreur d'outil MCP. Les exemples consultés n'utilisent que des échecs à message texte : si le modèle d'erreur de la bibliothèque ne porte pas de code, on l'enveloppe.
-- **Pipelines** (`[PipelineBehavior]`, génériques ouverts fermés par le générateur), dans cet ordre cible : trace / journalisation → contexte (utilisateur, acteur « agissant pour », origine API / MCP / job, `Idempotency-Key`) → autorisation (`IAccessPolicy`) → validation → transaction → handler. Droits privé/partagé, audit et provenance vivent dans ces comportements, pas dans les handlers. L'ordre d'exécution des comportements n'est pas documenté dans ce qui a été lu : à vérifier.
+- **Pipelines** (`[PipelineBehavior]`, génériques ouverts fermés par le générateur), dans cet ordre cible : trace / journalisation → acteur (personne, origine API / MCP / job, « agissant pour ») → portée (avec conversion en `Proposal`, D10) → accès à l'élément (`IAccessPolicy`) → `Idempotency-Key` → validation → transaction → handler → garde de sortie (`identity-and-access/authorization.md` §2). Droits privé/partagé, audit et provenance vivent dans ces comportements, pas dans les handlers. L'ordre d'exécution des comportements n'est pas documenté dans ce qui a été lu : à vérifier.
 - **Contexte** : `IContextAccessor` et ses « features » transportent l'identité et l'origine de l'appel d'un comportement à l'autre.
 - **Événements** : `IEmitter` et `IEventHandler<T>`. Avec `EmitMode.Outbox` et `IOutboxCommit`, l'événement n'est diffusé qu'**après** la réussite de l'écriture. Stockage de l'outbox via `EfCoreEventOutboxStorage`, dans le schéma Platform. À vérifier : comportement avec un `DbContext` par module (transactions distinctes).
 - **Frontière avec les Contracts (D14)** :
@@ -197,7 +199,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 
 - REST JSON `/api/v1/{module}/…`, OpenAPI généré, **client TypeScript généré** pour le SPA. Erreurs en Problem Details (RFC 9457).
 - Sur le fil : montants en **chaînes** (`{"amount":"12.34","currency":"EUR"}`), dates ISO 8601. Intervalles en champs explicites `startsOn` / `endsBefore` (le `ends_on` du modèle d'abonnements est ambigu et n'a été précisé « semi-ouvert » qu'après coup). **Retenu par défaut.**
-- **Authentification** : le SPA passe par un **BFF** (code + PKCE côté serveur, cookie `HttpOnly`, protection CSRF). L'API accepte aussi des jetons bearer (MCP, automatisations) avec les scopes `read` et `write`.
+- **Authentification** : le SPA passe par un **BFF** (code + PKCE côté serveur, cookie `HttpOnly`, protection CSRF). L'API accepte aussi des jetons bearer (MCP, automatisations) avec les portées `read`, `write` et `write:direct`. Détail dans `identity-and-access/`.
 - Écritures idempotentes via l'en-tête `Idempotency-Key` (workers, MCP).
 - Couche application en CQRS avec **Synapse** (§5.4). Chaque endpoint se limite à traduire HTTP → requête Synapse → `Result` → réponse (Problem Details en cas d'échec). L'idempotence (`Idempotency-Key`) est un comportement de pipeline.
 - **API interne des workers** : groupe de routes `/internal/v1/jobs/…` sur un port / listener séparé, non routé par le proxy, avec identifiants de service par worker.
@@ -208,7 +210,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 - Les outils sont de **minces enveloppes** qui envoient les mêmes requêtes Synapse que REST : même pipeline, même `IAccessPolicy`, mêmes droits ; un élément privé reste privé. Outils enregistrés **explicitement** (`WithTools<T>()`), pas par scan (`WithToolsFromAssembly` est annoté `RequiresUnreferencedCode`).
 - **Lectures** (`net_worth`, `list_subscriptions`, `loan_schedule`, `envelope_performance`…) : chiffres calculés par les services déterministes, avec provenance. Le modèle ne calcule rien.
 - **Écritures** : par défaut, elles créent une `Proposal` dans la file de validation. Un jeton peut recevoir le scope `write:direct` quand l'utilisateur dicte lui-même la saisie. **Retenu par défaut.**
-- Authentification : OAuth via Authelia, ou jeton d'accès personnel révocable.
+- Authentification : **jeton d'accès personnel** révocable, avec portées `read`, `write`, `write:direct` (`identity-and-access/tokens-and-credentials.md`). OAuth via Authelia écarté en v1.
 - Le MCP **client** (messagerie, stockage de documents) vit dans les workers d'ingestion, pas dans le cœur.
 
 ## 9. Ingestion, jobs et file de validation
@@ -308,6 +310,7 @@ Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors
 - HTTPS terminé en amont ;
 - en-têtes `X-Forwarded-*` de confiance (liste de proxys configurable) ;
 - une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA ;
+- **une seule origine** : le proxy route `/api`, `/auth`, `/mcp` et `/health` vers `nid-api`, et le reste vers `nid-web`, sur le même nom d'hôte (cookie de session du BFF, pas de CORS) ;
 - un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
@@ -335,6 +338,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 | **Propriétés** (FsCheck) | Invariants : phases sans chevauchement, couverture contiguë, somme des coûts amortis = base de coût, capital restant dû final = 0, capital + intérêts = somme des mensualités. |
 | **Cas dorés** | Tableaux d'amortissement réels de la banque, exemples de `subscription-data-model.md`, reprise du JSON existant avec ses anomalies connues. |
 | **Intégration** | Testcontainers Postgres : handlers, migrations, `IAccessPolicy` (matrice privé / partagé / multi-propriétaires × lecture / écriture). |
+| **Banc anti-fuite** | Jeu de données mixte, toutes les requêtes exécutées en tant que chaque adulte, tests de propriétés sur `Readers` / `Writers`, test de la garde de sortie. Bloquant en CI (`identity-and-access/access-tests.md`). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
 | **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure ni à Synapse ; toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
 | **Extraction** | Jeu d'évaluation de relevés, mesuré hors CI standard (précision par champ). |
@@ -371,7 +375,6 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 - React plutôt que Vue (D2).
 - Quartz.NET plutôt que Hangfire pour les tâches planifiées du domaine (D8).
 - Registre `Item` central plutôt que visibilité stockée par module (D9).
-- Écritures MCP en proposition par défaut, écriture directe via scope dédié (D10).
 - Champs d'intervalle `startsOn` / `endsBefore` dans l'API (§7).
 - Frontière Synapse / interfaces `Contracts` (D14, §5.4).
 - Minimal APIs plutôt que contrôleurs MVC (§5.5).
@@ -399,6 +402,8 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 - Modèle local d'extraction : dépend du jeu d'évaluation et du matériel disponible (§9.4).
 - Durée de conservation des transactions bancaires brutes (étape 5). Recommandation : ne garder que les observations rapprochées, l'application n'étant pas un outil de comptabilité.
 - Cible distante de la sauvegarde : choix de l'hébergeur.
+- OAuth via Authelia pour le MCP : à revoir si un client utilisé refuse le jeton statique (`identity-and-access/tokens-and-credentials.md` §5).
+- Politique de claims d'Authelia (ID token ou `userinfo`) : à vérifier à l'intégration.
 - Comportement de la bibliothèque de dates sur l'arithmétique des mois : à valider par tests (§6) ; non vérifié dans la documentation consultée.
 
 ## 17. Vérifications faites lors de la rédaction

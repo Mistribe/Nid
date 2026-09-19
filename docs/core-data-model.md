@@ -63,6 +63,7 @@ fx_rate (indépendante)
 | `oidc_subject` | text?, unique | `sub` fourni par Authelia. **Obligatoire pour un `adult`, vide pour un `dependent`** |
 | `display_name` | text | Repris des claims OIDC pour un `adult`, saisi pour un `dependent` |
 | `email` | text? | Repris des claims OIDC ; vide pour un `dependent` |
+| `session_epoch` | int | Incrémenté par « déconnecter partout » : les cookies d'un ancien epoch sont refusés (`identity-and-access/authentication.md` §3) |
 | `created_at` | timestamptz | |
 
 **`item`** : registre central
@@ -101,7 +102,7 @@ Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 
 ### 4.3 Matrice de droits
 
-Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tableau de bord et au MCP.
+Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tableau de bord et au MCP. Le détail (acteur, portées, pipeline, fonctions `Readers` / `Writers`, garde de sortie) est dans `identity-and-access/authorization.md`.
 
 | Élément | Lecture | Écriture | Total du foyer |
 |---|---|---|---|
@@ -120,6 +121,31 @@ Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tabl
 - Authelia est la source des identités. À la première connexion OIDC, Core crée la `person` de type `adult` depuis les claims (`sub`, nom, email).
 - Après **deux `adult`**, toute nouvelle identité OIDC est refusée (application prévue pour deux utilisateurs). Verrou levable par configuration.
 - Les `dependent` sont créés par un adulte dans l'interface (un nom suffit), sans connexion.
+
+### 4.5 Jetons et identifiants de service
+
+Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and-credentials.md`.
+
+**`personal_access_token`** : jeton d'un adulte pour le MCP et les automatisations.
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id`, `person_id` | uuid | |
+| `name` | text | |
+| `prefix` | text | 8 caractères |
+| `token_hash` | char(64) | SHA-256 du jeton complet |
+| `scopes` | text[] | `read`, `write`, `write:direct` |
+| `created_at`, `expires_at` | timestamptz | Expiration obligatoire |
+| `last_used_at?`, `revoked_at?` | timestamptz | |
+
+**`worker_credential`** : identifiant de service d'un worker d'ingestion.
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id`, `name` | uuid, text | |
+| `secret_hash` | char(64) | SHA-256 |
+| `job_types` | text[] | Types de jobs traitables |
+| `created_at`, `revoked_at?` | timestamptz | |
 - La première connexion crée aussi `household_settings` avec les valeurs par défaut, modifiables ensuite.
 
 ## 5. Valorisations et flux
@@ -324,7 +350,7 @@ Toutes les opérations passent par `IAccessPolicy`. Côté application, les écr
 
 | Contrat | Opérations |
 |---|---|
-| `IAccessPolicy` | `CanRead(person, item)`, `CanWrite(person, item)`, `CanChangeVisibility(person, item)` |
+| `IAccessPolicy` | `Readers(item)`, `Writers(item)`, `CanRead`, `CanWrite`, `CanCreate(person, owners)`, `CanChangeOwners`, `CanChangeVisibility` ; accès en lot pour les listes (`access.can_write`) |
 | `IVisibleItems` | `For(person)` : ensemble des éléments lisibles, filtre unique réutilisé par tous les modules ; variantes « foyer » (partagés seulement) et « moi » |
 | `IItems` | `Create`, `Rename` (met à jour `display_name`), `SetOwners`, `SetVisibility`, `Archive` |
 | `IValuations` | `Record` (crée ou remplace la valeur d'une date), `Void`, `Latest(item, on)`, `Series(item, range)` |
