@@ -37,7 +37,8 @@ L'application est **auto-hébergée**, pensée pour **deux utilisateurs** (le co
 ## 3. Utilisateurs
 
 - **Deux utilisateurs** : les deux membres du couple, avec les mêmes droits.
-- **Propriété des éléments** : chaque élément (abonnement, compte, placement, bien, crédit) appartient à une personne ou au foyer (commun).
+- **Propriété des éléments** : chaque élément (abonnement, compte, placement, bien, crédit) a un ou plusieurs propriétaires, avec une part chacun (voir 5.1). Un élément à deux propriétaires est « commun ».
+- **Visibilité des éléments** : chaque élément est **partagé** (visible par les deux) ou **privé** (visible et modifiable par son seul propriétaire). Voir 5.1.
 - **Utilisateurs d'un service** distincts du propriétaire et du payeur (exemple : un abonnement familial payé par le foyer, utilisé par les deux).
 - Les deux utilisateurs doivent **avoir envie d'ouvrir l'application** : c'est la condition de succès principale (voir principes).
 
@@ -62,7 +63,13 @@ L'application est organisée en **un noyau** partagé et en **modules** qui s'aj
 
 Concepts partagés par tous les modules :
 
-- **Propriétaires** : moi, ma femme, commun.
+- **Propriétaires** : un élément a un ou plusieurs propriétaires, chacun avec une **part** (somme = 100 %). Deux propriétaires sans précision = 50/50, ce qui correspond à « commun ». La répartition du patrimoine par personne est la somme des parts.
+- **Visibilité** : `partagé` (défaut) ou `privé`.
+  - `privé` n'est permis que pour **un seul propriétaire** ; un élément à plusieurs propriétaires est toujours partagé.
+  - Un élément partagé à un seul propriétaire est en **lecture seule** pour l'autre utilisateur ; seul le propriétaire le modifie. Un élément à plusieurs propriétaires est modifiable par tous.
+  - Les **totaux du foyer** ne comptent que les éléments partagés. Chacun dispose en plus d'un total « moi » qui inclut ses éléments privés.
+  - Passer de privé à partagé est possible pour le propriétaire ; le sens inverse lui est réservé. Ajouter un propriétaire rend l'élément partagé.
+  - La file de validation et le serveur MCP appliquent ces droits : une donnée extraite d'un élément privé n'apparaît que chez son propriétaire, et un assistant n'accède qu'à ce que l'utilisateur au nom duquel il agit peut voir.
 - **Montants** : valeur et devise d'origine ; conversion uniquement à l'affichage, au taux de la date concernée.
 - **Valorisation** (`Valuation`) : « tel élément vaut X à telle date ». Sert aux comptes, placements et biens.
 - **Flux** (`Flow`) : mouvement d'argent daté sur un élément : versement, retrait, revenu, frais.
@@ -153,6 +160,8 @@ Deux types de données par enveloppe suffisent :
 
 **Gain = valeur actuelle − (versements − retraits).**
 
+Les gains sont **bruts** : avant fiscalité et prélèvements sociaux, et les écrans l'indiquent (« avant fiscalité »). Le calcul du net relèverait du conseil fiscal, hors périmètre (§11).
+
 Exemple (chiffres fictifs) :
 
 > PEA en décembre : 25 000 € de valeur, dont 22 000 € versés au total.
@@ -205,7 +214,7 @@ capital(k)   = mensualité − intérêts(k)
 
 ### 8.3 Concepts clés
 
-- **Bien** : prix d'achat, frais de notaire, date d'achat, propriétaire, valorisations successives.
+- **Bien** : prix d'achat, frais de notaire, date d'achat, propriétaires, valorisations successives (estimation manuelle, 1 à 2 fois par an, avec rappel).
 - **Crédit** : montant emprunté, prêteur, date de départ, bien associé (optionnel), propriétaire.
 - **Phase de crédit** : taux, durée restante, assurance emprunteur. Une renégociation ferme une phase et en ouvre une nouvelle (même logique que les phases d'abonnement).
 - **Événements de crédit** : remboursement anticipé (en réduisant la durée ou la mensualité), renégociation, différé.
@@ -291,16 +300,35 @@ Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'
 - Nous savons répondre en moins d'une minute à : « combien vaut notre patrimoine ? », « combien coûtent nos abonnements ? », « quel placement rapporte le plus ? », « combien d'intérêts reste-t-il sur le crédit ? ».
 - Aucune donnée automatique n'entre sans validation, et chaque chiffre peut être retracé jusqu'à sa source.
 
-## 13. Questions ouvertes
+## 13. Décisions prises (ex-questions ouvertes)
 
-- **Visibilité entre conjoints** : tout est-il visible par les deux, ou certains éléments personnels restent-ils privés ?
-- **Brut ou net** : les gains sont-ils affichés avant ou après fiscalité et prélèvements sociaux ?
-- **Profondeur de l'historique** à reprendre au démarrage (abonnements depuis 2014, placements, crédit depuis l'origine ?).
-- **Estimation du bien immobilier** : fréquence de mise à jour et méthode (manuelle, estimations en ligne, données publiques).
-- **Accès mobile** : application web adaptée au mobile suffisante, ou besoin d'une application dédiée ?
-- **Notifications** : quels événements méritent une alerte (renouvellement, expiration de consentement bancaire, hausse de prix, validation en attente) et par quel canal ?
-- **Sauvegarde et export** des données.
-- **Accès depuis l'extérieur** du réseau local et niveau de sécurité associé (sujet du document technique).
+Toutes les questions ouvertes du brouillon sont tranchées. De nouvelles questions viendront avec le document technique.
+
+Décision prise : **visibilité et propriété** (voir 3 et 5.1) : propriétaires multiples avec parts, visibilité partagée ou privée, lecture seule pour l'autre sur un élément partagé d'un seul propriétaire, totaux du foyer hors éléments privés.
+
+Décision prise : **gains affichés bruts**, avant fiscalité et prélèvements sociaux (voir 7.2). Les écrans le précisent (« avant fiscalité »).
+
+Décision prise : **historique repris par module** :
+- abonnements : historique complet depuis 2014, à partir du JSON existant (voir 6.6) ;
+- placements : 12 à 24 mois, avec un flux d'ouverture qui regroupe les versements antérieurs (valorisation initiale à une date donnée) ;
+- crédits : depuis l'origine du prêt, nécessaire au tableau d'amortissement.
+
+Décision prise : **estimation du bien immobilier manuelle**, 1 à 2 fois par an, avec un rappel dans la routine (voir 8.3). Un lien vers des estimateurs en ligne peut aider à la saisie. Les données publiques de transactions restent à explorer plus tard.
+
+Décision prise : **accès mobile par PWA** : application web installable sur l'écran d'accueil, orientée consultation, la saisie sur mobile restant secondaire.
+
+Décision prise : **notifications par email** :
+- alertes critiques : expiration d'un consentement bancaire, validation en attente ;
+- alertes d'échéance : renouvellement ou expiration d'abonnement, hausse de prix détectée ;
+- un **résumé mensuel** qui rappelle la routine à faire ;
+- le canal est une interface interchangeable, pour brancher plus tard le push PWA, ntfy ou Home Assistant sans toucher au métier.
+
+Décision prise : **sauvegarde et export** :
+- sauvegarde **chiffrée** selon la règle 3-2-1 (plusieurs copies, dont une hors du domicile), qui inclut la base **et** les documents d'origine (PDF) ;
+- **export complet** en JSON/CSV à la demande, pour ne jamais dépendre de l'application.
+
+Décision prise : **accès depuis l'extérieur par VPN** (WireGuard ou Tailscale) : aucun service exposé sur Internet. Les détails d'implémentation relèvent du document technique.
+
 
 ## 14. Glossaire
 
