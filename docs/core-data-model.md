@@ -64,7 +64,7 @@ fx_rate (indépendante)
 | `display_name` | text | Repris des claims OIDC pour un `adult`, saisi pour un `dependent` |
 | `email` | text? | Repris des claims OIDC ; vide pour un `dependent` |
 | `session_epoch` | int | Incrémenté par « déconnecter partout » : les cookies d'un ancien epoch sont refusés (`identity-and-access/authentication.md` §3) |
-| `preferences` | jsonb | Préférences d'interface de l'adulte : `theme`, `mode`, `chart_patterns` (`frontend/design-system.md` §7.6). Lues par `GET /auth/session`, modifiées par `PATCH /api/v1/core/me/preferences` (fusion des clés fournies). Vide pour un `dependent` |
+| `preferences` | jsonb | Préférences d'interface de l'adulte : `theme`, `mode`, `chart_patterns` (`frontend/design-system.md` §7.6) et `ai_cloud_default` (`ask` ou `never`, `ingestion/llm-providers.md` §6). Lues par `GET /auth/session`, modifiées par `PATCH /api/v1/core/me/preferences` (fusion des clés fournies). Vide pour un `dependent` |
 | `created_at` | timestamptz | |
 
 **`item`** : registre central

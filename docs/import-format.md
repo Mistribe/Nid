@@ -176,7 +176,7 @@ L'export est **assemblé par le navigateur** à partir d'appels paginés ; le se
 | `GET /api/v1/platform/export/{section}?cursor=&limit=` | Page d'au plus 500 entités, curseur opaque, ordre stable |
 
 - Portée `read`. **Chacun exporte ce qu'il peut lire** : les éléments privés d'un adulte n'apparaissent que dans son export. N'apparaissent dans `persons` que les personnes référencées.
-- Le navigateur assemble l'enveloppe `nid.data` (§3) et déclenche le téléchargement. Il peut aussi produire **un CSV par section**, converti côté client.
+- Le navigateur assemble l'enveloppe `nid.data` (§3) et déclenche le téléchargement. Il peut aussi produire **un CSV par section**, converti côté client ; toute cellule **texte** commençant par `=`, `+`, `-`, `@`, tabulation ou retour chariot est **neutralisée** (préfixe d'une apostrophe) pour empêcher l'injection de formules dans un tableur (`security/application.md` §6).
 - **Cohérence** : `revision` est un compteur monotone (numéro de séquence de l'audit). À la fin, le navigateur relit le manifeste ; si `revision` a changé, il signale que des données ont bougé pendant l'export et propose de relancer. Aucun verrou n'est posé.
 - Les contenus des documents (PDF) ne sont pas dans le fichier ; une section future les référencera par `sha256`.
 - L'export ne remplace pas la sauvegarde complète (`architecture.md` §11) : il garantit de pouvoir quitter l'application.
@@ -197,7 +197,7 @@ Le navigateur pilote une **session** ; le serveur valide et stocke les lots en *
 | `GET /imports` | Sessions récentes de la personne |
 | `DELETE /imports/{id}` | Annule la session et vide le staging |
 
-Portée requise : `write:direct` (un import écrit directement, `identity-and-access/authorization.md` §3). Une session n'est visible que de la personne qui l'a créée.
+Portée requise : `write:direct` (un import écrit directement, `identity-and-access/authorization.md` §3). Une session n'est visible que de la personne qui l'a créée : son identifiant est **aléatoire sur 128 bits** et l'appartenance est vérifiée à **chaque appel** (`404` sinon).
 
 **États** : `open` (réception de lots) → `validated` ou `invalid` → `committed`. Un nouveau lot après `validated` ramène la session à `open`. Sorties : `cancelled`, `expired`.
 
@@ -236,6 +236,7 @@ Pour tenir dans une requête ordinaire, sans tâche de fond :
 | Durée maximale de `validate` et de `commit` | 60 s, configurable ; dépassement : annulation complète, erreur `import_too_large` |
 | Durée de vie d'une session non validée | 24 h |
 | Sessions actives par personne | 1 |
+| Profondeur JSON, longueur d'une chaîne | 32 niveaux, valeur configurable |
 
 Le **nettoyage** des sessions expirées se fait **à la demande** : à la création d'une session et à l'affichage de la liste. Aucun planificateur.
 

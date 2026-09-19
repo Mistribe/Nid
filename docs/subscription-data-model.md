@@ -175,6 +175,7 @@ Catalog `icon` values are third-party URLs (a logo aggregator, Wikimedia). Displ
 
 - The icon is **downloaded once during the sync**, on the server, and stored in a content-addressed local asset store.
 - It is served from the application's own origin.
+- The download goes through the application's single outbound HTTP client: HTTPS only, private and link-local addresses refused after DNS resolution, redirects revalidated, host allow-list, 512 KB maximum, type checked by content, **re-encoded to WebP**, **SVG refused** (`security/application.md` §3 and §4).
 - If the download fails or there is no icon, the UI shows a **monogram** (initials on the label color).
 - Logos remain third-party trademarks: they are displayed to identify a service in a private application and are not redistributed.
 

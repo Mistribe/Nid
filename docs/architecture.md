@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne), `ingestion/llm-providers.md` (fournisseurs LLM et OCR), `security/` (modèle de menaces).
 
 ---
 
@@ -38,7 +38,7 @@ Hors périmètre :
 | D4 | Hébergement **Docker Compose** sur un serveur maison / mini PC | Décidé |
 | D5 | **Monolithe modulaire** | Décidé |
 | D6 | Authentification par **OIDC externe, Authelia** | Décidé |
-| D7 | Extraction de documents : **port pluggable, Ollama par défaut** | Décidé |
+| D7 | Extraction de documents : **port pluggable** ; local (Ollama) par défaut, fournisseurs cloud sur opt-in (D23, D24) | Décidé |
 | D8 | Jobs domaine en **Quartz.NET in-process** ; jobs d'ingestion en **workers conteneurisés** via table de jobs | Décidé (frontière) ; Quartz **retenu par défaut** |
 | D9 | Registre **`Item` central** dans Core pour propriété et visibilité | **Retenu par défaut** |
 | D10 | Écritures MCP : **proposition par défaut**, écriture directe via la portée `write:direct` | Décidé |
@@ -50,6 +50,12 @@ Hors périmètre :
 | D16 | Authentification MCP et automatisations par **jetons d'accès personnels** en v1 ; OAuth via Authelia écarté (pas d'enregistrement dynamique de clients) | Décidé |
 | D17 | Import et export **orchestrés par le navigateur**, sessions d'import en lots avec staging côté serveur, **aucune tâche de fond** (`import-format.md` §11) | Décidé |
 | D18 | **Thèmes** : quatre jeux de couleurs curés, préférence par personne côté serveur (`frontend/design-system.md` §7) | Décidé |
+| D19 | Sources d'ingestion : **dépôt manuel seulement en v1** ; emails et banque à l'étape 4 ou 5, avec revue de risque préalable (`security/`) | Décidé |
+| D20 | Extraction **sans outils** ; workers d'extraction **sans Internet ni clés d'API** | Décidé |
+| D21 | **Client HTTP sortant unique** (`SafeHttpClient`) avec garde SSRF et liste d'hôtes (`security/application.md` §3) | Décidé |
+| D22 | Emails **sans montants** par défaut | Décidé |
+| D23 | Fournisseurs LLM multiples : offres gratuites éligibles, puis local, puis payant **avec accord** ; local par défaut ; consentement à chaque dépôt ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`) | Décidé |
+| D24 | **Passerelle LLM** dans `nid-api` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
 
 ## 4. Stack et topologie
 
@@ -68,7 +74,7 @@ Hors périmètre :
 | Authentification | Authelia (OIDC), l'application est cliente OIDC | SPA via BFF, cookie de session |
 | Jobs domaine | Quartz.NET in-process, magasin persistant Postgres | Voir §9 |
 | Workers | Conteneurs, techno libre (Python pour l'extraction) | Voir §9 |
-| LLM | Ollama, derrière `IDocumentExtractor` | Local par défaut |
+| LLM | Ollama (local) et fournisseurs cloud optionnels (Gemini, OpenAI, Anthropic), derrière la passerelle LLM | Local par défaut ; voir `ingestion/llm-providers.md` |
 | Notifications | SMTP derrière `INotificationChannel` | Push PWA, ntfy, Home Assistant plus tard |
 | Fichiers | Volume de fichiers, adressage par contenu | Métadonnées en base |
 
@@ -260,7 +266,7 @@ Le magasin persistant de Quartz est en Postgres, avec un préfixe de tables qual
 
 Pour `extract-amortization`, RealEstate **recalcule** le tableau depuis les conditions du prêt et le compare à celui de la banque (`Project.md` §8.5) ; l'écart figure dans la proposition. Une extraction douteuse devient visible.
 
-Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relevés avec le JSON attendu pour mesurer la précision par champ. Le choix du modèle relève de la configuration, pas de l'architecture. L'extracteur est un port (`IDocumentExtractor`) : un extracteur cloud éventuel est un **opt-in par document**, tracé dans la provenance.
+Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relevés avec le JSON attendu pour mesurer la précision par champ. Le choix du modèle relève de la configuration, pas de l'architecture. L'extracteur est un port (`IDocumentExtractor`). Le modèle est appelé **par la passerelle LLM** de `nid-api` (D24) : Ollama en local, ou un fournisseur cloud **sur opt-in à chaque dépôt de document**, tracé dans la provenance et dans `llm_call`. Politique, consentement, budget, masquage et clés : `ingestion/llm-providers.md`.
 
 ### 9.5 Proposal (Core)
 
@@ -282,8 +288,10 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 
 ### 9.7 Sécurité de l'ingestion
 
-- Identifiants de service **par worker**, limités à ses types de jobs. Réseau compose segmenté : un worker n'atteint que l'API interne, Ollama et ce que son rôle exige (woob → banques, mail → IMAP).
-- Aucun document ne quitte l'infrastructure par défaut.
+- Identifiants de service **par worker**, limités à ses types de jobs. Réseau compose segmenté : un worker d'extraction n'atteint que l'API interne (et, par elle, la passerelle LLM) ; **sans Internet, sans clés d'API**.
+- Les workers de **connecteurs** (mail, banque, woob), à l'étape 4 ou 5, exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7).
+- Aucun document ne quitte l'infrastructure par défaut ; tout envoi cloud exige le consentement du déposant (`ingestion/llm-providers.md` §6).
+- Menaces et mesures détaillées : `security/ai-ingestion.md`.
 
 ## 10. Déploiement
 
@@ -341,6 +349,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 | **Cas dorés** | Tableaux d'amortissement réels de la banque, exemples de `subscription-data-model.md`, reprise du JSON existant avec ses anomalies connues. |
 | **Intégration** | Testcontainers Postgres : handlers, migrations, `IAccessPolicy` (matrice privé / partagé / multi-propriétaires × lecture / écriture). |
 | **Banc anti-fuite** | Jeu de données mixte, toutes les requêtes exécutées en tant que chaque adulte, tests de propriétés sur `Readers` / `Writers`, test de la garde de sortie. Bloquant en CI (`identity-and-access/access-tests.md`). |
+| **Sécurité** | SSRF du `SafeHttpClient`, injection de formules CSV, uploads, import malveillant, corpus de PDF piégés, égress des workers, politique de la passerelle LLM (offres inéligibles, consentement, budget), clés jamais exposées (`security/ai-ingestion.md` §7, `security/application.md` §9). |
 | **Frontend** | Lint (dont l'interdiction d'arithmétique sur les montants), tests de composants, E2E avec un Authelia de test, accessibilité, contraste de tous les thèmes, validation de la palette de graphiques, budgets de taille (`frontend/testing.md`). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
 | **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure ni à Synapse ; toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
@@ -405,6 +414,8 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 - Modèle local d'extraction : dépend du jeu d'évaluation et du matériel disponible (§9.4).
 - Durée de conservation des transactions bancaires brutes (étape 5). Recommandation : ne garder que les observations rapprochées, l'application n'étant pas un outil de comptabilité.
 - Cible distante de la sauvegarde : choix de l'hébergeur.
+- Fournisseurs LLM : SDK officiels ou appels HTTP directs ; choix des modèles après le jeu d'évaluation ; revérification des conditions des fournisseurs (`ingestion/llm-providers.md` §14).
+- Revue de risque avant IMAP, email et banque (`security/README.md` §9).
 - OAuth via Authelia pour le MCP : à revoir si un client utilisé refuse le jeton statique (`identity-and-access/tokens-and-credentials.md` §5).
 - Politique de claims d'Authelia (ID token ou `userinfo`) : à vérifier à l'intégration.
 - Comportement de la bibliothèque de dates sur l'arithmétique des mois : à valider par tests (§6) ; non vérifié dans la documentation consultée.

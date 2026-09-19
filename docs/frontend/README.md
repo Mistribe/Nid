@@ -40,7 +40,7 @@
 | F7 | **Thèmes** : 4 jeux de couleurs curés, préférence **par personne côté serveur** | Décidé |
 | F8 | Routage : TanStack Router | Retenu par défaut (non revérifié ; alternative : React Router) |
 | F9 | Formulaires : React Hook Form + Zod ; i18n : i18next | Retenu par défaut (non revérifié) |
-| F10 | Visionneuse PDF : pdf.js | Retenu par défaut (non revérifié ; alternative : visionneuse native) |
+| F10 | Visionneuse PDF : pdf.js, **version 4.2.67 ou plus**, scripts et évaluation désactivés | Retenu par défaut (alternative : visionneuse native) |
 
 ## 4. Questions ouvertes
 

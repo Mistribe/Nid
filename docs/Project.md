@@ -54,7 +54,7 @@ L'application est **auto-hébergée**, pensée pour **deux utilisateurs** (le co
    - **l'IA propose, les humains valident** : toute donnée récupérée automatiquement passe par une file de validation ;
    - **l'IA ne calcule jamais** : gains, rendements, tableaux d'amortissement et coûts sont calculés de façon déterministe ;
    - **chaque donnée garde sa source** (saisie manuelle, API bancaire, extraction depuis un document) pour pouvoir la vérifier.
-7. **Confidentialité.** Auto-hébergé ; les documents financiers ne devraient pas quitter notre infrastructure (extraction par modèle local à privilégier).
+7. **Confidentialité.** Auto-hébergé ; **par défaut**, les documents financiers ne quittent pas notre infrastructure (extraction par modèle local). Un fournisseur cloud (Gemini, OpenAI, Anthropic) peut être activé sur **opt-in explicite**, avec consentement à chaque dépôt de document et jamais sur une offre qui entraîne ses modèles sur nos données (voir `ingestion/llm-providers.md`).
 
 ## 5. Structure fonctionnelle : un noyau commun et des modules
 
@@ -267,7 +267,7 @@ Réduire la saisie manuelle en récupérant les données automatiquement quand c
 - **File de validation** : toute donnée issue d'une automatisation est proposée, puis validée par un utilisateur avant d'entrer dans les chiffres.
 - **Traçabilité** : chaque valeur indique sa source (saisie, API, document) et, le cas échéant, le document d'origine.
 - **L'IA ne sert qu'à l'ingestion** ; les calculs restent déterministes et testés.
-- **Confidentialité** : privilégier un modèle local pour l'extraction des documents financiers.
+- **Confidentialité** : modèle local par défaut pour l'extraction des documents financiers ; fournisseur cloud sur opt-in, avec offres gratuites d'abord puis local, et payant seulement si l'utilisateur l'accepte (voir `ingestion/llm-providers.md` et `security/`).
 
 ---
 

@@ -108,6 +108,7 @@ Les réponses d'erreur sont des Problem Details (RFC 9457) avec un `code` stable
 - **`theme-init.js`** : petit script externe **bloquant** dans `<head>`, servi par la même origine, qui lit `localStorage` et pose `data-theme` et `.dark` avant le premier rendu. Un script inline serait bloqué par la CSP.
 - Les icônes du catalogue sont servies par l'origine (`../subscription-data-model.md`, « Icons »).
 - Le SPA ne stocke **aucun secret** ; `localStorage` ne garde que des préférences d'interface.
+- **Lint** contre `dangerouslySetInnerHTML` ; les sorties de modèles, notes et libellés importés s'affichent comme du **texte brut**. pdf.js **4.2.67 ou plus**, avec `isEvalSupported: false` et `enableScripting: false` (`../security/application.md` §1).
 
 ## 10. Web Workers
 

@@ -23,7 +23,7 @@
 | **Routine mensuelle** | Voir §5 |
 | **Boîte de validation** | Voir §6 |
 | **Éléments** | Fiche : propriétaires et parts, badge **Privé / Partagé / Enfant** (icône et texte). Changer la visibilité affiche l'effet (« L'autre adulte verra cet élément »). Un élément non modifiable est en lecture seule avec la raison |
-| **Documents** | Dépôt de PDF, état du job d'extraction (seule vraie tâche de fond, suivie par interrogation périodique) |
+| **Documents** | Dépôt de PDF avec **choix Local ou Cloud**, aperçu de ce qui sera envoyé et coût estimé (`../ingestion/llm-providers.md` §6 et §8) ; état du job d'extraction (seule vraie tâche de fond, suivie par interrogation périodique) |
 | **Import / Export** | Voir §7 et §8 |
 | **Sécurité** | Jetons, sessions, événements (`../identity-and-access/administration-and-audit.md` §4) |
 | **Réglages** | Voir §9 |
@@ -111,6 +111,7 @@ Orchestre le protocole de `../import-format.md` §11. L'identifiant de session e
 | Notifications | Préférences par type (`../architecture.md` §15) |
 | Catalogue | Synchronisation du catalogue de fournisseurs |
 | Taux de change | Saisie manuelle d'un taux |
+| **IA** | Fournisseurs et clés, mode (local, gratuit puis local, avec payant), types de documents autorisés au cloud, budget mensuel, masquage, conditions avec date de revue, page « Utilisation IA » (`../ingestion/llm-providers.md` §13) |
 
 ## 10. États et erreurs
 
