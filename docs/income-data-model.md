@@ -246,7 +246,7 @@ Engagements mensuels de 1 250 € :
 
 ## 15. Limites
 
-- **Net versé seulement** : aucun calcul de fiscalité, de cotisations ni de brut vers net.
+- **Net versé seulement** : aucun calcul de fiscalité, de cotisations ni de brut vers net. **Évolution envisagée** à cause de sa complexité (`Project.md` §10).
 - **Attendu, pas réel** : rien ne compare ce qui a été reçu à ce qui est prévu (§16).
 - Pas de prévision d'augmentations futures.
 - Pas de détail de bulletin de paie.

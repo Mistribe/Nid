@@ -162,7 +162,7 @@ Deux types de données par enveloppe suffisent :
 
 **Gain = valeur actuelle − (versements − retraits).**
 
-Les gains sont **bruts** : avant fiscalité et prélèvements sociaux, et les écrans l'indiquent (« avant fiscalité »). Le calcul du net relèverait du conseil fiscal, hors périmètre (§11).
+Les gains sont **bruts** : avant fiscalité et prélèvements sociaux, et les écrans l'indiquent (« avant fiscalité »). Le calcul du net relève de la fiscalité, **évolution envisagée** (§10) mais hors du périmètre initial à cause de sa complexité (§11).
 
 Exemple (chiffres fictifs) :
 
@@ -316,7 +316,29 @@ Ordre indicatif, à ajuster selon nos priorités. Chaque étape doit être utili
 | **5. Synchronisation bancaire** | Comptes courants et livrets via DSP2 ; rapprochement avec les abonnements attendus | Détection automatique des prélèvements, hausses de prix, oublis |
 | **6. Approfondissements** | Rendement annualisé (TRI), détail par ligne, simulations de crédit avancées, cartes de crédit en argent, autres modules | Analyse plus fine selon les besoins |
 
-Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'épargne, budget prévisionnel, export pour la déclaration de revenus.
+Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'épargne, budget prévisionnel, export pour la déclaration de revenus, **calcul de fiscalité** (voir ci-dessous).
+
+### Idée d'évolution : calcul de fiscalité
+
+**Retenue comme évolution, pas comme fonctionnalité initiale**, à cause de la complexité du calcul. Les gains, les plus-values et les revenus s'affichent **bruts, avant fiscalité et prélèvements sociaux**, et les écrans le disent.
+
+Pourquoi c'est complexe :
+
+- **Plusieurs régimes selon le support** : un PEA, une assurance-vie, un PER, un compte-titres et un livret n'obéissent pas aux mêmes règles, et certaines dépendent de l'ancienneté ou du moment de la sortie.
+- **Une plus-value immobilière** dépend de la durée de détention, de la nature du bien et des frais pris en compte ; sa base n'est pas notre « prix de revient » économique.
+- **Les revenus locatifs** relèvent de régimes au choix (nu, meublé, micro ou réel), avec des règles de déduction.
+- **L'impôt sur le revenu** dépend du foyer fiscal (parts, situation) et d'un barème progressif ; les revenus s'additionnent.
+- **Les règles changent** chaque année (loi de finances) : il faut les versionner, les tester contre des simulateurs officiels et les dater.
+- Une erreur est **coûteuse** : un calcul faux et présenté avec assurance vaut moins qu'un chiffre brut clairement étiqueté. Toute sortie serait **indicative**, jamais un conseil.
+
+Ce que le modèle actuel prépare déjà, sans rien engager :
+
+- des **valorisations et des flux datés** avec leur catégorie (`opening`, versements, retraits, loyers, travaux) ;
+- la **date d'ouverture** d'une enveloppe et la **date d'achat** d'un bien ;
+- le **net versé** des revenus, distinct d'un éventuel brut indicatif ;
+- des fonctions de calcul **pures et testées**, prêtes à recevoir des règles versionnées.
+
+À trancher le jour où l'idée est reprise : périmètre minimal (par exemple le net d'un retrait de PEA ou d'assurance-vie, ou la plus-value immobilière seule), sources des règles et leur mise à jour, notion de foyer fiscal, et niveau d'avertissement affiché.
 
 ## 11. Hors périmètre (pour l'instant)
 
@@ -325,7 +347,7 @@ Modules envisageables plus tard : véhicules, épargne des enfants, objectifs d'
 - Suivi de chaque virement de revenu : les revenus sont déclaratifs (§8b).
 - Suivi boursier détaillé à la Ghostfolio (seulement en option, étape 6).
 - Toute opération sur les comptes : l'application est en **lecture seule** vis-à-vis des banques.
-- Conseil financier ou fiscal automatisé.
+- Conseil financier ou fiscal automatisé. Le **calcul de fiscalité** est une évolution envisagée (§10), pas un objectif initial.
 
 ## 12. Critères de succès
 

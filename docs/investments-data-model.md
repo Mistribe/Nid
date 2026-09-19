@@ -221,7 +221,7 @@ Enveloppe `pea`, un propriétaire à 100 %, partagée, devise `EUR`.
 ## 14. Limites
 
 - **Pas de détail par ligne** (ETF, fonds) : niveau 3 optionnel de `Project.md` §7.3, à l'étape 6. Le point d'extension est une future section `holdings` dont la somme pourrait alimenter la valorisation.
-- **Ni fiscalité ni conseil** : gains bruts.
+- **Ni fiscalité ni conseil** : gains bruts. Le calcul de fiscalité (gain net d'impôt, régimes par enveloppe) est une **évolution envisagée** à cause de sa complexité (`Project.md` §10).
 - Une assurance-vie ne distingue pas fonds en euros et unités de compte.
 - Pas de versements programmés : ils ne sont ni des engagements ni des prévisions en v1.
 - Le TRI utilise un flottant à la frontière du calcul (§6).

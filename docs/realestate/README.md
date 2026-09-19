@@ -181,7 +181,7 @@ Achat de 250 000 € + notaire 19 000 € + travaux 12 000 € (`works`).
 
 ## 14. Limites
 
-- Aucune **fiscalité** : plus-value, revenus fonciers, régimes locatifs.
+- Aucune **fiscalité** : plus-value, revenus fonciers, régimes locatifs. **Évolution envisagée** à cause de sa complexité (`../Project.md` §10) ; la plus-value fiscale n'est pas notre prix de revient économique.
 - Pas d'**adresse** ni de données personnelles de locataire.
 - Pas de gestion détaillée de copropriété.
 - Estimations **manuelles** ; les données publiques de transactions sont à explorer plus tard.
