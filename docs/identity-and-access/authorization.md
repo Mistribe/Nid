@@ -32,7 +32,7 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 | 6. Validation, transaction, handler | |
 | 7. Garde de sortie | Voir §7 |
 
-**Vérifié** (`../spikes.md` §3) : l'ordre suit `Order`, quel que soit l'ordre d'enregistrement, et un comportement peut court-circuiter. Les comportements communs sont enregistrés par le host en génériques ouverts, car l'attribut `[PipelineBehavior]` ne s'applique qu'aux handlers de la même assembly.
+**Vérifié** (`../spikes.md` §3) : l'ordre suit `Order`, quel que soit l'ordre d'enregistrement, et un comportement peut court-circuiter. Les comportements communs sont déclarés par le host (`[assembly: SynapseGlobalBehavior]` et son propre `RegisterGroup` enregistré) : `[PipelineBehavior]` ne se propage que vers les assemblies référencées, pas vers les modules qui référencent `Platform`.
 
 ## 3. Portées
 

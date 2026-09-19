@@ -22,7 +22,7 @@
 |---|---|---|---|
 | 1 | Le modèle d'erreur de `Result` porte-t-il un code ? | **Oui** | Oui |
 | 2 | Ordre d'exécution des comportements de pipeline | **Par `IOrderedPipelineBehavior.Order`**, indépendant de l'enregistrement | Oui |
-| 3 | Comportements communs sur les handlers de plusieurs modules | **Oui, mais pas par l'attribut** : enregistrement en génériques ouverts par le host | Oui |
+| 3 | Comportements communs sur les handlers de plusieurs modules | **Oui, mais pas par `[PipelineBehavior]`** : `[assembly: SynapseGlobalBehavior]` dans le host | Oui |
 | 4 | Marqueurs commande / requête fournis ? | **Non** : à définir | Oui |
 | 5 | Outbox avec un `DbContext` par module | **Oui**, avec un stockage transactionnel à écrire | Oui |
 | 6 | NodaTime avec `System.Text.Json` en source generation | **Oui** | Oui |
@@ -42,7 +42,7 @@
 - **Ordre** : trace (10), portée (30), accès (40), validation (50) se sont exécutés dans cet ordre **alors qu'ils étaient enregistrés dans le désordre**. Le retour dépile en sens inverse.
 - **Court-circuit** : un comportement d'accès qui renvoie `UnauthorizedFailure` empêche la validation et le handler de s'exécuter.
 - **Deux modules dans deux assemblies** : chacun a son `RegisterGroup` généré ; un événement défini dans le module A est reçu par un handler du module B.
-- **L'attribut `[PipelineBehavior]` ne s'applique qu'aux handlers de la même assembly.** Le groupe généré de l'assembly `Platform` (sans handler) est **vide** : les comportements n'y sont enregistrés pour aucun module. Ce qui fonctionne : `cfg.AddOpenGenericRequestWithResponsePipelineBehavior(typeof(…<,>))` appelé par le **host**, qui s'applique alors aux handlers des deux modules.
+- **`[PipelineBehavior]` se propage vers le bas du graphe de références** : le générateur de `Platform` ne voit pas les handlers des modules, qui référencent `Platform` (et non l'inverse). Le groupe généré de `Platform` est **vide**. Deux façons de faire fonctionner : `[assembly: SynapseGlobalBehavior(typeof(…<,>))]` dans le **host**, avec le `RegisterGroup` **du host lui-même** enregistré (**voie retenue**, sûre pour l'AOT car le générateur émet des enregistrements fermés), ou `cfg.AddOpenGenericRequestWithResponsePipelineBehavior(typeof(…<,>))` (fonctionne, mais non sûr pour l'AOT avec des réponses de type valeur). **Piège** : sans le groupe du host, les attributs sont acceptés et **aucun comportement ne s'exécute, sans erreur**. Corrigé après relecture de la documentation de Synapse ; voir les issues UnambitiousFx/Synapse#91 et #95.
 - **Marqueurs** : Synapse expose seulement `IRequest` et `IRequest<T>`. Pas d'`ICommand` ni d'`IQuery` : le projet définit les siens.
 - **Outbox** : `IEventOutboxStorage` (11 méthodes : ajout, en attente, traité, échec, lettres mortes, compteurs, âge) existe et une version **en mémoire** est fournie. **Aucun paquet EF Core** n'est publié. L'événement émis avec `EmitMode.Outbox` ne part qu'au `IOutboxCommit.CommitAsync`.
 - **Piège de l'outbox en mémoire** : l'événement d'une commande **échouée** (sans commit) est resté en attente et a été diffusé plus tard par le commit d'une **autre** requête. Il ne faut jamais l'utiliser en production.
@@ -51,7 +51,7 @@
 
 ### 3.2 Effets sur la conception
 
-- Les comportements communs sont **enregistrés par le host** en génériques ouverts, jamais par `[PipelineBehavior]`. Un **test d'architecture** vérifie qu'une requête de chaque module traverse la chaîne complète (trace du banc anti-fuite).
+- Les comportements communs sont **déclarés par le host** avec `[assembly: SynapseGlobalBehavior]` et son propre `RegisterGroup` enregistré, jamais par `[PipelineBehavior]` dans `Platform`. Un **test d'architecture** vérifie qu'une requête de chaque module traverse la chaîne complète (trace du banc anti-fuite).
 - Les codes de la bibliothèque servent de base au mappage HTTP et MCP ; les codes propres sont préfixés par le module.
 - L'outbox est un `IEventOutboxStorage` **transactionnel** écrit dans Platform (§6).
 
