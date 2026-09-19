@@ -51,7 +51,7 @@ Le préfixe `__Host-` impose `Secure` : le HTTPS est terminé en amont (hypothè
 | `GET /auth/login?returnUrl=` | Lance l'authentification. `returnUrl` doit être un **chemin relatif** ; toute URL absolue est refusée (redirection ouverte) |
 | `GET /auth/callback` | Fin du flux OIDC, création de la session |
 | `POST /auth/logout` | Supprime le cookie de Nid (voir §6) |
-| `GET /auth/session` | `{ authenticated, person: { id, name, kind }, csrf }` |
+| `GET /auth/session` | `{ authenticated, person: { id, name, kind }, csrf, preferences, session_epoch }` (`preferences` : thème, mode, motifs des graphiques) |
 
 Une API non authentifiée répond `401` **sans redirection HTML** : le SPA relance lui-même le login.
 

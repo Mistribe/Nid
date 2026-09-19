@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne).
 
 ---
 
@@ -48,6 +48,8 @@ Hors périmètre :
 | D14 | Frontière : requêtes Synapse aux points d'entrée et événements entre modules ; interfaces `Contracts` pour les lectures inter-modules et points d'extension | **Retenu par défaut** |
 | D15 | Visibilité respectée par **filtrage applicatif** (pipeline, garde de sortie) et banc anti-fuite en CI ; pas de Row-Level Security | Décidé |
 | D16 | Authentification MCP et automatisations par **jetons d'accès personnels** en v1 ; OAuth via Authelia écarté (pas d'enregistrement dynamique de clients) | Décidé |
+| D17 | Import et export **orchestrés par le navigateur**, sessions d'import en lots avec staging côté serveur, **aucune tâche de fond** (`import-format.md` §11) | Décidé |
+| D18 | **Thèmes** : quatre jeux de couleurs curés, préférence par personne côté serveur (`frontend/design-system.md` §7) | Décidé |
 
 ## 4. Stack et topologie
 
@@ -61,7 +63,7 @@ Hors périmètre :
 | API | REST + OpenAPI, versionnée, **Minimal APIs** | Client TypeScript généré ; Request Delegate Generator (§5.5) |
 | Couche application | **Synapse** (CQRS, pipelines, événements, outbox) | `Result<T>` plutôt qu'exceptions (§5.4) |
 | Sérialisation JSON | `System.Text.Json` en **source generation** | Un `JsonSerializerContext` par module (§5.5) |
-| Frontend | React, TypeScript, Vite | PWA |
+| Frontend | React, TypeScript strict, Vite, Tailwind v4 + shadcn/ui, TanStack Query, client API généré | PWA, hors ligne limité au tableau de bord ; détail dans `frontend/` |
 | Base | PostgreSQL | Un schéma par module |
 | Authentification | Authelia (OIDC), l'application est cliente OIDC | SPA via BFF, cookie de session |
 | Jobs domaine | Quartz.NET in-process, magasin persistant Postgres | Voir §9 |
@@ -134,7 +136,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`.
 | **RealEstate** | `Property`, `Loan`, `LoanPhase`, `LoanEvent`, `Insurance` | Tableau d'amortissement, capital restant dû, valeur nette, engagements | Core |
 | **Ingestion** | Pipeline de documents, table `job`, contrats de jobs, résultats d'extraction | Entrée des propositions vers Core, API interne pour les workers | Core |
 | **Dashboard** | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + `Contracts` des autres |
-| **Platform** (technique) | Notifications, audit, export, planification | `INotificationChannel`, `IExporter` | Tous, via contrats |
+| **Platform** (technique) | Notifications, audit, sessions d'import (staging), planification | `INotificationChannel` ; les modules implémentent `IImportSection` (`import-format.md` §11.7) | Tous, via contrats |
 
 ### 5.3 Décisions de conception
 
@@ -321,8 +323,8 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 - Contenu : dump Postgres (`pg_dump` cohérent, pas de copie à chaud du répertoire de données) + volume `documents` + clés Data Protection + configuration Authelia. **Sans les clés Data Protection, les jetons bancaires chiffrés sont perdus.**
 - **Test de restauration** documenté et scripté (restauration dans un compose jetable).
 - Alerte email si la sauvegarde échoue ou dépasse N jours.
-- **Export complet** JSON/CSV à la demande (`IExporter`), format documenté et versionné, pour ne jamais dépendre de l'application. Respecte la visibilité : chacun exporte ce qu'il voit.
-- **Import** : le même format que l'export JSON, spécifié dans `import-format.md`. Validation complète avant écriture, aperçu, idempotence. Sert à la reprise initiale des données existantes et au transfert entre instances.
+- **Export complet** JSON/CSV à la demande, format documenté et versionné, pour ne jamais dépendre de l'application. **Assemblé par le navigateur** à partir de pages fournies par le serveur (manifeste, pages de 500 entités, `import-format.md` §10), sans fichier construit côté serveur. Respecte la visibilité : chacun exporte ce qu'il voit.
+- **Import** : le même format que l'export JSON, spécifié dans `import-format.md`. Session en lots avec staging, validation complète par le serveur, écriture en une transaction, idempotence ; **orchestrée par le navigateur, sans tâche de fond**. Sert à la reprise initiale des données existantes et au transfert entre instances.
 
 ## 12. Observabilité
 
@@ -339,6 +341,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 | **Cas dorés** | Tableaux d'amortissement réels de la banque, exemples de `subscription-data-model.md`, reprise du JSON existant avec ses anomalies connues. |
 | **Intégration** | Testcontainers Postgres : handlers, migrations, `IAccessPolicy` (matrice privé / partagé / multi-propriétaires × lecture / écriture). |
 | **Banc anti-fuite** | Jeu de données mixte, toutes les requêtes exécutées en tant que chaque adulte, tests de propriétés sur `Readers` / `Writers`, test de la garde de sortie. Bloquant en CI (`identity-and-access/access-tests.md`). |
+| **Frontend** | Lint (dont l'interdiction d'arithmétique sur les montants), tests de composants, E2E avec un Authelia de test, accessibilité, contraste de tous les thèmes, validation de la palette de graphiques, budgets de taille (`frontend/testing.md`). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
 | **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure ni à Synapse ; toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
 | **Extraction** | Jeu d'évaluation de relevés, mesuré hors CI standard (précision par champ). |
