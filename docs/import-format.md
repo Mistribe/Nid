@@ -48,8 +48,12 @@ Un **seul format** sert à trois usages :
 | `persons` | tableau | Voir §5.1 |
 | `providers` | tableau? | Fournisseurs **personnalisés** seulement (§5.2) |
 | `subscriptions`, `billing_phases`, `purchases` | tableaux | Module Abonnements (§5.3 à §5.5) |
+| `envelopes` | tableau | Module Investments (`investments-data-model.md` §9) |
+| `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
+| `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) |
+| `valuations`, `flows` | tableaux | Core (§5.6) |
 
-Sections **réservées**, pas encore définies : `envelopes`, `valuations`, `flows`, `properties`, `loans`, `documents`. Un fichier qui les contient est refusé tant que le module correspondant n'existe pas.
+Section **réservée**, pas encore définie : `documents`. Un fichier qui la contient est refusé. Une section d'un module désactivé est refusée elle aussi.
 
 ## 4. Conventions
 
@@ -123,6 +127,35 @@ Uniquement les fournisseurs absents du catalogue. Un fournisseur du catalogue n'
 | `note` | string? | |
 
 Le sens de chaque entité, l'algorithme de couverture et le calcul des coûts sont ceux de `subscription-data-model.md`.
+
+### 5.6 `valuations` et `flows` (Core)
+
+Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` référence l'`id` de fichier d'une entité qui crée un élément.
+
+**`valuations`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id` | string | |
+| `item` | string | Référence vers une entité de fichier |
+| `as_of` | date | Non future |
+| `amount` | montant | Peut être négatif ; devise = celle de l'élément |
+| `note` | string? | |
+
+**`flows`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id` | string | |
+| `item` | string | Référence vers une entité de fichier |
+| `occurred_on` | date | |
+| `kind` | string | `contribution`, `withdrawal`, `opening`, `income`, `expense` |
+| `amount` | montant | > 0 ; le sens vient du `kind` |
+| `category` | string? | Convention du module (`investments-data-model.md` §4, `realestate/README.md` §4) |
+| `external_ref` | string? | Identifiant externe ; rend un réimport sans doublon |
+| `note` | string? | |
+
+Règles : devise identique à celle de l'élément ; au plus une valorisation courante par élément et par date ; au plus un flux `opening` courant par élément (`core-data-model.md` §5). La provenance est `source = import`.
 
 ## 6. Résolution des personnes
 
@@ -222,7 +255,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → `subscriptions` → `billing_phases` → `purchases`, dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import. À vérifier au prototypage (même point que l'outbox, `architecture.md` §16).
 
 ### 11.5 Bornes

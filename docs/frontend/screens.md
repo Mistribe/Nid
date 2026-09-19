@@ -18,8 +18,8 @@
 |---|---|
 | **Tableau de bord** | Voir §3 |
 | **Abonnements** | Voir §4 |
-| **Placements** | Enveloppes avec valeur, gain en € et en % **avec la mention « avant fiscalité »**, date de dernière valeur (signalée si périmée). Détail : courbe valeur contre versements nets, tableau des valorisations et flux, saisie rapide d'une valeur |
-| **Immobilier et crédits** (étape 3) | Fiche bien (valeur nette, plus-value latente, coût réel) ; fiche crédit (tableau d'amortissement, intérêts et capital, capital restant dû, simulations). Détail à définir à l'étape 3 |
+| **Placements** | Enveloppes avec valeur, gain en € et en % **avec la mention « avant fiscalité »**, date de dernière valeur (signalée si périmée). Détail : courbe valeur contre versements nets, tableau des valorisations et flux, saisie rapide d'une valeur ; gain depuis la dernière valeur, performance d'une période. Modèle : `../investments-data-model.md` |
+| **Immobilier et crédits** (étape 3) | Fiche bien (valeur nette, plus-value latente brute, coût réel avec détail par composante, rendement locatif, baux et vacance) ; fiche crédit (échéancier, intérêts et capital, capital restant dû, phases, coût total, **comparaison avec le tableau de la banque**, **simulation de remboursement anticipé comparant les deux effets**). Modèle : `../realestate/` |
 | **Routine mensuelle** | Voir §5 |
 | **Boîte de validation** | Voir §6 |
 | **Éléments** | Fiche : propriétaires et parts, badge **Privé / Partagé / Enfant** (icône et texte). Changer la visibilité affiche l'effet (« L'autre adulte verra cet élément »). Un élément non modifiable est en lecture seule avec la raison |

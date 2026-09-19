@@ -199,7 +199,7 @@ Exemple : prêt de 200 000 € à 3,5 % sur 20 ans (hors assurance) :
 |---|---|---|---|---|
 | Mois 1 | 1 159,92 € | 583,33 € | 576,59 € | 199 423 € |
 | Mois 120 (10 ans) | 1 159,92 € | 344,50 € | 815,42 € | 117 299 € |
-| Mois 240 (dernier) | 1 159,92 € | 3,37 € | 1 156,55 € | 0 € |
+| Mois 240 (dernier) | 1 159,78 € | 3,37 € | 1 156,41 € | 0 € |
 
 - Coût total des intérêts : environ **78 400 €**.
 - Au bout de 5 ans : environ 69 600 € de mensualités payées, dont seulement **37 700 €** de capital remboursé et **31 800 €** d'intérêts.

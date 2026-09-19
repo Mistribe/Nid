@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne), `ingestion/llm-providers.md` (fournisseurs LLM et OCR), `security/` (modèle de menaces).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export), `identity-and-access/` (authentification, autorisation, jetons, audit), `frontend/` (SPA, écrans, design system, graphiques, hors ligne), `ingestion/llm-providers.md` (fournisseurs LLM et OCR), `security/` (modèle de menaces), `investments-data-model.md` et `realestate/` (modules Investments et RealEstate).
 
 ---
 
@@ -132,7 +132,7 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 
 ### 5.2 Modules
 
-Le modèle de données du Core est détaillé dans `core-data-model.md`.
+Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits).
 
 | Module | Possède | Expose (Contracts) | Dépend de |
 |---|---|---|---|

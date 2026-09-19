@@ -1,7 +1,7 @@
 # Modèle de données du Core
 
 > Statut : brouillon issu de la discussion technique. Décrit les entités du module **Core** : identité, éléments, propriété, valorisations, flux, documents, propositions, taux de change.
-> Références : `Project.md` §5.1 (noyau commun), `architecture.md` §5 et §6 (modules, conventions de données), `subscription-data-model.md` (module Abonnements, qui n'utilise pas `Valuation` ni `Flow`).
+> Références : `Project.md` §5.1 (noyau commun), `architecture.md` §5 et §6 (modules, conventions de données), `subscription-data-model.md` (module Abonnements, qui n'utilise pas `Valuation` ni `Flow`), `investments-data-model.md` et `realestate/` (modules qui interprètent les valorisations et les flux).
 
 ---
 
