@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements), `import-format.md` (format d'import et d'export).
 
 ---
 
@@ -319,6 +319,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 - **Test de restauration** documenté et scripté (restauration dans un compose jetable).
 - Alerte email si la sauvegarde échoue ou dépasse N jours.
 - **Export complet** JSON/CSV à la demande (`IExporter`), format documenté et versionné, pour ne jamais dépendre de l'application. Respecte la visibilité : chacun exporte ce qu'il voit.
+- **Import** : le même format que l'export JSON, spécifié dans `import-format.md`. Validation complète avant écriture, aperçu, idempotence. Sert à la reprise initiale des données existantes et au transfert entre instances.
 
 ## 12. Observabilité
 
