@@ -48,6 +48,5 @@ Tous configurables.
 
 ## 5. Questions ouvertes
 
-- Flux OIDC avec Authelia exécuté en réel (HTTPS et domaine à point requis) ; les claims `name` et `email` arrivent par `userinfo` par défaut.
 - OAuth pour le MCP : à revoir si un client utilisé refuse le jeton statique.
 - Chiffrement applicatif des éléments privés (protection contre l'hébergeur) : hors périmètre v1.

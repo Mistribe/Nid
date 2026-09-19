@@ -21,14 +21,14 @@ Configuration fournie **à titre d'exemple** dans `deploy/` ; le secret vient d'
 | Paramètre | Valeur |
 |---|---|
 | Type | Client **confidentiel** (`public: false`) |
-| Authentification au endpoint de jetons | `client_secret_basic` |
+| Authentification au endpoint de jetons | **`client_secret_post`** : le handler ASP.NET envoie le secret dans le corps, `client_secret_basic` échoue en `invalid_client` (`../spikes.md` §8) |
 | PKCE | `require_pkce: true`, `pkce_challenge_method: S256` |
 | Grant / réponse | `authorization_code` / `code` |
 | Scopes | `openid`, `profile`, `email` |
 | `redirect_uris` | `{PUBLIC_URL}/auth/callback` |
 | Politique d'autorisation | Choix de l'hébergeur ; l'exemple recommande `two_factor` |
 
-- Côté ASP.NET : handler OpenID Connect + cookie, `SaveTokens = false`, pas de conversion automatique des claims entrants.
+- Côté ASP.NET : handler OpenID Connect + cookie, `SaveTokens = false`, `MapInboundClaims = false`, `UsePkce = true`, **`PushedAuthorizationBehavior = Disable`** (Authelia annonce PAR et le handler l'utiliserait, avec la même erreur d'authentification du client). Le retour se fait en `form_post` par défaut : `POST` inter-sites, sans effet sur le cookie de session `Lax`. Vérifié de bout en bout (`../spikes.md` §8).
 - **Par défaut, `profile` et `email` sont servis par l'endpoint `userinfo`, pas par l'ID token** (documentation d'Authelia). Le handler OIDC est donc configuré avec `GetClaimsFromUserInfoEndpoint = true`. Alternative : une `claims_policy` d'Authelia avec `id_token: [...]` (`name`, `email`, `preferred_username`) assignée au client. L'`email` est optionnel : son absence n'empêche pas la connexion.
 
 ## 3. Session
@@ -77,5 +77,5 @@ D'après la documentation d'Authelia :
 
 ## 8. Points à vérifier à l'intégration
 
-- Le flux complet contre un Authelia réel : Authelia n'accepte que le HTTPS et un domaine de cookie qui n'est pas `localhost` ; le compose de développement inclut donc un proxy TLS et un domaine à point (`*.localtest.me`). Voir `../spikes.md` §8.
+- Le montage de développement : Authelia n'accepte que le HTTPS et un domaine de cookie qui n'est pas `localhost` ; le compose inclut donc un proxy TLS et un domaine à point (`*.localtest.me`). Le flux a été exécuté ainsi (`../spikes.md` §8).
 - Comportement du plafond d'adultes lors d'une première connexion simultanée des deux adultes (création atomique de la `person`).

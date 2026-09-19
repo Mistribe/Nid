@@ -32,7 +32,7 @@
 | 10 | Échéancier de prêt en `decimal` C# | **Oui**, avec une règle de formule | Oui |
 | 11 | TRI en flottant à la frontière | **Oui** (14,25 %) | Oui |
 | 12 | `xmin`, index unique partiel, `= ANY`, `numeric` | **Oui**, avec un piège d'arrondi | Oui |
-| 13 | Flux OIDC avec Authelia | **Réponse par la documentation** ; non exécuté | Non |
+| 13 | Flux OIDC avec Authelia | **Oui, avec 3 réglages non évidents** (§8) | Oui |
 
 ## 3. Synapse
 
@@ -94,17 +94,21 @@
 
 ## 8. Flux OIDC avec Authelia
 
-**Non exécuté.** Authelia exige le **HTTPS** (`authelia_url` en `https`, aucun support de HTTP) et refuse `localhost` comme domaine de cookie : un essai local demande un proxy TLS et un domaine à point (par exemple `*.localtest.me`). Ce montage sera fait avec le compose de l'étape 1.
+**Exécuté** : Authelia 4.39.28 et Caddy (`tls internal`) en conteneurs, domaines `auth.localtest.me` et `nid.localtest.me` (résolus vers 127.0.0.1, HTTPS obligatoire), application ASP.NET Core minimale sur le poste (`Microsoft.AspNetCore.Authentication.OpenIdConnect` 10.0, `X-Forwarded-*` de confiance). Connexion scriptée avec curl : découverte, autorisation, premier facteur, retour, cookie de session, `/whoami`.
 
-Réponse par la **documentation** :
+**Résultat : le flux complet fonctionne** (client confidentiel, PKCE `S256`, cookie `__Host-` avec `HttpOnly`, `Secure`, `Path=/` et sans `Domain`, `redirect_uri` en HTTPS grâce aux en-têtes du proxy). Trois réglages non évidents, dont deux **contredisaient** nos documents :
 
-- **`profile` et `email` sont servis par l'endpoint `userinfo`, pas par l'ID token**, par défaut. Pour les placer dans l'ID token il faut une `claims_policy` avec `id_token: [...]` assignée au client.
-- Le handler OIDC est donc configuré avec **`GetClaimsFromUserInfoEndpoint = true`** ; la `claims_policy` est l'alternative.
-- Client confidentiel, PKCE `S256`, pas de déconnexion standard, pas d'enregistrement dynamique de clients : déjà pris en compte (`identity-and-access/authentication.md`).
+1. **Le handler ASP.NET envoie le secret du client dans le corps (`client_secret_post`)**, pas en en-tête Basic. Avec `token_endpoint_auth_method: client_secret_basic` côté Authelia, l'échange de code échoue en `invalid_client`. Réglage retenu : **`client_secret_post`** dans Authelia.
+2. **Pushed Authorization Requests activées par défaut** : Authelia les annonce à la découverte, le handler les utilise alors, et la requête échoue de la même façon (`invalid_client`, même cause). Réglage retenu : `PushedAuthorizationBehavior = Disable`. La cause commune est l'authentification du client ; PAR pourrait fonctionner avec `client_secret_post`, non essayé.
+3. **`response_mode=form_post` par défaut** : le retour est un `POST` inter-sites, et non une redirection. Les cookies de corrélation et de nonce du handler sont donc émis en `SameSite=None; Secure`, ce qui convient en HTTPS. Le cookie de session de Nid reste `Lax` (il est posé au retour, sans dépendre de ce mode).
+
+**Claims** : avec `GetClaimsFromUserInfoEndpoint = false`, l'ID token ne contient que `sub` (plus `amr`, `auth_time`…) : **ni `name` ni `email`**. Avec `true`, `name` et `email` arrivent par `userinfo`. La `claims_policy` d'Authelia reste l'alternative.
+
+Toujours valables : pas de déconnexion standard, pas d'enregistrement dynamique de clients (`identity-and-access/authentication.md`). Le montage (Authelia, Caddy, application) est jetable et n'est pas dans ce dépôt ; l'essentiel de la configuration est dans `identity-and-access/authentication.md` §2.
 
 ## 9. Non vérifié
 
-- Le flux OIDC en réel (§8), y compris cookie `__Host-`, `session_epoch`, réponse `401` sans redirection pour les appels d'API.
+- Dans le flux OIDC (§8) : `session_epoch`, la réponse `401` sans redirection pour les appels d'API (un essai montre `401` sur `/whoami` non authentifié, mais pas dans l'application finale), la première connexion simultanée des deux adultes, et le comportement de PAR avec `client_secret_post`.
 - Un `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) : seule la faisabilité transactionnelle est vérifiée.
 - Les migrations EF de plusieurs `DbContext` sur des schémas distincts (les tables ont été créées sans migrations).
 - Quartz.NET sur Postgres, le SDK MCP C# en exécution, la génération de client OpenAPI, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).

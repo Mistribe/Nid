@@ -413,7 +413,7 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 **Reste à vérifier**
 
 - Propriété `IsAotCompatible` et analyseurs associés sur `Domain` / `Application`.
-- Flux OIDC avec Authelia en réel (HTTPS et domaine à point requis), migrations de plusieurs `DbContext`, Quartz sur Postgres, SDK MCP en exécution (`spikes.md` §9).
+- Migrations de plusieurs `DbContext`, Quartz sur Postgres, SDK MCP en exécution (`spikes.md` §9).
 
 **À trancher plus tard**
 
@@ -424,7 +424,7 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 - Fournisseurs LLM : SDK officiels ou appels HTTP directs ; choix des modèles après le jeu d'évaluation ; revérification des conditions des fournisseurs (`ingestion/llm-providers.md` §14).
 - Revue de risque avant IMAP, email et banque (`security/README.md` §9).
 - OAuth via Authelia pour le MCP : à revoir si un client utilisé refuse le jeton statique (`identity-and-access/tokens-and-credentials.md` §5).
-- Flux OIDC avec Authelia exécuté de bout en bout : montage HTTPS local à faire avec le compose de l'étape 1. Les claims `name` et `email` sortent par `userinfo` par défaut (`identity-and-access/authentication.md` §2).
+- Flux OIDC avec Authelia **exécuté de bout en bout** (`spikes.md` §8) : `client_secret_post`, PAR désactivé et `GetClaimsFromUserInfoEndpoint = true` sont nécessaires ; `name` et `email` ne sortent que par `userinfo`.
 
 ## 17. Vérifications faites lors de la rédaction
 
