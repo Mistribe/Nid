@@ -1,7 +1,7 @@
 # Architecture technique
 
 > Statut : brouillon issu de la discussion technique. Les décisions marquées **retenu par défaut** n'ont pas été contestées mais ne sont pas explicitement confirmées : voir §16.
-> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `subscription-data-model.md` (module Abonnements).
+> Références : `Project.md` (vision, périmètre fonctionnel, décisions produit), `core-data-model.md` (modèle de données du Core), `subscription-data-model.md` (module Abonnements).
 
 ---
 
@@ -43,6 +43,9 @@ Hors périmètre :
 | D9 | Registre **`Item` central** dans Core pour propriété et visibilité | **Retenu par défaut** |
 | D10 | Écritures MCP : **proposition par défaut**, écriture directe via scope dédié | **Retenu par défaut** |
 | D11 | Accès externe : **hors scope**, choix de l'hébergeur | Décidé |
+| D12 | CQRS avec **Synapse** (`UnambitiousFx.Synapse` + générateur), résultats en `Result<T>` (`UnambitiousFx.Functional`) | Décidé |
+| D13 | **Générateurs de sources en priorité** (JSON, Synapse, endpoints, EF, logs…) ; **Native AOT non visé** (§4.3) | Décidé |
+| D14 | Frontière : requêtes Synapse aux points d'entrée et événements entre modules ; interfaces `Contracts` pour les lectures inter-modules et points d'extension | **Retenu par défaut** |
 
 ## 4. Stack et topologie
 
@@ -53,7 +56,9 @@ Hors périmètre :
 | Backend | .NET (dernière LTS au démarrage du projet, à figer dans un ADR), ASP.NET Core | `decimal` natif pour l'argent |
 | Dates | NodaTime | `LocalDate`, `Instant` ; mapping via le plugin Npgsql |
 | Accès données | EF Core + Npgsql | Un `DbContext` par module |
-| API | REST + OpenAPI, versionnée | Client TypeScript généré |
+| API | REST + OpenAPI, versionnée, **Minimal APIs** | Client TypeScript généré ; Request Delegate Generator (§5.5) |
+| Couche application | **Synapse** (CQRS, pipelines, événements, outbox) | `Result<T>` plutôt qu'exceptions (§5.4) |
+| Sérialisation JSON | `System.Text.Json` en **source generation** | Un `JsonSerializerContext` par module (§5.5) |
 | Frontend | React, TypeScript, Vite | PWA |
 | Base | PostgreSQL | Un schéma par module |
 | Authentification | Authelia (OIDC), l'application est cliente OIDC | SPA via BFF, cookie de session |
@@ -83,6 +88,32 @@ backup (restic, chiffré) ──> cible locale + cible distante
 
 Un seul processus `nid-api` porte l'API, le BFF, l'endpoint MCP et les tâches planifiées. On ne le scinde que si un besoin réel apparaît.
 
+### 4.3 Native AOT : évalué et écarté
+
+Les générateurs de sources sont la règle (D13), mais **`nid-api` n'est pas publié en Native AOT**. État constaté dans la documentation :
+
+| Brique | Support Native AOT |
+|---|---|
+| ASP.NET Core | Minimal APIs : partiel ; MVC non supporté ; « Other Authentication » non supporté (seul JWT l'est) |
+| **Authentification OIDC + cookie (BFF, D6)** | **Bloquant** : non supporté, il faudrait réécrire le flux à la main |
+| **EF Core** | Expérimental, « pas adapté à la production » (page EF 9 ; stabilisation annoncée pour EF 10, non vérifiée). Requêtes dynamiques non supportées |
+| Npgsql | Compatible depuis 8.0 ; JSON dynamique non compatible (d'où la source generation JSON) |
+| **Quartz.NET** | Pas prêt : chargement de types par chaîne, réflexion sans annotations |
+| SDK MCP C# | `WithToolsFromAssembly` annoté `RequiresUnreferencedCode` ; enregistrement explicite possible |
+| Synapse | Conçu pour l'AOT, sans réflexion à l'exécution |
+
+Remplacer EF, Quartz et l'authentification OIDC coûterait cher (migrations par module, `xmin`, audit par interceptor…) pour un gain qui ne compte pas ici : démarrage sans importance sur un conteneur permanent pour deux utilisateurs, mémoire dominée par Postgres et Ollama.
+
+Ce qu'on garde de l'idée :
+
+- **Requêtes précompilées EF sans NativeAOT** (`dotnet ef dbcontext optimize --precompile-queries`, documenté), si le démarrage gêne.
+- **Analyseurs AOT/trimming activés** sur `Domain` et `Application` (propriété `IsAotCompatible`, à vérifier) pour ne pas fermer la porte gratuitement.
+- **Enregistrement explicite** des modules et des outils MCP, pas de scan d'assemblies.
+- **ReadyToRun** et images .NET « chiseled » : pistes à mesurer, non évaluées.
+- **AOT ciblé** possible pour un petit binaire .NET autonome (outil d'export, healthcheck) si le besoin apparaît.
+
+À revoir si EF Core stabilise son support AOT **et** que l'authentification OIDC/cookie devient supportée.
+
 ## 5. Modules et propriété des données
 
 ### 5.1 Règle de base
@@ -91,9 +122,11 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 
 ### 5.2 Modules
 
+Le modèle de données du Core est détaillé dans `core-data-model.md`.
+
 | Module | Possède | Expose (Contracts) | Dépend de |
 |---|---|---|---|
-| **Core** | `Person` (lié au `sub` OIDC), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Document`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposals` | rien |
+| **Core** | `Person` (`adult` lié au `sub` OIDC, ou `dependent` sans connexion), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Document`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposals` | rien |
 | **Subscriptions** | `Subscription`, `BillingPhase`, `Purchase`, `Grant`, caches dérivés `CoveragePeriod`/`Charge` | Contributions au tableau de bord (coût mensuel réel/amorti, échéances), charges attendues | Core |
 | **Investments** | `Envelope` (PEA, assurance-vie, PER, livret…) ; valorisations et flux via Core | Gain €/%, TRI plus tard, contribution au patrimoine | Core |
 | **RealEstate** | `Property`, `Loan`, `LoanPhase`, `LoanEvent`, `Insurance` | Tableau d'amortissement, capital restant dû, valeur nette, engagements | Core |
@@ -108,20 +141,52 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 3. **File de validation dans Core, application dans le module.** Une `Proposal` porte un payload typé, sa provenance et son document source. À la validation, Core appelle l'`IProposalHandler` du module concerné, qui écrit dans son schéma. Ingestion ne touche jamais aux données métier.
 4. **`Valuation` et `Flow` génériques (Core)** pour Investments et RealEstate. Subscriptions conserve ses propres `Purchase` / `BillingPhase` : sa logique de couverture n'est pas un `Flow`.
 5. **Calculs = fonctions pures dans `Domain`** (timeline, amortissement, gain, TRI) : aucune entrée/sortie, aucune IA. Les caches dérivés sont reconstruisibles à tout moment.
-6. **Communication** : appels synchrones in-process via les Contracts ; événements de domaine in-process après validation de la transaction pour les réactions (ex. abonnement modifié → recalcul du cache). Pas de bus externe.
+6. **Communication** : requêtes Synapse aux points d'entrée, interfaces `Contracts` pour les lectures inter-modules, événements Synapse in-process (avec outbox) pour les réactions (ex. abonnement modifié → recalcul du cache). Pas de bus externe. Détail au §5.4.
+
+### 5.4 Couche application : CQRS avec Synapse
+
+Bibliothèque : `UnambitiousFx.Synapse` et `UnambitiousFx.Synapse.Generator` (MIT ; net8, net9, net10). Médiateur in-process sans réflexion à l'exécution, `ValueTask`, retours en `Result<T>` (`UnambitiousFx.Functional`).
+
+- **Un cas d'usage = une requête + un handler** `[RequestHandler<TRequest, TResponse>]`. Le générateur produit, par assembly, une classe `RegisterGroup` ; le host appelle `cfg.AddRegisterGroup(new …RegisterGroup())` pour chaque module. L'enregistrement est **explicite par module** : un module absent n'est pas chargé.
+- **Commande ou requête** : la documentation consultée les distingue « par intention » et n'expose qu'`IRequestHandler`. Le projet définit ses marqueurs `ICommand` / `IQuery`, imposés par un test d'architecture (à confirmer au prototypage).
+- **Erreurs attendues = `Result.Failure`**, jamais d'exception. Les erreurs portent un **code** (`not_found`, `forbidden`, `conflict`, `validation`…) traduit à un seul endroit en Problem Details / statut HTTP (404, 403, 409, 422) et en erreur d'outil MCP. Les exemples consultés n'utilisent que des échecs à message texte : si le modèle d'erreur de la bibliothèque ne porte pas de code, on l'enveloppe.
+- **Pipelines** (`[PipelineBehavior]`, génériques ouverts fermés par le générateur), dans cet ordre cible : trace / journalisation → contexte (utilisateur, acteur « agissant pour », origine API / MCP / job, `Idempotency-Key`) → autorisation (`IAccessPolicy`) → validation → transaction → handler. Droits privé/partagé, audit et provenance vivent dans ces comportements, pas dans les handlers. L'ordre d'exécution des comportements n'est pas documenté dans ce qui a été lu : à vérifier.
+- **Contexte** : `IContextAccessor` et ses « features » transportent l'identité et l'origine de l'appel d'un comportement à l'autre.
+- **Événements** : `IEmitter` et `IEventHandler<T>`. Avec `EmitMode.Outbox` et `IOutboxCommit`, l'événement n'est diffusé qu'**après** la réussite de l'écriture. Stockage de l'outbox via `EfCoreEventOutboxStorage`, dans le schéma Platform. À vérifier : comportement avec un `DbContext` par module (transactions distinctes).
+- **Frontière avec les Contracts (D14)** :
+  - Synapse : points d'entrée (API REST, outils MCP, jobs Quartz, application des propositions) et événements entre modules.
+  - Interfaces `Contracts` : lectures synchrones inter-modules et points d'extension à plusieurs fournisseurs (`IAccessPolicy`, `IVisibleItems`, `INetWorthContribution`…). Un fan-out n'est pas une requête unique, et `IAccessPolicy` est sur le chemin critique.
+- **`Domain` ne référence pas Synapse** : fonctions pures, remplaçables sans toucher aux règles métier.
+- **MCP** : les outils envoient les mêmes requêtes, donc traversent le même pipeline. La règle « une écriture MCP devient une `Proposal` sauf scope `write:direct` » (D10) peut devenir un comportement : une commande marquée `IProposable`, appelée depuis le MCP sans ce scope, crée une proposition au lieu de s'exécuter. Idée à valider au prototypage.
+
+### 5.5 Générateurs de sources
+
+Principe : générer à la compilation plutôt que réfléchir à l'exécution ; pas de scan d'assemblies.
+
+| Besoin | Générateur | Vérification |
+|---|---|---|
+| Handlers, comportements, événements | Synapse.Generator | Documentation lue |
+| JSON (API, MCP, payloads JSONB, contrats de jobs) | `System.Text.Json` source generation, un `JsonSerializerContext` par module | Npgsql : JSON dynamique non compatible AOT/trimming (vérifié). NodaTime avec source generation : **à vérifier** |
+| Endpoints | Minimal APIs + Request Delegate Generator (activable hors AOT via `EnableRequestDelegateGenerator`) | Documentation Learn lue |
+| EF Core | Modèle compilé + requêtes précompilées, sans NativeAOT | Documentation Learn lue. Limites : requêtes dynamiques non précompilées, syntaxe « query expression » non supportée |
+| Journalisation | `[LoggerMessage]` | Fonction standard .NET, non revérifiée |
+| Configuration et options | Générateur de binding de configuration, `[OptionsValidator]` | Non revérifié |
+| Expressions régulières | `[GeneratedRegex]` | Non revérifié |
+| Mapping de DTO | Candidat : Mapperly | Non vérifié, à évaluer |
+| Identifiants typés, objets valeur (`Money`, `ItemId`) | Candidats : Vogen, StronglyTypedId | Non vérifié, à évaluer |
 
 ## 6. Conventions de données
 
 | Sujet | Décision |
 |---|---|
 | Argent | `Money(decimal, Currency)`. Postgres `numeric(19,4)` + `char(3)`. Jamais de flottant. Devise d'origine stockée, conversion à l'affichage. |
-| Taux de change | Table `fx_rate(date, base, quote, rate)` dans Core, alimentée par un job (source BCE) avec saisie manuelle en secours. Conversion au taux de la date concernée. |
+| Taux de change | Table `fx_rate` dans Core, devise pivot USD, alimentée par un job Quartz depuis le dépôt `Mistribe/SubTracker-Data`, avec saisie manuelle en secours. Conversion au taux de la date concernée. Détail dans `core-data-model.md` §8. |
 | Arrondis | Précision pleine en interne, arrondi à l'affichage. Crédit : politique d'arrondi **configurable par prêt** pour coller au tableau de la banque, qui fait référence. |
 | Dates | NodaTime `LocalDate` → `date`. Instants en `timestamptz` UTC. Intervalles **semi-ouverts** `[début, fin)` ; `daterange` Postgres quand utile. |
 | Durées | `{count, unit}` (`day`/`week`/`month`/`year`), jamais converties en jours. Arithmétique des mois avec jour d'ancrage et écrasement en fin de mois (voir `subscription-data-model.md`). Le comportement de la bibliothèque de dates est couvert par des tests dédiés (31 janvier + 1 mois, années bissextiles). |
 | Identifiants | UUIDv7 générés côté application (triables par date). |
-| Valorisations et flux | **Append-only** avec `recorded_at`. Une correction crée une nouvelle ligne ; la plus récente gagne par `(item, as_of)`. Historique conservé. |
-| Provenance | Colonnes communes sur toute donnée saisie ou importée : `source` (manuel / api_bancaire / document / import), `document_id?`, `proposal_id?`, `created_by`. |
+| Valorisations et flux | **Append-only** : une correction crée une nouvelle ligne (`supersedes_id`) et retire l'ancienne (`retired_at`) dans la même transaction. Historique conservé. Détail dans `core-data-model.md` §5.4. |
+| Provenance | Colonnes communes sur toute donnée saisie ou importée : `source`, `created_via`, `document_id?`, `proposal_id?`, `created_by_person_id`. Valeurs dans `core-data-model.md` §5.1. |
 | Audit | Table `audit_log` append-only (Platform) : qui, quand, entité, action, diff JSONB. Écrite par un interceptor EF. Enregistre aussi « agissant pour » quand l'acteur est le MCP. |
 | Suppression | Suppression logique (`deleted_at`) sur les agrégats utilisateur ; purge réelle par action explicite. |
 | Concurrence | Verrou optimiste via la colonne système `xmin`. Conflit → HTTP 409. |
@@ -134,13 +199,13 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 - Sur le fil : montants en **chaînes** (`{"amount":"12.34","currency":"EUR"}`), dates ISO 8601. Intervalles en champs explicites `startsOn` / `endsBefore` (le `ends_on` du modèle d'abonnements est ambigu et n'a été précisé « semi-ouvert » qu'après coup). **Retenu par défaut.**
 - **Authentification** : le SPA passe par un **BFF** (code + PKCE côté serveur, cookie `HttpOnly`, protection CSRF). L'API accepte aussi des jetons bearer (MCP, automatisations) avec les scopes `read` et `write`.
 - Écritures idempotentes via l'en-tête `Idempotency-Key` (workers, MCP).
-- Couche application en handlers simples, **sans MediatR** (licence commerciale depuis 2025).
+- Couche application en CQRS avec **Synapse** (§5.4). Chaque endpoint se limite à traduire HTTP → requête Synapse → `Result` → réponse (Problem Details en cas d'échec). L'idempotence (`Idempotency-Key`) est un comportement de pipeline.
 - **API interne des workers** : groupe de routes `/internal/v1/jobs/…` sur un port / listener séparé, non routé par le proxy, avec identifiants de service par worker.
 
 ## 8. Serveur MCP
 
 - Endpoint `/mcp`, transport Streamable HTTP, dans le même processus, avec le SDK C# officiel (`ModelContextProtocol.AspNetCore`). Mode sans session (par défaut, recommandé tant qu'il n'y a pas de requêtes serveur → client). Autorisation via les filtres d'autorisation du SDK, `MapMcp()` protégé par `RequireAuthorization()`.
-- Les outils sont de **minces enveloppes** sur les services d'application utilisés par REST : même `IAccessPolicy`, mêmes droits ; un élément privé reste privé.
+- Les outils sont de **minces enveloppes** qui envoient les mêmes requêtes Synapse que REST : même pipeline, même `IAccessPolicy`, mêmes droits ; un élément privé reste privé. Outils enregistrés **explicitement** (`WithTools<T>()`), pas par scan (`WithToolsFromAssembly` est annoté `RequiresUnreferencedCode`).
 - **Lectures** (`net_worth`, `list_subscriptions`, `loan_schedule`, `envelope_performance`…) : chiffres calculés par les services déterministes, avec provenance. Le modèle ne calcule rien.
 - **Écritures** : par défaut, elles créent une `Proposal` dans la file de validation. Un jeton peut recevoir le scope `write:direct` quand l'utilisateur dicte lui-même la saisie. **Retenu par défaut.**
 - Authentification : OAuth via Authelia, ou jeton d'accès personnel révocable.
@@ -242,7 +307,8 @@ Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors
 
 - HTTPS terminé en amont ;
 - en-têtes `X-Forwarded-*` de confiance (liste de proxys configurable) ;
-- une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA.
+- une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA ;
+- un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 
@@ -269,7 +335,7 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 | **Cas dorés** | Tableaux d'amortissement réels de la banque, exemples de `subscription-data-model.md`, reprise du JSON existant avec ses anomalies connues. |
 | **Intégration** | Testcontainers Postgres : handlers, migrations, `IAccessPolicy` (matrice privé / partagé / multi-propriétaires × lecture / écriture). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
-| **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure. |
+| **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure ni à Synapse ; toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
 | **Extraction** | Jeu d'évaluation de relevés, mesuré hors CI standard (précision par champ). |
 | **E2E** | Playwright sur les parcours clés (saisie mensuelle, validation d'une proposition, tableau de bord). |
 
@@ -306,6 +372,25 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 - Registre `Item` central plutôt que visibilité stockée par module (D9).
 - Écritures MCP en proposition par défaut, écriture directe via scope dédié (D10).
 - Champs d'intervalle `startsOn` / `endsBefore` dans l'API (§7).
+- Frontière Synapse / interfaces `Contracts` (D14, §5.4).
+- Minimal APIs plutôt que contrôleurs MVC (§5.5).
+
+**Risque : maturité de Synapse (D12)**
+
+Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 000 téléchargements au total, 2 étoiles GitHub, 1 issue ouverte. Adoption très faible, donc risque de maintenance. Atténuations :
+
+- licence MIT (fork possible) ;
+- usage limité à `Application` et au host ; les règles métier restent dans `Domain`, pur et sans dépendance à Synapse ;
+- l'API des handlers (`IRequestHandler`, `Result<T>`) est présente dans chaque cas d'usage : un remplacement serait mécanique mais large. À garder en tête avant de multiplier les comportements de pipeline spécifiques.
+
+**À vérifier au prototypage de Synapse**
+
+- Le modèle d'erreur de `Result` porte-t-il un code exploitable pour le mapping HTTP / MCP ?
+- Ordre d'exécution des `[PipelineBehavior]`.
+- Marqueurs `ICommand` / `IQuery` fournis ou à définir ?
+- Outbox EF Core avec un `DbContext` par module.
+- Sérialisation NodaTime avec `System.Text.Json` en source generation.
+- Propriété `IsAotCompatible` et analyseurs associés sur `Domain` / `Application`.
 
 **À trancher plus tard**
 
@@ -322,3 +407,6 @@ Consultées dans la documentation à jour :
 - **SDK MCP C#** : `AddMcpServer().WithHttpTransport(...)`, mode sans session par défaut, `MapMcp()` et `RequireAuthorization()`, `AddAuthorizationFilters()`.
 - **Quartz.NET** : `AddQuartz` / `AddQuartzHostedService`, magasin persistant avec clustering, préfixe de tables qualifié par schéma pour Postgres.
 - **Npgsql EF Core** : plugin `UseNodaTime()`, concurrence optimiste via une propriété `uint` mappée sur `xmin`.
+- **Synapse** (documentation et NuGet) : `[RequestHandler<,>]` et `RegisterGroup` générés par assembly, `[PipelineBehavior]`, validation, événements avec outbox EF Core, contexte par « features », MIT, net8 à net10.
+- **Native AOT** (Microsoft Learn, Npgsql, Quartz.NET, SDK MCP) : voir §4.3.
+- **EF Core** : modèle compilé et requêtes précompilées utilisables sans NativeAOT.
