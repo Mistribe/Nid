@@ -77,5 +77,5 @@ D'après la documentation d'Authelia :
 
 ## 8. Points à vérifier à l'intégration
 
-- Le montage de développement : Authelia n'accepte que le HTTPS et un domaine de cookie qui n'est pas `localhost` ; le compose inclut donc un proxy TLS et un domaine à point (`*.localtest.me`). Le flux a été exécuté ainsi (`../spikes.md` §8).
+- Le montage de développement : Authelia n'accepte que le HTTPS et un domaine de cookie qui n'est pas `localhost` ; la pile de développement (Aspire, `architecture.md` §10.3) inclut donc un proxy TLS et un domaine à point (`*.localtest.me`). Le flux a été exécuté ainsi (`../spikes.md` §8).
 - Comportement du plafond d'adultes lors d'une première connexion simultanée des deux adultes (création atomique de la `person`).

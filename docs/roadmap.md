@@ -43,7 +43,7 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 
 | Sous-plan | Livrable | Détail | Statut |
 |---|---|---|---|
-| 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, code vérifié) | à faire |
+| 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement Aspire (`architecture.md` §10.3) | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, code vérifié sauf l'AppHost Aspire, à exécuter) | à faire |
 | 1B | Moteur des abonnements (fonctions pures) | à détailler | à faire |
 | 1C | Module Abonnements : schéma, API, catalogue, `fx_rate`, garde de sortie, banc anti-fuite | à détailler | à faire |
 | 1D | Import et export `nid.data` v1, conversion du fichier existant | à détailler | à faire |

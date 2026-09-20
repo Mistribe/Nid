@@ -56,6 +56,7 @@ Hors périmètre :
 | D22 | Emails **sans montants** par défaut | Décidé |
 | D23 | Fournisseurs LLM multiples : offres gratuites éligibles, puis local, puis payant **avec accord** ; local par défaut ; consentement à chaque dépôt ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`) | Décidé |
 | D24 | **Passerelle LLM** dans `nid-api` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
+| D25 | **Aspire** (`Nid.AppHost`) orchestre la pile de **développement local** : API, frontend Vite, PostgreSQL, Authelia, proxy TLS. Le déploiement reste Docker Compose (D4) ; Aspire n'est ni déployé ni requis en production (§10.3) | Décidé |
 
 ## 4. Stack et topologie
 
@@ -75,6 +76,7 @@ Hors périmètre :
 | Jobs domaine | Quartz.NET in-process, magasin persistant Postgres | Voir §9 |
 | Workers | Conteneurs, techno libre (Python pour l'extraction) | Voir §9 |
 | LLM | Ollama (local) et fournisseurs cloud optionnels (Gemini, OpenAI, Anthropic), derrière la passerelle LLM | Local par défaut ; voir `ingestion/llm-providers.md` |
+| Environnement local | Aspire (AppHost .NET) | Lance la pile de développement d'une commande ; tableau de bord OpenTelemetry ; voir §10.3 |
 | Notifications | SMTP derrière `INotificationChannel` | Push PWA, ntfy, Home Assistant plus tard |
 | Fichiers | Volume de fichiers, adressage par contenu | Métadonnées en base |
 
@@ -328,6 +330,25 @@ Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 
+### 10.3 Environnement de développement local (Aspire)
+
+Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement et la lance d'une seule commande, `aspire run` (ou `dotnet run --project src/Nid.AppHost`). Il **remplace** un compose de développement écrit à la main : dépendances, ordre de démarrage, ports et chaînes de connexion sont déclarés une fois, dans le code.
+
+| Ressource | Nature | Rôle |
+|---|---|---|
+| `postgres` | conteneur (`AddPostgres`, volume de données, base `nid`) | Base ; chaîne de connexion injectée dans `nid-api` |
+| `authelia` | conteneur (configuration montée en lecture seule depuis `deploy/dev/authelia`) | OIDC de développement, trois utilisateurs jetables |
+| `nid-api` | projet .NET (`Nid.Host`), port fixe 5080 non proxifié | API + BFF ; attend `postgres` ; migrations au démarrage |
+| `nid-web` | application Vite (`/web`, `AddViteApp`) | Rechargement à chaud du frontend |
+| `caddy` | conteneur | Proxy TLS mono-origine : `/api`, `/auth`, `/mcp`, `/health` vers `nid-api`, le reste vers `nid-web` ; reproduit §10.2 |
+
+- **Pourquoi un proxy en développement** : Authelia n'accepte que le HTTPS et refuse `localhost` comme domaine de cookie ; la pile répond donc sur `https://nid.localtest.me` et `https://auth.localtest.me` (`identity-and-access/authentication.md`). Le proxy garantit aussi la mono-origine du BFF (pas de CORS).
+- **Tableau de bord Aspire** : journaux, traces et métriques OpenTelemetry de tous les services au même endroit ; il tient lieu de backend OTLP local (§12). Les projets .NET référencent `Nid.ServiceDefaults` (OpenTelemetry, health checks, résilience HTTP) ; les `/health/*` de §12 en font partie.
+- **Secrets** : les secrets de développement sont des paramètres Aspire (`AddParameter`, `secret: true`, user-secrets) ou les fichiers jetables générés par `deploy/dev/setup.sh`. Rien ne part en production.
+- **Tests d'intégration** : ils gardent Testcontainers (§13), indépendants de l'AppHost. `Aspire.Hosting.Testing` reste possible plus tard pour les E2E Playwright, qui démarreraient alors la même pile.
+- **Prérequis** : SDK .NET (`global.json`), CLI Aspire, Docker (ou Podman), Node pour Vite.
+- **Limite** : l'AppHost est un outil de développement. Le compose de référence (§10.1) reste la seule forme livrée ; `aspire publish` n'est pas utilisé.
+
 ## 11. Sauvegarde et export
 
 - **restic**, chiffré, règle 3-2-1 : cible locale + cible distante au choix de l'hébergeur (S3, SFTP, autre disque).
@@ -367,10 +388,13 @@ Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
   /Nid.Subscriptions/…   /Nid.Investments/…   /Nid.RealEstate/…   /Nid.Income/…
   /Nid.Ingestion/…       /Nid.Dashboard/…     /Nid.Platform/…
   /Nid.Host              (racine de composition : API, BFF, MCP, Quartz)
+  /Nid.AppHost           (Aspire : pile de développement local, §10.3)
+  /Nid.ServiceDefaults   (OpenTelemetry, health checks, résilience HTTP)
 /web                     (React + TS + Vite PWA, client généré)
 /workers/{extract-python,…}
 /contracts/jobs/…        (schémas JSON versionnés)
 /deploy/compose          (compose de référence, exemples d'environnement)
+/deploy/dev              (configuration Authelia et Caddy de développement, setup.sh, smoke.sh ; lancés par Nid.AppHost)
 /docs                    (Project.md, subscription-data-model.md, architecture.md, adr/)
 /tests/…
 ```
