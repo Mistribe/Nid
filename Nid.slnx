@@ -9,9 +9,12 @@
     <Project Path="src/Nid.Platform.Contracts/Nid.Platform.Contracts.csproj" />
     <Project Path="src/Nid.ServiceDefaults/Nid.ServiceDefaults.csproj" />
     <Project Path="src/Nid.Platform/Nid.Platform.csproj" />
+    <Project Path="src/Nid.Subscriptions.Contracts/Nid.Subscriptions.Contracts.csproj" />
+    <Project Path="src/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Core.IntegrationTests/Nid.Core.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
+    <Project Path="tests/Nid.Subscriptions.Tests/Nid.Subscriptions.Tests.csproj" />
   </Folder>
 </Solution>
