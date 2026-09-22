@@ -122,6 +122,22 @@ public class TimelineQueriesTests
     }
 
     [Fact]
+    public void Two_identically_dated_coverage_periods_still_reconstruct_the_basis()
+    {
+        // An explicit grant overlapping existing coverage is a warning, not an error, so one purchase can
+        // produce two periods with the same dates. They must not both be credited with the same extra units.
+        var timeline = SubscriptionTimeline.Build(
+            Input([], [Purchase(new LocalDate(2025, 1, 1), 10m, PurchaseKind.PrepaidTerm,
+                                [Grant(Months(1), CoverageSource.Paid, new LocalDate(2025, 1, 1)),
+                                 Grant(Months(1), CoverageSource.Bonus, new LocalDate(2025, 1, 1))])]),
+            new LocalDate(2025, 6, 1), new LocalDate(2025, 6, 1)).Ok();
+
+        var cost = timeline.AmortizedCost(Range(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1)));
+
+        Assert.Equal(10m, cost.For(Currency.Eur)!.Value.Amount);
+    }
+
+    [Fact]
     public void Free_days_count_everything_that_is_not_paid()
     {
         var timeline = SubscriptionTimeline.Build(

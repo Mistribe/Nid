@@ -79,15 +79,36 @@ public class CostAllocatorTests
     [Fact]
     public void AmountIn_reconstructs_the_basis_over_every_period_of_a_multi_period_charge()
     {
-        // 59 + 31 = 90 days, which does not divide 100.01 evenly, so both periods carry high days.
+        // 59 + 31 = 90 days. 100.007 leaves a remainder of 80 units, more than the 59 days of the first
+        // period, so the extra units spill into the second one and its offset is actually exercised.
         var paid = Period(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 1));
         var bonus = Period(new LocalDate(2025, 3, 1), new LocalDate(2025, 4, 1));
         var coverage = new[] { paid, bonus };
-        var basis = Eur(100.01m);
+        var basis = Eur(100.007m);
         var charge = ChargeFor(basis, coverage);
 
-        var total = CostAllocator.AmountIn(charge, paid, paid.Start, null)
-                  + CostAllocator.AmountIn(charge, bonus, bonus.Start, null);
+        Assert.Equal(80, charge.Allocation.HighDays);
+        Assert.True(charge.Allocation.HighDays > paid.Days);
+
+        var total = CostAllocator.AmountIn(charge, 0, paid.Start, null)
+                  + CostAllocator.AmountIn(charge, 1, bonus.Start, null);
+
+        Assert.Equal(basis.Amount, total);
+    }
+
+    [Fact]
+    public void AmountIn_tells_two_identically_dated_periods_apart()
+    {
+        // An explicit grant is allowed to overlap another, so one charge can produce two periods with the
+        // same dates. Matching a period by value would credit the second with the first one's extra units.
+        var first = Period(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1));
+        var second = Period(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1));
+        var coverage = new[] { first, second };
+        var basis = Eur(10m);
+        var charge = ChargeFor(basis, coverage);
+
+        var total = CostAllocator.AmountIn(charge, 0, first.Start, null)
+                  + CostAllocator.AmountIn(charge, 1, second.Start, null);
 
         Assert.Equal(basis.Amount, total);
     }
@@ -101,9 +122,9 @@ public class CostAllocatorTests
         var charge = ChargeFor(basis, coverage);
         var splitAt = new LocalDate(2025, 1, 15);
 
-        var whole = CostAllocator.AmountIn(charge, period, period.Start, null);
-        var firstHalf = CostAllocator.AmountIn(charge, period, period.Start, splitAt);
-        var secondHalf = CostAllocator.AmountIn(charge, period, splitAt, null);
+        var whole = CostAllocator.AmountIn(charge, 0, period.Start, null);
+        var firstHalf = CostAllocator.AmountIn(charge, 0, period.Start, splitAt);
+        var secondHalf = CostAllocator.AmountIn(charge, 0, splitAt, null);
 
         Assert.Equal(whole, firstHalf + secondHalf);
         Assert.Equal(basis.Amount, whole);
@@ -118,7 +139,7 @@ public class CostAllocatorTests
         var basis = Eur(-15.17m);
         var charge = ChargeFor(basis, coverage);
 
-        var total = CostAllocator.AmountIn(charge, period, period.Start, null);
+        var total = CostAllocator.AmountIn(charge, 0, period.Start, null);
 
         Assert.Equal(basis.Amount, total);
     }

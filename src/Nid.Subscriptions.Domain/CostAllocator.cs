@@ -39,11 +39,16 @@ internal static class CostAllocator
     }
 
     /// <summary>
-    /// What <paramref name="period"/> contributes to <paramref name="window"/> for its charge. Constant
-    /// time: the covered days are counted, and so are those among them that carry the extra unit.
+    /// What the coverage period at <paramref name="coverageIndex"/> contributes to <paramref name="window"/>
+    /// for its charge. Constant time in the window: the covered days are counted, and so are those among
+    /// them that carry the extra unit. The caller passes the index rather than the period itself, because
+    /// two periods of one charge may share their dates — an explicit grant is allowed to overlap another —
+    /// and matching by value would then credit the second period with the first one's extra units. An index
+    /// also survives a timeline that was cached and rehydrated, where reference identity is gone.
     /// </summary>
-    public static decimal AmountIn(Charge charge, CoveragePeriod period, LocalDate windowStart, LocalDate? windowEnd)
+    public static decimal AmountIn(Charge charge, int coverageIndex, LocalDate windowStart, LocalDate? windowEnd)
     {
+        var period = charge.Coverage[coverageIndex];
         var start = period.Start > windowStart ? period.Start : windowStart;
         var end = windowEnd is { } stop && stop < period.EndBefore ? stop : period.EndBefore;
         var days = Period.DaysBetween(start, end);
@@ -51,23 +56,18 @@ internal static class CostAllocator
             return 0m;
 
         var allocation = charge.Allocation;
-        var offset = OffsetOf(charge, period) + Period.DaysBetween(period.Start, start);
+        var offset = OffsetOf(charge, coverageIndex) + Period.DaysBetween(period.Start, start);
         var high = Math.Clamp(allocation.HighDays - offset, 0, days);
 
         return days * allocation.PerDay + high * Unit;
     }
 
-    /// <summary>Days of this charge's coverage that precede <paramref name="period"/>, chronologically.</summary>
-    private static int OffsetOf(Charge charge, CoveragePeriod period)
+    /// <summary>Days of this charge's coverage that precede the period at <paramref name="coverageIndex"/>.</summary>
+    private static int OffsetOf(Charge charge, int coverageIndex)
     {
         var offset = 0;
-        foreach (var other in charge.Coverage)
-        {
-            if (ReferenceEquals(other, period) || (other.Start == period.Start && other.EndBefore == period.EndBefore))
-                break;
-
-            offset += other.Days;
-        }
+        for (var i = 0; i < coverageIndex; i++)
+            offset += charge.Coverage[i].Days;
 
         return offset;
     }

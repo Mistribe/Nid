@@ -73,9 +73,9 @@ public static class TimelineQueries
                 continue;
 
             var currency = charge.Allocation.Basis.Currency;
-            foreach (var period in charge.Coverage)
+            for (var i = 0; i < charge.Coverage.Count; i++)
             {
-                var amount = CostAllocator.AmountIn(charge, period, window.Start, window.EndBefore);
+                var amount = CostAllocator.AmountIn(charge, i, window.Start, window.EndBefore);
                 if (amount != 0m)
                     totals[currency] = totals.GetValueOrDefault(currency) + amount;
             }
