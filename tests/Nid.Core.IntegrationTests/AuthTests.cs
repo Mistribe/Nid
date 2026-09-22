@@ -3,8 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Nid.Core.Contracts;
+using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -51,10 +53,11 @@ public class CsrfTokenTests
 public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private WebApplicationFactory<Program> factory = null!;
+    private string connectionString = null!;
 
     public async Task InitializeAsync()
     {
-        var connectionString = await postgres.NewConnectionStringAsync();
+        connectionString = await postgres.NewConnectionStringAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ConnectionStrings:nid", connectionString);
@@ -68,6 +71,29 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     public async Task DisposeAsync() => await factory.DisposeAsync();
 
     private HttpClient Client() => factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    /// <summary>
+    /// A GUID that names nobody is refused whether or not the IntegrationTest bypass is open — the guard
+    /// tests below would pass either way with one. Seeding a real person (as <c>NidApp</c> itself does) and
+    /// sending *their* id is what makes the assertion actually exercise the environment gate: if it were
+    /// open here, this identity would authenticate with every scope (<c>Actor.Browser</c>) and a real,
+    /// person-and-epoch-bound CSRF token would even be obtainable from <c>/auth/session</c>.
+    /// </summary>
+    private async Task<Guid> SeedPersonAsync()
+    {
+        await using var db = PostgresFixture.NewCoreContext(connectionString);
+        var id = Guid.CreateVersion7();
+        db.Persons.Add(new PersonRow
+        {
+            Id = id,
+            Kind = "adult",
+            OidcSubject = "guard-test-" + id.ToString("N")[..8],
+            DisplayName = "guard-test-person",
+            CreatedAt = SystemClock.Instance.GetCurrentInstant(),
+        });
+        await db.SaveChangesAsync();
+        return id;
+    }
 
     [Fact]
     public async Task Session_endpoint_reports_not_authenticated_without_redirecting()
@@ -115,26 +141,47 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
     // IntegrationTestAuthenticationHandler and NidApp rely on — that IntegrationTestGate.ActorHeader is inert
     // everywhere else, so a future change (moving the header read, or getting the environment string wrong
     // in one of the sites that names it) fails a test instead of silently widening a production bypass.
+    // The header must name a person who actually exists: an unknown id 401s/403s regardless of whether the
+    // gate is open or closed, which would prove nothing about the gate itself (see SeedPersonAsync above).
 
     [Fact]
     public async Task The_test_actor_header_is_ignored_outside_the_integration_environment()
     {
+        var personId = await SeedPersonAsync();
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/core/persons");
-        request.Headers.Add(IntegrationTestGate.ActorHeader, Guid.NewGuid().ToString());
+        request.Headers.Add(IntegrationTestGate.ActorHeader, personId.ToString());
 
         var response = await Client().SendAsync(request);
 
+        // Were the gate open, this real identity would authenticate with every scope and the list would
+        // succeed (200). It must not — spelled out, not just the specific status code, so the intent reads.
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
     public async Task The_test_actor_header_does_not_bypass_csrf_outside_the_integration_environment()
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/core/persons/dependents");
-        request.Headers.Add(IntegrationTestGate.ActorHeader, Guid.NewGuid().ToString());
+        var personId = await SeedPersonAsync();
 
-        var response = await Client().SendAsync(request);
+        // The attack this guards: were the gate open, the header alone would already grant a real session,
+        // and /auth/session would hand back a real, usable CSRF token for it — exactly as NidApp itself
+        // relies on. Attempt precisely that before writing, rather than sending no token at all: a POST
+        // with no token is refused whether the gate is open or closed and would prove nothing.
+        var sessionRequest = new HttpRequestMessage(HttpMethod.Get, "/auth/session");
+        sessionRequest.Headers.Add(IntegrationTestGate.ActorHeader, personId.ToString());
+        var session = await (await Client().SendAsync(sessionRequest)).Content.ReadFromJsonAsync<JsonElement>();
+        var csrf = session.TryGetProperty("csrf", out var token) ? token.GetString() : "not-a-real-token";
 
+        var writeRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/core/persons/dependents");
+        writeRequest.Headers.Add(IntegrationTestGate.ActorHeader, personId.ToString());
+        writeRequest.Headers.Add(CsrfMiddleware.HeaderName, csrf!);
+
+        var response = await Client().SendAsync(writeRequest);
+
+        // Were the gate open, /auth/session above would have handed back a real, usable token and this
+        // write would succeed (201 Created). It must not.
+        Assert.False(response.IsSuccessStatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }
