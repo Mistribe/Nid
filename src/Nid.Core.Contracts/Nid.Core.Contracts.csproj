@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="UnambitiousFx.Functional" />
+  </ItemGroup>
+</Project>
