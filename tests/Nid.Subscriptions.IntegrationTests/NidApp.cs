@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Host.Auth;
 using Nid.TestSupport;
 using NodaTime;
 
@@ -13,18 +14,20 @@ namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>
 /// The real host against a freshly migrated database, with authentication replaced by a header that names
-/// the acting person. Everything else — pipeline, access policy, output guard — runs exactly as in production.
+/// the acting person (<see cref="IntegrationTestGate.ActorHeader"/>). Everything else — pipeline, access
+/// policy, CSRF, output guard — runs exactly as in production: unsafe requests carry a real CSRF token
+/// obtained from <c>/auth/session</c>, the same way a browser would.
 /// </summary>
 public sealed class NidApp : IAsyncDisposable
 {
-    public const string ActorHeader = "X-Nid-Test-Actor";
-
     /// <summary>"Today" for every subscription this harness creates; see the comment in <see cref="StartAsync"/>.</summary>
     public static readonly LocalDate GoldenCaseToday = new(2025, 10, 15);
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly HashSet<string> SafeMethods = ["GET", "HEAD", "OPTIONS"];
 
     private readonly WebApplicationFactory<Program> factory;
+    private readonly Dictionary<Guid, string> csrfTokens = [];
 
     private NidApp(WebApplicationFactory<Program> factory, PersonId a, PersonId b, PersonId d)
         => (this.factory, AdultA, AdultB, Dependent) = (factory, a, b, d);
@@ -47,7 +50,7 @@ public sealed class NidApp : IAsyncDisposable
 
             var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
-                builder.UseEnvironment("IntegrationTest");
+                builder.UseEnvironment(IntegrationTestGate.Environment);
                 builder.UseSetting("ConnectionStrings:nid", connectionString);
                 builder.UseSetting("Auth:PublicUrl", "https://test.localhost");
                 builder.UseSetting("Auth:Authority", "https://auth.test.localhost");
@@ -80,7 +83,7 @@ public sealed class NidApp : IAsyncDisposable
     private HttpClient ClientFor(PersonId actor)
     {
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add(ActorHeader, actor.Value.ToString());
+        client.DefaultRequestHeaders.Add(IntegrationTestGate.ActorHeader, actor.Value.ToString());
         return client;
     }
 
@@ -100,7 +103,28 @@ public sealed class NidApp : IAsyncDisposable
         using var request = new HttpRequestMessage(method, url);
         if (body is not null)
             request.Content = JsonContent.Create(body, options: Json);
+        if (!SafeMethods.Contains(method.Method))
+            request.Headers.Add(CsrfMiddleware.HeaderName, await CsrfTokenForAsync(actor));
         return await client.SendAsync(request);
+    }
+
+    /// <summary>
+    /// A real CSRF token, bound to the actor and their session epoch, obtained from <c>/auth/session</c>
+    /// exactly as a browser would (see <c>deploy/dev/smoke.sh</c>) — never a bypass of
+    /// <c>CsrfMiddleware</c>, which runs unmodified here. Cached per actor for the life of this harness: the
+    /// token depends only on the person and their (unchanging, within a test) session epoch.
+    /// </summary>
+    private async Task<string> CsrfTokenForAsync(PersonId actor)
+    {
+        if (csrfTokens.TryGetValue(actor.Value, out var cached))
+            return cached;
+
+        var response = await RawAsync(actor, HttpMethod.Get, "/auth/session");
+        response.EnsureSuccessStatusCode();
+        var session = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        var token = session.GetProperty("csrf").GetString()!;
+        csrfTokens[actor.Value] = token;
+        return token;
     }
 
     /// <summary>Creates the Core item and the subscription through the real API.</summary>

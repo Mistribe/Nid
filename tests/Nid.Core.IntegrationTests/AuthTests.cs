@@ -110,4 +110,31 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
         var response = await Client().SendAsync(request);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    // This host never sets IntegrationTest (see InitializeAsync above): these two guard the boundary that
+    // IntegrationTestAuthenticationHandler and NidApp rely on — that IntegrationTestGate.ActorHeader is inert
+    // everywhere else, so a future change (moving the header read, or getting the environment string wrong
+    // in one of the sites that names it) fails a test instead of silently widening a production bypass.
+
+    [Fact]
+    public async Task The_test_actor_header_is_ignored_outside_the_integration_environment()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/core/persons");
+        request.Headers.Add(IntegrationTestGate.ActorHeader, Guid.NewGuid().ToString());
+
+        var response = await Client().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_test_actor_header_does_not_bypass_csrf_outside_the_integration_environment()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/core/persons/dependents");
+        request.Headers.Add(IntegrationTestGate.ActorHeader, Guid.NewGuid().ToString());
+
+        var response = await Client().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

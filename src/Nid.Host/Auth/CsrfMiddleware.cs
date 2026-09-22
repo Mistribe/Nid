@@ -8,7 +8,7 @@ namespace Nid.Host.Auth;
 /// Unsafe methods need a custom header carrying the session's CSRF token, and a same-origin
 /// <c>Origin</c> / <c>Sec-Fetch-Site</c> when the browser sends them. No CORS is configured (single origin).
 /// </summary>
-public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions> options, IHostEnvironment environment)
+public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions> options)
 {
     public const string HeaderName = "X-Nid-Csrf";
 
@@ -17,14 +17,6 @@ public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions
     public async Task InvokeAsync(HttpContext context)
     {
         if (SafeMethods.Contains(context.Request.Method) || !RequiresCsrf(context.Request.Path))
-        {
-            await next(context);
-            return;
-        }
-
-        // The identity provider is not present in tests, so there is no session to bind a CSRF token to;
-        // the actor header (IntegrationTest environment only, never set in production) stands in for it.
-        if (environment.IsEnvironment("IntegrationTest") && context.Request.Headers.ContainsKey("X-Nid-Test-Actor"))
         {
             await next(context);
             return;

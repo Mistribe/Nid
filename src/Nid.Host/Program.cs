@@ -20,9 +20,9 @@ builder.Services.AddNid(builder.Configuration.GetConnectionString("nid")
                          ?? throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 
 builder.Services.AddNidAuthentication(builder.Configuration);
-// Never set in production: swaps the default scheme so RequireAuthorization() passes without a real login,
-// leaving ActorFilter's own header check (IntegrationTest-only) as what actually names the acting person.
-if (builder.Environment.IsEnvironment("IntegrationTest"))
+// Never set in production: swaps the default scheme so IntegrationTestAuthenticationHandler — which reads
+// IntegrationTestGate.ActorHeader itself — becomes what authenticates every request.
+if (builder.Environment.IsEnvironment(IntegrationTestGate.Environment))
     builder.Services.AddIntegrationTestAuthentication();
 
 builder.Services.ConfigureHttpJsonOptions(o =>
