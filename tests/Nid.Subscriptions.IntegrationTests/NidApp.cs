@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -7,8 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using UnambitiousFx.Functional.Failures;
+using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
@@ -140,6 +144,64 @@ public sealed class NidApp : IAsyncDisposable
         response.EnsureSuccessStatusCode();
         var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
         return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
+    /// Creates a subscription whose owners — and their shares — are named explicitly, through the real API.
+    /// <see cref="NewSubscriptionAsync"/> covers the single-owner case; the leak bench needs the joint and
+    /// dependent-owned shapes of <c>access-tests.md</c> §2 too.
+    /// </summary>
+    public async Task<ItemId> NewOwnedSubscriptionAsync(
+        string name, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
+    {
+        // Created by an adult who owns it, or by A when the owner is the dependent (a dependent has no login).
+        var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == AdultA || p == AdultB, AdultA);
+
+        var response = await RawAsync(creator, HttpMethod.Post, "/api/v1/subscriptions", new
+        {
+            displayName = name,
+            visibility = visibility.ToString().ToLowerInvariant(),
+            owners = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+            autoRenew = true,
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
+    /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
+    /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the
+    /// way <c>ActorFilter</c> establishes it. Returns the failure the pipeline produced, or <c>null</c> on
+    /// success. This is how the leak bench reaches requests that have no endpoint of their own yet.
+    /// </summary>
+    public async Task<(object? Response, Failure? Failure)> InvokeAsync(
+        PersonId actor, object request, CancellationToken ct = default)
+    {
+        var contract = request.GetType().GetInterfaces().Single(
+            i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(actor);
+
+        var invoke = typeof(NidApp)
+            .GetMethod(nameof(InvokeCoreAsync), BindingFlags.NonPublic | BindingFlags.Static)!
+            .MakeGenericMethod(contract.GetGenericArguments()[0]);
+
+        return await (Task<(object?, Failure?)>)invoke.Invoke(
+            null, [scope.ServiceProvider.GetRequiredService<IInvoker>(), request, ct])!;
+    }
+
+    private static async Task<(object?, Failure?)> InvokeCoreAsync<TResponse>(
+        IInvoker invoker, IRequest<TResponse> request, CancellationToken ct)
+        where TResponse : notnull
+    {
+        var result = await invoker.InvokeAsync<TResponse>(request, ct);
+        if (result.TryGetFailure(out var failure))
+            return (null, failure!);
+
+        result.TryGetValue(out var value);
+        return (value, null);
     }
 
     public async Task<ItemId> NewMonthlyAsync(PersonId owner, decimal price)

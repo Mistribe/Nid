@@ -14,3 +14,11 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet test Nid.slnx --configuration Release
+
+      # The whole suite above already runs it. Repeating it on its own makes a leak unmistakable in the log
+      # instead of one line among hundreds: the privacy guarantee is applicative (architecture.md D15), so
+      # this bench is what proves it (docs/identity-and-access/access-tests.md §6).
+      - name: Leak bench (blocking)
+        run: >
+          dotnet test tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj
+          --configuration Release --filter "FullyQualifiedName~LeakBench" --logger "console;verbosity=normal"
