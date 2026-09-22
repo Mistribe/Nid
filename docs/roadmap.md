@@ -74,7 +74,6 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 | Quartz.NET sur PostgreSQL | 1C (premières tâches planifiées) | à faire |
 | `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) | 1C (premier événement à ne pas perdre) | à faire |
 | Client OpenAPI généré et bibliothèques du frontend | début de 1E | à faire |
-| `IsAotCompatible` sur les projets `Domain` | 1B | **vérifié** (2026-09-22, `Nid.Subscriptions.Domain`, 0 warning ; voir `spikes.md` §9bis) |
 | SDK MCP C# en exécution | étape 4 | à faire |
 | `session_epoch` (« déconnecter partout ») et comportement de PAR avec `client_secret_post` | 1A/1C | à faire (reporté en 1C : 1A expose `session_epoch` dans la session mais ne l'incrémente pas) |
 | RFC 8785 contre les vecteurs officiels | 1D | à faire |
