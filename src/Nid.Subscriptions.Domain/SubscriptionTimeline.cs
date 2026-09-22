@@ -125,6 +125,34 @@ public static class SubscriptionTimeline
             coverageEnd = Later(coverEnd, coverageEnd);
         }
 
+        // Second pass: a purchase's charge covers every period its grants produced, and only now can the
+        // basis be spread over them. Phase charges cover exactly one period and could have been done inline,
+        // but go through the same path so there is one allocation rule.
+        for (var i = 0; i < charges.Count; i++)
+        {
+            var charge = charges[i];
+            var coverage = charge.Origin switch
+            {
+                ChargeOrigin.FromPurchase fromPurchase => periods
+                    .Where(p => p.Origin is CoverageOrigin.FromGrant g && g.PurchaseId == fromPurchase.PurchaseId)
+                    .OrderBy(p => p.Start)
+                    .ToList(),
+                _ => charge.Coverage,
+            };
+
+            var basis = charge.Origin switch
+            {
+                ChargeOrigin.FromPurchase fromPurchase => BasisOf(input, fromPurchase.PurchaseId, charge.Price),
+                _ => charge.Price,
+            };
+
+            charges[i] = charge with
+            {
+                Coverage = coverage,
+                Allocation = CostAllocator.Allocate(basis, coverage),
+            };
+        }
+
         periods.Sort((a, b) => a.Start.CompareTo(b.Start));
         charges.Sort((a, b) => a.Date.CompareTo(b.Date));
         return Result.Success(new Timeline(periods, charges, warnings));
@@ -179,6 +207,17 @@ public static class SubscriptionTimeline
             .ToList();
 
     private static CostAllocation ZeroAllocation(Money price) => new(price, 0, 0m, 0);
+
+    private static Money BasisOf(SubscriptionInput input, PurchaseId purchaseId, Money price)
+    {
+        foreach (var purchase in input.Purchases)
+            if (purchase.Id == purchaseId)
+                return Money.Create(purchase.CostBasis, price.Currency).TryGetValue(out var basis)
+                    ? basis
+                    : price;
+
+        return price;
+    }
 
     private static LocalDate Later(LocalDate date, LocalDate? other)
         => other is { } value && value > date ? value : date;
