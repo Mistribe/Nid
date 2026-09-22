@@ -2,22 +2,106 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
 [Collection("postgres")]
 public class SchemaTests(PostgresFixture fixture)
 {
+    /// <summary>
+    /// The property under test is that both modules genuinely coexist on the same database: a write through
+    /// one module's context and a write through the other's, each read back correctly through its own schema.
+    /// </summary>
     [Fact]
-    public async Task Both_modules_migrate_into_one_empty_database()
+    public async Task Both_modules_write_and_read_their_own_rows_on_the_same_database()
     {
         var connectionString = await fixture.NewConnectionStringAsync();
+        var personId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
 
-        await using var core = PostgresFixture.NewCoreContext(connectionString);
+        await using (var core = PostgresFixture.NewCoreContext(connectionString))
+        {
+            core.Persons.Add(new PersonRow
+            {
+                Id = personId,
+                Kind = "dependent",
+                DisplayName = "Kid",
+                CreatedAt = PostgresFixture.Clock.GetCurrentInstant(),
+            });
+            await core.SaveChangesAsync();
+        }
+
+        await using (var subs = PostgresFixture.NewSubscriptionsContext(connectionString))
+        {
+            subs.Subscriptions.Add(new SubscriptionRow
+            {
+                ItemId = itemId,
+                ProviderKey = "spotify",
+                AutoRenew = true,
+            });
+            await subs.SaveChangesAsync();
+        }
+
+        await using (var core = PostgresFixture.NewCoreContext(connectionString))
+        {
+            var person = await core.Persons.SingleAsync(p => p.Id == personId);
+            Assert.Equal("Kid", person.DisplayName);
+            Assert.Equal("dependent", person.Kind);
+        }
+
+        await using (var subs = PostgresFixture.NewSubscriptionsContext(connectionString))
+        {
+            var subscription = await subs.Subscriptions.SingleAsync(s => s.ItemId == itemId);
+            Assert.Equal("spotify", subscription.ProviderKey);
+            Assert.True(subscription.AutoRenew);
+        }
+    }
+
+    [Fact]
+    public async Task A_billing_phase_with_a_negative_price_is_rejected_by_the_database()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        var itemId = Guid.CreateVersion7();
+
         await using var subs = PostgresFixture.NewSubscriptionsContext(connectionString);
+        subs.Subscriptions.Add(new SubscriptionRow { ItemId = itemId });
+        await subs.SaveChangesAsync();
 
-        Assert.True(await core.Items.AnyAsync() || !await core.Items.AnyAsync());   // the core schema answers
-        Assert.True(await subs.Subscriptions.AnyAsync() || !await subs.Subscriptions.AnyAsync());
+        subs.Phases.Add(new BillingPhaseRow
+        {
+            Id = Guid.CreateVersion7(),
+            ItemId = itemId,
+            StartsOn = new LocalDate(2026, 1, 1),
+            PriceAmount = -1m,
+            EveryCount = 1,
+            PayerType = "household",
+        });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => subs.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task A_billing_phase_with_an_invalid_payer_type_is_rejected_by_the_database()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        var itemId = Guid.CreateVersion7();
+
+        await using var subs = PostgresFixture.NewSubscriptionsContext(connectionString);
+        subs.Subscriptions.Add(new SubscriptionRow { ItemId = itemId });
+        await subs.SaveChangesAsync();
+
+        subs.Phases.Add(new BillingPhaseRow
+        {
+            Id = Guid.CreateVersion7(),
+            ItemId = itemId,
+            StartsOn = new LocalDate(2026, 1, 1),
+            PriceAmount = 9.99m,
+            EveryCount = 1,
+            PayerType = "external", // valid on purchase, not on billing_phase
+        });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => subs.SaveChangesAsync());
     }
 
     [Fact]

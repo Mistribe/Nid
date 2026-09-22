@@ -40,6 +40,8 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_billing_phase_every", "every_count > 0");
                 t.HasCheckConstraint("ck_billing_phase_payer",
                     "(payer_type = 'person' and payer_person_id is not null) or (payer_type <> 'person' and payer_person_id is null)");
+                t.HasCheckConstraint("ck_billing_phase_price_sign", "price_amount >= 0");
+                t.HasCheckConstraint("ck_billing_phase_payer_type", "payer_type in ('person','household')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -57,6 +59,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                     "allocated_amount is null or (kind = 'bundle' and allocated_amount >= 0 and allocated_amount <= price_amount)");
                 t.HasCheckConstraint("ck_purchase_price_sign",
                     "price_amount >= 0 or kind in ('adjustment','refund')");
+                t.HasCheckConstraint("ck_purchase_payer_type", "payer_type in ('person','household','external')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();

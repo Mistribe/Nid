@@ -97,6 +97,10 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_billing_phase_payer", "(payer_type = 'person' and payer_person_id is not null) or (payer_type <> 'person' and payer_person_id is null)");
 
+                            t.HasCheckConstraint("ck_billing_phase_payer_type", "payer_type in ('person','household')");
+
+                            t.HasCheckConstraint("ck_billing_phase_price_sign", "price_amount >= 0");
+
                             t.HasCheckConstraint("ck_billing_phase_range", "ends_on is null or ends_on > starts_on");
                         });
                 });
@@ -204,6 +208,8 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_purchase_allocated", "allocated_amount is null or (kind = 'bundle' and allocated_amount >= 0 and allocated_amount <= price_amount)");
 
                             t.HasCheckConstraint("ck_purchase_kind", "kind in ('prepaid_term','bundle','gift','adjustment','refund')");
+
+                            t.HasCheckConstraint("ck_purchase_payer_type", "payer_type in ('person','household','external')");
 
                             t.HasCheckConstraint("ck_purchase_price_sign", "price_amount >= 0 or kind in ('adjustment','refund')");
                         });
