@@ -131,6 +131,12 @@ retenir pour les sous-plans suivants :
 - La canonicalisation contre les vecteurs officiels de la RFC 8785.
 - Les performances sous charge (les volumes du projet sont petits).
 
+## 9bis. `IsAotCompatible` sur `Nid.Subscriptions.Domain` (vérifié le 2026-09-22)
+
+`dotnet build src/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj` avec `IsAotCompatible=true`
+(analyseurs de trim et d'AOT actifs) : **0 warning**. Le risque cité en §9 pour les projets `Domain` est levé
+pour `Nid.Subscriptions.Domain` ; les autres projets `Domain` restent à vérifier au fur et à mesure.
+
 ## 10. Vecteurs à conserver pour les tests réels
 
 - **Échéancier** : le générateur Python (référence en précision 60 chiffres, formule « multiplier d'abord ») et ses 3 000 cas servent d'**oracle** pour les tests de `realestate/loans.md` §12.
