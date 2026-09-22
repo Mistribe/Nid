@@ -4,6 +4,7 @@ using Nid.Host;
 using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Platform;
+using Nid.Subscriptions.Infrastructure.Persistence;
 using UnambitiousFx.Synapse.Abstractions;
 
 // Shared behaviors are declared here, in the composition root: [PipelineBehavior] only reaches
@@ -19,12 +20,25 @@ builder.Services.AddNid(builder.Configuration.GetConnectionString("nid")
                          ?? throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 
 builder.Services.AddNidAuthentication(builder.Configuration);
+// Never set in production: swaps the default scheme so RequireAuthorization() passes without a real login,
+// leaving ActorFilter's own header check (IntegrationTest-only) as what actually names the acting person.
+if (builder.Environment.IsEnvironment("IntegrationTest"))
+    builder.Services.AddIntegrationTestAuthentication();
+
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.Converters.Add(new ItemIdJsonConverter());
+    o.SerializerOptions.Converters.Add(new LocalDateJsonConverter());
+});
 
 var app = builder.Build();
 
 // EF Core takes a database lock while migrating, so several instances starting together are safe.
 await using (var scope = app.Services.CreateAsyncScope())
+{
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
+}
 
 app.MapDefaultEndpoints();
 app.UseForwardedHeaders();
@@ -33,6 +47,7 @@ app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 app.MapAuth();
 app.MapPersonEndpoints();
+app.MapSubscriptionEndpoints();
 app.Run();
 
 public partial class Program;

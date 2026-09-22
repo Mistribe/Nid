@@ -52,6 +52,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
 
         return new ItemAccess(
             id,
+            row.DisplayName,
             row.Visibility == "private" ? Visibility.Private : Visibility.Shared,
             row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList());
     }

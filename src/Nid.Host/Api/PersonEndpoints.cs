@@ -32,12 +32,17 @@ public static class PersonEndpoints
 }
 
 /// <summary>Puts the signed-in person in the scoped accessor so the pipeline can read it; handlers never read <c>HttpContext</c>.</summary>
-public sealed class ActorFilter(IActorAccessor accessor) : IEndpointFilter
+public sealed class ActorFilter(IActorAccessor accessor, IHostEnvironment environment) : IEndpointFilter
 {
     public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         if (SessionClaims.ReadPersonId(context.HttpContext.User) is { } person)
             accessor.Current = Actor.Browser(person);
+        else if (environment.IsEnvironment("IntegrationTest")
+                 && context.HttpContext.Request.Headers.TryGetValue("X-Nid-Test-Actor", out var raw)
+                 && Guid.TryParse(raw, out var testPerson))
+            accessor.Current = Actor.Browser(new PersonId(testPerson));
+
         return next(context);
     }
 }

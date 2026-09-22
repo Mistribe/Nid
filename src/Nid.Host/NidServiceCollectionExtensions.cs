@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
 using UnambitiousFx.Synapse;
 
@@ -23,11 +25,22 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
 
+        // DbContextOptionsBuilder<SubscriptionsDbContext>.Configure (Nid.Subscriptions.Infrastructure) needs the
+        // generic builder, which the plain AddDbContext<TContext>(Action<DbContextOptionsBuilder>) overload does
+        // not supply; wired the same way as CoreDbContext just above instead.
+        services.AddDbContext<SubscriptionsDbContext>(options => options.UseNpgsql(connectionString, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", SubscriptionsDbContext.Schema);
+        }));
+        services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+
         services.AddLogging();
         services.AddSynapse(cfg =>
         {
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors
             cfg.AddRegisterGroup(new Nid.Core.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
         });
         return services;
     }

@@ -12,7 +12,7 @@ public sealed record NewItem(
     string? Currency,
     IReadOnlyList<OwnerShare> Owners);
 
-public sealed record ItemAccess(ItemId Id, Visibility Visibility, IReadOnlyList<Owner> Owners);
+public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibility, IReadOnlyList<Owner> Owners);
 
 public sealed record PersonInfo(PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch);
 

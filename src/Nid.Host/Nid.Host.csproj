@@ -6,6 +6,8 @@
     <ProjectReference Include="..\Nid.ServiceDefaults\Nid.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Nid.Core.Application\Nid.Core.Application.csproj" />
     <ProjectReference Include="..\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
+    <ProjectReference Include="..\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
+    <ProjectReference Include="..\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
