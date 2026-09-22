@@ -108,7 +108,9 @@ public class ReadEndpointTests(PostgresFixture fixture)
         IReadOnlyList<MoneyResponse> HouseholdCashCost,
         IReadOnlyList<Guid> SharedPurchaseIds);
     public sealed record CoverageResponse(string Start, string EndBefore, string Source, bool IsProjected);
+    public sealed record ChargeResponse(string Date, MoneyResponse Price, bool IsProjected, Guid? PurchaseId);
     public sealed record DetailResponse(
         Guid Id, string DisplayName, string? NextChargeOn, MoneyResponse? NextChargeAmount,
-        IReadOnlyList<CoverageResponse> Coverage, IReadOnlyList<FindingResponse> Findings);
+        IReadOnlyList<CoverageResponse> Coverage, IReadOnlyList<ChargeResponse> Charges,
+        IReadOnlyList<FindingResponse> Findings);
 }

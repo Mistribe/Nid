@@ -24,19 +24,30 @@ public static class SubscriptionEndpoints
                     new GetSubscriptionQuery(new ItemId(id), ParseDate(from), ParseDate(to), ParseDate(horizon)), ct))
                 .ToHttp(detail => detail));
 
-        // The write half (edit, close phase, delete purchase, and the PATCH/DELETE routes) is Task 5's.
-        // Create / open phase / add purchase are implemented here because Task 4's own acceptance test
+        // Create / open phase / add purchase were implemented early because Task 4's own acceptance test
         // creates its fixtures through the real HTTP API — see the comment atop WriteUseCases.cs.
         api.MapPost("", async (CreateSubscriptionBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created));
+
+        api.MapPatch("/{id:guid}", async (Guid id, EditSubscriptionBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)));
 
         api.MapPost("/{id:guid}/phases", async (Guid id, PhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToOpenCommand(new ItemId(id)), ct))
                 .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created));
 
+        api.MapPatch("/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, ClosePhaseBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(
+                    new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), SubscriptionEndpoints.RequireDate(body.EndsOn)), ct))
+                .ToHttp(phase => new IdResponse(phase.Value)));
+
         api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct))
                 .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created));
+
+        api.MapDelete("/{id:guid}/purchases/{purchaseId:guid}", async (Guid id, Guid purchaseId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new DeletePurchaseCommand(new ItemId(id), new PurchaseId(purchaseId)), ct))
+                .ToHttp(purchase => new IdResponse(purchase.Value)));
 
         return routes;
     }
@@ -94,6 +105,14 @@ public static class SubscriptionEndpoints
             (Users ?? []).Select(u => new Core.Contracts.PersonId(u)).ToList(),
             Note);
     }
+
+    public sealed record EditSubscriptionBody(bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note)
+    {
+        public EditSubscriptionCommand ToCommand(ItemId id)
+            => new(id, AutoRenew, SubscriptionEndpoints.ParseDate(CancelledAt), ClearCancelledAt, Note);
+    }
+
+    public sealed record ClosePhaseBody(string EndsOn);
 
     public sealed record PhaseBody(
         string StartsOn, string? EndsOn, MoneyBody Price, DurationBody Every, DurationBody? Covers,

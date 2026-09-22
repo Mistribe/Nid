@@ -1,18 +1,17 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Subscriptions.Application;
 
-// This file is Task 5's ("Writing — commands and the POST/PATCH/DELETE endpoints"), started early: Task 4's
-// own acceptance test reaches through the real HTTP API to create subscriptions, open phases and record
-// purchases (see NidApp.NewSubscriptionAsync / NewMonthlyAsync / NewSpotifyGoldenCaseAsync / NewSharedBundleAsync
-// in tests/Nid.Subscriptions.IntegrationTests/NidApp.cs), so the read-only slice of writing cannot be deferred.
-// Only Create / OpenPhase / AddPurchase are implemented here — the read side's own tests need no more.
-// EditSubscriptionCommand, ClosePhaseCommand, DeletePurchaseCommand and their PATCH/DELETE routes are still
-// Task 5's to add.
+// Create / OpenPhase / AddPurchase were started early (Task 4): its own acceptance test reaches through the
+// real HTTP API to create subscriptions, open phases and record purchases (see NidApp.NewSubscriptionAsync /
+// NewMonthlyAsync / NewSpotifyGoldenCaseAsync / NewSharedBundleAsync in
+// tests/Nid.Subscriptions.IntegrationTests/NidApp.cs), so that slice of writing could not be deferred.
+// EditSubscriptionCommand, ClosePhaseCommand and DeletePurchaseCommand complete the write side (Task 5).
 
 public sealed record CreateSubscriptionCommand(
     string DisplayName,
@@ -23,12 +22,30 @@ public sealed record CreateSubscriptionCommand(
     IReadOnlyList<PersonId> Users,
     string? Note) : ICommand<ItemId>;
 
+public sealed record EditSubscriptionCommand(
+    ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note)
+    : ICommand<ItemId>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 public sealed record OpenPhaseCommand(ItemId ItemId, BillingPhase Phase) : ICommand<BillingPhaseId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
 
+public sealed record ClosePhaseCommand(ItemId ItemId, BillingPhaseId PhaseId, LocalDate EndsOn)
+    : ICommand<BillingPhaseId>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
 public sealed record AddPurchaseCommand(ItemId ItemId, Purchase Purchase) : ICommand<PurchaseId>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+public sealed record DeletePurchaseCommand(ItemId ItemId, PurchaseId PurchaseId) : ICommand<PurchaseId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -51,6 +68,17 @@ public sealed class CreateSubscriptionHandler(IItemRegistry items, ISubscription
     }
 }
 
+[RequestHandler<EditSubscriptionCommand, ItemId>]
+public sealed class EditSubscriptionHandler(ISubscriptionStore store) : IRequestHandler<EditSubscriptionCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(EditSubscriptionCommand command, CancellationToken ct = default)
+    {
+        var result = await store.EditAsync(
+            command.ItemId, new SubscriptionEdit(command.AutoRenew, command.CancelledAt, command.ClearCancelledAt, command.Note), ct);
+        return result.TryGetFailure(out var failure) ? Result.Failure<ItemId>(failure!) : Result.Success(command.ItemId);
+    }
+}
+
 [RequestHandler<OpenPhaseCommand, BillingPhaseId>]
 public sealed class OpenPhaseHandler(ISubscriptionStore store) : IRequestHandler<OpenPhaseCommand, BillingPhaseId>
 {
@@ -58,9 +86,29 @@ public sealed class OpenPhaseHandler(ISubscriptionStore store) : IRequestHandler
         => await store.AddPhaseAsync(command.ItemId, command.Phase, ct);
 }
 
+[RequestHandler<ClosePhaseCommand, BillingPhaseId>]
+public sealed class ClosePhaseHandler(ISubscriptionStore store) : IRequestHandler<ClosePhaseCommand, BillingPhaseId>
+{
+    public async ValueTask<Result<BillingPhaseId>> HandleAsync(ClosePhaseCommand command, CancellationToken ct = default)
+    {
+        var result = await store.ClosePhaseAsync(command.ItemId, command.PhaseId, command.EndsOn, ct);
+        return result.TryGetFailure(out var failure) ? Result.Failure<BillingPhaseId>(failure!) : Result.Success(command.PhaseId);
+    }
+}
+
 [RequestHandler<AddPurchaseCommand, PurchaseId>]
 public sealed class AddPurchaseHandler(ISubscriptionStore store) : IRequestHandler<AddPurchaseCommand, PurchaseId>
 {
     public async ValueTask<Result<PurchaseId>> HandleAsync(AddPurchaseCommand command, CancellationToken ct = default)
         => await store.AddPurchaseAsync(command.Purchase, ct);
+}
+
+[RequestHandler<DeletePurchaseCommand, PurchaseId>]
+public sealed class DeletePurchaseHandler(ISubscriptionStore store) : IRequestHandler<DeletePurchaseCommand, PurchaseId>
+{
+    public async ValueTask<Result<PurchaseId>> HandleAsync(DeletePurchaseCommand command, CancellationToken ct = default)
+    {
+        var result = await store.DeletePurchaseAsync(command.PurchaseId, ct);
+        return result.TryGetFailure(out var failure) ? Result.Failure<PurchaseId>(failure!) : Result.Success(command.PurchaseId);
+    }
 }
