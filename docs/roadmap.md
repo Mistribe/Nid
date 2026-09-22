@@ -12,7 +12,7 @@ Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (av
 | Étape | Contenu (voir `Project.md` §10) | Conception | Plan d'exécution | Statut |
 |---|---|---|---|---|
 | **0. Conception** | Architecture, modèles de données, sécurité, frontend, format d'import, spikes | Terminée | sans objet | **terminé** (2026-09-19) |
-| **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **en cours** (1A et 1B terminés le 2026-09-22) |
+| **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **en cours** (1A, 1B et 1C1 terminés le 2026-09-22) |
 | **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | à écrire | à faire |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, échéancier, valeur nette | Terminée | à écrire | à faire |
 | **4. Automatisation IA** | Serveur MCP, extraction de documents, file de validation | Terminée | à écrire | à faire |
@@ -45,7 +45,7 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 |---|---|---|---|
 | 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement Aspire (`architecture.md` §10.3) | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, toutes exécutées) | **terminé** (2026-09-22) |
 | 1B | Moteur des abonnements (fonctions pures) | `2026-09-22-stage-1b-subscription-engine.md` : validation des entrées, parcours de la timeline, allocation exacte du coût et six requêtes d'extension (couverture à une date, date d'expiration, prochaine charge, coût cash sur une fenêtre, coût amorti sur une fenêtre, jours gratuits) | **terminé** (2026-09-22) |
-| 1C1 | Cœur du module Abonnements : schéma `subscriptions`, entités, migrations, moteur 1B branché, API lecture et écriture, `IVisibleItems`, garde de sortie, banc anti-fuite | conception : `specs/2026-09-22-subscriptions-module-core-design.md` ; plan à écrire | à faire |
+| 1C1 | Cœur du module Abonnements : schéma `subscriptions`, entités, migrations, moteur 1B branché, API lecture et écriture, `IVisibleItems`, garde de sortie, banc anti-fuite | conception : `specs/2026-09-22-subscriptions-module-core-design.md` ; plan : `superpowers/plans/2026-09-22-stage-1c1-subscriptions-module-core.md` (8 tâches, toutes exécutées) | **terminé** (2026-09-22) |
 | 1C2 | Catalogue de fournisseurs (libellés, icônes, source, suggestions) et `fx_rate` avec conversion, tâches Quartz | à détailler | à faire |
 | 1D | Import et export `nid.data` v1, conversion du fichier existant | à détailler | à faire |
 | 1E | Application web : connexion, abonnements, assistant d'import, thèmes | à détailler | à faire |
@@ -71,7 +71,6 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 
 | Risque | Vérifié pendant | Statut |
 |---|---|---|
-| Migrations de plusieurs `DbContext` sur des schémas distincts | 1C1 (deuxième module) | à faire |
 | Quartz.NET sur PostgreSQL | 1C2 (premières tâches planifiées) | à faire |
 | `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) | premier consommateur réel (hors étape 1, décidé le 2026-09-22) | à faire |
 | Client OpenAPI généré et bibliothèques du frontend | début de 1E | à faire |
@@ -98,3 +97,4 @@ documentation en français.
 | 2026-09-22 | Décisions tranchées avant 1B : périmètre (`Valuation`, `Flow`, `Document`, `Proposal` hors étape 1) et langue des plans (anglais). |
 | 2026-09-22 | Sous-plan 1B exécuté de bout en bout : validation des entrées, parcours de la timeline, allocation exacte du coût et six requêtes d'extension (`Nid.Subscriptions.Contracts`, `Nid.Subscriptions.Domain`) ; les trois exemples travaillés de `subscription-data-model.md` (Spotify avec changement de prix et carte cadeau, terme prépayé NordVPN avec mois bonus, bundle de jeu) reproduisent leurs résultats documentés. `IsAotCompatible` vérifié sur `Nid.Subscriptions.Domain` (0 warning, `spikes.md` §9bis). 130 tests verts (35 `Nid.Core.Tests`, 31 `Nid.Core.IntegrationTests`, 64 `Nid.Subscriptions.Tests`). |
 | 2026-09-22 | 1C découpé en 1C1 (cœur du module, débloque 1D et 1E) et 1C2 (catalogue et `fx_rate`) : tel qu'écrit, 1C dépassait 1A et 1B réunis. L'outbox transactionnel et l'incrément de `session_epoch` sortent de l'étape 1, faute de consommateur. Conception de 1C1 écrite. |
+| 2026-09-22 | Sous-plan 1C1 exécuté de bout en bout : schéma `subscriptions` (table `coverage_grant`, `grant` étant réservé en PostgreSQL), entités, migrations coexistant avec celles du Core, moteur 1B branché, API de lecture et d'écriture, `IVisibleItems`, garde de sortie (`OutputGuardBehavior`, dernier maillon du pipeline), banc anti-fuite bloquant en CI et découvrant les requêtes par réflexion ET en rejouant les `RegisterGroup`s générés par Synapse (l'union des deux, chacune ayant son angle mort). Risque « migrations de plusieurs `DbContext` sur des schémas distincts » levé par `SchemaTests` (`spikes.md` §9ter) et retiré du tableau des risques non levés. Limite connue épinglée plutôt que corrigée : le coût amorti du foyer compte deux fois un achat partagé alors que le coût cash ne le compte qu'une fois (`KnownLimitationTests`, `docs/superpowers/specs/2026-09-22-subscriptions-module-core-design.md` §10). 225 tests verts (81 `Nid.Subscriptions.Tests`, 35 `Nid.Core.Tests`, 37 `Nid.Core.IntegrationTests`, 72 `Nid.Subscriptions.IntegrationTests`), build à 0 avertissement. |

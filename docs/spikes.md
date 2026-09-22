@@ -126,7 +126,6 @@ retenir pour les sous-plans suivants :
 
 - Dans le flux OIDC (§8) : `session_epoch`, la réponse `401` sans redirection pour les appels d'API (un essai montre `401` sur `/whoami` non authentifié, mais pas dans l'application finale), la première connexion simultanée des deux adultes, et le comportement de PAR avec `client_secret_post`.
 - Un `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) : seule la faisabilité transactionnelle est vérifiée.
-- Les migrations EF de plusieurs `DbContext` sur des schémas distincts (les tables ont été créées sans migrations).
 - Quartz.NET sur Postgres, le SDK MCP C# en exécution, la génération de client OpenAPI, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).
 - La canonicalisation contre les vecteurs officiels de la RFC 8785.
 - Les performances sous charge (les volumes du projet sont petits).
@@ -136,6 +135,17 @@ retenir pour les sous-plans suivants :
 `dotnet build src/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj` avec `IsAotCompatible=true`
 (analyseurs de trim et d'AOT actifs) : **0 warning**. Le risque cité en §9 pour les projets `Domain` est levé
 pour `Nid.Subscriptions.Domain` ; les autres projets `Domain` restent à vérifier au fur et à mesure.
+
+## 9ter. Migrations EF de plusieurs `DbContext` sur des schémas distincts (vérifié le 2026-09-22)
+
+`SchemaTests` (`tests/Nid.Subscriptions.IntegrationTests/SchemaTests.cs`) part d'une base PostgreSQL vide et
+applique les migrations réelles des deux `DbContext` — `core.Database.MigrateAsync()` puis
+`subs.Database.MigrateAsync()` (`Nid.TestSupport`) — plutôt que de créer les tables sans elles comme au
+premier essai du §9. Chaque module obtient sa propre table `__ef_migrations_history` dans son propre schéma
+(`core` et `subscriptions`, sans collision), et un test écrit et relit une ligne par chaque `DbContext` sur la
+même base pour prouver qu'ils coexistent réellement plutôt que de se limiter à coexister au niveau du schéma.
+Le risque cité en §9 est levé pour ce couple de `DbContext`s ; un futur troisième module devra revérifier avec
+le sien.
 
 ## 10. Vecteurs à conserver pour les tests réels
 
