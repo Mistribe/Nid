@@ -160,7 +160,8 @@ public static class SubscriptionTimeline
                 ChargeOrigin.FromPurchase fromPurchase => periods
                     .Where(p => p.Origin is CoverageOrigin.FromGrant g && g.PurchaseId == fromPurchase.PurchaseId)
                     .OrderBy(p => p.Start)
-                    .ToList(),
+                    .ToList()
+                    .AsReadOnly(),
                 _ => charge.Coverage,
             };
 
@@ -179,7 +180,9 @@ public static class SubscriptionTimeline
 
         periods.Sort((a, b) => a.Start.CompareTo(b.Start));
         charges.Sort((a, b) => a.Date.CompareTo(b.Date));
-        return Result.Success(new Timeline(periods, charges, warnings));
+        // A timeline is meant to be cached and shared (1C), so it hands out views its caller cannot reach
+        // behind and mutate.
+        return Result.Success(new Timeline(periods.AsReadOnly(), charges.AsReadOnly(), warnings.AsReadOnly()));
     }
 
     private static Candidate? NextCharge(

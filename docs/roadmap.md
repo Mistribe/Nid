@@ -44,7 +44,7 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 | Sous-plan | Livrable | Détail | Statut |
 |---|---|---|---|
 | 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement Aspire (`architecture.md` §10.3) | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, toutes exécutées) | **terminé** (2026-09-22) |
-| 1B | Moteur des abonnements (fonctions pures) | `2026-09-22-stage-1b-subscription-engine.md` : validation des entrées, parcours de la timeline, allocation exacte du coût et six requêtes d'extension (coût cash, coût amorti, couverture, expiration, prochaine charge, coût sur une fenêtre) | **terminé** (2026-09-22) |
+| 1B | Moteur des abonnements (fonctions pures) | `2026-09-22-stage-1b-subscription-engine.md` : validation des entrées, parcours de la timeline, allocation exacte du coût et six requêtes d'extension (couverture à une date, date d'expiration, prochaine charge, coût cash sur une fenêtre, coût amorti sur une fenêtre, jours gratuits) | **terminé** (2026-09-22) |
 | 1C | Module Abonnements : schéma, API, catalogue, `fx_rate`, garde de sortie, banc anti-fuite | à détailler | à faire |
 | 1D | Import et export `nid.data` v1, conversion du fichier existant | à détailler | à faire |
 | 1E | Application web : connexion, abonnements, assistant d'import, thèmes | à détailler | à faire |

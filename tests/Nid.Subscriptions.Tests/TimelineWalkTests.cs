@@ -138,7 +138,8 @@ public class TimelineWalkTests
 
         var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), new LocalDate(2030, 1, 1)).Ok();
 
-        Assert.True(timeline.Charges.Count <= SubscriptionTimeline.MaxCyclesPerPhase);
+        Assert.Equal(1200, SubscriptionTimeline.MaxCyclesPerPhase);
+        Assert.Equal(1200, timeline.Charges.Count);
         Assert.Contains(timeline.Warnings, w => w.Code == "subscriptions.cycle_cap");
     }
 
@@ -404,6 +405,25 @@ public class TimelineWalkTests
         var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), new LocalDate(2025, 8, 1)).Ok();
 
         Assert.DoesNotContain(timeline.Warnings, w => w.Code == "subscriptions.phase_cycles_unspent");
+    }
+
+    [Fact]
+    public void A_timeline_hands_out_lists_a_caller_cannot_mutate()
+    {
+        // 1C caches and shares one built timeline, so no consumer may cast a view back to a live list.
+        var input = Input(
+            [Phase(new LocalDate(2025, 1, 1), null, 10m, maxCycles: 1)],
+            [Purchase(new LocalDate(2025, 1, 10), 5m, PurchaseKind.PrepaidTerm,
+                      [Grant(Months(1), CoverageSource.Paid, new LocalDate(2025, 3, 1))])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 6, 1), Horizon).Ok();
+
+        Assert.True(((IList<CoveragePeriod>)timeline.Coverage).IsReadOnly);
+        Assert.True(((IList<Charge>)timeline.Charges).IsReadOnly);
+        Assert.True(((IList<Finding>)timeline.Warnings).IsReadOnly);
+
+        var purchase = Assert.Single(timeline.Charges, c => c.Origin is ChargeOrigin.FromPurchase);
+        Assert.True(((IList<CoveragePeriod>)purchase.Coverage).IsReadOnly);
     }
 
     [Fact]
