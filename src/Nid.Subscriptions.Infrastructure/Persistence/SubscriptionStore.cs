@@ -149,6 +149,16 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(purchase.Id);
     }
 
+    public async Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct)
+    {
+        var ids = await db.Grants.AsNoTracking()
+            .Where(g => g.PurchaseId == purchase.Value)
+            .Select(g => g.SubscriptionItemId)
+            .Distinct()
+            .ToListAsync(ct);
+        return ids.Select(id => new ItemId(id)).ToList();
+    }
+
     public async Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct)
     {
         var row = await db.Purchases.Include(p => p.Grants)

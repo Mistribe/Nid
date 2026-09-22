@@ -32,6 +32,12 @@ public interface ISubscriptionStore
     Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, CancellationToken ct);
 
     /// <summary>
+    /// The subscriptions a purchase grants coverage to — exactly what deleting it would take coverage away
+    /// from. Empty when no such purchase exists, so a caller learns nothing about one it cannot reach.
+    /// </summary>
+    Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct);
+
+    /// <summary>
     /// Deletes a purchase only if it actually grants to <paramref name="id"/> — a purchase belonging to a
     /// wholly different subscription is reported as not found, never as forbidden, so its existence is not
     /// disclosed to a caller who merely knows its id.
