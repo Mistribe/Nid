@@ -21,23 +21,27 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
 /// </summary>
 public static class RequestCatalogue
 {
-    public static IReadOnlyList<Assembly> ModuleAssemblies =>
-    [
-        typeof(ListPersonsQuery).Assembly,           // Nid.Core.Application
-        typeof(ListSubscriptionsQuery).Assembly,     // Nid.Subscriptions.Application
-    ];
+    /// <summary>
+    /// Every <c>Nid.*</c> assembly the composition root can reach. Derived, never transcribed: a module that
+    /// 1D adds and wires into <c>AddNid</c> becomes visible to the bench because <c>Nid.Host</c> must
+    /// reference it to call it — whereas a hand-written list would silently leave it unexamined while the
+    /// bench reported full coverage.
+    /// </summary>
+    public static IReadOnlyList<Assembly> ModuleAssemblies { get; } = CompositionRootClosure();
 
     /// <summary>
-    /// The <c>RegisterGroup</c>s Synapse generates, composed exactly as <c>NidServiceCollectionExtensions</c>
-    /// composes them. Replaying one against <see cref="RecordingBuilder"/> is what access-tests.md §3.1 asks
-    /// for: the requests the application actually registers, not a list maintained by hand.
+    /// The <c>RegisterGroup</c>s Synapse generates, found in that same closure rather than listed by hand.
+    /// Replaying one against <see cref="RecordingBuilder"/> is what access-tests.md §3.1 asks for: the
+    /// requests the application actually registers.
     /// </summary>
-    public static IReadOnlyList<IRegisterGroup> RegisterGroups =>
-    [
-        new Nid.Host.RegisterGroup(),                  // the composition root: carries the global behaviors
-        new Nid.Core.Application.RegisterGroup(),
-        new Nid.Subscriptions.Application.RegisterGroup(),
-    ];
+    public static IReadOnlyList<IRegisterGroup> RegisterGroups { get; } = ModuleAssemblies
+        .SelectMany(a => a.GetTypes())
+        .Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+                    && typeof(IRegisterGroup).IsAssignableFrom(t)
+                    && t.GetConstructor(Type.EmptyTypes) is not null)
+        .OrderBy(t => t.FullName, StringComparer.Ordinal)
+        .Select(t => (IRegisterGroup)Activator.CreateInstance(t)!)
+        .ToList();
 
     /// <summary>Every concrete request type declared in the module assemblies.</summary>
     public static IReadOnlyList<Type> Declared
@@ -105,6 +109,29 @@ public static class RequestCatalogue
         => request.GetInterfaces()
             .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>))
             ?.GetGenericArguments()[0];
+
+    /// <summary>
+    /// <c>Nid.Host</c> — where <c>AddNid</c> lives — and every <c>Nid.*</c> assembly it references, directly
+    /// or not. Anything <c>AddNid</c> can wire up is in here by construction.
+    /// </summary>
+    private static IReadOnlyList<Assembly> CompositionRootClosure()
+    {
+        var found = new Dictionary<string, Assembly>(StringComparer.Ordinal);
+        var pending = new Queue<Assembly>([typeof(Nid.Host.NidServiceCollectionExtensions).Assembly]);
+
+        while (pending.Count > 0)
+        {
+            var assembly = pending.Dequeue();
+            if (!found.TryAdd(assembly.GetName().Name!, assembly))
+                continue;
+
+            foreach (var reference in assembly.GetReferencedAssemblies())
+                if (reference.Name?.StartsWith("Nid.", StringComparison.Ordinal) == true)
+                    pending.Enqueue(Assembly.Load(reference));
+        }
+
+        return found.Values.OrderBy(a => a.GetName().Name, StringComparer.Ordinal).ToList();
+    }
 
     private static bool IsRequest(Type type)
         => typeof(IRequest).IsAssignableFrom(type)

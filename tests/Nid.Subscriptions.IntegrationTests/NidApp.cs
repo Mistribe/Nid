@@ -40,7 +40,11 @@ public sealed class NidApp : IAsyncDisposable
     public PersonId AdultB { get; }
     public PersonId Dependent { get; }
 
-    public static async Task<NidApp> StartAsync(PostgresFixture fixture)
+    /// <param name="overrides">
+    /// Applied last, so a test can replace a registered service. The leak bench uses it to install a
+    /// deliberately broken <c>IVisibleItems</c> and watch the output guard catch it (access-tests.md §5).
+    /// </param>
+    public static async Task<NidApp> StartAsync(PostgresFixture fixture, Action<IServiceCollection>? overrides = null)
     {
         var connectionString = await fixture.NewConnectionStringAsync();
 
@@ -65,7 +69,10 @@ public sealed class NidApp : IAsyncDisposable
                 // wiring the real SystemClock would make NextCharge()'s IsProjected flip false once the wall
                 // clock passes those fixed dates, turning a correct assertion into a flaky one.
                 builder.ConfigureServices(services =>
-                    services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant())));
+                {
+                    services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
+                    overrides?.Invoke(services);
+                });
             });
 
             return new NidApp(factory, a, b, d);
