@@ -213,6 +213,25 @@ public class TimelineWalkTests
     }
 
     [Fact]
+    public void The_second_pass_allocates_a_purchase_charge_over_all_its_grants()
+    {
+        var input = Input(
+            [],
+            [Purchase(new LocalDate(2025, 6, 22), 179.86m, PurchaseKind.PrepaidTerm,
+                      [Grant(Months(24), CoverageSource.Paid, new LocalDate(2025, 6, 22)),
+                       Grant(Months(6), CoverageSource.Bonus)])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 7, 1), new LocalDate(2030, 1, 1)).Ok();
+
+        var charge = Assert.Single(timeline.Charges, c => c.Origin is ChargeOrigin.FromPurchase);
+        Assert.Equal(2, charge.Coverage.Count);
+        Assert.Equal(CoverageSource.Paid, charge.Coverage[0].Source);
+        Assert.Equal(CoverageSource.Bonus, charge.Coverage[1].Source);
+        Assert.True(charge.Coverage[0].Start < charge.Coverage[1].Start);
+        Assert.Equal(charge.Coverage[0].Days + charge.Coverage[1].Days, charge.Allocation.Days);
+    }
+
+    [Fact]
     public void A_refused_input_never_produces_a_timeline()
     {
         var input = Input(

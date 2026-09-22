@@ -1,4 +1,5 @@
 using NodaTime;
+using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
 using static Nid.Subscriptions.Tests.TestData;
@@ -69,5 +70,56 @@ public class CostAllocatorTests
              Period(new LocalDate(2027, 1, 1), new LocalDate(2027, 7, 1))]);
 
         Assert.True(paidAndBonus.PerDay < paidOnly.PerDay);
+    }
+
+    private static Charge ChargeFor(Money basis, IReadOnlyList<CoveragePeriod> coverage)
+        => new(coverage[0].Start, basis, Household, new ChargeOrigin.FromPurchase(PurchaseId.New()),
+               coverage, IsProjected: false, Allocation: CostAllocator.Allocate(basis, coverage));
+
+    [Fact]
+    public void AmountIn_reconstructs_the_basis_over_every_period_of_a_multi_period_charge()
+    {
+        // 59 + 31 = 90 days, which does not divide 100.01 evenly, so both periods carry high days.
+        var paid = Period(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 1));
+        var bonus = Period(new LocalDate(2025, 3, 1), new LocalDate(2025, 4, 1));
+        var coverage = new[] { paid, bonus };
+        var basis = Eur(100.01m);
+        var charge = ChargeFor(basis, coverage);
+
+        var total = CostAllocator.AmountIn(charge, paid, paid.Start, null)
+                  + CostAllocator.AmountIn(charge, bonus, bonus.Start, null);
+
+        Assert.Equal(basis.Amount, total);
+    }
+
+    [Fact]
+    public void AmountIn_is_additive_across_a_window_split_inside_a_period()
+    {
+        var period = Period(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1));
+        var coverage = new[] { period };
+        var basis = Eur(15.17m);
+        var charge = ChargeFor(basis, coverage);
+        var splitAt = new LocalDate(2025, 1, 15);
+
+        var whole = CostAllocator.AmountIn(charge, period, period.Start, null);
+        var firstHalf = CostAllocator.AmountIn(charge, period, period.Start, splitAt);
+        var secondHalf = CostAllocator.AmountIn(charge, period, splitAt, null);
+
+        Assert.Equal(whole, firstHalf + secondHalf);
+        Assert.Equal(basis.Amount, whole);
+    }
+
+    [Fact]
+    public void A_negative_basis_round_trips_exactly()
+    {
+        // -15.17 over 31 days does not divide evenly, so the remainder-normalisation in Allocate is exercised.
+        var period = Period(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1));
+        var coverage = new[] { period };
+        var basis = Eur(-15.17m);
+        var charge = ChargeFor(basis, coverage);
+
+        var total = CostAllocator.AmountIn(charge, period, period.Start, null);
+
+        Assert.Equal(basis.Amount, total);
     }
 }

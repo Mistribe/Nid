@@ -27,6 +27,14 @@ internal static class CostAllocator
         var perDayUnits = totalUnits / days;
         var highDays = (int)(totalUnits - perDayUnits * days);
 
+        // C# truncates toward zero, so a negative basis can leave a negative remainder. The allocation model
+        // needs R in [0, days): floor the quotient instead, which is identical for a non-negative basis.
+        if (highDays < 0)
+        {
+            perDayUnits -= 1;
+            highDays += days;
+        }
+
         return new CostAllocation(basis, days, perDayUnits * Unit, highDays);
     }
 
