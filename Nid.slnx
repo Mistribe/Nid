@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Nid.Core.Contracts/Nid.Core.Contracts.csproj" />
+    <Project Path="src/Nid.Core.Domain/Nid.Core.Domain.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
