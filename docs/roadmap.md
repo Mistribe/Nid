@@ -50,7 +50,7 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 | 1E | Application web : connexion, abonnements, assistant d'import, thèmes | à détailler | à faire |
 | 1F | Livraison : images, compose de référence, sauvegarde, audit | à détailler | à faire |
 
-**Décisions de périmètre proposées, à confirmer** (`superpowers/plans/2026-09-19-stage-1-overview.md`) : `Valuation`, `Flow`, `Document` et `Proposal` passent à l'étape 2 et 4 (leurs premiers utilisateurs) ; `fx_rate` arrive avec 1C ; jetons d'accès et MCP restent à l'étape 4.
+**Décisions de périmètre confirmées le 2026-09-22** (`superpowers/plans/2026-09-19-stage-1-overview.md`) : `Valuation`, `Flow`, `Document` et `Proposal` passent à l'étape 2 et 4 (leurs premiers utilisateurs) ; `fx_rate` arrive avec 1C ; jetons d'accès et MCP restent à l'étape 4.
 
 **Livrable de l'étape** : le foyer importe son fichier d'abonnements, voit le coût réel mensuel et la prochaine échéance de chaque abonnement, peut en ajouter et en modifier dans l'interface, connecté via Authelia, avec les éléments privés invisibles de l'autre adulte.
 
@@ -83,9 +83,11 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 
 | Décision | À trancher avant | Où |
 |---|---|---|
-| Valorisations et flux : étape 1 ou étape 2 | début de 1B | `superpowers/plans/2026-09-19-stage-1-overview.md` |
-| Langue des plans d'exécution (anglais aujourd'hui) | début de 1B | ce fichier |
 | Questions ouvertes de l'architecture | selon l'étape concernée | `architecture.md` §16 |
+
+**Tranchées le 2026-09-22** : `Valuation`, `Flow`, `Document` et `Proposal` restent hors de l'étape 1 (leurs
+premiers consommateurs sont les étapes 2 et 4) ; les plans d'exécution restent en anglais, le reste de la
+documentation en français.
 
 ## 7. Journal
 
@@ -93,3 +95,4 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 |---|---|
 | 2026-09-19 | Conception terminée ; spikes exécutés (Synapse, NodaTime, RFC 8785, EF Core, prêts, OIDC avec Authelia) ; plan de l'étape 1 écrit ; issues #91 à #96 et PR #97 et #98 ouvertes sur UnambitiousFx/Synapse |
 | 2026-09-22 | Sous-plan 1A exécuté de bout en bout : solution, types valeur, règles d'accès, persistance Core, pipeline Synapse, session OIDC (BFF) et pile de développement Aspire ; 35 tests unitaires et 31 d'intégration verts, test de fumée OIDC complet. La tâche 7 a été reprise de `docker compose` vers l'AppHost Aspire (trois corrections, `docs/spikes.md` §8bis). |
+| 2026-09-22 | Décisions tranchées avant 1B : périmètre (`Valuation`, `Flow`, `Document`, `Proposal` hors étape 1) et langue des plans (anglais). |
