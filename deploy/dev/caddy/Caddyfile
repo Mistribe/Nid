@@ -1,0 +1,13 @@
+{
+  local_certs
+}
+
+auth.localtest.me {
+  tls internal
+  reverse_proxy authelia:9091
+}
+
+nid.localtest.me {
+  tls internal
+  reverse_proxy host.docker.internal:5080
+}
