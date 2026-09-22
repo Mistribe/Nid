@@ -255,6 +255,65 @@ public class TimelineWalkTests
     }
 
     [Fact]
+    public void A_bundle_amortizes_its_allocated_amount_and_not_its_price()
+    {
+        var input = Input(
+            [],
+            [Purchase(new LocalDate(2024, 11, 18), 88.99m, PurchaseKind.Bundle,
+                      [Grant(Months(1), CoverageSource.Included)], allocated: 29.6633m)]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 6, 1), Horizon).Ok();
+
+        var window = DateRange.Create(new LocalDate(2024, 11, 1), new LocalDate(2025, 1, 1)).Ok();
+        Assert.Equal(88.99m, timeline.CashCost(window).For(Currency.Eur)!.Value.Amount);
+        Assert.Equal(29.6633m, timeline.AmortizedCost(window).For(Currency.Eur)!.Value.Amount);
+    }
+
+    [Fact]
+    public void An_allocated_amount_out_of_scale_is_refused_rather_than_amortizing_the_whole_price()
+    {
+        var input = Input(
+            [],
+            [Purchase(new LocalDate(2024, 11, 18), 88.99m, PurchaseKind.Bundle,
+                      [Grant(Months(1), CoverageSource.Included)], allocated: 29.663333m)]);
+
+        Assert.Equal("subscriptions.allocated_scale",
+                     SubscriptionTimeline.Build(input, new LocalDate(2025, 6, 1), Horizon).FailureCode());
+    }
+
+    [Fact]
+    public void A_purchase_granting_to_several_subscriptions_covers_only_this_one()
+    {
+        var other = new Grant(ItemId.New(), Months(1), CoverageSource.Paid, new LocalDate(2025, 1, 1));
+        var input = Input(
+            [],
+            [Purchase(new LocalDate(2025, 1, 1), 20m, PurchaseKind.PrepaidTerm,
+                      [Grant(Months(1), CoverageSource.Paid, new LocalDate(2025, 1, 1)), other])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 6, 1), Horizon).Ok();
+
+        var period = Assert.Single(timeline.Coverage);
+        Assert.Equal(new LocalDate(2025, 1, 1), period.Start);
+        Assert.Equal(new LocalDate(2025, 2, 1), period.EndBefore);
+
+        var charge = Assert.Single(timeline.Charges);
+        Assert.Equal(20m, charge.Price.Amount);
+        Assert.Equal(31, charge.Allocation.Days);
+    }
+
+    [Fact]
+    public void A_purchase_granting_only_to_another_subscription_is_not_a_charge_here()
+    {
+        var other = new Grant(ItemId.New(), Months(1), CoverageSource.Paid, new LocalDate(2025, 1, 1));
+        var input = Input([], [Purchase(new LocalDate(2025, 1, 1), 20m, PurchaseKind.PrepaidTerm, [other])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 6, 1), Horizon).Ok();
+
+        Assert.Empty(timeline.Charges);
+        Assert.Empty(timeline.Coverage);
+    }
+
+    [Fact]
     public void A_refused_input_never_produces_a_timeline()
     {
         var input = Input(

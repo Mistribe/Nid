@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -12,6 +13,16 @@ internal static class InputValidation
 {
     public static Result<IReadOnlyList<Finding>> Validate(SubscriptionInput input)
     {
+        var phaseIds = new HashSet<BillingPhaseId>();
+        foreach (var phase in input.Phases)
+            if (!phaseIds.Add(phase.Id))
+                return Fail("subscriptions.duplicate_id", "Ids are unique per entity.", phase.Id.ToString());
+
+        var purchaseIds = new HashSet<PurchaseId>();
+        foreach (var purchase in input.Purchases)
+            if (!purchaseIds.Add(purchase.Id))
+                return Fail("subscriptions.duplicate_id", "Ids are unique per entity.", purchase.Id.ToString());
+
         foreach (var phase in input.Phases)
         {
             if (phase.EndsOn is { } endsOn && endsOn <= phase.StartsOn)
@@ -46,15 +57,20 @@ internal static class InputValidation
                 if (allocated < 0 || allocated > purchase.Price.Amount)
                     return Fail("subscriptions.allocated_range",
                                 "An allocated amount lies between zero and the price.", purchase.Id.ToString());
+
+                // An allocated amount out of Money's scale would be refused by Money.Create later, where the
+                // only recourse left is to fall back to the whole bundle price. Refuse it here instead.
+                if (decimal.Round(allocated, Money.MaxDecimals) != allocated)
+                    return Fail("subscriptions.allocated_scale",
+                                $"An allocated amount has at most {Money.MaxDecimals} decimals.",
+                                purchase.Id.ToString());
             }
 
             foreach (var grant in purchase.Grants)
             {
-                if (grant.SubscriptionId != input.Subscription.Id)
-                    return Fail("subscriptions.grant_foreign",
-                                "A grant of this input belongs to the subscription being built.",
-                                purchase.Id.ToString());
-
+                // A grant for another subscription is legitimate: the core principle of the data model is
+                // that one payment may grant coverage to several services. The timeline walk keeps only the
+                // grants of the subscription it is building.
                 if (grant.Duration.Count <= 0)
                     return Fail("subscriptions.duration_count", "A duration has a positive count.",
                                 purchase.Id.ToString());

@@ -22,6 +22,10 @@ public class InputValidationTests
         => new(PurchaseId.New(), new LocalDate(2025, 1, 1), "label", Eur(price),
                new Payer(PayerType.Household, null), kind, grants, allocated);
 
+    private static Purchase PurchaseWithId(PurchaseId id)
+        => new(id, new LocalDate(2025, 1, 1), "label", Eur(10m),
+               new Payer(PayerType.Household, null), PurchaseKind.PrepaidTerm, [PaidMonths(1)], null);
+
     private static SubscriptionInput Input(IReadOnlyList<BillingPhase> phases, IReadOnlyList<Purchase> purchases)
         => new(new SubscriptionHeader(Sub, AutoRenew: true, CancelledAt: null), phases, purchases);
 
@@ -95,12 +99,50 @@ public class InputValidationTests
     }
 
     [Fact]
-    public void A_grant_for_another_subscription_is_refused()
+    public void A_grant_for_another_subscription_is_accepted()
     {
+        // One purchase may grant coverage to several subscriptions: a bundle granting a month of two
+        // services is the core principle of the data model, not an error.
         var foreign = new Grant(ItemId.New(), Months(1), CoverageSource.Paid, null);
-        var input = Input([], [Purchase(PurchaseKind.PrepaidTerm, 10m, null, foreign)]);
+        var input = Input([], [Purchase(PurchaseKind.PrepaidTerm, 10m, null, foreign, PaidMonths(1))]);
 
-        Assert.Equal("subscriptions.grant_foreign", InputValidation.Validate(input).FailureCode());
+        Assert.True(InputValidation.Validate(input).IsSuccess);
+    }
+
+    [Fact]
+    public void An_allocated_amount_out_of_scale_is_refused()
+    {
+        var input = Input([], [Purchase(PurchaseKind.Bundle, 88.99m, 29.663333m, PaidMonths(1))]);
+
+        Assert.Equal("subscriptions.allocated_scale", InputValidation.Validate(input).FailureCode());
+    }
+
+    [Fact]
+    public void An_allocated_amount_within_Moneys_scale_is_accepted()
+    {
+        var input = Input([], [Purchase(PurchaseKind.Bundle, 88.99m, 29.6633m, PaidMonths(1))]);
+
+        Assert.True(InputValidation.Validate(input).IsSuccess);
+    }
+
+    [Fact]
+    public void A_duplicate_phase_id_is_refused()
+    {
+        var id = BillingPhaseId.New();
+        var first = new BillingPhase(id, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 1), Eur(10m),
+                                     Months(1), null, null, new Payer(PayerType.Household, null));
+        var second = first with { StartsOn = new LocalDate(2025, 6, 1), EndsOn = null };
+
+        Assert.Equal("subscriptions.duplicate_id", InputValidation.Validate(Input([first, second], [])).FailureCode());
+    }
+
+    [Fact]
+    public void A_duplicate_purchase_id_is_refused()
+    {
+        var id = PurchaseId.New();
+        var input = Input([], [PurchaseWithId(id), PurchaseWithId(id)]);
+
+        Assert.Equal("subscriptions.duplicate_id", InputValidation.Validate(input).FailureCode());
     }
 
     [Fact]

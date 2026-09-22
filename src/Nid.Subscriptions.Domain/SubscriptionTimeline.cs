@@ -209,6 +209,12 @@ public static class SubscriptionTimeline
 
     private static CostAllocation ZeroAllocation(Money price) => new(price, 0, 0m, 0);
 
+    /// <summary>
+    /// What counts as subscription cost for a purchase charge. Validation refuses an allocated amount out
+    /// of <see cref="Money.MaxDecimals"/>, and a price is already a <see cref="Money"/>, so the basis always
+    /// fits: neither fallback below is reachable, and returning the price rather than amortizing a whole
+    /// bundle price by accident is what they are there for.
+    /// </summary>
     private static Money BasisOf(SubscriptionInput input, PurchaseId purchaseId, Money price)
     {
         foreach (var purchase in input.Purchases)
