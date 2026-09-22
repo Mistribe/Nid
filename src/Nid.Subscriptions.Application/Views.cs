@@ -36,13 +36,17 @@ public sealed record SubscriptionSummary(
 /// <summary>
 /// The household totals are NOT the sum of the rows: a purchase granting to several subscriptions shows in
 /// full on each of them but left the account once, so it is counted once here. <paramref name="SharedPurchaseIds"/>
-/// names those purchases so a caller can explain the difference instead of looking wrong.
+/// names those purchases so a caller can explain the difference instead of looking wrong, and
+/// <paramref name="Findings"/> says so in the machine-readable form the rest of the module uses: the cash
+/// total deduplicates such a purchase while the amortized one does not, so the two can disagree on the same
+/// response (<c>subscriptions.amortized_double_count</c>).
 /// </summary>
 public sealed record SubscriptionList(
     IReadOnlyList<SubscriptionSummary> Items,
     IReadOnlyList<MoneyView> HouseholdCashCost,
     IReadOnlyList<MoneyView> HouseholdAmortizedCost,
-    IReadOnlyList<Guid> SharedPurchaseIds) : IExposesItems
+    IReadOnlyList<Guid> SharedPurchaseIds,
+    IReadOnlyList<FindingView> Findings) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }

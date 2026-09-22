@@ -1,3 +1,4 @@
+using Nid.Subscriptions.Application;
 using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
@@ -14,6 +15,10 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// for 1C1. This test exists so 1E and 1C2 inherit a known fact rather than a surprise; if it ever starts
 /// failing because the double count went away, that is good news — update this comment and the design's
 /// Execution notes rather than treating it as a regression to fix blindly.
+///
+/// The limitation no longer travels only as this comment: the list response carries
+/// <c>subscriptions.amortized_double_count</c> whenever a shared purchase contributed, on the same findings
+/// channel the engine's own warnings use, so a caller reading the two totals can see why they disagree.
 /// </summary>
 [Collection("postgres")]
 public class KnownLimitationTests(PostgresFixture fixture)
@@ -37,13 +42,34 @@ public class KnownLimitationTests(PostgresFixture fixture)
         // cash figure above. This asymmetry is the limitation being pinned.
         Assert.Equal(40m, list.HouseholdAmortizedCost.Single(m => m.Currency == "EUR").Amount);
 
+        // And the response says so itself, keyed on a stable code and pointing at the purchase responsible.
+        var finding = Assert.Single(list.Findings, f => f.Code == HouseholdCost.AmortizedDoubleCountCode);
+        Assert.Equal(list.SharedPurchaseIds.Single().ToString(), finding.Reference);
+
         Assert.NotEqual(first, second);
+    }
+
+    /// <summary>Nothing diverged, so nothing is reported: a finding that is always there is noise.</summary>
+    [Fact]
+    public async Task A_household_with_no_shared_purchase_reports_no_divergence()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.NewMonthlyAsync(app.AdultA, 10m);
+
+        var list = await app.GetAsync<ListResponse>(
+            app.AdultA, "/api/v1/subscriptions?from=2025-01-01&to=2025-02-01");
+
+        Assert.Empty(list.SharedPurchaseIds);
+        Assert.DoesNotContain(list.Findings, f => f.Code == HouseholdCost.AmortizedDoubleCountCode);
     }
 
     public sealed record MoneyResponse(decimal Amount, string Currency);
 
+    public sealed record FindingResponse(string Code, string Message, string? Reference);
+
     public sealed record ListResponse(
         IReadOnlyList<MoneyResponse> HouseholdCashCost,
         IReadOnlyList<MoneyResponse> HouseholdAmortizedCost,
-        IReadOnlyList<Guid> SharedPurchaseIds);
+        IReadOnlyList<Guid> SharedPurchaseIds,
+        IReadOnlyList<FindingResponse> Findings);
 }

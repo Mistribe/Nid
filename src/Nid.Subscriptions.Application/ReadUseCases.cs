@@ -60,7 +60,9 @@ public sealed class ListSubscriptionsHandler(
         }
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
-        return Result.Success(new SubscriptionList(summaries, cash, amortized, shared));
+        return Result.Success(new SubscriptionList(
+            summaries, cash, amortized, shared,
+            HouseholdCost.Divergences(shared).Select(FindingView.From).ToList()));
     }
 }
 
