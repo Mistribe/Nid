@@ -41,6 +41,7 @@
 | F8 | Routage : TanStack Router | Retenu par défaut (non revérifié ; alternative : React Router) |
 | F9 | Formulaires : React Hook Form + Zod ; i18n : i18next | Retenu par défaut (non revérifié) |
 | F10 | Visionneuse PDF : pdf.js, **version 4.2.67 ou plus**, scripts et évaluation désactivés | Retenu par défaut (alternative : visionneuse native) |
+| F11 | **Pas de store client dédié** (Redux, Zustand…) : état serveur par TanStack Query (F3), état de vue partageable par l'URL via TanStack Router (F8), session/thème/préférences par contexte React local. Un store n'est ajouté que si un état transverse réel apparaît (ex. assistant d'import multi-étapes) | Décidé |
 
 ## 4. Questions ouvertes
 
