@@ -71,7 +71,7 @@ public static class SubscriptionTimeline
 
         while (true)
         {
-            var candidate = NextCharge(input, states, runs, horizon);
+            var candidate = NextCharge(input, states, runs, today, horizon);
             var grantDate = next < grants.Count ? grants[next].Purchase.Date : (LocalDate?)null;
 
             // A grant is applied before a charge falling on the same day: it may push that charge back.
@@ -176,10 +176,13 @@ public static class SubscriptionTimeline
         SubscriptionInput input,
         List<PhaseState> states,
         CoverageRuns runs,
+        LocalDate today,
         LocalDate horizon)
     {
-        if (!input.Subscription.AutoRenew)
-            return null;
+        // auto_renew false stops the walk, it does not erase it: the data model calls it whether open
+        // phases *keep* generating charges, and the design lists it beside the horizon and cancelled_at as
+        // a termination condition. Past payments and current coverage stand; nothing is charged from today.
+        var stop = input.Subscription.AutoRenew || horizon < today ? horizon : today;
 
         Candidate? best = null;
 
@@ -205,7 +208,7 @@ public static class SubscriptionTimeline
             if (input.Subscription.CancelledAt is { } cancelled && date >= cancelled)
                 continue;
 
-            if (date >= horizon)
+            if (date >= stop)
                 continue;
 
             if (best is null || date < best.Date)

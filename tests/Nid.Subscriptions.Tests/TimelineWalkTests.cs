@@ -154,13 +154,19 @@ public class TimelineWalkTests
     }
 
     [Fact]
-    public void A_subscription_that_does_not_renew_never_charges()
+    public void A_subscription_that_does_not_renew_keeps_its_history_and_stops_at_today()
     {
-        var input = Input([Phase(new LocalDate(2025, 1, 1), null, 10m)], [], autoRenew: false);
+        var input = Input([Phase(new LocalDate(2024, 1, 1), null, 10m)], [], autoRenew: false);
+        var today = new LocalDate(2026, 1, 1);
 
-        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), Horizon).Ok();
+        var timeline = SubscriptionTimeline.Build(input, today, Horizon).Ok();
 
-        Assert.Empty(timeline.Charges);
+        // Two years of real payments, from 2024-01-01 to 2025-12-01, and nothing on or after today.
+        Assert.Equal(24, timeline.Charges.Count);
+        Assert.All(timeline.Charges, c => Assert.True(c.Date < today));
+        Assert.True(timeline.IsCoveredOn(new LocalDate(2025, 12, 15)));
+        Assert.Equal(today, timeline.ExpiresOn());
+        Assert.Null(timeline.NextCharge());
     }
 
     [Fact]
