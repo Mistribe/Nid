@@ -71,7 +71,7 @@ public static class SubscriptionTimeline
 
         while (true)
         {
-            var candidate = NextCharge(input, states, runs, today, horizon);
+            var candidate = NextCharge(input, states, runs, warnings, today, horizon, out var horizonReached);
             var grantDate = next < grants.Count ? grants[next].Purchase.Date : (LocalDate?)null;
 
             // A grant is applied before a charge falling on the same day: it may push that charge back.
@@ -99,7 +99,17 @@ public static class SubscriptionTimeline
             }
 
             if (candidate is not { } charge)
+            {
+                // Without this the walk's own bound is indistinguishable from a real expiry, and ExpiresOn
+                // would hand 1E the horizon as if it were a date the subscription actually ends on.
+                if (horizonReached)
+                    warnings.Add(new Finding(
+                        "subscriptions.horizon_reached",
+                        "The walk stopped at the horizon; the subscription runs beyond it.",
+                        input.Subscription.Id.ToString()));
+
                 break;
+            }
 
             var state = charge.State;
             if (state.Charged >= MaxCyclesPerPhase)
@@ -176,9 +186,13 @@ public static class SubscriptionTimeline
         SubscriptionInput input,
         List<PhaseState> states,
         CoverageRuns runs,
+        List<Finding> warnings,
         LocalDate today,
-        LocalDate horizon)
+        LocalDate horizon,
+        out bool horizonReached)
     {
+        horizonReached = false;
+
         // auto_renew false stops the walk, it does not erase it: the data model calls it whether open
         // phases *keep* generating charges, and the design lists it beside the horizon and cancelled_at as
         // a termination condition. Past payments and current coverage stand; nothing is charged from today.
@@ -203,10 +217,30 @@ public static class SubscriptionTimeline
             date = runs.FirstUncoveredFrom(date);
 
             if (phase.EndsOn is { } endsOn && date >= endsOn)
+            {
+                // The phase is behind us with renewals it never spent: ends_on and max_cycles disagree,
+                // which the data model assumes they never do. Billing is unchanged — a phase that is not
+                // active at t does not charge — but the lost cycles are worth a human's attention.
+                if (phase.MaxCycles is { } unspent && state.Charged < unspent && !state.CyclesUnspentReported)
+                {
+                    state.CyclesUnspentReported = true;
+                    warnings.Add(new Finding(
+                        "subscriptions.phase_cycles_unspent",
+                        "A phase ended with renewals left in its cycle limit; coverage outran its dates.",
+                        phase.Id.ToString()));
+                }
+
                 continue;
+            }
 
             if (input.Subscription.CancelledAt is { } cancelled && date >= cancelled)
                 continue;
+
+            if (date >= horizon)
+            {
+                horizonReached = true;
+                continue;
+            }
 
             if (date >= stop)
                 continue;
@@ -294,6 +328,9 @@ public static class SubscriptionTimeline
 
         /// <summary>Total charges this phase has emitted. Never reset: caps and origins must not restart.</summary>
         public int Charged { get; set; }
+
+        /// <summary>Whether the unspent-cycles warning has already been recorded: the walk passes here often.</summary>
+        public bool CyclesUnspentReported { get; set; }
     }
 
     private sealed record Candidate(PhaseState State, LocalDate Date, LocalDate Natural);

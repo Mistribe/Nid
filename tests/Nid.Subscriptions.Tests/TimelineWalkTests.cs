@@ -350,6 +350,63 @@ public class TimelineWalkTests
     }
 
     [Fact]
+    public void An_open_walk_stopping_at_the_horizon_says_so()
+    {
+        var input = Input([Phase(new LocalDate(2025, 1, 1), null, 10m)], []);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), new LocalDate(2025, 5, 1)).Ok();
+
+        // Without the warning, ExpiresOn returns the horizon and reads as a real expiry date.
+        Assert.Contains(timeline.Warnings, w => w.Code == "subscriptions.horizon_reached");
+        Assert.Equal(new LocalDate(2025, 5, 1), timeline.ExpiresOn());
+    }
+
+    [Fact]
+    public void A_walk_that_runs_out_of_phases_does_not_blame_the_horizon()
+    {
+        var input = Input([Phase(new LocalDate(2025, 1, 1), null, 10m, maxCycles: 3)], []);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), Horizon).Ok();
+
+        Assert.DoesNotContain(timeline.Warnings, w => w.Code == "subscriptions.horizon_reached");
+        Assert.Equal(new LocalDate(2025, 4, 1), timeline.ExpiresOn());
+    }
+
+    [Fact]
+    public void A_phase_passed_over_with_renewals_left_in_its_limit_warns()
+    {
+        // An intro offer of three months at 0.99 plus a three-month gift bought two weeks in: the gift
+        // carries the subscription past the intro phase's ends_on with two of its three cycles unspent.
+        var input = Input(
+            [Phase(new LocalDate(2025, 1, 1), new LocalDate(2025, 4, 1), 0.99m, maxCycles: 3),
+             Phase(new LocalDate(2025, 4, 1), null, 9.99m)],
+            [Purchase(new LocalDate(2025, 1, 15), 0m, PurchaseKind.Gift, [Grant(Months(3), CoverageSource.Gift)])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), new LocalDate(2025, 8, 1)).Ok();
+
+        var warning = Assert.Single(timeline.Warnings, w => w.Code == "subscriptions.phase_cycles_unspent");
+        Assert.NotNull(warning.Reference);
+
+        // Billing is unchanged: one intro charge, then full price from the end of the gift.
+        Assert.Single(timeline.Charges, c => c.Price.Amount == 0.99m);
+        Assert.Equal(new LocalDate(2025, 5, 1),
+                     timeline.Charges.First(c => c.Price.Amount == 9.99m).Date);
+    }
+
+    [Fact]
+    public void A_phase_that_spent_its_limit_does_not_warn_about_unspent_cycles()
+    {
+        var input = Input(
+            [Phase(new LocalDate(2025, 1, 1), new LocalDate(2025, 4, 1), 0.99m, maxCycles: 3),
+             Phase(new LocalDate(2025, 4, 1), null, 9.99m)],
+            []);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), new LocalDate(2025, 8, 1)).Ok();
+
+        Assert.DoesNotContain(timeline.Warnings, w => w.Code == "subscriptions.phase_cycles_unspent");
+    }
+
+    [Fact]
     public void A_refused_input_never_produces_a_timeline()
     {
         var input = Input(
