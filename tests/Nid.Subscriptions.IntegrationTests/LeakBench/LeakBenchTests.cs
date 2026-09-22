@@ -496,14 +496,23 @@ public class LeakBenchTests(PostgresFixture fixture)
         => failure is null ? "success" : $"{failure.GetType().Name}({failure.Code})";
 
     /// <summary>
-    /// Whether a response type carries <see cref="ItemId"/> anywhere a caller can reach. Only our own types
-    /// are walked: an ItemId cannot hide inside a framework type without one of ours holding it first.
+    /// Whether a type carries <see cref="ItemId"/> anywhere a caller can reach.
+    ///
+    /// A nested <see cref="IExposesItems"/> does NOT stop the walk, on purpose: the output guard inspects the
+    /// top-level response only, so a <c>Page&lt;T&gt;</c> that does not implement the interface while its
+    /// <c>T</c> does is precisely the shape that would sail past both the guard and this test. Only the root
+    /// is exempt, and its caller checks that before calling in.
+    ///
+    /// Generic arguments are walked whatever the assembly: a dictionary's values reach us through
+    /// <c>KeyValuePair&lt;,&gt;</c>, which is not one of our types, and a nullable through
+    /// <c>Nullable&lt;&gt;</c>. Properties are only walked on our own types — an ItemId cannot hide in a
+    /// framework type's own members without one of ours holding it first.
     /// </summary>
     private static bool CarriesItemIds(Type type, HashSet<Type> seen)
     {
         if (type == typeof(ItemId))
             return true;
-        if (!seen.Add(type) || typeof(IExposesItems).IsAssignableFrom(type))
+        if (!seen.Add(type))
             return false;
 
         IEnumerable<Type> elements = type.IsArray
@@ -515,10 +524,64 @@ public class LeakBenchTests(PostgresFixture fixture)
         if (elements.Any(e => CarriesItemIds(e, seen)))
             return true;
 
+        if (type.IsGenericType && type.GetGenericArguments().Any(a => CarriesItemIds(a, seen)))
+            return true;
+
         if (type.Assembly.GetName().Name?.StartsWith("Nid.", StringComparison.Ordinal) != true)
             return false;
 
         return type.GetProperties()
             .Any(p => p.GetIndexParameters().Length == 0 && CarriesItemIds(p.PropertyType, seen));
     }
+
+    // Response shapes the walk above has to see through. None of them is a real response: they exist so the
+    // test below fails when the walk loses its reach, which is the only way the guard's automatic coverage
+    // can quietly shrink.
+    private sealed record PlainRow(ItemId Id, string Label);
+
+    private sealed record ExposingRow(ItemId Id) : IExposesItems
+    {
+        public IEnumerable<ItemId> ExposedItems() => [Id];
+    }
+
+    private sealed record Page<T>(IReadOnlyList<T> Items, string? Cursor);
+
+    private sealed record ByKey(IReadOnlyDictionary<string, PlainRow> Rows);
+
+    private sealed record ByExposingKey(IReadOnlyDictionary<string, ExposingRow> Rows);
+
+    private sealed record Maybe(ItemId? Id);
+
+    private sealed record Harmless(string Name, int Count);
+
+    public static TheoryData<bool, Type> ReachShapes => new()
+    {
+        { true, typeof(PlainRow) },
+        // The hole this closes: the guard looks at the top-level response only, so a page whose rows expose
+        // items while the page itself does not is unchecked at run time AND unnoticed by the architecture test.
+        { true, typeof(Page<ExposingRow>) },
+        { true, typeof(Page<PlainRow>) },
+        // A dictionary reaches its values through KeyValuePair<,>, which is not one of our types.
+        { true, typeof(ByKey) },
+        { true, typeof(ByExposingKey) },
+        { true, typeof(Maybe) },
+        { true, typeof(IReadOnlyList<ExposingRow>) },
+        { false, typeof(Harmless) },
+        { false, typeof(IReadOnlyList<string>) },
+        { false, typeof(IReadOnlyDictionary<string, string>) },
+    };
+
+    /// <summary>
+    /// The reach of <see cref="CarriesItemIds"/> is what makes
+    /// <see cref="Every_read_that_carries_items_exposes_them_to_the_output_guard"/> worth anything: a walk
+    /// that stops too early reports a clean bill of health for a response the guard cannot see into.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(ReachShapes))]
+    public void The_walk_that_finds_unguarded_responses_sees_through_nesting(bool expected, Type shape)
+        => Assert.True(expected == CarriesItemIds(shape, []),
+            $"{shape} : expected CarriesItemIds={expected}. A response of this shape "
+            + (expected
+                ? "carries ItemIds the output guard would never be handed."
+                : "carries none, and flagging it would train the next author to ignore this test."));
 }
