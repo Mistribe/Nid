@@ -1,8 +1,12 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Nid.Core.Application/Nid.Core.Application.csproj" />
     <Project Path="src/Nid.Core.Contracts/Nid.Core.Contracts.csproj" />
     <Project Path="src/Nid.Core.Domain/Nid.Core.Domain.csproj" />
     <Project Path="src/Nid.Core.Infrastructure/Nid.Core.Infrastructure.csproj" />
+    <Project Path="src/Nid.Host/Nid.Host.csproj" />
+    <Project Path="src/Nid.Platform.Contracts/Nid.Platform.Contracts.csproj" />
+    <Project Path="src/Nid.Platform/Nid.Platform.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Core.IntegrationTests/Nid.Core.IntegrationTests.csproj" />

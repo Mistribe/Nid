@@ -9,5 +9,6 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <ProjectReference Include="..\..\src\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Host\Nid.Host.csproj" />
   </ItemGroup>
 </Project>
