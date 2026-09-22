@@ -49,13 +49,19 @@ public sealed class OutputGuardBehavior<TRequest, TResponse>(
         if (!result.TryGetValue(out var response) || response is not IExposesItems exposing)
             return result;
 
-        // A system actor is not bound to a person and has no visible-item set to check against.
-        if (accessor.Current?.PersonId is not { } actor)
-            return result;
-
         var exposed = exposing.ExposedItems().ToList();
         if (exposed.Count == 0)
             return result;
+
+        // A system actor has no PersonId, so it has no visible-item set to prove a response carrying items is
+        // legitimate. Uncertainty is a refusal here too, not a pass — the same principle as the lookup throwing
+        // below. (No system-actor request exposes items today: Actor.System is set only on the OIDC callback,
+        // which returns PersonInfo. But the pass-through would silently bypass the guard the day one does.)
+        if (accessor.Current?.PersonId is not { } actor)
+        {
+            await violations.RecordAsync(typeof(TRequest).Name, default, exposed, cancellationToken);
+            return Violation();
+        }
 
         IReadOnlySet<ItemId> allowed;
         try

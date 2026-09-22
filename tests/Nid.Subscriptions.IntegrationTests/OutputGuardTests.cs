@@ -29,6 +29,11 @@ public class OutputGuardTests
         public Actor? Current { get; set; } = Actor.Browser(person);
     }
 
+    private sealed class SystemAccessor : IActorAccessor
+    {
+        public Actor? Current { get; set; } = Actor.System;
+    }
+
     private sealed class ThrowingVisibleItems : IVisibleItems
     {
         public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
@@ -100,6 +105,33 @@ public class OutputGuardTests
             (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))));
 
         Assert.Single(recorder.Recorded);
+    }
+
+    [Fact]
+    public async Task A_system_actor_response_exposing_an_item_is_refused_and_carries_no_data()
+    {
+        var guard = new OutputGuardBehavior<AnyQuery, LeakyResponse>(
+            new SystemAccessor(), new ThrowingVisibleItems(), NullViolations.Instance);
+
+        var result = await guard.HandleAsync(new AnyQuery(),
+            (_, _) => ValueTask.FromResult(Result.Success(new LeakyResponse([new ItemId(Guid.CreateVersion7())]))));
+
+        // A system actor has no PersonId and so no visible-item set to prove the response legitimate:
+        // uncertainty is a refusal here too, never a silent pass.
+        Assert.Equal("core.access_violation", result.FailureCode());
+        Assert.False(result.TryGetValue(out _));
+    }
+
+    [Fact]
+    public async Task A_system_actor_response_exposing_nothing_passes_untouched()
+    {
+        var guard = new OutputGuardBehavior<HarmlessQuery, HarmlessResponse>(
+            new SystemAccessor(), new ThrowingVisibleItems(), NullViolations.Instance);
+
+        var result = await guard.HandleAsync(new HarmlessQuery(),
+            (_, _) => ValueTask.FromResult(Result.Success(new HarmlessResponse("nothing item-scoped"))));
+
+        Assert.Equal("nothing item-scoped", result.Ok().Text);
     }
 
     private sealed class RecordingViolations : IAccessViolations
