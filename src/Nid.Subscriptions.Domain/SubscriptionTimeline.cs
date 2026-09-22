@@ -41,6 +41,21 @@ public static class SubscriptionTimeline
             .ThenBy(x => x.Index)
             .ToList();
 
+        // Every purchase is money leaving the account, so every purchase is a charge — including a refund
+        // or an adjustment, which the data model encodes with an empty grant list. A purchase that grants
+        // only to other subscriptions is their money, not this one's, and is left out. Coverage and
+        // allocation are filled by the second pass, which is the only place that knows both.
+        foreach (var purchase in input.Purchases
+                     .Where(p => p.Grants.Count == 0
+                                 || p.Grants.Any(g => g.SubscriptionId == input.Subscription.Id))
+                     .OrderBy(p => p.Date)
+                     .ThenBy(p => p.Id.Value))
+            charges.Add(new Charge(purchase.Date, purchase.Price, purchase.Payer,
+                                   new ChargeOrigin.FromPurchase(purchase.Id),
+                                   [],
+                                   IsProjected: purchase.Date > today,
+                                   Allocation: ZeroAllocation(purchase.Price)));
+
         var states = input.Phases
             .OrderBy(p => p.StartsOn)
             .Select(p => new PhaseState(p))
@@ -74,14 +89,6 @@ public static class SubscriptionTimeline
                                                 IsProjected: purchase.Date > today);
                 periods.Add(period);
                 coverageEnd = Later(end, coverageEnd);
-
-                // A purchase becomes a charge once, with the first of its grants.
-                if (index == 0)
-                    charges.Add(new Charge(purchase.Date, purchase.Price, purchase.Payer,
-                                           new ChargeOrigin.FromPurchase(purchase.Id),
-                                           CoverageOf(purchase, periods),
-                                           IsProjected: purchase.Date > today,
-                                           Allocation: ZeroAllocation(purchase.Price)));
                 continue;
             }
 
@@ -199,12 +206,6 @@ public static class SubscriptionTimeline
 
         return best;
     }
-
-    private static IReadOnlyList<CoveragePeriod> CoverageOf(Purchase purchase, List<CoveragePeriod> periods)
-        => periods
-            .Where(p => p.Origin is CoverageOrigin.FromGrant grant && grant.PurchaseId == purchase.Id)
-            .OrderBy(p => p.Start)
-            .ToList();
 
     private static CostAllocation ZeroAllocation(Money price) => new(price, 0, 0m, 0);
 

@@ -232,6 +232,29 @@ public class TimelineWalkTests
     }
 
     [Fact]
+    public void A_refund_without_grants_is_a_charge_that_amortizes_nothing()
+    {
+        // The data model maps "refund or pro-rata credit" to a purchase with a negative price and no grants.
+        var input = Input(
+            [Phase(new LocalDate(2025, 1, 1), null, 10m)],
+            [Purchase(new LocalDate(2025, 2, 10), -10m, PurchaseKind.Refund, [])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 6, 1), Horizon).Ok();
+
+        var refund = Assert.Single(timeline.Charges, c => c.Origin is ChargeOrigin.FromPurchase);
+        Assert.Equal(new LocalDate(2025, 2, 10), refund.Date);
+        Assert.Equal(-10m, refund.Price.Amount);
+        Assert.Empty(refund.Coverage);
+        Assert.Equal(0, refund.Allocation.Days);
+
+        var window = DateRange.Create(new LocalDate(2025, 1, 1), new LocalDate(2025, 4, 1)).Ok();
+
+        // Three monthly charges less the refund; the refund covers no day, so it amortizes nothing.
+        Assert.Equal(20m, timeline.CashCost(window).For(Currency.Eur)!.Value.Amount);
+        Assert.Equal(30m, timeline.AmortizedCost(window).For(Currency.Eur)!.Value.Amount);
+    }
+
+    [Fact]
     public void A_refused_input_never_produces_a_timeline()
     {
         var input = Input(
