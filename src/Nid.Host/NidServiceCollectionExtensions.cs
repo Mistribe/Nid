@@ -20,6 +20,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
+        services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
 
         services.AddLogging();
