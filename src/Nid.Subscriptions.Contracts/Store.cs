@@ -31,5 +31,10 @@ public interface ISubscriptionStore
 
     Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, CancellationToken ct);
 
-    Task<Result> DeletePurchaseAsync(PurchaseId purchase, CancellationToken ct);
+    /// <summary>
+    /// Deletes a purchase only if it actually grants to <paramref name="id"/> — a purchase belonging to a
+    /// wholly different subscription is reported as not found, never as forbidden, so its existence is not
+    /// disclosed to a caller who merely knows its id.
+    /// </summary>
+    Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct);
 }

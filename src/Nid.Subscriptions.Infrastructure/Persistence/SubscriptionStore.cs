@@ -149,10 +149,13 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(purchase.Id);
     }
 
-    public async Task<Result> DeletePurchaseAsync(PurchaseId purchase, CancellationToken ct)
+    public async Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct)
     {
-        var row = await db.Purchases.FirstOrDefaultAsync(p => p.Id == purchase.Value, ct);
-        if (row is null)
+        var row = await db.Purchases.Include(p => p.Grants)
+            .FirstOrDefaultAsync(p => p.Id == purchase.Value, ct);
+        // A purchase that does not exist, and one that exists but grants nothing to this subscription, look
+        // the same from here: neither is a purchase of the id the caller had access to.
+        if (row is null || row.Grants.All(g => g.SubscriptionItemId != id.Value))
             return Result.Failure(new NotFoundFailure("purchase", purchase.ToString()));
 
         db.Purchases.Remove(row); // grants cascade

@@ -108,7 +108,7 @@ public sealed class DeletePurchaseHandler(ISubscriptionStore store) : IRequestHa
 {
     public async ValueTask<Result<PurchaseId>> HandleAsync(DeletePurchaseCommand command, CancellationToken ct = default)
     {
-        var result = await store.DeletePurchaseAsync(command.PurchaseId, ct);
+        var result = await store.DeletePurchaseAsync(command.ItemId, command.PurchaseId, ct);
         return result.TryGetFailure(out var failure) ? Result.Failure<PurchaseId>(failure!) : Result.Success(command.PurchaseId);
     }
 }

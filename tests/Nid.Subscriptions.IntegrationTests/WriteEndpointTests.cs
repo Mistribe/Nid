@@ -136,4 +136,30 @@ public class WriteEndpointTests(PostgresFixture fixture)
         var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id.Value}");
         Assert.Empty(detail.Coverage);
     }
+
+    [Fact]
+    public async Task Deleting_a_purchase_through_a_subscription_it_does_not_grant_to_is_not_found_and_leaves_it_intact()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var first = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
+        var second = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{first.Value}/purchases", new
+        {
+            date = "2025-01-01", label = "gift", kind = "gift",
+            price = new { amount = 0m, currency = "EUR" },
+            payer = new { type = "external" },
+            grants = new[] { new { subscriptionId = first.Value, duration = new { count = 3, unit = "month" }, source = "gift" } },
+        });
+        created.EnsureSuccessStatusCode();
+        var purchaseId = (await created.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("id").GetGuid();
+
+        // The actor has write access to `second` (they own it), but the purchase grants only to `first`:
+        // deleting it through `second`'s route must fail as if the purchase did not exist there.
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/subscriptions/{second.Value}/purchases/{purchaseId}");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{first.Value}");
+        Assert.NotEmpty(detail.Coverage);
+    }
 }

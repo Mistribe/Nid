@@ -153,7 +153,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
                                     [new Grant(id, Months(1), CoverageSource.Gift, null)], null);
         (await store.AddPurchaseAsync(purchase, default)).Ok();
 
-        (await store.DeletePurchaseAsync(purchase.Id, default)).Ok();
+        (await store.DeletePurchaseAsync(id, purchase.Id, default)).Ok();
 
         Assert.Empty((await store.LoadAsync(id, default))!.Purchases);
     }
