@@ -9,10 +9,12 @@ using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
 using NodaTime;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
@@ -209,6 +211,27 @@ public sealed class NidApp : IAsyncDisposable
 
         result.TryGetValue(out var value);
         return (value, null);
+    }
+
+    /// <summary>
+    /// Writes one purchase granting a month to each of <paramref name="grantTo"/> straight through the store,
+    /// bypassing the pipeline on purpose: the leak bench needs a purchase spanning ANY pair of the dataset,
+    /// including pairs no single adult may write — a state the database can hold (the two items were writable
+    /// together when it was recorded, and one turned private since) and which the delete path must survive.
+    /// </summary>
+    public async Task<PurchaseId> SeedPurchaseGrantingToAsync(params ItemId[] grantTo)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<ISubscriptionStore>();
+
+        var purchase = new Purchase(
+            PurchaseId.New(), new LocalDate(2025, 1, 1), "bench-bundle",
+            Money.Create(1m, Currency.Eur).Ok(), new Payer(PayerType.Household, null), PurchaseKind.PrepaidTerm,
+            grantTo.Select(item => new Grant(
+                item, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null)).ToList(),
+            null);
+
+        return (await store.AddPurchaseAsync(purchase, CancellationToken.None)).Ok();
     }
 
     public async Task<ItemId> NewMonthlyAsync(PersonId owner, decimal price)

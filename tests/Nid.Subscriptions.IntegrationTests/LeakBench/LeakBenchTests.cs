@@ -232,6 +232,95 @@ public class LeakBenchTests(PostgresFixture fixture)
     }
 
     /// <summary>
+    /// The bench's second axis, and the reason it exists: <see cref="RequestCatalogue.Entries"/> builds each
+    /// request naming its target and nothing else, which is exactly why the matrix above reported full
+    /// coverage while a purchase could grant to a subscription the actor may not write. A request whose
+    /// payload can reach another <see cref="ItemId"/> must therefore also declare
+    /// <see cref="CatalogueEntry.BuildNamingAnother"/> — checked here by reflection, so the next request
+    /// that carries one joins the axis without anyone remembering to.
+    /// </summary>
+    [Fact]
+    public void Every_item_scoped_request_that_can_name_a_second_item_is_on_the_second_axis()
+    {
+        var missing = new List<string>();
+
+        foreach (var entry in RequestCatalogue.Entries.Where(e => e.IsItemScoped && e.BuildNamingAnother is null))
+        {
+            // Everything but the route's own ItemId: that one the pipeline already checks.
+            var carrying = entry.RequestType.GetProperties()
+                .Where(p => p.GetIndexParameters().Length == 0
+                            && p.Name != nameof(IItemScoped.ItemId)
+                            && CarriesItemIds(p.PropertyType, []))
+                .Select(p => p.Name)
+                .ToList();
+
+            if (carrying.Count > 0)
+                missing.Add($"{entry.RequestType.FullName} (through {string.Join(", ", carrying)})");
+        }
+
+        Assert.True(missing.Count == 0,
+            "These item-scoped requests can name a second item in their payload but have no "
+            + "BuildNamingAnother entry, so nothing checks the actor against that second item:\n  "
+            + string.Join("\n  ", missing));
+    }
+
+    /// <summary>
+    /// Each second-axis request, aimed at every item of the dataset while naming every other one, as A and
+    /// as B. A write reaching two items needs the right to write both: the target's refusal is the usual one
+    /// (§6: hidden is not found, readable-but-not-writable is forbidden), while a second item the actor may
+    /// not write is always <em>not found</em> — it was never disclosed to them in the first place.
+    /// </summary>
+    [Fact]
+    public async Task No_request_touches_a_second_item_the_actor_may_not_write()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+
+        foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildNamingAnother is not null))
+        foreach (var (targetName, target) in data.Items)
+        foreach (var (otherName, other) in data.Items)
+        {
+            if (target == other)
+                continue;
+
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                var request = await entry.BuildNamingAnother!(data, target, other);
+                var where = $"{entry.RequestType.Name} on {targetName} naming {otherName} by {data.NameOf(actor)}";
+
+                var (_, failure) = await app.InvokeAsync(actor, request);
+
+                if (!data.ExpectedReadable(actor).Contains(target))
+                {
+                    Assert.True(failure is NotFoundFailure { Resource: "item" },
+                        $"{where}: the rules hide the target, so it must be 'not found' — but the pipeline "
+                        + $"answered {Describe(failure)}");
+                    continue;
+                }
+
+                if (!data.ExpectedWritable(targetName, actor))
+                {
+                    Assert.True(failure is UnauthorizedFailure,
+                        $"{where}: the rules let this actor read but not write the target, so it must be "
+                        + $"forbidden, but the pipeline answered {Describe(failure)}");
+                    continue;
+                }
+
+                if (!data.ExpectedWritable(otherName, actor))
+                {
+                    Assert.True(failure is NotFoundFailure,
+                        $"{where}: the actor may write the target but not the second item, so the whole "
+                        + $"request must be refused as 'not found' — but the pipeline answered {Describe(failure)}");
+                    continue;
+                }
+
+                Assert.True(failure is null,
+                    $"{where}: the rules let this actor write both items, yet it was refused — {Describe(failure)}");
+            }
+        }
+    }
+
+    /// <summary>
     /// access-tests.md §3.2: every read of the catalogue, run as A and as B. No item outside the actor's
     /// set of §2 may appear in what the handler returns.
     /// </summary>

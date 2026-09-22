@@ -13,7 +13,19 @@ namespace Nid.Subscriptions.IntegrationTests.LeakBench;
 // .Ok() is the test project's ResultAssertions helper (Task 3), not the store's private unwrapper.
 
 /// <summary>How the bench builds one instance of a request, for a given item of the dataset.</summary>
-public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<MixedDataset, ItemId, object> Build);
+public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<MixedDataset, ItemId, object> Build)
+{
+    /// <summary>
+    /// The bench's second axis: the same request aimed at <c>target</c> while naming a second, different
+    /// item. <see cref="Build"/> alone only ever names one item, which is precisely why the bench reported
+    /// full coverage while a purchase could grant to — and a delete cascade into — an item the actor may not
+    /// write. Required of every item-scoped request whose payload can reach another <see cref="ItemId"/>,
+    /// which <c>LeakBenchTests</c> checks by reflection; <c>null</c> when the request cannot name one.
+    /// Asynchronous because a request may name the second item indirectly, through a row that has to exist
+    /// first — a purchase id, for instance.
+    /// </summary>
+    public Func<MixedDataset, ItemId, ItemId, Task<object>>? BuildNamingAnother { get; init; }
+}
 
 /// <summary>
 /// Every request the bench knows how to run. Discovery is automatic, so a new request is found without
@@ -97,9 +109,26 @@ public static class RequestCatalogue
             (_, item) => new AddPurchaseCommand(item, new Purchase(
                 PurchaseId.New(), new LocalDate(2025, 1, 1), "bench", Money.Create(1m, Currency.Eur).Ok(),
                 new Payer(PayerType.Household, null), PurchaseKind.PrepaidTerm,
-                [new Grant(item, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null)], null))),
+                [new Grant(item, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null)], null)))
+        {
+            // Grants are what makes one purchase touch two subscriptions: the route's, and any other.
+            BuildNamingAnother = (_, target, other) => Task.FromResult<object>(new AddPurchaseCommand(target, new Purchase(
+                PurchaseId.New(), new LocalDate(2025, 1, 1), "bench-two", Money.Create(1m, Currency.Eur).Ok(),
+                new Payer(PayerType.Household, null), PurchaseKind.PrepaidTerm,
+                [
+                    new Grant(target, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null),
+                    new Grant(other, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null),
+                ],
+                null))),
+        },
         new(typeof(DeletePurchaseCommand), true,
-            (_, item) => new DeletePurchaseCommand(item, PurchaseId.New())),
+            (_, item) => new DeletePurchaseCommand(item, PurchaseId.New()))
+        {
+            // A delete names its second item indirectly: the purchase carries grants to both, and removing
+            // it cascades into both. The row has to exist before the request can point at it.
+            BuildNamingAnother = async (data, target, other) =>
+                new DeletePurchaseCommand(target, await data.App.SeedPurchaseGrantingToAsync(target, other)),
+        },
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
