@@ -1,6 +1,6 @@
 # Feuille de route et état d'avancement
 
-> Dernière mise à jour : 2026-09-19. **Ce fichier est la référence de l'état du projet.** Le contenu et la valeur de chaque étape restent décrits dans `Project.md` §10 ; les plans d'exécution sont dans `superpowers/plans/`.
+> Dernière mise à jour : 2026-09-22. **Ce fichier est la référence de l'état du projet.** Le contenu et la valeur de chaque étape restent décrits dans `Project.md` §10 ; les plans d'exécution sont dans `superpowers/plans/`.
 > Règle : le dernier commit de chaque plan ou sous-plan met à jour ce fichier (statut, date, décisions prises, écarts). Un statut périmé est un défaut.
 
 Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (avec la raison).
@@ -12,7 +12,7 @@ Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (av
 | Étape | Contenu (voir `Project.md` §10) | Conception | Plan d'exécution | Statut |
 |---|---|---|---|---|
 | **0. Conception** | Architecture, modèles de données, sécurité, frontend, format d'import, spikes | Terminée | sans objet | **terminé** (2026-09-19) |
-| **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | à faire |
+| **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **en cours** (1A terminé le 2026-09-22) |
 | **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | à écrire | à faire |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, échéancier, valeur nette | Terminée | à écrire | à faire |
 | **4. Automatisation IA** | Serveur MCP, extraction de documents, file de validation | Terminée | à écrire | à faire |
@@ -43,7 +43,7 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 
 | Sous-plan | Livrable | Détail | Statut |
 |---|---|---|---|
-| 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement Aspire (`architecture.md` §10.3) | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, code vérifié sauf l'AppHost Aspire, à exécuter) | à faire |
+| 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement Aspire (`architecture.md` §10.3) | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, toutes exécutées) | **terminé** (2026-09-22) |
 | 1B | Moteur des abonnements (fonctions pures) | à détailler | à faire |
 | 1C | Module Abonnements : schéma, API, catalogue, `fx_rate`, garde de sortie, banc anti-fuite | à détailler | à faire |
 | 1D | Import et export `nid.data` v1, conversion du fichier existant | à détailler | à faire |
@@ -76,7 +76,7 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 | Client OpenAPI généré et bibliothèques du frontend | début de 1E | à faire |
 | `IsAotCompatible` sur les projets `Domain` | 1B | à faire |
 | SDK MCP C# en exécution | étape 4 | à faire |
-| `session_epoch` (« déconnecter partout ») et comportement de PAR avec `client_secret_post` | 1A/1C | à faire |
+| `session_epoch` (« déconnecter partout ») et comportement de PAR avec `client_secret_post` | 1A/1C | à faire (reporté en 1C : 1A expose `session_epoch` dans la session mais ne l'incrémente pas) |
 | RFC 8785 contre les vecteurs officiels | 1D | à faire |
 
 ## 6. Décisions ouvertes
@@ -92,3 +92,4 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 | Date | Événement |
 |---|---|
 | 2026-09-19 | Conception terminée ; spikes exécutés (Synapse, NodaTime, RFC 8785, EF Core, prêts, OIDC avec Authelia) ; plan de l'étape 1 écrit ; issues #91 à #96 et PR #97 et #98 ouvertes sur UnambitiousFx/Synapse |
+| 2026-09-22 | Sous-plan 1A exécuté de bout en bout : solution, types valeur, règles d'accès, persistance Core, pipeline Synapse, session OIDC (BFF) et pile de développement Aspire ; 35 tests unitaires et 31 d'intégration verts, test de fumée OIDC complet. La tâche 7 a été reprise de `docker compose` vers l'AppHost Aspire (trois corrections, `docs/spikes.md` §8bis). |

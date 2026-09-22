@@ -106,6 +106,22 @@
 
 Toujours valables : pas de déconnexion standard, pas d'enregistrement dynamique de clients (`identity-and-access/authentication.md`). Le montage (Authelia, Caddy, application) est jetable et n'est pas dans ce dépôt ; l'essentiel de la configuration est dans `identity-and-access/authentication.md` §2.
 
+## 8bis. Pile de développement Aspire (vérifiée le 2026-09-22, Aspire 13.5.4)
+
+L'AppHost (`src/Nid.AppHost`) démarre PostgreSQL, Authelia, l'API et Caddy, et le test de fumée OIDC complet
+passe à travers lui. Le repli `compose.yml` envisagé par le plan de l'étape 1A n'a **pas** été nécessaire :
+aucun conteneur n'a eu besoin de résoudre `auth.localtest.me`, l'API sur l'hôte suffit. Trois contraintes à
+retenir pour les sous-plans suivants :
+
+- Aspire 13 pose déjà un alias réseau au nom de la ressource (`authelia`), et passer `--network-alias` en plus
+  fait échouer `docker create` (`cannot specify both --network-alias and per-network alias`).
+- Un projet exposé par `WithHttpEndpoint(..., isProxied: false)` reçoit `ASPNETCORE_URLS=http://localhost:5080`
+  et n'écoute donc que la boucle locale : un conteneur ne l'atteint pas par `host.docker.internal`. Il faut
+  forcer `0.0.0.0`.
+- `WithDataVolume` impose un mot de passe fixe (paramètre déclaré) : sans `UserSecretsId`, le mot de passe
+  généré change à chaque démarrage alors que le volume garde celui de l'`initdb`, et tout démarrage après le
+  premier laisse les ressources dépendantes en `Waiting`.
+
 ## 9. Non vérifié
 
 - Dans le flux OIDC (§8) : `session_epoch`, la réponse `401` sans redirection pour les appels d'API (un essai montre `401` sur `/whoami` non authentifié, mais pas dans l'application finale), la première connexion simultanée des deux adultes, et le comportement de PAR avec `client_secret_post`.

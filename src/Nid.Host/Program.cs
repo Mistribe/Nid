@@ -14,6 +14,7 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
 builder.Services.AddNid(builder.Configuration.GetConnectionString("nid")
                          ?? throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 
@@ -25,6 +26,7 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
 
+app.MapDefaultEndpoints();
 app.UseForwardedHeaders();
 app.UseAuthentication();
 app.UseMiddleware<CsrfMiddleware>();

@@ -2,14 +2,17 @@
 
 ## Développement
 
-Prérequis : SDK .NET 10 (voir `global.json`), Docker, `openssl`.
+Prérequis : SDK .NET 10 (voir `global.json`), CLI Aspire, Docker, Node, `openssl`.
 
 ```bash
-./deploy/dev/setup.sh                                   # secrets et configuration Authelia jetables
-docker compose -f deploy/dev/compose.yml up -d          # PostgreSQL, Authelia, proxy TLS
-./deploy/dev/run-host.sh                                # API sur :5080, migrations au démarrage
-./deploy/dev/smoke.sh alice                             # connexion OIDC réelle et appels d'API
-dotnet test Nid.slnx                                    # tests unitaires et d'intégration (Docker requis)
+./deploy/dev/setup.sh                # secrets et configuration Authelia jetables (une fois)
+aspire run                           # PostgreSQL, Authelia, API, frontend Vite, proxy TLS + tableau de bord
+./deploy/dev/smoke.sh alice          # connexion OIDC réelle et appels d'API
+dotnet test Nid.slnx                 # tests unitaires et d'intégration (Docker requis)
 ```
 
 L'application se joint sur `https://nid.localtest.me` (Authelia sur `https://auth.localtest.me`).
+Journaux, traces et métriques : tableau de bord Aspire (URL affichée par `aspire run`).
+L'AppHost ne sert qu'au développement ; le déploiement est le compose de référence (`docs/architecture.md` §10).
+
+Pour repartir d'une base vide : `docker volume rm nid-dev-pgdata`.
