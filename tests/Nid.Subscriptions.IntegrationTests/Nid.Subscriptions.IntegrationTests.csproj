@@ -12,5 +12,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Nid.TestSupport\Nid.TestSupport.csproj" />
     <ProjectReference Include="..\..\src\Nid.Host\Nid.Host.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Subscriptions.Domain\Nid.Subscriptions.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
