@@ -12,7 +12,11 @@ namespace Nid.Subscriptions.Domain;
 /// </summary>
 public static class SubscriptionTimeline
 {
-    /// <summary>Guard against a malformed phase producing an unbounded walk: 100 years of monthly renewals.</summary>
+    /// <summary>
+    /// A phase reaching this many charges (100 years of monthly renewals) ends the whole walk, not
+    /// just that phase, and records a warning: a runaway phase means input we cannot trust, so the
+    /// walk fail-stops rather than looping forever.
+    /// </summary>
     public const int MaxCyclesPerPhase = 1200;
 
     public static Result<Timeline> Build(SubscriptionInput input, LocalDate today, LocalDate horizon)
@@ -85,7 +89,7 @@ public static class SubscriptionTimeline
                 break;
 
             var state = charge.State;
-            if (state.Cycles >= MaxCyclesPerPhase)
+            if (state.Charged >= MaxCyclesPerPhase)
             {
                 warnings.Add(new Finding("subscriptions.cycle_cap",
                                          "A phase reached the renewal cap; the timeline stops there.",
@@ -107,16 +111,17 @@ public static class SubscriptionTimeline
                 coverEnd = state.Phase.CoverageEvery.AddTo(coverStart, 1);
 
             var covered = new CoveragePeriod(coverStart, coverEnd, CoverageSource.Paid,
-                                             new CoverageOrigin.FromPhase(state.Phase.Id, state.Cycles),
+                                             new CoverageOrigin.FromPhase(state.Phase.Id, state.Charged),
                                              IsProjected: charge.Date > today);
             periods.Add(covered);
             charges.Add(new Charge(charge.Date, state.Phase.Price, state.Phase.Payer,
-                                   new ChargeOrigin.FromPhase(state.Phase.Id, state.Cycles),
+                                   new ChargeOrigin.FromPhase(state.Phase.Id, state.Charged),
                                    [covered],
                                    IsProjected: charge.Date > today,
                                    Allocation: ZeroAllocation(state.Phase.Price)));
 
             state.Cycles++;
+            state.Charged++;
             coverageEnd = Later(coverEnd, coverageEnd);
         }
 
@@ -139,7 +144,7 @@ public static class SubscriptionTimeline
         foreach (var state in states)
         {
             var phase = state.Phase;
-            if (phase.MaxCycles is { } max && state.Cycles >= max)
+            if (phase.MaxCycles is { } max && state.Charged >= max)
                 continue;
 
             var natural = state.Cycles == 0
@@ -184,7 +189,11 @@ public static class SubscriptionTimeline
 
         public LocalDate Anchor { get; set; } = phase.StartsOn;
 
+        /// <summary>Occurrence index since the current anchor: drives the date arithmetic, resets on re-anchor.</summary>
         public int Cycles { get; set; }
+
+        /// <summary>Total charges this phase has emitted. Never reset: caps and origins must not restart.</summary>
+        public int Charged { get; set; }
     }
 
     private sealed record Candidate(PhaseState State, LocalDate Date, LocalDate Natural);

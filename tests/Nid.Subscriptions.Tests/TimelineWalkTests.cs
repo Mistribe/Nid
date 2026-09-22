@@ -90,6 +90,19 @@ public class TimelineWalkTests
     }
 
     [Fact]
+    public void A_max_cycles_limit_survives_a_stacked_grant()
+    {
+        var input = Input(
+            [Phase(new LocalDate(2025, 1, 1), null, 10m, maxCycles: 2)],
+            [Purchase(new LocalDate(2025, 1, 15), 0m, PurchaseKind.Gift, [Grant(Months(3), CoverageSource.Gift)])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), Horizon).Ok();
+
+        var phaseCharges = timeline.Charges.Where(c => c.Origin is ChargeOrigin.FromPhase).ToList();
+        Assert.Equal(2, phaseCharges.Count);
+    }
+
+    [Fact]
     public void A_grant_with_an_explicit_start_lands_there()
     {
         var input = Input(
@@ -116,6 +129,17 @@ public class TimelineWalkTests
         var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), Horizon).Ok();
 
         Assert.Equal(3, timeline.Charges.Count);
+    }
+
+    [Fact]
+    public void A_runaway_phase_stops_at_the_cycle_cap()
+    {
+        var input = Input([Phase(new LocalDate(2025, 1, 1), null, 10m, every: Days(1))], []);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 1, 1), new LocalDate(2030, 1, 1)).Ok();
+
+        Assert.True(timeline.Charges.Count <= SubscriptionTimeline.MaxCyclesPerPhase);
+        Assert.Contains(timeline.Warnings, w => w.Code == "subscriptions.cycle_cap");
     }
 
     [Fact]
