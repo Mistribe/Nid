@@ -45,7 +45,8 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 |---|---|---|---|
 | 1A | Fondation et Core : solution, types valeur, règles d'accès, persistance, pipeline Synapse, session OIDC, environnement de développement Aspire (`architecture.md` §10.3) | `2026-09-19-stage-1a-foundation-and-core.md` (7 tâches, toutes exécutées) | **terminé** (2026-09-22) |
 | 1B | Moteur des abonnements (fonctions pures) | `2026-09-22-stage-1b-subscription-engine.md` : validation des entrées, parcours de la timeline, allocation exacte du coût et six requêtes d'extension (couverture à une date, date d'expiration, prochaine charge, coût cash sur une fenêtre, coût amorti sur une fenêtre, jours gratuits) | **terminé** (2026-09-22) |
-| 1C | Module Abonnements : schéma, API, catalogue, `fx_rate`, garde de sortie, banc anti-fuite | à détailler | à faire |
+| 1C1 | Cœur du module Abonnements : schéma `subscriptions`, entités, migrations, moteur 1B branché, API lecture et écriture, `IVisibleItems`, garde de sortie, banc anti-fuite | conception : `specs/2026-09-22-subscriptions-module-core-design.md` ; plan à écrire | à faire |
+| 1C2 | Catalogue de fournisseurs (libellés, icônes, source, suggestions) et `fx_rate` avec conversion, tâches Quartz | à détailler | à faire |
 | 1D | Import et export `nid.data` v1, conversion du fichier existant | à détailler | à faire |
 | 1E | Application web : connexion, abonnements, assistant d'import, thèmes | à détailler | à faire |
 | 1F | Livraison : images, compose de référence, sauvegarde, audit | à détailler | à faire |
@@ -70,12 +71,12 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 
 | Risque | Vérifié pendant | Statut |
 |---|---|---|
-| Migrations de plusieurs `DbContext` sur des schémas distincts | 1C (deuxième module) | à faire |
-| Quartz.NET sur PostgreSQL | 1C (premières tâches planifiées) | à faire |
-| `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) | 1C (premier événement à ne pas perdre) | à faire |
+| Migrations de plusieurs `DbContext` sur des schémas distincts | 1C1 (deuxième module) | à faire |
+| Quartz.NET sur PostgreSQL | 1C2 (premières tâches planifiées) | à faire |
+| `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) | premier consommateur réel (hors étape 1, décidé le 2026-09-22) | à faire |
 | Client OpenAPI généré et bibliothèques du frontend | début de 1E | à faire |
 | SDK MCP C# en exécution | étape 4 | à faire |
-| `session_epoch` (« déconnecter partout ») et comportement de PAR avec `client_secret_post` | 1A/1C | à faire (reporté en 1C : 1A expose `session_epoch` dans la session mais ne l'incrémente pas) |
+| `session_epoch` (« déconnecter partout ») et comportement de PAR avec `client_secret_post` | première fonctionnalité qui s'en sert (hors étape 1, décidé le 2026-09-22) | à faire (1A expose `session_epoch` mais ne l'incrémente pas) |
 | RFC 8785 contre les vecteurs officiels | 1D | à faire |
 
 ## 6. Décisions ouvertes
@@ -96,3 +97,4 @@ documentation en français.
 | 2026-09-22 | Sous-plan 1A exécuté de bout en bout : solution, types valeur, règles d'accès, persistance Core, pipeline Synapse, session OIDC (BFF) et pile de développement Aspire ; 35 tests unitaires et 31 d'intégration verts, test de fumée OIDC complet. La tâche 7 a été reprise de `docker compose` vers l'AppHost Aspire (trois corrections, `docs/spikes.md` §8bis). |
 | 2026-09-22 | Décisions tranchées avant 1B : périmètre (`Valuation`, `Flow`, `Document`, `Proposal` hors étape 1) et langue des plans (anglais). |
 | 2026-09-22 | Sous-plan 1B exécuté de bout en bout : validation des entrées, parcours de la timeline, allocation exacte du coût et six requêtes d'extension (`Nid.Subscriptions.Contracts`, `Nid.Subscriptions.Domain`) ; les trois exemples travaillés de `subscription-data-model.md` (Spotify avec changement de prix et carte cadeau, terme prépayé NordVPN avec mois bonus, bundle de jeu) reproduisent leurs résultats documentés. `IsAotCompatible` vérifié sur `Nid.Subscriptions.Domain` (0 warning, `spikes.md` §9bis). 130 tests verts (35 `Nid.Core.Tests`, 31 `Nid.Core.IntegrationTests`, 64 `Nid.Subscriptions.Tests`). |
+| 2026-09-22 | 1C découpé en 1C1 (cœur du module, débloque 1D et 1E) et 1C2 (catalogue et `fx_rate`) : tel qu'écrit, 1C dépassait 1A et 1B réunis. L'outbox transactionnel et l'incrément de `session_epoch` sortent de l'étape 1, faute de consommateur. Conception de 1C1 écrite. |
