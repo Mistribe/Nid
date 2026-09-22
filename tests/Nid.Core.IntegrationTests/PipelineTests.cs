@@ -31,13 +31,13 @@ public class PipelineTests(PostgresFixture postgres)
         using var scope = provider.CreateScope();
 
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<CreateDependentCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
     }
 

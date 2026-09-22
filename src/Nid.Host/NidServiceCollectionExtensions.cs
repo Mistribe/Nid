@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -24,6 +25,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
+        services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
 
         // DbContextOptionsBuilder<SubscriptionsDbContext>.Configure (Nid.Subscriptions.Infrastructure) needs the
         // generic builder, which the plain AddDbContext<TContext>(Action<DbContextOptionsBuilder>) overload does

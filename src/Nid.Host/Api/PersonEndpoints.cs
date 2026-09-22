@@ -65,6 +65,7 @@ public static class ResultHttp
             UnauthorizedFailure => StatusCodes.Status403Forbidden,
             UnauthenticatedFailure => StatusCodes.Status401Unauthorized,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
+            _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 

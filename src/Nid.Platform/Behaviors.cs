@@ -14,6 +14,9 @@ public static class PipelineOrder
     public const uint Actor = 20;
     public const uint Scope = 30;
     public const uint ItemAccess = 40;
+
+    /// <summary>Innermost: it inspects exactly what the handler produced (architecture.md §166).</summary>
+    public const uint OutputGuard = 90;
 }
 
 public sealed partial class TraceBehavior<TRequest, TResponse>(ILogger<TraceBehavior<TRequest, TResponse>> logger)

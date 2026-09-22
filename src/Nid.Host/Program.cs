@@ -13,6 +13,7 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(ActorBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ScopeBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
