@@ -50,4 +50,11 @@ public interface IAccessPolicy
     /// <c>UnauthorizedFailure</c> when the actor can read but not write.
     /// </summary>
     Task<Result> CheckAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct);
+
+    /// <summary>
+    /// The creation rule of <c>authorization.md</c> §5: the actor is one of the owners, or every owner is a
+    /// <c>dependent</c>. <c>UnauthorizedFailure</c> otherwise — there is no item yet whose existence could
+    /// be disclosed, and the actor named the persons themselves.
+    /// </summary>
+    Task<Result> CheckCreationAsync(PersonId actor, IReadOnlyList<OwnerShare> owners, CancellationToken ct);
 }

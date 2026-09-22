@@ -11,6 +11,15 @@ public static class AccessRules
             ? owners.Select(o => o.PersonId).ToHashSet()
             : adults.ToHashSet();
 
+    /// <summary>
+    /// Who may create an item (§5): one of its owners, or anyone when every owner is a <c>dependent</c> —
+    /// a dependent has no login, so both adults create on their behalf. "On ne crée pas un élément au seul
+    /// nom de l'autre adulte": an item with no owner at all is nobody's, and is refused here too.
+    /// </summary>
+    public static bool CanCreate(PersonId actor, IReadOnlyList<Owner> owners)
+        => owners.Count > 0
+           && (owners.Any(o => o.PersonId == actor) || owners.All(o => o.Kind == PersonKind.Dependent));
+
     public static IReadOnlySet<PersonId> Writers(
         Visibility visibility, IReadOnlyList<Owner> owners, IReadOnlyCollection<PersonId> adults)
     {

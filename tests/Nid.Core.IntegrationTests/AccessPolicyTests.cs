@@ -43,6 +43,34 @@ public class AccessPolicyTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Alice_cannot_create_an_item_owned_by_bob_alone()
+    {
+        var w = await NewWorldAsync();
+
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Bob, 10_000)], default))
+            .TryGetFailure(out var failure));
+        Assert.IsType<UnauthorizedFailure>(failure);
+
+        // Her own, shared with him, and the dependent's are all hers to create.
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Alice, 10_000)], default)).IsSuccess);
+        Assert.True((await w.Policy.CheckCreationAsync(
+            w.Alice, [new OwnerShare(w.Alice, 5_000), new OwnerShare(w.Bob, 5_000)], default)).IsSuccess);
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(w.Kid, 10_000)], default)).IsSuccess);
+        await w.Db.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task An_owner_nobody_knows_is_not_taken_for_a_dependent()
+    {
+        var w = await NewWorldAsync();
+
+        Assert.True((await w.Policy.CheckCreationAsync(w.Alice, [new OwnerShare(PersonId.New(), 10_000)], default))
+            .TryGetFailure(out var failure));
+        Assert.IsType<UnauthorizedFailure>(failure);
+        await w.Db.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Shared_item_of_alice_is_readable_but_not_writable_by_bob()
     {
         var w = await NewWorldAsync();

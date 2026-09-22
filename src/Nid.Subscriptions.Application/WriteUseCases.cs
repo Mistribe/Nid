@@ -21,7 +21,7 @@ public sealed record CreateSubscriptionCommand(
     string? ProviderKey,
     bool AutoRenew,
     IReadOnlyList<PersonId> Users,
-    string? Note) : ICommand<ItemId>;
+    string? Note) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note)

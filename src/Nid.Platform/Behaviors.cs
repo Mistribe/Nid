@@ -73,7 +73,11 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     }
 }
 
-/// <summary>Checks the actor against the item a request targets.</summary>
+/// <summary>
+/// Stage 4 of <c>authorization.md</c> §2: checks the actor against the item a request targets
+/// (<see cref="IItemScoped"/>) and, for a request that creates one (<see cref="ICreatesItem"/>), against the
+/// owners it names — the one access rule of §5 that cannot be expressed as a check on an existing item.
+/// </summary>
 public sealed class ItemAccessBehavior<TRequest, TResponse>(IActorAccessor accessor, IAccessPolicy policy)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
@@ -84,16 +88,24 @@ public sealed class ItemAccessBehavior<TRequest, TResponse>(IActorAccessor acces
     public async ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
-        if (request is not IItemScoped scoped)
-            return await next(request, cancellationToken);
-
         var actor = accessor.Current!;
         if (actor.PersonId is not { } person)
             return await next(request, cancellationToken); // system actors are not bound to a person
 
-        var check = await policy.CheckAsync(person, scoped.ItemId, scoped.Access, cancellationToken);
-        return check.TryGetFailure(out var failure)
-            ? Result.Failure<TResponse>(failure!)
-            : await next(request, cancellationToken);
+        if (request is IItemScoped scoped)
+        {
+            var check = await policy.CheckAsync(person, scoped.ItemId, scoped.Access, cancellationToken);
+            if (check.TryGetFailure(out var failure))
+                return Result.Failure<TResponse>(failure!);
+        }
+
+        if (request is ICreatesItem creating)
+        {
+            var check = await policy.CheckCreationAsync(person, creating.Owners, cancellationToken);
+            if (check.TryGetFailure(out var failure))
+                return Result.Failure<TResponse>(failure!);
+        }
+
+        return await next(request, cancellationToken);
     }
 }

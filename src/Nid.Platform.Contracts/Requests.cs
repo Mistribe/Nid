@@ -19,3 +19,15 @@ public interface IItemScoped
 
     AccessKind Access { get; }
 }
+
+/// <summary>
+/// A request that brings an item into being (<c>authorization.md</c> §4). There is no item yet to check the
+/// actor against, so the access behavior checks the owners it names instead: §5 lets an adult create for
+/// themselves or for a dependent, never in the other adult's name alone.
+/// </summary>
+public interface ICreatesItem
+{
+    IReadOnlyList<OwnerShare> Owners { get; }
+
+    Visibility Visibility { get; }
+}

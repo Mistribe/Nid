@@ -82,6 +82,26 @@ public class AccessRulesTests
         }
     }
 
+    /// <summary>
+    /// authorization.md §5, creation: "L'acteur est l'un des propriétaires, ou tous les propriétaires sont
+    /// des dependent. On ne crée pas un élément au seul nom de l'autre adulte."
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(CreationCases))]
+    public void Creation_needs_the_actor_among_the_owners_or_none_but_dependents(
+        bool expected, string because, Owner[] owners)
+        => Assert.True(expected == AccessRules.CanCreate(Alice, owners), because);
+
+    public static TheoryData<bool, string, Owner[]> CreationCases => new()
+    {
+        { true, "sole owner is the actor", [Adult(Alice, 10_000)] },
+        { true, "the actor is one of the owners", [Adult(Alice, 5_000), Adult(Bob, 5_000)] },
+        { true, "both adults create for a dependent", [Child(10_000)] },
+        { false, "in the other adult's name alone", [Adult(Bob, 10_000)] },
+        { false, "the dependent does not launder the other adult's name", [Adult(Bob, 5_000), Child(5_000)] },
+        { false, "an item with no owner is nobody's", [] },
+    };
+
     private static (Visibility, IReadOnlyList<Owner>) RandomValidItem(Random random)
     {
         var shape = random.Next(5);
