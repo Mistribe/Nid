@@ -9,7 +9,12 @@ namespace Nid.TestSupport;
 /// <summary>One PostgreSQL container for the whole test run; each test gets a database with BOTH schemas.</summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17").Build();
+    // One database per test and a connection pool per database: the default limit of 100 clients is reached
+    // well before the suite is, and the tests that happen to run last fail with "sorry, too many clients
+    // already" rather than on their own merits.
+    private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17")
+        .WithCommand("-c", "max_connections=500")
+        .Build();
     private int databaseCounter;
 
     public Task InitializeAsync() => container.StartAsync();

@@ -17,7 +17,8 @@ public static class PersonEndpoints
 
     public static IEndpointRouteBuilder MapPersonEndpoints(this IEndpointRouteBuilder routes)
     {
-        var api = routes.MapGroup("/api/v1/core").RequireAuthorization().AddEndpointFilter<ActorFilter>();
+        var api = routes.MapGroup("/api/v1/core").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("/persons", async (IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListPersonsQuery(), ct)).ToHttp(list => list.Select(ToDto)));
@@ -45,6 +46,29 @@ public sealed class ActorFilter(IActorAccessor accessor) : IEndpointFilter
             accessor.Current = Actor.Browser(person);
 
         return next(context);
+    }
+}
+
+/// <summary>
+/// Turns the <see cref="BadHttpRequestException"/> a request body throws on a value nobody can read into the
+/// same Problem Details every other failure answers with. Kestrel already answers 400 to one that escapes,
+/// but with no body saying which value was refused — and nothing an in-process test can observe.
+/// </summary>
+public sealed class MalformedInputFilter : IEndpointFilter
+{
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        try
+        {
+            return await next(context);
+        }
+        catch (BadHttpRequestException malformed)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: malformed.Message,
+                extensions: new Dictionary<string, object?> { ["code"] = "request.malformed" });
+        }
     }
 }
 

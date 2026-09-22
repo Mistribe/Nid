@@ -12,16 +12,19 @@ public static class SubscriptionEndpoints
 {
     public static IEndpointRouteBuilder MapSubscriptionEndpoints(this IEndpointRouteBuilder routes)
     {
-        var api = routes.MapGroup("/api/v1/subscriptions").RequireAuthorization().AddEndpointFilter<ActorFilter>();
+        var api = routes.MapGroup("/api/v1/subscriptions").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? scope, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
-                    new ListSubscriptionsQuery(ParseScope(scope), ParseDate(from), ParseDate(to), ParseDate(horizon)), ct))
+                    new ListSubscriptionsQuery(
+                        ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
                 .ToHttp(list => list));
 
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
-                    new GetSubscriptionQuery(new ItemId(id), ParseDate(from), ParseDate(to), ParseDate(horizon)), ct))
+                    new GetSubscriptionQuery(
+                        new ItemId(id), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
                 .ToHttp(detail => detail));
 
         // Create / open phase / add purchase were implemented early because Task 4's own acceptance test
@@ -38,7 +41,7 @@ public static class SubscriptionEndpoints
 
         api.MapPatch("/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, ClosePhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
-                    new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), SubscriptionEndpoints.RequireDate(body.EndsOn)), ct))
+                    new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), RequireDate(body.EndsOn)), ct))
                 .ToHttp(phase => new IdResponse(phase.Value)));
 
         api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseBody body, IInvoker invoker, CancellationToken ct)
@@ -52,15 +55,31 @@ public static class SubscriptionEndpoints
         return routes;
     }
 
-    /// <summary>Household is the default, matching the header selector of frontend/screens.md §13.</summary>
-    internal static VisibilityScope ParseScope(string? scope)
-        => string.Equals(scope, "me", StringComparison.OrdinalIgnoreCase) ? VisibilityScope.Me : VisibilityScope.Household;
+    /// <summary>
+    /// Household is the default, matching the header selector of frontend/screens.md §13 — but only when the
+    /// caller asked for no scope at all. A scope nobody can read is a bad request: answering the household
+    /// question to someone who asked a different one, with a 200, is how a wrong number looks right.
+    /// </summary>
+    internal static VisibilityScope ParseScope(string? scope) => scope switch
+    {
+        null => VisibilityScope.Household,
+        _ when string.Equals(scope, "me", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Me,
+        _ when string.Equals(scope, "household", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Household,
+        _ => throw new BadHttpRequestException($"'{scope}' is not a scope: send 'household' or 'me'."),
+    };
 
-    internal static LocalDate? ParseDate(string? value)
-        => value is null ? null : LocalDatePattern.Iso.Parse(value) is { Success: true } parsed ? parsed.Value : null;
+    /// <summary>
+    /// Absent stays absent, and keeps the documented default. Present-but-unreadable is a bad request, never
+    /// a silent fallback to that same default: the caller would be handed a different window, a different
+    /// horizon or a dropped cancellation and told it worked.
+    /// </summary>
+    internal static LocalDate? OptionalDate(string? value)
+        => value is null ? null : RequireDate(value);
 
     internal static LocalDate RequireDate(string value)
-        => ParseDate(value) ?? throw new BadHttpRequestException($"'{value}' is not an ISO date (yyyy-mm-dd).");
+        => LocalDatePattern.Iso.Parse(value) is { Success: true } parsed
+            ? parsed.Value
+            : throw new BadHttpRequestException($"'{value}' is not an ISO date (yyyy-mm-dd).");
 
     public sealed record IdResponse(Guid Id);
 
@@ -109,7 +128,10 @@ public static class SubscriptionEndpoints
     public sealed record EditSubscriptionBody(bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note)
     {
         public EditSubscriptionCommand ToCommand(ItemId id)
-            => new(id, AutoRenew, SubscriptionEndpoints.ParseDate(CancelledAt), ClearCancelledAt, Note);
+            => ClearCancelledAt && CancelledAt is not null
+                ? throw new BadHttpRequestException(
+                    "cancelledAt and clearCancelledAt contradict each other: send one or the other.")
+                : new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note);
     }
 
     public sealed record ClosePhaseBody(string EndsOn);
@@ -121,7 +143,7 @@ public static class SubscriptionEndpoints
         public OpenPhaseCommand ToOpenCommand(ItemId id) => new(id, new BillingPhase(
             BillingPhaseId.New(),
             RequireDate(StartsOn),
-            EndsOn is null ? null : RequireDate(EndsOn),
+            OptionalDate(EndsOn),
             Price.ToMoney(), Every.ToDuration(), Covers?.ToDuration(), MaxCycles, Payer.ToPayer()));
     }
 
@@ -132,7 +154,7 @@ public static class SubscriptionEndpoints
             Enum.TryParse<CoverageSource>(Source, ignoreCase: true, out var source)
                 ? source
                 : throw new BadHttpRequestException("A grant source of paid, bonus, included, trial or gift is required."),
-            StartsOn is null ? null : RequireDate(StartsOn));
+            OptionalDate(StartsOn));
     }
 
     public sealed record PurchaseBody(
