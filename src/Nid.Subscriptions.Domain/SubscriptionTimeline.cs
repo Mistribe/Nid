@@ -61,12 +61,17 @@ public static class SubscriptionTimeline
             .Select(p => new PhaseState(p))
             .ToList();
 
+        // Two views of the coverage built so far. coverageEnd is the watermark a grant without an explicit
+        // start stacks on, exactly as the data model describes it. runs is the set of contiguous covered
+        // stretches, which is what decides when a phase charges: a grant landing in the future must not
+        // freeze the phase over the time nothing covers between now and it.
         LocalDate? coverageEnd = null;
+        var runs = new CoverageRuns();
         var next = 0;
 
         while (true)
         {
-            var candidate = NextCharge(input, states, coverageEnd, horizon);
+            var candidate = NextCharge(input, states, runs, horizon);
             var grantDate = next < grants.Count ? grants[next].Purchase.Date : (LocalDate?)null;
 
             // A grant is applied before a charge falling on the same day: it may push that charge back.
@@ -88,6 +93,7 @@ public static class SubscriptionTimeline
                                                 new CoverageOrigin.FromGrant(purchase.Id, index),
                                                 IsProjected: purchase.Date > today);
                 periods.Add(period);
+                runs.Add(start, end);
                 coverageEnd = Later(end, coverageEnd);
                 continue;
             }
@@ -121,6 +127,7 @@ public static class SubscriptionTimeline
                                              new CoverageOrigin.FromPhase(state.Phase.Id, state.Charged),
                                              IsProjected: charge.Date > today);
             periods.Add(covered);
+            runs.Add(coverStart, coverEnd);
             charges.Add(new Charge(charge.Date, state.Phase.Price, state.Phase.Payer,
                                    new ChargeOrigin.FromPhase(state.Phase.Id, state.Charged),
                                    [covered],
@@ -168,7 +175,7 @@ public static class SubscriptionTimeline
     private static Candidate? NextCharge(
         SubscriptionInput input,
         List<PhaseState> states,
-        LocalDate? coverageEnd,
+        CoverageRuns runs,
         LocalDate horizon)
     {
         if (!input.Subscription.AutoRenew)
@@ -186,10 +193,11 @@ public static class SubscriptionTimeline
                 ? phase.StartsOn
                 : phase.Every.AddTo(state.Anchor, state.Cycles);
 
-            // Coverage must have run out before the phase charges again.
-            var date = coverageEnd is { } end && end > natural ? end : natural;
-            if (date < phase.StartsOn)
-                date = phase.StartsOn;
+            // Coverage must have run out before the phase charges again: the charge falls on the first day
+            // the contiguous run holding the candidate date no longer covers, not on the furthest coverage
+            // end ever reached.
+            var date = natural < phase.StartsOn ? phase.StartsOn : natural;
+            date = runs.FirstUncoveredFrom(date);
 
             if (phase.EndsOn is { } endsOn && date >= endsOn)
                 continue;
@@ -228,6 +236,49 @@ public static class SubscriptionTimeline
 
     private static LocalDate Later(LocalDate date, LocalDate? other)
         => other is { } value && value > date ? value : date;
+
+    /// <summary>
+    /// The contiguous stretches of coverage built so far, kept sorted and merged. Adjacent periods are one
+    /// run, which is what "coverage has not run out yet" means; a period lying beyond a gap is its own run
+    /// and says nothing about the uncovered time before it.
+    /// </summary>
+    private sealed class CoverageRuns
+    {
+        private readonly List<(LocalDate Start, LocalDate EndBefore)> _runs = [];
+
+        public void Add(LocalDate start, LocalDate endBefore)
+        {
+            if (endBefore <= start)
+                return;
+
+            var index = 0;
+            while (index < _runs.Count && _runs[index].Start < start)
+                index++;
+
+            _runs.Insert(index, (start, endBefore));
+
+            for (var i = index > 0 ? index - 1 : 0; i + 1 < _runs.Count;)
+            {
+                var (aStart, aEnd) = _runs[i];
+                var (bStart, bEnd) = _runs[i + 1];
+                if (bStart > aEnd)
+                    break;
+
+                _runs[i] = (aStart, bEnd > aEnd ? bEnd : aEnd);
+                _runs.RemoveAt(i + 1);
+            }
+        }
+
+        /// <summary>The first date at or after <paramref name="from"/> that no run covers.</summary>
+        public LocalDate FirstUncoveredFrom(LocalDate from)
+        {
+            foreach (var run in _runs)
+                if (from >= run.Start && from < run.EndBefore)
+                    return run.EndBefore;
+
+            return from;
+        }
+    }
 
     private sealed class PhaseState(BillingPhase phase)
     {

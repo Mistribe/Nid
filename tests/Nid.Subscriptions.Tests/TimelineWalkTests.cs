@@ -255,6 +255,36 @@ public class TimelineWalkTests
     }
 
     [Fact]
+    public void A_grant_starting_in_the_future_does_not_freeze_the_phase_before_it()
+    {
+        // The legacy import turns one-time records into prepaid terms with an explicit range, so a grant
+        // landing months ahead is ordinary input. The phase must keep billing the time it leaves uncovered.
+        var input = Input(
+            [Phase(new LocalDate(2025, 1, 1), null, 10m)],
+            [Purchase(new LocalDate(2025, 1, 5), 10m, PurchaseKind.PrepaidTerm,
+                      [Grant(Months(1), CoverageSource.Paid, new LocalDate(2025, 6, 1))])]);
+
+        var timeline = SubscriptionTimeline.Build(input, new LocalDate(2025, 12, 1), Horizon).Ok();
+
+        Assert.True(timeline.IsCoveredOn(new LocalDate(2025, 3, 1)));
+
+        var window = DateRange.Create(new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 1)).Ok();
+        Assert.Equal(60m, timeline.CashCost(window).For(Currency.Eur)!.Value.Amount);
+
+        // Five monthly charges cover January to June; the grant covers June, so the phase charges again
+        // only when that month runs out.
+        var phaseCharges = timeline.Charges
+                                   .Where(c => c.Origin is ChargeOrigin.FromPhase)
+                                   .Select(c => c.Date)
+                                   .Take(6)
+                                   .ToList();
+        Assert.Equal(
+            [new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1), new LocalDate(2025, 3, 1),
+             new LocalDate(2025, 4, 1), new LocalDate(2025, 5, 1), new LocalDate(2025, 7, 1)],
+            phaseCharges);
+    }
+
+    [Fact]
     public void A_bundle_amortizes_its_allocated_amount_and_not_its_price()
     {
         var input = Input(
