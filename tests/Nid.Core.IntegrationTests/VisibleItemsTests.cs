@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.TestSupport;
 using NodaTime;
 
 namespace Nid.Core.IntegrationTests;

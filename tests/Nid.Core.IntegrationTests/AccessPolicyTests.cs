@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.IntegrationTests;

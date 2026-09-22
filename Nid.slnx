@@ -11,10 +11,13 @@
     <Project Path="src/Nid.Platform/Nid.Platform.csproj" />
     <Project Path="src/Nid.Subscriptions.Contracts/Nid.Subscriptions.Contracts.csproj" />
     <Project Path="src/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj" />
+    <Project Path="src/Nid.Subscriptions.Infrastructure/Nid.Subscriptions.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Core.IntegrationTests/Nid.Core.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
+    <Project Path="tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Subscriptions.Tests/Nid.Subscriptions.Tests.csproj" />
+    <Project Path="tests/Nid.TestSupport/Nid.TestSupport.csproj" />
   </Folder>
 </Solution>

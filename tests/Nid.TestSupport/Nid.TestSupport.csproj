@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- A shared library, not a runnable test suite: the xunit package sets IsTestProject unconditionally,
+         which would otherwise make `dotnet test` try to launch this assembly as a test host. -->
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <ProjectReference Include="..\..\src\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

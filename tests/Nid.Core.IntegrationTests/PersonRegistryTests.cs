@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.TestSupport;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -57,13 +58,13 @@ public class PersonRegistryTests(PostgresFixture postgres)
 
         var attempts = Enumerable.Range(0, 6).Select(async i =>
         {
-            await using var db = PostgresFixture.NewContext(connectionString);
+            await using var db = PostgresFixture.NewCoreContext(connectionString);
             return await new PersonRegistry(db, PostgresFixture.Clock).ProvisionAdultAsync($"sub-{i}", $"Person {i}", null, default);
         });
         var results = await Task.WhenAll(attempts);
 
         Assert.Equal(2, results.Count(r => r.IsSuccess));
-        await using var probe = PostgresFixture.NewContext(connectionString);
+        await using var probe = PostgresFixture.NewCoreContext(connectionString);
         Assert.Equal(2, probe.Persons.Count(p => p.Kind == "adult"));
     }
 

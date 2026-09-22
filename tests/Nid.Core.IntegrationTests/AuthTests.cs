@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
+using Nid.TestSupport;
 
 namespace Nid.Core.IntegrationTests;
 

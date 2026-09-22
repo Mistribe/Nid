@@ -4,6 +4,7 @@ using Nid.Core.Contracts;
 using Nid.Host;
 using Nid.Platform;
 using Nid.Platform.Contracts;
+using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
