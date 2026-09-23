@@ -52,6 +52,24 @@ public class ImportStagingTests(PostgresFixture fixture)
         Assert.False(await store.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, Now, Tomorrow, null, default));
     }
 
+    /// <summary>updated_at is the row's version: it moves on every transition, even two at the same instant.</summary>
+    [Fact]
+    public async Task A_transition_given_a_stale_version_does_not_happen()
+    {
+        var store = await NewStoreAsync();
+        var a = PersonId.New();
+        var session = (await store.CreateAsync(a, NoAdults, Now, Tomorrow, default))!;
+
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Open, Now, Tomorrow, null, default));
+        var moved = (await store.FindOwnedAsync(session.Id, a, default))!;
+
+        Assert.True(moved.UpdatedAt > session.UpdatedAt);
+        Assert.False(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", default,
+            expectedUpdatedAt: session.UpdatedAt));
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Validated, Now, Tomorrow, "{}", default,
+            expectedUpdatedAt: moved.UpdatedAt));
+    }
+
     [Fact]
     public async Task A_batch_slot_is_taken_once()
     {

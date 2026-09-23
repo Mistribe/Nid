@@ -23,6 +23,10 @@ public static class ImportStates
     public static ImportState Parse(string name) => Enum.Parse<ImportState>(name, ignoreCase: true);
 }
 
+/// <param name="UpdatedAt">
+/// Strictly increases with every transition of the row, even under a frozen clock: it is the version a caller
+/// hands back to <see cref="IImportStaging.TransitionAsync"/> to move the session only if nothing moved it since.
+/// </param>
 public sealed record ImportSession(
     Guid Id,
     PersonId Person,
@@ -30,7 +34,8 @@ public sealed record ImportSession(
     Instant CreatedAt,
     Instant ExpiresAt,
     IReadOnlyDictionary<string, PersonId> Adults,
-    string? ReportJson);
+    string? ReportJson,
+    Instant UpdatedAt);
 
 /// <summary>One accepted batch. <paramref name="Payload"/> is the RFC 8785 canonical form of its entities.</summary>
 public sealed record StoredBatch(string Section, int Index, string Hash, int Count, string Payload);
@@ -68,9 +73,12 @@ public interface IImportStaging
 
     /// <summary>
     /// A conditional update: moves the session to <paramref name="to"/> only if it is in one of
-    /// <paramref name="from"/>, and says whether it did. Two racing callers cannot both succeed.
+    /// <paramref name="from"/> — and, when <paramref name="expectedUpdatedAt"/> is given, only if its
+    /// <see cref="ImportSession.UpdatedAt"/> is still that one — and says whether it did. Two racing callers
+    /// cannot both succeed. Inside a unit of work, the row stays locked until that unit of work ends.
     /// </summary>
-    Task<bool> TransitionAsync(Guid session, IReadOnlyCollection<ImportState> from, ImportState to, Instant now, Instant expiresAt, string? reportJson, CancellationToken ct);
+    Task<bool> TransitionAsync(Guid session, IReadOnlyCollection<ImportState> from, ImportState to, Instant now, Instant expiresAt,
+        string? reportJson, CancellationToken ct, Instant? expectedUpdatedAt = null);
 
     Task ClearBatchesAsync(Guid session, CancellationToken ct);
 }

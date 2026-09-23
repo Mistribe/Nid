@@ -12,6 +12,8 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
 {
     private const string UniqueViolation = "23505";
 
+    private static readonly NodaTime.Duration OneMicrosecond = NodaTime.Duration.FromTicks(10);
+
     private static readonly IReadOnlyList<string> ActiveNames = ImportStates.Active.Select(ImportStates.Name).ToList();
 
     public async Task ExpireAsync(Instant now, CancellationToken ct)
@@ -116,14 +118,19 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
 
     public async Task<bool> TransitionAsync(
         Guid session, IReadOnlyCollection<ImportState> from, ImportState to, Instant now, Instant expiresAt,
-        string? reportJson, CancellationToken ct)
+        string? reportJson, CancellationToken ct, Instant? expectedUpdatedAt = null)
     {
         var fromNames = from.Select(ImportStates.Name).ToList();
-        var moved = await db.Sessions
-            .Where(s => s.Id == session && fromNames.Contains(s.State))
+        var rows = db.Sessions.Where(s => s.Id == session && fromNames.Contains(s.State));
+        if (expectedUpdatedAt is { } expected)
+            rows = rows.Where(s => s.UpdatedAt == expected);
+
+        // updated_at doubles as the row's version, so it must move on every transition even when two land on
+        // the same instant (or the clock stands still): one microsecond past the previous value at least.
+        var moved = await rows
             .ExecuteUpdateAsync(u => u
                 .SetProperty(s => s.State, ImportStates.Name(to))
-                .SetProperty(s => s.UpdatedAt, now)
+                .SetProperty(s => s.UpdatedAt, s => s.UpdatedAt < now ? now : s.UpdatedAt + OneMicrosecond)
                 .SetProperty(s => s.ExpiresAt, expiresAt)
                 .SetProperty(s => s.Report, reportJson), ct);
         return moved == 1;
@@ -139,7 +146,8 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
         row.CreatedAt,
         row.ExpiresAt,
         JsonSerializer.Deserialize<Dictionary<string, Guid>>(row.Adults)!.ToDictionary(a => a.Key, a => new PersonId(a.Value)),
-        row.Report);
+        row.Report,
+        row.UpdatedAt);
 
     private static StoredBatch ToBatch(ImportBatchRow row)
         => new(row.Section, row.BatchIndex, row.ContentHash, row.EntityCount, row.Payload);

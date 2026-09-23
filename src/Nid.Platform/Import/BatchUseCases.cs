@@ -27,7 +27,8 @@ public static class ImportSections
 
 [RequestHandler<PutBatchCommand, BatchView>]
 public sealed class PutBatchHandler(
-    IImportStaging staging, IEnumerable<IImportSection> sections, IActorAccessor accessor, IClock clock, ImportOptions options)
+    IImportStaging staging, IUnitOfWork unitOfWork, IEnumerable<IImportSection> sections, IActorAccessor accessor, IClock clock,
+    ImportOptions options)
     : IRequestHandler<PutBatchCommand, BatchView>
 {
     public async ValueTask<Result<BatchView>> HandleAsync(PutBatchCommand command, CancellationToken ct = default)
@@ -77,29 +78,40 @@ public sealed class PutBatchHandler(
                 ? View(command, count, true, owner.ValidateBatch(command.Section, command.Entities, firstIndex)) // replay (§11.2)
                 : Fail(SlotTaken(command));
 
-        if (await staging.EntityCountAsync(session.Id, ct) + count > options.MaxEntitiesPerSession)
-            return Fail(new Failure(ImportCodes.TooManyEntities,
-                $"An import holds at most {options.MaxEntitiesPerSession} entities: split it by section.", null));
-
         var issues = owner.ValidateBatch(command.Section, command.Entities, firstIndex);
         if (issues.Any(i => i.Severity == IssueSeverity.Error))
             return View(command, count, false, issues);
 
         var now = clock.GetCurrentInstant();
 
-        // A new batch makes an earlier validation stale (§11.1): the session is open again. Done BEFORE the
-        // insert, not after: otherwise a PUT racing a commit could slip its row in right as the commit moves
-        // the session to `committed` and clears the batches, landing a batch nobody ever validates or applies.
-        // This conditional update blocks on the commit's row lock; once the commit wins, it sees the session is
-        // no longer active and is refused outright, rather than writing a batch the commit has already erased.
-        if (!await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), ImportState.Open,
-                now, now.Plus(NodaTime.Duration.FromTimeSpan(options.SessionLifetime)), null, ct))
-            return Fail(new Failure(ImportCodes.State, "This import is no longer taking batches.", null));
-
-        if (!await staging.AddBatchAsync(session.Id, new StoredBatch(command.Section, command.Index, hash, count, canonical), now, ct))
+        // A new batch makes an earlier validation stale (§11.1): the session is open again. The move and the
+        // insert are one transaction, and the move row-locks the session until that transaction ends. So:
+        // - a commit that moved the session first makes this move wait, then find it no longer active: the
+        //   batch is refused before anything is written, never staged behind a commit that already cleared;
+        // - a validate or commit arriving after this move waits for the batch to be committed, then sees it
+        //   (validate refuses its now stale report; commit finds the session open and refuses).
+        bool added;
+        await using (var transaction = await unitOfWork.BeginAsync(ct))
         {
-            // Lost the race for an empty slot. A concurrent PUT of the SAME content is still a replay, not a
-            // conflict (§11.2): re-read what actually landed and treat it exactly like the pre-check above.
+            if (!await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), ImportState.Open,
+                    now, now.Plus(NodaTime.Duration.FromTimeSpan(options.SessionLifetime)), null, ct))
+                return Fail(new Failure(ImportCodes.State, "This import is no longer taking batches.", null));
+
+            // Counted under the lock: two batches racing into one session cannot both squeeze under the bound.
+            if (await staging.EntityCountAsync(session.Id, ct) + count > options.MaxEntitiesPerSession)
+                return Fail(new Failure(ImportCodes.TooManyEntities,
+                    $"An import holds at most {options.MaxEntitiesPerSession} entities: split it by section.", null));
+
+            added = await staging.AddBatchAsync(session.Id, new StoredBatch(command.Section, command.Index, hash, count, canonical), now, ct);
+            if (added)
+                await transaction.CommitAsync(ct);
+        } // not committed: the move is rolled back with the (aborted) insert
+
+        if (!added)
+        {
+            // Lost the race for an empty slot: the unique violation aborted the transaction, which is rolled
+            // back by now. A concurrent PUT of the SAME content is still a replay, not a conflict (§11.2):
+            // re-read what actually landed, outside the transaction, and treat it like the pre-check above.
             var landed = await staging.FindBatchAsync(session.Id, command.Section, command.Index, ct);
             return landed is not null && landed.Hash == hash
                 ? View(command, count, true, owner.ValidateBatch(command.Section, command.Entities, firstIndex))

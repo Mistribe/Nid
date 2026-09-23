@@ -55,8 +55,13 @@ public sealed class ValidateImportHandler(
         var now = clock.GetCurrentInstant();
         var state = report.State == ImportRunner.Validated ? ImportState.Validated : ImportState.Invalid;
         var expiresAt = now.Plus(NodaTime.Duration.FromTimeSpan(options.SessionLifetime));
-        if (!await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), state, now, expiresAt, ImportReportJson.Serialize(report), ct))
-            return Result.Failure<ImportSessionView>(new Failure(ImportCodes.State, "The import changed state while it was being validated.", null));
+        // Stored only over the session this report was computed from. A batch that arrived meanwhile moved the
+        // session (its move and its insert are one transaction, so this update waits for both, then sees the
+        // move): the report misses that batch and is not stored.
+        if (!await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), state, now, expiresAt,
+                ImportReportJson.Serialize(report), ct, expectedUpdatedAt: session.UpdatedAt))
+            return Result.Failure<ImportSessionView>(new Failure(ImportCodes.State,
+                "The import changed while it was being validated; validate again.", null));
 
         return Result.Success(ImportSessionView.From(session with { State = state, ExpiresAt = expiresAt, ReportJson = ImportReportJson.Serialize(report) }));
     }
