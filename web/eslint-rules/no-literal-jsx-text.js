@@ -1,7 +1,8 @@
 // Every string the user reads goes through i18next (frontend/architecture.md §11). Text with no letter
 // (punctuation, separators) is allowed.
 const LETTER = /\p{L}/u;
-const TEXT_ATTRIBUTES = new Set(['aria-label', 'aria-description', 'title', 'placeholder', 'alt']);
+// Native text attributes, plus the text props of our own components (`<EmptyState body="…">`).
+const TEXT_ATTRIBUTES = new Set(['aria-label', 'aria-description', 'title', 'placeholder', 'alt', 'body', 'label', 'description']);
 
 // A JSXExpressionContainer that is a JSX child, or the value of a text attribute, can still hide a
 // literal behind a ternary or `&&`: `{cond ? "Actif" : "Inactif"}`, `{cond && "Texte"}`,

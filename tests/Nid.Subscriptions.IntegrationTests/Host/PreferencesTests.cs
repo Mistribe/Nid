@@ -90,5 +90,8 @@ public class PreferencesTests(PostgresFixture fixture)
         var response = await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { colour = "red" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // The body fails to bind before any endpoint filter runs, so MalformedInputFilter never sees it: the
+        // answer is a bare 400 with no Problem body (the SPA's client gives it one carrying the status).
+        Assert.Equal("", await response.Content.ReadAsStringAsync());
     }
 }

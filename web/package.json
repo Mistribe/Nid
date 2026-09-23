@@ -15,7 +15,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "gen:api": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts",
-    "check:api": "pnpm gen:api && git diff --exit-code -- src/api",
+    "check:api": "pnpm gen:api && git diff --exit-code -- src/api && test -z \"$(git status --porcelain -- src/api)\"",
     "budget": "node scripts/budget.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm budget"
   },

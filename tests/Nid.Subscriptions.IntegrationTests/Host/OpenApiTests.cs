@@ -29,8 +29,10 @@ public class OpenApiTests(PostgresFixture fixture)
             $"{endpoint.DisplayName} declares no typed success response"));
     }
 
+    // Both facts below read the document the build just regenerated, not the committed one: the drift gate
+    // between the two is the CI `web` job's `pnpm check:api`.
     [Fact]
-    public void The_committed_document_describes_amounts_ids_and_dates_as_strings()
+    public void The_generated_document_describes_amounts_ids_and_dates_as_strings()
     {
         using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "web", "src", "api", "openapi.json")));
         var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
@@ -49,7 +51,7 @@ public class OpenApiTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public void The_committed_document_marks_every_non_nullable_property_required()
+    public void The_generated_document_marks_every_non_nullable_property_required()
     {
         using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "web", "src", "api", "openapi.json")));
         var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");

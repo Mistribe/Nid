@@ -41,15 +41,17 @@
 ```
 
 - Les dossiers de `/features` reprennent les modules du backend. Un module désactivé disparaît de la navigation : le SPA lit `GET /api/v1/platform/capabilities`.
-- `schema.d.ts` est généré par la CI depuis l'OpenAPI, **versionné**, avec contrôle qu'il est à jour (`../architecture.md` §13).
+- `schema.d.ts` est généré par le développeur depuis l'OpenAPI (`dotnet build` réécrit `src/api/openapi.json`, puis `pnpm --dir web gen:api`), **versionné** ; la CI vérifie qu'il est à jour (`pnpm check:api`, `../architecture.md` §13).
 
 ## 3. Amorçage
 
 1. Chargement de `theme-init.js` (avant tout rendu) : pose le thème et le mode depuis `localStorage`.
 2. `GET /auth/session` → si non authentifié : redirection vers `/auth/login?returnUrl=` avec un **chemin relatif**.
 3. Sinon : réponse `{ person, csrf, preferences, sessionEpoch }` ; les préférences remplacent la copie locale si elles diffèrent.
-4. `GET /api/v1/platform/capabilities` ; puis rendu du routeur.
+4. `GET /api/v1/platform/capabilities` ; puis rendu du routeur. Si la session ou les capacités ne se lisent pas, une page d'erreur propose « Réessayer » : jamais de page blanche ni de liste de modules devinée.
 5. Le persister IndexedDB restaure le dernier tableau de bord **seulement si** `buster` (version + `sessionEpoch`) et `maxAge` correspondent (`pwa-offline.md`).
+
+Exception : `/signed-out`, où mène la déconnexion, s'affiche sans redirection vers le login (`../identity-and-access/authentication.md` §6).
 
 ## 4. Client API
 
@@ -126,7 +128,7 @@ La sérialisation canonique suit la **RFC 8785** (JSON Canonicalization Scheme).
 - Les libellés du catalogue (`label.<key>`) sont traduits côté interface : la source est monolingue.
 - Montants et dates : composants `<Money>` et `<LocalDate>` (`design-system.md` §4).
 - **Dates** : les valeurs `AAAA-MM-JJ` s'affichent par un utilitaire en **UTC** ; `new Date("2026-09-19")` décalerait le jour selon le fuseau.
-- **Montants** : `Intl.NumberFormat` formate une chaîne décimale ; la précision exacte sur les navigateurs visés est à vérifier.
+- **Montants** : `Intl.NumberFormat` formate une chaîne décimale sans perte : vérifié par `Money.test.tsx` (un montant de 19 chiffres les garde tous).
 
 ## 12. Build et livraison
 

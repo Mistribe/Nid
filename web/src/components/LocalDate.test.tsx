@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { formatLocalDate, LocalDate } from './LocalDate';
 
 const originalTz = process.env.TZ;
-afterEach(() => { process.env.TZ = originalTz; });
+afterEach(() => {
+  // Assigning undefined would set the string "undefined": an unset TZ is restored by deleting it.
+  if (originalTz === undefined) delete process.env.TZ;
+  else process.env.TZ = originalTz;
+});
 
 describe('formatLocalDate', () => {
   it('writes the day and month in words', () => expect(formatLocalDate('2026-09-19')).toBe('19 septembre 2026'));

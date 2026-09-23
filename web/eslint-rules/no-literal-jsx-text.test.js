@@ -22,6 +22,8 @@ tester.run('no-literal-jsx-text', rule, {
     'const a = <div className={cond ? "flex" : "grid"} />;',
     'const a = <p>{cond ? t("a.b") : null}</p>;',
     'const a = <p>{`${count}`}</p>;',
+    'const a = <EmptyState title={t("a.b")} body={t("c.d")} />;',
+    'const a = <label htmlFor="x">{t("a.b")}</label>;',
   ],
   invalid: [
     { code: 'const a = <p>Bonjour</p>;', errors: [{ messageId: 'literal' }] },
@@ -34,5 +36,8 @@ tester.run('no-literal-jsx-text', rule, {
     { code: 'const a = <p>{`Bonjour ${name}`}</p>;', errors: [{ messageId: 'literal' }] },
     { code: 'const a = <input aria-label={"Fermer"} />;', errors: [{ messageId: 'literal' }] },
     { code: 'const a = <img alt={cond ? "A" : "B"} />;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <EmptyState body="Rien pour l\u2019instant" />;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <option label="Mensuel" />;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <Field description={"Aide"} />;', errors: [{ messageId: 'literal' }] },
   ],
 });
