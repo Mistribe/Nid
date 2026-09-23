@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="UnambitiousFx.Synapse" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Quartz" />
     <ProjectReference Include="..\Nid.Platform\Nid.Platform.csproj" />
     <ProjectReference Include="..\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.ServiceDefaults\Nid.ServiceDefaults.csproj" />

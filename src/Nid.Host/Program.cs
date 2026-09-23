@@ -4,6 +4,7 @@ using Nid.Core.Infrastructure.Persistence;
 using Nid.Host;
 using Nid.Host.Api;
 using Nid.Host.Auth;
+using Nid.Host.Jobs;
 using Nid.Platform;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
@@ -20,10 +21,14 @@ using UnambitiousFx.Synapse.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
-builder.Services.AddSingleton(builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new FxOptions());
+var fxOptions = builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new FxOptions();
+builder.Services.AddSingleton(fxOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
-builder.Services.AddNid(builder.Configuration.GetConnectionString("nid")
-                         ?? throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
+var connectionString = builder.Configuration.GetConnectionString("nid")
+                       ?? throw new InvalidOperationException("ConnectionStrings:nid is not configured.");
+builder.Services.AddNid(connectionString);
+if (builder.Configuration.GetValue("Jobs:Enabled", true))
+    builder.Services.AddNidJobs(connectionString, fxOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
 // Never set in production: swaps the default scheme so IntegrationTestAuthenticationHandler — which reads

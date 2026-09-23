@@ -65,6 +65,8 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
             builder.UseSetting("Auth:Authority", "https://auth.example.test");
             builder.UseSetting("Auth:ClientSecret", "test-secret");
             builder.UseSetting("Auth:CsrfKey", "0123456789abcdef0123456789abcdef");
+            // Jobs on by default would start Quartz and, on this empty rate table, a backfill against the real sources.
+            builder.UseSetting("Jobs:Enabled", "false");
         });
     }
 

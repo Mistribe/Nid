@@ -142,4 +142,24 @@ public class SchemaTests(PostgresFixture fixture)
         Assert.Empty(await platform.Database.GetPendingMigrationsAsync());
         Assert.Equal(0, await platform.Sessions.CountAsync());
     }
+
+    [Fact]
+    public async Task The_Quartz_tables_live_in_the_platform_schema_and_the_rates_in_core()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        await using var core = PostgresFixture.NewCoreContext(connectionString);
+
+        var quartz = await core.Database
+            .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'platform' and table_name like 'qrtz%' order by table_name")
+            .ToListAsync();
+        Assert.Equal(
+            ["qrtz_blob_triggers", "qrtz_calendars", "qrtz_cron_triggers", "qrtz_fired_triggers", "qrtz_job_details", "qrtz_locks",
+             "qrtz_paused_job_grps", "qrtz_paused_trigger_grps", "qrtz_scheduler_state", "qrtz_simple_triggers", "qrtz_simprop_triggers", "qrtz_triggers"],
+            quartz);
+
+        var fx = await core.Database
+            .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'core' and table_name like 'fx%' order by table_name")
+            .ToListAsync();
+        Assert.Equal(["fx_rate", "fx_sync_run"], fx);
+    }
 }
