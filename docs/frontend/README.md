@@ -38,8 +38,8 @@
 | F5 | Import et export **orchestrés par le navigateur**, sans tâche de fond | Décidé |
 | F6 | Graphiques : composant `Chart` de shadcn/ui (**Recharts v3**) + SVG maison pour la bande de couverture ; palette du skill de visualisation, validée par script | Décidé |
 | F7 | **Thèmes** : 4 jeux de couleurs curés, préférence **par personne côté serveur** | Décidé |
-| F8 | Routage : TanStack Router | Retenu par défaut (non revérifié ; alternative : React Router) |
-| F9 | Formulaires : React Hook Form + Zod ; i18n : i18next | Retenu par défaut (non revérifié) |
+| F8 | Routage : TanStack Router | **Décidé (utilisé en 1E1)** |
+| F9 | Formulaires : React Hook Form + Zod ; i18n : i18next | Formulaires : retenu par défaut (non revérifié, jusqu'à 1E2) ; i18n : **décidé (utilisé en 1E1)** |
 | F10 | Visionneuse PDF : pdf.js, **version 4.2.67 ou plus**, scripts et évaluation désactivés | Retenu par défaut (alternative : visionneuse native) |
 | F11 | **Pas de store client dédié** (Redux, Zustand…) : état serveur par TanStack Query (F3), état de vue partageable par l'URL via TanStack Router (F8), session/thème/préférences par contexte React local. Un store n'est ajouté que si un état transverse réel apparaît (ex. assistant d'import multi-étapes) | Décidé |
 
@@ -47,6 +47,5 @@
 
 - **Direction visuelle** : couleur d'accent, ambiance et valeurs des quatre thèmes. Passe de design à part, avec maquettes.
 - Compatibilité de Recharts v3 (et du composant `Chart` de shadcn/ui) avec la version de React retenue.
-- Bibliothèques à choisir : conversion OKLCH vers sRGB pour le test de contraste, analyse CSV en flux, archive ZIP pour l'export CSV, canonicalisation JSON (RFC 8785).
-- Précision exacte de `Intl.NumberFormat` sur des chaînes décimales dans les navigateurs visés.
+- Bibliothèques à choisir : analyse CSV en flux, archive ZIP pour l'export CSV, canonicalisation JSON (RFC 8785).
 - Politique de claims d'Authelia : impacte l'affichage du nom (`../identity-and-access/authentication.md`).

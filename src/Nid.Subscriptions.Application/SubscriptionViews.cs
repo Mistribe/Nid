@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
@@ -116,5 +117,6 @@ public static class HouseholdCost
         => totals[currency] = totals.GetValueOrDefault(currency) + amount;
 
     private static IReadOnlyList<MoneyView> ToViews(Dictionary<string, decimal> totals)
-        => totals.OrderBy(t => t.Key, StringComparer.Ordinal).Select(t => new MoneyView(t.Value, t.Key)).ToList();
+        => totals.OrderBy(t => t.Key, StringComparer.Ordinal)
+            .Select(t => new MoneyView(t.Value.ToString(CultureInfo.InvariantCulture), t.Key)).ToList();
 }

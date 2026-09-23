@@ -32,7 +32,7 @@ Le hors ligne se limite au **dernier tableau de bord** de la personne connectée
 
 - `persistQueryClient` avec un persister asynchrone en IndexedDB.
 - **Limitée à une seule requête** : `['dashboard', personId]`, via `dehydrateOptions`.
-- `maxAge` : 3 jours. `buster` : version de l'application et `session_epoch`. Un cache expiré ou dont le `buster` diffère est supprimé sans être restauré.
+- `maxAge` : 3 jours. `buster` : version de l'application et `sessionEpoch`. Un cache expiré ou dont le `buster` diffère est supprimé sans être restauré.
 - La date d'actualisation de l'instantané est **toujours affichée** hors ligne.
 
 ## 5. Purge
@@ -43,7 +43,7 @@ Le cache est supprimé dans tous ces cas :
 |---|---|
 | Déconnexion | `queryClient.clear()` puis suppression du persister |
 | `401` définitif | Idem |
-| Changement de `session_epoch` (« déconnecter partout ») | Le `buster` ne correspond plus : suppression au prochain démarrage |
+| Changement de `sessionEpoch` (« déconnecter partout ») | Le `buster` ne correspond plus : suppression au prochain démarrage |
 | Expiration (`maxAge`) | Suppression à la restauration |
 | Changement de personne connectée | Clé de requête différente ; ancien instantané supprimé |
 
@@ -73,4 +73,4 @@ L'instantané est stocké **en clair** dans IndexedDB : la protection repose sur
 - Le service worker ne met jamais une réponse `/api` en cache.
 - Après déconnexion, IndexedDB ne contient plus d'instantané.
 - Hors ligne (mode réseau coupé de Playwright), le tableau de bord s'affiche en lecture seule avec sa date.
-- Un `session_epoch` différent invalide l'instantané au redémarrage.
+- Un `sessionEpoch` différent invalide l'instantané au redémarrage.

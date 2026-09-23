@@ -128,7 +128,7 @@ public class MalformedInputTests(PostgresFixture fixture)
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", new
         {
             date = "2025-01-01", label = "gift", kind = "gift",
-            price = new { amount = 0m, currency = "EUR" },
+            price = new { amount = "0", currency = "EUR" },
             payer = new { type = "external" },
             grants = new[]
             {

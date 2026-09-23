@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using NodaTime;
@@ -80,6 +82,30 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
     public async Task<IReadOnlyList<PersonInfo>> ListAsync(CancellationToken ct)
         => (await db.Persons.AsNoTracking().OrderBy(p => p.CreatedAt).ToListAsync(ct)).Select(ToInfo).ToList();
+
+    public async Task<Preferences?> PreferencesAsync(PersonId id, CancellationToken ct)
+    {
+        var stored = await db.Persons.AsNoTracking().Where(p => p.Id == id.Value).Select(p => p.Preferences).SingleOrDefaultAsync(ct);
+        if (stored is null)
+            return null;
+
+        var node = JsonNode.Parse(stored) as JsonObject ?? [];
+        return Preferences.FromStored(
+            node["theme"]?.GetValueKind() == JsonValueKind.String ? node["theme"]!.GetValue<string>() : null,
+            node["mode"]?.GetValueKind() == JsonValueKind.String ? node["mode"]!.GetValue<string>() : null,
+            node["chart_patterns"]?.GetValueKind() is JsonValueKind.True or JsonValueKind.False ? node["chart_patterns"]!.GetValue<bool>() : null);
+    }
+
+    public async Task SavePreferencesAsync(PersonId id, Preferences preferences, CancellationToken ct)
+    {
+        var row = await db.Persons.SingleAsync(p => p.Id == id.Value, ct);
+        var node = JsonNode.Parse(row.Preferences) as JsonObject ?? [];
+        node["theme"] = preferences.Theme;
+        node["mode"] = preferences.Mode;
+        node["chart_patterns"] = preferences.ChartPatterns;
+        row.Preferences = node.ToJsonString();
+        await db.SaveChangesAsync(ct);
+    }
 
     private static PersonInfo ToInfo(PersonRow row) => new(
         new PersonId(row.Id),

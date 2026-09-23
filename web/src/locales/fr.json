@@ -1,0 +1,46 @@
+{
+  "app": { "name": "Nid" },
+  "theme": { "neutre": "Neutre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
+  "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" },
+  "access": { "private": "Privé", "shared": "Partagé", "dependent": "Enfant" },
+  "problem": {
+    "unauthenticated": "Votre session a expiré. Reconnectez-vous pour continuer.",
+    "not_found": "Cet élément est introuvable.",
+    "forbidden": "Vous n'avez pas le droit de faire cette action.",
+    "conflict": "Cet élément a changé entre-temps. Rechargez la page pour voir sa dernière version.",
+    "validation": "La saisie a été refusée. Corrigez les valeurs signalées puis réessayez.",
+    "bad_request": "La demande n'a pas pu être lue. Rechargez la page puis réessayez.",
+    "unexpected": "Une erreur inattendue est survenue. Réessayez dans un instant.",
+    "request_id": "Identifiant pour le support : {{id}}"
+  },
+  "nav": {
+    "sidebar": "Navigation principale",
+    "tabs": "Onglets",
+    "home": "Revenir à l'accueil",
+    "subscriptions": "Abonnements",
+    "import": "Import",
+    "settings": "Réglages"
+  },
+  "shell": { "sign_out": "Se déconnecter" },
+  "signed_out": {
+    "title": "Vous êtes déconnecté de Nid",
+    "sso_open": "Votre session auprès du fournisseur d'identité reste ouverte sur cet appareil : se reconnecter à Nid ne demandera pas de mot de passe. Sur un appareil partagé, fermez-la aussi depuis le portail d'identité.",
+    "portal": "Ouvrir le portail d'identité",
+    "sign_in_again": "Se reconnecter"
+  },
+  "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
+  "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
+  "placeholder": {
+    "title": "Bientôt ici",
+    "subscriptions": "La liste de vos abonnements arrive avec la prochaine version.",
+    "import": "L'assistant d'import arrive avec une prochaine version."
+  },
+  "settings": {
+    "appearance": {
+      "title": "Apparence",
+      "mode": "Mode",
+      "theme": "Thème",
+      "chart_patterns": "Motifs dans les graphiques"
+    }
+  }
+}

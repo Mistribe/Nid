@@ -88,9 +88,9 @@ Un thème est un **jeu de valeurs de variables CSS**, avec sa variante claire et
 | Id | Intention | Valeurs |
 |---|---|---|
 | `neutre` (défaut) | Gris neutres, accent sobre | Point de départ : les valeurs neutres de shadcn/ui |
-| `ardoise` | Bleu-gris, ambiance calme | À fixer lors de la passe de design |
-| `sauge` | Vert désaturé, ambiance naturelle | À fixer lors de la passe de design |
-| `terre` | Tons chauds, sable et terre cuite | À fixer lors de la passe de design |
+| `ardoise` | Bleu-gris, ambiance calme | **Provisoires, fixées en 1E1** : dérivées de la base « slate » de shadcn/ui, passent le test de contraste (§7.7) ; une passe de design ultérieure peut les retoucher sans toucher au code |
+| `sauge` | Vert désaturé, ambiance naturelle | **Provisoires, fixées en 1E1** : dérivées d'un vert désaturé de shadcn/ui, passent le test de contraste (§7.7) ; une passe de design ultérieure peut les retoucher sans toucher au code |
+| `terre` | Tons chauds, sable et terre cuite | **Provisoires, fixées en 1E1** : dérivées de la base « stone » de shadcn/ui avec un accent chaud, passent le test de contraste (§7.7) ; une passe de design ultérieure peut les retoucher sans toucher au code |
 
 ### 7.3 Ce qu'un thème change, et ce qu'il ne change pas
 
@@ -162,9 +162,12 @@ Un **test de contraste en CI** parcourt tous les thèmes dans les deux modes :
 | `primary-foreground` sur `primary` | 4,5:1 |
 | `muted-foreground` sur `background` et `card` | 4,5:1 |
 | `secondary-foreground` sur `secondary` | 4,5:1 |
-| `ring` et `border` (contour d'un champ) sur `background` | 3:1 |
+| `ring` et `input` (contour d'un champ) sur `background` | 3:1 |
 
-Un thème qui échoue ne passe pas la CI. Il faut un utilitaire de conversion OKLCH vers sRGB (à choisir, non vérifié).
+Le test mesure `input` et non `border` : `border` trace des séparateurs, que WCAG 1.4.11 n'exige pas à 3:1. Il
+couvre aussi `card-foreground`, `popover-foreground`, `accent-foreground` et `destructive`.
+
+Un thème qui échoue ne passe pas la CI. La conversion OKLCH vers sRGB utilise **culori** (`architecture.md` §1).
 
 ### 7.8 Limites assumées
 

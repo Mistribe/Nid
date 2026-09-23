@@ -4,9 +4,13 @@ using NodaTime;
 
 namespace Nid.Subscriptions.Application;
 
-public sealed record MoneyView(decimal Amount, string Currency)
+/// <summary>
+/// An amount as the API sends it: a decimal string in invariant culture, with the scale the engine produced
+/// ("17.20", not 17.2). The browser displays it and never computes with it (frontend/README.md §2).
+/// </summary>
+public sealed record MoneyView(string Amount, string Currency)
 {
-    public static MoneyView From(Money money) => new(money.Amount, money.Currency.Code);
+    public static MoneyView From(Money money) => new(money.AmountText, money.Currency.Code);
 
     public static IReadOnlyList<MoneyView> From(CostBreakdown breakdown)
         => breakdown.Totals.Select(From).ToList();

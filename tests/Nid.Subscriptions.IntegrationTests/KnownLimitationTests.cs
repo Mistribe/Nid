@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Subscriptions.Application;
 using Nid.TestSupport;
 
@@ -35,12 +36,12 @@ public class KnownLimitationTests(PostgresFixture fixture)
         Assert.Single(list.SharedPurchaseIds); // one purchase, granted to both subscriptions
 
         // Cash cost deduplicates by purchase id: the money left the account once.
-        Assert.Equal(20m, list.HouseholdCashCost.Single(m => m.Currency == "EUR").Amount);
+        Assert.Equal(20m, Parse(list.HouseholdCashCost.Single(m => m.Currency == "EUR").Amount));
 
         // Amortized cost does not: each of the two subscriptions amortizes its own timeline over the same
         // window, and the shared purchase's days count fully on both, so the household total is double the
         // cash figure above. This asymmetry is the limitation being pinned.
-        Assert.Equal(40m, list.HouseholdAmortizedCost.Single(m => m.Currency == "EUR").Amount);
+        Assert.Equal(40m, Parse(list.HouseholdAmortizedCost.Single(m => m.Currency == "EUR").Amount));
 
         // And the response says so itself, keyed on a stable code and pointing at the purchase responsible.
         var finding = Assert.Single(list.Findings, f => f.Code == HouseholdCost.AmortizedDoubleCountCode);
@@ -63,7 +64,9 @@ public class KnownLimitationTests(PostgresFixture fixture)
         Assert.DoesNotContain(list.Findings, f => f.Code == HouseholdCost.AmortizedDoubleCountCode);
     }
 
-    public sealed record MoneyResponse(decimal Amount, string Currency);
+    private static decimal Parse(string amount) => decimal.Parse(amount, CultureInfo.InvariantCulture);
+
+    public sealed record MoneyResponse(string Amount, string Currency);
 
     public sealed record FindingResponse(string Code, string Message, string? Reference);
 
