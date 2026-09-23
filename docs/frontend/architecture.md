@@ -10,14 +10,14 @@
 | Couche | Choix | Vérification |
 |---|---|---|
 | Build | Vite, React, TypeScript strict | **TypeScript épinglé en 5.9** : typescript-eslint 8.70 ne supporte que `<6.1`, et `openapi-typescript` 7 déclare `^5` |
-| Routage | TanStack Router : routes et paramètres de recherche typés | Non revérifié (alternative : React Router) |
+| Routage | TanStack Router : routes et paramètres de recherche typés | **Décidé (utilisé en 1E1)** |
 | Données serveur | TanStack Query v5 | Documentation lue : `persistQueryClient`, `maxAge`, `buster`, `dehydrateOptions`, `QueryClient.clear()` |
 | Client API | `openapi-typescript` (types) + `openapi-fetch` (client) + `openapi-react-query` | Documentation lue : génération `npx openapi-typescript spec -o schema.d.ts`, intercepteurs `onRequest` / `onResponse` |
 | UI | Tailwind v4 + shadcn/ui (Radix), icônes Lucide | Documentation lue : installation Vite, variables OKLCH, mode sombre par classe `.dark` |
 | Conversion de couleurs | culori, pour l'OKLCH → sRGB du test de contraste | **Vérifié** (1E1) : bibliothèque retenue et utilisée par `contrast.test.ts` |
 | Graphiques | Composant `Chart` de shadcn/ui (Recharts v3) + SVG maison | Documentation lue (shadcn) ; compatibilité React à vérifier |
 | Formulaires | React Hook Form + Zod | Non revérifié |
-| i18n | i18next, français par défaut | Non revérifié |
+| i18n | i18next, français par défaut | **Décidé (utilisé en 1E1)** |
 | PWA | vite-plugin-pwa, `injectManifest`, mise à jour en mode « prompt » | Documentation lue |
 | Validation de schéma | Validateur compilé au **build** (mode standalone d'Ajv) | Documentation lue : la compilation à l'exécution utilise `Function`, incompatible avec la CSP |
 | Tests | Vitest, Testing Library, MSW, Playwright, axe | Voir `testing.md` |
