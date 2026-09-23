@@ -46,7 +46,12 @@ export function AppearancePage() {
       setPreferences(preferences);
       // Only the last of a run of saves clears the not-yet-confirmed choice: an earlier one
       // settling first must not make radios fall back to a saved value another save will still change.
-      if (pending.current === 0) setDesired(null);
+      // The same point also clears a problem an earlier save in the run may have raised — this
+      // save's own success is the last word on whether the choice landed (Ruling T10c).
+      if (pending.current === 0) {
+        setDesired(null);
+        setProblem(null);
+      }
     },
     onError: (error) => {
       pending.current -= 1;

@@ -177,6 +177,7 @@ describe('Réglages › Apparence', () => {
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Terre' })).toBeChecked());
     expect(html().dataset.theme).toBe('terre');
     expect(localStorage.getItem('nid.theme')).toBe('terre');
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
   it('saves the chart patterns option', async () => {
