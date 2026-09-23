@@ -1,0 +1,2027 @@
+[
+  {
+    "input": "{\u0022\\ud83d\\uDE00\u0022\t:\tnull,\u00222\u0022: 12.99}",
+    "canonical": "{\u00222\u0022:12.99,\u0022\uD83D\uDE00\u0022:null}",
+    "sha256": "56bde5d27e3fad13fc2daf28e2ec4ed8b695bbeec902a471757411f2ec383811"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[ 5E-324]",
+    "canonical": "[5e-324]",
+    "sha256": "36ae31cf02ccda095c0e10f6eb921c5c76dc4a045971112fdffbb8bf72329e47"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{ \u0022\\u007F\u0022\n  : \u0022\u007F\u0022\t}",
+    "canonical": "{\u0022\u007F\u0022:\u0022\u007F\u0022}",
+    "sha256": "e31091eed12547d03ff274da9dbebccfc2dd002928e52b3ea3c9cbdeef7c9611"
+  },
+  {
+    "input": "[\u0022\u20AC 12.99\u0022,{ \u0022\uFB00\u0022\t:\n  null,\t\u0022\u00E9\u0022\t:\n  {\u0022\\u00E9\u0022 :\n  [\t1.00000000000000000E\u002B020,\t0.00000000000000000E\u002B000,\tnull],\n  \u002210\u0022\n  : true, \u0022key with space\u0022\n  : -3474210793195687},\n  \u0022\uD83D\uDE00\u0022\n  :{\t\u0022\u2028\u0022\t: null,\u0022\u0022\t: true,\n  \u0022A\u0022: true,\u0022\\u007F\u0022:\ttrue\n  } },\n  {\t}]",
+    "canonical": "[\u0022\u20AC 12.99\u0022,{\u0022\u00E9\u0022:{\u002210\u0022:true,\u0022key with space\u0022:-3474210793195687,\u0022\u00E9\u0022:[100000000000000000000,0,null]},\u0022\uD83D\uDE00\u0022:{\u0022\u0022:true,\u0022A\u0022:true,\u0022\u007F\u0022:true,\u0022\u2028\u0022:null},\u0022\uFB00\u0022:null},{}]",
+    "sha256": "f4cdecdd1f2a85ef5443651c5ffbd882be9bead5fd9756c03c5a90e58f879f68"
+  },
+  {
+    "input": "{ \u0022\\u0001\u0022:\t1E-06,\n  \u0022a\u0022\t:-590360386463196, \u0022\u2029\u0022\t:{\t\u0022a\u0022 :\n  true,\u0022key with space\u0022\t:\tnull\t} }",
+    "canonical": "{\u0022\\u0001\u0022:0.000001,\u0022a\u0022:-590360386463196,\u0022\u2029\u0022:{\u0022a\u0022:true,\u0022key with space\u0022:null}}",
+    "sha256": "35477fe9dfc745f92fded4ffd71dd776254454bf7986463f16bba65178befa01"
+  },
+  {
+    "input": "{\n  \u0022\uD83D\uDE00\u0022\t:[ true],\t\u0022\\\\\u0022\n  :\tfalse,\n  \u0022\\\u0022quoted\\\u0022\u0022 : true }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:true,\u0022\\\\\u0022:false,\u0022\uD83D\uDE00\u0022:[true]}",
+    "sha256": "fef4e8877b5e63a0ace693da299b103dcd03b10d712c345bac5978fe1dba857b"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  \u0022\u2028\\u2029\u0022]",
+    "canonical": "[\u0022\u2028\u2029\u0022]",
+    "sha256": "7659453166c1817e116c54ec04511036b807c53864c70183fbdd7ad37a5aafe7"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\u0022\uD83D\uDE00\u0022\t:\t{\t},\n  \u0022\\u2028\u0022\n  :\n  8747522286347647, \u0022key with space\u0022\n  :\n  null }",
+    "canonical": "{\u0022key with space\u0022:null,\u0022\u2028\u0022:8747522286347647,\u0022\uD83D\uDE00\u0022:{}}",
+    "sha256": "e5baf4e052eccb7954f4ffd4aa764813733f4f0215e985ee3d8a0ec7f794471d"
+  },
+  {
+    "input": "[-3686681936317949, true,\n  {\n  },\u0022\uD83D\uDE00\uFFFF\u0022]",
+    "canonical": "[-3686681936317949,true,{},\u0022\uD83D\uDE00\uFFFF\u0022]",
+    "sha256": "b8da5a285c7862c265cd6663fb78f10034cbc73620dcbfbaa5c785f5010a1919"
+  },
+  {
+    "input": "[\t\u0022\\u0009\\u000a\\u000D\\u0008\\u000c\u0022,\tfalse,\tnull]",
+    "canonical": "[\u0022\\t\\n\\r\\b\\f\u0022,false,null]",
+    "sha256": "f764783208cdcb9c9cf3ed70aeee4f5e90329e63f41c0f6df7ccc481beb0db2f"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  \u0022\\uFB00\u0022,true,\n  -7115954346215692]",
+    "canonical": "[\u0022\uFB00\u0022,true,-7115954346215692]",
+    "sha256": "b6f8d115313d6449a77b034c4eb949865025367eb69c1b4d3a3e5e47b3de40b3"
+  },
+  {
+    "input": "[\tfalse,[ [1402790439356474,\ttrue,2386741709388199, []]], [\n  [\ttrue,-7626044434096419,\t5E-324], false,\u0022\\\u0022\\\\\\/\u0022, false],\t-848903053181443]",
+    "canonical": "[false,[[1402790439356474,true,2386741709388199,[]]],[[true,-7626044434096419,5e-324],false,\u0022\\\u0022\\\\/\u0022,false],-848903053181443]",
+    "sha256": "3c0f40878da728deb303609e347f3f0215a4f7bf300ddc17afefadcc6cfe13e0"
+  },
+  {
+    "input": "[\n  false,\tnull, -6056331375185923]",
+    "canonical": "[false,null,-6056331375185923]",
+    "sha256": "2ee00de49e8be37c6713ad79895776df0878dd6802a32029d34369f66b336dce"
+  },
+  {
+    "input": "[\n  true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "{\u0022b\u0022 :-587229508795657,\n  \u0022key with space\u0022\t: 1.71999999999999993E\u002B001,\n  \u0022\u0022: false }",
+    "canonical": "{\u0022\u0022:false,\u0022b\u0022:-587229508795657,\u0022key with space\u0022:17.2}",
+    "sha256": "bc42df3d11d67f0293800834c23d9a634510e26cda2bcd6ec0a19f28105686d8"
+  },
+  {
+    "input": "{\n  \u0022key with space\u0022\n  :\t[{\t\u0022\\u0001\u0022\n  :\t[\n  true],\u0022\\u00e9\u0022\t:null, \u0022\\u007f\u0022:\n  true\t}],\t\u00222\u0022 :\n  { \u0022\\u0001\u0022\n  :\n  true },\n  \u0022\uD83D\uDE00\u0022:{}\n  }",
+    "canonical": "{\u00222\u0022:{\u0022\\u0001\u0022:true},\u0022key with space\u0022:[{\u0022\\u0001\u0022:[true],\u0022\u007F\u0022:true,\u0022\u00E9\u0022:null}],\u0022\uD83D\uDE00\u0022:{}}",
+    "sha256": "eb4deb44ffd0db572391259f85c073c6d8241b46b557adfd6daf6a25252770b5"
+  },
+  {
+    "input": "[{\t\u0022\\u007f\u0022: null}]",
+    "canonical": "[{\u0022\u007F\u0022:null}]",
+    "sha256": "0f4a76097483a5874c15c93b98fc29c7a7775af28f6e6887477d783f3a2f87c5"
+  },
+  {
+    "input": "{\n  \u0022\\uFFFF\u0022:\t[],\t\u00222\u0022\t:\t{\t}}",
+    "canonical": "{\u00222\u0022:{},\u0022\uFFFF\u0022:[]}",
+    "sha256": "48a5f2e38a1be9a46bfd5fea7e882d40f5718661417394430eb51d7749c63265"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\t\u0022key with space\u0022\t:\tfalse,\n  \u0022\\\\\u0022\t:\ttrue\t}",
+    "canonical": "{\u0022\\\\\u0022:true,\u0022key with space\u0022:false}",
+    "sha256": "64f268b58e128ac35760a50ce69f116db8abe66ef67bc54b787436b0b0c3d53f"
+  },
+  {
+    "input": "{\n  \u0022\\u20ac\u0022: 9007199254740992, \u0022\u007F\u0022:null\t}",
+    "canonical": "{\u0022\u007F\u0022:null,\u0022\u20AC\u0022:9007199254740992}",
+    "sha256": "01b986232fb7cc03f2ee8fd6e2bcabb6fc65699301597004a6b6c190f72c2137"
+  },
+  {
+    "input": "[\t1.7976931348623157E\u002B308]",
+    "canonical": "[1.7976931348623157e\u002B308]",
+    "sha256": "dabeb6b2980d2d512888b69d2576387da2a30109b9308eb6674ea6c24fbc8dad"
+  },
+  {
+    "input": "{\u0022\\\\\u0022 :null,\u0022\\u2029\u0022 :\tfalse,\n  \u0022\\u00e9\u0022 :null }",
+    "canonical": "{\u0022\\\\\u0022:null,\u0022\u00E9\u0022:null,\u0022\u2029\u0022:false}",
+    "sha256": "6e1374b3d54b3ce2fbad9a6d03b6c42b42cc4811cfc377f7d5872c6a9b87bb1a"
+  },
+  {
+    "input": "[ true,\t\u0022\\ufb00\u0022,\t\u0022\\u2028\\u2029\u0022]",
+    "canonical": "[true,\u0022\uFB00\u0022,\u0022\u2028\u2029\u0022]",
+    "sha256": "e6d643493fdc8fe810efb310e11f5a57eca9f208584b5c452bec59657ec7f5e6"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{ \u0022\\u20ac\u0022 :\n  null,\n  \u0022\u0022 : \u0022\u0022, \u0022\uFFFF\u0022\t:\n  -6798914209336723,\t\u0022\u00E9\u0022\t: {\t\u0022\\\\\u0022:\u0022\u00E9\u0022 }}",
+    "canonical": "{\u0022\u0022:\u0022\u0022,\u0022\u00E9\u0022:{\u0022\\\\\u0022:\u0022\u00E9\u0022},\u0022\u20AC\u0022:null,\u0022\uFFFF\u0022:-6798914209336723}",
+    "sha256": "8b25caa615ac3d7c1108e81b49d371e7fd7a4e5a90b01b5a86538da56c95b956"
+  },
+  {
+    "input": "[-0,\t{\n  \u0022\u00E9\u0022:true,\n  \u0022\uFB00\u0022\t:0.5,\u0022\uFFFF\u0022\t:false }, \u0022\u007F\u0022]",
+    "canonical": "[0,{\u0022\u00E9\u0022:true,\u0022\uFB00\u0022:0.5,\u0022\uFFFF\u0022:false},\u0022\u007F\u0022]",
+    "sha256": "7df26d50ad095f842224dff5152a29dfedca8bbeabc350d911a3cae0a5a2bb7f"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\n  \u0022a\u0022\t:\n  \u0022\u00E9\u0022, \u0022A\u0022\t:\n  false, \u0022\\\u0022quoted\\\u0022\u0022:\n  -0.00000000000000000E\u002B000\n  }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:0,\u0022A\u0022:false,\u0022a\u0022:\u0022\u00E9\u0022}",
+    "sha256": "f2d0eafce71900188ccf0942cd98378ed60c8ddf7562cc174b12a2c4275b4cbc"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u0022\\uFFFF\u0022 :\tfalse }",
+    "canonical": "{\u0022\uFFFF\u0022:false}",
+    "sha256": "b6c68f307bf39b9385f331e201d49bcad4a6e009697ea216319b01afb0cf999b"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[ true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{ \u0022key with space\u0022\t: true, \u0022\\u2028\u0022\t: {\t},\u0022\\u20ac\u0022\t: [\t1E\u002B20,\t[],null]\n  }",
+    "canonical": "{\u0022key with space\u0022:true,\u0022\u2028\u0022:{},\u0022\u20AC\u0022:[100000000000000000000,[],null]}",
+    "sha256": "42728c87c8c508745901548257f9ca9f15c15b3363ab8a3cba788db3fad4eb0d"
+  },
+  {
+    "input": "{\n  \u0022\\u00e9\u0022 : null }",
+    "canonical": "{\u0022\u00E9\u0022:null}",
+    "sha256": "1bf725c382fc0122c8b0cc341619c04cfe1e2eec87f7cd03ac458c2e857fe72b"
+  },
+  {
+    "input": "{\t\u0022\\u00e9\u0022\t: true,\t\u0022\\u2029\u0022 :\tnull }",
+    "canonical": "{\u0022\u00E9\u0022:true,\u0022\u2029\u0022:null}",
+    "sha256": "8a9ccc7dbc6a5e099891631e5ea6c18b46e18ce44ab5d5bb6607349de7c998be"
+  },
+  {
+    "input": "{\n  \u0022\\u0001\u0022: [false,true], \u0022\u00E9\u0022:\n  true,\n  \u0022key with space\u0022\n  :\u0022\u20AC 12.99\u0022 }",
+    "canonical": "{\u0022\\u0001\u0022:[false,true],\u0022key with space\u0022:\u0022\u20AC 12.99\u0022,\u0022\u00E9\u0022:true}",
+    "sha256": "de2980e75043ff6fe975c888174be254c6b920bac24bd333dc6ea67801f5c4cf"
+  },
+  {
+    "input": "{ \u00222\u0022 :false,\u0022\\u0001\u0022 : -4941537609391089}",
+    "canonical": "{\u0022\\u0001\u0022:-4941537609391089,\u00222\u0022:false}",
+    "sha256": "897d9a5d35bc20c8251376ed905f5153b8cd7cb378878c39cef83d3ae0437362"
+  },
+  {
+    "input": "{\n  \u0022\uD83D\uDE00\u0022\t:\n  true,\u0022\u0022\n  :\t[ null,\tnull,\tfalse,\n  {\u002210\u0022\n  :{\u0022\\u2029\u0022\n  :null, \u002210\u0022: true,\u0022\\u00e9\u0022: null, \u0022\\u0001\u0022 :\n  null\n  },\t\u0022\\uFFFF\u0022:\t[7463634632568144,\ttrue],\u0022\u00E9\u0022\t:[], \u0022b\u0022\n  : -8319716018637717}],\t\u0022\\u007F\u0022: 9.99999999999999955E-007\n  }",
+    "canonical": "{\u0022\u0022:[null,null,false,{\u002210\u0022:{\u0022\\u0001\u0022:null,\u002210\u0022:true,\u0022\u00E9\u0022:null,\u0022\u2029\u0022:null},\u0022b\u0022:-8319716018637717,\u0022\u00E9\u0022:[],\u0022\uFFFF\u0022:[7463634632568144,true]}],\u0022\u007F\u0022:0.000001,\u0022\uD83D\uDE00\u0022:true}",
+    "sha256": "ce9d4c4a3885b4a6e4de1dae2c02044b4298aa95e3b550d21a91f556997a9b2c"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[[\n  \u0022\u003C/script\u003E\u0022,\n  false, 333333333.3333332], [\n  { }]]",
+    "canonical": "[[\u0022\u003C/script\u003E\u0022,false,333333333.3333332],[{}]]",
+    "sha256": "c7bce1523cf60b288e09a6fe514676e509c42e335e9fe0dcdc674dddecd19ea2"
+  },
+  {
+    "input": "{\u0022key with space\u0022:\n  true\n  }",
+    "canonical": "{\u0022key with space\u0022:true}",
+    "sha256": "3dfb536c5ae6ae5e6acf8ba9a7d7fa1ef7717d1544f07501bb74f02361ed4876"
+  },
+  {
+    "input": "{\u0022\u2028\u0022: {\n  \u0022b\u0022\n  :\n  false,\n  \u002210\u0022: \u0022\u20AC 12.99\u0022 } }",
+    "canonical": "{\u0022\u2028\u0022:{\u002210\u0022:\u0022\u20AC 12.99\u0022,\u0022b\u0022:false}}",
+    "sha256": "4580b52c5cfddaa18960e95f741e8e5461d7e83f00980bd83399355dec06c915"
+  },
+  {
+    "input": "{ \u0022b\u0022 :\t\u0022\\u00E9\u0022,\t\u0022\u00E9\u0022\n  : 1.00000000000000000E\u002B020\t}",
+    "canonical": "{\u0022b\u0022:\u0022\u00E9\u0022,\u0022\u00E9\u0022:100000000000000000000}",
+    "sha256": "16fa9b7644e90eb4257c5567255d8294c946190bcc4b4d47da5434375570d318"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\t\u0022\\ud83d\\uDE00\u0022 : 5882889261417083, \u0022\\\u0022quoted\\\u0022\u0022: { }\n  }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:{},\u0022\uD83D\uDE00\u0022:5882889261417083}",
+    "sha256": "a97995abd516468ee105bec43a18a43d83a5d03505abce1739624b820b04b08b"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  1259001394496024,\ttrue,null,\ttrue]",
+    "canonical": "[1259001394496024,true,null,true]",
+    "sha256": "fe843dbbbe62a3a398b04eb9a6a6ee1ba81f2eccd67d2d528b235e1e7c23c1c0"
+  },
+  {
+    "input": "[ -5934184975291013,\n  { },\n  -2632837397471492]",
+    "canonical": "[-5934184975291013,{},-2632837397471492]",
+    "sha256": "c8f00a633dbde06392d5cfe8ffad8df2987a56ad0098c301acf6a36b96d2cee1"
+  },
+  {
+    "input": "[\u0022\\u0000\\u001f\u0022,\u0022\\uFB00\u0022,\n  null,\t\u0022\\uD83D\\uDE00\uFFFF\u0022]",
+    "canonical": "[\u0022\\u0000\\u001f\u0022,\u0022\uFB00\u0022,null,\u0022\uD83D\uDE00\uFFFF\u0022]",
+    "sha256": "7fe5cf9db5a7ad54aadf5d0658d4bb6ea0c437d64ccdb7250cdeff30531304b3"
+  },
+  {
+    "input": "{ \u0022\u0022\t:\t\u0022\u0022,\u0022\\\u0022quoted\\\u0022\u0022:-8661086945812683\n  }",
+    "canonical": "{\u0022\u0022:\u0022\u0022,\u0022\\\u0022quoted\\\u0022\u0022:-8661086945812683}",
+    "sha256": "9338cd5eba7abe960e730bbc586ef6a6dd4e505a359a38fb7e824a17c0eb87bb"
+  },
+  {
+    "input": "{\u002210\u0022\n  :\t\u0022\u2028\u2029\u0022}",
+    "canonical": "{\u002210\u0022:\u0022\u2028\u2029\u0022}",
+    "sha256": "b7c314223708a7d52caa7bb238055dd73d1bd3ce0bbcff4cb6792efd229df57e"
+  },
+  {
+    "input": "{\u0022\\u00E9\u0022\t:[\n  -9007199254740992,\n  true,\ttrue], \u0022\\\\\u0022: 1323215719577519, \u00222\u0022:\t[\ttrue]\t}",
+    "canonical": "{\u00222\u0022:[true],\u0022\\\\\u0022:1323215719577519,\u0022\u00E9\u0022:[-9007199254740992,true,true]}",
+    "sha256": "703ed7527fc710a02c8135e204f68ea51d2f61ccdc1eae9a37c46c9688ddf97f"
+  },
+  {
+    "input": "[true,[\ttrue, \u0022\\\u0022\\\\\\/\u0022, -9.00719925474099200E\u002B015],\tnull]",
+    "canonical": "[true,[true,\u0022\\\u0022\\\\/\u0022,-9007199254740992],null]",
+    "sha256": "b991e782af7ddef02a9a0a1fafc43d4f808f7bf2197c5b9cdf18138f08cf8851"
+  },
+  {
+    "input": "[\n  2318272732459582]",
+    "canonical": "[2318272732459582]",
+    "sha256": "3f4023b7b051880a2451e094a44c27b7932b80a20bbcdc4f767977c17153e4e4"
+  },
+  {
+    "input": "[{\n  \u0022\u0022 :false,\n  \u0022\\\\\u0022\t:null, \u002210\u0022\n  :[\n  \u0022\u007F\u0022,\t\u0022\u003C\\/script\u003E\u0022,\n  [\u0022\uD83D\uDE00\uFFFF\u0022],\n  1.79860000000000014E\u002B002],\t\u0022\\u0001\u0022\n  :\t{\t\u0022\\\\\u0022\n  :\tfalse,\t\u0022\u20AC\u0022: 0,\n  \u0022\uFB00\u0022\n  :\t{ \u0022A\u0022\n  :\n  false},\t\u0022\\\u0022quoted\\\u0022\u0022: false}\t},3.33333333333333194E\u002B008]",
+    "canonical": "[{\u0022\u0022:false,\u0022\\u0001\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:false,\u0022\\\\\u0022:false,\u0022\u20AC\u0022:0,\u0022\uFB00\u0022:{\u0022A\u0022:false}},\u002210\u0022:[\u0022\u007F\u0022,\u0022\u003C/script\u003E\u0022,[\u0022\uD83D\uDE00\uFFFF\u0022],179.86],\u0022\\\\\u0022:null},333333333.3333332]",
+    "sha256": "52dfe56c99bc2b0fc8db40878c02d9e3edc1c0eef5e1abebc689b874540f2883"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\u0022\\u2029\u0022 :[\n  7385627841488137, -6487565128689278],\n  \u0022\\uffff\u0022\t:\ttrue }",
+    "canonical": "{\u0022\u2029\u0022:[7385627841488137,-6487565128689278],\u0022\uFFFF\u0022:true}",
+    "sha256": "2eba01e9ff2a9439dbba8074fb523d1a412ab58ad640c9450c4717884d2e674a"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\n  \u0022\u2029\u0022 :\n  { } }",
+    "canonical": "{\u0022\u2029\u0022:{}}",
+    "sha256": "fc7b42dcbd34159a6ddeda5c5d61585f5fd37ea136621c30a31c0ab096f9ad2a"
+  },
+  {
+    "input": "{\u002210\u0022\n  :\n  -3619958291350988,\u0022\u20AC\u0022:\ttrue\n  }",
+    "canonical": "{\u002210\u0022:-3619958291350988,\u0022\u20AC\u0022:true}",
+    "sha256": "bbd51fbabf6330cc1a6837a5e500563ff3352050b4d0b851721fa73b2e19f346"
+  },
+  {
+    "input": "[\n  {\t\u0022\\u00e9\u0022\t:\t{},\u0022a\u0022\n  :\n  \u0022\\u0000\\u001f\u0022, \u0022\\\\\u0022: 179.86\t},\n  4145347993864177,\n  {\n  \u0022a\u0022 :-8552117846372487\t},\n  \u0022\u003C\\/script\u003E\u0022]",
+    "canonical": "[{\u0022\\\\\u0022:179.86,\u0022a\u0022:\u0022\\u0000\\u001f\u0022,\u0022\u00E9\u0022:{}},4145347993864177,{\u0022a\u0022:-8552117846372487},\u0022\u003C/script\u003E\u0022]",
+    "sha256": "c1d9e15989e8b38d158fc4a198e755090a28914b5a9c7b929a3ad1867d82f99d"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[ \u0022\\uD83D\\ude00\u0022,false,false]",
+    "canonical": "[\u0022\uD83D\uDE00\u0022,false,false]",
+    "sha256": "5e704502296bc1506668ec672b7f732405a57cc01e778a98ae193171036b08c2"
+  },
+  {
+    "input": "{\n  \u0022b\u0022\n  :\t[ 88.99]}",
+    "canonical": "{\u0022b\u0022:[88.99]}",
+    "sha256": "9149f34d25a1f3869c8ec7410b678a447bf9c4e8caf3b12a12eae86adae4ca3d"
+  },
+  {
+    "input": "[ true, -4536147798288930,-1111900553482869]",
+    "canonical": "[true,-4536147798288930,-1111900553482869]",
+    "sha256": "47dee428a996756dacb9da3aa2d9abe57d482c36090f987b68288295cc2d0bfe"
+  },
+  {
+    "input": "{ \u0022\u0022\n  : null }",
+    "canonical": "{\u0022\u0022:null}",
+    "sha256": "212c5e659097c7b11239deafda2dddeec70b141d9d540cc8eb7fc390982c8178"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u00221\u0022:{ \u0022\\u2029\u0022\n  : \u0022\\uD83D\\uDE00\\uFFFF\u0022,\t\u0022\\\\\u0022\n  : [], \u0022key with space\u0022 :\tnull,\n  \u00222\u0022\n  :\t[\n  1.79860000000000014E\u002B002]\n  },\t\u002210\u0022\n  : true,\t\u0022\\u0001\u0022: \u0022\uD83D\uDE00\u0022\t}",
+    "canonical": "{\u0022\\u0001\u0022:\u0022\uD83D\uDE00\u0022,\u00221\u0022:{\u00222\u0022:[179.86],\u0022\\\\\u0022:[],\u0022key with space\u0022:null,\u0022\u2029\u0022:\u0022\uD83D\uDE00\uFFFF\u0022},\u002210\u0022:true}",
+    "sha256": "9ab5ccf924441ffb45dc8d1a520cedf56ba2e81470ba856e852b62a607ac5a93"
+  },
+  {
+    "input": "[null, 1E-07,\n  false]",
+    "canonical": "[null,1e-7,false]",
+    "sha256": "fd63e2aff7a70a5daf890907bb98d791e066e35df9ff6a5173aec58c71716f8c"
+  },
+  {
+    "input": "{\n  \u0022\\uD83D\\uDE00\u0022:1, \u0022\u2029\u0022:\u0022\\u2028\u2029\u0022,\t\u00222\u0022 :\n  false, \u0022\\uFFFF\u0022\n  :9.00719925474099200E\u002B015\n  }",
+    "canonical": "{\u00222\u0022:false,\u0022\u2029\u0022:\u0022\u2028\u2029\u0022,\u0022\uD83D\uDE00\u0022:1,\u0022\uFFFF\u0022:9007199254740992}",
+    "sha256": "56c1ec43ca7890f4a61ed4bb34a4baed92909b907c312bd5c26e2a4961b009eb"
+  },
+  {
+    "input": "{\t\u0022\u2029\u0022 :\n  \u0022\\u0009\\u000a\\u000d\\u0008\\u000C\u0022,\u0022\\\u0022quoted\\\u0022\u0022\t: 1E-07,\u0022\u0022 :\tnull\n  }",
+    "canonical": "{\u0022\u0022:null,\u0022\\\u0022quoted\\\u0022\u0022:1e-7,\u0022\u2029\u0022:\u0022\\t\\n\\r\\b\\f\u0022}",
+    "sha256": "34e49443df90050a6e0a1cf00da24c3a67789b36bcc0505e78585ded1d16a56b"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\u0022\\\\\u0022\n  :\n  1E\u002B21,\t\u0022\\uFFFF\u0022 :false, \u0022\\u2029\u0022 :\ttrue,\t\u0022\uD83D\uDE00\u0022\n  :\n  true\n  }",
+    "canonical": "{\u0022\\\\\u0022:1e\u002B21,\u0022\u2029\u0022:true,\u0022\uD83D\uDE00\u0022:true,\u0022\uFFFF\u0022:false}",
+    "sha256": "7fa5c5363a54994c0bb80ef45c73ceeee3959ef9213744e6b14f223dcd5c5c85"
+  },
+  {
+    "input": "{ \u0022\\\\\u0022\t:\ttrue\n  }",
+    "canonical": "{\u0022\\\\\u0022:true}",
+    "sha256": "6beb881a4108b9e72ba92519ace4c0787017c3f121bd2086a5b4781d7b2f8e03"
+  },
+  {
+    "input": "[\u0022\u2028\u2029\u0022,{\t}]",
+    "canonical": "[\u0022\u2028\u2029\u0022,{}]",
+    "sha256": "8ec20a10ea44465f09be6a7c43641821d3c402a7a792b39a0e3de4d72714b84b"
+  },
+  {
+    "input": "[ true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "[ [5.00000000000000000E-001,\t\u0022\\u0000\\u001f\u0022,9.99999999999999955E-007, 10],\n  -960448015029944, [],\tnull]",
+    "canonical": "[[0.5,\u0022\\u0000\\u001f\u0022,0.000001,10],-960448015029944,[],null]",
+    "sha256": "2368264fbbeedb42507e19842cc4e6334ba7cf4eac028377bbb416617fc3a0f5"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[ true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "[[ {\t}],\n  {\t\u00221\u0022:\tfalse,\n  \u0022\\u007f\u0022:6545402871183587, \u0022\\uD83D\\ude00\u0022:\n  true\n  },\t-6490270575275576]",
+    "canonical": "[[{}],{\u00221\u0022:false,\u0022\u007F\u0022:6545402871183587,\u0022\uD83D\uDE00\u0022:true},-6490270575275576]",
+    "sha256": "1ccd69c876f23cfa5c6df2fbedf2bdf4e98cc83323f96df201c4e0083407e3a8"
+  },
+  {
+    "input": "{\n  \u002210\u0022\n  : false, \u0022\uD83D\uDE00\u0022:false, \u0022key with space\u0022\t: 6876794754002826,\n  \u00222\u0022\n  : \u0022\uD83D\uDE00\uFFFF\u0022}",
+    "canonical": "{\u002210\u0022:false,\u00222\u0022:\u0022\uD83D\uDE00\uFFFF\u0022,\u0022key with space\u0022:6876794754002826,\u0022\uD83D\uDE00\u0022:false}",
+    "sha256": "9af8d000f234636acc7f830a5982caf1fe1183a1d59438eb7962a021138ed861"
+  },
+  {
+    "input": "[\u0022\\u0009\\u000a\\u000d\\u0008\\u000c\u0022,\n  [],\t3624302886711219, [\ttrue,\t[],\n  3599909687159065]]",
+    "canonical": "[\u0022\\t\\n\\r\\b\\f\u0022,[],3624302886711219,[true,[],3599909687159065]]",
+    "sha256": "20a78f094466063ac121ac2b26086c6047f6accdaa44035264b4fae02c66cc0d"
+  },
+  {
+    "input": "{\n  \u0022a\u0022\t: null,\u0022\\u2028\u0022\n  :false,\n  \u002210\u0022\n  :\n  \u0022\u007F\u0022\t}",
+    "canonical": "{\u002210\u0022:\u0022\u007F\u0022,\u0022a\u0022:null,\u0022\u2028\u0022:false}",
+    "sha256": "96ef30c5dbaafedb36871749511c686dbaa0285523be60572be0a835dfe1df23"
+  },
+  {
+    "input": "{ \u00222\u0022\t: null,\t\u0022\\uffff\u0022\t: null, \u0022\u007F\u0022\t:-6135186819343820,\t\u0022\\u0001\u0022 :\n  false\t}",
+    "canonical": "{\u0022\\u0001\u0022:false,\u00222\u0022:null,\u0022\u007F\u0022:-6135186819343820,\u0022\uFFFF\u0022:null}",
+    "sha256": "29466ca1a535e5f822db3576893926e3cf73f6d6517376bf58a89b2d087b219f"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\n  \u0022\u00E9\u0022 :\n  []\n  }",
+    "canonical": "{\u0022\u00E9\u0022:[]}",
+    "sha256": "4df2e23d01b49ecb0e4322ab141535a278c88619af1f5e35335b2c5d9532b06e"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  null,\n  7349829889360059]",
+    "canonical": "[null,7349829889360059]",
+    "sha256": "f16f9a2a20725c2b5573ff951364fcbf43254a7a63605dc80d89502c8f717419"
+  },
+  {
+    "input": "[ 474179679861146]",
+    "canonical": "[474179679861146]",
+    "sha256": "786311f59f914389405e18d4a9a44a04b11dbb7456cf99e0c3ffb2574b4be459"
+  },
+  {
+    "input": "{\n  \u0022\\u2028\u0022:null,\t\u0022\\uD83D\\uDE00\u0022\t: {\n  \u0022key with space\u0022\n  : null, \u0022\\uFB00\u0022:\n  8.89899999999999949E\u002B001,\n  \u0022\\uffff\u0022\n  :\n  -7536247277251496, \u0022\u2029\u0022 : [ 9007199254740992, true,100]\n  }}",
+    "canonical": "{\u0022\u2028\u0022:null,\u0022\uD83D\uDE00\u0022:{\u0022key with space\u0022:null,\u0022\u2029\u0022:[9007199254740992,true,100],\u0022\uFB00\u0022:88.99,\u0022\uFFFF\u0022:-7536247277251496}}",
+    "sha256": "e6e94547e32bbfcb6a30aa8ed5df42fb3e21d68360c3d723710c32cdb4ffa807"
+  },
+  {
+    "input": "{\n  \u0022\\\\\u0022 :\n  null,\u0022\u00E9\u0022:\n  true,\u0022\\uFFFF\u0022 :\tnull\n  }",
+    "canonical": "{\u0022\\\\\u0022:null,\u0022\u00E9\u0022:true,\u0022\uFFFF\u0022:null}",
+    "sha256": "a8ff11c859d4abe20cd4609b9c93e5350641906ca3edb0c30a685c16bc001ece"
+  },
+  {
+    "input": "{\t\u0022\\u2028\u0022 :\ttrue,\t\u0022\\u0001\u0022\n  : -9.00719925474099200E\u002B015,\t\u0022\u0022:\n  null }",
+    "canonical": "{\u0022\u0022:null,\u0022\\u0001\u0022:-9007199254740992,\u0022\u2028\u0022:true}",
+    "sha256": "b52020a4b9e36e96309f2ad2aa912d4506a5f07b8ed67e7dcb742751f1a3a01d"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[\n  {\n  \u0022\u007F\u0022 :\n  935884987368483,\u0022\uFB00\u0022: -5275056809060740 },\tnull,\t\u0022\u0022]",
+    "canonical": "[{\u0022\u007F\u0022:935884987368483,\u0022\uFB00\u0022:-5275056809060740},null,\u0022\u0022]",
+    "sha256": "baf73cb6abd717fca0086fee407557e8e2cbbab84f88f075ee87ccb8bfbf220b"
+  },
+  {
+    "input": "[ \u0022\u003C\\/script\u003E\u0022]",
+    "canonical": "[\u0022\u003C/script\u003E\u0022]",
+    "sha256": "40c3fac3e51cc3c70235b1c6f3223f97a87992640cbdb447d57529a25a1a1c38"
+  },
+  {
+    "input": "[\n  \u0022\\u0009\\u000A\\u000D\\u0008\\u000c\u0022,\t1.71999999999999993E\u002B001, null]",
+    "canonical": "[\u0022\\t\\n\\r\\b\\f\u0022,17.2,null]",
+    "sha256": "da2289a5168cc9f2568423f0c2119a5769df5cc2861f08b02baf1cd44860194d"
+  },
+  {
+    "input": "{\t\u0022\\\\\u0022\n  : false }",
+    "canonical": "{\u0022\\\\\u0022:false}",
+    "sha256": "978bcb1b65a05defd1eaaf52a724d2de06fec641538a2d4b7765a069d971a29d"
+  },
+  {
+    "input": "{\t\u0022\\u2029\u0022\t: 978714162909448\n  }",
+    "canonical": "{\u0022\u2029\u0022:978714162909448}",
+    "sha256": "376d4868e71bb555275bd927ab502db0b57eca97d85ac2fffac3dfdb87607fdb"
+  },
+  {
+    "input": "{ \u002210\u0022\t:\u0022\u00E9\u0022,\n  \u0022\\ud83d\\ude00\u0022\t: true, \u0022\\u20AC\u0022\n  :\tnull,\u0022\\\\\u0022:\n  { \u0022\\uFFFF\u0022 :[ {\u0022\\u20AC\u0022\n  :\n  true\n  },\tfalse,\n  1E-07,[269175368922911,\n  false,true, 5E-324]],\t\u0022\\u0001\u0022: true,\t\u0022\u2029\u0022:\n  null,\u0022b\u0022\n  :\n  []\n  }\n  }",
+    "canonical": "{\u002210\u0022:\u0022\u00E9\u0022,\u0022\\\\\u0022:{\u0022\\u0001\u0022:true,\u0022b\u0022:[],\u0022\u2029\u0022:null,\u0022\uFFFF\u0022:[{\u0022\u20AC\u0022:true},false,1e-7,[269175368922911,false,true,5e-324]]},\u0022\u20AC\u0022:null,\u0022\uD83D\uDE00\u0022:true}",
+    "sha256": "83f830bef7d5091fe3ee8c6930f2d40422a3e9cb54807912b158ac30011e7d1b"
+  },
+  {
+    "input": "[ null, { \u00221\u0022 :\n  false, \u0022\u20AC\u0022 :\tfalse, \u0022b\u0022 :3381349039422250\n  }, {\u0022\\u2029\u0022\n  :true\n  }, [ null,\t\u0022\\uD83D\\uDE00\u0022,\tfalse,6373514840088800]]",
+    "canonical": "[null,{\u00221\u0022:false,\u0022b\u0022:3381349039422250,\u0022\u20AC\u0022:false},{\u0022\u2029\u0022:true},[null,\u0022\uD83D\uDE00\u0022,false,6373514840088800]]",
+    "sha256": "5cbd81a8ddeb8b87c4f0ca025354c521efa85687775d5bd8fda00a4ca697e6b9"
+  },
+  {
+    "input": "[true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u0022\\\u0022quoted\\\u0022\u0022\t:\n  1E\u002B20,\n  \u0022\\uFB00\u0022\t:\n  false}",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:100000000000000000000,\u0022\uFB00\u0022:false}",
+    "sha256": "50862b15353f28259521852e8ba0cfec1edf4215a310550c38a088cefaecd7a4"
+  },
+  {
+    "input": "{\t\u0022A\u0022\n  :[\t{\t\u0022\\uD83D\\ude00\u0022\t:\tfalse, \u0022b\u0022\n  :\t{\t\u0022\uD83D\uDE00\u0022\n  :\u0022\u003C/script\u003E\u0022,\n  \u0022\u0022\t:\t8.89899999999999949E\u002B001,\u0022b\u0022 : false\t},\t\u0022\u20AC\u0022 : null\n  },\ttrue] }",
+    "canonical": "{\u0022A\u0022:[{\u0022b\u0022:{\u0022\u0022:88.99,\u0022b\u0022:false,\u0022\uD83D\uDE00\u0022:\u0022\u003C/script\u003E\u0022},\u0022\u20AC\u0022:null,\u0022\uD83D\uDE00\u0022:false},true]}",
+    "sha256": "1c1097feb4479c59391ed5ff647ca70a493da8b23d330923a6de12f8b51a783c"
+  },
+  {
+    "input": "{\u0022\u007F\u0022:\n  -106086343948649,\n  \u0022\\u20ac\u0022 : 1532099189607260, \u0022b\u0022\n  :\tfalse,\u0022\\\\\u0022 :\n  { \u0022A\u0022 :\u0022\\ud83d\\uDE00\u0022,\n  \u00222\u0022\n  :\t[\n  false,true], \u0022\u0022\n  :\t2301357512418163 }}",
+    "canonical": "{\u0022\\\\\u0022:{\u0022\u0022:2301357512418163,\u00222\u0022:[false,true],\u0022A\u0022:\u0022\uD83D\uDE00\u0022},\u0022b\u0022:false,\u0022\u007F\u0022:-106086343948649,\u0022\u20AC\u0022:1532099189607260}",
+    "sha256": "7d931cace69746cd815629df6b61331957033a6e42e550dc5a9d17e4fe93e663"
+  },
+  {
+    "input": "{\t\u0022\u20AC\u0022\n  :\u0022\\ud83d\\ude00\uFFFF\u0022,\n  \u0022\uFB00\u0022 :\n  { \u0022\\uffff\u0022\n  : false,\n  \u0022\\u00e9\u0022 :9007199254740992, \u0022\u007F\u0022 : -6261303735181961\n  }, \u0022b\u0022\n  : {\n  \u0022\uFFFF\u0022\n  :[\tnull,-8089312459228455,\n  true,\t{ \u0022A\u0022\n  : false,\n  \u0022\\u2029\u0022\t:\u0022\u0022 }], \u0022\u007F\u0022:\t8522045485932224, \u0022key with space\u0022\t:\t[{\u0022\u007F\u0022\t:\n  -1715186329800760,\n  \u00221\u0022\n  : null, \u0022key with space\u0022 :null}, true,\n  \u0022\\u20AC 12.99\u0022,\n  1.00000000000000000E\u002B021],\t\u0022\u2028\u0022\n  :\n  7404556939787195},\u0022\\u007f\u0022\n  :\t[]\t}",
+    "canonical": "{\u0022b\u0022:{\u0022key with space\u0022:[{\u00221\u0022:null,\u0022key with space\u0022:null,\u0022\u007F\u0022:-1715186329800760},true,\u0022\u20AC 12.99\u0022,1e\u002B21],\u0022\u007F\u0022:8522045485932224,\u0022\u2028\u0022:7404556939787195,\u0022\uFFFF\u0022:[null,-8089312459228455,true,{\u0022A\u0022:false,\u0022\u2029\u0022:\u0022\u0022}]},\u0022\u007F\u0022:[],\u0022\u20AC\u0022:\u0022\uD83D\uDE00\uFFFF\u0022,\u0022\uFB00\u0022:{\u0022\u007F\u0022:-6261303735181961,\u0022\u00E9\u0022:9007199254740992,\u0022\uFFFF\u0022:false}}",
+    "sha256": "3b9ebbd4b49fe75d4f3100639595ea9e55b0d677d7b07de220f2c7fdd0628d53"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[\tfalse,\tfalse]",
+    "canonical": "[false,false]",
+    "sha256": "38576924f34fcfc3c6d659cbcd3b5e39205f062496b79cfe98abbc494c76b30d"
+  },
+  {
+    "input": "{\n  \u0022A\u0022:\t6600856342448093,\u0022\\\u0022quoted\\\u0022\u0022 :\n  false,\n  \u002210\u0022\n  :\n  {\t\u0022\u2029\u0022\n  :\n  -8771474336847006 },\u0022\\uFFFF\u0022: {\t}\t}",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:false,\u002210\u0022:{\u0022\u2029\u0022:-8771474336847006},\u0022A\u0022:6600856342448093,\u0022\uFFFF\u0022:{}}",
+    "sha256": "1254932f1c692101469f1b1cfdfbc664b68f6143233663c46ba9fc1a3ca6452f"
+  },
+  {
+    "input": "{\u00221\u0022\n  : false,\t\u0022key with space\u0022:[\n  -4871288995417491, 0.00000000000000000E\u002B000, false] }",
+    "canonical": "{\u00221\u0022:false,\u0022key with space\u0022:[-4871288995417491,0,false]}",
+    "sha256": "d5df5cb55daab6e678351e53d49979461d495ffbf3af5495e7967f2422350f24"
+  },
+  {
+    "input": "[false,\t\u0022\\u0009\\u000a\\u000D\\u0008\\u000c\u0022]",
+    "canonical": "[false,\u0022\\t\\n\\r\\b\\f\u0022]",
+    "sha256": "541d44596cbcd7d546993de36e3553d29b9fe5db794f2c3ed34616240c22f4b0"
+  },
+  {
+    "input": "{\u0022A\u0022:{\t}\t}",
+    "canonical": "{\u0022A\u0022:{}}",
+    "sha256": "08562ebd1ab0dfd58939caa5ca521cdfee03c7971f7d36cb85ff27f77226a534"
+  },
+  {
+    "input": "{\u0022\u20AC\u0022:{\t\u0022\u20AC\u0022\n  : -1.00000000000000000E\u002B000\n  },\u0022\uD83D\uDE00\u0022 : null,\n  \u002210\u0022\t:\ttrue,\n  \u0022\u2028\u0022:-5743857451404957\n  }",
+    "canonical": "{\u002210\u0022:true,\u0022\u2028\u0022:-5743857451404957,\u0022\u20AC\u0022:{\u0022\u20AC\u0022:-1},\u0022\uD83D\uDE00\u0022:null}",
+    "sha256": "bc019f7788bf09991a9b69009d5fb88ff3ae5788ddfa5b63d3975907c7bd00d9"
+  },
+  {
+    "input": "{\t\u00222\u0022\n  : {\t\u0022b\u0022:\tnull,\t\u00221\u0022: null,\t\u0022\u0022\n  : [\t{\t},{\u0022\uD83D\uDE00\u0022: \u0022\\uD83D\\ude00\u0022,\n  \u0022\uFB00\u0022 : 0.5,\u00222\u0022\n  :false,\t\u0022key with space\u0022\t: \u0022\\u0000\\u001F\u0022\t}, true]\n  },\n  \u0022a\u0022\t:\n  {\u00221\u0022\n  :true,\t\u0022key with space\u0022 :\t4.94065645841246544E-324, \u0022\\u2028\u0022:\n  null\n  },\u0022\u007F\u0022 :\tnull,\u0022\u0022:\n  null\n  }",
+    "canonical": "{\u0022\u0022:null,\u00222\u0022:{\u0022\u0022:[{},{\u00222\u0022:false,\u0022key with space\u0022:\u0022\\u0000\\u001f\u0022,\u0022\uD83D\uDE00\u0022:\u0022\uD83D\uDE00\u0022,\u0022\uFB00\u0022:0.5},true],\u00221\u0022:null,\u0022b\u0022:null},\u0022a\u0022:{\u00221\u0022:true,\u0022key with space\u0022:5e-324,\u0022\u2028\u0022:null},\u0022\u007F\u0022:null}",
+    "sha256": "8b42e6d47a8b58d9edeb1da9918ed7bc25afce700f80bb607bd16fe05ed94897"
+  },
+  {
+    "input": "[ null,\u0022\\ud83d\\ude00\uFFFF\u0022]",
+    "canonical": "[null,\u0022\uD83D\uDE00\uFFFF\u0022]",
+    "sha256": "060ee014a05a4b1aa5f008facbc4bfc7b682ece2e5b276ad63fac93dc1622b69"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\u0022\\\\\u0022\t:null,\u0022\\uFB00\u0022 : 581962218529078,\t\u00221\u0022:\ttrue\n  }",
+    "canonical": "{\u00221\u0022:true,\u0022\\\\\u0022:null,\u0022\uFB00\u0022:581962218529078}",
+    "sha256": "54d17ed71f4def8f21a06efce3688caa8db43a5e1b047db496be522657fe21da"
+  },
+  {
+    "input": "{\u0022\\\\\u0022\n  :\tnull, \u002210\u0022 :\t\u0022\\u2028\u2029\u0022}",
+    "canonical": "{\u002210\u0022:\u0022\u2028\u2029\u0022,\u0022\\\\\u0022:null}",
+    "sha256": "130ade8d26aa6e7bb92050ff0c73f7c7814198a7a2dae630088c526b9ba6037c"
+  },
+  {
+    "input": "[ -7969303707231,\t{\n  \u0022\uFFFF\u0022 :\n  \u0022\u003C/script\u003E\u0022,\n  \u0022\u2028\u0022\n  :\t{\t\u0022\\\\\u0022\n  : false,\u0022\\u20AC\u0022\n  : true, \u0022a\u0022\n  :\t{\u0022\\\u0022quoted\\\u0022\u0022:\n  1.00000000000000000E\u002B001\n  },\u0022\uD83D\uDE00\u0022:\n  1.79860000000000014E\u002B002\t}\n  }, \u0022\uD83D\uDE00\u0022]",
+    "canonical": "[-7969303707231,{\u0022\u2028\u0022:{\u0022\\\\\u0022:false,\u0022a\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:10},\u0022\u20AC\u0022:true,\u0022\uD83D\uDE00\u0022:179.86},\u0022\uFFFF\u0022:\u0022\u003C/script\u003E\u0022},\u0022\uD83D\uDE00\u0022]",
+    "sha256": "714289824e14e673823d5d11378d3548a18d3186124ef67bf5a1568a3a0fd6af"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\u0022\\u20ac 12.99\u0022,\n  true,\n  -6346775083920268, \u0022\u00E9\u0022]",
+    "canonical": "[\u0022\u20AC 12.99\u0022,true,-6346775083920268,\u0022\u00E9\u0022]",
+    "sha256": "f99340b0d1b4b37a208650866de9529116206eeb469c6b2672880da357c25b8e"
+  },
+  {
+    "input": "{\u0022\\\\\u0022\n  :\n  1550997501091731,\n  \u002210\u0022\t: { },\u0022\u0022\t:\n  true\t}",
+    "canonical": "{\u0022\u0022:true,\u002210\u0022:{},\u0022\\\\\u0022:1550997501091731}",
+    "sha256": "fa6db60d4fb773293aebf218cc06a5d173a9573d53290790e6a8476a47b3d3bb"
+  },
+  {
+    "input": "{\u0022\\uFFFF\u0022 :\t-9007199254740992\n  }",
+    "canonical": "{\u0022\uFFFF\u0022:-9007199254740992}",
+    "sha256": "a0a9614d7484c3bd7c1dd7db495b3050f5e9bcd5f96da1db6ec2d93870b06cca"
+  },
+  {
+    "input": "{\u00221\u0022\n  : null\t}",
+    "canonical": "{\u00221\u0022:null}",
+    "sha256": "6563c2b9af51d12faf3ec22b1493bbcc573267398cab07eac7f404008d4d1344"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u0022b\u0022\n  :\t\u0022\u003C/script\u003E\u0022,\n  \u0022\\\\\u0022\n  :\t[ [\t\u0022\u003C/script\u003E\u0022,\t1E\u002B21],\n  { \u0022\u0022\n  :true, \u0022\uD83D\uDE00\u0022 :\n  {\t},\t\u0022\u2028\u0022\t:\n  \u0022plain\u0022}],\u0022\uD83D\uDE00\u0022\n  : { \u0022\\\u0022quoted\\\u0022\u0022\n  :\u0022\\u0009\\u000a\\u000d\\u0008\\u000c\u0022,\n  \u00222\u0022 :\ttrue, \u0022key with space\u0022:\n  69433361613652\t}\n  }",
+    "canonical": "{\u0022\\\\\u0022:[[\u0022\u003C/script\u003E\u0022,1e\u002B21],{\u0022\u0022:true,\u0022\u2028\u0022:\u0022plain\u0022,\u0022\uD83D\uDE00\u0022:{}}],\u0022b\u0022:\u0022\u003C/script\u003E\u0022,\u0022\uD83D\uDE00\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:\u0022\\t\\n\\r\\b\\f\u0022,\u00222\u0022:true,\u0022key with space\u0022:69433361613652}}",
+    "sha256": "5bfe0e365efd9182a280f0a45330d0073deaeb674dda68305b0c6b10993c8700"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\t\u0022A\u0022:null, \u0022\\u20ac\u0022 : -5441218352594779,\n  \u002210\u0022 : \u0022plain\u0022\t}",
+    "canonical": "{\u002210\u0022:\u0022plain\u0022,\u0022A\u0022:null,\u0022\u20AC\u0022:-5441218352594779}",
+    "sha256": "d93fd2b79c46d6243f4cae73a25c84b3a6d2341b26eeab40a6f8bb1990a13c06"
+  },
+  {
+    "input": "[{\u0022\\u2028\u0022 :\n  false },null,null]",
+    "canonical": "[{\u0022\u2028\u0022:false},null,null]",
+    "sha256": "6cb4b2d1d2c285c763860ab4aa19d9fc702e79305655c1a48f7d2fce6c8c248f"
+  },
+  {
+    "input": "[null,\u0022plain\u0022,true]",
+    "canonical": "[null,\u0022plain\u0022,true]",
+    "sha256": "98f1a908bdbeae8f82261543c96abe0e939aa3214bac331446d33cde1d6c747b"
+  },
+  {
+    "input": "{\u0022\u2029\u0022:[ true],\t\u0022\\u007f\u0022 : null,\u0022\u0022 :\n  false,\u0022\\u0001\u0022\n  :\t1.71999999999999993E\u002B001\t}",
+    "canonical": "{\u0022\u0022:false,\u0022\\u0001\u0022:17.2,\u0022\u007F\u0022:null,\u0022\u2029\u0022:[true]}",
+    "sha256": "5353229ba3ab4a47b62a755697c7ebb6b6788bd39e53ccf4bc51051996e0e077"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[ -4965111897117319,\u0022\\u2028\\u2029\u0022]",
+    "canonical": "[-4965111897117319,\u0022\u2028\u2029\u0022]",
+    "sha256": "ad503dd34fccc0339aed75b1403fb87b4ef4809d50b18bd3b277ceb855710b8d"
+  },
+  {
+    "input": "{ \u002210\u0022\t:\ttrue\t}",
+    "canonical": "{\u002210\u0022:true}",
+    "sha256": "bd3be0ecda104e84d7ccf33790e785f982b7d895eec612f8684f2b400cf3396b"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[\n  6513901538329042,\n  true,null]",
+    "canonical": "[6513901538329042,true,null]",
+    "sha256": "75d6a50de389171e39100769dfe20e7fec9b6334c6cc32feef1839b6186ce61a"
+  },
+  {
+    "input": "{\t\u0022\u0022\n  :\n  \u0022\u0022\n  }",
+    "canonical": "{\u0022\u0022:\u0022\u0022}",
+    "sha256": "86cfeee6df382a203f626305afbca44d228cac67acd151ccf2db29530c548fea"
+  },
+  {
+    "input": "{\n  \u0022\\\u0022quoted\\\u0022\u0022:\n  \u0022\\u20ac 12.99\u0022, \u0022\u007F\u0022 : false\n  }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:\u0022\u20AC 12.99\u0022,\u0022\u007F\u0022:false}",
+    "sha256": "09224ccf883087a9e9c07e466787ec798de4bf071ee62cd9f41d924d30cd2d3d"
+  },
+  {
+    "input": "[ \u0022\\ud83d\\ude00\uFFFF\u0022,\t[]]",
+    "canonical": "[\u0022\uD83D\uDE00\uFFFF\u0022,[]]",
+    "sha256": "f9be3de4359ad42b8306c96bc65bb36d199b47524c9152a0c75239b1bf69e869"
+  },
+  {
+    "input": "[\n  false,\ttrue,\n  -2730833767923435]",
+    "canonical": "[false,true,-2730833767923435]",
+    "sha256": "95cac805c1771ce02f60ddc15206bf9b733f4327fad7d65800e557129760857c"
+  },
+  {
+    "input": "[\n  { \u0022\\u2028\u0022\t:\n  false,\u0022\\u2029\u0022:\n  null, \u00221\u0022\n  :0,\n  \u0022\\\u0022quoted\\\u0022\u0022\t:\n  null }]",
+    "canonical": "[{\u0022\\\u0022quoted\\\u0022\u0022:null,\u00221\u0022:0,\u0022\u2028\u0022:false,\u0022\u2029\u0022:null}]",
+    "sha256": "05175694c769716fbeb991821bfc8a7c3ad1d0d9f3c4c1d164f068dd6303fe5f"
+  },
+  {
+    "input": "{\u0022\\u007F\u0022 :{ \u0022\\u0001\u0022:\ttrue,\t\u00221\u0022 :{\n  \u0022a\u0022\n  :4298227681942069\t},\u0022\u00E9\u0022\t:[\tnull] },\t\u0022\\u2029\u0022\t:\t{\u002210\u0022:\t\u0022\u007F\u0022 },\u0022\\u00e9\u0022: true\n  }",
+    "canonical": "{\u0022\u007F\u0022:{\u0022\\u0001\u0022:true,\u00221\u0022:{\u0022a\u0022:4298227681942069},\u0022\u00E9\u0022:[null]},\u0022\u00E9\u0022:true,\u0022\u2029\u0022:{\u002210\u0022:\u0022\u007F\u0022}}",
+    "sha256": "c72c056f59df411434c4d3b5fb6422d6c520b71d3985c8ff66be5b8cb896c8aa"
+  },
+  {
+    "input": "[ [false,false], \u0022\\ufb00\u0022,\t4.94065645841246544E-324]",
+    "canonical": "[[false,false],\u0022\uFB00\u0022,5e-324]",
+    "sha256": "07ac03faa527f98d9750d28352edcc972d2773f19c0ffcac0cfcbaea6a147a28"
+  },
+  {
+    "input": "{\u0022key with space\u0022 :-9.00719925474099200E\u002B015,\n  \u00222\u0022\n  : [\n  \u0022\u0022,true,\n  true,\n  { \u002210\u0022\n  :null }],\u0022\\u0001\u0022 :\n  -3351325794634322 }",
+    "canonical": "{\u0022\\u0001\u0022:-3351325794634322,\u00222\u0022:[\u0022\u0022,true,true,{\u002210\u0022:null}],\u0022key with space\u0022:-9007199254740992}",
+    "sha256": "3ef51f1855f98fbfd8a1569a86fe1c9f3944b0f718737e29c3d20ae9dc7a0c02"
+  },
+  {
+    "input": "{\t\u002210\u0022\n  :\n  4234378561089404,\n  \u0022b\u0022\n  :\n  false }",
+    "canonical": "{\u002210\u0022:4234378561089404,\u0022b\u0022:false}",
+    "sha256": "0a4b464a510c402abd69254a6c24599c2f54ed8f8e661eb6e07d8cb94e3a4dfd"
+  },
+  {
+    "input": "[\t5E-324,{\u0022a\u0022\t:\t1999032430609793, \u002210\u0022\t: [true],\n  \u00221\u0022\n  :\tfalse, \u0022\\\u0022quoted\\\u0022\u0022 :[\t[],\n  [\t1], false]},\u0022\\u2028\u2029\u0022,\n  true]",
+    "canonical": "[5e-324,{\u0022\\\u0022quoted\\\u0022\u0022:[[],[1],false],\u00221\u0022:false,\u002210\u0022:[true],\u0022a\u0022:1999032430609793},\u0022\u2028\u2029\u0022,true]",
+    "sha256": "3912d7c27551a8fac6453139a4c1b044201faabe025ab4608a372b1b46b93bfe"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[ {\n  \u002210\u0022:\n  true}, false,\t{\n  },\tfalse]",
+    "canonical": "[{\u002210\u0022:true},false,{},false]",
+    "sha256": "6e3633cc801e434f9b749f5508ba1b472e078e97ac4619c41edda4ef4b0d349c"
+  },
+  {
+    "input": "{ \u0022\uD83D\uDE00\u0022\n  :\n  \u0022\\u0009\\u000a\\u000D\\u0008\\u000C\u0022,\t\u0022a\u0022\n  :\n  6370564367688785, \u0022\\ufb00\u0022: true, \u0022\u2029\u0022:null }",
+    "canonical": "{\u0022a\u0022:6370564367688785,\u0022\u2029\u0022:null,\u0022\uD83D\uDE00\u0022:\u0022\\t\\n\\r\\b\\f\u0022,\u0022\uFB00\u0022:true}",
+    "sha256": "6f0591a298e88b33377451e7543f9fe7b3461d976d56e11f6e989d2622a9c5fa"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[\n  12.99,[ 3948144410906065,\n  {\u00222\u0022\t:\n  6283279890956549,\t\u0022\u00E9\u0022\t:{\n  \u0022\uFB00\u0022\t:\t8214850200892069},\n  \u0022a\u0022 :{\u0022\\uFB00\u0022 : null,\n  \u0022A\u0022\n  :\n  -5334725600347229\n  }}]]",
+    "canonical": "[12.99,[3948144410906065,{\u00222\u0022:6283279890956549,\u0022a\u0022:{\u0022A\u0022:-5334725600347229,\u0022\uFB00\u0022:null},\u0022\u00E9\u0022:{\u0022\uFB00\u0022:8214850200892069}}]]",
+    "sha256": "cd83451012a5d4df5b4f62c17fc0d9bdb1777b7826ce440ecdc1d59df45c8d4a"
+  },
+  {
+    "input": "{\n  \u0022\u0022 :\n  \u0022\\u0009\\u000A\\u000d\\u0008\\u000c\u0022,\u0022\\uFFFF\u0022: 1524978873518605\t}",
+    "canonical": "{\u0022\u0022:\u0022\\t\\n\\r\\b\\f\u0022,\u0022\uFFFF\u0022:1524978873518605}",
+    "sha256": "4d531e5e8dc913250b7d78e910163527133937def3dd4be2bf8dfa2c70fd0a5d"
+  },
+  {
+    "input": "[\tnull,\n  [\n  false, true,\n  false,false],8315896801517967]",
+    "canonical": "[null,[false,true,false,false],8315896801517967]",
+    "sha256": "786f5407976633b71c13376e7ddb71d9a4c8dc3d4703d0d912e4d74030ad7e75"
+  },
+  {
+    "input": "[null, {\n  \u0022\\u0001\u0022: {\t\u0022\uD83D\uDE00\u0022 :\n  [ \u0022\uFB00\u0022],\t\u0022A\u0022\n  :\n  null }, \u0022key with space\u0022 :\n  true },\n  {\n  \u0022\\u0001\u0022\t:\n  null}]",
+    "canonical": "[null,{\u0022\\u0001\u0022:{\u0022A\u0022:null,\u0022\uD83D\uDE00\u0022:[\u0022\uFB00\u0022]},\u0022key with space\u0022:true},{\u0022\\u0001\u0022:null}]",
+    "sha256": "f60bf64acbd2f54a9340736654a7e229902c61e052cf3e07e94b23ed5734fc4b"
+  },
+  {
+    "input": "{\u0022\u0022 : 5712959537680204, \u0022b\u0022:\t-6782588167381860 }",
+    "canonical": "{\u0022\u0022:5712959537680204,\u0022b\u0022:-6782588167381860}",
+    "sha256": "61e9fe6e3cc39ca601c8e3d4d1eec8dc4c6f7f5a06b46c5ffd5afff0962d9d46"
+  },
+  {
+    "input": "{\u0022\uFB00\u0022\t: null, \u0022A\u0022\t:{\u0022\\u0001\u0022:[\t\u0022\\u2028\\u2029\u0022, {\u0022\\u20AC\u0022\n  : 235654275297549,\t\u00221\u0022\n  :\ttrue\n  }, [\n  \u0022\\\u0022\\\\/\u0022,false]],\t\u0022\\u2028\u0022: -1855036861057053,\n  \u0022\\u20ac\u0022:\n  {\n  \u0022\u2029\u0022 :\n  \u0022\u0022, \u0022\\u20ac\u0022:\n  \u0022\u007F\u0022,\t\u0022A\u0022 :\ttrue,\u00222\u0022 :\n  false\n  }\t}}",
+    "canonical": "{\u0022A\u0022:{\u0022\\u0001\u0022:[\u0022\u2028\u2029\u0022,{\u00221\u0022:true,\u0022\u20AC\u0022:235654275297549},[\u0022\\\u0022\\\\/\u0022,false]],\u0022\u2028\u0022:-1855036861057053,\u0022\u20AC\u0022:{\u00222\u0022:false,\u0022A\u0022:true,\u0022\u2029\u0022:\u0022\u0022,\u0022\u20AC\u0022:\u0022\u007F\u0022}},\u0022\uFB00\u0022:null}",
+    "sha256": "b9134e00f143efee4fe86aa5209dab6c5bf48b01ed11a8f547ecd51a552af145"
+  },
+  {
+    "input": "[\t-4955267527623204]",
+    "canonical": "[-4955267527623204]",
+    "sha256": "b971536de540f61ee72b4e830356f32287ee104b39c5191632f1e30c4fa861f3"
+  },
+  {
+    "input": "[ false, [\tnull,[\n  {\n  },179.86,\n  {\n  \u0022\\\u0022quoted\\\u0022\u0022 :\n  null }],\tfalse,\ttrue],null,2162799992190989]",
+    "canonical": "[false,[null,[{},179.86,{\u0022\\\u0022quoted\\\u0022\u0022:null}],false,true],null,2162799992190989]",
+    "sha256": "240e66bd5f3af5a4ecb5c7b9dd9e2441f67c808567dfcc373001c8b909874e96"
+  },
+  {
+    "input": "{ \u0022\\u0001\u0022\n  :\n  false,\t\u0022\u0022\n  : 17.2,\u0022\\u2029\u0022:[ [\n  { \u0022\\u0001\u0022 :false, \u0022\u2028\u0022 : 5E-324\t},[\n  5128782997148315],\n  [-6715674457303568, null]],\n  \u0022\\ud83d\\uDE00\\uFFFF\u0022,null,true],\n  \u0022\\u00E9\u0022:\n  true\n  }",
+    "canonical": "{\u0022\u0022:17.2,\u0022\\u0001\u0022:false,\u0022\u00E9\u0022:true,\u0022\u2029\u0022:[[{\u0022\\u0001\u0022:false,\u0022\u2028\u0022:5e-324},[5128782997148315],[-6715674457303568,null]],\u0022\uD83D\uDE00\uFFFF\u0022,null,true]}",
+    "sha256": "7d88f5938d8b5765de77909a1637f4cf41e87a80110e27ff24f98fec5620601f"
+  },
+  {
+    "input": "[ {\n  \u0022\u20AC\u0022: -0,\n  \u0022key with space\u0022\n  :\n  -5005095363239708,\t\u00221\u0022:false,\u002210\u0022 :\u0022\uFB00\u0022 },\tfalse, \u0022\\\u0022\\\\\\/\u0022,\n  { \u0022\u20AC\u0022:\n  \u0022\u0022,\n  \u0022\\u007F\u0022 :\t0.00000000000000000E\u002B000\n  }]",
+    "canonical": "[{\u00221\u0022:false,\u002210\u0022:\u0022\uFB00\u0022,\u0022key with space\u0022:-5005095363239708,\u0022\u20AC\u0022:0},false,\u0022\\\u0022\\\\/\u0022,{\u0022\u007F\u0022:0,\u0022\u20AC\u0022:\u0022\u0022}]",
+    "sha256": "6c6856b64104c600089b6f7bc9cf95928249c3109fcf9188094427633195ab39"
+  },
+  {
+    "input": "[ 10, false]",
+    "canonical": "[10,false]",
+    "sha256": "02806010ef5ab722e1e1b2876851e8953c3cdb95d67163ea2ba498d3cd5aa45e"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{ \u0022\\u007f\u0022 :9.00719925474099200E\u002B015,\u0022\\\\\u0022\t:\t2855205446963743, \u00222\u0022 :\n  { \u00221\u0022\n  : true\n  },\n  \u0022key with space\u0022:false }",
+    "canonical": "{\u00222\u0022:{\u00221\u0022:true},\u0022\\\\\u0022:2855205446963743,\u0022key with space\u0022:false,\u0022\u007F\u0022:9007199254740992}",
+    "sha256": "a4b03c44820bf747f42c54fcc1b6927071e31309129051eb62ee6fc2d076bea9"
+  },
+  {
+    "input": "{\n  \u0022\\u007F\u0022\t:\n  \u0022\\u007F\u0022,\n  \u0022\u20AC\u0022\t:\n  {\t},\u0022A\u0022\t:\ttrue,\u0022b\u0022\n  :\n  false\n  }",
+    "canonical": "{\u0022A\u0022:true,\u0022b\u0022:false,\u0022\u007F\u0022:\u0022\u007F\u0022,\u0022\u20AC\u0022:{}}",
+    "sha256": "146e91d61ba3905793941d2acef3811a9b262512bba70dce3f3d7f0d5a13197b"
+  },
+  {
+    "input": "{\t\u0022\\uFB00\u0022:\n  false, \u0022\\\u0022quoted\\\u0022\u0022:\t{ \u0022\uFB00\u0022\n  :\t9.99999999999999955E-008,\n  \u0022\uD83D\uDE00\u0022\n  : -7940852520942494\n  },\u0022\u0022\t:null,\u0022\\u2028\u0022:\n  \u0022\\uFB00\u0022\n  }",
+    "canonical": "{\u0022\u0022:null,\u0022\\\u0022quoted\\\u0022\u0022:{\u0022\uD83D\uDE00\u0022:-7940852520942494,\u0022\uFB00\u0022:1e-7},\u0022\u2028\u0022:\u0022\uFB00\u0022,\u0022\uFB00\u0022:false}",
+    "sha256": "4534d862365f8a004593335082e996b3637b1327549e46496676c1443746750a"
+  },
+  {
+    "input": "{ \u0022\u0022 :[-1,\n  true,\t-1421246013254823,\n  null], \u0022\uD83D\uDE00\u0022\n  :\t[\tnull,false,[\n  {\u0022a\u0022:\n  \u0022\\u00e9\u0022,\t\u0022A\u0022\n  :null,\n  \u0022\uFB00\u0022\n  :\n  0,\u0022\\\u0022quoted\\\u0022\u0022:\ttrue },\tnull,\ttrue,null],\t{\n  \u0022\\u007F\u0022 :\n  -1775657150531514,\n  \u0022\\uFB00\u0022\t:\t\u0022\\\u0022\\\\\\/\u0022,\t\u0022\u2028\u0022\n  :\n  -3397583821947091 }],\u0022key with space\u0022\t:1.00000000000000000E\u002B000,\t\u0022a\u0022: [] }",
+    "canonical": "{\u0022\u0022:[-1,true,-1421246013254823,null],\u0022a\u0022:[],\u0022key with space\u0022:1,\u0022\uD83D\uDE00\u0022:[null,false,[{\u0022\\\u0022quoted\\\u0022\u0022:true,\u0022A\u0022:null,\u0022a\u0022:\u0022\u00E9\u0022,\u0022\uFB00\u0022:0},null,true,null],{\u0022\u007F\u0022:-1775657150531514,\u0022\u2028\u0022:-3397583821947091,\u0022\uFB00\u0022:\u0022\\\u0022\\\\/\u0022}]}",
+    "sha256": "0a89f72933adea47bfbbc18cd3858dbe3e7a31126c683f9c018fbd34cc4a1376"
+  },
+  {
+    "input": "{\u0022\uD83D\uDE00\u0022\n  :\tnull }",
+    "canonical": "{\u0022\uD83D\uDE00\u0022:null}",
+    "sha256": "0ba8c72dc2980fba77bc78a77ef667a6cb4d90b1779f17b1a7d3a76c93d7ce43"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  []]",
+    "canonical": "[[]]",
+    "sha256": "cf1cbb66a638b4860a516671fb74850e6ccf787fe6c4c8d29e9c04efe880bd05"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\n  \u0022\u2029\u0022\n  : true,\u00222\u0022:\n  [\u0022\\u20ac 12.99\u0022, false, { },[\tfalse]],\n  \u0022b\u0022 : true,\n  \u0022\\\\\u0022:\n  [-2002281189348085,\tnull] }",
+    "canonical": "{\u00222\u0022:[\u0022\u20AC 12.99\u0022,false,{},[false]],\u0022\\\\\u0022:[-2002281189348085,null],\u0022b\u0022:true,\u0022\u2029\u0022:true}",
+    "sha256": "0f77c0dba86afbeffb26e8b1bed29c9da57045642b66cb50350e449e86ccbd57"
+  },
+  {
+    "input": "{ \u0022b\u0022:\n  {\u0022\\\u0022quoted\\\u0022\u0022\t:\n  \u0022\u20AC 12.99\u0022,\t\u00221\u0022:\n  null,\t\u0022key with space\u0022\n  :\tnull}, \u0022\uD83D\uDE00\u0022\n  :\t5742655608410755,\n  \u00222\u0022\n  :[\t[[],false],\n  -9007199254740992,\n  null]\t}",
+    "canonical": "{\u00222\u0022:[[[],false],-9007199254740992,null],\u0022b\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:\u0022\u20AC 12.99\u0022,\u00221\u0022:null,\u0022key with space\u0022:null},\u0022\uD83D\uDE00\u0022:5742655608410755}",
+    "sha256": "468474f5aed51e0bcd08cfb2b11f8edf2896d49575983f4bb803ba1388b204c1"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{ \u0022\u007F\u0022\t: -309184975601649\t}",
+    "canonical": "{\u0022\u007F\u0022:-309184975601649}",
+    "sha256": "8f9cc13d22bb1bc3810833a078c8cb95e9147ce6c2fe0bc92bac9c5a6ac1ba2d"
+  },
+  {
+    "input": "{\n  \u0022a\u0022\n  : [\n  false,null,\n  \u0022\\ud83d\\uDE00\\uffff\u0022],\t\u0022\\u20ac\u0022:\tnull, \u00221\u0022:\n  null\n  }",
+    "canonical": "{\u00221\u0022:null,\u0022a\u0022:[false,null,\u0022\uD83D\uDE00\uFFFF\u0022],\u0022\u20AC\u0022:null}",
+    "sha256": "4d9b0ab21e4166c0f4f0ec662dd034d8c5d5c61d534f3a14c9b14fe5274ba727"
+  },
+  {
+    "input": "[1.79860000000000014E\u002B002,\n  {\n  \u00222\u0022\t:[ \u0022plain\u0022,\n  false],\u0022\\\\\u0022:\n  false, \u0022\uFB00\u0022\t:\tfalse\t},\n  \u0022\\u0000\\u001f\u0022,null]",
+    "canonical": "[179.86,{\u00222\u0022:[\u0022plain\u0022,false],\u0022\\\\\u0022:false,\u0022\uFB00\u0022:false},\u0022\\u0000\\u001f\u0022,null]",
+    "sha256": "7f43ea563574cc60937c1ce2a50f972f6e68031eb2f6b9303d98eaf3a6efc4d7"
+  },
+  {
+    "input": "{ \u0022key with space\u0022\n  :\t-5250969802008806}",
+    "canonical": "{\u0022key with space\u0022:-5250969802008806}",
+    "sha256": "e8083646c608ea6da3875a05bc1153bec8982b2e4856ba933ad871d40572a0c1"
+  },
+  {
+    "input": "{\n  \u0022key with space\u0022\n  :\tfalse,\u0022\\\\\u0022\t:\t\u0022\\u0009\\u000A\\u000D\\u0008\\u000c\u0022, \u0022\\u0001\u0022 :-2853924239505711, \u0022\uFFFF\u0022\n  : false\t}",
+    "canonical": "{\u0022\\u0001\u0022:-2853924239505711,\u0022\\\\\u0022:\u0022\\t\\n\\r\\b\\f\u0022,\u0022key with space\u0022:false,\u0022\uFFFF\u0022:false}",
+    "sha256": "0a89358c24f6a2f6de70a15aba7e8bf15bef990b52e4a961806aa80e4ac8d8c2"
+  },
+  {
+    "input": "[[true,null,\n  {\t\u0022b\u0022\t:\t3357997703566220,\n  \u0022A\u0022 :\n  \u0022\u0022\n  },\t{\n  \u0022A\u0022: false,\t\u0022\\uffff\u0022\n  : null}], 9.99999999999999955E-008]",
+    "canonical": "[[true,null,{\u0022A\u0022:\u0022\u0022,\u0022b\u0022:3357997703566220},{\u0022A\u0022:false,\u0022\uFFFF\u0022:null}],1e-7]",
+    "sha256": "e7f900be3e92661b137e5d04f24187ae90a3aa92c619c258f42fee8aa7b47442"
+  },
+  {
+    "input": "[true,\t\u0022\uD83D\uDE00\u0022,true,\n  {\u0022\\u2028\u0022\n  :\n  false,\t\u0022b\u0022\t:{ \u0022key with space\u0022\t: [ null,\n  null,\t333333333.3333332,null] },\n  \u0022\\u00e9\u0022\t:\u0022\\u0009\\u000A\\u000d\\u0008\\u000c\u0022,\u0022\\u20AC\u0022\t: [\n  false,\u0022\\u00e9\u0022,\n  false]}]",
+    "canonical": "[true,\u0022\uD83D\uDE00\u0022,true,{\u0022b\u0022:{\u0022key with space\u0022:[null,null,333333333.3333332,null]},\u0022\u00E9\u0022:\u0022\\t\\n\\r\\b\\f\u0022,\u0022\u2028\u0022:false,\u0022\u20AC\u0022:[false,\u0022\u00E9\u0022,false]}]",
+    "sha256": "a7eeb8888063adf9d4cfe1d77d45ed5432e7f6cb7808bf4343e20d0730ee5f89"
+  },
+  {
+    "input": "[-1,\t-8531355966211160]",
+    "canonical": "[-1,-8531355966211160]",
+    "sha256": "b1fcd8fb1eca8ca8ad7a1e995138d8a79afe9436e605c963a6dc506022accaf1"
+  },
+  {
+    "input": "{\t\u0022\\\u0022quoted\\\u0022\u0022\t:\ttrue}",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:true}",
+    "sha256": "9bb1cfcf811ad56743e25b47c6e955d1592623556732e5e999f86e36d4f556da"
+  },
+  {
+    "input": "[true, true, true, 6511167714224796]",
+    "canonical": "[true,true,true,6511167714224796]",
+    "sha256": "cbb87cc87d8ec197ac9a028f3f406b9464a4f2ea75cde95c3cd7e5e4d84b449a"
+  },
+  {
+    "input": "[-1236273375367928,\n  {\u00221\u0022\t:\t[[ \u0022\uD83D\uDE00\u0022, null, 3.33333333333333194E\u002B008]],\n  \u0022\u2028\u0022 :[4830086371299187,\tnull,\n  false,\tnull],\n  \u0022\\u0001\u0022\n  : false\n  }, { \u0022\\u00E9\u0022 :\n  null\n  }]",
+    "canonical": "[-1236273375367928,{\u0022\\u0001\u0022:false,\u00221\u0022:[[\u0022\uD83D\uDE00\u0022,null,333333333.3333332]],\u0022\u2028\u0022:[4830086371299187,null,false,null]},{\u0022\u00E9\u0022:null}]",
+    "sha256": "75bc37b3e4f798aed23c30e703185d76217f74223caf570beb7b84613bf1083c"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[\t{\n  \u0022\u0022:\n  {\t},\t\u0022\\u0001\u0022\t: \u0022\u0022, \u002210\u0022:\t8773790116051315,\n  \u0022a\u0022:\u0022\u20AC 12.99\u0022},\t7970727392264898, \u0022\\u2028\u2029\u0022, false]",
+    "canonical": "[{\u0022\u0022:{},\u0022\\u0001\u0022:\u0022\u0022,\u002210\u0022:8773790116051315,\u0022a\u0022:\u0022\u20AC 12.99\u0022},7970727392264898,\u0022\u2028\u2029\u0022,false]",
+    "sha256": "0dffcaa9791e2023ccba0c3e3f6b7549567937ceaf4534267473eee83a31031b"
+  },
+  {
+    "input": "{\t\u0022a\u0022 :\n  1E\u002B20,\n  \u0022\\uD83D\\uDE00\u0022\t:{\t\u0022\u00E9\u0022 : false,\u0022\\u2029\u0022:[\tfalse,\u0022\\u00E9\u0022, 1.79769313486231571E\u002B308,\tnull]}, \u0022\\u007f\u0022\t:\ttrue }",
+    "canonical": "{\u0022a\u0022:100000000000000000000,\u0022\u007F\u0022:true,\u0022\uD83D\uDE00\u0022:{\u0022\u00E9\u0022:false,\u0022\u2029\u0022:[false,\u0022\u00E9\u0022,1.7976931348623157e\u002B308,null]}}",
+    "sha256": "541d804ca625fa555c4234ad11f778371b11b7127c37554a2cb39009101a56c3"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\n  \u0022\u007F\u0022\n  :\ttrue\t}",
+    "canonical": "{\u0022\u007F\u0022:true}",
+    "sha256": "cbcf3f734c8af527e0ff74acc3a68ea43f28ae92e221e5579742b173ac90d74c"
+  },
+  {
+    "input": "[ 3217135919032037,\tnull]",
+    "canonical": "[3217135919032037,null]",
+    "sha256": "87e32a496bdb057ee8014c632214392a6982c221c620e44d4c0eaafc9e0f0de9"
+  },
+  {
+    "input": "[ \u0022\\u0009\\u000A\\u000d\\u0008\\u000C\u0022]",
+    "canonical": "[\u0022\\t\\n\\r\\b\\f\u0022]",
+    "sha256": "83703e7cb43c75cbd696808a6a391668b0cf00facb457644c09ec1d85b7bcc93"
+  },
+  {
+    "input": "{\n  \u0022\u2029\u0022: null,\t\u0022\u007F\u0022: true,\u0022\uD83D\uDE00\u0022:\n  {\t\u002210\u0022 : -4810541708437554\n  }\n  }",
+    "canonical": "{\u0022\u007F\u0022:true,\u0022\u2029\u0022:null,\u0022\uD83D\uDE00\u0022:{\u002210\u0022:-4810541708437554}}",
+    "sha256": "fc702e1d2e23bd848cbe74d81a706e44a055d8202efe85048e5f233dcc487f4e"
+  },
+  {
+    "input": "{ \u0022A\u0022 :\t{\t},\u0022\\u007F\u0022 : {\t\u0022\\ufb00\u0022 : \u0022\uFB00\u0022,\t\u0022\u20AC\u0022:\t17.2,\u00222\u0022\n  :false, \u0022\\u2028\u0022\n  : false\n  }, \u0022\\u2028\u0022\n  :\n  false, \u0022a\u0022\t:-374176470799748\n  }",
+    "canonical": "{\u0022A\u0022:{},\u0022a\u0022:-374176470799748,\u0022\u007F\u0022:{\u00222\u0022:false,\u0022\u2028\u0022:false,\u0022\u20AC\u0022:17.2,\u0022\uFB00\u0022:\u0022\uFB00\u0022},\u0022\u2028\u0022:false}",
+    "sha256": "9f7f4fadfec62dda0b13327ae5e8877d0056526f17cbe4652fab28e5eceaab03"
+  },
+  {
+    "input": "{\n  \u00222\u0022 :{\u0022\u20AC\u0022\n  : true\t},\t\u0022\\u2028\u0022\n  :\n  {\u0022\\u007F\u0022 :\n  \u0022\uFB00\u0022,\n  \u0022\\\\\u0022:\ttrue, \u00222\u0022 :\tfalse } }",
+    "canonical": "{\u00222\u0022:{\u0022\u20AC\u0022:true},\u0022\u2028\u0022:{\u00222\u0022:false,\u0022\\\\\u0022:true,\u0022\u007F\u0022:\u0022\uFB00\u0022}}",
+    "sha256": "b85da4e2e4769914a8aab54e7a3d58f4f4d0257a17905289ca26506f0490a0df"
+  },
+  {
+    "input": "{\u0022\\u0001\u0022 :[\u0022\\u007f\u0022, [],\tnull],\n  \u00221\u0022\n  :\u0022\\\u0022\\\\/\u0022}",
+    "canonical": "{\u0022\\u0001\u0022:[\u0022\u007F\u0022,[],null],\u00221\u0022:\u0022\\\u0022\\\\/\u0022}",
+    "sha256": "009f23c4044f3779ea3b018e9c76892350a6632429c52ad5a9c9b2a28657dce7"
+  },
+  {
+    "input": "[ 0.1]",
+    "canonical": "[0.1]",
+    "sha256": "06a6535c3ff5c9da828e977bc53df452117cd1579a24be9595a0b154d601d75c"
+  },
+  {
+    "input": "[\ttrue]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "[-8561100432071205,\ttrue,\t1199274677661587,\n  5746445283713418]",
+    "canonical": "[-8561100432071205,true,1199274677661587,5746445283713418]",
+    "sha256": "f68cf929a05b5400d2bf979b8538052cf92524d7493e76547802d887ff25352b"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\t\u0022\\u007F\u0022\n  : true\t}",
+    "canonical": "{\u0022\u007F\u0022:true}",
+    "sha256": "cbcf3f734c8af527e0ff74acc3a68ea43f28ae92e221e5579742b173ac90d74c"
+  },
+  {
+    "input": "[ 3222781700071572]",
+    "canonical": "[3222781700071572]",
+    "sha256": "aafac2bbce22c3563ff8573ba8b01afa89596d11c9dabc6953e728603d9c3e23"
+  },
+  {
+    "input": "[\t-5438806026741985,\t{ \u0022\\ufb00\u0022:\t333333333.3333332,\t\u0022\u2028\u0022 :[],\t\u0022A\u0022\t:\ttrue },5E-324, false]",
+    "canonical": "[-5438806026741985,{\u0022A\u0022:true,\u0022\u2028\u0022:[],\u0022\uFB00\u0022:333333333.3333332},5e-324,false]",
+    "sha256": "083dee95fae60cf41fbddfa43f2c0664a45d55fbcb23eb5ee65043a8a0cd43d5"
+  },
+  {
+    "input": "[\n  {}, []]",
+    "canonical": "[{},[]]",
+    "sha256": "7a38905296006c575d7d45d1d881690a3ee87361ed67ce64642e2504482da818"
+  },
+  {
+    "input": "[\n  \u0022\\u20AC 12.99\u0022, null]",
+    "canonical": "[\u0022\u20AC 12.99\u0022,null]",
+    "sha256": "3b0eb0f008f11d318e43da1af3f69d0a0587e18485ea317028066a31ae11b618"
+  },
+  {
+    "input": "[\n  false]",
+    "canonical": "[false]",
+    "sha256": "456e2e3fa05ee1e2f4e529558008ce162bbd388a9dd4a923c79543a4a1dba618"
+  },
+  {
+    "input": "{ \u0022\uFFFF\u0022 :\n  0.1,\u0022\u2028\u0022 :[ {\n  },\n  -8623798300671134, false]}",
+    "canonical": "{\u0022\u2028\u0022:[{},-8623798300671134,false],\u0022\uFFFF\u0022:0.1}",
+    "sha256": "57362c077242ca5a77c5cc13cc4f4df35ed8e31f66225e15411ccbb9733b8b01"
+  },
+  {
+    "input": "{ \u0022\\uffff\u0022: false }",
+    "canonical": "{\u0022\uFFFF\u0022:false}",
+    "sha256": "b6c68f307bf39b9385f331e201d49bcad4a6e009697ea216319b01afb0cf999b"
+  },
+  {
+    "input": "[ [ \u0022plain\u0022, null]]",
+    "canonical": "[[\u0022plain\u0022,null]]",
+    "sha256": "72fcb82f800e263b1ba1a5175d05508712ca461af205fe2be18b8604a1d0947d"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[true,9.99999999999999955E-007]",
+    "canonical": "[true,0.000001]",
+    "sha256": "c4b2dcd161e139f9438ca7c8bb6ef74aee4828a3a849f4f5f2124684afaa121b"
+  },
+  {
+    "input": "[\n  { \u0022\\u0001\u0022\n  : \u0022\\\u0022\\\\/\u0022\t}]",
+    "canonical": "[{\u0022\\u0001\u0022:\u0022\\\u0022\\\\/\u0022}]",
+    "sha256": "2815d330d3ad027cfb7de862326c9bd595602acd87dced1abd551597a942b95b"
+  },
+  {
+    "input": "[ 7584968311687328]",
+    "canonical": "[7584968311687328]",
+    "sha256": "f59a74b9191dcf7a9ef75ce463d14c7a70b6f9e2fc7ecaf533490f1d5e7e8e7c"
+  },
+  {
+    "input": "{\n  \u0022\u007F\u0022 :-8134887396085285 }",
+    "canonical": "{\u0022\u007F\u0022:-8134887396085285}",
+    "sha256": "e0d35af83decbbbadd434cae4d7adf5886061a0ae13286966053dfc2b1826924"
+  },
+  {
+    "input": "{\t\u0022\u0022:\n  -9.00719925474099200E\u002B015, \u0022\uD83D\uDE00\u0022:\t\u0022\\\u0022\\\\/\u0022, \u00222\u0022\n  :true,\n  \u0022a\u0022\n  :\t{\u00222\u0022\t: -3860674481187785,\u0022\\u00E9\u0022\t:\ttrue} }",
+    "canonical": "{\u0022\u0022:-9007199254740992,\u00222\u0022:true,\u0022a\u0022:{\u00222\u0022:-3860674481187785,\u0022\u00E9\u0022:true},\u0022\uD83D\uDE00\u0022:\u0022\\\u0022\\\\/\u0022}",
+    "sha256": "1489d96ad72a771aa8b319e056f7af8e5309ee8107e05ecdea11633db0c5b2d8"
+  },
+  {
+    "input": "[\ttrue, false, null]",
+    "canonical": "[true,false,null]",
+    "sha256": "4d0f18de2133118249c26acc481838d4f6bb6bc1de882d99abbd19ae9397e8df"
+  },
+  {
+    "input": "{\t\u0022A\u0022\n  :\t[],\t\u0022\u20AC\u0022 :\n  \u0022\u003C/script\u003E\u0022,\u0022a\u0022:\n  [ 1.00000000000000000E\u002B021,\n  null,\n  [ \u0022\\\u0022\\\\/\u0022,\n  -1518172449838496,[\tnull,\tnull,\tfalse,null]],\n  5788878537345600] }",
+    "canonical": "{\u0022A\u0022:[],\u0022a\u0022:[1e\u002B21,null,[\u0022\\\u0022\\\\/\u0022,-1518172449838496,[null,null,false,null]],5788878537345600],\u0022\u20AC\u0022:\u0022\u003C/script\u003E\u0022}",
+    "sha256": "8eb555bca13558c004d0cd60b35c329081a9adbcb203d3bc053bde0629b943e1"
+  },
+  {
+    "input": "[\n  \u0022\\u0009\\u000a\\u000d\\u0008\\u000c\u0022]",
+    "canonical": "[\u0022\\t\\n\\r\\b\\f\u0022]",
+    "sha256": "83703e7cb43c75cbd696808a6a391668b0cf00facb457644c09ec1d85b7bcc93"
+  },
+  {
+    "input": "[\n  \u0022\\u20AC 12.99\u0022, null,\u0022\\u0000\\u001F\u0022]",
+    "canonical": "[\u0022\u20AC 12.99\u0022,null,\u0022\\u0000\\u001f\u0022]",
+    "sha256": "006a68fb682da016c3fdc9f235e80b8a10f9d5439193934fde7b38cb012808e4"
+  },
+  {
+    "input": "[ \u0022\u00E9\u0022]",
+    "canonical": "[\u0022\u00E9\u0022]",
+    "sha256": "0b657be394b1d432f8d1942406ed09c213604cbcd87b299641cf994bcaf84b11"
+  },
+  {
+    "input": "[[ {\n  },\tnull,\t\u0022\\u2028\\u2029\u0022],\n  \u0022\\\u0022\\\\\\/\u0022,false]",
+    "canonical": "[[{},null,\u0022\u2028\u2029\u0022],\u0022\\\u0022\\\\/\u0022,false]",
+    "sha256": "796bcce36ef8d5065421b86fa0825f3dca5fe2a5d07fd21e860c70102f4a4e07"
+  },
+  {
+    "input": "{\n  \u0022\u0022 :\u0022\\u007f\u0022\n  }",
+    "canonical": "{\u0022\u0022:\u0022\u007F\u0022}",
+    "sha256": "e3ba8acc4766763e79ddeaf2c945735144fdffc35360e2d1726b6a5957054248"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[null, true]",
+    "canonical": "[null,true]",
+    "sha256": "13ff475ae41d726881623c915f555508c55cbb4b37c562e7256d3c5e112a65b3"
+  },
+  {
+    "input": "{\n  \u0022\\u2029\u0022\n  :{\t\u0022\\\u0022quoted\\\u0022\u0022\t: -5738672340694941,\u0022key with space\u0022 :\n  {},\n  \u0022\u00E9\u0022\n  :\t{\n  },\n  \u0022a\u0022\t:\t9.99999999999999955E-008\t},\u0022\\u007F\u0022:\n  1E-06\t}",
+    "canonical": "{\u0022\u007F\u0022:0.000001,\u0022\u2029\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:-5738672340694941,\u0022a\u0022:1e-7,\u0022key with space\u0022:{},\u0022\u00E9\u0022:{}}}",
+    "sha256": "f2c451d6c0d18a64c29fec6bd6804b641936a6ee4a96ab77767d01a450ca724b"
+  },
+  {
+    "input": "[\t[false],\n  true, false,\u0022\\\u0022\\\\\\/\u0022]",
+    "canonical": "[[false],true,false,\u0022\\\u0022\\\\/\u0022]",
+    "sha256": "186f389e12cd18fc56bbcf4a3da7f82ed329e98790154a870d28395e7de0d233"
+  },
+  {
+    "input": "[\n  null]",
+    "canonical": "[null]",
+    "sha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd"
+  },
+  {
+    "input": "{\t\u0022\\\\\u0022 :\t[\tnull,\n  1,\ttrue,null],\t\u0022key with space\u0022\n  :false, \u0022b\u0022 :{ \u0022\\u2028\u0022\t: false\t}, \u0022\\\u0022quoted\\\u0022\u0022\t: []\t}",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:[],\u0022\\\\\u0022:[null,1,true,null],\u0022b\u0022:{\u0022\u2028\u0022:false},\u0022key with space\u0022:false}",
+    "sha256": "f4930f2ae3fa23dbb540f46f9f94005a08d50a565ee7a68c407a54438e9782a0"
+  },
+  {
+    "input": "{\n  \u0022\\u2028\u0022\n  :false,\t\u0022\\\\\u0022\t:\n  {\u0022\\\\\u0022\t:\n  null,\n  \u0022A\u0022 :\n  null,\u00221\u0022\n  :\n  7298918072097433,\t\u0022\u2029\u0022:0.5 }\t}",
+    "canonical": "{\u0022\\\\\u0022:{\u00221\u0022:7298918072097433,\u0022A\u0022:null,\u0022\\\\\u0022:null,\u0022\u2029\u0022:0.5},\u0022\u2028\u0022:false}",
+    "sha256": "72ddbcacaa62710653711f8f15316011bb6411d2741acdf39dec72c0d116f416"
+  },
+  {
+    "input": "{ \u0022\uD83D\uDE00\u0022:6840409058976562,\u0022a\u0022:1.71999999999999993E\u002B001,\t\u002210\u0022:\tfalse}",
+    "canonical": "{\u002210\u0022:false,\u0022a\u0022:17.2,\u0022\uD83D\uDE00\u0022:6840409058976562}",
+    "sha256": "4826651c6e9a0e292f5cc78eb2ab1c04916e4a86eaf59eceff6ff80107da95e2"
+  },
+  {
+    "input": "{\u0022\u007F\u0022:null,\n  \u0022\\ud83d\\uDE00\u0022:\t-0,\t\u0022\\u2029\u0022:[ null, null],\u0022a\u0022:\n  [ {\n  \u00221\u0022 : true},\n  [ {\n  \u0022key with space\u0022\n  :\tfalse },\tfalse, false]]\n  }",
+    "canonical": "{\u0022a\u0022:[{\u00221\u0022:true},[{\u0022key with space\u0022:false},false,false]],\u0022\u007F\u0022:null,\u0022\u2029\u0022:[null,null],\u0022\uD83D\uDE00\u0022:0}",
+    "sha256": "e136d13cacf8ce1b9658fda1f539b120d8b4127b201b19b942b1465d4db54cf6"
+  },
+  {
+    "input": "{\t\u0022\\\u0022quoted\\\u0022\u0022 : 7229705136364496 }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:7229705136364496}",
+    "sha256": "bb3e7cd31f283ff2c9be2b209db3051c2c08e71e3d904487d50e8bca1989c47e"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\t\u0022A\u0022\n  :false }",
+    "canonical": "{\u0022A\u0022:false}",
+    "sha256": "66b74c75a39c5d39be96301ef1c2cab450be4b95a79ff98ce81f7c724f9c7773"
+  },
+  {
+    "input": "{\u0022\u0022\t: true\n  }",
+    "canonical": "{\u0022\u0022:true}",
+    "sha256": "2f0cfb76dae7a7f27b3982b697c0e4bf25f6d93dcfec0f7a6e4ce69f6ed2641d"
+  },
+  {
+    "input": "[ \u0022\\u0000\\u001f\u0022]",
+    "canonical": "[\u0022\\u0000\\u001f\u0022]",
+    "sha256": "cd581de8d180c1f042465a7abae73557b4de587cc0a6533dfec7549026ab9b18"
+  },
+  {
+    "input": "[[ null,\n  true], [\n  {\u0022a\u0022: {\n  \u0022\u2028\u0022 : null, \u0022\u00E9\u0022 :\n  \u0022\u0022, \u0022\\u0001\u0022\n  :\n  true,\u002210\u0022 : null }\t},\n  [\n  -5158120721711325, false,-1883666728192392,179.86]], [],\n  100]",
+    "canonical": "[[null,true],[{\u0022a\u0022:{\u0022\\u0001\u0022:true,\u002210\u0022:null,\u0022\u00E9\u0022:\u0022\u0022,\u0022\u2028\u0022:null}},[-5158120721711325,false,-1883666728192392,179.86]],[],100]",
+    "sha256": "3477973427a5aae6a490e9fc85fdd1d87a378adab4232cef93b7355d20b3562d"
+  },
+  {
+    "input": "{\n  \u0022\u0022 :null, \u002210\u0022\n  :\t-1823461973083489 }",
+    "canonical": "{\u0022\u0022:null,\u002210\u0022:-1823461973083489}",
+    "sha256": "bea7acf6b15ad60c3d8033facd4bf91000c79f499b59f5b89e0dd2083bed7730"
+  },
+  {
+    "input": "{\t\u0022\\u0001\u0022:\n  {\t\u0022\u0022 :\tnull,\n  \u0022key with space\u0022 :[ 0.1] },\u00221\u0022\n  :\n  \u0022\u003C\\/script\u003E\u0022, \u0022\\u20AC\u0022\t:[],\t\u0022\uFFFF\u0022\t: {\n  \u0022\u0022\t: true,\n  \u0022\\\u0022quoted\\\u0022\u0022:\t10, \u0022b\u0022 :\u0022\\u2028\u2029\u0022,\u0022A\u0022:\n  false\n  } }",
+    "canonical": "{\u0022\\u0001\u0022:{\u0022\u0022:null,\u0022key with space\u0022:[0.1]},\u00221\u0022:\u0022\u003C/script\u003E\u0022,\u0022\u20AC\u0022:[],\u0022\uFFFF\u0022:{\u0022\u0022:true,\u0022\\\u0022quoted\\\u0022\u0022:10,\u0022A\u0022:false,\u0022b\u0022:\u0022\u2028\u2029\u0022}}",
+    "sha256": "44f8838845c04d11137a88574303209a5c4865373f3bbbe3bda37a33acb8b8f6"
+  },
+  {
+    "input": "{\n  \u0022\\ud83d\\ude00\u0022 :\n  \u0022\\u2028\u2029\u0022,\u0022\\\u0022quoted\\\u0022\u0022\t: false, \u00221\u0022\n  :\tfalse\n  }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:false,\u00221\u0022:false,\u0022\uD83D\uDE00\u0022:\u0022\u2028\u2029\u0022}",
+    "sha256": "a0a9de0a50b372303835e0ff0a61c41a253077875dfbfbbb0868669281133a78"
+  },
+  {
+    "input": "{\t\u0022\\\u0022quoted\\\u0022\u0022\t: true,\t\u0022a\u0022\n  : {\t\u0022key with space\u0022\t:\n  true,\u0022\\u2029\u0022\t:\t[\u0022plain\u0022,\ttrue], \u0022\u00E9\u0022\t:[], \u0022b\u0022: false }, \u00221\u0022:true,\u0022\\\\\u0022 :\t[] }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:true,\u00221\u0022:true,\u0022\\\\\u0022:[],\u0022a\u0022:{\u0022b\u0022:false,\u0022key with space\u0022:true,\u0022\u00E9\u0022:[],\u0022\u2029\u0022:[\u0022plain\u0022,true]}}",
+    "sha256": "a1b4592d8a1a53e69e5421188f4882c814cc29d1a3695bc116850d505566d8ed"
+  },
+  {
+    "input": "[ 1.71999999999999993E\u002B001,\u0022\\u0009\\u000a\\u000D\\u0008\\u000C\u0022,\t{ \u0022\uFFFF\u0022 :\u0022\uFB00\u0022}, true]",
+    "canonical": "[17.2,\u0022\\t\\n\\r\\b\\f\u0022,{\u0022\uFFFF\u0022:\u0022\uFB00\u0022},true]",
+    "sha256": "b6a1d0765995270f753ab552da01ec2aeb8ddeb12ed492dc869a514229153144"
+  },
+  {
+    "input": "[\t{ }]",
+    "canonical": "[{}]",
+    "sha256": "e10808d43975dc400731053386849f864f297e6c4f7519c380f3dbaf7067a840"
+  },
+  {
+    "input": "{\n  \u0022\\u2029\u0022\n  : -5282159681370916,\n  \u0022a\u0022\n  :\t{\n  \u0022key with space\u0022\n  : -8629634147169072,\u0022\\\\\u0022:null,\u0022\uD83D\uDE00\u0022: 9.00719925474099200E\u002B015}}",
+    "canonical": "{\u0022a\u0022:{\u0022\\\\\u0022:null,\u0022key with space\u0022:-8629634147169072,\u0022\uD83D\uDE00\u0022:9007199254740992},\u0022\u2029\u0022:-5282159681370916}",
+    "sha256": "ccf051259f99e180e050f10d981b284a1967696aa8378a9a5dc4da37da4339c9"
+  },
+  {
+    "input": "{\u0022\\u0001\u0022\n  :\tnull,\t\u0022\u2028\u0022\t: 9.00719925474099200E\u002B015,\u0022A\u0022:\ttrue}",
+    "canonical": "{\u0022\\u0001\u0022:null,\u0022A\u0022:true,\u0022\u2028\u0022:9007199254740992}",
+    "sha256": "9ed43d13ae80a209d23a7624f15c1e8677886c986c439cf65f1264cedd89afc0"
+  },
+  {
+    "input": "{ \u0022\u007F\u0022\n  : {\t\u0022A\u0022\n  :\n  333333333.3333332,\u002210\u0022 : {\u0022\\ud83d\\uDE00\u0022 :\tfalse,\u002210\u0022 :true} } }",
+    "canonical": "{\u0022\u007F\u0022:{\u002210\u0022:{\u002210\u0022:true,\u0022\uD83D\uDE00\u0022:false},\u0022A\u0022:333333333.3333332}}",
+    "sha256": "1531ad95f1d75a49f17e3b5f1da1cbc397cf37b4c432a1f6b8360a66ed8da0fc"
+  },
+  {
+    "input": "[\n  true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "[\n  [ 5924410254741799,\n  \u0022\u20AC 12.99\u0022]]",
+    "canonical": "[[5924410254741799,\u0022\u20AC 12.99\u0022]]",
+    "sha256": "474e5b82d73cb6bcb3122e6d1239f52dcb86007066100a885902e9f381e0ce1b"
+  },
+  {
+    "input": "{\n  \u0022\\u2029\u0022:\t\u0022\u00E9\u0022\t}",
+    "canonical": "{\u0022\u2029\u0022:\u0022\u00E9\u0022}",
+    "sha256": "6bc8ebfab0ec01cc920c4970d762d7ea6d8c3f1839b53b689310d42c19830345"
+  },
+  {
+    "input": "[\tfalse,\t{\t\u0022\\uD83D\\ude00\u0022:-1.00000000000000000E\u002B000,\n  \u0022\\u0001\u0022 :[\n  \u0022\u007F\u0022,10] },\ttrue, false]",
+    "canonical": "[false,{\u0022\\u0001\u0022:[\u0022\u007F\u0022,10],\u0022\uD83D\uDE00\u0022:-1},true,false]",
+    "sha256": "040f799811fa78d871665bbb73c922b13698a2e777b80a9cce159babecd9a3f4"
+  },
+  {
+    "input": "[ -5134062098331812,\t100,{ }]",
+    "canonical": "[-5134062098331812,100,{}]",
+    "sha256": "02cf953db4dc69cc6c13155aeacf91b799745c80c145d5f7eda862f4b0f73710"
+  },
+  {
+    "input": "{\u0022\uD83D\uDE00\u0022:\tnull,\n  \u0022\u0022:\u0022\\u0000\\u001f\u0022,\t\u0022\\u20AC\u0022 : null, \u0022\\uffff\u0022 :1.00000000000000000E\u002B001 }",
+    "canonical": "{\u0022\u0022:\u0022\\u0000\\u001f\u0022,\u0022\u20AC\u0022:null,\u0022\uD83D\uDE00\u0022:null,\u0022\uFFFF\u0022:10}",
+    "sha256": "5e8f8db4151fa0d5e2b0404461adc43355fb02148e9b26ea9b85a7e6b44ef0ad"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\t\u0022\\\u0022quoted\\\u0022\u0022:\t{ \u0022\\\u0022quoted\\\u0022\u0022\n  :-3318897343334060,\t\u0022\\u20AC\u0022 : {\n  \u0022\u2029\u0022:{\n  }\t},\t\u0022\\u0001\u0022\n  :\t1E-07},\u0022\u20AC\u0022\n  :{\n  \u0022key with space\u0022\n  : false,\t\u0022\\uD83D\\uDE00\u0022 :{\u0022\\u2029\u0022 : [ null,\ttrue]}, \u0022b\u0022 :\t-1481646377909750, \u0022A\u0022:true}}",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:{\u0022\\u0001\u0022:1e-7,\u0022\\\u0022quoted\\\u0022\u0022:-3318897343334060,\u0022\u20AC\u0022:{\u0022\u2029\u0022:{}}},\u0022\u20AC\u0022:{\u0022A\u0022:true,\u0022b\u0022:-1481646377909750,\u0022key with space\u0022:false,\u0022\uD83D\uDE00\u0022:{\u0022\u2029\u0022:[null,true]}}}",
+    "sha256": "4556d752042c7a7d2019cc73d14e5bf16a1869b4f23d536f8029adde8a36bd99"
+  },
+  {
+    "input": "{\n  \u0022\u0022\n  :\n  \u0022\\u0009\\u000a\\u000D\\u0008\\u000C\u0022 }",
+    "canonical": "{\u0022\u0022:\u0022\\t\\n\\r\\b\\f\u0022}",
+    "sha256": "468ae6836cd86c17919cabe5ef230637bd1e21331f3edf23b65147ebdb175183"
+  },
+  {
+    "input": "[false]",
+    "canonical": "[false]",
+    "sha256": "456e2e3fa05ee1e2f4e529558008ce162bbd388a9dd4a923c79543a4a1dba618"
+  },
+  {
+    "input": "{\n  \u0022\u00E9\u0022: false }",
+    "canonical": "{\u0022\u00E9\u0022:false}",
+    "sha256": "ead8821ff206ce226f98ff4bfe0e0d6134122191f834b13d6ce360e45dd2ef42"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\t\u0022plain\u0022,\u0022\\u0009\\u000a\\u000d\\u0008\\u000c\u0022,\u0022\\u0009\\u000A\\u000D\\u0008\\u000C\u0022, null]",
+    "canonical": "[\u0022plain\u0022,\u0022\\t\\n\\r\\b\\f\u0022,\u0022\\t\\n\\r\\b\\f\u0022,null]",
+    "sha256": "9f77da87cbdd610fe6e363c3aaf7a9897eeda720f91bac6c043746472eaa124b"
+  },
+  {
+    "input": "{\t\u0022\\u007F\u0022\n  : 1.79769313486231571E\u002B308, \u0022\\u2028\u0022 :true\t}",
+    "canonical": "{\u0022\u007F\u0022:1.7976931348623157e\u002B308,\u0022\u2028\u0022:true}",
+    "sha256": "8d3225170bac5ec2919c750ab87d77b2e14f182a1a41d51b8835d0639c8dd185"
+  },
+  {
+    "input": "[\ttrue, \u0022\\\u0022\\\\/\u0022,\n  \u0022\\u20AC 12.99\u0022]",
+    "canonical": "[true,\u0022\\\u0022\\\\/\u0022,\u0022\u20AC 12.99\u0022]",
+    "sha256": "b9d76444ec582d778e8c98e6e00eb6294837fa4264b4f0b0cd04f0c247c29994"
+  },
+  {
+    "input": "[\n  false,\n  \u0022\uD83D\uDE00\u0022, false,\t-8618953600875580]",
+    "canonical": "[false,\u0022\uD83D\uDE00\u0022,false,-8618953600875580]",
+    "sha256": "4e6a2367f299d95999654050edc5d9f29c2708a532a2078ce3261985e9b01bf0"
+  },
+  {
+    "input": "{\t\u0022\u00E9\u0022\t:\t\u0022\\\u0022\\\\/\u0022,\t\u0022b\u0022\t:{\u002210\u0022\n  : 100, \u00222\u0022 : false\n  }, \u0022\u2028\u0022 :\t\u0022\uD83D\uDE00\\uffff\u0022, \u0022\\\\\u0022\n  :{\u00222\u0022:\tnull}\t}",
+    "canonical": "{\u0022\\\\\u0022:{\u00222\u0022:null},\u0022b\u0022:{\u002210\u0022:100,\u00222\u0022:false},\u0022\u00E9\u0022:\u0022\\\u0022\\\\/\u0022,\u0022\u2028\u0022:\u0022\uD83D\uDE00\uFFFF\u0022}",
+    "sha256": "6bfa68cd4ccac2ce8b8f5f6e96acaaed50909a95f99e22f4ca28e0875da7cd0b"
+  },
+  {
+    "input": "[true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "{\t\u0022\\u0001\u0022\t:\t\u0022\\uD83D\\ude00\\uFFFF\u0022,\u0022key with space\u0022 :\n  \u0022\u007F\u0022}",
+    "canonical": "{\u0022\\u0001\u0022:\u0022\uD83D\uDE00\uFFFF\u0022,\u0022key with space\u0022:\u0022\u007F\u0022}",
+    "sha256": "0cef0316ca48e5092e018ef7c126c84296ee24c0be6365ecf91aeb926479f1af"
+  },
+  {
+    "input": "{ \u0022\\u20AC\u0022 :[\n  1.29900000000000002E\u002B001],\u00221\u0022\t:\n  null,\n  \u0022b\u0022\t:\t\u0022\\u20ac 12.99\u0022}",
+    "canonical": "{\u00221\u0022:null,\u0022b\u0022:\u0022\u20AC 12.99\u0022,\u0022\u20AC\u0022:[12.99]}",
+    "sha256": "59e96ec0f2548d44d5da68a09f5ced692d0b1879f6d19cc6e9e5b6f8ac08978d"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[ false, [\n  false,\n  -2108030945344719, true], false]",
+    "canonical": "[false,[false,-2108030945344719,true],false]",
+    "sha256": "a026937e41ebf130490aa03757deda0543a1ad4ec2bb1583206dfbdbc40f66a6"
+  },
+  {
+    "input": "{\n  \u0022A\u0022\t: false,\u0022\\u20ac\u0022\t:\ttrue, \u0022\\u007f\u0022 : {\u0022key with space\u0022:\tfalse,\u0022\\u2028\u0022\n  :\t6547425035481004,\n  \u0022b\u0022\t:6352660256731812,\n  \u002210\u0022\t:\tfalse\n  },\u00221\u0022: null }",
+    "canonical": "{\u00221\u0022:null,\u0022A\u0022:false,\u0022\u007F\u0022:{\u002210\u0022:false,\u0022b\u0022:6352660256731812,\u0022key with space\u0022:false,\u0022\u2028\u0022:6547425035481004},\u0022\u20AC\u0022:true}",
+    "sha256": "b33a02ccebc11be58a98b1136d98ecf655599c4fd678ffd7290075b1177b2519"
+  },
+  {
+    "input": "[1.29900000000000002E\u002B001]",
+    "canonical": "[12.99]",
+    "sha256": "0780d98c702e215de957303d9a5e0a47df4509b0ce92a162773d105ae8cd48b3"
+  },
+  {
+    "input": "[ null]",
+    "canonical": "[null]",
+    "sha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd"
+  },
+  {
+    "input": "{ \u0022\\\u0022quoted\\\u0022\u0022\n  :\n  null,\n  \u0022\\ufb00\u0022\n  :1.00000000000000000E\u002B021,\n  \u0022key with space\u0022\n  :\n  {\u0022\\u2028\u0022:\n  true,\n  \u0022b\u0022:false\t},\t\u00222\u0022\n  :true\n  }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:null,\u00222\u0022:true,\u0022key with space\u0022:{\u0022b\u0022:false,\u0022\u2028\u0022:true},\u0022\uFB00\u0022:1e\u002B21}",
+    "sha256": "2b139a9a8e5612e334100078ac4fcec406cbea8fdf5f19dd4865af9e5c76baa7"
+  },
+  {
+    "input": "{\t\u00222\u0022:{\t}}",
+    "canonical": "{\u00222\u0022:{}}",
+    "sha256": "c0dec195ad1674f359816d5f4b58a437c3b89ec8aa7c3109ebb4b4e5373505fa"
+  },
+  {
+    "input": "[ 12.99,\n  {\u0022\\u0001\u0022\n  : null\t}]",
+    "canonical": "[12.99,{\u0022\\u0001\u0022:null}]",
+    "sha256": "45d4aed40e079ff030341728d6e2622818da0eb83ad82a128a6b42d1c763607f"
+  },
+  {
+    "input": "{\n  \u0022a\u0022\n  :[{\t}]\t}",
+    "canonical": "{\u0022a\u0022:[{}]}",
+    "sha256": "e143bd6ef0cb57b76ce6faacf531fd6234ea4289d5524426f6775f7d168d6e7a"
+  },
+  {
+    "input": "{\t\u002210\u0022\n  :1.7976931348623157E\u002B308, \u0022\\\u0022quoted\\\u0022\u0022:\n  false }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:false,\u002210\u0022:1.7976931348623157e\u002B308}",
+    "sha256": "003f685d1047f1e276e8e4bcfa189119edf509facc730eb731f0e7b3e87818b1"
+  },
+  {
+    "input": "[\n  null,false, false]",
+    "canonical": "[null,false,false]",
+    "sha256": "24c7bcaf858ea77309135ff60941cbf58e73e967f701ebb121375c8eb91dcb97"
+  },
+  {
+    "input": "[\n  8924461369617611]",
+    "canonical": "[8924461369617611]",
+    "sha256": "8719ae22798165a9c5e5918103c932a1c07ca3df76ca23723b3dd06b5da5ead5"
+  },
+  {
+    "input": "[ false,\tfalse]",
+    "canonical": "[false,false]",
+    "sha256": "38576924f34fcfc3c6d659cbcd3b5e39205f062496b79cfe98abbc494c76b30d"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{ \u00222\u0022: \u0022\\\u0022\\\\/\u0022,\t\u0022\uFB00\u0022\n  :\t-5779177660833293,\u0022\\\\\u0022\t: null,\t\u0022\u0022\t:\n  \u0022\u003C\\/script\u003E\u0022}",
+    "canonical": "{\u0022\u0022:\u0022\u003C/script\u003E\u0022,\u00222\u0022:\u0022\\\u0022\\\\/\u0022,\u0022\\\\\u0022:null,\u0022\uFB00\u0022:-5779177660833293}",
+    "sha256": "10bb609050047ebbd922abceca54eaa3d66947f64f51d91a712f6a190c0ee68b"
+  },
+  {
+    "input": "{\u0022\\uD83D\\uDE00\u0022:\t\u0022\\ud83d\\ude00\u0022,\u0022\\u00E9\u0022\t:\tfalse, \u0022\uFB00\u0022\t:\n  true}",
+    "canonical": "{\u0022\u00E9\u0022:false,\u0022\uD83D\uDE00\u0022:\u0022\uD83D\uDE00\u0022,\u0022\uFB00\u0022:true}",
+    "sha256": "e41c29f7fb883c814b37ff60e3dd97b32546cd41d0a3a9d8902d8342162978f0"
+  },
+  {
+    "input": "{\n  \u0022\uFFFF\u0022\t:100, \u0022\uD83D\uDE00\u0022:9007199254740992,\t\u0022\\\\\u0022\t:\n  -2756092106106195, \u0022\\uFB00\u0022 :\tfalse\t}",
+    "canonical": "{\u0022\\\\\u0022:-2756092106106195,\u0022\uD83D\uDE00\u0022:9007199254740992,\u0022\uFB00\u0022:false,\u0022\uFFFF\u0022:100}",
+    "sha256": "c83bc0b735df9d2b35c9fa6d82a230a2e228681ed5dbba7d14a95e7222793fde"
+  },
+  {
+    "input": "[\n  true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{ \u0022b\u0022\t:true,\n  \u00222\u0022 : -2597778624094484,\t\u0022A\u0022 :{\u00222\u0022: false,\t\u0022\u0022\n  :\t6369436831078735\t},\n  \u00221\u0022\t:{\u0022\\u0001\u0022 : [\n  1.29900000000000002E\u002B001]\n  }}",
+    "canonical": "{\u00221\u0022:{\u0022\\u0001\u0022:[12.99]},\u00222\u0022:-2597778624094484,\u0022A\u0022:{\u0022\u0022:6369436831078735,\u00222\u0022:false},\u0022b\u0022:true}",
+    "sha256": "fc87a0557e8823bcb2d8c075d7b18ce125db50ed378a028585b09cfe923e5034"
+  },
+  {
+    "input": "[\t[\tfalse], 4025240038438975, 1E\u002B21]",
+    "canonical": "[[false],4025240038438975,1e\u002B21]",
+    "sha256": "920ca5de93296e7fadd2cb714cdf8eafa2a350192df2f1e8d2d7d044726dc848"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[{\n  \u0022A\u0022\n  :\t8537772792415112,\u0022\\\\\u0022 :\ttrue,\n  \u00221\u0022\t:\tnull,\u0022\u0022 : 179.86 },\n  0.00000000000000000E\u002B000,\t{ \u0022\\u2029\u0022:\n  [{\n  \u0022\\u0001\u0022: -2310251547899808 },true,\t\u0022plain\u0022,\n  true],\n  \u0022\u0022\t:true,\u0022\u20AC\u0022\t:\u0022\u20AC 12.99\u0022,\t\u0022\uFB00\u0022\n  :\t\u0022\\u0009\\u000a\\u000d\\u0008\\u000C\u0022 }, 3866690585317919]",
+    "canonical": "[{\u0022\u0022:179.86,\u00221\u0022:null,\u0022A\u0022:8537772792415112,\u0022\\\\\u0022:true},0,{\u0022\u0022:true,\u0022\u2029\u0022:[{\u0022\\u0001\u0022:-2310251547899808},true,\u0022plain\u0022,true],\u0022\u20AC\u0022:\u0022\u20AC 12.99\u0022,\u0022\uFB00\u0022:\u0022\\t\\n\\r\\b\\f\u0022},3866690585317919]",
+    "sha256": "53ea37831884bc32ad6fc7bfe2a45d3ead7934e746c9e8608b5c50f8e27d2127"
+  },
+  {
+    "input": "{ \u0022\\u2028\u0022\t:[ 231964163289442,null]\t}",
+    "canonical": "{\u0022\u2028\u0022:[231964163289442,null]}",
+    "sha256": "1830a134ab64a1cc0f5e5c07af119e9db64690d63892ee2bb34bc6568fa6ddc1"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{ \u0022A\u0022 :\n  [ true,\t{\t}],\n  \u002210\u0022 :\n  null,\u00222\u0022\t:true\n  }",
+    "canonical": "{\u002210\u0022:null,\u00222\u0022:true,\u0022A\u0022:[true,{}]}",
+    "sha256": "e381f9d37a2e43016ac00ab48b99d5a56431353ac1d71f324610b5a86b639c2d"
+  },
+  {
+    "input": "[\t{ \u00222\u0022:\n  5771031848781648,\u0022a\u0022\n  :true,\n  \u0022A\u0022\n  :\n  \u0022\\ud83d\\ude00\u0022,\t\u0022\\u007F\u0022: null },\ttrue]",
+    "canonical": "[{\u00222\u0022:5771031848781648,\u0022A\u0022:\u0022\uD83D\uDE00\u0022,\u0022a\u0022:true,\u0022\u007F\u0022:null},true]",
+    "sha256": "3c382cd8816a84957355fc30868a5efdfcf3a427897823b1e1ade010f54d3299"
+  },
+  {
+    "input": "[\u0022\uD83D\uDE00\uFFFF\u0022,\t-3332401367423987, true, []]",
+    "canonical": "[\u0022\uD83D\uDE00\uFFFF\u0022,-3332401367423987,true,[]]",
+    "sha256": "90a486bfaade266c73f73ff69e43207fec7f4aab0909cb10dee2225fa177724d"
+  },
+  {
+    "input": "{\t\u0022\\u007F\u0022 :\t\u0022\u003C\\/script\u003E\u0022,\n  \u00222\u0022\t:\n  {\t\u0022\uFB00\u0022 :\n  null }, \u00221\u0022\t: {\u0022\\uFFFF\u0022:true,\n  \u0022\\u0001\u0022\t: {\t\u00221\u0022 :false,\n  \u0022\uFB00\u0022\n  :\t{\u0022\u00E9\u0022 :\t-802963690376314 },\t\u0022b\u0022:\n  \u0022\u007F\u0022\n  },\t\u0022\\uD83D\\uDE00\u0022:\n  false,\u0022\u2029\u0022 :\t1E\u002B21\t},\n  \u0022key with space\u0022\n  : null\n  }",
+    "canonical": "{\u00221\u0022:{\u0022\\u0001\u0022:{\u00221\u0022:false,\u0022b\u0022:\u0022\u007F\u0022,\u0022\uFB00\u0022:{\u0022\u00E9\u0022:-802963690376314}},\u0022\u2029\u0022:1e\u002B21,\u0022\uD83D\uDE00\u0022:false,\u0022\uFFFF\u0022:true},\u00222\u0022:{\u0022\uFB00\u0022:null},\u0022key with space\u0022:null,\u0022\u007F\u0022:\u0022\u003C/script\u003E\u0022}",
+    "sha256": "3d0701e5749fed26ac2116fe31c3a36a6dccbce62e45a086510194a3fd4238df"
+  },
+  {
+    "input": "{\u0022\\\u0022quoted\\\u0022\u0022:\t\u0022\\ufb00\u0022,\t\u0022\u0022\n  :\tfalse,\n  \u002210\u0022\t: []\n  }",
+    "canonical": "{\u0022\u0022:false,\u0022\\\u0022quoted\\\u0022\u0022:\u0022\uFB00\u0022,\u002210\u0022:[]}",
+    "sha256": "119a602f0ccca0a3c2aebe0453136e2fd964faf32f5078406eae4a1c8c71aec2"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[false,-6458133007478092]",
+    "canonical": "[false,-6458133007478092]",
+    "sha256": "01d4c2ae06293585f503a5e2b3f4c6cb36ef6799f3bfb05ccae982896f5b0c00"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\t\u0022\u0022\n  :null }",
+    "canonical": "{\u0022\u0022:null}",
+    "sha256": "212c5e659097c7b11239deafda2dddeec70b141d9d540cc8eb7fc390982c8178"
+  },
+  {
+    "input": "[\n  null,false,\n  \u0022\\u007f\u0022]",
+    "canonical": "[null,false,\u0022\u007F\u0022]",
+    "sha256": "b3be21d3baf3853e7764b16fc660b2136b64933f184e23218ad09568f3a28c9d"
+  },
+  {
+    "input": "{ \u0022\\u00E9\u0022: [],\n  \u002210\u0022\t:\n  false\n  }",
+    "canonical": "{\u002210\u0022:false,\u0022\u00E9\u0022:[]}",
+    "sha256": "d6baf6a1080be0848ea1aa7222aa540557258b8793f1b0debc011e89395111f5"
+  },
+  {
+    "input": "{\n  \u0022\uFB00\u0022 : false,\t\u0022\u0022:\n  -8927784377511981,\t\u0022\u00E9\u0022 :false, \u0022a\u0022\n  :\n  false\n  }",
+    "canonical": "{\u0022\u0022:-8927784377511981,\u0022a\u0022:false,\u0022\u00E9\u0022:false,\u0022\uFB00\u0022:false}",
+    "sha256": "204ffd8e85ed65aac513f0f24ad3e591f19cfa1483eeac3c70da1a3e24d9ce3f"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u0022\\u20ac\u0022\n  :\n  null, \u0022A\u0022 :\n  {\u0022\\ufb00\u0022:[\n  1E-06, false],\n  \u0022\\\u0022quoted\\\u0022\u0022\n  :\n  null } }",
+    "canonical": "{\u0022A\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:null,\u0022\uFB00\u0022:[0.000001,false]},\u0022\u20AC\u0022:null}",
+    "sha256": "ec09fd58f89fc11900f7184927ed23ea985c620dd7330e37e8a57bca10184939"
+  },
+  {
+    "input": "{\u0022\u20AC\u0022:\tfalse,\n  \u0022\u00E9\u0022:\tfalse,\n  \u0022\uFFFF\u0022 :\tnull}",
+    "canonical": "{\u0022\u00E9\u0022:false,\u0022\u20AC\u0022:false,\u0022\uFFFF\u0022:null}",
+    "sha256": "f12b9a6ce40dbd1e53aa3cb4690d3b4372e9d4c42a958f41274c026e10429e11"
+  },
+  {
+    "input": "{\n  \u0022\\\\\u0022\t:\t-2288791685003794, \u0022\\u2029\u0022 :\tfalse,\t\u0022\\u20ac\u0022:\n  \u0022\u2028\\u2029\u0022\n  }",
+    "canonical": "{\u0022\\\\\u0022:-2288791685003794,\u0022\u2029\u0022:false,\u0022\u20AC\u0022:\u0022\u2028\u2029\u0022}",
+    "sha256": "c984037857d84bd9c7be72a25b4829e81c501d8663aa98c1c48d349e408ae0a2"
+  },
+  {
+    "input": "[\n  [{\n  \u0022a\u0022\t: {\t\u002210\u0022\n  :null,\u00222\u0022 : false},\n  \u00221\u0022 :\t-8842217317281471,\u0022\\u2029\u0022\t:\t{\n  \u00222\u0022:\u0022\u2028\u2029\u0022,\n  \u0022\u2028\u0022\n  :\t6616996745766709,\n  \u0022\\u2029\u0022: null\n  } },\t[\t\u0022\\u007f\u0022],\n  \u0022\\u2028\u2029\u0022]]",
+    "canonical": "[[{\u00221\u0022:-8842217317281471,\u0022a\u0022:{\u002210\u0022:null,\u00222\u0022:false},\u0022\u2029\u0022:{\u00222\u0022:\u0022\u2028\u2029\u0022,\u0022\u2028\u0022:6616996745766709,\u0022\u2029\u0022:null}},[\u0022\u007F\u0022],\u0022\u2028\u2029\u0022]]",
+    "sha256": "4c7d472cfb7220553d90d8258fbd39d38ca1e3b5239e5f3a069a3fcec1f4c34c"
+  },
+  {
+    "input": "[\n  [\n  true],\n  [ { \u0022\uFB00\u0022 :\n  1.00000000000000000E\u002B000,\t\u0022\\ud83d\\ude00\u0022\n  :\n  [\tfalse, null],\t\u0022\\u007F\u0022 :\t-4031505161924344, \u00221\u0022: {\u0022\\u0001\u0022 :\ttrue, \u00221\u0022: true, \u0022\u0022\n  : null\t}\t},\t9.00719925474099200E\u002B015,[{\n  \u0022b\u0022\t:null },{\n  \u0022\\\\\u0022 :\n  686065242248983,\n  \u0022\\u00e9\u0022:\tfalse,\t\u0022key with space\u0022\t:\t2897842594090287,\u00221\u0022 :true\n  }, null,\ttrue]]]",
+    "canonical": "[[true],[{\u00221\u0022:{\u0022\u0022:null,\u0022\\u0001\u0022:true,\u00221\u0022:true},\u0022\u007F\u0022:-4031505161924344,\u0022\uD83D\uDE00\u0022:[false,null],\u0022\uFB00\u0022:1},9007199254740992,[{\u0022b\u0022:null},{\u00221\u0022:true,\u0022\\\\\u0022:686065242248983,\u0022key with space\u0022:2897842594090287,\u0022\u00E9\u0022:false},null,true]]]",
+    "sha256": "699d69ce79a1b6f637ed03f809eaeb4a5bdc05164f817865cd0e79ef7c6fe19f"
+  },
+  {
+    "input": "[\t{\n  \u0022\\u20ac\u0022:\tfalse,\u00221\u0022 :\n  null,\t\u0022\u2029\u0022 :\n  {\n  \u0022A\u0022 :\n  \u0022\\u007F\u0022\t}\t},\u0022\\\u0022\\\\\\/\u0022, \u0022\u20AC 12.99\u0022]",
+    "canonical": "[{\u00221\u0022:null,\u0022\u2029\u0022:{\u0022A\u0022:\u0022\u007F\u0022},\u0022\u20AC\u0022:false},\u0022\\\u0022\\\\/\u0022,\u0022\u20AC 12.99\u0022]",
+    "sha256": "3e01e153116db6a14af002ad244041f2cc92865c429ec28bee131eafb1a56ae2"
+  },
+  {
+    "input": "[\t-9.00719925474099200E\u002B015,\n  100,[\t\u0022\\ufb00\u0022],\tfalse]",
+    "canonical": "[-9007199254740992,100,[\u0022\uFB00\u0022],false]",
+    "sha256": "be626845c9a2c2da4ec78de77ddc071201af9d629bc0de9589c643fe0d2b5f9e"
+  },
+  {
+    "input": "{\t\u0022\\\u0022quoted\\\u0022\u0022 :true,\t\u00221\u0022 : null\t}",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:true,\u00221\u0022:null}",
+    "sha256": "ce93e807588d78c70da5cd4654944f7703116b60622071b32a485e2ff28d5c78"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u0022\\u20ac\u0022:-7063041547868417,\t\u0022\\uffff\u0022\n  :\n  -0.00000000000000000E\u002B000\n  }",
+    "canonical": "{\u0022\u20AC\u0022:-7063041547868417,\u0022\uFFFF\u0022:0}",
+    "sha256": "c8f280aaacbb8e03623feca0a37993407612890f0b1dad93e3561989c6ecb0b6"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\u00222\u0022 :\n  [],\n  \u0022\\u20ac\u0022 : true\t}",
+    "canonical": "{\u00222\u0022:[],\u0022\u20AC\u0022:true}",
+    "sha256": "22448e2aa14350e6cdb4a76c27ab4a1a3225c14befb271b69cd54881c6240075"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  -5346562752498823,null]",
+    "canonical": "[-5346562752498823,null]",
+    "sha256": "4ffa341e6186dca307671567312e20bc8da9ce6ec5c3e0d4b095f2b89588a6f0"
+  },
+  {
+    "input": "{\n  \u0022\\u2029\u0022\t:\n  [\t\u0022\u007F\u0022,\t1.00000000000000006E-001,1.79860000000000014E\u002B002,false]\t}",
+    "canonical": "{\u0022\u2029\u0022:[\u0022\u007F\u0022,0.1,179.86,false]}",
+    "sha256": "38c4017e80cdf7812f52d23c2074a41e5bb1e5697c2f159cc8d00fbbd64b7db9"
+  },
+  {
+    "input": "{\u002210\u0022: true\n  }",
+    "canonical": "{\u002210\u0022:true}",
+    "sha256": "bd3be0ecda104e84d7ccf33790e785f982b7d895eec612f8684f2b400cf3396b"
+  },
+  {
+    "input": "[\n  null,\n  1.00000000000000000E\u002B002,[]]",
+    "canonical": "[null,100,[]]",
+    "sha256": "126e2fe3d87792fc022d56b72d14f01e18a4554eabee7e93b1d6d0cee5552fa1"
+  },
+  {
+    "input": "[\t{},\n  [\n  null, {\t}],\tnull]",
+    "canonical": "[{},[null,{}],null]",
+    "sha256": "ee0511d51a2ad228b7aca2c5f22116f630641522f97e6e20610ba00779473035"
+  },
+  {
+    "input": "[ -0.00000000000000000E\u002B000]",
+    "canonical": "[0]",
+    "sha256": "d0bca111f8628137adc4c16f123496dcdd1d590d06cb5d9acd68b39fe656fb97"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\t\u0022key with space\u0022\t:\n  \u0022plain\u0022\n  }",
+    "canonical": "{\u0022key with space\u0022:\u0022plain\u0022}",
+    "sha256": "89dae267472d2d271456cd240a236a8e2c5424d033a22866a04d1349833fae95"
+  },
+  {
+    "input": "[\tfalse,\n  {\n  \u002210\u0022\t:\n  5E-324,\u0022\\\\\u0022:\n  7370305581469398,\t\u0022\u2029\u0022\t:0.00000000000000000E\u002B000\n  }, true]",
+    "canonical": "[false,{\u002210\u0022:5e-324,\u0022\\\\\u0022:7370305581469398,\u0022\u2029\u0022:0},true]",
+    "sha256": "2ecf6806d0fe59ef81272c27f57bc6d05e2d13c2751aefe72ff496ad92a05bee"
+  },
+  {
+    "input": "{}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{ \u0022\\u0001\u0022 :\n  false,\u00222\u0022:\t[\u0022\u2028\\u2029\u0022], \u0022b\u0022:[ null,\n  \u0022\\u00e9\u0022,\n  [\t-7865650586092314,\t7200904795020021],[1.79769313486231571E\u002B308]] }",
+    "canonical": "{\u0022\\u0001\u0022:false,\u00222\u0022:[\u0022\u2028\u2029\u0022],\u0022b\u0022:[null,\u0022\u00E9\u0022,[-7865650586092314,7200904795020021],[1.7976931348623157e\u002B308]]}",
+    "sha256": "da32bafd1ccdefc79c63c98d4174b7f1e8b0f179218126400fa9ad8bdeecbb5b"
+  },
+  {
+    "input": "{\u0022\u2028\u0022 : \u0022\\uFB00\u0022,\n  \u0022\u007F\u0022 : false, \u0022\\ufb00\u0022\n  :\u0022\\ufb00\u0022, \u0022a\u0022:false\n  }",
+    "canonical": "{\u0022a\u0022:false,\u0022\u007F\u0022:false,\u0022\u2028\u0022:\u0022\uFB00\u0022,\u0022\uFB00\u0022:\u0022\uFB00\u0022}",
+    "sha256": "8d67976175f7b4c98a1fe9eb36d266ebd51b42dba179e2da2beda0596a44c32b"
+  },
+  {
+    "input": "{\n  \u0022\\u0001\u0022\t:\n  \u0022\u00E9\u0022,\u0022\uD83D\uDE00\u0022 :-1}",
+    "canonical": "{\u0022\\u0001\u0022:\u0022\u00E9\u0022,\u0022\uD83D\uDE00\u0022:-1}",
+    "sha256": "30bf916385fbc7562f536f4cc0bf2c2d7aefccb52b4e964024dca719c6a5fb25"
+  },
+  {
+    "input": "{\t\u0022\\uD83D\\uDE00\u0022:\t1.00000000000000000E\u002B002\n  }",
+    "canonical": "{\u0022\uD83D\uDE00\u0022:100}",
+    "sha256": "1a2fab5d7013d2f32af72b52b4009971b07d9b70d417de34764bc79916d56a66"
+  },
+  {
+    "input": "{ \u0022A\u0022\t:\u0022\\u20AC 12.99\u0022,\n  \u0022\\u007F\u0022 :\n  556327137428572,\t\u0022\\u0001\u0022:\n  [[ [null,null]]]}",
+    "canonical": "{\u0022\\u0001\u0022:[[[null,null]]],\u0022A\u0022:\u0022\u20AC 12.99\u0022,\u0022\u007F\u0022:556327137428572}",
+    "sha256": "a8b366d11c7c7593b6213e9369a80178161d85aaf7b8455304d8912dbefd682f"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  true]",
+    "canonical": "[true]",
+    "sha256": "1c28f2eb0958c3d15db1f0f0e7f2b8998ca2b8f67ab426a1fbb3d561fe76fad9"
+  },
+  {
+    "input": "{ \u00221\u0022 : -1986634524975646,\n  \u0022key with space\u0022:\n  [ false],\n  \u0022\\u007f\u0022\t:\t1.00000000000000000E\u002B020,\t\u0022b\u0022\n  :\n  null\n  }",
+    "canonical": "{\u00221\u0022:-1986634524975646,\u0022b\u0022:null,\u0022key with space\u0022:[false],\u0022\u007F\u0022:100000000000000000000}",
+    "sha256": "fbd33c644d31026be753420bb4897268c744d541fd649ca8b63ed3a2a19c3235"
+  },
+  {
+    "input": "{ \u00221\u0022:\n  false\t}",
+    "canonical": "{\u00221\u0022:false}",
+    "sha256": "b0d732d3948e333974aa19e8d908c9babdb27c348d1dec6bcca371327276b4bc"
+  },
+  {
+    "input": "{\t\u00221\u0022:\n  {\t},\u0022key with space\u0022\t:\t\u0022\uD83D\uDE00\u0022\n  }",
+    "canonical": "{\u00221\u0022:{},\u0022key with space\u0022:\u0022\uD83D\uDE00\u0022}",
+    "sha256": "f6279c1369517e16209948ebf548f4d39f6917a85d1d56bd4b3ba13eea35e9ce"
+  },
+  {
+    "input": "{\n  \u0022\\u00E9\u0022 :\n  { \u0022\u00E9\u0022:\n  {\n  \u0022\\u2029\u0022\n  :\t\u0022plain\u0022,\t\u0022\\u007F\u0022:false\t}, \u0022A\u0022:\n  \u0022\\ufb00\u0022,\n  \u0022\\\u0022quoted\\\u0022\u0022\t:1458124030041229,\u00222\u0022\t:1E\u002B20 },\u0022b\u0022:\n  false\t}",
+    "canonical": "{\u0022b\u0022:false,\u0022\u00E9\u0022:{\u0022\\\u0022quoted\\\u0022\u0022:1458124030041229,\u00222\u0022:100000000000000000000,\u0022A\u0022:\u0022\uFB00\u0022,\u0022\u00E9\u0022:{\u0022\u007F\u0022:false,\u0022\u2029\u0022:\u0022plain\u0022}}}",
+    "sha256": "11f24b51463a179479ea357b1098e86400822c09c364d5565962d8722dffe0da"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "[\n  \u0022plain\u0022,false,null,\t100]",
+    "canonical": "[\u0022plain\u0022,false,null,100]",
+    "sha256": "5bb20399eb51a87c84a9e0925ab157db028a7aaece12b95f7420062df21523fe"
+  },
+  {
+    "input": "[ [], -1417625663337575,\n  -3207076385831540]",
+    "canonical": "[[],-1417625663337575,-3207076385831540]",
+    "sha256": "12e3b87f697b20385148750515725e3c1b94b3d04910775138c991bed90ee7c7"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "{\n  \u0022\\u2029\u0022:\n  null,\n  \u0022a\u0022\t: 1.00000000000000000E\u002B001, \u00222\u0022 : null\n  }",
+    "canonical": "{\u00222\u0022:null,\u0022a\u0022:10,\u0022\u2029\u0022:null}",
+    "sha256": "14ef24ff09a12f4f411ce5025d02898501b1c00abedfab50b2532c2c059a2dc9"
+  },
+  {
+    "input": "[\t1.00000000000000000E\u002B021,\t-1.00000000000000000E\u002B000, {\t}]",
+    "canonical": "[1e\u002B21,-1,{}]",
+    "sha256": "3ae90356244b2de30b8273d28295f7f3f096b04d5bac6ffde2818505b1051811"
+  },
+  {
+    "input": "{\u00222\u0022\n  : [ false], \u0022\\u007f\u0022\n  : 0,\n  \u0022\u2028\u0022\t:true }",
+    "canonical": "{\u00222\u0022:[false],\u0022\u007F\u0022:0,\u0022\u2028\u0022:true}",
+    "sha256": "4985c6e46cc70e9d310539fe615864d44e96f7c177a587b3a166f1bfdadfe6e1"
+  },
+  {
+    "input": "[\n  null, \u0022\\u00E9\u0022]",
+    "canonical": "[null,\u0022\u00E9\u0022]",
+    "sha256": "e71fb67a7583becb88e037b79f5f75a0ce23db2b01588cf9a5633cc7dda862df"
+  },
+  {
+    "input": "[ 1, \u0022\\u20ac 12.99\u0022,\u0022plain\u0022]",
+    "canonical": "[1,\u0022\u20AC 12.99\u0022,\u0022plain\u0022]",
+    "sha256": "5da8356af148ec3e84a1a15b3d4f156cd539c9a6e88d29f6a5b805bb1efb2789"
+  },
+  {
+    "input": "{\t}",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{\u0022\\\\\u0022\n  : false,\n  \u0022key with space\u0022 :\n  5.00000000000000000E-001,\n  \u00221\u0022\n  :[\n  7635874386335985]}",
+    "canonical": "{\u00221\u0022:[7635874386335985],\u0022\\\\\u0022:false,\u0022key with space\u0022:0.5}",
+    "sha256": "9474d25365be42473612b3c187f3455c884602cd5b47244b8e8f853d367ab5c8"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{ \u0022\\u2028\u0022\n  : [ 1510328773640141,\n  [\t\u0022\u003C\\/script\u003E\u0022,true]]\t}",
+    "canonical": "{\u0022\u2028\u0022:[1510328773640141,[\u0022\u003C/script\u003E\u0022,true]]}",
+    "sha256": "4ab023f9c5b73387775787541034840f9c4f913e92e72bbeccf522d9a7937c86"
+  },
+  {
+    "input": "{\n  \u0022\u007F\u0022 :\n  \u0022\u003C\\/script\u003E\u0022, \u0022A\u0022\n  :\n  [\n  1.7976931348623157E\u002B308,{\t\u0022\\uFB00\u0022 :\n  null}], \u0022\\\u0022quoted\\\u0022\u0022 : \u0022\uD83D\uDE00\\uffff\u0022,\t\u0022b\u0022 :\u0022\\ud83d\\ude00\\uffff\u0022 }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:\u0022\uD83D\uDE00\uFFFF\u0022,\u0022A\u0022:[1.7976931348623157e\u002B308,{\u0022\uFB00\u0022:null}],\u0022b\u0022:\u0022\uD83D\uDE00\uFFFF\u0022,\u0022\u007F\u0022:\u0022\u003C/script\u003E\u0022}",
+    "sha256": "9009a3afb9efa4eee5bc70d94714a9a21e1c4050db1ed74e7a28ec838151c038"
+  },
+  {
+    "input": "[\tnull,-3692872993016418,\t\u0022\\u0000\\u001f\u0022]",
+    "canonical": "[null,-3692872993016418,\u0022\\u0000\\u001f\u0022]",
+    "sha256": "8a68870eef13de7b63c5cc936d536c829951e3bb178b1ba2476ea614e3190276"
+  },
+  {
+    "input": "{ \u00222\u0022 : \u0022\u003C/script\u003E\u0022\t}",
+    "canonical": "{\u00222\u0022:\u0022\u003C/script\u003E\u0022}",
+    "sha256": "4aa743901c72c647922005a4cc465e0aa2e9df1fd1dafbd6bd28d8d6b53a0b22"
+  },
+  {
+    "input": "[\n  true,{\t\u0022\u20AC\u0022\t: null,\t\u0022\\u007f\u0022:\n  \u0022\\u0000\\u001F\u0022, \u00222\u0022: [\n  null,\n  false, true] }]",
+    "canonical": "[true,{\u00222\u0022:[null,false,true],\u0022\u007F\u0022:\u0022\\u0000\\u001f\u0022,\u0022\u20AC\u0022:null}]",
+    "sha256": "6795e45d58c10c8c56805b8560e81fafe1344e3695466e8382a1865d0e5fd7a0"
+  },
+  {
+    "input": "{\t\u0022\\uD83D\\ude00\u0022 : null\t}",
+    "canonical": "{\u0022\uD83D\uDE00\u0022:null}",
+    "sha256": "0ba8c72dc2980fba77bc78a77ef667a6cb4d90b1779f17b1a7d3a76c93d7ce43"
+  },
+  {
+    "input": "{ }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[\n  [],true]",
+    "canonical": "[[],true]",
+    "sha256": "f9f239d0aecc2dd034ddea024936cc409767964fde6085a65884d60d2da116ea"
+  },
+  {
+    "input": "[\tfalse,\n  \u0022\\u20AC 12.99\u0022]",
+    "canonical": "[false,\u0022\u20AC 12.99\u0022]",
+    "sha256": "a13dd6365f48227a225643e9c3e5b3f528b3b2207ed71d0eae8f8d81645d52d9"
+  },
+  {
+    "input": "[true,\n  true,\n  1E\u002B21]",
+    "canonical": "[true,true,1e\u002B21]",
+    "sha256": "89249a5b781614aa07a8df40ab7df166e076f7cac4073791d5b1f16103501ad4"
+  },
+  {
+    "input": "[ {\u0022\\u0001\u0022: true,\u00221\u0022\n  : false\n  }]",
+    "canonical": "[{\u0022\\u0001\u0022:true,\u00221\u0022:false}]",
+    "sha256": "67b48e5325ed185e037703308b742696c282a0029bc7357d585adf93d10a1276"
+  },
+  {
+    "input": "{\n  \u002210\u0022:\tnull }",
+    "canonical": "{\u002210\u0022:null}",
+    "sha256": "a502cf6b58f6aac42e93b127fc15207096fb3ea104ff6333ca11a5ca0287745b"
+  },
+  {
+    "input": "[\t\u0022\uFB00\u0022]",
+    "canonical": "[\u0022\uFB00\u0022]",
+    "sha256": "8bf2c1117ddbe43708f04c444ebc1eb73d7182e28a08b95124ada42d5182c4a0"
+  },
+  {
+    "input": "[\t[true,\t1E-07,\tfalse]]",
+    "canonical": "[[true,1e-7,false]]",
+    "sha256": "1efe5ad483397d21904fecedafed762ab09114607e167bba40aea360598875b7"
+  },
+  {
+    "input": "[ {\t}]",
+    "canonical": "[{}]",
+    "sha256": "e10808d43975dc400731053386849f864f297e6c4f7519c380f3dbaf7067a840"
+  },
+  {
+    "input": "{\n  }",
+    "canonical": "{}",
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "input": "[-1494652661041333,\n  {\n  \u0022key with space\u0022 :\ttrue,\u0022\u20AC\u0022:\t{\n  \u0022\\uffff\u0022: \u0022plain\u0022,\n  \u0022\\u2029\u0022\t:\t[ \u0022\u003C/script\u003E\u0022,false,\t9.99999999999999955E-007,\t9.00719925474099200E\u002B015],\t\u00221\u0022: true\n  }\t}, \u0022\\u007f\u0022,-1909553892664553]",
+    "canonical": "[-1494652661041333,{\u0022key with space\u0022:true,\u0022\u20AC\u0022:{\u00221\u0022:true,\u0022\u2029\u0022:[\u0022\u003C/script\u003E\u0022,false,0.000001,9007199254740992],\u0022\uFFFF\u0022:\u0022plain\u0022}},\u0022\u007F\u0022,-1909553892664553]",
+    "sha256": "f2c70f16a626562c05ad7363faba3efe4b9c83cfba38f05cbaa0883e45878cf2"
+  },
+  {
+    "input": "[\t\u0022\\u0000\\u001F\u0022,false]",
+    "canonical": "[\u0022\\u0000\\u001f\u0022,false]",
+    "sha256": "c4cd6b6f4ee63ae2a0ff6d525ceb39f53361279124be3c9051a610679ca355e4"
+  },
+  {
+    "input": "[ false]",
+    "canonical": "[false]",
+    "sha256": "456e2e3fa05ee1e2f4e529558008ce162bbd388a9dd4a923c79543a4a1dba618"
+  },
+  {
+    "input": "[]",
+    "canonical": "[]",
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "input": "{ \u0022\\uFB00\u0022:[-1,\n  \u0022\u00E9\u0022,null],\u0022key with space\u0022\n  : -336554445748500, \u00221\u0022\n  :\n  null\n  }",
+    "canonical": "{\u00221\u0022:null,\u0022key with space\u0022:-336554445748500,\u0022\uFB00\u0022:[-1,\u0022\u00E9\u0022,null]}",
+    "sha256": "eb62f2d945204a723ae7aa34f5dc96992d5cf07488bde07bf42ee197d2a59562"
+  },
+  {
+    "input": "{\u0022\u2028\u0022\n  :\n  false\t}",
+    "canonical": "{\u0022\u2028\u0022:false}",
+    "sha256": "e443915ebd2706af3b4134b7943baa47b1cf6cfad612a6b858ef3afbfbc94898"
+  },
+  {
+    "input": "{\n  \u0022\u2029\u0022 :\n  [ [\t{\t\u0022\\uFB00\u0022\n  :\n  -2160617464814948,\u0022A\u0022\t: null,\t\u0022\u2029\u0022\n  :\t7323169610249482,\u0022b\u0022\t:\n  -6324816952941725 }],false], \u00221\u0022 :[ -5246138853271733, \u0022\\u0000\\u001F\u0022]\t}",
+    "canonical": "{\u00221\u0022:[-5246138853271733,\u0022\\u0000\\u001f\u0022],\u0022\u2029\u0022:[[{\u0022A\u0022:null,\u0022b\u0022:-6324816952941725,\u0022\u2029\u0022:7323169610249482,\u0022\uFB00\u0022:-2160617464814948}],false]}",
+    "sha256": "bec4f222515f9fd7e3050756c53cfcbdfa2896c9812d91ec3b4538cc830d36db"
+  },
+  {
+    "input": "{\n  \u0022\\u20ac\u0022 :\tfalse, \u0022\\u007F\u0022 : 1.00000000000000000E\u002B020, \u0022\uFB00\u0022\n  :\n  null\t}",
+    "canonical": "{\u0022\u007F\u0022:100000000000000000000,\u0022\u20AC\u0022:false,\u0022\uFB00\u0022:null}",
+    "sha256": "651a89059550b2b9ffdb18cd9b6c2fc0df19484d9884e2c051e17a7f76aff2d0"
+  },
+  {
+    "input": "{ \u0022\uFFFF\u0022:\n  true,\t\u002210\u0022 :\n  -9.00719925474099200E\u002B015 }",
+    "canonical": "{\u002210\u0022:-9007199254740992,\u0022\uFFFF\u0022:true}",
+    "sha256": "5f986b9f13f81defe2406f4b3adf5f91ab7c79942f5d3b509fbf44693e50d13e"
+  },
+  {
+    "input": "{\t\u0022\\uD83D\\ude00\u0022\n  :\n  [\n  false, false,5697869276489646, 0.1],\t\u0022\\u0001\u0022\t:null\t}",
+    "canonical": "{\u0022\\u0001\u0022:null,\u0022\uD83D\uDE00\u0022:[false,false,5697869276489646,0.1]}",
+    "sha256": "123eb65f23d982eb441dc18feb528d42e4b149a83b1b7e31487a38aa2c639ebf"
+  },
+  {
+    "input": "{\t\u0022\uD83D\uDE00\u0022\t:null}",
+    "canonical": "{\u0022\uD83D\uDE00\u0022:null}",
+    "sha256": "0ba8c72dc2980fba77bc78a77ef667a6cb4d90b1779f17b1a7d3a76c93d7ce43"
+  },
+  {
+    "input": "[\n  true,false,\n  true,\n  1245507430162056]",
+    "canonical": "[true,false,true,1245507430162056]",
+    "sha256": "24bd8e01285e0fdbe973d84e9d05f7da8845dd3634e2ce951c87b4ca2d07f9e4"
+  },
+  {
+    "input": "[\t{\t\u0022\uFFFF\u0022: [897574535956368,\t[\tfalse],\n  -7663155139328892, \u0022\\ud83d\\uDE00\u0022], \u0022\\u007F\u0022 :\n  false,\t\u0022\\\u0022quoted\\\u0022\u0022 :{\t\u00221\u0022 :[ false, null],\u0022key with space\u0022 :true,\n  \u0022\u2028\u0022:\n  -0, \u0022A\u0022 :false},\u00222\u0022 :false\n  }]",
+    "canonical": "[{\u0022\\\u0022quoted\\\u0022\u0022:{\u00221\u0022:[false,null],\u0022A\u0022:false,\u0022key with space\u0022:true,\u0022\u2028\u0022:0},\u00222\u0022:false,\u0022\u007F\u0022:false,\u0022\uFFFF\u0022:[897574535956368,[false],-7663155139328892,\u0022\uD83D\uDE00\u0022]}]",
+    "sha256": "e5d5403771fb294dc9b2fb394a9e8d4587a649b2316af93f7648221d60a0ab0f"
+  },
+  {
+    "input": "{ \u0022\u20AC\u0022:\u0022\\u2028\\u2029\u0022,\n  \u0022A\u0022 : null,\n  \u0022\\\u0022quoted\\\u0022\u0022 :\t-1.00000000000000000E\u002B000,\u00222\u0022\n  :\n  [\n  [\n  true,{\t\u0022a\u0022\n  :\n  false },true],\t[ true,-4657626685743047]]\n  }",
+    "canonical": "{\u0022\\\u0022quoted\\\u0022\u0022:-1,\u00222\u0022:[[true,{\u0022a\u0022:false},true],[true,-4657626685743047]],\u0022A\u0022:null,\u0022\u20AC\u0022:\u0022\u2028\u2029\u0022}",
+    "sha256": "226d21ae624b98d1ac2d33d7d3aac50e6b2ed4053fd192a5bab16d7612b6b6b4"
+  },
+  {
+    "input": "[\n  {\t\u0022key with space\u0022\n  : false, \u0022\\uffff\u0022:\n  null,\u00221\u0022: true},true]",
+    "canonical": "[{\u00221\u0022:true,\u0022key with space\u0022:false,\u0022\uFFFF\u0022:null},true]",
+    "sha256": "46fa4527f437c8e7b79e66ef3ffe2da8caffc776018c7340dc0c9a1a6121dfab"
+  },
+  {
+    "input": "{\u0022\u0022:\u0022\u0022}",
+    "canonical": "{\u0022\u0022:\u0022\u0022}",
+    "sha256": "86cfeee6df382a203f626305afbca44d228cac67acd151ccf2db29530c548fea"
+  },
+  {
+    "input": "{\u002210\u0022:1,\u00222\u0022:2,\u00221\u0022:3,\u0022a\u0022:4,\u0022A\u0022:5}",
+    "canonical": "{\u00221\u0022:3,\u002210\u0022:1,\u00222\u0022:2,\u0022A\u0022:5,\u0022a\u0022:4}",
+    "sha256": "1a7b6a4d62a112694ec603738a920384f2473642359f5ec4cd743e5904aa7482"
+  },
+  {
+    "input": "{\u0022\\uffff\u0022:1,\u0022\\ud83d\\ude00\u0022:2}",
+    "canonical": "{\u0022\uD83D\uDE00\u0022:2,\u0022\uFFFF\u0022:1}",
+    "sha256": "48c5d098713870a7b88be7fc0ffc0a79e912d20f80ea8a4a5604426f49add103"
+  },
+  {
+    "input": "[\u0022\\u0000\\u0001\\u001f\\u007f\\u2028\\u2029\u0022]",
+    "canonical": "[\u0022\\u0000\\u0001\\u001f\u007F\u2028\u2029\u0022]",
+    "sha256": "0fe84c6e8d878166f29ad55fe382b106abbaaa0872907ef4807605a1df6d6261"
+  },
+  {
+    "input": "[-0, 0.0, 1.0E\u002B2, 0.000001, 1e-7, 1e21, 1e20, 12.990]",
+    "canonical": "[0,0,100,0.000001,1e-7,1e\u002B21,100000000000000000000,12.99]",
+    "sha256": "eeeb8f9473b01bd23ea865450fdd8b628490edc4193ba9864a2f810d5eba477d"
+  }
+]
