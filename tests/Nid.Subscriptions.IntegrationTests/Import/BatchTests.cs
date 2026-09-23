@@ -175,6 +175,29 @@ public class BatchTests(PostgresFixture fixture)
         Assert.Equal(ImportCodes.StringTooLong, await ImportClient.CodeOf(response));
     }
 
+    /// <summary>
+    /// RFC 8785 represents U+0000, PostgreSQL's jsonb does not (22P05): refused whole, before the session moves.
+    /// </summary>
+    [Theory]
+    [InlineData("""[{"id":"a\u0000b"}]""")]
+    [InlineData("""[{"id":"a","n\u0000":1}]""")]
+    [InlineData("""[{"id":"a","nest":[["\u0000"]]}]""")]
+    public async Task A_NUL_character_is_refused_as_malformed_before_anything_moves(string entities)
+    {
+        await using var app = await StartAsync();
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA);
+        await client.PutAsync(app.AdultA, session.Id, StubSection.Name, 0, """[{"id":"a"}]""");
+        var validated = await client.ValidateAsync(app.AdultA, session.Id);
+        Assert.Equal("validated", validated.State);
+
+        var response = await client.PutRawAsync(app.AdultA, session.Id, StubSection.Name, 1, entities);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(ImportCodes.MalformedEntity, await ImportClient.CodeOf(response));
+        Assert.Equal("validated", (await client.GetAsync(app.AdultA, session.Id)).State);
+    }
+
     [Fact]
     public async Task Another_person_cannot_send_batches_to_a_session()
     {

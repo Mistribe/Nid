@@ -54,8 +54,12 @@ public sealed class PutBatchHandler(
         var count = command.Entities.GetArrayLength();
         if (count > options.MaxEntitiesPerBatch)
             return Fail(new Failure(ImportCodes.TooManyEntities, $"A batch holds at most {options.MaxEntitiesPerBatch} entities.", null));
-        if (LongestString(command.Entities) > options.MaxStringLength)
+        var (longest, holdsNul) = Strings(command.Entities);
+        if (longest > options.MaxStringLength)
             return Fail(new Failure(ImportCodes.StringTooLong, $"A string holds at most {options.MaxStringLength} characters.", null));
+        // RFC 8785 writes U+0000 as \u0000, which PostgreSQL's jsonb refuses: the batch could never be staged.
+        if (holdsNul)
+            return Fail(new Failure(ImportCodes.MalformedEntity, "A string or a member name holds no U+0000 character.", null));
 
         string hash, canonical;
         try
@@ -129,12 +133,25 @@ public sealed class PutBatchHandler(
 
     private static Result<BatchView> Fail(Failure failure) => Result.Failure<BatchView>(failure);
 
-    private static int LongestString(JsonElement element) => element.ValueKind switch
+    /// <summary>The longest string or member name, and whether any of them holds U+0000.</summary>
+    private static (int Longest, bool HoldsNul) Strings(JsonElement element)
     {
-        JsonValueKind.String => element.GetString()!.Length,
-        JsonValueKind.Array => element.EnumerateArray().Select(LongestString).DefaultIfEmpty(0).Max(),
-        JsonValueKind.Object => element.EnumerateObject()
-            .Select(p => Math.Max(p.Name.Length, LongestString(p.Value))).DefaultIfEmpty(0).Max(),
-        _ => 0,
-    };
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                var value = element.GetString()!;
+                return (value.Length, value.Contains('\0'));
+            case JsonValueKind.Array:
+                return element.EnumerateArray().Select(Strings).Aggregate((0, false), Combine);
+            case JsonValueKind.Object:
+                return element.EnumerateObject()
+                    .Select(p => Combine((p.Name.Length, p.Name.Contains('\0')), Strings(p.Value)))
+                    .Aggregate((0, false), Combine);
+            default:
+                return (0, false);
+        }
+
+        static (int, bool) Combine((int Longest, bool HoldsNul) a, (int Longest, bool HoldsNul) b)
+            => (Math.Max(a.Longest, b.Longest), a.HoldsNul || b.HoldsNul);
+    }
 }
