@@ -1,3 +1,5 @@
 {
-  "app": { "name": "Nid" }
+  "app": { "name": "Nid" },
+  "theme": { "neutre": "Neutre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
+  "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" }
 }
