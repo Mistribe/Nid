@@ -13,7 +13,7 @@ import { aliceSession, allCapabilities } from './fixtures';
 export async function renderApp(path: string, options: { capabilities?: Capabilities; session?: Session } = {}) {
   const session = options.session ?? aliceSession;
   const capabilities = options.capabilities ?? allCapabilities;
-  const location = { pathname: '/', search: '', assign: vi.fn() };
+  const location = { pathname: '/', search: '', assign: vi.fn(), reload: vi.fn() };
   const queryClient = createQueryClient();
   const api = createApi({ getCsrf: () => session.csrf, onUnauthenticated: vi.fn() });
   const router = createAppRouter({ capabilities }, createMemoryHistory({ initialEntries: [path] }));

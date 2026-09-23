@@ -1,4 +1,5 @@
 import type { Api } from '@/api/client';
+import { ProblemError, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
 
 export type Preferences = components['schemas']['Preferences'];
@@ -10,10 +11,10 @@ export type Session = {
   preferences: Preferences;
 };
 
-/** `null` when nobody is signed in; throws when the session cannot be read at all. */
+/** `null` when nobody is signed in; throws (a `ProblemError` when the API answered) when the session cannot be read at all. */
 export async function loadSession(api: Api): Promise<Session | null> {
-  const { data } = await api.fetchClient.GET('/auth/session');
-  if (!data) throw new Error('The session could not be read.');
+  const { data, error } = await api.fetchClient.GET('/auth/session');
+  if (!data) throw new ProblemError(toProblem(error));
   if (!data.authenticated || !data.person || !data.csrf || data.sessionEpoch == null || !data.preferences) return null;
   return { person: data.person, csrf: data.csrf, sessionEpoch: data.sessionEpoch, preferences: data.preferences };
 }

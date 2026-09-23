@@ -22,6 +22,7 @@
     "settings": "Réglages"
   },
   "shell": { "sign_out": "Se déconnecter" },
+  "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "placeholder": {
     "title": "Bientôt ici",

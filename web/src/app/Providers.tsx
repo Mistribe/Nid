@@ -6,7 +6,7 @@ import type { components } from '@/api/schema';
 import type { Preferences, Session } from './session';
 
 export type Capabilities = components['schemas']['CapabilitiesView'];
-export type AppLocation = Pick<Location, 'pathname' | 'search' | 'assign'>;
+export type AppLocation = Pick<Location, 'pathname' | 'search' | 'assign' | 'reload'>;
 
 type SessionState = {
   session: Session;

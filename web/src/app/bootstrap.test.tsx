@@ -1,13 +1,15 @@
 import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSessionResponse, signedOutResponse } from '@/test/fixtures';
 import { server } from '@/test/server';
 import { bootstrap } from './bootstrap';
 import { loginUrl } from './session';
 
 function fakeLocation(pathname: string, search = '') {
-  return { pathname, search, assign: vi.fn() };
+  return { pathname, search, assign: vi.fn(), reload: vi.fn() };
 }
 
 describe('loginUrl', () => {
@@ -51,6 +53,56 @@ describe('bootstrap', () => {
     expect(document.documentElement.dataset.theme).toBe('sauge');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(localStorage.getItem('nid.theme')).toBe('sauge');
+
+    act(() => reactRoot?.unmount());
+  });
+
+  it('says so and offers to retry when the session cannot be read', async () => {
+    server.use(http.get('*/auth/session', () => HttpResponse.json({ status: 500, traceId: '00-t-05' }, { status: 500 })));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/subscriptions');
+
+    const reactRoot = await bootstrap({ root, location });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
+    expect(screen.getByRole('alert')).toHaveTextContent('00-t-05');
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Réessayer']);
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(location.assign).not.toHaveBeenCalled();
+    await expectNoAxeViolations(root);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Réessayer' }));
+    expect(location.reload).toHaveBeenCalledOnce();
+
+    act(() => reactRoot?.unmount());
+  });
+
+  it('says so when the API cannot be reached at all', async () => {
+    server.use(http.get('*/auth/session', () => HttpResponse.error()));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+
+    const reactRoot = await bootstrap({ root, location: fakeLocation('/') });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
+
+    act(() => reactRoot?.unmount());
+  });
+
+  it('never guesses the modules when the capabilities cannot be read', async () => {
+    server.use(http.get('*/api/v1/platform/capabilities', () => new HttpResponse(null, { status: 500 })));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+
+    const reactRoot = await bootstrap({ root, location: fakeLocation('/') });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Se déconnecter' })).not.toBeInTheDocument();
 
     act(() => reactRoot?.unmount());
   });
