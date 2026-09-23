@@ -27,6 +27,13 @@ public class AddressPolicyTests
     [InlineData("::ffff:169.254.169.254")]
     [InlineData("64:ff9b::a00:1")]
     [InlineData("2001:db8::1")]
+    [InlineData("::7f00:1")]          // IPv4-compatible ::/96, embeds 127.0.0.1
+    [InlineData("::a9fe:a9fe")]       // IPv4-compatible ::/96, embeds 169.254.169.254
+    [InlineData("::ffff:0:a00:1")]    // SIIT ::ffff:0:0:0/96, embeds 10.0.0.1
+    [InlineData("64:ff9b:1::a00:1")]  // local-use NAT64, refused wholesale
+    [InlineData("2001:2::1")]         // IANA special-purpose 2001::/23
+    [InlineData("3fff::1")]           // documentation
+    [InlineData("5f00::1")]           // reserved
     public void Refuses_private_loopback_link_local_and_reserved(string address)
         => Assert.False(AddressPolicy.IsAllowed(IPAddress.Parse(address)));
 
@@ -36,6 +43,7 @@ public class AddressPolicyTests
     [InlineData("172.32.0.1")]        // just outside 172.16/12
     [InlineData("2606:50c0:8000::154")]
     [InlineData("::ffff:8.8.8.8")]
+    [InlineData("64:ff9b::b9c7:6c85")] // well-known NAT64, embeds 185.199.108.133 (public)
     public void Allows_public_addresses(string address)
         => Assert.True(AddressPolicy.IsAllowed(IPAddress.Parse(address)));
 }
