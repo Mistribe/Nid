@@ -87,7 +87,14 @@ public sealed class PutBatchHandler(
 
         var now = clock.GetCurrentInstant();
         if (!await staging.AddBatchAsync(session.Id, new StoredBatch(command.Section, command.Index, hash, count, canonical), now, ct))
-            return Fail(SlotTaken(command));
+        {
+            // Lost the race for an empty slot. A concurrent PUT of the SAME content is still a replay, not a
+            // conflict (§11.2): re-read what actually landed and treat it exactly like the pre-check above.
+            var landed = await staging.FindBatchAsync(session.Id, command.Section, command.Index, ct);
+            return landed is not null && landed.Hash == hash
+                ? View(command, count, true, owner.ValidateBatch(command.Section, command.Entities, firstIndex))
+                : Fail(SlotTaken(command));
+        }
 
         // A new batch makes an earlier validation stale (§11.1): the session is open again.
         await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), ImportState.Open,

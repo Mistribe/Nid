@@ -30,6 +30,22 @@ public class BatchTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_slot_raced_by_two_PUTs_of_the_same_content_accepts_both()
+    {
+        await using var app = await StartAsync();
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA);
+
+        var responses = await Task.WhenAll(
+            client.PutRawAsync(app.AdultA, session.Id, StubSection.Name, 0, """[{"id":"a"}]"""),
+            client.PutRawAsync(app.AdultA, session.Id, StubSection.Name, 0, """[{"id":"a"}]"""));
+
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        Assert.Equal(1, await platform.Batches.CountAsync(b => b.SessionId == session.Id));
+    }
+
+    [Fact]
     public async Task A_taken_slot_refuses_different_content()
     {
         await using var app = await StartAsync();
@@ -83,8 +99,27 @@ public class BatchTests(PostgresFixture fixture)
         var unknown = await client.PutRawAsync(app.AdultA, session.Id, "gadgets", 0, "[]");
         var later = await client.PutRawAsync(app.AdultA, session.Id, "providers", 0, "[]");
 
+        // A named section the server does not know or does not support yet is a well-formed request the
+        // server refuses: 422, not 400 (see ImportCodes.BadRequests).
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, unknown.StatusCode);
         Assert.Equal(ImportCodes.UnknownSection, await ImportClient.CodeOf(unknown));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, later.StatusCode);
         Assert.Equal(ImportCodes.SectionNotSupported, await ImportClient.CodeOf(later));
+    }
+
+    [Fact]
+    public async Task Entities_that_are_not_an_array_are_refused_as_malformed()
+    {
+        await using var app = await StartAsync();
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA);
+
+        // The shape check runs before the hash check, so a valid-looking (but irrelevant) hash gets here.
+        var body = $"{{\"hash\":\"{new string('0', 64)}\",\"entities\":{{\"id\":\"a\"}}}}";
+        var response = await app.RawTextAsync(app.AdultA, HttpMethod.Put, $"{ImportClient.Root}/{session.Id}/batches/{StubSection.Name}/0", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(ImportCodes.MalformedEntity, await ImportClient.CodeOf(response));
     }
 
     [Fact]

@@ -63,7 +63,13 @@ public static class ImportCodes
     /// <summary>Answered with 409: the request is well formed but the session's state forbids it.</summary>
     public static IReadOnlySet<string> Conflicts { get; } = new HashSet<string> { SessionActive, State, SlotTaken };
 
-    /// <summary>Answered with 400: the request itself is refused before any rule is looked at.</summary>
+    /// <summary>
+    /// Answered with 400: the request itself is refused before any rule is looked at. <see cref="UnknownSection"/>
+    /// and <see cref="SectionNotSupported"/> are NOT here on purpose: naming a section is a well-formed request
+    /// the server currently refuses, which is 422, not 400 — the same distinction <see cref="MalformedEntity"/>
+    /// draws when it is a request failure (a batch whose shape or JSON is unreadable) rather than a per-entity
+    /// issue reported inside an accepted-but-flagged batch.
+    /// </summary>
     public static IReadOnlySet<string> BadRequests { get; } =
-        new HashSet<string> { UnsupportedFormat, HashMismatch, TooManyEntities, StringTooLong };
+        new HashSet<string> { UnsupportedFormat, HashMismatch, TooManyEntities, StringTooLong, MalformedEntity };
 }
