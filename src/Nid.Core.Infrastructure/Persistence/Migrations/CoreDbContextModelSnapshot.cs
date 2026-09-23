@@ -24,6 +24,108 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FxRateRow", b =>
+                {
+                    b.Property<LocalDate>("OnDate")
+                        .HasColumnType("date")
+                        .HasColumnName("on_date");
+
+                    b.Property<string>("Quote")
+                        .HasColumnType("char(3)")
+                        .HasColumnName("quote");
+
+                    b.Property<Instant>("FetchedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("numeric(19,10)")
+                        .HasColumnName("rate");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.HasKey("OnDate", "Quote")
+                        .HasName("pk_fx_rate");
+
+                    b.ToTable("fx_rate", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_fx_rate_not_usd", "quote <> 'USD'");
+
+                            t.HasCheckConstraint("ck_fx_rate_positive", "rate > 0");
+
+                            t.HasCheckConstraint("ck_fx_rate_source", "source in ('ecb','subtracker_data','manual')");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FxSyncRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("FailureCode")
+                        .HasColumnType("text")
+                        .HasColumnName("failure_code");
+
+                    b.Property<string>("FailureMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("failure_message");
+
+                    b.Property<int>("FilesRead")
+                        .HasColumnType("integer")
+                        .HasColumnName("files_read");
+
+                    b.Property<Instant?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Rejected")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("rejected");
+
+                    b.Property<int>("RowsWritten")
+                        .HasColumnType("integer")
+                        .HasColumnName("rows_written");
+
+                    b.Property<Instant>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fx_sync_run");
+
+                    b.HasIndex("StartedAt")
+                        .HasDatabaseName("ix_fx_sync_run_started_at");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fx_sync_run_status")
+                        .HasFilter("status = 'running'");
+
+                    b.ToTable("fx_sync_run", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_fx_sync_run_kind", "kind in ('daily','backfill')");
+
+                            t.HasCheckConstraint("ck_fx_sync_run_status", "status in ('running','succeeded','failed')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.HouseholdSettingsRow", b =>
                 {
                     b.Property<int>("Id")

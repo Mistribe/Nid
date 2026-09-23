@@ -12,6 +12,8 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<PersonRow> Persons => Set<PersonRow>();
     public DbSet<ItemRow> Items => Set<ItemRow>();
     public DbSet<OwnershipRow> Ownerships => Set<OwnershipRow>();
+    public DbSet<FxRateRow> FxRates => Set<FxRateRow>();
+    public DbSet<FxSyncRunRow> FxSyncRuns => Set<FxSyncRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +58,36 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.ToTable("ownership", t => t.HasCheckConstraint("ck_ownership_share", "share_bp between 1 and 10000"));
             e.HasKey(x => new { x.ItemId, x.PersonId });
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<FxRateRow>(e =>
+        {
+            e.ToTable("fx_rate", t =>
+            {
+                t.HasCheckConstraint("ck_fx_rate_positive", "rate > 0");
+                t.HasCheckConstraint("ck_fx_rate_not_usd", "quote <> 'USD'");
+                t.HasCheckConstraint("ck_fx_rate_source", "source in ('ecb','subtracker_data','manual')");
+            });
+            e.HasKey(x => new { x.OnDate, x.Quote });
+            e.Property(x => x.Quote).HasColumnType("char(3)");
+            e.Property(x => x.Rate).HasColumnType("numeric(19,10)");
+            e.Property(x => x.FetchedAt).HasDefaultValueSql("now()");
+        });
+
+        modelBuilder.Entity<FxSyncRunRow>(e =>
+        {
+            e.ToTable("fx_sync_run", t =>
+            {
+                t.HasCheckConstraint("ck_fx_sync_run_kind", "kind in ('daily','backfill')");
+                t.HasCheckConstraint("ck_fx_sync_run_status", "status in ('running','succeeded','failed')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Rejected).HasColumnType("jsonb");
+            // At most one running row: every running row has the same status, so a unique partial index on it
+            // admits only one. This is what turns a second POST /sync into a 409 (design §6.3).
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'running'");
+            e.HasIndex(x => x.StartedAt);
         });
 
         ApplySnakeCase(modelBuilder);

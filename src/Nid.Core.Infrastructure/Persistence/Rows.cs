@@ -44,3 +44,26 @@ public sealed class OwnershipRow
     public Guid PersonId { get; set; }
     public int ShareBp { get; set; }
 }
+
+public sealed class FxRateRow
+{
+    public LocalDate OnDate { get; set; }
+    public string Quote { get; set; } = "";
+    public decimal Rate { get; set; }
+    public string Source { get; set; } = "";
+    public Instant FetchedAt { get; set; }
+}
+
+public sealed class FxSyncRunRow
+{
+    public Guid Id { get; set; }
+    public string Kind { get; set; } = "";
+    public Instant StartedAt { get; set; }
+    public Instant? FinishedAt { get; set; }
+    public string Status { get; set; } = "";
+    public int FilesRead { get; set; }
+    public int RowsWritten { get; set; }
+    public string? FailureCode { get; set; }
+    public string? FailureMessage { get; set; }
+    public string Rejected { get; set; } = "[]";
+}
