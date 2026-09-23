@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import '@/app/i18n';
-import { afterEach } from 'vitest';
+import { afterAll, afterEach, beforeAll } from 'vitest';
+import { server } from './server';
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -11,8 +12,14 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+// Any request no test expects is a failure, not a silent network call.
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+
 afterEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   document.documentElement.className = '';
+  server.resetHandlers();
 });
+
+afterAll(() => server.close());
