@@ -1956,6 +1956,7 @@ export interface components {
             /** Format: int32 */
             sessionEpoch?: null | number;
             preferences?: null | components["schemas"]["Preferences"];
+            identityProvider?: null | string;
         };
         StartImportBody: {
             format: string;

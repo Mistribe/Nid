@@ -106,4 +106,38 @@ describe('bootstrap', () => {
 
     act(() => reactRoot?.unmount());
   });
+
+  it('shows the signed-out page without sending you back to login', async () => {
+    server.use(http.get('*/auth/session', () =>
+      HttpResponse.json({ ...signedOutResponse, identityProvider: 'https://auth.example.test' })));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/signed-out');
+
+    const reactRoot = await bootstrap({ root, location });
+
+    expect(await screen.findByRole('heading', { name: 'Vous êtes déconnecté de Nid' })).toBeInTheDocument();
+    expect(screen.getByText(/reste ouverte sur cet appareil/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: "Ouvrir le portail d'identité" })).toHaveAttribute('href', 'https://auth.example.test');
+    expect(screen.getByRole('link', { name: 'Se reconnecter' })).toHaveAttribute('href', '/auth/login?returnUrl=%2F');
+    expect(location.assign).not.toHaveBeenCalled();
+    await expectNoAxeViolations(root);
+
+    act(() => reactRoot?.unmount());
+  });
+
+  it('offers no portal link when the identity provider is not known', async () => {
+    server.use(http.get('*/auth/session', () => HttpResponse.error()));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/signed-out');
+
+    const reactRoot = await bootstrap({ root, location });
+
+    expect(await screen.findByRole('heading', { name: 'Vous êtes déconnecté de Nid' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Se reconnecter']);
+    expect(location.assign).not.toHaveBeenCalled();
+
+    act(() => reactRoot?.unmount());
+  });
 });

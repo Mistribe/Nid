@@ -2549,6 +2549,12 @@
                 "$ref": "#/components/schemas/Preferences"
               }
             ]
+          },
+          "identityProvider": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

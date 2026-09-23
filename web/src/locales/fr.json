@@ -22,6 +22,12 @@
     "settings": "Réglages"
   },
   "shell": { "sign_out": "Se déconnecter" },
+  "signed_out": {
+    "title": "Vous êtes déconnecté de Nid",
+    "sso_open": "Votre session auprès du fournisseur d'identité reste ouverte sur cet appareil : se reconnecter à Nid ne demandera pas de mot de passe. Sur un appareil partagé, fermez-la aussi depuis le portail d'identité.",
+    "portal": "Ouvrir le portail d'identité",
+    "sign_in_again": "Se reconnecter"
+  },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "placeholder": {

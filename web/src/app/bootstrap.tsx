@@ -1,11 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { createApi } from '@/api/client';
+import { createApi, type Api } from '@/api/client';
 import { isProblem, present, toProblem } from '@/api/errors';
 import { App } from './App';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
-import { loadSession, loginUrl, type Session } from './session';
+import { loadSession, loginUrl, SIGNED_OUT_PATH, type Session } from './session';
+import { SignedOutPage } from './SignedOutPage';
 import { StartupFailure } from './StartupFailure';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from './theme';
 
@@ -29,6 +30,24 @@ function renderFailure(root: HTMLElement, location: AppLocation, error: unknown)
   return reactRoot;
 }
 
+/** The signed-out page reads the session only for the portal's address; without it, it offers no portal link. */
+async function renderSignedOut(root: HTMLElement, api: Api): Promise<Root> {
+  let identityProvider: string | null = null;
+  try {
+    const { data } = await api.fetchClient.GET('/auth/session');
+    identityProvider = data?.identityProvider ?? null;
+  } catch {
+    // Unreachable API: the page still says you are signed out, just without the link.
+  }
+  const reactRoot = createRoot(root);
+  reactRoot.render(
+    <StrictMode>
+      <SignedOutPage identityProvider={identityProvider} />
+    </StrictMode>,
+  );
+  return reactRoot;
+}
+
 /** frontend/architecture.md §3: session, preferences, capabilities, then the app. `null` when it redirected to login instead of rendering. */
 export async function bootstrap({ root, location }: { root: HTMLElement; location: AppLocation }): Promise<Root | null> {
   let csrf: string | null = null;
@@ -40,6 +59,9 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
       location.assign(loginUrl(location));
     },
   });
+
+  // Never the login redirect here: the identity provider's open session would sign the same person straight back in.
+  if (location.pathname === SIGNED_OUT_PATH) return renderSignedOut(root, api);
 
   let session: Session | null;
   try {

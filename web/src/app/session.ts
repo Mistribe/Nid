@@ -19,6 +19,9 @@ export async function loadSession(api: Api): Promise<Session | null> {
   return { person: data.person, csrf: data.csrf, sessionEpoch: data.sessionEpoch, preferences: data.preferences };
 }
 
+/** Where signing out lands: rendered without the login redirect, it says what stays open (SignedOutPage). */
+export const SIGNED_OUT_PATH = '/signed-out';
+
 /** A relative path only: /auth/login refuses anything else (ReturnUrl.IsSafe). */
 export const loginUrl = (location: Pick<Location, 'pathname' | 'search'>): string =>
   `/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`;

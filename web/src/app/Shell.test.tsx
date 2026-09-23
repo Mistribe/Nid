@@ -43,7 +43,7 @@ describe('the shell', () => {
     expect(await screen.findByRole('heading', { name: 'Cet élément est introuvable.' })).toBeInTheDocument();
   });
 
-  it('signs out with the CSRF token and leaves', async () => {
+  it('signs out with the CSRF token and says what stays open', async () => {
     let csrf: string | null = null;
     server.use(http.post('*/auth/logout', ({ request }) => {
       csrf = request.headers.get('X-Nid-Csrf');
@@ -54,7 +54,7 @@ describe('the shell', () => {
     await user.click(screen.getByRole('button', { name: 'Se déconnecter' }));
 
     expect(csrf).toBe('csrf-alice');
-    expect(location.assign).toHaveBeenCalledWith('/');
+    expect(location.assign).toHaveBeenCalledWith('/signed-out');
   });
 
   it('stays when the sign-out is refused', async () => {
