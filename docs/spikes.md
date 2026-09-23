@@ -127,8 +127,9 @@ retenir pour les sous-plans suivants :
 
 - Dans le flux OIDC (§8) : `session_epoch`, la réponse `401` sans redirection pour les appels d'API (un essai montre `401` sur `/whoami` non authentifié, mais pas dans l'application finale), la première connexion simultanée des deux adultes, et le comportement de PAR avec `client_secret_post`.
 - Un `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) : seule la faisabilité transactionnelle est vérifiée.
-- Quartz.NET sur Postgres, le SDK MCP C# en exécution, la génération de client OpenAPI, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).
+- Quartz.NET sur Postgres, le SDK MCP C# en exécution, ~~la génération de client OpenAPI~~, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).
 - ~~La canonicalisation contre les vecteurs officiels de la RFC 8785.~~ Vérifiée le 2026-09-23 (1D1), voir §5.
+- ~~La génération de client OpenAPI.~~ Vérifiée le 2026-09-23 (1E1) : document généré au build (`Microsoft.Extensions.ApiDescription.Server`) puis client `openapi-typescript`, tous deux régénérés et comparés par la CI.
 - Les performances sous charge (les volumes du projet sont petits).
 
 ## 9bis. `IsAotCompatible` sur `Nid.Subscriptions.Domain` (vérifié le 2026-09-22)
