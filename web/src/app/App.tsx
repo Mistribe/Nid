@@ -1,6 +1,5 @@
-import { useTranslation } from 'react-i18next';
+import { AppRouter } from './router';
 
 export function App() {
-  const { t } = useTranslation();
-  return <h1>{t('app.name')}</h1>;
+  return <AppRouter />;
 }

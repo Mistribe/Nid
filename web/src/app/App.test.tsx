@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { App } from './App';
+import { renderApp } from '@/test/renderApp';
 
 describe('App', () => {
-  it('shows the application name through i18n', () => {
-    render(<App />);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Nid');
+  it('shows the application name through i18n', async () => {
+    await renderApp('/subscriptions');
+    expect(screen.getAllByText('Nid').length).toBeGreaterThan(0);
   });
 });

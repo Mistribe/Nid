@@ -13,6 +13,9 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+// jsdom has no layout, so it has nothing to scroll; the router calls this on every navigation.
+window.scrollTo = () => {};
+
 // Any request no test expects is a failure, not a silent network call.
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 

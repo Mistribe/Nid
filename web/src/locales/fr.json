@@ -12,5 +12,21 @@
     "bad_request": "La demande n'a pas pu être lue. Rechargez la page puis réessayez.",
     "unexpected": "Une erreur inattendue est survenue. Réessayez dans un instant.",
     "request_id": "Identifiant pour le support : {{id}}"
-  }
+  },
+  "nav": {
+    "sidebar": "Navigation principale",
+    "tabs": "Onglets",
+    "home": "Revenir à l'accueil",
+    "subscriptions": "Abonnements",
+    "import": "Import",
+    "settings": "Réglages"
+  },
+  "shell": { "sign_out": "Se déconnecter" },
+  "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
+  "placeholder": {
+    "title": "Bientôt ici",
+    "subscriptions": "La liste de vos abonnements arrive avec la prochaine version.",
+    "import": "L'assistant d'import arrive avec une prochaine version."
+  },
+  "settings": { "appearance": { "title": "Apparence" } }
 }

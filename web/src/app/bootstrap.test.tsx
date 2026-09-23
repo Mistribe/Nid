@@ -47,7 +47,7 @@ describe('bootstrap', () => {
 
     const reactRoot = await bootstrap({ root, location: fakeLocation('/') });
 
-    expect(await screen.findByText('Nid')).toBeInTheDocument();
+    expect(await screen.findAllByText('Nid')).toHaveLength(2);
     expect(document.documentElement.dataset.theme).toBe('sauge');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(localStorage.getItem('nid.theme')).toBe('sauge');
