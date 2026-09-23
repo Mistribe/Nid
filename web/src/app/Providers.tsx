@@ -33,7 +33,8 @@ export function Providers(props: {
     capabilities,
     setPreferences: (preferences) => setSession((current) => ({ ...current, preferences })),
     signOut: async () => {
-      await api.fetchClient.POST('/auth/logout');
+      const { response } = await api.fetchClient.POST('/auth/logout');
+      if (!response.ok) return; // still signed in: leaving would pretend otherwise
       queryClient.clear();
       location.assign('/');
     },

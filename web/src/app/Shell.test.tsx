@@ -57,6 +57,16 @@ describe('the shell', () => {
     expect(location.assign).toHaveBeenCalledWith('/');
   });
 
+  it('stays when the sign-out is refused', async () => {
+    server.use(http.post('*/auth/logout', () => new HttpResponse(null, { status: 403 })));
+    const { location, user } = await renderApp('/subscriptions');
+
+    await user.click(screen.getByRole('button', { name: 'Se déconnecter' }));
+
+    expect(location.assign).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeInTheDocument();
+  });
+
   it('has no accessibility violation', async () => {
     const { container } = await renderApp('/subscriptions');
     await expectNoAxeViolations(container);

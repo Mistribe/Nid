@@ -25,9 +25,17 @@ export function createApi(options: ApiOptions) {
       if (token && UNSAFE_METHODS.has(request.method)) request.headers.set(CSRF_HEADER, token);
       return request;
     },
-    onResponse({ response }) {
+    async onResponse({ response }) {
       if (response.status === 401) options.onUnauthenticated();
-      return response;
+      if (response.ok) return response;
+      // A bare 401/403/502 (cookie scheme, CSRF filter, proxy) has no body; openapi-fetch would then report
+      // no error at all and the caller would take the failure for a success. Give it a Problem with its status.
+      if ((await response.clone().text()) !== '') return response;
+      return new Response(JSON.stringify({ status: response.status }), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: { 'content-type': 'application/problem+json' },
+      });
     },
   };
   fetchClient.use(middleware);
