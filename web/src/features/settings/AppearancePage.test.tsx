@@ -133,6 +133,9 @@ describe('Réglages › Apparence', () => {
 
     releases[0]?.();
     await waitFor(() => expect(sent).toHaveLength(2));
+    // The first save has landed, but the newer choice is still the one on screen and on file.
+    expect(html().dataset.theme).toBe('terre');
+    expect(localStorage.getItem('nid.theme')).not.toBe('sauge');
     releases[1]?.();
 
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Terre' })).toBeChecked());

@@ -23,8 +23,10 @@ export function AppearancePage() {
   const { $api } = useApi();
   const { session, setPreferences } = useSession();
   const [problem, setProblem] = useState<Presentation | null>(null);
-  // The not-yet-confirmed choice, so a preview restore or a further pick reflects it
-  // instead of falling back to a stale `session.preferences` while a save is in flight.
+  // The not-yet-confirmed choice, so a preview restore or a further pick builds on it
+  // instead of a stale `session.preferences` while a save is in flight. The radios do not
+  // show it: they follow the SAVED preferences (pessimistic writes, frontend/architecture.md §6),
+  // only the page's look follows the choice at once.
   const [desired, setDesired] = useState<Choice | null>(null);
   const pending = useRef(0);
 
@@ -39,16 +41,17 @@ export function AppearancePage() {
     scope: { id: 'preferences' },
     onSuccess: (preferences) => {
       pending.current -= 1;
-      const theme = resolveTheme(preferences.theme);
-      const mode = resolveMode(preferences.mode);
-      applyTheme(theme, mode);
-      rememberTheme(theme, mode);
       setPreferences(preferences);
-      // Only the last of a run of saves clears the not-yet-confirmed choice: an earlier one
-      // settling first must not make radios fall back to a saved value another save will still change.
+      // Only the last of a run of saves applies what the server confirmed and clears the
+      // not-yet-confirmed choice: an earlier one settling first must not flash the page (or the
+      // local copy theme-init.js reads) back to a value a queued save is about to change.
       // The same point also clears a problem an earlier save in the run may have raised — this
       // save's own success is the last word on whether the choice landed (Ruling T10c).
       if (pending.current === 0) {
+        const theme = resolveTheme(preferences.theme);
+        const mode = resolveMode(preferences.mode);
+        applyTheme(theme, mode);
+        rememberTheme(theme, mode);
         setDesired(null);
         setProblem(null);
       }
