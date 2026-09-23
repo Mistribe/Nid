@@ -14,7 +14,8 @@ namespace Nid.Subscriptions.Application.Import;
 /// <see cref="IItemRegistry"/> and <see cref="ISubscriptionStore"/> as the API; rules come from the Core and the
 /// engine, never from here.
 /// </summary>
-public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules)
+public sealed class SubscriptionsImportSection(
+    IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules, IFxRates fx, IHouseholdSettings household)
     : IImportSection
 {
     public const string Subscriptions = "subscriptions";
@@ -260,6 +261,7 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
 
         // The engine's own validation and findings, on what the subscription will hold once committed.
         var horizon = Horizons.Resolve(context.Today, null);
+        var checkedRuns = new List<(DryRun Run, Timeline Timeline)>();
         foreach (var run in runs.Values)
         {
             var built = SubscriptionTimeline.Build(run.Input(run.Phases, run.Purchases), context.Today, horizon);
@@ -271,11 +273,42 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
             }
 
             built.TryGetValue(out var timeline);
+            checkedRuns.Add((run, timeline!));
             // horizon_reached only says an open phase keeps renewing: true of every live subscription, and a
             // concern of reads (1C1 design §5), not of an import.
             foreach (var finding in timeline!.Warnings.Where(w => w.Code != "subscriptions.horizon_reached"))
                 issues.Add(ImportIssue.Warning(finding.Code, finding.Message,
                     finding.Reference is { } reference && paths.TryGetValue(reference, out var at) ? at : run.Path));
+        }
+
+        // 1C2a design §5.4: a payment in another currency with no rate at its date is worth saying before the
+        // commit — the backfill has not run yet, or neither source covers that currency. Never blocking.
+        var referenceCurrency = await household.ReferenceCurrencyAsync(ct);
+        var paid = checkedRuns
+            .SelectMany(r => r.Timeline.Charges.Where(c => !c.IsProjected).Select(c => (r.Run, Charge: c)))
+            .ToList();
+        var need = FxConversion.Need(paid.Select(p => Piece(p.Charge)), referenceCurrency);
+        if (need is not null)
+        {
+            var table = await fx.LoadAsync(need.Quotes, need.From, need.To, ct);
+            var reported = new HashSet<(string Path, FxMiss Miss)>();
+            foreach (var (run, charge) in paid)
+            {
+                if (table.TryConvert(charge.Price.Amount, charge.Price.Currency, referenceCurrency, charge.Date, false, out _, out var miss))
+                    continue;
+
+                var origin = charge.Origin switch
+                {
+                    ChargeOrigin.FromPurchase p => p.PurchaseId.ToString(),
+                    ChargeOrigin.FromPhase p => p.PhaseId.ToString(),
+                    _ => null,
+                };
+                var at = origin is not null && paths.TryGetValue(origin, out var found) ? found : run.Path;
+                if (reported.Add((at, miss)))
+                    issues.Add(ImportIssue.Warning(FxCodes.RateMissing,
+                        $"No {miss.Currency.Code} rate on or within {table.MaxGapDays} days before {miss.Date}: the totals of this payment stay in {charge.Price.Currency.Code}.",
+                        at));
+            }
         }
 
         counts = tally;
@@ -438,4 +471,6 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
     private static Result<IReadOnlyDictionary<string, SectionCounts>> FailureOf<T>(Result<T> result) where T : notnull
         => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(
             result.TryGetFailure(out var failure) ? failure! : new Failure(ImportCodes.ApplyFailed, "A write failed.", null));
+
+    private static CostPiece Piece(Charge charge) => new(charge.Date, charge.Price.Currency, charge.Price.Amount, charge.IsProjected);
 }
