@@ -3,6 +3,7 @@ import { defineConfig } from 'eslint/config';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import nid from './eslint-rules/index.js';
 
 export default defineConfig(
   { ignores: ['dist', 'src/api/schema.d.ts'] },
@@ -28,6 +29,15 @@ export default defineConfig(
         message: 'Imported labels, notes and model output are shown as plain text (frontend/architecture.md §9).',
       }],
     },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: { nid },
+    rules: { 'nid/no-amount-arithmetic': 'error', 'nid/no-literal-jsx-text': 'error' },
+  },
+  {
+    files: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
+    rules: { 'nid/no-literal-jsx-text': 'off' },
   },
   {
     files: ['**/*.js', '**/*.mjs', 'public/**'],
