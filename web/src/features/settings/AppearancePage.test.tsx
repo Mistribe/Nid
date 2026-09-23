@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -13,6 +13,18 @@ function acceptPreferences(sent: Body[]) {
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
     return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
   }));
+}
+
+/** Holds every request open until its own `release()` is called, in the order they arrive. */
+function queuePreferences(sent: Body[]) {
+  const releases: Array<() => void> = [];
+  server.use(http.patch('*/api/v1/core/me/preferences', async ({ request }) => {
+    const body = (await request.json()) as Body;
+    sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
+    await new Promise<void>((resolve) => releases.push(resolve));
+    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
+  }));
+  return releases;
 }
 
 const html = () => document.documentElement;
@@ -63,6 +75,70 @@ describe('Réglages › Apparence', () => {
     expect(html().dataset.theme).toBe('neutre');
     expect(screen.getByRole('radio', { name: 'Neutre' })).toBeChecked();
     expect(localStorage.getItem('nid.theme')).toBeNull();
+  });
+
+  it('previews a theme on focus and restores the current choice on blur', async () => {
+    await renderApp('/settings/appearance');
+    const terre = screen.getByRole('radio', { name: 'Terre' });
+
+    fireEvent.focus(terre);
+    expect(html().dataset.theme).toBe('terre');
+    fireEvent.blur(terre);
+    expect(html().dataset.theme).toBe('neutre');
+  });
+
+  it('keeps dark applied through a hover preview while a mode save is pending', async () => {
+    const sent: Body[] = [];
+    const releases = queuePreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Sombre' }));
+    expect(html().classList.contains('dark')).toBe(true);
+
+    const terre = screen.getByRole('radio', { name: 'Terre' }).closest('label')!;
+    await user.hover(terre);
+    expect(html().classList.contains('dark')).toBe(true);
+    await user.unhover(terre);
+    expect(html().classList.contains('dark')).toBe(true);
+
+    releases[0]?.();
+    await waitFor(() => expect(sent).toEqual([{ mode: 'dark', csrf: 'csrf-alice' }]));
+  });
+
+  it('serializes overlapping theme choices and ends on the latest one', async () => {
+    const sent: Body[] = [];
+    const releases = queuePreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Sauge' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    await user.click(screen.getByRole('radio', { name: 'Terre' }));
+    expect(sent).toHaveLength(1);
+
+    releases[0]?.();
+    await waitFor(() => expect(sent).toHaveLength(2));
+    releases[1]?.();
+
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Terre' })).toBeChecked());
+    expect(sent).toEqual([
+      { theme: 'sauge', csrf: 'csrf-alice' },
+      { theme: 'terre', csrf: 'csrf-alice' },
+    ]);
+    expect(html().dataset.theme).toBe('terre');
+    expect(localStorage.getItem('nid.theme')).toBe('terre');
+  });
+
+  it('puts the saved mode back and says so when saving fails', async () => {
+    server.use(http.patch('*/api/v1/core/me/preferences', () =>
+      HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-02' }, { status: 500 })));
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Sombre' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
+    expect(html().classList.contains('dark')).toBe(false);
+    expect(screen.getByRole('radio', { name: 'Système' })).toBeChecked();
   });
 
   it('saves the chart patterns option', async () => {

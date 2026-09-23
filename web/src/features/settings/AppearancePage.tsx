@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
@@ -11,47 +11,74 @@ import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
 
 type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns'>>;
 
+/** The latest choice the person made, applied locally, that the server hasn't confirmed yet. */
+type Choice = { theme: ThemeId; mode: Mode };
+
+const isDark = (mode: Mode, media: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)')): boolean =>
+  mode === 'dark' || (mode === 'system' && media.matches);
+
 /** design-system.md §7.5: mode, theme, chart patterns; applied at once, saved per person on the server. */
 export function AppearancePage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { session, setPreferences } = useSession();
   const [problem, setProblem] = useState<Presentation | null>(null);
+  // The not-yet-confirmed choice, so a preview restore or a further pick reflects it
+  // instead of falling back to a stale `session.preferences` while a save is in flight.
+  const [desired, setDesired] = useState<Choice | null>(null);
+  const pending = useRef(0);
 
   const savedTheme = resolveTheme(session.preferences.theme);
   const savedMode = resolveMode(session.preferences.mode);
-  const restore = () => applyTheme(savedTheme, savedMode);
+  const current = desired ?? { theme: savedTheme, mode: savedMode };
+  const restoreCurrent = () => applyTheme(current.theme, current.mode);
 
   const save = $api.useMutation('patch', '/api/v1/core/me/preferences', {
+    // Same-scope mutations run one after another, in the order they were started, so two
+    // overlapping saves can never resolve out of order (design review, Ruling T10a).
+    scope: { id: 'preferences' },
     onSuccess: (preferences) => {
+      pending.current -= 1;
       const theme = resolveTheme(preferences.theme);
       const mode = resolveMode(preferences.mode);
       applyTheme(theme, mode);
       rememberTheme(theme, mode);
       setPreferences(preferences);
+      // Only the last of a run of saves clears the not-yet-confirmed choice: an earlier one
+      // settling first must not make radios fall back to a saved value another save will still change.
+      if (pending.current === 0) setDesired(null);
     },
     onError: (error) => {
-      restore();
+      pending.current -= 1;
+      setDesired(null);
+      applyTheme(savedTheme, savedMode);
       setProblem(present(toProblem(error)));
     },
   });
 
   const change = (body: Change) => {
     setProblem(null);
+    pending.current += 1;
     save.mutate({ body });
   };
 
   const chooseTheme = (theme: ThemeId) => {
-    applyTheme(theme, savedMode);
+    const next: Choice = { theme, mode: current.mode };
+    applyTheme(next.theme, next.mode);
+    setDesired(next);
     change({ theme });
   };
 
   const chooseMode = (mode: Mode) => {
-    applyTheme(savedTheme, mode);
+    const next: Choice = { theme: current.theme, mode };
+    applyTheme(next.theme, next.mode);
+    setDesired(next);
     change({ mode });
   };
 
-  const darkNow = document.documentElement.classList.contains('dark');
+  const previewTheme = (theme: ThemeId) => applyTheme(theme, current.mode);
+
+  const darkNow = isDark(current.mode);
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -75,15 +102,24 @@ export function AppearancePage() {
             <label
               key={theme.id}
               data-theme={theme.id}
-              onMouseEnter={() => applyTheme(theme.id, savedMode)}
-              onMouseLeave={restore}
+              onMouseEnter={() => previewTheme(theme.id)}
+              onMouseLeave={restoreCurrent}
               className={cn(
                 'flex cursor-pointer flex-col gap-3 rounded-lg border bg-background p-4 text-foreground',
                 'has-[:checked]:ring-2 has-[:checked]:ring-ring has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
                 darkNow && 'dark',
               )}
             >
-              <input type="radio" name="theme" value={theme.id} checked={savedTheme === theme.id} onChange={() => chooseTheme(theme.id)} className="sr-only" />
+              <input
+                type="radio"
+                name="theme"
+                value={theme.id}
+                checked={savedTheme === theme.id}
+                onChange={() => chooseTheme(theme.id)}
+                onFocus={() => previewTheme(theme.id)}
+                onBlur={restoreCurrent}
+                className="sr-only"
+              />
               <span className="flex gap-1" aria-hidden="true">
                 <span className="size-6 rounded-full bg-primary" />
                 <span className="size-6 rounded-full bg-muted" />
