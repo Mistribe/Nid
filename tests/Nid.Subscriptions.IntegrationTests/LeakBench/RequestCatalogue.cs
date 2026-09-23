@@ -2,6 +2,7 @@ using System.Reflection;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.Platform.Import;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
@@ -129,6 +130,14 @@ public static class RequestCatalogue
             BuildNamingAnother = async (data, target, other) =>
                 new DeletePurchaseCommand(target, await data.App.SeedPurchaseGrantingToAsync(target, other)),
         },
+
+        // Import sessions are the person's own, not items: B naming A's session id is the same 404 as a
+        // random id, which ImportTests checks endpoint by endpoint (SessionTests, BatchTests).
+        new(typeof(StartImportCommand), false,
+            (_, _) => new StartImportCommand("nid.data", 1, new Dictionary<string, PersonId>())),
+        new(typeof(GetImportQuery), false, (_, _) => new GetImportQuery(Guid.NewGuid())),
+        new(typeof(ListImportsQuery), false, (_, _) => new ListImportsQuery()),
+        new(typeof(CancelImportCommand), false, (_, _) => new CancelImportCommand(Guid.NewGuid())),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

@@ -127,6 +127,19 @@ public sealed class NidApp : IAsyncDisposable
         return await client.SendAsync(request);
     }
 
+    /// <summary>Like <see cref="RawAsync"/>, with a body sent exactly as given.</summary>
+    public async Task<HttpResponseMessage> RawTextAsync(PersonId actor, HttpMethod method, string url, string json)
+    {
+        using var client = ClientFor(actor);
+        using var request = new HttpRequestMessage(method, url)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        };
+        if (!SafeMethods.Contains(method.Method))
+            request.Headers.Add(CsrfMiddleware.HeaderName, await CsrfTokenForAsync(actor));
+        return await client.SendAsync(request);
+    }
+
     /// <summary>
     /// A real CSRF token, bound to the actor and their session epoch, obtained from <c>/auth/session</c>
     /// exactly as a browser would (see <c>deploy/dev/smoke.sh</c>) — never a bypass of

@@ -92,6 +92,7 @@ public class LeakBenchTests(PostgresFixture fixture)
 
         var groups = RequestCatalogue.RegisterGroups.Select(g => g.GetType()).ToList();
         Assert.Contains(typeof(Nid.Host.RegisterGroup), groups);
+        Assert.Contains(typeof(Nid.Platform.RegisterGroup), groups);
         Assert.Contains(typeof(Nid.Core.Application.RegisterGroup), groups);
         Assert.Contains(typeof(Nid.Subscriptions.Application.RegisterGroup), groups);
     }

@@ -57,11 +57,13 @@ public static class NidServiceCollectionExtensions
         }));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<PlatformDbContext>>();
         services.AddScoped<IImportStaging, ImportStagingStore>();
+        services.AddSingleton(new ImportOptions());
 
         services.AddLogging();
         services.AddSynapse(cfg =>
         {
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors
+            cfg.AddRegisterGroup(new Nid.Platform.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Core.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
         });

@@ -55,7 +55,7 @@ public sealed class ActorBehavior<TRequest, TResponse>(IActorAccessor accessor)
             : next(request, cancellationToken);
 }
 
-/// <summary>Reads need <c>read</c>, commands need <c>write</c>.</summary>
+/// <summary>Reads need <c>read</c>, commands need <c>write</c>, and a request may declare more (<see cref="IRequiresScope"/>).</summary>
 public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
@@ -66,7 +66,9 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     public ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
-        var required = request is ICommandMarker ? ScopeNames.Write : ScopeNames.Read;
+        var required = request is IRequiresScope declared
+            ? declared.RequiredScope
+            : request is ICommandMarker ? ScopeNames.Write : ScopeNames.Read;
         return accessor.Current!.Has(required)
             ? next(request, cancellationToken)
             : ValueTask.FromResult(Result.Failure<TResponse>(new UnauthorizedFailure($"The '{required}' scope is required.", null)));

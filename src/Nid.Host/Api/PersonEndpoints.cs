@@ -90,6 +90,8 @@ public static class ResultHttp
             UnauthenticatedFailure => StatusCodes.Status401Unauthorized,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
+            _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
+            _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 

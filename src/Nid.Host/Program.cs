@@ -51,6 +51,7 @@ app.UseAuthorization();
 app.MapAuth();
 app.MapPersonEndpoints();
 app.MapSubscriptionEndpoints();
+app.MapImportEndpoints();
 app.Run();
 
 public partial class Program;

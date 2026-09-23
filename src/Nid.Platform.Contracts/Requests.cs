@@ -12,6 +12,18 @@ public interface ICommand<TResponse> : IRequest<TResponse>, ICommandMarker
 public interface IQuery<TResponse> : IRequest<TResponse>
     where TResponse : notnull;
 
+/// <summary>A request that needs more than the default scope (<c>read</c> for queries, <c>write</c> for commands).</summary>
+public interface IRequiresScope
+{
+    string RequiredScope { get; }
+}
+
+/// <summary>Writes that bypass validation by a person, such as an import (<c>authorization.md</c> §3).</summary>
+public interface IDirectWrite : IRequiresScope
+{
+    string IRequiresScope.RequiredScope => ScopeNames.WriteDirect;
+}
+
 /// <summary>A request aimed at one item: the access behavior checks the actor against it.</summary>
 public interface IItemScoped
 {
