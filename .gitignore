@@ -11,3 +11,6 @@ deploy/dev/authelia/users.yml
 deploy/dev/authelia/configuration.yml
 deploy/dev/authelia/db.sqlite3
 deploy/dev/authelia/notification.txt
+
+# Private data copied locally for checks; never committed
+.secrets/
