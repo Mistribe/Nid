@@ -113,6 +113,71 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
         Assert.True(await subs.Purchases.AnyAsync(p => p.ImportRef == "pu-extra"));
     }
 
+    /// <summary>
+    /// A file that adds to a subscription imported before is checked against what is stored, not only against
+    /// itself: the later file may repeat the stored phases or leave them out, and the new one overlapping the
+    /// stored open phase is refused either way, at the new phase.
+    /// </summary>
+    [Theory]
+    [InlineData(true, "billing_phases[2]")]
+    [InlineData(false, "billing_phases[0]")]
+    public async Task A_new_phase_overlapping_a_stored_one_is_refused_where_it_is(bool repeatStored, string path)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, GoldenFile.Sections());
+
+        const string extra = """
+            [{"id":"ph-spotify-3","subscription_id":"sub-spotify","starts_on":"2025-07-28","ends_on":null,
+              "price":{"amount":"19.99","currency":"EUR"},"every":{"count":1,"unit":"month"},"payer":{"type":"household"}}]
+            """;
+        var phases = repeatStored ? Append(GoldenFile.Phases, extra) : extra;
+        var validated = await client.RunAsync(app.AdultA, Adults(app), GoldenFile.With("billing_phases", phases));
+
+        Assert.Equal("invalid", validated.State);
+        var issue = Assert.Single(validated.Report!.Issues, i => i.Severity == "error");
+        Assert.Equal(("subscriptions.phase_overlap", path), (issue.Code, issue.Path));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, validated.Id)).StatusCode);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Equal(2, await subs.Phases.CountAsync());
+    }
+
+    /// <summary>
+    /// B re-imports A's shared subscription unchanged — allowed: nothing is created, and B can see it — and adds
+    /// a phase and a purchase to it, which B may not write (a shared item owned by A alone is written by A).
+    /// The creation rule is not what refuses B here: it applies only to a record that creates an item.
+    /// </summary>
+    [Fact]
+    public async Task An_adult_cannot_add_to_an_imported_subscription_the_other_adult_writes_alone()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var subscription = """[{"id":"sub-a","name":"A's","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]""";
+        var phase = """{"id":"ph-a-1","subscription_id":"sub-a","starts_on":"2025-01-01","ends_on":"2025-02-01","price":{"amount":"5","currency":"EUR"},"every":{"count":1,"unit":"month"},"payer":{"type":"household"}}""";
+        await CommitAsync(client, app, new Dictionary<string, string>
+        {
+            ["persons"] = GoldenFile.Persons, ["subscriptions"] = subscription, ["billing_phases"] = $"[{phase}]",
+        });
+
+        var validated = await client.RunAsync(app.AdultB, Adults(app), new Dictionary<string, string>
+        {
+            ["persons"] = GoldenFile.Persons,
+            ["subscriptions"] = subscription,
+            ["billing_phases"] = "[" + phase + "," + """{"id":"ph-a-2","subscription_id":"sub-a","starts_on":"2025-03-01","ends_on":"2025-04-01","price":{"amount":"5","currency":"EUR"},"every":{"count":1,"unit":"month"},"payer":{"type":"household"}}]""",
+            ["purchases"] = """[{"id":"pu-b","date":"2025-05-01","label":"B","kind":"gift","price":{"amount":"0","currency":"EUR"},"payer":{"type":"external"},"grants":[{"subscription_id":"sub-a","duration":{"count":1,"unit":"month"},"source":"gift"}]}]""",
+        });
+
+        Assert.Equal("invalid", validated.State);
+        Assert.Equal(new CountsResponse(0, 1, 0), validated.Report!.Sections["subscriptions"]);
+        Assert.Equal(
+            [(ImportCodes.NotPermitted, "billing_phases[1].subscription_id"), (ImportCodes.NotPermitted, "purchases[0].grants")],
+            validated.Report.Issues.Where(i => i.Severity == "error").Select(i => (i.Code, i.Path)).OrderBy(x => x.Path).ToList());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, validated.Id)).StatusCode);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Equal(1, await subs.Phases.CountAsync());
+        Assert.False(await subs.Purchases.AnyAsync());
+    }
+
     [Fact]
     public async Task An_adult_cannot_import_an_item_owned_by_the_other_adult_alone()
     {
@@ -155,6 +220,9 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
     private static readonly Dictionary<string, BlockingCase> Cases = new()
     {
         ["unknown field"] = new("subscriptions", $$"""[{"id":"sub-x","name":"X",{{Owner}},"auto_renew":true,"colour":"red"}]""", ImportCodes.MalformedEntity, "subscriptions[0]", true),
+        ["null owner"] = new("subscriptions", """[{"id":"sub-x","name":"X","ownership":[null],"auto_renew":true}]""", ImportCodes.MalformedEntity, "subscriptions[0].ownership[0]", true),
+        ["null service user"] = new("subscriptions", $$"""[{"id":"sub-x","name":"X",{{Owner}},"service_users":[null],"auto_renew":true}]""", ImportCodes.MalformedEntity, "subscriptions[0].service_users[0]", true),
+        ["null grant"] = new("purchases", """[{"id":"pu-x","date":"2025-01-01","label":"X","kind":"gift","price":{"amount":"0","currency":"EUR"},"payer":{"type":"external"},"grants":[null]}]""", ImportCodes.MalformedEntity, "purchases[0].grants[0]", true),
         ["bad id"] = new("subscriptions", $$"""[{"id":"Sub_X","name":"X",{{Owner}},"auto_renew":true}]""", ImportCodes.InvalidId, "subscriptions[0].id", true),
         ["zero count"] = new("billing_phases", Phase(every: """{"count":0,"unit":"month"}"""), "core.duration_count", "billing_phases[0].every.count", true),
         ["unknown unit"] = new("billing_phases", Phase(every: """{"count":1,"unit":"fortnight"}"""), ImportCodes.InvalidValue, "billing_phases[0].every.unit", true),
@@ -200,7 +268,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
         }
 
         Assert.Equal(@case.Code, issue.Code);
-        if (@case.Code == ImportCodes.MalformedEntity)
+        if (@case.Code == ImportCodes.MalformedEntity && !@case.Path.Contains('.'))
             Assert.StartsWith(@case.Path, issue.Path); // the member comes from System.Text.Json's own path
         else
             Assert.Equal(@case.Path, issue.Path);

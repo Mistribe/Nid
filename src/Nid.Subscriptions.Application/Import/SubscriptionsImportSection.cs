@@ -45,7 +45,8 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
             {
                 case Subscriptions:
                     if (NidDataJson.TryRead<SubscriptionRecord>(entity, path, issues, out var subscription)
-                        && RecordParsing.TryId(subscription.Id, path, issues))
+                        && RecordParsing.TryId(subscription.Id, path, issues)
+                        && RecordParsing.TryElements(subscription, path, issues))
                         RecordParsing.TrySubscription(subscription, path, _ => new ResolvedPerson(new PersonId(Guid.Empty), PersonKind.Adult), issues, out _);
                     break;
                 case Phases:
@@ -57,6 +58,7 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                 case Purchases:
                     if (NidDataJson.TryRead<PurchaseRecord>(entity, path, issues, out var purchaseRecord)
                         && RecordParsing.TryId(purchaseRecord.Id, path, issues)
+                        && RecordParsing.TryElements(purchaseRecord, path, issues)
                         && RecordParsing.TryPurchase(purchaseRecord, path, anyone, _ => Placeholder, issues, out var purchase))
                         EngineRules(new SubscriptionInput(Header(Placeholder), [], [purchase]), purchase.Date, path, issues);
                     break;
@@ -107,17 +109,19 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                 continue;
             }
 
-            if (!rules.CanCreate(context.Actor, parsed.Owners))
-            {
-                issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
-                    "An item is imported by one of its owners, unless every owner is a dependent.", path));
-                failed.Add(record.Id);
-                continue;
-            }
-
             ItemId id;
             if (knownSubscriptions.TryGetValue(record.Id, out var known))
             {
+                // Nothing is created, so the creation rule does not apply: an unchanged record only has to be
+                // one the actor can see. What the file adds to it is checked for write access below.
+                if (!await CanAccessAsync(context.Actor, new ItemId(known.Id), AccessKind.Read, ct))
+                {
+                    issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
+                        $"'{record.Id}' was imported before as an item you cannot see.", path));
+                    failed.Add(record.Id);
+                    continue;
+                }
+
                 if (known.Hash != entity.Hash)
                 {
                     issues.Add(Conflict(path, record.Id));
@@ -132,6 +136,14 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
             }
             else
             {
+                if (!rules.CanCreate(context.Actor, parsed.Owners))
+                {
+                    issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
+                        "An item is imported by one of its owners, unless every owner is a dependent.", path));
+                    failed.Add(record.Id);
+                    continue;
+                }
+
                 id = ItemId.New(); // planned; ApplyAsync replaces it with the real one
                 newSubscriptions.Add((entity, record));
                 tally[Subscriptions] += new SectionCounts(1, 0, 0);
@@ -140,6 +152,16 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
             context.Items[(Subscriptions, record.Id)] = id;
             paths[id.ToString()] = path;
             runs[record.Id] = new DryRun(id, path, record.AutoRenew, parsed.CancelledAt);
+        }
+
+        // A subscription imported before is walked from what is stored, plus what this file adds to it: an
+        // unchanged file row is already among the stored ones.
+        var stored = await store.LoadManyAsync(existing.Select(e => runs[e].Id).ToList(), ct);
+        foreach (var input in stored)
+        {
+            var run = runs.Values.Single(r => r.Id == input.Subscription.Id);
+            run.Phases.AddRange(input.Phases);
+            run.Purchases.AddRange(input.Purchases);
         }
 
         foreach (var (entity, record) in phaseRecords)
@@ -155,7 +177,6 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
             if (!RecordParsing.TryPhase(record, path, person, issues, out var phase))
                 continue;
 
-            paths[phase.Id.ToString()] = path;
             if (knownPhases.TryGetValue(record.Id, out var known))
             {
                 if (known.Hash != entity.Hash)
@@ -165,6 +186,9 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                     continue;
                 }
                 tally[Phases] += new SectionCounts(0, 1, 0);
+                if (!existing.Contains(record.SubscriptionId))
+                    run.Phases.Add(phase); // stored under another item: not among this run's stored rows
+                continue;
             }
             else
             {
@@ -180,7 +204,9 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                 tally[Phases] += new SectionCounts(1, 0, 0);
             }
 
+            paths[phase.Id.ToString()] = path;
             run.Phases.Add(phase);
+            run.Added.Add((phase, path));
         }
 
         foreach (var (entity, record) in purchaseRecords)
@@ -191,7 +217,6 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
             if (!RecordParsing.TryPurchase(record, path, person, fileId => runs.TryGetValue(fileId, out var r) ? r.Id : null, issues, out var purchase))
                 continue;
 
-            paths[purchase.Id.ToString()] = path;
             var targets = record.Grants.Select(g => g.SubscriptionId).Distinct(StringComparer.Ordinal).ToList();
             if (knownPurchases.TryGetValue(record.Id, out var known))
             {
@@ -202,6 +227,9 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                     continue;
                 }
                 tally[Purchases] += new SectionCounts(0, 1, 0);
+                foreach (var target in targets.Where(t => !existing.Contains(t)))
+                    runs[target].Purchases.Add(purchase); // stored, but not under this run's item
+                continue;
             }
             else
             {
@@ -218,21 +246,23 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                 tally[Purchases] += new SectionCounts(1, 0, 0);
             }
 
+            paths[purchase.Id.ToString()] = path;
             foreach (var target in targets)
+            {
                 runs[target].Purchases.Add(purchase);
+                runs[target].Added.Add((purchase, path));
+            }
         }
 
-        // The engine's own validation and findings, on exactly what the file describes.
+        // The engine's own validation and findings, on what the subscription will hold once committed.
+        var horizon = Horizons.Resolve(context.Today, null);
         foreach (var run in runs.Values)
         {
-            var input = new SubscriptionInput(
-                new SubscriptionHeader(run.Id, run.AutoRenew, run.CancelledAt),
-                run.Phases.OrderBy(p => p.StartsOn).ToList(),
-                run.Purchases);
-            var built = SubscriptionTimeline.Build(input, context.Today, Horizons.Resolve(context.Today, null));
+            var built = SubscriptionTimeline.Build(run.Input(run.Phases, run.Purchases), context.Today, horizon);
             if (built.TryGetFailure(out var failure))
             {
-                issues.Add(ImportIssue.Error(failure!.Code, failure.Message, PathOf(failure, paths) ?? run.Path));
+                issues.Add(ImportIssue.Error(failure!.Code, failure.Message,
+                    PathOf(failure, paths) ?? Culprit(run, context.Today, horizon) ?? run.Path));
                 continue;
             }
 
@@ -299,6 +329,34 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
     {
         public List<BillingPhase> Phases { get; } = [];
         public List<Purchase> Purchases { get; } = [];
+
+        /// <summary>What this file adds, in file order, with the path of each: phases and purchases.</summary>
+        public List<(object Row, string Path)> Added { get; } = [];
+
+        public SubscriptionInput Input(IEnumerable<BillingPhase> phases, IReadOnlyList<Purchase> purchases)
+            => new(new SubscriptionHeader(Id, AutoRenew, CancelledAt), phases.OrderBy(p => p.StartsOn).ToList(), purchases);
+    }
+
+    /// <summary>
+    /// The engine refused a subscription on a row this file did not add — a stored one, whose partner in the
+    /// fault is new. Adds the new rows one at a time to what was there before; the first the engine refuses
+    /// is the one to report. Runs only on a refusal, so its cost is never paid on a valid file.
+    /// </summary>
+    private static string? Culprit(DryRun run, LocalDate today, LocalDate horizon)
+    {
+        var added = run.Added.Select(a => a.Row).ToHashSet();
+        var phases = run.Phases.Where(p => !added.Contains(p)).ToList();
+        var purchases = run.Purchases.Where(p => !added.Contains(p)).ToList();
+        foreach (var (row, path) in run.Added)
+        {
+            if (row is BillingPhase phase)
+                phases.Add(phase);
+            else
+                purchases.Add((Purchase)row);
+            if (SubscriptionTimeline.Build(run.Input(phases, purchases), today, horizon).TryGetFailure(out _))
+                return path;
+        }
+        return null;
     }
 
     private static SubscriptionHeader Header(ItemId id) => new(id, true, null);
@@ -314,7 +372,8 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
         foreach (var entity in staged.Section(section))
         {
             var path = NidDataJson.Path(section, entity.Index);
-            if (!NidDataJson.TryRead<T>(entity.Value, path, issues, out var record) || !RecordParsing.TryId(id(record), path, issues))
+            if (!NidDataJson.TryRead<T>(entity.Value, path, issues, out var record) || !RecordParsing.TryId(id(record), path, issues)
+                || !RecordParsing.TryElements(record, path, issues))
                 continue;
             if (!seen.Add(id(record)))
             {
@@ -354,8 +413,11 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
         return false;
     }
 
-    private async Task<bool> CanWriteAsync(PersonId actor, ItemId item, CancellationToken ct)
-        => !(await policy.CheckAsync(actor, item, AccessKind.Write, ct)).TryGetFailure(out _);
+    private Task<bool> CanWriteAsync(PersonId actor, ItemId item, CancellationToken ct)
+        => CanAccessAsync(actor, item, AccessKind.Write, ct);
+
+    private async Task<bool> CanAccessAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct)
+        => !(await policy.CheckAsync(actor, item, kind, ct)).TryGetFailure(out _);
 
     private static ImportIssue Conflict(string path, string id)
         => ImportIssue.Error(ImportCodes.Conflict,
