@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { createApi } from '@/api/client';
 import { isProblem } from '@/api/errors';
 import { App } from './App';
@@ -17,8 +17,8 @@ export function createQueryClient(): QueryClient {
   });
 }
 
-/** frontend/architecture.md §3: session, preferences, capabilities, then the app. */
-export async function bootstrap({ root, location }: { root: HTMLElement; location: AppLocation }): Promise<void> {
+/** frontend/architecture.md §3: session, preferences, capabilities, then the app. `null` when it redirected to login instead of rendering. */
+export async function bootstrap({ root, location }: { root: HTMLElement; location: AppLocation }): Promise<Root | null> {
   let csrf: string | null = null;
   const queryClient = createQueryClient();
   const api = createApi({
@@ -32,7 +32,7 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
   const session = await loadSession(api);
   if (!session) {
     location.assign(loginUrl(location));
-    return;
+    return null;
   }
   csrf = session.csrf;
 
@@ -44,11 +44,13 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
 
   const { data: capabilities } = await api.fetchClient.GET('/api/v1/platform/capabilities');
 
-  createRoot(root).render(
+  const reactRoot = createRoot(root);
+  reactRoot.render(
     <StrictMode>
       <Providers api={api} queryClient={queryClient} session={session} capabilities={capabilities ?? { modules: [] }} location={location}>
         <App />
       </Providers>
     </StrictMode>,
   );
+  return reactRoot;
 }

@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import '@/app/i18n';
+import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { server } from './server';
 
@@ -16,6 +17,7 @@ Object.defineProperty(window, 'matchMedia', {
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 
 afterEach(() => {
+  cleanup();
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   document.documentElement.className = '';
