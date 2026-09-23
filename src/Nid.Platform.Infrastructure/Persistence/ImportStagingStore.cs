@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
@@ -15,12 +16,16 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
 
     public async Task ExpireAsync(Instant now, CancellationToken ct)
     {
-        var expired = db.Sessions.Where(s => ActiveNames.Contains(s.State) && s.ExpiresAt < now).Select(s => s.Id);
-        await db.Batches.Where(b => expired.Contains(b.SessionId)).ExecuteDeleteAsync(ct);
         await db.Sessions.Where(s => ActiveNames.Contains(s.State) && s.ExpiresAt < now)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(s => s.State, ImportStates.Name(ImportState.Expired))
                 .SetProperty(s => s.UpdatedAt, now), ct);
+
+        // Self-healing: a batch added between the update above and this delete (or between any two calls of
+        // this method) lands on a session that is, by then, not active — so it is removed here, on this or the
+        // next sweep, rather than by trying to make the two statements atomic.
+        var inactive = db.Sessions.Where(s => !ActiveNames.Contains(s.State)).Select(s => s.Id);
+        await db.Batches.Where(b => inactive.Contains(b.SessionId)).ExecuteDeleteAsync(ct);
     }
 
     public async Task<ImportSession?> CreateAsync(
@@ -28,7 +33,7 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
     {
         var row = new ImportSessionRow
         {
-            Id = Guid.NewGuid(), // 122 random bits: the id is unguessable (§11.1), unlike a time-ordered v7
+            Id = new Guid(RandomNumberGenerator.GetBytes(16)), // 128 random bits (§11.1): not an RFC 4122 v4 UUID, but Postgres uuid stores any 16 bytes
             PersonId = person.Value,
             State = ImportStates.Name(ImportState.Open),
             CreatedAt = now,

@@ -42,7 +42,12 @@ public sealed record StoredBatch(string Section, int Index, string Hash, int Cou
 /// </summary>
 public interface IImportStaging
 {
-    /// <summary>Marks every active session past its expiry as expired and deletes its batches.</summary>
+    /// <summary>
+    /// Marks every active session past its expiry as expired, then deletes the batches of every session that
+    /// is not active (open, validated or invalid) — not only the ones just expired here. Staging of a
+    /// non-active session is never needed, so a batch that slips in concurrently while a session is ending is
+    /// removed by this or the next call, rather than by making the two steps atomic.
+    /// </summary>
     Task ExpireAsync(Instant now, CancellationToken ct);
 
     /// <summary><c>null</c> when the person already has an active session.</summary>

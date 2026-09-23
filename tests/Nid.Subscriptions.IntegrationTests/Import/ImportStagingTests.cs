@@ -80,4 +80,22 @@ public class ImportStagingTests(PostgresFixture fixture)
         Assert.Empty(await store.BatchesAsync(stale.Id, default));
         Assert.NotNull(await store.CreateAsync(a, NoAdults, Now, Tomorrow, default));
     }
+
+    /// <summary>
+    /// Self-healing (§11.5): staging of a non-active session is never needed, so ExpireAsync also sweeps
+    /// batches left on a session that is already done — cancelled here, not merely one it just expired itself —
+    /// covering a batch that slipped in concurrently between marking a session done and clearing its batches.
+    /// </summary>
+    [Fact]
+    public async Task Expiry_also_clears_batches_left_on_an_already_cancelled_session()
+    {
+        var store = await NewStoreAsync();
+        var session = (await store.CreateAsync(PersonId.New(), NoAdults, Now, Tomorrow, default))!;
+        Assert.True(await store.TransitionAsync(session.Id, [ImportState.Open], ImportState.Cancelled, Now, Tomorrow, null, default));
+        await store.AddBatchAsync(session.Id, new StoredBatch("persons", 0, new string('a', 64), 1, "[{}]"), Now, default);
+
+        await store.ExpireAsync(Now, default);
+
+        Assert.Empty(await store.BatchesAsync(session.Id, default));
+    }
 }
