@@ -17,6 +17,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Core.IntegrationTests/Nid.Core.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
+    <Project Path="tests/Nid.Platform.Tests/Nid.Platform.Tests.csproj" />
     <Project Path="tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Subscriptions.Tests/Nid.Subscriptions.Tests.csproj" />
     <Project Path="tests/Nid.TestSupport/Nid.TestSupport.csproj" />
