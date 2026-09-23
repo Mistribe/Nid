@@ -85,10 +85,20 @@ internal static class RecordParsing
             else
                 ok = Unresolved(issues, $"{path}.ownership[{j}].person", r.Ownership[j].Person, "persons");
 
+        // A person uses a service once: a repeat would reach commit and fail there on subscription_user's key.
         var users = new List<PersonId>();
         for (var j = 0; j < r.ServiceUsers.Count; j++)
             if (person(r.ServiceUsers[j]) is { } user)
-                users.Add(user.Id);
+            {
+                if (users.Contains(user.Id))
+                {
+                    issues.Add(ImportIssue.Error(ImportCodes.DuplicateId,
+                        $"'{r.ServiceUsers[j]}' appears twice among the service users.", $"{path}.service_users[{j}]"));
+                    ok = false;
+                }
+                else
+                    users.Add(user.Id);
+            }
             else
                 ok = Unresolved(issues, $"{path}.service_users[{j}]", r.ServiceUsers[j], "persons");
 

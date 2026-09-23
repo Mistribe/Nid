@@ -248,6 +248,7 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
         ["null owner"] = new("subscriptions", """[{"id":"sub-x","name":"X","ownership":[null],"auto_renew":true}]""", ImportCodes.MalformedEntity, "subscriptions[0].ownership[0]", true),
         ["null service user"] = new("subscriptions", $$"""[{"id":"sub-x","name":"X",{{Owner}},"service_users":[null],"auto_renew":true}]""", ImportCodes.MalformedEntity, "subscriptions[0].service_users[0]", true),
         ["null grant"] = new("purchases", """[{"id":"pu-x","date":"2025-01-01","label":"X","kind":"gift","price":{"amount":"0","currency":"EUR"},"payer":{"type":"external"},"grants":[null]}]""", ImportCodes.MalformedEntity, "purchases[0].grants[0]", true),
+        ["duplicate service user"] = new("subscriptions", $$"""[{"id":"sub-x","name":"X",{{Owner}},"service_users":["adult-1","adult-1"],"auto_renew":true}]""", ImportCodes.DuplicateId, "subscriptions[0].service_users[1]", true),
         ["bad id"] = new("subscriptions", $$"""[{"id":"Sub_X","name":"X",{{Owner}},"auto_renew":true}]""", ImportCodes.InvalidId, "subscriptions[0].id", true),
         ["zero count"] = new("billing_phases", Phase(every: """{"count":0,"unit":"month"}"""), "core.duration_count", "billing_phases[0].every.count", true),
         ["unknown unit"] = new("billing_phases", Phase(every: """{"count":1,"unit":"fortnight"}"""), ImportCodes.InvalidValue, "billing_phases[0].every.unit", true),

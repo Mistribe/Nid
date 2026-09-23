@@ -37,6 +37,10 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
     {
         var issues = new List<ImportIssue>();
         var anyone = (string _) => (PersonId?)new PersonId(Guid.Empty);
+        // Every file ref stands for someone, one distinct stand-in per ref, so a ref repeated is still seen.
+        var standIns = new Dictionary<string, ResolvedPerson>(StringComparer.Ordinal);
+        ResolvedPerson StandIn(string fileRef)
+            => standIns.TryGetValue(fileRef, out var standIn) ? standIn : standIns[fileRef] = new ResolvedPerson(PersonId.New(), PersonKind.Adult);
         var position = 0;
         foreach (var entity in entities.EnumerateArray())
         {
@@ -47,7 +51,7 @@ public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptio
                     if (NidDataJson.TryRead<SubscriptionRecord>(entity, path, issues, out var subscription)
                         && RecordParsing.TryId(subscription.Id, path, issues)
                         && RecordParsing.TryElements(subscription, path, issues))
-                        RecordParsing.TrySubscription(subscription, path, _ => new ResolvedPerson(new PersonId(Guid.Empty), PersonKind.Adult), issues, out _);
+                        RecordParsing.TrySubscription(subscription, path, StandIn, issues, out _);
                     break;
                 case Phases:
                     if (NidDataJson.TryRead<BillingPhaseRecord>(entity, path, issues, out var phaseRecord)
