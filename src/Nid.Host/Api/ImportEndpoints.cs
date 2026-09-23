@@ -14,22 +14,28 @@ public static class ImportEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapPost("", async (StartImportBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(v => v, StatusCodes.Status201Created));
+            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(v => v, StatusCodes.Status201Created))
+            .Returns<ImportSessionView>(StatusCodes.Status201Created);
 
         api.MapGet("", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListImportsQuery(), ct)).ToHttp(v => v));
+            => (await invoker.InvokeAsync(new ListImportsQuery(), ct)).ToHttp(v => v))
+            .Returns<IReadOnlyList<ImportSessionView>>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetImportQuery(id), ct)).ToHttp(v => v));
+            => (await invoker.InvokeAsync(new GetImportQuery(id), ct)).ToHttp(v => v))
+            .Returns<ImportSessionView>();
 
         api.MapDelete("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CancelImportCommand(id), ct)).ToHttp(v => v));
+            => (await invoker.InvokeAsync(new CancelImportCommand(id), ct)).ToHttp(v => v))
+            .Returns<ImportSessionView>();
 
         api.MapPost("/{id:guid}/validate", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ValidateImportCommand(id), ct)).ToHttp(v => v));
+            => (await invoker.InvokeAsync(new ValidateImportCommand(id), ct)).ToHttp(v => v))
+            .Returns<ImportSessionView>();
 
         api.MapPost("/{id:guid}/commit", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CommitImportCommand(id), ct)).ToHttp(v => v));
+            => (await invoker.InvokeAsync(new CommitImportCommand(id), ct)).ToHttp(v => v))
+            .Returns<ImportSessionView>();
 
         // The body is read by hand: its size and depth are bounded before anything parses it (§11.5).
         api.MapPut("/{id:guid}/batches/{section}/{n:int}", async (
@@ -37,7 +43,9 @@ public static class ImportEndpoints
             {
                 var body = await BatchBody.ReadAsync(request, options, ct);
                 return (await invoker.InvokeAsync(new PutBatchCommand(id, section, n, body.Hash, body.Entities), ct)).ToHttp(v => v);
-            });
+            })
+            .Returns<BatchView>()
+            .Accepts<JsonElement>("application/json");
 
         return routes;
     }

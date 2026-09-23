@@ -20,38 +20,46 @@ public static class SubscriptionEndpoints
             => (await invoker.InvokeAsync(
                     new ListSubscriptionsQuery(
                         ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
-                .ToHttp(list => list));
+                .ToHttp(list => list))
+            .Returns<SubscriptionList>();
 
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new GetSubscriptionQuery(
                         new ItemId(id), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
-                .ToHttp(detail => detail));
+                .ToHttp(detail => detail))
+            .Returns<SubscriptionDetail>();
 
         // Create / open phase / add purchase were implemented early because Task 4's own acceptance test
         // creates its fixtures through the real HTTP API — see the comment atop WriteUseCases.cs.
         api.MapPost("", async (CreateSubscriptionBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created));
+            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPatch("/{id:guid}", async (Guid id, EditSubscriptionBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)));
+            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
 
         api.MapPost("/{id:guid}/phases", async (Guid id, PhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToOpenCommand(new ItemId(id)), ct))
-                .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created));
+                .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPatch("/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, ClosePhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), RequireDate(body.EndsOn)), ct))
-                .ToHttp(phase => new IdResponse(phase.Value)));
+                .ToHttp(phase => new IdResponse(phase.Value)))
+            .Returns<IdResponse>();
 
         api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct))
-                .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created));
+                .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapDelete("/{id:guid}/purchases/{purchaseId:guid}", async (Guid id, Guid purchaseId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new DeletePurchaseCommand(new ItemId(id), new PurchaseId(purchaseId)), ct))
-                .ToHttp(purchase => new IdResponse(purchase.Value)));
+                .ToHttp(purchase => new IdResponse(purchase.Value)))
+            .Returns<IdResponse>();
 
         return routes;
     }
