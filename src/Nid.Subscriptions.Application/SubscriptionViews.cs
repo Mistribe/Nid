@@ -112,6 +112,27 @@ public static class HouseholdCost
             + "amortized total counts it on each of them, so the two diverge.",
             id.ToString())).ToList();
 
+    /// <summary>The household cash total before it is summed: a purchase granting to several subscriptions counts once, as in <see cref="Combine"/>.</summary>
+    public static IReadOnlyList<CostPiece> CashPieces(IReadOnlyList<Timeline> timelines, DateRange window)
+    {
+        var pieces = new List<CostPiece>();
+        var seenPurchases = new HashSet<Guid>();
+        foreach (var timeline in timelines)
+        foreach (var charge in timeline.Charges)
+        {
+            if (charge.Origin is ChargeOrigin.FromPurchase purchase && !seenPurchases.Add(purchase.PurchaseId.Value))
+                continue;
+            if (window.Contains(charge.Date))
+                pieces.Add(new CostPiece(charge.Date, charge.Price.Currency, charge.Price.Amount, charge.IsProjected));
+        }
+
+        return pieces;
+    }
+
+    /// <summary>The household amortized total before it is summed. Shares the 1C1 limitation of <see cref="Combine"/>: a shared purchase counts on each subscription.</summary>
+    public static IReadOnlyList<CostPiece> AmortizedPieces(IReadOnlyList<Timeline> timelines, DateRange window)
+        => timelines.SelectMany(t => t.AmortizedCostPieces(window)).ToList();
+
     private static void Add(Dictionary<string, decimal> totals, string currency, decimal amount)
         => totals[currency] = totals.GetValueOrDefault(currency) + amount;
 

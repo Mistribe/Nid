@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Domain\Nid.Subscriptions.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
   </ItemGroup>
 </Project>
