@@ -31,11 +31,32 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
             await shared.Connection.OpenAsync(ct);
 
         var transaction = await shared.Connection.BeginTransactionAsync(ct);
-        var enlisted = participants.ToList();
-        foreach (var participant in enlisted)
-            await participant.EnlistAsync(transaction, ct);
-
         active = true;
+        var enlisted = new List<ITransactionParticipant>();
+        try
+        {
+            foreach (var participant in participants)
+            {
+                await participant.EnlistAsync(transaction, ct);
+                enlisted.Add(participant);
+            }
+        }
+        catch
+        {
+            // Nothing half-begun survives a failed enlistment: the contexts already enlisted let go of the
+            // transaction, which is rolled back and disposed, and the next BeginAsync starts clean. Cleanup
+            // failures are swallowed so the enlistment's own exception is the one that surfaces.
+            foreach (var participant in enlisted)
+            {
+                try { await participant.EnlistAsync(null, CancellationToken.None); } catch { /* best effort */ }
+            }
+
+            try { await transaction.RollbackAsync(CancellationToken.None); } catch { /* best effort */ }
+            await transaction.DisposeAsync();
+            active = false;
+            throw;
+        }
+
         return new Scope(this, transaction, enlisted);
     }
 

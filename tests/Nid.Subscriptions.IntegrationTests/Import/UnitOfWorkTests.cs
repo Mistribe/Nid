@@ -96,6 +96,40 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         await transaction.DisposeAsync();
     }
 
+    /// <summary>
+    /// A context that fails to enlist must not leave the transaction begun, nor the contexts enlisted before it
+    /// pointing at it: the next unit of work on the same connection starts clean.
+    /// </summary>
+    [Fact]
+    public async Task A_context_failing_to_enlist_leaves_nothing_begun()
+    {
+        var failing = new FailingOnceParticipant();
+        await using var app = await NidApp.StartAsync(fixture, services =>
+            services.AddScoped<Nid.Platform.Infrastructure.Persistence.ITransactionParticipant>(_ => failing));
+        await using var scope = app.Services.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+        var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.BeginAsync(default));
+
+        Assert.Null(core.Database.CurrentTransaction);
+        await using var again = await unitOfWork.BeginAsync(default);
+        Assert.NotNull(core.Database.CurrentTransaction);
+    }
+
+    private sealed class FailingOnceParticipant : Nid.Platform.Infrastructure.Persistence.ITransactionParticipant
+    {
+        private bool failed;
+
+        public Task EnlistAsync(System.Data.Common.DbTransaction? transaction, CancellationToken ct)
+        {
+            if (transaction is null || failed)
+                return Task.CompletedTask;
+            failed = true;
+            throw new InvalidOperationException("Refused to enlist on purpose.");
+        }
+    }
+
     /// <summary>Delegates everything, and refuses creation after the Core item already exists.</summary>
     private sealed class FailingCreateStore(ISubscriptionStore inner) : ISubscriptionStore
     {
