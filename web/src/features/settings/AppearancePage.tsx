@@ -50,9 +50,14 @@ export function AppearancePage() {
     },
     onError: (error) => {
       pending.current -= 1;
-      setDesired(null);
-      applyTheme(savedTheme, savedMode);
       setProblem(present(toProblem(error)));
+      // A newer save is still queued behind this failed one (same scope): its choice is
+      // still the one to show, and it will settle its own outcome — reverting now would
+      // flash back to a value that newer save is about to change anyway (Ruling T10b).
+      if (pending.current === 0) {
+        setDesired(null);
+        applyTheme(savedTheme, savedMode);
+      }
     },
   });
 

@@ -27,6 +27,21 @@ function queuePreferences(sent: Body[]) {
   return releases;
 }
 
+/** Like `queuePreferences`, but the first request held open fails instead of succeeding. */
+function queuePreferencesFailingFirst(sent: Body[]) {
+  const releases: Array<() => void> = [];
+  let index = 0;
+  server.use(http.patch('*/api/v1/core/me/preferences', async ({ request }) => {
+    const mine = index++;
+    const body = (await request.json()) as Body;
+    sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
+    await new Promise<void>((resolve) => releases.push(resolve));
+    if (mine === 0) return HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-03' }, { status: 500 });
+    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
+  }));
+  return releases;
+}
+
 const html = () => document.documentElement;
 
 describe('Réglages › Apparence', () => {
@@ -139,6 +154,29 @@ describe('Réglages › Apparence', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
     expect(html().classList.contains('dark')).toBe(false);
     expect(screen.getByRole('radio', { name: 'Système' })).toBeChecked();
+  });
+
+  it('keeps a newer queued choice applied when an older save fails', async () => {
+    const sent: Body[] = [];
+    const releases = queuePreferencesFailingFirst(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Ardoise' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    await user.click(screen.getByRole('radio', { name: 'Terre' }));
+    expect(sent).toHaveLength(1);
+
+    releases[0]?.();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
+    expect(html().dataset.theme).toBe('terre');
+
+    await waitFor(() => expect(sent).toHaveLength(2));
+    releases[1]?.();
+
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Terre' })).toBeChecked());
+    expect(html().dataset.theme).toBe('terre');
+    expect(localStorage.getItem('nid.theme')).toBe('terre');
   });
 
   it('saves the chart patterns option', async () => {
