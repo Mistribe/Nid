@@ -1,5 +1,16 @@
 {
   "app": { "name": "Nid" },
   "theme": { "neutre": "Neutre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
-  "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" }
+  "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" },
+  "access": { "private": "Privé", "shared": "Partagé", "dependent": "Enfant" },
+  "problem": {
+    "unauthenticated": "Votre session a expiré. Reconnectez-vous pour continuer.",
+    "not_found": "Cet élément est introuvable.",
+    "forbidden": "Vous n'avez pas le droit de faire cette action.",
+    "conflict": "Cet élément a changé entre-temps. Rechargez la page pour voir sa dernière version.",
+    "validation": "La saisie a été refusée. Corrigez les valeurs signalées puis réessayez.",
+    "bad_request": "La demande n'a pas pu être lue. Rechargez la page puis réessayez.",
+    "unexpected": "Une erreur inattendue est survenue. Réessayez dans un instant.",
+    "request_id": "Identifiant pour le support : {{id}}"
+  }
 }
