@@ -75,6 +75,12 @@ public sealed record CostBreakdown(IReadOnlyList<Money> Totals)
 /// <summary>Something a human should look at. <paramref name="Code"/> is stable; the message is not.</summary>
 public sealed record Finding(string Code, string Message, string? Reference);
 
+/// <summary>
+/// Part of a cost, dated by the charge it comes from: what conversion needs, since a charge converts at the rate
+/// of its own date (1C2a design §5.1). <paramref name="Amount"/> is exact, not rounded.
+/// </summary>
+public sealed record CostPiece(LocalDate ChargeDate, Currency Currency, decimal Amount, bool IsProjected);
+
 public sealed record Timeline(
     IReadOnlyList<CoveragePeriod> Coverage,
     IReadOnlyList<Charge> Charges,
