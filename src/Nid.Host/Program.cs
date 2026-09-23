@@ -4,6 +4,7 @@ using Nid.Host;
 using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Platform;
+using Nid.Platform.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -39,6 +40,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
 
 app.MapDefaultEndpoints();

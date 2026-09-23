@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Platform.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
 using Testcontainers.PostgreSql;
 
 namespace Nid.TestSupport;
 
-/// <summary>One PostgreSQL container for the whole test run; each test gets a database with BOTH schemas.</summary>
+/// <summary>One PostgreSQL container for the whole test run; each test gets a database with all three schemas.</summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
     // One database per test and a connection pool per database: the default limit of 100 clients is reached
@@ -41,6 +42,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             await core.Database.MigrateAsync();
         await using (var subs = NewSubscriptionsContext(connectionString))
             await subs.Database.MigrateAsync();
+        await using (var platform = NewPlatformContext(connectionString))
+            await platform.Database.MigrateAsync();
 
         return connectionString;
     }
@@ -50,6 +53,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static SubscriptionsDbContext NewSubscriptionsContext(string connectionString)
         => new(new DbContextOptionsBuilder<SubscriptionsDbContext>().Configure(connectionString).Options);
+
+    public static PlatformDbContext NewPlatformContext(string connectionString)
+        => new(new DbContextOptionsBuilder<PlatformDbContext>().Configure(connectionString).Options);
 
     public static IClock Clock { get; } = SystemClock.Instance;
 }

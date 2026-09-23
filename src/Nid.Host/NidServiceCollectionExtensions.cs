@@ -3,6 +3,7 @@ using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Contracts;
+using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -48,6 +49,14 @@ public static class NidServiceCollectionExtensions
         }));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+
+        services.AddDbContext<PlatformDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", PlatformDbContext.Schema);
+        }));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<PlatformDbContext>>();
+        services.AddScoped<IImportStaging, ImportStagingStore>();
 
         services.AddLogging();
         services.AddSynapse(cfg =>

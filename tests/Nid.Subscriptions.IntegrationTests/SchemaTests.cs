@@ -116,7 +116,8 @@ public class SchemaTests(PostgresFixture fixture)
 
         Assert.Contains("core", schemas);
         Assert.Contains("subscriptions", schemas);
-        Assert.Equal(2, schemas.Count);
+        Assert.Contains("platform", schemas);
+        Assert.Equal(3, schemas.Count);
     }
 
     [Fact]
@@ -130,5 +131,15 @@ public class SchemaTests(PostgresFixture fixture)
             .ToListAsync();
 
         Assert.Equal(["__ef_migrations_history", "billing_phase", "coverage_grant", "purchase", "subscription", "subscription_user"], tables);
+    }
+
+    [Fact]
+    public async Task The_platform_schema_is_migrated_beside_the_two_modules()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+
+        await using var platform = PostgresFixture.NewPlatformContext(connectionString);
+        Assert.Empty(await platform.Database.GetPendingMigrationsAsync());
+        Assert.Equal(0, await platform.Sessions.CountAsync());
     }
 }
