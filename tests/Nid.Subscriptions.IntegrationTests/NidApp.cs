@@ -250,7 +250,7 @@ public sealed class NidApp : IAsyncDisposable
                 item, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null)).ToList(),
             null);
 
-        return (await store.AddPurchaseAsync(purchase, CancellationToken.None)).Ok();
+        return (await store.AddPurchaseAsync(purchase, RowOrigin.None, CancellationToken.None)).Ok();
     }
 
     public async Task<ItemId> NewMonthlyAsync(PersonId owner, decimal price)

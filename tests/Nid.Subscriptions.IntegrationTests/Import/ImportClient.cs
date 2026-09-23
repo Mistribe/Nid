@@ -60,6 +60,18 @@ public sealed class ImportClient(NidApp app)
     public async Task<SessionResponse> GetAsync(PersonId actor, Guid session)
         => await app.GetAsync<SessionResponse>(actor, $"{Root}/{session}");
 
+    /// <summary>Starts a session, sends each section as batch 0, and validates. Each batch must be accepted.</summary>
+    public async Task<SessionResponse> RunAsync(PersonId actor, object adults, IReadOnlyDictionary<string, string> sections)
+    {
+        var session = await StartAsync(actor, adults);
+        foreach (var (section, entities) in sections)
+        {
+            var batch = await PutAsync(actor, session.Id, section, 0, entities);
+            Assert.True(batch.Accepted, string.Join("; ", batch.Issues.Select(i => $"{i.Code} at {i.Path}: {i.Message}")));
+        }
+        return await ValidateAsync(actor, session.Id);
+    }
+
     public static async Task<string?> CodeOf(HttpResponseMessage response)
         => (await response.Content.ReadFromJsonAsync<JsonElement>(Json)).TryGetProperty("code", out var code) ? code.GetString() : null;
 }

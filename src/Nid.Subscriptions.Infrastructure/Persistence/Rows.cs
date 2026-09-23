@@ -10,6 +10,8 @@ public sealed class SubscriptionRow
     public bool AutoRenew { get; set; } = true;
     public LocalDate? CancelledAt { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
     public uint Version { get; set; }
     public List<SubscriptionUserRow> Users { get; set; } = [];
     public List<BillingPhaseRow> Phases { get; set; } = [];
@@ -37,6 +39,8 @@ public sealed class BillingPhaseRow
     public string PayerType { get; set; } = "household";
     public Guid? PayerPersonId { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
 }
 
 public sealed class PurchaseRow
@@ -51,6 +55,8 @@ public sealed class PurchaseRow
     public string Kind { get; set; } = "prepaid_term";
     public decimal? AllocatedAmount { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
     public List<GrantRow> Grants { get; set; } = [];
 }
 

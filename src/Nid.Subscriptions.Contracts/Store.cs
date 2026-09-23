@@ -4,8 +4,29 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.Contracts;
 
+/// <summary>Where an imported row came from: its file id and the RFC 8785 hash of its file record.</summary>
+public sealed record ImportRef(string Ref, string Hash);
+
+/// <summary>What a row carries besides the engine's fields.</summary>
+public sealed record RowOrigin(string? Note = null, ImportRef? Import = null)
+{
+    public static RowOrigin None { get; } = new();
+}
+
+public enum ImportedTable
+{
+    Subscription,
+    BillingPhase,
+    Purchase,
+}
+
+/// <summary>An imported row: its id (the item id for a subscription) and the hash it was imported with.</summary>
+public sealed record ImportedRow(Guid Id, string Hash);
+
 /// <summary>What a subscription needs beyond its Core item, for creation.</summary>
-public sealed record NewSubscription(string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note);
+public sealed record NewSubscription(
+    string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note,
+    LocalDate? CancelledAt = null, ImportRef? Import = null);
 
 /// <summary>Fields of a subscription that can change without touching the Core item.</summary>
 public sealed record SubscriptionEdit(bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note);
@@ -25,11 +46,14 @@ public interface ISubscriptionStore
 
     Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct);
 
-    Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, CancellationToken ct);
+    Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct);
 
     Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, CancellationToken ct);
 
-    Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, CancellationToken ct);
+    Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct);
+
+    /// <summary>The rows of <paramref name="table"/> imported under one of <paramref name="refs"/>, by ref.</summary>
+    Task<IReadOnlyDictionary<string, ImportedRow>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
 
     /// <summary>
     /// The subscriptions a purchase grants coverage to — exactly what deleting it would take coverage away

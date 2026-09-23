@@ -92,7 +92,7 @@ public sealed class EditSubscriptionHandler(ISubscriptionStore store) : IRequest
 public sealed class OpenPhaseHandler(ISubscriptionStore store) : IRequestHandler<OpenPhaseCommand, BillingPhaseId>
 {
     public async ValueTask<Result<BillingPhaseId>> HandleAsync(OpenPhaseCommand command, CancellationToken ct = default)
-        => await store.AddPhaseAsync(command.ItemId, command.Phase, ct);
+        => await store.AddPhaseAsync(command.ItemId, command.Phase, RowOrigin.None, ct);
 }
 
 [RequestHandler<ClosePhaseCommand, BillingPhaseId>]
@@ -118,7 +118,7 @@ public sealed class AddPurchaseHandler(ISubscriptionStore store, IAccessPolicy p
         if (guard.TryGetFailure(out var refused))
             return Result.Failure<PurchaseId>(refused!);
 
-        return await store.AddPurchaseAsync(command.Purchase, ct);
+        return await store.AddPurchaseAsync(command.Purchase, RowOrigin.None, ct);
     }
 }
 

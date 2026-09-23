@@ -57,6 +57,9 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             ProviderKey = subscription.ProviderKey,
             AutoRenew = subscription.AutoRenew,
             Note = subscription.Note,
+            CancelledAt = subscription.CancelledAt,
+            ImportRef = subscription.Import?.Ref,
+            ImportHash = subscription.Import?.Hash,
             Users = subscription.Users.Select(u => new SubscriptionUserRow { ItemId = id.Value, PersonId = u.Value }).ToList(),
         });
         await db.SaveChangesAsync(ct);
@@ -82,7 +85,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success();
     }
 
-    public async Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, CancellationToken ct)
+    public async Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct)
     {
         if (!await db.Subscriptions.AnyAsync(s => s.ItemId == id.Value, ct))
             return Result.Failure<BillingPhaseId>(NotFoundFailureFor(id));
@@ -102,6 +105,9 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             MaxCycles = phase.MaxCycles,
             PayerType = Name(phase.Payer.Type),
             PayerPersonId = phase.Payer.PersonId?.Value,
+            Note = origin.Note,
+            ImportRef = origin.Import?.Ref,
+            ImportHash = origin.Import?.Hash,
         });
         await db.SaveChangesAsync(ct);
         return Result.Success(phase.Id);
@@ -121,7 +127,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success();
     }
 
-    public async Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, CancellationToken ct)
+    public async Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct)
     {
         db.Purchases.Add(new PurchaseRow
         {
@@ -134,6 +140,9 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             PayerPersonId = purchase.Payer.PersonId?.Value,
             Kind = Name(purchase.Kind),
             AllocatedAmount = purchase.AllocatedAmount,
+            Note = origin.Note,
+            ImportRef = origin.Import?.Ref,
+            ImportHash = origin.Import?.Hash,
             Grants = purchase.Grants.Select((g, index) => new GrantRow
             {
                 PurchaseId = purchase.Id.Value,
@@ -147,6 +156,29 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         });
         await db.SaveChangesAsync(ct);
         return Result.Success(purchase.Id);
+    }
+
+    public async Task<IReadOnlyDictionary<string, ImportedRow>> FindImportedAsync(
+        ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct)
+    {
+        if (refs.Count == 0)
+            return new Dictionary<string, ImportedRow>();
+
+        var keys = refs.ToList();
+        var rows = table switch
+        {
+            ImportedTable.Subscription => await db.Subscriptions.AsNoTracking()
+                .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                .Select(r => new { Ref = r.ImportRef!, Id = r.ItemId, Hash = r.ImportHash! }).ToListAsync(ct),
+            ImportedTable.BillingPhase => await db.Phases.AsNoTracking()
+                .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                .Select(r => new { Ref = r.ImportRef!, r.Id, Hash = r.ImportHash! }).ToListAsync(ct),
+            _ => await db.Purchases.AsNoTracking()
+                .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                .Select(r => new { Ref = r.ImportRef!, r.Id, Hash = r.ImportHash! }).ToListAsync(ct),
+        };
+
+        return rows.ToDictionary(r => r.Ref, r => new ImportedRow(r.Id, r.Hash), StringComparer.Ordinal);
     }
 
     public async Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct)

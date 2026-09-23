@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Application.Import;
 using Nid.Core.Contracts;
+using Nid.Core.Domain;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
@@ -39,6 +41,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
+        services.AddSingleton<IItemRules, ItemRules>();
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
         services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
@@ -61,6 +64,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton(new ImportOptions());
         services.AddScoped<ImportRunner>();
         services.AddScoped<IImportSection, PersonsImportSection>();
+        services.AddScoped<IImportSection, SubscriptionsImportSection>();
 
         services.AddLogging();
         services.AddSynapse(cfg =>

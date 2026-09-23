@@ -50,7 +50,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
             BillingPhaseId.New(), new LocalDate(2024, 6, 28), new LocalDate(2025, 6, 28),
             Eur(15.17m), Months(1), Months(3), MaxCycles: 4, new Payer(PayerType.Household, null));
 
-        (await store.AddPhaseAsync(id, phase, default)).Ok();
+        (await store.AddPhaseAsync(id, phase, RowOrigin.None, default)).Ok();
         var loaded = (await store.LoadAsync(id, default))!.Phases.Single();
 
         Assert.Equal(phase.StartsOn, loaded.StartsOn);
@@ -73,7 +73,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
              new Grant(id, Months(6), CoverageSource.Bonus, null)],
             AllocatedAmount: null);
 
-        (await store.AddPurchaseAsync(purchase, default)).Ok();
+        (await store.AddPurchaseAsync(purchase, RowOrigin.None, default)).Ok();
         var loaded = (await store.LoadAsync(id, default))!.Purchases.Single();
 
         Assert.Equal(179.86m, loaded.Price.Amount);
@@ -97,7 +97,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
              new Grant(id, Months(1), CoverageSource.Included, null)],
             AllocatedAmount: 0m);
 
-        (await store.AddPurchaseAsync(purchase, default)).Ok();
+        (await store.AddPurchaseAsync(purchase, RowOrigin.None, default)).Ok();
         var loaded = (await store.LoadAsync(id, default))!.Purchases.Single();
 
         // Both grants are loaded, in their stored order. Filtering is the engine's job, not the store's.
@@ -111,14 +111,14 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
         var (store, id) = await NewStoreAsync(fixture);
         (await store.AddPhaseAsync(id, new BillingPhase(
             BillingPhaseId.New(), new LocalDate(2024, 6, 28), new LocalDate(2025, 6, 28),
-            Eur(15.17m), Months(1), null, null, new Payer(PayerType.Household, null)), default)).Ok();
+            Eur(15.17m), Months(1), null, null, new Payer(PayerType.Household, null)), RowOrigin.None, default)).Ok();
         (await store.AddPhaseAsync(id, new BillingPhase(
             BillingPhaseId.New(), new LocalDate(2025, 6, 28), null,
-            Eur(17.20m), Months(1), null, null, new Payer(PayerType.Household, null)), default)).Ok();
+            Eur(17.20m), Months(1), null, null, new Payer(PayerType.Household, null)), RowOrigin.None, default)).Ok();
         (await store.AddPurchaseAsync(new Purchase(
             PurchaseId.New(), new LocalDate(2025, 10, 10), "gift", Eur(0m),
             new Payer(PayerType.External, null), PurchaseKind.Gift,
-            [new Grant(id, Months(3), CoverageSource.Gift, null)], null), default)).Ok();
+            [new Grant(id, Months(3), CoverageSource.Gift, null)], null), RowOrigin.None, default)).Ok();
 
         var timeline = SubscriptionTimeline
             .Build((await store.LoadAsync(id, default))!, new LocalDate(2025, 10, 15), new LocalDate(2026, 6, 1)).Ok();
@@ -137,7 +137,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
         var (store, id) = await NewStoreAsync(fixture);
         var phase = new BillingPhase(BillingPhaseId.New(), new LocalDate(2025, 1, 1), null,
                                      Eur(10m), Months(1), null, null, new Payer(PayerType.Household, null));
-        (await store.AddPhaseAsync(id, phase, default)).Ok();
+        (await store.AddPhaseAsync(id, phase, RowOrigin.None, default)).Ok();
 
         (await store.ClosePhaseAsync(id, phase.Id, new LocalDate(2025, 6, 1), default)).Ok();
 
@@ -151,7 +151,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
         var purchase = new Purchase(PurchaseId.New(), new LocalDate(2025, 1, 1), "gift", Eur(0m),
                                     new Payer(PayerType.External, null), PurchaseKind.Gift,
                                     [new Grant(id, Months(1), CoverageSource.Gift, null)], null);
-        (await store.AddPurchaseAsync(purchase, default)).Ok();
+        (await store.AddPurchaseAsync(purchase, RowOrigin.None, default)).Ok();
 
         (await store.DeletePurchaseAsync(id, purchase.Id, default)).Ok();
 

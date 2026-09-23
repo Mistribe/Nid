@@ -18,12 +18,13 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
 
         modelBuilder.Entity<SubscriptionRow>(e =>
         {
-            e.ToTable("subscription");
+            e.ToTable("subscription", t => ImportConstraint(t, "subscription"));
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
             e.HasMany(x => x.Users).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Phases).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
             MapXmin(e.Property(x => x.Version));
+            MapImport(e);
         });
 
         modelBuilder.Entity<SubscriptionUserRow>(e =>
@@ -42,11 +43,13 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                     "(payer_type = 'person' and payer_person_id is not null) or (payer_type <> 'person' and payer_person_id is null)");
                 t.HasCheckConstraint("ck_billing_phase_price_sign", "price_amount >= 0");
                 t.HasCheckConstraint("ck_billing_phase_payer_type", "payer_type in ('person','household')");
+                ImportConstraint(t, "billing_phase");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.PriceCurrency).HasColumnType("char(3)");
             e.HasIndex(x => x.ItemId);
+            MapImport(e);
         });
 
         modelBuilder.Entity<PurchaseRow>(e =>
@@ -60,12 +63,14 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_purchase_price_sign",
                     "price_amount >= 0 or kind in ('adjustment','refund')");
                 t.HasCheckConstraint("ck_purchase_payer_type", "payer_type in ('person','household','external')");
+                ImportConstraint(t, "purchase");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.PriceCurrency).HasColumnType("char(3)");
             e.HasMany(x => x.Grants).WithOne().HasForeignKey(x => x.PurchaseId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.Date);
+            MapImport(e);
         });
 
         modelBuilder.Entity<GrantRow>(e =>
@@ -80,6 +85,19 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
         });
 
         ApplySnakeCase(modelBuilder);
+    }
+
+    // A row is imported or it is not: ref and hash come together. The ref is unique per table
+    // (import-format.md §8), and only among imported rows.
+    private static void ImportConstraint<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.TableBuilder<T> table, string name)
+        where T : class
+        => table.HasCheckConstraint($"ck_{name}_import", "(import_ref is null) = (import_hash is null)");
+
+    private static void MapImport<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> entity)
+        where T : class
+    {
+        entity.Property<string?>("ImportHash").HasColumnType("char(64)");
+        entity.HasIndex("ImportRef").IsUnique().HasFilter("import_ref is not null");
     }
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)

@@ -51,6 +51,14 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("every_unit");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
@@ -88,12 +96,19 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_billing_phase");
 
+                    b.HasIndex("ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_billing_phase_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.HasIndex("ItemId")
                         .HasDatabaseName("ix_billing_phase_item_id");
 
                     b.ToTable("billing_phase", "subscriptions", t =>
                         {
                             t.HasCheckConstraint("ck_billing_phase_every", "every_count > 0");
+
+                            t.HasCheckConstraint("ck_billing_phase_import", "(import_ref is null) = (import_hash is null)");
 
                             t.HasCheckConstraint("ck_billing_phase_payer", "(payer_type = 'person' and payer_person_id is not null) or (payer_type <> 'person' and payer_person_id is null)");
 
@@ -165,6 +180,14 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("date");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")
@@ -203,9 +226,16 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                     b.HasIndex("Date")
                         .HasDatabaseName("ix_purchase_date");
 
+                    b.HasIndex("ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchase_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("purchase", "subscriptions", t =>
                         {
                             t.HasCheckConstraint("ck_purchase_allocated", "allocated_amount is null or (kind = 'bundle' and allocated_amount >= 0 and allocated_amount <= price_amount)");
+
+                            t.HasCheckConstraint("ck_purchase_import", "(import_ref is null) = (import_hash is null)");
 
                             t.HasCheckConstraint("ck_purchase_kind", "kind in ('prepaid_term','bundle','gift','adjustment','refund')");
 
@@ -229,6 +259,14 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("cancelled_at");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
                     b.Property<string>("Note")
                         .HasColumnType("text")
                         .HasColumnName("note");
@@ -246,7 +284,15 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                     b.HasKey("ItemId")
                         .HasName("pk_subscription");
 
-                    b.ToTable("subscription", "subscriptions");
+                    b.HasIndex("ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscription_import_ref")
+                        .HasFilter("import_ref is not null");
+
+                    b.ToTable("subscription", "subscriptions", t =>
+                        {
+                            t.HasCheckConstraint("ck_subscription_import", "(import_ref is null) = (import_hash is null)");
+                        });
                 });
 
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.SubscriptionUserRow", b =>

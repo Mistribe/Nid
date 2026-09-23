@@ -1,0 +1,375 @@
+using System.Text.Json;
+using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
+using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Domain;
+using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
+
+namespace Nid.Subscriptions.Application.Import;
+
+/// <summary>
+/// Sections <c>subscriptions</c>, <c>billing_phases</c> and <c>purchases</c>. Writes go through the same
+/// <see cref="IItemRegistry"/> and <see cref="ISubscriptionStore"/> as the API; rules come from the Core and the
+/// engine, never from here.
+/// </summary>
+public sealed class SubscriptionsImportSection(IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules)
+    : IImportSection
+{
+    public const string Subscriptions = "subscriptions";
+    public const string Phases = "billing_phases";
+    public const string Purchases = "purchases";
+
+    /// <summary>Stands for every person and every subscription while a batch is checked alone.</summary>
+    private static readonly ItemId Placeholder = new(Guid.Empty);
+
+    private readonly List<(StagedEntity Entity, SubscriptionRecord Record)> newSubscriptions = [];
+    private readonly List<(StagedEntity Entity, BillingPhaseRecord Record)> newPhases = [];
+    private readonly List<(StagedEntity Entity, PurchaseRecord Record)> newPurchases = [];
+    private IReadOnlyDictionary<string, SectionCounts> counts = new Dictionary<string, SectionCounts>();
+
+    public string Module => "subscriptions";
+    public IReadOnlyList<string> Sections => [Subscriptions, Phases, Purchases];
+    public int Order => 10;
+
+    public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
+    {
+        var issues = new List<ImportIssue>();
+        var anyone = (string _) => (PersonId?)new PersonId(Guid.Empty);
+        var position = 0;
+        foreach (var entity in entities.EnumerateArray())
+        {
+            var path = NidDataJson.Path(section, firstIndex + position++);
+            switch (section)
+            {
+                case Subscriptions:
+                    if (NidDataJson.TryRead<SubscriptionRecord>(entity, path, issues, out var subscription)
+                        && RecordParsing.TryId(subscription.Id, path, issues))
+                        RecordParsing.TrySubscription(subscription, path, _ => new ResolvedPerson(new PersonId(Guid.Empty), PersonKind.Adult), issues, out _);
+                    break;
+                case Phases:
+                    if (NidDataJson.TryRead<BillingPhaseRecord>(entity, path, issues, out var phaseRecord)
+                        && RecordParsing.TryId(phaseRecord.Id, path, issues)
+                        && RecordParsing.TryPhase(phaseRecord, path, anyone, issues, out var phase))
+                        EngineRules(new SubscriptionInput(Header(Placeholder), [phase], []), phase.StartsOn, path, issues);
+                    break;
+                case Purchases:
+                    if (NidDataJson.TryRead<PurchaseRecord>(entity, path, issues, out var purchaseRecord)
+                        && RecordParsing.TryId(purchaseRecord.Id, path, issues)
+                        && RecordParsing.TryPurchase(purchaseRecord, path, anyone, _ => Placeholder, issues, out var purchase))
+                        EngineRules(new SubscriptionInput(Header(Placeholder), [], [purchase]), purchase.Date, path, issues);
+                    break;
+            }
+        }
+
+        return issues;
+    }
+
+    public async Task<SectionOutcome> ValidateAllAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
+    {
+        newSubscriptions.Clear();
+        newPhases.Clear();
+        newPurchases.Clear();
+        var issues = new List<ImportIssue>();
+
+        var subscriptionRecords = ReadAll<SubscriptionRecord>(staged, Subscriptions, r => r.Id, issues);
+        var phaseRecords = ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues);
+        var purchaseRecords = ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues);
+
+        var knownSubscriptions = await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct);
+        var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);
+        var knownPurchases = await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct);
+
+        var tally = new Dictionary<string, SectionCounts>
+        {
+            [Subscriptions] = SectionCounts.Zero, [Phases] = SectionCounts.Zero, [Purchases] = SectionCounts.Zero,
+        };
+        var runs = new Dictionary<string, DryRun>(StringComparer.Ordinal);    // file id → what the engine will walk
+        var failed = new HashSet<string>(StringComparer.Ordinal);            // subscriptions already reported
+        var existing = new HashSet<string>(StringComparer.Ordinal);          // subscriptions imported before
+        var paths = new Dictionary<string, string>(StringComparer.Ordinal);  // engine reference → file path
+        var person = Persons(context);
+
+        foreach (var (entity, record) in subscriptionRecords)
+        {
+            var path = NidDataJson.Path(Subscriptions, entity.Index);
+            if (!RecordParsing.TrySubscription(record, path, r => context.Persons.GetValueOrDefault(r), issues, out var parsed))
+            {
+                failed.Add(record.Id);
+                continue;
+            }
+
+            if (rules.ValidateOwners(parsed.Visibility, parsed.Owners).TryGetFailure(out var ownership))
+            {
+                issues.Add(ImportIssue.Error(ownership!.Code, ownership.Message, path + ".ownership"));
+                failed.Add(record.Id);
+                continue;
+            }
+
+            if (!rules.CanCreate(context.Actor, parsed.Owners))
+            {
+                issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
+                    "An item is imported by one of its owners, unless every owner is a dependent.", path));
+                failed.Add(record.Id);
+                continue;
+            }
+
+            ItemId id;
+            if (knownSubscriptions.TryGetValue(record.Id, out var known))
+            {
+                if (known.Hash != entity.Hash)
+                {
+                    issues.Add(Conflict(path, record.Id));
+                    tally[Subscriptions] += new SectionCounts(0, 0, 1);
+                    failed.Add(record.Id);
+                    continue;
+                }
+
+                id = new ItemId(known.Id);
+                existing.Add(record.Id);
+                tally[Subscriptions] += new SectionCounts(0, 1, 0);
+            }
+            else
+            {
+                id = ItemId.New(); // planned; ApplyAsync replaces it with the real one
+                newSubscriptions.Add((entity, record));
+                tally[Subscriptions] += new SectionCounts(1, 0, 0);
+            }
+
+            context.Items[(Subscriptions, record.Id)] = id;
+            paths[id.ToString()] = path;
+            runs[record.Id] = new DryRun(id, path, record.AutoRenew, parsed.CancelledAt);
+        }
+
+        foreach (var (entity, record) in phaseRecords)
+        {
+            var path = NidDataJson.Path(Phases, entity.Index);
+            if (failed.Contains(record.SubscriptionId))
+                continue;
+            if (!runs.TryGetValue(record.SubscriptionId, out var run))
+            {
+                issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{record.SubscriptionId}' is not in subscriptions.", path + ".subscription_id"));
+                continue;
+            }
+            if (!RecordParsing.TryPhase(record, path, person, issues, out var phase))
+                continue;
+
+            paths[phase.Id.ToString()] = path;
+            if (knownPhases.TryGetValue(record.Id, out var known))
+            {
+                if (known.Hash != entity.Hash)
+                {
+                    issues.Add(Conflict(path, record.Id));
+                    tally[Phases] += new SectionCounts(0, 0, 1);
+                    continue;
+                }
+                tally[Phases] += new SectionCounts(0, 1, 0);
+            }
+            else
+            {
+                if (existing.Contains(record.SubscriptionId) && !await CanWriteAsync(context.Actor, run.Id, ct))
+                {
+                    issues.Add(NotWritable(path + ".subscription_id"));
+                    continue;
+                }
+                if (!WholePeriods(phase))
+                    issues.Add(ImportIssue.Warning(ImportCodes.PhaseNotWholePeriods,
+                        "The phase does not last a whole number of periods: check its dates.", path));
+                newPhases.Add((entity, record));
+                tally[Phases] += new SectionCounts(1, 0, 0);
+            }
+
+            run.Phases.Add(phase);
+        }
+
+        foreach (var (entity, record) in purchaseRecords)
+        {
+            var path = NidDataJson.Path(Purchases, entity.Index);
+            if (record.Grants.Any(g => failed.Contains(g.SubscriptionId)))
+                continue;
+            if (!RecordParsing.TryPurchase(record, path, person, fileId => runs.TryGetValue(fileId, out var r) ? r.Id : null, issues, out var purchase))
+                continue;
+
+            paths[purchase.Id.ToString()] = path;
+            var targets = record.Grants.Select(g => g.SubscriptionId).Distinct(StringComparer.Ordinal).ToList();
+            if (knownPurchases.TryGetValue(record.Id, out var known))
+            {
+                if (known.Hash != entity.Hash)
+                {
+                    issues.Add(Conflict(path, record.Id));
+                    tally[Purchases] += new SectionCounts(0, 0, 1);
+                    continue;
+                }
+                tally[Purchases] += new SectionCounts(0, 1, 0);
+            }
+            else
+            {
+                var refused = false;
+                foreach (var target in targets.Where(existing.Contains))
+                    if (!await CanWriteAsync(context.Actor, runs[target].Id, ct))
+                        refused = true;
+                if (refused)
+                {
+                    issues.Add(NotWritable(path + ".grants"));
+                    continue;
+                }
+                newPurchases.Add((entity, record));
+                tally[Purchases] += new SectionCounts(1, 0, 0);
+            }
+
+            foreach (var target in targets)
+                runs[target].Purchases.Add(purchase);
+        }
+
+        // The engine's own validation and findings, on exactly what the file describes.
+        foreach (var run in runs.Values)
+        {
+            var input = new SubscriptionInput(
+                new SubscriptionHeader(run.Id, run.AutoRenew, run.CancelledAt),
+                run.Phases.OrderBy(p => p.StartsOn).ToList(),
+                run.Purchases);
+            var built = SubscriptionTimeline.Build(input, context.Today, Horizons.Resolve(context.Today, null));
+            if (built.TryGetFailure(out var failure))
+            {
+                issues.Add(ImportIssue.Error(failure!.Code, failure.Message, PathOf(failure, paths) ?? run.Path));
+                continue;
+            }
+
+            built.TryGetValue(out var timeline);
+            // horizon_reached only says an open phase keeps renewing: true of every live subscription, and a
+            // concern of reads (1C1 design §5), not of an import.
+            foreach (var finding in timeline!.Warnings.Where(w => w.Code != "subscriptions.horizon_reached"))
+                issues.Add(ImportIssue.Warning(finding.Code, finding.Message,
+                    finding.Reference is { } reference && paths.TryGetValue(reference, out var at) ? at : run.Path));
+        }
+
+        counts = tally;
+        return new SectionOutcome(issues, tally);
+    }
+
+    public async Task<Result<IReadOnlyDictionary<string, SectionCounts>>> ApplyAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
+    {
+        var issues = new List<ImportIssue>();
+        var person = Persons(context);
+
+        foreach (var (entity, record) in newSubscriptions)
+        {
+            var path = NidDataJson.Path(Subscriptions, entity.Index);
+            if (!RecordParsing.TrySubscription(record, path, r => context.Persons.GetValueOrDefault(r), issues, out var parsed))
+                return Drift(issues);
+
+            var created = await items.CreateAsync(new NewItem(
+                "subscriptions", "subscription", record.Name, parsed.Visibility, null,
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList()), ct);
+            if (!created.TryGetValue(out var id))
+                return FailureOf(created);
+
+            context.Items[(Subscriptions, record.Id)] = id;
+            var stored = await store.CreateAsync(id, new NewSubscription(
+                record.ProviderKey, record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash)), ct);
+            if (stored.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
+        }
+
+        foreach (var (entity, record) in newPhases)
+        {
+            if (!RecordParsing.TryPhase(record, NidDataJson.Path(Phases, entity.Index), person, issues, out var phase))
+                return Drift(issues);
+            var added = await store.AddPhaseAsync(context.Items[(Subscriptions, record.SubscriptionId)], phase,
+                new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash)), ct);
+            if (added.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
+        }
+
+        foreach (var (entity, record) in newPurchases)
+        {
+            if (!RecordParsing.TryPurchase(record, NidDataJson.Path(Purchases, entity.Index), person,
+                    fileId => context.Items.TryGetValue((Subscriptions, fileId), out var id) ? id : null, issues, out var purchase))
+                return Drift(issues);
+            var added = await store.AddPurchaseAsync(purchase, new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash)), ct);
+            if (added.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
+        }
+
+        return Result.Success(counts);
+    }
+
+    private sealed record DryRun(ItemId Id, string Path, bool AutoRenew, LocalDate? CancelledAt)
+    {
+        public List<BillingPhase> Phases { get; } = [];
+        public List<Purchase> Purchases { get; } = [];
+    }
+
+    private static SubscriptionHeader Header(ItemId id) => new(id, true, null);
+
+    private static Func<string, PersonId?> Persons(ImportContext context)
+        => reference => context.Persons.TryGetValue(reference, out var resolved) ? resolved.Id : null;
+
+    private static List<(StagedEntity Entity, T Record)> ReadAll<T>(IStagedBatches staged, string section, Func<T, string> id, List<ImportIssue> issues)
+        where T : class
+    {
+        var records = new List<(StagedEntity, T)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entity in staged.Section(section))
+        {
+            var path = NidDataJson.Path(section, entity.Index);
+            if (!NidDataJson.TryRead<T>(entity.Value, path, issues, out var record) || !RecordParsing.TryId(id(record), path, issues))
+                continue;
+            if (!seen.Add(id(record)))
+            {
+                issues.Add(ImportIssue.Error(ImportCodes.DuplicateId, $"'{id(record)}' appears twice in {section}.", path + ".id"));
+                continue;
+            }
+            records.Add((entity, record));
+        }
+        return records;
+    }
+
+    /// <summary>The engine's hard rules on one entity, checked alone: its reference is the entity itself.</summary>
+    private static void EngineRules(SubscriptionInput input, LocalDate day, string path, List<ImportIssue> issues)
+    {
+        if (SubscriptionTimeline.Build(input, day, day).TryGetFailure(out var failure))
+            issues.Add(ImportIssue.Error(failure!.Code, failure.Message, path));
+    }
+
+    private static string? PathOf(Failure failure, IReadOnlyDictionary<string, string> paths)
+        => failure.Metadata is { } metadata && metadata.TryGetValue("reference", out var reference)
+           && reference is string key && paths.TryGetValue(key, out var path)
+            ? path
+            : null;
+
+    private static bool WholePeriods(BillingPhase phase)
+    {
+        if (phase.EndsOn is not { } end)
+            return true;
+        for (var k = 1; k <= SubscriptionTimeline.MaxCyclesPerPhase; k++)
+        {
+            var renewal = phase.Every.AddTo(phase.StartsOn, k);
+            if (renewal == end)
+                return true;
+            if (renewal > end)
+                return false;
+        }
+        return false;
+    }
+
+    private async Task<bool> CanWriteAsync(PersonId actor, ItemId item, CancellationToken ct)
+        => !(await policy.CheckAsync(actor, item, AccessKind.Write, ct)).TryGetFailure(out _);
+
+    private static ImportIssue Conflict(string path, string id)
+        => ImportIssue.Error(ImportCodes.Conflict,
+            $"'{id}' was imported before with other content; nothing is overwritten (import-format.md §8).", path);
+
+    private static ImportIssue NotWritable(string path)
+        => ImportIssue.Error(ImportCodes.NotPermitted, "This adds to a subscription you cannot change.", path);
+
+    /// <summary>What validated a moment ago no longer parses: refuse rather than write half of it.</summary>
+    private static Result<IReadOnlyDictionary<string, SectionCounts>> Drift(List<ImportIssue> issues)
+        => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(new Failure(ImportCodes.ApplyFailed,
+            $"The staging changed between validation and writing: {string.Join("; ", issues.Select(i => $"{i.Code} at {i.Path}"))}", null));
+
+    private static Result<IReadOnlyDictionary<string, SectionCounts>> FailureOf<T>(Result<T> result) where T : notnull
+        => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(
+            result.TryGetFailure(out var failure) ? failure! : new Failure(ImportCodes.ApplyFailed, "A write failed.", null));
+}

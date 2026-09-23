@@ -105,9 +105,10 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         public Task<SubscriptionInput?> LoadAsync(ItemId id, CancellationToken ct) => inner.LoadAsync(id, ct);
         public Task<IReadOnlyList<SubscriptionInput>> LoadManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct) => inner.LoadManyAsync(ids, ct);
         public Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct) => inner.EditAsync(id, edit, ct);
-        public Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, CancellationToken ct) => inner.AddPhaseAsync(id, phase, ct);
+        public Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct) => inner.AddPhaseAsync(id, phase, origin, ct);
         public Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, NodaTime.LocalDate endsOn, CancellationToken ct) => inner.ClosePhaseAsync(id, phase, endsOn, ct);
-        public Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, CancellationToken ct) => inner.AddPurchaseAsync(purchase, ct);
+        public Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct) => inner.AddPurchaseAsync(purchase, origin, ct);
+        public Task<IReadOnlyDictionary<string, ImportedRow>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct) => inner.FindImportedAsync(table, refs, ct);
         public Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct) => inner.GrantedItemsAsync(purchase, ct);
         public Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct) => inner.DeletePurchaseAsync(id, purchase, ct);
     }
