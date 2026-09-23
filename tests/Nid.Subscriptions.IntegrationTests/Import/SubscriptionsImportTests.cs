@@ -191,6 +191,31 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
         Assert.Equal((ImportCodes.NotPermitted, "subscriptions[0]"), (issue.Code, issue.Path));
     }
 
+    /// <summary>
+    /// A imports and commits a subscription private to them. B later imports the identical record (same id,
+    /// same content — the hash matches, so it is not a conflict): the creation rule does not apply, since
+    /// nothing is created, but a private item grants no one but its owner even READ, so B cannot see it either.
+    /// </summary>
+    [Fact]
+    public async Task B_cannot_reimport_a_subscription_committed_private_to_A()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var subscription = """[{"id":"sub-private","name":"A's private","visibility":"private","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]""";
+        await CommitAsync(client, app, new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = subscription });
+
+        var validated = await client.RunAsync(app.AdultB,
+            new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value },
+            new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = subscription });
+
+        Assert.Equal("invalid", validated.State);
+        var issue = Assert.Single(validated.Report!.Issues);
+        Assert.Equal((ImportCodes.NotPermitted, "subscriptions[0]"), (issue.Code, issue.Path));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, validated.Id)).StatusCode);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Equal(1, await subs.Subscriptions.CountAsync());
+    }
+
     [Fact]
     public async Task A_subscription_owned_by_a_new_dependent_is_created_with_them()
     {
