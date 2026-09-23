@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
+using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Subscriptions.Application;
@@ -90,6 +91,9 @@ public static class RequestCatalogue
         new(typeof(ListPersonsQuery), false, (_, _) => new ListPersonsQuery()),
         new(typeof(CreateDependentCommand), false, (_, _) => new CreateDependentCommand("bench-dependent")),
         new(typeof(ProvisionAdultCommand), false, (_, _) => new ProvisionAdultCommand("bench-subject", "bench", null)),
+        new(typeof(UpdatePreferencesCommand), false,
+            (_, _) => new UpdatePreferencesCommand(new PreferencesChange("sauge", null, null))),
+        new(typeof(GetCapabilitiesQuery), false, (_, _) => new GetCapabilitiesQuery()),
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),

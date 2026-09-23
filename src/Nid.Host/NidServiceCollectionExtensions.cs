@@ -50,6 +50,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
         services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import"]));
 
         services.AddDbContext<SubscriptionsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
