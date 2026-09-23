@@ -25,6 +25,12 @@ public static class ImportEndpoints
         api.MapDelete("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new CancelImportCommand(id), ct)).ToHttp(v => v));
 
+        api.MapPost("/{id:guid}/validate", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ValidateImportCommand(id), ct)).ToHttp(v => v));
+
+        api.MapPost("/{id:guid}/commit", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CommitImportCommand(id), ct)).ToHttp(v => v));
+
         // The body is read by hand: its size and depth are bounded before anything parses it (§11.5).
         api.MapPut("/{id:guid}/batches/{section}/{n:int}", async (
                 Guid id, string section, int n, HttpRequest request, [FromServices] ImportOptions options, IInvoker invoker, CancellationToken ct) =>

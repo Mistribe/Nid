@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Application.Import;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform;
@@ -58,6 +59,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<PlatformDbContext>>();
         services.AddScoped<IImportStaging, ImportStagingStore>();
         services.AddSingleton(new ImportOptions());
+        services.AddScoped<ImportRunner>();
+        services.AddScoped<IImportSection, PersonsImportSection>();
 
         services.AddLogging();
         services.AddSynapse(cfg =>

@@ -141,6 +141,8 @@ public static class RequestCatalogue
         new(typeof(CancelImportCommand), false, (_, _) => new CancelImportCommand(Guid.NewGuid())),
         new(typeof(PutBatchCommand), false,
             (_, _) => new PutBatchCommand(Guid.NewGuid(), "persons", 0, new string('0', 64), JsonDocument.Parse("[]").RootElement)),
+        new(typeof(ValidateImportCommand), false, (_, _) => new ValidateImportCommand(Guid.NewGuid())),
+        new(typeof(CommitImportCommand), false, (_, _) => new CommitImportCommand(Guid.NewGuid())),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
