@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -138,6 +139,8 @@ public static class RequestCatalogue
         new(typeof(GetImportQuery), false, (_, _) => new GetImportQuery(Guid.NewGuid())),
         new(typeof(ListImportsQuery), false, (_, _) => new ListImportsQuery()),
         new(typeof(CancelImportCommand), false, (_, _) => new CancelImportCommand(Guid.NewGuid())),
+        new(typeof(PutBatchCommand), false,
+            (_, _) => new PutBatchCommand(Guid.NewGuid(), "persons", 0, new string('0', 64), JsonDocument.Parse("[]").RootElement)),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
