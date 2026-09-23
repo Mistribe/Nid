@@ -97,7 +97,20 @@ public sealed record FxSyncRun(
     int RowsWritten,
     string? FailureCode,
     string? FailureMessage,
-    IReadOnlyList<FxRejection> Rejected);
+    IReadOnlyList<FxRejection> Rejected)
+{
+    // The compiler-generated equality would compare Rejected by reference (IReadOnlyList<T> has none of its own):
+    // two runs read back from storage would never equal one another. Compare it by content instead.
+    public bool Equals(FxSyncRun? other)
+        => other is not null
+           && Id == other.Id && Kind == other.Kind && StartedAt == other.StartedAt && FinishedAt == other.FinishedAt
+           && Status == other.Status && FilesRead == other.FilesRead && RowsWritten == other.RowsWritten
+           && FailureCode == other.FailureCode && FailureMessage == other.FailureMessage
+           && Rejected.SequenceEqual(other.Rejected);
+
+    public override int GetHashCode()
+        => HashCode.Combine(Id, Kind, StartedAt, FinishedAt, Status, FilesRead, HashCode.Combine(RowsWritten, FailureCode, FailureMessage));
+}
 
 /// <summary>The collection journal, <c>core.fx_sync_run</c> (design §4.2).</summary>
 public interface IFxRunLog
@@ -153,4 +166,15 @@ public interface IHouseholdSettings
 {
     /// <summary>The currency of household totals; EUR while the settings row does not exist yet (it is created at the first login).</summary>
     Task<Currency> ReferenceCurrencyAsync(CancellationToken ct);
+}
+
+/// <summary>A source file's bytes, or <c>null</c> when the source has none for that request (an HTTP 404).</summary>
+public sealed record FxFetch(byte[]? Bytes);
+
+/// <summary>The two rate sources (design §4.3). Failures carry <see cref="FxCodes"/> source codes; nothing throws.</summary>
+public interface IFxSourceClient
+{
+    Task<UnambitiousFx.Functional.Result<FxFetch>> SubTrackerDayAsync(LocalDate date, CancellationToken ct);
+
+    Task<UnambitiousFx.Functional.Result<FxFetch>> EcbHistoryAsync(CancellationToken ct);
 }
