@@ -118,3 +118,39 @@ public interface IFxRunLog
 
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
 }
+
+/// <summary>Bound from the <c>Fx</c> configuration section by the host; the defaults are the design's.</summary>
+public sealed class FxOptions
+{
+    /// <summary>Beyond this many days without a rate, a conversion is <see cref="FxCodes.RateMissing"/> (design §5.1).</summary>
+    public int MaxGapDays { get; set; } = 7;
+
+    /// <summary>Relative daily change above which a collected rate is refused (design §4.4): 0.25 = 25 %.</summary>
+    public decimal MaxDailyChange { get; set; } = 0.25m;
+
+    /// <summary>Ends with '/': a day's file is <c>{yyyy}/{MM}/{dd}.json</c> under it.</summary>
+    public string SubTrackerBaseUrl { get; set; } = "https://raw.githubusercontent.com/Mistribe/SubTracker-Data/main/exchange/";
+
+    public string EcbHistoryUrl { get; set; } = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.zip";
+
+    /// <summary>Quartz cron (seconds first), UTC: after the upstream commit, which lands around 05:30 UTC (design §3).</summary>
+    public string DailyCron { get; set; } = "0 0 7 * * ?";
+
+    /// <summary>The first SubTracker-Data file (checked 2026-09-23): nothing before it is ever fetched.</summary>
+    public LocalDate SubTrackerStart { get; init; } = new(2025, 7, 30);
+}
+
+public interface IFxRates
+{
+    /// <summary>
+    /// The rates of <paramref name="quotes"/> (USD ignored) from <paramref name="from"/> minus the maximum gap to the
+    /// later of <paramref name="to"/> and today, so every date in the range and every projection can be looked up.
+    /// </summary>
+    Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct);
+}
+
+public interface IHouseholdSettings
+{
+    /// <summary>The currency of household totals; EUR while the settings row does not exist yet (it is created at the first login).</summary>
+    Task<Currency> ReferenceCurrencyAsync(CancellationToken ct);
+}
