@@ -35,7 +35,15 @@ public sealed record ImportSession(
     Instant ExpiresAt,
     IReadOnlyDictionary<string, PersonId> Adults,
     string? ReportJson,
-    Instant UpdatedAt);
+    Instant UpdatedAt)
+{
+    /// <summary>
+    /// The session as it stands at <paramref name="now"/>: an active one past its expiry is expired, whether or
+    /// not a sweep (<see cref="IImportStaging.ExpireAsync"/>) has marked it so yet.
+    /// </summary>
+    public ImportSession AsOf(Instant now)
+        => ImportStates.Active.Contains(State) && ExpiresAt < now ? this with { State = ImportState.Expired } : this;
+}
 
 /// <summary>One accepted batch. <paramref name="Payload"/> is the RFC 8785 canonical form of its entities.</summary>
 public sealed record StoredBatch(string Section, int Index, string Hash, int Count, string Payload);

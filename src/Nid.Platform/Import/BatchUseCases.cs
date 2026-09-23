@@ -36,7 +36,7 @@ public sealed class PutBatchHandler(
         if (!ImportActor.Require(accessor).TryGetValue(out var person))
             return Fail(new UnauthorizedFailure("An import is run by a person.", null));
 
-        var session = await staging.FindOwnedAsync(command.SessionId, person, ct);
+        var session = await ImportActor.FindAsync(staging, clock, command.SessionId, person, ct);
         if (session is null)
             return Fail(ImportActor.NotFound(command.SessionId));
         if (!ImportStates.Active.Contains(session.State))

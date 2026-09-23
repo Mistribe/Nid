@@ -25,6 +25,13 @@ public static class ImportActor
             : Result.Failure<PersonId>(new UnauthorizedFailure("An import is run by a person.", null));
 
     public static Failure NotFound(Guid session) => new NotFoundFailure("import", session.ToString());
+
+    /// <summary>
+    /// The one lookup of every call on a session: the owner's session (§4, ownership) as it stands now, so an
+    /// unswept session past its lifetime is expired for every handler alike (§11.5).
+    /// </summary>
+    public static async Task<ImportSession?> FindAsync(IImportStaging staging, IClock clock, Guid id, PersonId person, CancellationToken ct)
+        => (await staging.FindOwnedAsync(id, person, ct))?.AsOf(clock.GetCurrentInstant());
 }
 
 [RequestHandler<StartImportCommand, ImportSessionView>]
@@ -52,14 +59,14 @@ public sealed class StartImportHandler(IImportStaging staging, IActorAccessor ac
 }
 
 [RequestHandler<GetImportQuery, ImportSessionView>]
-public sealed class GetImportHandler(IImportStaging staging, IActorAccessor accessor) : IRequestHandler<GetImportQuery, ImportSessionView>
+public sealed class GetImportHandler(IImportStaging staging, IActorAccessor accessor, IClock clock) : IRequestHandler<GetImportQuery, ImportSessionView>
 {
     public async ValueTask<Result<ImportSessionView>> HandleAsync(GetImportQuery query, CancellationToken ct = default)
     {
         if (!ImportActor.Require(accessor).TryGetValue(out var person))
             return Result.Failure<ImportSessionView>(new UnauthorizedFailure("An import is run by a person.", null));
 
-        var session = await staging.FindOwnedAsync(query.SessionId, person, ct);
+        var session = await ImportActor.FindAsync(staging, clock, query.SessionId, person, ct);
         return session is null
             ? Result.Failure<ImportSessionView>(ImportActor.NotFound(query.SessionId))
             : Result.Success(ImportSessionView.From(session));
@@ -90,9 +97,12 @@ public sealed class CancelImportHandler(IImportStaging staging, IActorAccessor a
         if (!ImportActor.Require(accessor).TryGetValue(out var person))
             return Result.Failure<ImportSessionView>(new UnauthorizedFailure("An import is run by a person.", null));
 
-        var session = await staging.FindOwnedAsync(command.SessionId, person, ct);
+        var session = await ImportActor.FindAsync(staging, clock, command.SessionId, person, ct);
         if (session is null)
             return Result.Failure<ImportSessionView>(ImportActor.NotFound(command.SessionId));
+        if (!ImportStates.Active.Contains(session.State))
+            return Result.Failure<ImportSessionView>(new Failure(ImportCodes.State,
+                $"This import is {ImportStates.Name(session.State)}: there is nothing left to cancel.", null));
 
         if (!await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), ImportState.Cancelled,
                 clock.GetCurrentInstant(), session.ExpiresAt, session.ReportJson, ct))

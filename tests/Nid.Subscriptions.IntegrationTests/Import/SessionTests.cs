@@ -93,6 +93,36 @@ public class SessionTests(PostgresFixture fixture)
     }
 
     /// <summary>
+    /// The lifetime holds on use, not only when a sweep happens to run: a session past its expiry reads expired
+    /// and refuses every action, though nothing has marked it so in the database yet.
+    /// </summary>
+    [Fact]
+    public async Task A_session_past_its_expiry_is_expired_for_every_call()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services =>
+            services.AddSingleton(new ImportOptions { SessionLifetime = TimeSpan.FromSeconds(-1) }));
+        var client = new ImportClient(app);
+        var stale = await client.StartAsync(app.AdultA);
+        var url = $"{ImportClient.Root}/{stale.Id}";
+
+        Assert.Equal("expired", (await client.GetAsync(app.AdultA, stale.Id)).State);
+        foreach (var response in new[]
+                 {
+                     await client.PutRawAsync(app.AdultA, stale.Id, "persons", 0, """[{"ref":"adult-1","kind":"adult","display_name":"A"}]"""),
+                     await client.ValidateRawAsync(app.AdultA, stale.Id),
+                     await client.CommitRawAsync(app.AdultA, stale.Id),
+                     await app.RawAsync(app.AdultA, HttpMethod.Delete, url),
+                 })
+        {
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Equal(ImportCodes.State, await ImportClient.CodeOf(response));
+            Assert.Contains("expired", await response.Content.ReadAsStringAsync());
+        }
+
+        Assert.Equal("expired", (await client.GetAsync(app.AdultA, stale.Id)).State);
+    }
+
+    /// <summary>
     /// The 1C1 hazard: a request Synapse's generator did not see runs with no behavior at all. These two
     /// refusals can only come from ActorBehavior and ScopeBehavior wrapping Platform's own requests.
     /// </summary>

@@ -40,7 +40,7 @@ public sealed class ValidateImportHandler(
         if (!ImportActor.Require(accessor).TryGetValue(out var person))
             return Result.Failure<ImportSessionView>(new UnauthorizedFailure("An import is run by a person.", null));
 
-        var session = await staging.FindOwnedAsync(command.SessionId, person, ct);
+        var session = await ImportActor.FindAsync(staging, clock, command.SessionId, person, ct);
         if (session is null)
             return Result.Failure<ImportSessionView>(ImportActor.NotFound(command.SessionId));
         if (!ImportStates.Active.Contains(session.State))
@@ -68,7 +68,7 @@ public sealed class ValidateImportHandler(
 }
 
 [RequestHandler<CommitImportCommand, ImportSessionView>]
-public sealed class CommitImportHandler(ImportRunner runner, IImportStaging staging, IActorAccessor accessor, ImportOptions options)
+public sealed class CommitImportHandler(ImportRunner runner, IImportStaging staging, IActorAccessor accessor, IClock clock, ImportOptions options)
     : IRequestHandler<CommitImportCommand, ImportSessionView>
 {
     public async ValueTask<Result<ImportSessionView>> HandleAsync(CommitImportCommand command, CancellationToken ct = default)
@@ -76,9 +76,12 @@ public sealed class CommitImportHandler(ImportRunner runner, IImportStaging stag
         if (!ImportActor.Require(accessor).TryGetValue(out var person))
             return Result.Failure<ImportSessionView>(new UnauthorizedFailure("An import is run by a person.", null));
 
-        var session = await staging.FindOwnedAsync(command.SessionId, person, ct);
+        var session = await ImportActor.FindAsync(staging, clock, command.SessionId, person, ct);
         if (session is null)
             return Result.Failure<ImportSessionView>(ImportActor.NotFound(command.SessionId));
+        if (!ImportStates.Active.Contains(session.State))
+            return Result.Failure<ImportSessionView>(new Failure(ImportCodes.State,
+                $"This import is {ImportStates.Name(session.State)}: there is nothing left to commit.", null));
 
         var committed = await Bounded.RunAsync(options.OperationTimeout, ct, token => runner.CommitAsync(session, token));
         if (!committed.TryGetValue(out var report))
