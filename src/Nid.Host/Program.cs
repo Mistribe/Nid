@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host;
 using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Platform;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.Platform.Outbound;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -18,6 +20,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.AddSingleton(builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new FxOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
 builder.Services.AddNid(builder.Configuration.GetConnectionString("nid")
                          ?? throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 

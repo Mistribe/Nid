@@ -35,8 +35,9 @@ public sealed class NidApp : IAsyncDisposable
     private readonly WebApplicationFactory<Program> factory;
     private readonly Dictionary<Guid, string> csrfTokens = [];
 
-    private NidApp(WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d)
-        => (this.factory, ConnectionString, AdultA, AdultB, Dependent) = (factory, connectionString, a, b, d);
+    private NidApp(
+        WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d, FakeFxSources sources)
+        => (this.factory, ConnectionString, AdultA, AdultB, Dependent, Sources) = (factory, connectionString, a, b, d, sources);
 
     /// <summary>The database this harness runs against, for tests that read rows back directly.</summary>
     public string ConnectionString { get; }
@@ -48,13 +49,19 @@ public sealed class NidApp : IAsyncDisposable
     public PersonId AdultB { get; }
     public PersonId Dependent { get; }
 
+    /// <summary>The offline <see cref="IFxSourceClient"/> this host runs against; every request fails unless a test configures it.</summary>
+    public FakeFxSources Sources { get; }
+
     /// <param name="overrides">
     /// Applied last, so a test can replace a registered service. The leak bench uses it to install a
     /// deliberately broken <c>IVisibleItems</c> and watch the output guard catch it (access-tests.md §5).
     /// </param>
-    public static async Task<NidApp> StartAsync(PostgresFixture fixture, Action<IServiceCollection>? overrides = null)
+    /// <param name="settings">Extra host configuration, applied after the fixed settings below (e.g. <c>Jobs:Enabled</c> for Task 7).</param>
+    public static async Task<NidApp> StartAsync(
+        PostgresFixture fixture, Action<IServiceCollection>? overrides = null, IReadOnlyDictionary<string, string>? settings = null)
     {
         var connectionString = await fixture.NewConnectionStringAsync();
+        var sources = FakeFxSources.Offline();
 
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
         {
@@ -72,6 +79,10 @@ public sealed class NidApp : IAsyncDisposable
                 builder.UseSetting("Auth:Authority", "https://auth.test.localhost");
                 builder.UseSetting("Auth:ClientSecret", "test-secret");
                 builder.UseSetting("Auth:CsrfKey", "test-csrf-key-0123456789abcdef0123456789");
+                // No test host runs Quartz unless a test asks for it (Task 7), and none reaches the network.
+                builder.UseSetting("Jobs:Enabled", "false");
+                foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+                    builder.UseSetting(key, value);
                 // The golden-case fixtures (NewSpotifyGoldenCaseAsync) are dated around October 2025, matching
                 // docs/subscription-data-model.md and SubscriptionStoreTests. "today" must stay pinned there —
                 // wiring the real SystemClock would make NextCharge()'s IsProjected flip false once the wall
@@ -79,11 +90,12 @@ public sealed class NidApp : IAsyncDisposable
                 builder.ConfigureServices(services =>
                 {
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
+                    services.AddSingleton<IFxSourceClient>(sources);
                     overrides?.Invoke(services);
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d);
+            return new NidApp(factory, connectionString, a, b, d, sources);
         }
     }
 

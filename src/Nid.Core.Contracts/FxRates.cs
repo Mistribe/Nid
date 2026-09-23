@@ -178,3 +178,9 @@ public interface IFxSourceClient
 
     Task<UnambitiousFx.Functional.Result<FxFetch>> EcbHistoryAsync(CancellationToken ct);
 }
+
+/// <summary>Starts the backfill job now (Quartz in the host); fails with <see cref="FxCodes.JobsDisabled"/> when jobs are off.</summary>
+public interface IFxJobTrigger
+{
+    Task<UnambitiousFx.Functional.Result> TriggerBackfillAsync(CancellationToken ct);
+}

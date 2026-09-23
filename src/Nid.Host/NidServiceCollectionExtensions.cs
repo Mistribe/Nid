@@ -1,12 +1,17 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Nid.Core.Application.Fx;
 using Nid.Core.Application.Import;
 using Nid.Core.Contracts;
 using Nid.Core.Domain;
+using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Host.Jobs;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.Platform.Outbound;
 using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -50,6 +55,23 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
         services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
+
+        // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
+        // below only apply when nothing was bound (tests, tools).
+        services.TryAddSingleton(new FxOptions());
+        services.TryAddSingleton(new OutboundOptions());
+        services.TryAddSingleton<IHostResolver, DnsHostResolver>();
+        services.TryAddSingleton(sp => new SafeHttpClient(
+            new HttpMessageInvoker(OutboundHandler.Create(sp.GetRequiredService<IHostResolver>())),
+            sp.GetRequiredService<OutboundOptions>(),
+            sp.GetRequiredService<ILogger<SafeHttpClient>>()));
+        services.TryAddSingleton<IFxSourceClient, FxSourceClient>();
+        services.TryAddSingleton<IFxJobTrigger, JobsDisabledFxTrigger>();
+        services.AddScoped<IFxRateStore, FxRateStore>();
+        services.AddScoped<IFxRunLog, FxRunLog>();
+        services.AddScoped<IFxRates, FxRates>();
+        services.AddScoped<IHouseholdSettings, HouseholdSettings>();
+        services.AddScoped<FxCollector>();
 
         services.AddDbContext<SubscriptionsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

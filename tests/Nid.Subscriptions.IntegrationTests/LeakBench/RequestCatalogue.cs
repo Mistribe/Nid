@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Nid.Core.Application;
+using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
@@ -90,6 +91,15 @@ public static class RequestCatalogue
         new(typeof(ListPersonsQuery), false, (_, _) => new ListPersonsQuery()),
         new(typeof(CreateDependentCommand), false, (_, _) => new CreateDependentCommand("bench-dependent")),
         new(typeof(ProvisionAdultCommand), false, (_, _) => new ProvisionAdultCommand("bench-subject", "bench", null)),
+
+        new(typeof(CollectDailyFxRatesCommand), false, (_, _) => new CollectDailyFxRatesCommand()),
+        new(typeof(BackfillFxRatesCommand), false, (_, _) => new BackfillFxRatesCommand()),
+        new(typeof(RequestFxSyncCommand), false, (_, _) => new RequestFxSyncCommand()),
+        new(typeof(SetManualFxRateCommand), false,
+            (_, _) => new SetManualFxRateCommand(new NodaTime.LocalDate(2025, 1, 2), "EUR", "0.95")),
+        new(typeof(GetFxRatesQuery), false,
+            (_, _) => new GetFxRatesQuery("EUR", new NodaTime.LocalDate(2025, 1, 1), new NodaTime.LocalDate(2025, 1, 31))),
+        new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery()),
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),
