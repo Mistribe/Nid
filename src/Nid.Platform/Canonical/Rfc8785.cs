@@ -105,9 +105,10 @@ public static class Rfc8785
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var property in element.EnumerateObject())
                 {
-                    if (!seen.Add(property.Name))
-                        throw new FormatException($"Member '{property.Name}' appears twice: RFC 8785 requires unique names.");
-                    members.Add((property.Name, property.Value));
+                    var name = ReadStringOrThrow(() => property.Name);
+                    if (!seen.Add(name))
+                        throw new FormatException($"Member '{name}' appears twice: RFC 8785 requires unique names.");
+                    members.Add((name, property.Value));
                 }
 
                 members.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name)); // UTF-16 code units
@@ -137,18 +138,7 @@ public static class Rfc8785
                 break;
 
             case JsonValueKind.String:
-                string value;
-                try
-                {
-                    value = element.GetString()!;
-                }
-                catch (InvalidOperationException invalid)
-                {
-                    // A \uD800-\uDFFF escape with no matching pair: GetString() rejects it while unescaping,
-                    // before StrictUtf8 (CanonicalUtf8) ever sees it. RFC 8785 has no representation for it.
-                    throw new FormatException("A string holds a lone surrogate, which RFC 8785 cannot represent.", invalid);
-                }
-                WriteString(value, output);
+                WriteString(ReadStringOrThrow(() => element.GetString()!), output);
                 break;
 
             case JsonValueKind.Number:
@@ -169,6 +159,25 @@ public static class Rfc8785
 
             default:
                 throw new FormatException($"Unexpected JSON value kind {element.ValueKind}.");
+        }
+    }
+
+    /// <summary>
+    /// Reads a JSON string or member name that may hold a <c>\uD800</c>-<c>\uDFFF</c> escape with no matching
+    /// pair: <see cref="JsonElement.GetString"/> and <see cref="JsonProperty.Name"/> both reject it while
+    /// unescaping, with an <see cref="InvalidOperationException"/> that has nothing to do with a caller error.
+    /// RFC 8785 has no representation for a lone surrogate, so this is the one place that turns it into the
+    /// <see cref="FormatException"/> every other rejection in this class uses.
+    /// </summary>
+    private static string ReadStringOrThrow(Func<string> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (InvalidOperationException invalid)
+        {
+            throw new FormatException("A string holds a lone surrogate, which RFC 8785 cannot represent.", invalid);
         }
     }
 

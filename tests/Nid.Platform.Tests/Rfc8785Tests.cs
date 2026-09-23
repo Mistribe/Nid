@@ -91,6 +91,14 @@ public class Rfc8785Tests
     }
 
     [Fact]
+    public void Refuses_a_lone_surrogate_in_a_member_name()
+    {
+        using var doc = JsonDocument.Parse("{\"\\ud800\":1}");
+
+        Assert.Throws<FormatException>(() => Rfc8785.Canonicalize(doc.RootElement));
+    }
+
+    [Fact]
     public void An_amount_written_as_a_number_and_as_its_canonical_form_hash_the_same()
     {
         using var written = JsonDocument.Parse("{ \"amount\" : 12.990, \"currency\": \"EUR\" }");
