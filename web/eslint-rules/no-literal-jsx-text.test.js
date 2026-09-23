@@ -18,6 +18,10 @@ tester.run('no-literal-jsx-text', rule, {
     'const a = <span> · </span>;',
     'const a = <input aria-label={t("scope.label")} />;',
     'const a = <p>{count}</p>;',
+    'const a = <p>{t(cond ? "a.b" : "c.d")}</p>;',
+    'const a = <div className={cond ? "flex" : "grid"} />;',
+    'const a = <p>{cond ? t("a.b") : null}</p>;',
+    'const a = <p>{`${count}`}</p>;',
   ],
   invalid: [
     { code: 'const a = <p>Bonjour</p>;', errors: [{ messageId: 'literal' }] },
@@ -25,5 +29,10 @@ tester.run('no-literal-jsx-text', rule, {
     { code: 'const a = <input placeholder="Nom" />;', errors: [{ messageId: 'literal' }] },
     { code: 'const a = <button aria-label="Fermer" />;', errors: [{ messageId: 'literal' }] },
     { code: 'const a = <img alt="Logo" />;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <p>{isActive ? "Actif" : "Inactif"}</p>;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <p>{cond && "Texte"}</p>;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <p>{`Bonjour ${name}`}</p>;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <input aria-label={"Fermer"} />;', errors: [{ messageId: 'literal' }] },
+    { code: 'const a = <img alt={cond ? "A" : "B"} />;', errors: [{ messageId: 'literal' }] },
   ],
 });
