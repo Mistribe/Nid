@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
@@ -83,12 +84,13 @@ public static class SubscriptionEndpoints
 
     public sealed record IdResponse(Guid Id);
 
-    public sealed record MoneyBody(decimal Amount, string Currency)
+    public sealed record MoneyBody(string Amount, string Currency)
     {
         public Money ToMoney()
-            => Core.Contracts.Currency.TryCreate(Currency, out var currency) && Money.Create(Amount, currency).TryGetValue(out var money)
+            => Money.TryParse(Amount, Currency, out var money)
                 ? money
-                : throw new BadHttpRequestException("An amount and a valid ISO 4217 currency are required.");
+                : throw new BadHttpRequestException(
+                    "An amount is a decimal string such as \"12.99\" (at most four decimals) with a valid ISO 4217 currency.");
     }
 
     public sealed record DurationBody(int Count, string Unit)
@@ -159,7 +161,7 @@ public static class SubscriptionEndpoints
 
     public sealed record PurchaseBody(
         string Date, string Label, MoneyBody Price, PayerBody Payer, string Kind,
-        IReadOnlyList<GrantBody> Grants, decimal? AllocatedAmount, string? Note)
+        IReadOnlyList<GrantBody> Grants, string? AllocatedAmount, string? Note)
     {
         public AddPurchaseCommand ToCommand(ItemId id) => new(id, new Purchase(
             PurchaseId.New(),
@@ -168,6 +170,12 @@ public static class SubscriptionEndpoints
                 : Enum.TryParse<PurchaseKind>(Kind, ignoreCase: true, out var kind) ? kind
                 : throw new BadHttpRequestException("A purchase kind of prepaid_term, bundle, gift, adjustment or refund is required."),
             Grants.Select(g => g.ToGrant()).ToList(),
-            AllocatedAmount));
+            OptionalAmount(AllocatedAmount)));
     }
+
+    private static decimal? OptionalAmount(string? value)
+        => value is null ? null
+            : decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount)
+                ? amount
+                : throw new BadHttpRequestException($"'{value}' is not a decimal string.");
 }
