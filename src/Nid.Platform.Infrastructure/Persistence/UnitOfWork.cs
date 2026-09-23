@@ -43,9 +43,14 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
         : ITransactionScope
     {
         private bool committed;
+        private bool commitAttempted;
 
         public async Task CommitAsync(CancellationToken ct)
         {
+            // Set before awaiting: a serialization failure, a deferred constraint, or a dropped connection can
+            // all make this throw, but Npgsql still marks the transaction completed the moment a commit is
+            // attempted — DisposeAsync must know not to roll back, whether the attempt succeeded or not.
+            commitAttempted = true;
             await transaction.CommitAsync(ct);
             committed = true;
         }
@@ -54,8 +59,22 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
         {
             try
             {
-                if (!committed)
-                    await transaction.RollbackAsync();
+                // Rolling back after a commit was attempted throws InvalidOperationException ("This
+                // NpgsqlTransaction has completed"), which would replace whatever CommitAsync itself just
+                // threw. Skip the rollback whenever a commit was attempted, committed or not.
+                if (!committed && !commitAttempted)
+                {
+                    try
+                    {
+                        await transaction.RollbackAsync();
+                    }
+                    catch
+                    {
+                        // Best-effort backstop: a rollback can also fail on its own (a dropped connection),
+                        // and that failure must never replace the exception already unwinding the stack from
+                        // whatever this scope wrapped. Nothing else in this method is caught this broadly.
+                    }
+                }
             }
             finally
             {
