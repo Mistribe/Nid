@@ -65,8 +65,8 @@ Découpage et critères de « terminé » : `superpowers/plans/2026-09-19-stage-
 |---|---|---|
 | 2. Placements et Revenus | `investments-data-model.md`, `income-data-model.md`, `frontend/dataviz.md`, `frontend/screens.md` §3 (tableau de bord) | Valorisations et flux du Core à construire ; tableau de bord par contributions enfichables |
 | 3. Immobilier et crédits | `realestate/README.md`, `realestate/loans.md` (échéancier vérifié par comparaison sur 3 000 prêts) | Import des tableaux de la banque (dépend de l'étape 4 pour l'extraction) |
-| 4. Automatisation IA | `architecture.md` §8 et §9, `ingestion/llm-providers.md`, `security/ai-ingestion.md`, `identity-and-access/tokens-and-credentials.md` | Comportement `IProposable` de la décision D10 à valider ; jeu d'évaluation d'extraction |
-| 5. Synchronisation bancaire | `Project.md` §9 seulement | **Tout est à concevoir** : agrégateur DSP2, consentements, rapprochement, modèle de sécurité |
+| 4. Automatisation IA | `architecture.md` §8 et §9, `ingestion/llm-providers.md`, `security/ai-ingestion.md`, `identity-and-access/tokens-and-credentials.md` | Comportement `IProposable` de la décision D10 à valider ; jeu d'évaluation d'extraction, y compris le choix parmi des candidats et Jev en second contrôle (`ingestion/llm-providers.md` §14.1) |
+| 5. Synchronisation bancaire | `Project.md` §9 seulement | **Tout est à concevoir** : agrégateur DSP2, consentements, rapprochement (piste : choix parmi les charges attendues, `ingestion/llm-providers.md` §14.1), modèle de sécurité |
 | 6. Approfondissements | `Project.md` §10 (idée : calcul de fiscalité) | Chaque idée à cadrer séparément |
 
 ## 5. Risques non levés

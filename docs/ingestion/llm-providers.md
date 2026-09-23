@@ -216,3 +216,31 @@ Les profils (§4) ne sont **pas** en base : ils sont de la configuration version
 - Le choix des modèles dépend du **jeu d'évaluation** de relevés (`../architecture.md` §9.4).
 - Le masquage n'a pas de garantie de rappel : à mesurer sur des documents synthétiques.
 - SDK officiels ou appels HTTP directs : à trancher au prototypage.
+
+### 14.1 Piste : choix parmi des candidats et Jev (TypeSafe AI), évaluée le 2026-09-23
+
+Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-jev), [documentation](https://docs.typesafe.ai), [documents légaux](https://docs.typesafe.ai/legal.md). Aucun essai exécuté.
+
+**Le principe, indépendant du fournisseur.** Du code déterministe (regex réglées pour trop trouver) repère les valeurs candidates dans le texte ; le modèle **choisit** l'une d'elles dans une liste fermée. La valeur retenue est toujours un texte présent dans le document : le modèle ne peut ni inventer un montant ni inverser un chiffre (LLM09, `../security/ai-ingestion.md` §1). **Ollama peut le faire en local** avec un schéma JSON dont l'`enum` contient les candidats, sans renoncer au local par défaut. Ce principe est à mettre dans le jeu d'évaluation de l'étape 4 (`../architecture.md` §9.4), face à l'extraction classique.
+
+- Les valeurs issues d'un **texte caché** sont retirées des candidats, sinon un PDF piégé fait choisir la sienne.
+- Le principe ne convient pas aux longs tableaux (échéancier de 240 lignes : une question par valeur) : l'extraction par LLM et le recalcul de RealEstate restent la voie prévue.
+
+**Jev.** Modèle cloud qui ne génère aucun texte : trois primitives, `choice` (255 options au plus), `score` (niveaux ordonnés) et `noul` (probabilité d'un oui), chacune avec ses probabilités et une confiance. Réponse annoncée en 70 à 500 ms, entrée à 0,042 $ par million de jetons. SDK Python et JavaScript, pas de .NET. Accès anticipé.
+
+| Critère (§2, §5.2) | Constat |
+|---|---|
+| Local par défaut | Cloud seulement, hébergé sur la côte ouest des États-Unis : ce ne peut être qu'un profil en opt-in |
+| `trains_on_data` | Faux selon la politique de confidentialité |
+| Rétention, relecture humaine, région de traitement | **Non documentées** dans les pages lues ; rétention nulle réservée aux clients entreprise. Accord de traitement des données à relire avant tout profil |
+| Passerelle (§9) | Utilisable derrière `SafeHttpClient`, mais `ILlmProvider` suppose « texte en entrée, JSON en sortie » : il faudrait une tâche `decide` distincte d'`extract` et `ocr` |
+| Images | Non prises en charge |
+
+**Usages envisagés**, par ordre de priorité :
+
+1. **Étape 5, rapprochement** d'un libellé de prélèvement avec les charges attendues (`choice`, dont une option « inconnu ») : seuls un libellé et un montant sortent, jamais un document.
+2. **Étape 4, second contrôle** : pour les champs clés, Jev choisit de son côté parmi les candidats ; un désaccord avec l'extraction ou une confiance faible devient un avertissement de la proposition.
+3. **1C2**, suggestion de fournisseur du catalogue à partir d'un nom saisi.
+4. **`fetch-mail`**, tri des emails (facture ou renouvellement, puis pour quel abonnement).
+
+Limites : la confiance **trie ou avertit, elle n'approuve jamais** (§2, principe 4), même si la documentation de Jev conseille d'agir seul quand elle est élevée. Décider si un document est un bulletin de paie **reste local** : l'envoyer pour le savoir, c'est déjà le divulguer (§5.2). Vitesse et coût comptent peu pour deux utilisateurs.
