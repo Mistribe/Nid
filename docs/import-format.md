@@ -9,7 +9,7 @@
 
 Un **seul format** sert à trois usages :
 
-- la **reprise initiale** de données existantes (par exemple l'ancien `subscriptions.json`, converti dans ce format) ;
+- la **reprise initiale** de données existantes (par exemple l'ancien `subscriptions.json`, converti dans ce format ; conversion faite hors de ce dépôt et vérifiée par le protocole réel en 1D3, le 2026-09-23) ;
 - l'**export complet** à la demande (`Project.md` §13), pour ne jamais dépendre de l'application ;
 - le **transfert** ou la restauration logique des données d'un foyer vers une autre instance.
 
