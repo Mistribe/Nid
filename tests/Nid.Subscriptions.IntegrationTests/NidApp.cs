@@ -35,8 +35,14 @@ public sealed class NidApp : IAsyncDisposable
     private readonly WebApplicationFactory<Program> factory;
     private readonly Dictionary<Guid, string> csrfTokens = [];
 
-    private NidApp(WebApplicationFactory<Program> factory, PersonId a, PersonId b, PersonId d)
-        => (this.factory, AdultA, AdultB, Dependent) = (factory, a, b, d);
+    private NidApp(WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d)
+        => (this.factory, ConnectionString, AdultA, AdultB, Dependent) = (factory, connectionString, a, b, d);
+
+    /// <summary>The database this harness runs against, for tests that read rows back directly.</summary>
+    public string ConnectionString { get; }
+
+    /// <summary>The host's root provider; create a scope before resolving scoped services.</summary>
+    public IServiceProvider Services => factory.Services;
 
     public PersonId AdultA { get; }
     public PersonId AdultB { get; }
@@ -77,7 +83,7 @@ public sealed class NidApp : IAsyncDisposable
                 });
             });
 
-            return new NidApp(factory, a, b, d);
+            return new NidApp(factory, connectionString, a, b, d);
         }
     }
 

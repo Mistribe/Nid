@@ -3,6 +3,7 @@
     <PackageReference Include="UnambitiousFx.Synapse" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <ProjectReference Include="..\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.ServiceDefaults\Nid.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Nid.Core.Application\Nid.Core.Application.csproj" />
     <ProjectReference Include="..\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />

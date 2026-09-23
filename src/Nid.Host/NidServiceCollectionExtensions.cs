@@ -3,9 +3,11 @@ using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Contracts;
+using Nid.Platform.Infrastructure.Persistence;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
+using Npgsql;
 using UnambitiousFx.Synapse;
 
 namespace Nid.Host;
@@ -15,11 +17,23 @@ public static class NidServiceCollectionExtensions
     public static IServiceCollection AddNid(this IServiceCollection services, string connectionString)
     {
         services.AddSingleton<IClock>(SystemClock.Instance);
-        services.AddDbContext<CoreDbContext>(options => options.UseNpgsql(connectionString, npgsql =>
+
+        // One data source for the process, one connection per request shared by every module's context, so
+        // IUnitOfWork can span them. A context handed an external connection no longer builds its own data
+        // source: NodaTime is configured on the data source AND on each context (Npgsql EF documentation,
+        // "Using an external NpgsqlDataSource").
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.UseNodaTime();
+        services.AddSingleton(dataSourceBuilder.Build());
+        services.AddScoped<SharedConnection>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
             npgsql.UseNodaTime();
             npgsql.MigrationsHistoryTable("__ef_migrations_history", CoreDbContext.Schema);
         }));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<CoreDbContext>>();
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
@@ -27,14 +41,12 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IActorAccessor, ActorAccessor>();
         services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
 
-        // DbContextOptionsBuilder<SubscriptionsDbContext>.Configure (Nid.Subscriptions.Infrastructure) needs the
-        // generic builder, which the plain AddDbContext<TContext>(Action<DbContextOptionsBuilder>) overload does
-        // not supply; wired the same way as CoreDbContext just above instead.
-        services.AddDbContext<SubscriptionsDbContext>(options => options.UseNpgsql(connectionString, npgsql =>
+        services.AddDbContext<SubscriptionsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
             npgsql.UseNodaTime();
             npgsql.MigrationsHistoryTable("__ef_migrations_history", SubscriptionsDbContext.Schema);
         }));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
 
         services.AddLogging();

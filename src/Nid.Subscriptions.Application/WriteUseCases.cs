@@ -52,11 +52,15 @@ public sealed record DeletePurchaseCommand(ItemId ItemId, PurchaseId PurchaseId)
 }
 
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
-public sealed class CreateSubscriptionHandler(IItemRegistry items, ISubscriptionStore store)
+public sealed class CreateSubscriptionHandler(IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork)
     : IRequestHandler<CreateSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSubscriptionCommand command, CancellationToken ct = default)
     {
+        // The Core item and the subscription row are two contexts: one transaction, or an orphan item when the
+        // second write fails.
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+
         // The Core owns name, owners and visibility, and enforces the ownership invariants.
         var created = await items.CreateAsync(
             new NewItem("subscriptions", "subscription", command.DisplayName, command.Visibility, null, command.Owners), ct);
@@ -65,7 +69,11 @@ public sealed class CreateSubscriptionHandler(IItemRegistry items, ISubscription
 
         var stored = await store.CreateAsync(
             id, new NewSubscription(command.ProviderKey, command.AutoRenew, command.Users, command.Note), ct);
-        return stored.TryGetFailure(out var failure) ? Result.Failure<ItemId>(failure!) : Result.Success(id);
+        if (stored.TryGetFailure(out var failure))
+            return Result.Failure<ItemId>(failure!);
+
+        await transaction.CommitAsync(ct);
+        return Result.Success(id);
     }
 }
 

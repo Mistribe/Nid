@@ -28,7 +28,7 @@ public class PipelineTests(PostgresFixture postgres)
     public async Task Every_core_request_traverses_the_full_behavior_chain_in_order()
     {
         await using var provider = await ProviderAsync();
-        using var scope = provider.CreateScope();
+        await using var scope = provider.CreateAsyncScope();
 
         Assert.Equal(
             [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
@@ -54,7 +54,7 @@ public class PipelineTests(PostgresFixture postgres)
     public async Task A_request_without_actor_is_unauthenticated()
     {
         await using var provider = await ProviderAsync();
-        using var scope = provider.CreateScope();
+        await using var scope = provider.CreateAsyncScope();
 
         var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new ListPersonsQuery());
 
@@ -66,7 +66,7 @@ public class PipelineTests(PostgresFixture postgres)
     public async Task A_read_only_actor_cannot_run_a_command()
     {
         await using var provider = await ProviderAsync();
-        using var scope = provider.CreateScope();
+        await using var scope = provider.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
             new Actor(ActorKind.Person, PersonId.New(), ActorOrigin.Mcp, new HashSet<string> { ScopeNames.Read });
 
@@ -80,7 +80,7 @@ public class PipelineTests(PostgresFixture postgres)
     public async Task System_actor_provisions_adults_and_an_adult_creates_a_dependent()
     {
         await using var provider = await ProviderAsync();
-        using var scope = provider.CreateScope();
+        await using var scope = provider.CreateAsyncScope();
         var invoker = scope.ServiceProvider.GetRequiredService<IInvoker>();
         var accessor = scope.ServiceProvider.GetRequiredService<IActorAccessor>();
 
