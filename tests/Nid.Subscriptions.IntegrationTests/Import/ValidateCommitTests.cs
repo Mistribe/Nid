@@ -1,8 +1,11 @@
 using System.Net;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.TestSupport;
+using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
@@ -97,5 +100,83 @@ public class ValidateCommitTests(PostgresFixture fixture)
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.ValidateRawAsync(app.AdultB, session.Id)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.CommitRawAsync(app.AdultB, session.Id)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_section_that_throws_while_applying_rolls_back_and_leaves_the_session_validated()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddScoped<IImportSection, ThrowingApplySection>());
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA);
+        await client.PutAsync(app.AdultA, session.Id, "persons", 0, OneDependent);
+        Assert.Equal("validated", (await client.ValidateAsync(app.AdultA, session.Id)).State);
+
+        var response = await client.CommitRawAsync(app.AdultA, session.Id);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal(ImportCodes.NotCommitted, await ImportClient.CodeOf(response));
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa"));
+        var after = await client.GetAsync(app.AdultA, session.Id);
+        Assert.Equal("validated", after.State);
+        Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.ApplyFailed);
+    }
+
+    [Fact]
+    public async Task A_commit_out_of_time_rolls_back_and_leaves_the_session_validated()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services =>
+        {
+            services.AddScoped<IImportSection, SlowApplySection>();
+            services.AddSingleton(new ImportOptions { OperationTimeout = TimeSpan.FromSeconds(3) });
+        });
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA);
+        await client.PutAsync(app.AdultA, session.Id, "persons", 0, OneDependent);
+        Assert.Equal("validated", (await client.ValidateAsync(app.AdultA, session.Id)).State);
+
+        var response = await client.CommitRawAsync(app.AdultA, session.Id);
+
+        Assert.Equal(ImportCodes.TooLarge, await ImportClient.CodeOf(response));
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa"));
+        var after = await client.GetAsync(app.AdultA, session.Id);
+        Assert.Equal("validated", after.State);
+        Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.TooLarge);
+    }
+
+    /// <summary>A section, past <c>persons</c> in order, whose apply step throws instead of failing a <c>Result</c>.</summary>
+    private sealed class ThrowingApplySection : IImportSection
+    {
+        public string Module => "test";
+        public IReadOnlyList<string> Sections => ["throwing_things"];
+        public int Order => 100;
+
+        public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex) => [];
+
+        public Task<SectionOutcome> ValidateAllAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
+            => Task.FromResult(new SectionOutcome([], new Dictionary<string, SectionCounts>()));
+
+        public Task<Result<IReadOnlyDictionary<string, SectionCounts>>> ApplyAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
+            => throw new InvalidOperationException("Applying 'throwing_things' always fails, on purpose.");
+    }
+
+    /// <summary>A section whose apply step never returns on its own — only a commit timeout ends it.</summary>
+    private sealed class SlowApplySection : IImportSection
+    {
+        public string Module => "test";
+        public IReadOnlyList<string> Sections => ["slow_things"];
+        public int Order => 100;
+
+        public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex) => [];
+
+        public Task<SectionOutcome> ValidateAllAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
+            => Task.FromResult(new SectionOutcome([], new Dictionary<string, SectionCounts>()));
+
+        public async Task<Result<IReadOnlyDictionary<string, SectionCounts>>> ApplyAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return Result.Success<IReadOnlyDictionary<string, SectionCounts>>(new Dictionary<string, SectionCounts>());
+        }
     }
 }

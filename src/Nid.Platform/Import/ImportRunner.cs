@@ -27,9 +27,15 @@ public sealed class ImportRunner(
     {
         var now = clock.GetCurrentInstant();
         ImportReport refused;
+        ImportReport? computed = null; // the last report RunValidationAsync produced, so a later exception can still report against it
 
-        await using (var transaction = await unitOfWork.BeginAsync(ct))
+        try
         {
+            // Disposing `transaction` rolls back everything written on it — whether this block runs to the
+            // end without committing, or an exception unwinds through it. Either way, disposal happens before
+            // the catch below runs: nothing here can leak past a rollback.
+            await using var transaction = await unitOfWork.BeginAsync(ct);
+
             // Moving the session first row-locks it: a concurrent commit waits here, then finds it no longer
             // validated. If this transaction rolls back, so does the move.
             if (!await staging.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Committed, now, session.ExpiresAt, null, ct))
@@ -37,6 +43,7 @@ public sealed class ImportRunner(
 
             // The state may have changed since validate: everything is checked again, on this transaction.
             var (report, context, staged) = await RunValidationAsync(session, ct);
+            computed = report;
             if (report.State != Validated)
                 refused = report;
             else
@@ -58,6 +65,27 @@ public sealed class ImportRunner(
                     Issues = [.. report.Issues, ImportIssue.Error(ImportCodes.ApplyFailed, $"{failure!.Message} ({failure.Code})", "")],
                 };
             }
+        }
+        catch (Exception e)
+        {
+            // Spec §5: any failure — thrown, not just a Result carrying a failure — rolls everything back and
+            // the session stays validated with the error in its report. The transaction is already gone by the
+            // time we get here, so this write is its own operation, deliberately off the caller's (possibly
+            // already-cancelled or timed-out) token: a cancelled or too-slow commit must still record why, not
+            // vanish and leave the session's last report stale.
+            var basis = computed ?? new ImportReport(Validated, new SortedDictionary<string, SectionCounts>(StringComparer.Ordinal), []);
+            var issue = e is OperationCanceledException
+                ? ImportIssue.Error(ImportCodes.TooLarge, "The import did not finish in time and was abandoned: split it into smaller imports.", "")
+                : ImportIssue.Error(ImportCodes.ApplyFailed, $"{e.GetType().Name}: {e.Message}", "");
+            refused = basis with { Issues = [.. basis.Issues, issue] };
+
+            await staging.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Validated,
+                now, session.ExpiresAt, ImportReportJson.Serialize(refused), CancellationToken.None);
+
+            if (e is OperationCanceledException)
+                throw; // Bounded.RunAsync turns this into import.too_large (or lets a real cancellation propagate)
+
+            return Result.Failure<ImportReport>(new Failure(ImportCodes.NotCommitted, "Nothing was written: the session's report says why.", null));
         } // not committed: everything above is rolled back
 
         var state = refused.State == Invalid ? ImportState.Invalid : ImportState.Validated;

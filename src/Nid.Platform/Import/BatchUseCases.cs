@@ -86,6 +86,16 @@ public sealed class PutBatchHandler(
             return View(command, count, false, issues);
 
         var now = clock.GetCurrentInstant();
+
+        // A new batch makes an earlier validation stale (§11.1): the session is open again. Done BEFORE the
+        // insert, not after: otherwise a PUT racing a commit could slip its row in right as the commit moves
+        // the session to `committed` and clears the batches, landing a batch nobody ever validates or applies.
+        // This conditional update blocks on the commit's row lock; once the commit wins, it sees the session is
+        // no longer active and is refused outright, rather than writing a batch the commit has already erased.
+        if (!await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), ImportState.Open,
+                now, now.Plus(NodaTime.Duration.FromTimeSpan(options.SessionLifetime)), null, ct))
+            return Fail(new Failure(ImportCodes.State, "This import is no longer taking batches.", null));
+
         if (!await staging.AddBatchAsync(session.Id, new StoredBatch(command.Section, command.Index, hash, count, canonical), now, ct))
         {
             // Lost the race for an empty slot. A concurrent PUT of the SAME content is still a replay, not a
@@ -95,10 +105,6 @@ public sealed class PutBatchHandler(
                 ? View(command, count, true, owner.ValidateBatch(command.Section, command.Entities, firstIndex))
                 : Fail(SlotTaken(command));
         }
-
-        // A new batch makes an earlier validation stale (§11.1): the session is open again.
-        await staging.TransitionAsync(session.Id, ImportStates.Active.ToList(), ImportState.Open,
-            now, now.Plus(NodaTime.Duration.FromTimeSpan(options.SessionLifetime)), null, ct);
 
         return View(command, count, true, issues);
     }
