@@ -34,6 +34,17 @@ SESSION=$(curl_ "$APP/auth/session"); echo "session: $SESSION"
 if ! grep -q '"authenticated":true' <<<"$SESSION"; then echo "login refused (third adult?)"; exit 0; fi
 CSRF=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["csrf"])' "$SESSION")
 
+echo -n "web app served through the proxy: "
+if curl_ "$APP/" | grep -q '<div id="root">'; then echo ok; else echo "MISSING"; exit 1; fi
+echo -n "session carries preferences: "
+python3 -c 'import json,sys;print(json.loads(sys.argv[1])["preferences"])' "$SESSION"
+echo "capabilities: $(curl_ "$APP/api/v1/platform/capabilities")"
+echo -n "save a theme (200 expected): "
+curl_ -o /dev/null -w '%{http_code}\n' -X PATCH "$APP/api/v1/core/me/preferences" \
+  -H "X-Nid-Csrf: $CSRF" -H 'Content-Type: application/json' -d '{"theme":"sauge"}'
+curl_ -o /dev/null -X PATCH "$APP/api/v1/core/me/preferences" \
+  -H "X-Nid-Csrf: $CSRF" -H 'Content-Type: application/json' -d '{"theme":"neutre"}'
+
 echo -n "create dependent without CSRF header (403 expected): "
 curl_ -o /dev/null -w '%{http_code}\n' -X POST "$APP/api/v1/core/persons/dependents" -H 'Content-Type: application/json' -d '{"displayName":"Kid"}'
 echo "create dependent with CSRF header:"

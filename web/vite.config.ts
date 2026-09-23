@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { securityHeaders } from './src/security-headers';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -13,7 +14,9 @@ export default defineConfig({
     port: Number(process.env.PORT ?? 5173),
     strictPort: true,
     allowedHosts: ['nid.localtest.me'],
+    headers: securityHeaders({ csp: false }),
   },
+  preview: { headers: securityHeaders(), port: 4173, strictPort: true },
   build: { manifest: true },
   test: {
     environment: 'jsdom',
