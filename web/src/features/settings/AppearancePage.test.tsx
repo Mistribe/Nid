@@ -1,0 +1,82 @@
+import { screen, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { describe, expect, it } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+
+type Body = Record<string, unknown>;
+
+function acceptPreferences(sent: Body[]) {
+  server.use(http.patch('*/api/v1/core/me/preferences', async ({ request }) => {
+    const body = (await request.json()) as Body;
+    sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
+    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
+  }));
+}
+
+const html = () => document.documentElement;
+
+describe('Réglages › Apparence', () => {
+  it('applies a theme at once, saves it, and remembers it for the next load', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Sauge' }));
+
+    expect(html().dataset.theme).toBe('sauge');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Sauge' })).toBeChecked());
+    expect(sent).toEqual([{ theme: 'sauge', csrf: 'csrf-alice' }]);
+    expect(localStorage.getItem('nid.theme')).toBe('sauge');
+  });
+
+  it('switches to dark mode without a reload', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Sombre' }));
+
+    expect(html().classList.contains('dark')).toBe(true);
+    await waitFor(() => expect(sent).toEqual([{ mode: 'dark', csrf: 'csrf-alice' }]));
+  });
+
+  it('previews a theme on hover and restores the saved one after', async () => {
+    const { user } = await renderApp('/settings/appearance');
+    const terre = screen.getByRole('radio', { name: 'Terre' }).closest('label')!;
+
+    await user.hover(terre);
+    expect(html().dataset.theme).toBe('terre');
+    await user.unhover(terre);
+    expect(html().dataset.theme).toBe('neutre');
+  });
+
+  it('puts the saved theme back and says so when saving fails', async () => {
+    server.use(http.patch('*/api/v1/core/me/preferences', () =>
+      HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-01' }, { status: 500 })));
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Ardoise' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
+    expect(html().dataset.theme).toBe('neutre');
+    expect(screen.getByRole('radio', { name: 'Neutre' })).toBeChecked();
+    expect(localStorage.getItem('nid.theme')).toBeNull();
+  });
+
+  it('saves the chart patterns option', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Motifs dans les graphiques' }));
+
+    await waitFor(() => expect(sent).toEqual([{ chartPatterns: true, csrf: 'csrf-alice' }]));
+  });
+
+  it('has no accessibility violation', async () => {
+    const { container } = await renderApp('/settings/appearance');
+    await expectNoAxeViolations(container);
+  });
+});

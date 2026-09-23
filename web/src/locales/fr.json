@@ -28,5 +28,12 @@
     "subscriptions": "La liste de vos abonnements arrive avec la prochaine version.",
     "import": "L'assistant d'import arrive avec une prochaine version."
   },
-  "settings": { "appearance": { "title": "Apparence" } }
+  "settings": {
+    "appearance": {
+      "title": "Apparence",
+      "mode": "Mode",
+      "theme": "Thème",
+      "chart_patterns": "Motifs dans les graphiques"
+    }
+  }
 }
