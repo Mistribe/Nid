@@ -68,7 +68,8 @@
 - Deux implémentations écrites en JavaScript (`JSON.stringify` et tri des clés) et en C# (tri ordinal UTF-16, échappement minimal).
 - Corpus de **405 documents** : 400 aléatoires (clés et valeurs piégées : émojis, `U+2028`, `U+2029`, `U+007F`, caractères de contrôle, clés numériques `"10"` et `"2"`) plus 5 cas adverses.
 - **0 différence** d'empreinte SHA-256.
-- Limites : les nombres non entiers sont volontairement interdits (les montants sont des chaînes), et les deux implémentations ont été écrites ensemble ; elles n'ont pas été confrontées aux vecteurs de test officiels de la RFC.
+- Limites du spike : les nombres non entiers étaient volontairement interdits (les montants sont des chaînes), et les deux implémentations avaient été écrites ensemble.
+- Confrontées aux vecteurs officiels le 2026-09-23 (1D1) : l'implémentation C# (`Nid.Platform.Canonical.Rfc8785`) passe les vecteurs de l'implémentation de référence et l'annexe B, nombres non entiers compris. Le corpus a été régénéré (`tests/vectors/rfc8785/corpus.json`) ; le recoupement avec le navigateur se fait en 1E.
 
 ## 6. EF Core et PostgreSQL
 
@@ -127,7 +128,7 @@ retenir pour les sous-plans suivants :
 - Dans le flux OIDC (§8) : `session_epoch`, la réponse `401` sans redirection pour les appels d'API (un essai montre `401` sur `/whoami` non authentifié, mais pas dans l'application finale), la première connexion simultanée des deux adultes, et le comportement de PAR avec `client_secret_post`.
 - Un `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) : seule la faisabilité transactionnelle est vérifiée.
 - Quartz.NET sur Postgres, le SDK MCP C# en exécution, la génération de client OpenAPI, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).
-- La canonicalisation contre les vecteurs officiels de la RFC 8785.
+- ~~La canonicalisation contre les vecteurs officiels de la RFC 8785.~~ Vérifiée le 2026-09-23 (1D1), voir §5.
 - Les performances sous charge (les volumes du projet sont petits).
 
 ## 9bis. `IsAotCompatible` sur `Nid.Subscriptions.Domain` (vérifié le 2026-09-22)

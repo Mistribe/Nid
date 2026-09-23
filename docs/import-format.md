@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : brouillon. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Seules les sections du module Abonnements sont définies ; les autres modules ajouteront les leurs.
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) ; l'export (§10) suit en 1D2. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Seules les sections du module Abonnements sont définies ; les autres modules ajouteront les leurs.
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -350,9 +350,26 @@ Le navigateur orchestre (assistant décrit dans `frontend/screens.md`) : lecture
 }
 ```
 
+## 12bis. Décisions prises en 1D1 (2026-09-23)
+
+Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
+
+- **Adultes** : résolus d'abord par la correspondance donnée à la création de la session (`adults: { "<ref>": "<person id>" }`), puis par `email`. Non résolu : erreur `import.adult_unresolved`, dont le message liste les adultes existants.
+- **Idempotence** : chaque ligne importée garde `import_ref` (l'`id` du fichier) et `import_hash`, le SHA-256 RFC 8785 de son enregistrement. Même `id` et même empreinte : `unchanged` ; même `id`, autre empreinte : `conflict`. Une modification faite ensuite dans l'interface ne rend pas conflictuel le réimport du même fichier : le fichier, lui, n'a pas changé.
+- **Un conflit bloque le `commit`** : sans `replace`, « rien n'est écrasé » veut dire que rien ne bouge.
+- **`replace` est reporté à 1F**, avec le journal d'audit dont dépend sa promesse.
+- **Nombres dans l'empreinte** : sérialisés comme ECMAScript (RFC 8785 §3.2.2.3). Un montant écrit en nombre JSON est accepté et lu en décimal ; l'empreinte ne sert qu'à identifier.
+- **Lots** : numérotés à partir de 0 sans trou ; tous sauf le dernier d'une section contiennent exactement 500 entités, ce qui rend exact l'indice global `n × 500 + position`. Un lot en erreur n'est pas mis en staging : son emplacement reste libre pour le lot corrigé.
+- **Sections refusées pour l'instant** : `providers` (avec le catalogue, 1C2) et les sections des modules à venir, avec `import.section_not_supported`. `provider_key` reste un texte libre non vérifié jusqu'à 1C2.
+- **Avertissements** : ceux du moteur (sauf `subscriptions.horizon_reached`, propre à la lecture) et `import.phase_not_whole_periods`. `fx_rate_missing` arrive avec 1C2.
+- **Droits sur un enregistrement existant** : une ligne réimportée `unchanged` ne demande que le droit de lecture sur l'élément qu'elle référence ; une ligne nouvelle qu'un fichier ajoute à un élément déjà importé (par exemple une phase ou un achat) demande le droit d'écriture. La règle de création (§6) ne s'applique donc qu'aux enregistrements qui créent un élément.
+- **Un lot reçu pendant qu'un `commit` est en cours est refusé** avec `import.state` : la session bascule vers `open` avant la mise en staging du lot, jamais après, pour qu'un lot accepté ne puisse jamais dépasser (« outrun ») le commit en cours et être ensuite silencieusement perdu.
+- **Pas encore faits** : l'entrée d'audit par import (1F), le schéma JSON publié (1E).
+- **Codes** : les erreurs du protocole sont préfixées `import.` ; les règles des modules gardent leurs codes (`core.share_sum`, `subscriptions.phase_overlap`…). `import_too_large` (§11.5) s'écrit `import.too_large`.
+
 ## 13. Questions ouvertes
 
-- Association des adultes aux comptes : par `email` du fichier, ou par saisie à l'import (un fichier sans email doit rester importable).
+- ~~Association des adultes aux comptes : par `email` du fichier, ou par saisie à l'import (un fichier sans email doit rester importable).~~ Tranché en 1D1, voir §12bis.
 - Schéma JSON de `nid.data` : généré depuis les types source-générés (`JsonSchemaExporter`, .NET 9+) et publié par `GET /api/v1/platform/import/schema` ; le navigateur le compile au build (`frontend/architecture.md`). **Vérifié** (`spikes.md` §4) : l'exporteur renvoie `true` (tout accepté) pour `LocalDate`, `Instant` et les décimaux à convertisseur ; un `TransformSchemaNode` leur donne un vrai type, et les champs optionnels doivent avoir une valeur par défaut, sinon ils sont `required`.
 - Conversion CSV → `nid.data` : réalisée côté navigateur ; les sections `valuations` et `flows` restent à définir avec les modules Investments et RealEstate.
 - Valeurs par défaut des bornes (§11.5) : à ajuster après mesure sur des imports réels.
