@@ -26,9 +26,14 @@ public static class NidServiceCollectionExtensions
         // IUnitOfWork can span them. A context handed an external connection no longer builds its own data
         // source: NodaTime is configured on the data source AND on each context (Npgsql EF documentation,
         // "Using an external NpgsqlDataSource").
-        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-        dataSourceBuilder.UseNodaTime();
-        services.AddSingleton(dataSourceBuilder.Build());
+        // Built by a factory, not registered as an instance: the container disposes what it creates, so the
+        // pool goes with the provider (an instance handed in is never disposed by it).
+        services.AddSingleton(_ =>
+        {
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+            dataSourceBuilder.UseNodaTime();
+            return dataSourceBuilder.Build();
+        });
         services.AddScoped<SharedConnection>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
