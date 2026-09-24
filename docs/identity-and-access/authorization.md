@@ -15,8 +15,11 @@ Chaque requête Synapse s'exécute pour un `Actor`, posé dans le contexte par u
 | `person_id` | L'adulte concerné ; vide pour une tâche sans données de foyer (taux de change, catalogue) |
 | `via` | `ui`, `api`, `mcp`, `job`, `import` |
 | `scopes` | `read`, `write`, `write:direct` |
+| `is_admin` | Vrai pour une session navigateur dont la `person` est admin, et pour `system` ; **toujours faux pour un jeton**, même celui d'un admin |
 
 Une session navigateur porte toutes les portées ; un jeton (`tokens-and-credentials.md`) en porte un sous-ensemble. Un `dependent` n'est jamais un acteur.
+
+`is_admin` est relu en base à chaque requête, avec le contrôle de `session_epoch` (`authentication.md` §3) : rien du rôle n'est dans le cookie. Il **n'ouvre aucun élément** : `Readers` et `Writers` (§5) l'ignorent.
 
 ## 2. Pipeline
 
@@ -26,6 +29,7 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 |---|---|
 | 1. Trace et journal | Identifiant de requête, OpenTelemetry |
 | 2. Acteur | Session, jeton ou tâche → `Actor` |
+| 2 bis. Admin | Une requête `IAdminOnly` d'un acteur non admin est refusée : `403 admin_required` |
 | 3. Portée | Voir §3 |
 | 4. Accès | Contrôle sur l'élément visé (§4 et §5) |
 | 5. Idempotence | `Idempotency-Key` |
@@ -56,6 +60,7 @@ Définis dans `Core.Contracts`.
 | `ICreatesItem { Owners, Visibility }` | Vérifié à la création (§5) |
 | `IHouseholdQuery` | Requête de liste : le handler filtre avec `IVisibleItems` (§6) |
 | `[NoItemAccess]` | Données de référence : catalogue, taux, réglages |
+| `IAdminOnly` | Réservé aux admins (étape 2 bis) : zone admin, saisie manuelle et synchronisation des taux, journal des collectes. Ne touche aucun élément |
 
 Un **test d'architecture** exige que toute requête porte un marqueur ou l'exemption explicite : un oubli fait échouer la CI.
 
@@ -87,6 +92,7 @@ Source unique : deux fonctions pures, testées par propriétés (`access-tests.m
 | Élément qu'on ne peut pas lire | `404 not_found`, comme s'il n'existait pas |
 | Élément lisible mais non modifiable | `403 forbidden` |
 | Portée de jeton insuffisante | `403 insufficient_scope` |
+| Requête réservée aux admins, acteur non admin | `403 admin_required` (pas de `404` : la zone admin est la même pour tous les foyers, rien à cacher) |
 
 **Listes filtrées**
 - `IVisibleItems.For(personne, portée)` renvoie les identifiants lisibles : `Household` (éléments partagés seulement) ou `Me` (partagés et mes privés). Les modules filtrent avec `WHERE item_id = ANY(@ids)` ; le volume est de quelques centaines d'éléments.
@@ -104,10 +110,11 @@ Source unique : deux fonctions pures, testées par propriétés (`access-tests.m
 |---|---|
 | Totaux du foyer | Excluent les éléments privés ; jamais calculés par « total moins partagé » |
 | Résumé mensuel | Construit **au nom de chaque adulte** (acteur `system` avec `person_id`) et envoyé séparément |
-| Journal d'audit | Filtré par les mêmes règles (`administration-and-audit.md` §3) |
+| Journal d'audit | Filtré par les mêmes règles (`administration-and-audit.md` §4) |
 | Export | Applique déjà la visibilité (`../import-format.md` §10) |
 | Journaux techniques | Ni libellés ni montants au niveau info |
 | Tableau de bord, MCP | Mêmes requêtes que l'API, donc mêmes contrôles |
+| Zone admin | Aucun libellé, aucun montant, **aucun compteur d'éléments** (un total révélerait l'existence d'éléments privés de l'autre adulte) |
 
 ## 9. Jobs, workers et import
 

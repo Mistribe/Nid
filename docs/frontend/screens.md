@@ -8,7 +8,8 @@
 ## 1. Navigation
 
 - **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Validation (avec badge), Plus.
-- **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import/Export, Sécurité, Réglages.
+- **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import/Export, Sécurité, Réglages, et **Administration** pour un admin.
+- **Administration** n'apparaît (barre latérale, ou sous « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer.
 
@@ -26,8 +27,9 @@
 | **Éléments** | Fiche : propriétaires et parts, badge **Privé / Partagé / Enfant** (icône et texte). Changer la visibilité affiche l'effet (« L'autre adulte verra cet élément »). Un élément non modifiable est en lecture seule avec la raison |
 | **Documents** | Dépôt de PDF avec **choix Local ou Cloud**, aperçu de ce qui sera envoyé et coût estimé (`../ingestion/llm-providers.md` §6 et §8) ; état du job d'extraction (seule vraie tâche de fond, suivie par interrogation périodique) |
 | **Import / Export** | Voir §7 et §8 |
-| **Sécurité** | Jetons, sessions, événements (`../identity-and-access/administration-and-audit.md` §4) |
+| **Sécurité** | Jetons, sessions, événements (`../identity-and-access/administration-and-audit.md` §5) |
 | **Réglages** | Voir §9 |
+| **Administration** | Voir §12 ; admins seulement |
 
 ## 3. Tableau de bord
 
@@ -108,12 +110,11 @@ Orchestre le protocole de `../import-format.md` §11. L'identifiant de session e
 | Section | Contenu |
 |---|---|
 | **Apparence** | Mode (système, clair, sombre), **thème** (quatre jeux de couleurs), « Motifs dans les graphiques » (`design-system.md` §7) |
-| Foyer | Devise de référence, fuseau, langue |
+| Foyer | Fuseau, langue |
 | Personnes | Ajouter un enfant (`dependent`) |
 | Notifications | Préférences par type (`../architecture.md` §15) |
-| Catalogue | Synchronisation du catalogue de fournisseurs |
-| Taux de change | Saisie manuelle d'un taux |
-| **IA** | Fournisseurs et clés, mode (local, gratuit puis local, avec payant), types de documents autorisés au cloud, budget mensuel, masquage, conditions avec date de revue, page « Utilisation IA » (`../ingestion/llm-providers.md` §13) |
+
+La devise de référence, le catalogue, les taux de change et l'IA sont techniques ou valent pour tout le foyer : ils sont dans l'**Administration** (§12).
 
 ## 10. États et erreurs
 
@@ -128,3 +129,21 @@ Orchestre le protocole de `../import-format.md` §11. L'identifiant de session e
 ## 11. Ton
 
 Libellés en minuscules sauf noms propres ; verbe d'abord (« Ajouter un abonnement ») ; pas de « veuillez » ni de point d'exclamation ; erreurs en une phrase (ce qui s'est passé, puis quoi faire) ; contractions et tutoiement à trancher avec la passe de design.
+
+## 12. Administration
+
+Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2). Routes `/admin/users` (défaut de `/admin`), `/admin/household`, `/admin/fx`, `/admin/jobs`, `/admin/system`.
+
+| Section | Contenu |
+|---|---|
+| **Utilisateurs** | Tableau des adultes : nom, email, badge « en attente » ou « actif », interrupteur admin. « Ajouter un adulte » (nom, email), désactivé avec la raison quand le plafond est atteint. « Annuler l'invitation » sur un adulte en attente, « Déconnecter partout » sur un adulte actif. L'interrupteur du dernier admin est désactivé, avec la raison |
+| **Foyer** | Plafond d'adultes (jamais sous le nombre d'adultes), devise de référence ; avant de changer la devise, un avertissement : tous les totaux seront reconvertis |
+| **Taux de change** | Saisie manuelle d'un taux, « Synchroniser » (demande une collecte), journal des collectes |
+| **Tâches** | Jobs planifiés : dernière et prochaine exécution, état ; lecture seule |
+| **Système** | Version, démarrage, santé de la base et du fournisseur d'identité, taille de la base ; lecture seule |
+| **Journal de sécurité** (1F) | Événements techniques globaux, identifiants seulement |
+| **Catalogue** (1C2b) | Synchronisation du catalogue de fournisseurs |
+| **IA** (étape 4) | Fournisseurs et clés, mode (local, gratuit puis local, avec payant), types de documents autorisés au cloud, budget mensuel, masquage, conditions avec date de revue, page « Utilisation IA » (`../ingestion/llm-providers.md` §13) |
+
+- Aucun libellé, montant ni compteur d'éléments : l'Administration ne dit rien des données du foyer.
+- Chaque action d'écriture est confirmée ; une confirmation dit l'effet (« Cette personne pourra se connecter avec l'email … », « Toutes ses sessions seront fermées »).

@@ -37,7 +37,7 @@ L'application est **auto-hébergée**, pensée pour **deux utilisateurs** (le co
 
 ## 3. Utilisateurs
 
-- **Deux utilisateurs** : les deux membres du couple, avec les mêmes droits.
+- **Deux utilisateurs** : les deux membres du couple, avec les mêmes droits sur les données. Le premier à se connecter est **administrateur** : il admet les autres adultes (plafond réglable, deux par défaut) et gère les réglages techniques, sans aucun accès supplémentaire aux éléments (`identity-and-access/administration-and-audit.md` §2).
 - **Propriété des éléments** : chaque élément (abonnement, compte, placement, bien, crédit) a un ou plusieurs propriétaires, avec une part chacun (voir 5.1). Un élément à deux propriétaires est « commun ».
 - **Visibilité des éléments** : chaque élément est **partagé** (visible par les deux) ou **privé** (visible et modifiable par son seul propriétaire). Voir 5.1.
 - **Utilisateurs d'un service** distincts du propriétaire et du payeur (exemple : un abonnement familial payé par le foyer, utilisé par les deux).
