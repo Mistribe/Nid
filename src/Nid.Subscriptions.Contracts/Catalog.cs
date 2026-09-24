@@ -210,6 +210,15 @@ public interface IProviderStore
 
     /// <summary>Inserts a provider; <see cref="CatalogCodes.KeyTaken"/> when its key exists already.</summary>
     Task<Result> CreateAsync(Provider provider, CancellationToken ct);
+
+    /// <summary>
+    /// Inside the caller's transaction, locks <c>provider</c> and <c>label</c> against every other writer (an import
+    /// committing a custom provider waits, and is waited for) and reads them. Throws outside a transaction.
+    /// </summary>
+    Task<CatalogSnapshot> LockForSyncAsync(CancellationToken ct);
+
+    /// <summary>Writes <paramref name="plan"/> in the caller's transaction; archived providers get <paramref name="now"/>.</summary>
+    Task WriteCatalogAsync(CatalogPlan plan, Instant now, CancellationToken ct);
 }
 
 /// <summary>A label as the catalog gives it, already checked; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>
@@ -228,3 +237,12 @@ public sealed record CatalogReading(
     IReadOnlyList<string> LabelsCreated,
     IReadOnlyList<CatalogDuplicate> Duplicates,
     IReadOnlyList<CatalogRefusal> Refused);
+
+/// <summary>What is stored, read under the sync's lock (design §4 "Merge").</summary>
+public sealed record CatalogSnapshot(IReadOnlyList<Provider> Providers, IReadOnlyList<Label> Labels);
+
+/// <summary>
+/// What one sync writes: labels and providers as they must be stored (inserted or updated), catalog keys to archive,
+/// and the report. A custom provider and a local label never appear in it.
+/// </summary>
+public sealed record CatalogPlan(IReadOnlyList<Label> Labels, IReadOnlyList<Provider> Providers, IReadOnlyList<string> Archive, CatalogReport Report);

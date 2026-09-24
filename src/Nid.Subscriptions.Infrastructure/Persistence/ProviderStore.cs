@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
+using NodaTime;
 using Npgsql;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -43,6 +44,68 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
 
         db.Entry(row).State = EntityState.Detached;
         return Result.Success();
+    }
+
+    public async Task<CatalogSnapshot> LockForSyncAsync(CancellationToken ct)
+    {
+        RequireTransaction();
+        // Review Focus 5: waits for any transaction writing providers or labels (an import committing a custom provider)
+        // and holds them off until this one ends. Subscriptions keep linking meanwhile: a foreign-key check takes
+        // ROW SHARE, which SHARE ROW EXCLUSIVE admits.
+        await db.Database.ExecuteSqlRawAsync("lock table subscriptions.provider, subscriptions.label in share row exclusive mode", ct);
+        var providers = await db.Providers.AsNoTracking().ToListAsync(ct);
+        var labels = await db.Labels.AsNoTracking().ToListAsync(ct);
+        return new CatalogSnapshot(providers.Select(ToProvider).ToList(), labels.Select(ToLabel).ToList());
+    }
+
+    public async Task WriteCatalogAsync(CatalogPlan plan, Instant now, CancellationToken ct)
+    {
+        RequireTransaction();
+
+        var labelKeys = plan.Labels.Select(l => l.Key).ToList();
+        var labelRows = await db.Labels.Where(l => labelKeys.Contains(l.Key)).ToDictionaryAsync(l => l.Key, ct);
+        foreach (var label in plan.Labels)
+        {
+            if (labelRows.TryGetValue(label.Key, out var row))
+            {
+                if (row.Origin == "local")
+                    continue; // the plan never holds one: a local label is never touched
+                row.Name = label.Name;
+                row.Color = label.Color;
+            }
+            else
+                db.Labels.Add(new LabelRow { Key = label.Key, Name = label.Name, Color = label.Color, Origin = label.Origin.ToWire() });
+        }
+
+        var providerKeys = plan.Providers.Select(p => p.Key).ToList();
+        var providerRows = await db.Providers.Where(p => providerKeys.Contains(p.Key)).ToDictionaryAsync(p => p.Key, ct);
+        foreach (var provider in plan.Providers)
+        {
+            if (providerRows.TryGetValue(provider.Key, out var row))
+            {
+                if (row.Origin == "custom")
+                    continue; // the plan never holds one: a custom provider is never overwritten
+                Apply(row, provider);
+            }
+            else
+                db.Providers.Add(ToRow(provider));
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        var archive = plan.Archive.ToList();
+        if (archive.Count > 0)
+            await db.Providers
+                .Where(p => archive.Contains(p.Key) && p.Origin == "catalog" && p.ArchivedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (Instant?)now), ct);
+
+        db.ChangeTracker.Clear();
+    }
+
+    private void RequireTransaction()
+    {
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A catalog sync runs inside a transaction (IUnitOfWork).");
     }
 
     internal static Label ToLabel(LabelRow row) => new(row.Key, row.Name, row.Color, CatalogNames.LabelOriginFromWire(row.Origin));

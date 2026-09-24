@@ -16,4 +16,7 @@
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Domain\Nid.Subscriptions.Domain.csproj" />
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\fixtures\**\*" LinkBase="fixtures" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
