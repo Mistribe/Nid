@@ -60,7 +60,7 @@ Définis dans `Core.Contracts`.
 | `ICreatesItem { Owners, Visibility }` | Vérifié à la création (§5) |
 | `IHouseholdQuery` | Requête de liste : le handler filtre avec `IVisibleItems` (§6) |
 | `[NoItemAccess]` | Données de référence : catalogue, taux, réglages |
-| `IAdminOnly` | Réservé aux admins (étape 2 bis) : zone admin, saisie manuelle et synchronisation des taux, journal des collectes. Ne touche aucun élément |
+| `IAdminOnly` | Réservé aux admins (étape 2 bis) : zone admin, saisie manuelle et synchronisation des taux, journal des collectes, journal et synchronisation du catalogue. Ne touche aucun élément — sauf le catalogue : la synchronisation enregistre, côté hôte seulement, les identifiants des abonnements qui utilisaient les clés adoptées ou en conflit, et son journal est filtré par `IVisibleItems` pour son lecteur (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6) |
 
 Un **test d'architecture** exige que toute requête porte un marqueur ou l'exemption explicite : un oubli fait échouer la CI.
 
@@ -118,6 +118,6 @@ Source unique : deux fonctions pures, testées par propriétés (`access-tests.m
 
 ## 9. Jobs, workers et import
 
-- Les tâches de maintenance (taux, catalogue) n'ont pas de `person_id` et aucun accès aux éléments.
+- Les tâches de maintenance (taux, catalogue) n'ont pas de `person_id` et aucun accès aux éléments. Exception bornée : la synchronisation du catalogue enregistre, côté hôte seulement, les identifiants des abonnements qui utilisaient une clé adoptée ou en conflit, et le journal n'en montre à chaque lecteur que ce que `IVisibleItems` lui laisse voir (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6).
 - **Extraction** : le worker rend son résultat à l'API interne ; Ingestion crée la `Proposal` pour la personne qui a créé le job et **revérifie le droit d'écriture** sur la cible au moment de la création.
 - **Import** : exécuté via l'interface ou l'API avec `write:direct` (`../import-format.md`).

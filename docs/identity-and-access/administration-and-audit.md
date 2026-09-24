@@ -40,8 +40,9 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 | **Taux de change** | Saisie manuelle, synchronisation à la demande, journal des collectes | `/api/v1/core/fx-rates` (écritures et journal réservés aux admins ; la lecture des taux reste ouverte) |
 | **Tâches planifiées** | Jobs Quartz : dernière et prochaine exécution, état | `GET /admin/jobs` |
 | **Système** | Version, démarrage, santé (base, fournisseur d'identité), taille de la base | `GET /admin/system` |
+| **Catalogue** (1C2b) | Dernière synchronisation (état, heure, version synchronisée, comptes et rapport par catégorie), version épinglée, historique des 10 dernières, synchronisation à la demande confirmée ; le rapport est filtré pour son lecteur (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6) | `GET /api/v1/subscriptions/catalog/runs`, `POST /api/v1/subscriptions/catalog/sync` |
 | **Journal de sécurité** (1F) | Événements techniques globaux (`login_refused`, `access_violation`, `admin_command`, §4.1), identifiants seulement | avec le journal d'audit |
-| **Plus tard** | Catalogue (1C2b), IA : fournisseurs, clés, budget (étape 4), identifiants des workers (étape 4) | |
+| **Plus tard** | IA : fournisseurs, clés, budget (étape 4), identifiants des workers (étape 4) | |
 
 - **Aucun libellé, aucun montant, aucun compteur d'éléments** : un total d'éléments révélerait que l'autre adulte en a de privés.
 - Supprimer un adulte **actif** est hors périmètre : il possède des éléments, cela demanderait un transfert de propriété. Un adulte **en attente** qui possède déjà des éléments (atteint par un import, qui résout les adultes par email y compris en attente) ne peut pas non plus être supprimé, pour la même raison (`core.person_active`).
