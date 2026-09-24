@@ -2152,6 +2152,7 @@ export interface components {
         };
         CapabilitiesView: {
             modules: string[];
+            admin: boolean;
         };
         ChargeView: {
             /** Format: date */

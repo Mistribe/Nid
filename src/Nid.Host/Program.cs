@@ -16,6 +16,7 @@ using UnambitiousFx.Synapse.Abstractions;
 // handlers in assemblies the declaring assembly references, and modules reference Platform, not the reverse.
 [assembly: SynapseGlobalBehavior(typeof(TraceBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ActorBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(AdminBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ScopeBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]

@@ -2245,7 +2245,8 @@
       },
       "CapabilitiesView": {
         "required": [
-          "modules"
+          "modules",
+          "admin"
         ],
         "type": "object",
         "properties": {
@@ -2254,6 +2255,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "admin": {
+            "type": "boolean"
           }
         }
       },

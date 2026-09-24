@@ -48,16 +48,18 @@ public static class PersonEndpoints
 /// Puts the signed-in person in the scoped accessor so the pipeline can read it; handlers never read
 /// <c>HttpContext</c>. In tests, <c>IntegrationTestAuthenticationHandler</c> already puts the same
 /// <c>SessionClaims</c> a real session would carry onto <c>HttpContext.User</c>, so this filter needs no
-/// test-specific branch — the one check below is exactly what a real login populates too.
+/// test-specific branch. The admin flag is read from the person row on every request, never from the cookie:
+/// a demotion takes effect at the next request (administration-and-audit.md §2.1).
 /// </summary>
-public sealed class ActorFilter(IActorAccessor accessor) : IEndpointFilter
+public sealed class ActorFilter(IActorAccessor accessor, IPersonRegistry persons) : IEndpointFilter
 {
-    public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        if (SessionClaims.ReadPersonId(context.HttpContext.User) is { } person)
-            accessor.Current = Actor.Browser(person);
+        var http = context.HttpContext;
+        if (SessionClaims.ReadPersonId(http.User) is { } id && await persons.FindAsync(id, http.RequestAborted) is { } person)
+            accessor.Current = Actor.Browser(person.Id, person.IsAdmin);
 
-        return next(context);
+        return await next(context);
     }
 }
 
@@ -100,6 +102,7 @@ public static class ResultHttp
             NotFoundFailure => StatusCodes.Status404NotFound,
             UnauthorizedFailure => StatusCodes.Status403Forbidden,
             UnauthenticatedFailure => StatusCodes.Status401Unauthorized,
+            _ when failure.Code == AdminCodes.Required => StatusCodes.Status403Forbidden,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,

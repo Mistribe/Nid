@@ -15,17 +15,17 @@ public static class FxLimits
     public const int RecentRuns = 50;
 }
 
-public sealed record CollectDailyFxRatesCommand : ICommand<FxSyncRunView>;
+public sealed record CollectDailyFxRatesCommand : ICommand<FxSyncRunView>, IAdminOnly;
 
-public sealed record BackfillFxRatesCommand : ICommand<FxSyncRunView>;
+public sealed record BackfillFxRatesCommand : ICommand<FxSyncRunView>, IAdminOnly;
 
-public sealed record RequestFxSyncCommand : ICommand<FxSyncRequested>;
+public sealed record RequestFxSyncCommand : ICommand<FxSyncRequested>, IAdminOnly;
 
-public sealed record SetManualFxRateCommand(LocalDate OnDate, string Quote, string Rate) : ICommand<FxRateView>;
+public sealed record SetManualFxRateCommand(LocalDate OnDate, string Quote, string Rate) : ICommand<FxRateView>, IAdminOnly;
 
 public sealed record GetFxRatesQuery(string Quote, LocalDate From, LocalDate To) : IQuery<IReadOnlyList<FxRateView>>;
 
-public sealed record GetFxSyncRunsQuery : IQuery<IReadOnlyList<FxSyncRunView>>;
+public sealed record GetFxSyncRunsQuery : IQuery<IReadOnlyList<FxSyncRunView>>, IAdminOnly;
 
 [RequestHandler<CollectDailyFxRatesCommand, FxSyncRunView>]
 public sealed class CollectDailyFxRatesHandler(FxCollector collector) : IRequestHandler<CollectDailyFxRatesCommand, FxSyncRunView>
