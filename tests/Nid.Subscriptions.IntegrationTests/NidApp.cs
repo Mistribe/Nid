@@ -11,6 +11,7 @@ using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
 using NodaTime;
 using UnambitiousFx.Functional.Failures;
@@ -343,6 +344,30 @@ public sealed class NidApp : IAsyncDisposable
             },
         })).EnsureSuccessStatusCode();
         return (first, second);
+    }
+
+    /// <summary>Writes a provider row directly, as a sync or the adoption would have: a test's way to a known catalog.</summary>
+    public async Task SeedProviderAsync(string key, string name, ProviderOrigin origin, PersonId? createdBy = null, bool archived = false)
+    {
+        await using var subs = PostgresFixture.NewSubscriptionsContext(ConnectionString);
+        subs.Providers.Add(new ProviderRow
+        {
+            Key = key,
+            Origin = origin.ToWire(),
+            Name = name,
+            LabelKeys = [CatalogLimits.OtherLabel],
+            CatalogCommit = origin == ProviderOrigin.Catalog ? CatalogFixtures.PinnedCommit : null,
+            CreatedBy = origin == ProviderOrigin.Custom ? (createdBy ?? AdultA).Value : null,
+            ArchivedAt = archived ? SystemClock.Instance.GetCurrentInstant() : null,
+        });
+        await subs.SaveChangesAsync();
+    }
+
+    /// <summary>Sets a subscription's provider key in the database, bypassing every check: a state an earlier write left.</summary>
+    public async Task LinkProviderAsync(ItemId item, string? key)
+    {
+        await using var subs = PostgresFixture.NewSubscriptionsContext(ConnectionString);
+        await subs.Subscriptions.Where(s => s.ItemId == item.Value).ExecuteUpdateAsync(s => s.SetProperty(r => r.ProviderKey, key));
     }
 
     public ValueTask DisposeAsync()

@@ -9,6 +9,7 @@ using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Subscriptions.Application;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
 using UnambitiousFx.Synapse.Abstractions;
@@ -106,6 +107,9 @@ public static class RequestCatalogue
         new(typeof(GetFxRatesQuery), false,
             (_, _) => new GetFxRatesQuery("EUR", new NodaTime.LocalDate(2025, 1, 1), new NodaTime.LocalDate(2025, 1, 31))),
         new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery()),
+        new(typeof(SyncCatalogCommand), false, (_, _) => new SyncCatalogCommand()),
+        new(typeof(RequestCatalogSyncCommand), false, (_, _) => new RequestCatalogSyncCommand()),
+        new(typeof(GetCatalogRunsQuery), false, (_, _) => new GetCatalogRunsQuery()),
 
         new(typeof(ListAdultsQuery), false, (_, _) => new ListAdultsQuery()),
         new(typeof(PreRegisterAdultCommand), false, (_, _) => new PreRegisterAdultCommand("bench-adult", "bench@example.test")),

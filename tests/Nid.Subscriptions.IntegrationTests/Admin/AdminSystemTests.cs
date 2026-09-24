@@ -45,6 +45,7 @@ public class AdminSystemTests(PostgresFixture fixture)
 
         Assert.Contains(jobs, j => j.Key == "fx-daily" && j.NextRunAt is not null);
         Assert.Contains(jobs, j => j.Key == "fx-backfill");
+        Assert.Contains(jobs, j => j.Key == "catalog-sync" && j.NextRunAt is null);
     }
 
     [Fact]

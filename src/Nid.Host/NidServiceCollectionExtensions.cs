@@ -95,6 +95,7 @@ public static class NidServiceCollectionExtensions
         // Provider catalog (1C2b). The options are bound by Program; the defaults are the design's pinned commit.
         services.TryAddSingleton(new CatalogOptions());
         services.TryAddSingleton<ICatalogSourceClient, CatalogSourceClient>();
+        services.TryAddSingleton<ICatalogJobTrigger, JobsDisabledCatalogTrigger>();
         services.AddScoped<IProviderStore, ProviderStore>();
         services.AddScoped<ICatalogRunLog, CatalogRunLog>();
         services.AddScoped<CatalogSync>();

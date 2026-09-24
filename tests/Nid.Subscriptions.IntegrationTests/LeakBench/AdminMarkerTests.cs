@@ -1,5 +1,6 @@
 using Nid.Core.Application.Fx;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Application.Catalog;
 
 namespace Nid.Subscriptions.IntegrationTests.LeakBench;
 
@@ -27,6 +28,15 @@ public class AdminMarkerTests
 
         // Every adult's totals read the rates: reading them stays open.
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(GetFxRatesQuery)));
+    }
+
+    /// <summary>1C2b spec §6: the sync journal and the sync are the admin's; they live outside the admin namespaces, so they are named here.</summary>
+    [Fact]
+    public void The_catalog_sync_journal_is_admin_only()
+    {
+        Type[] journal = [typeof(SyncCatalogCommand), typeof(RequestCatalogSyncCommand), typeof(GetCatalogRunsQuery)];
+        var unmarked = journal.Where(t => !typeof(IAdminOnly).IsAssignableFrom(t)).ToList();
+        Assert.True(unmarked.Count == 0, "Not IAdminOnly:\n  " + string.Join("\n  ", unmarked.Select(t => t.FullName)));
     }
 
     [Fact]

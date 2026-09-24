@@ -212,6 +212,13 @@ public interface IProviderStore
     Task<Result> CreateAsync(Provider provider, CancellationToken ct);
 
     /// <summary>
+    /// The keys among <paramref name="keys"/> a subscription among <paramref name="visibleItems"/> uses, or that name a
+    /// custom provider <paramref name="actor"/> created: what the reader of a sync report may see (spec §3.6).
+    /// </summary>
+    Task<IReadOnlySet<string>> SeenByAsync(
+        PersonId actor, IReadOnlyCollection<ItemId> visibleItems, IReadOnlyCollection<string> keys, CancellationToken ct);
+
+    /// <summary>
     /// Inside the caller's transaction, locks <c>provider</c> and <c>label</c> against every other writer (an import
     /// committing a custom provider waits, and is waited for) and reads them. Throws outside a transaction.
     /// </summary>
@@ -264,4 +271,10 @@ public sealed class CatalogOptions
 
     /// <summary>2025-11-29, the latest commit touching <c>providers.json</c>. Changing version is changing this and syncing again.</summary>
     public string Commit { get; set; } = "df0146a8f3532f5c790aa54a34d4871e96b62a95";
+}
+
+/// <summary>Starts the <c>catalog-sync</c> job now (Quartz in the host); <see cref="CatalogCodes.JobsDisabled"/> when jobs are off.</summary>
+public interface ICatalogJobTrigger
+{
+    Task<Result> TriggerSyncAsync(CancellationToken ct);
 }

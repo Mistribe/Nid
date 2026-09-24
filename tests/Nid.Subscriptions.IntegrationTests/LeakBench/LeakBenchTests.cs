@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,8 @@ using Nid.Host.Api;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
+using Nid.Subscriptions.Application.Catalog;
+using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 
@@ -584,6 +587,40 @@ public class LeakBenchTests(PostgresFixture fixture)
     private sealed record Maybe(ItemId? Id);
 
     private sealed record Harmless(string Name, int Count);
+
+    /// <summary>
+    /// 1C2b spec §3.6: every item of the dataset uses an adopted provider of its own, which the sync leaves adopted. A,
+    /// the admin, reads the journal: each key appears exactly when A may read the item using it — the table of §2, not
+    /// the code under test, says which. The view has no count to leak what it dropped.
+    /// </summary>
+    [Fact]
+    public async Task The_sync_report_names_no_provider_only_a_hidden_item_uses()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+        var keys = new Dictionary<string, string>();
+        foreach (var (name, item) in data.Items)
+        {
+            var key = "adopted-" + name.ToLowerInvariant();
+            await app.SeedProviderAsync(key, key, ProviderOrigin.Adopted);
+            await app.LinkProviderAsync(item, key);
+            keys[name] = key;
+        }
+        app.Catalog.Serve(Encoding.UTF8.GetBytes("""[{"key":"streaming","name":"Streaming","color":"#FF6400F6"}]"""), Encoding.UTF8.GetBytes("[]"));
+        var (_, syncFailure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
+        Assert.Null(syncFailure);
+
+        var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery());
+
+        Assert.Null(failure);
+        var serialised = JsonSerializer.Serialize(answer, ResponseJson);
+        foreach (var (name, key) in keys)
+        {
+            var readable = data.ExpectedReadable(app.AdultA).Contains(data[name]);
+            Assert.True(readable == serialised.Contains($"\"{key}\"", StringComparison.Ordinal),
+                $"{key} (used by {name}) in A's journal: expected {(readable ? "listed" : "absent")}");
+        }
+    }
 
     public static TheoryData<bool, Type> ReachShapes => new()
     {

@@ -4,6 +4,7 @@ using Nid.Core.Contracts;
 using Nid.Host.Admin;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Contracts;
 using Npgsql;
 using Quartz;
 using UnambitiousFx.Functional;
@@ -127,6 +128,9 @@ public static class JobsSetup
             // Durable: it has no trigger of its own, it is fired on demand and at startup.
             q.AddJob<FxBackfillJob>(job => job.WithIdentity(FxJobs.BackfillKey).StoreDurably());
 
+            // Durable, no trigger of its own: fired at startup until a sync succeeded, and on demand (design §4).
+            q.AddJob<CatalogSyncJob>(job => job.WithIdentity(CatalogJobs.SyncKey).StoreDurably());
+
             // A shutdown cancels a running collection, then waits for it: the collector closes the run as
             // interrupted instead of leaving it "running" for an hour.
             q.ConfigureScheduler(o => o.ShutdownJobInterruption = ShutdownJobInterruption.WhenWaitingForJobs);
@@ -136,9 +140,12 @@ public static class JobsSetup
         // A named scheduler's parts are keyed services: there is no unkeyed ISchedulerFactory to inject.
         services.Replace(ServiceDescriptor.Singleton<IFxJobTrigger>(sp =>
             new QuartzFxJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
+        services.Replace(ServiceDescriptor.Singleton<ICatalogJobTrigger>(sp =>
+            new QuartzCatalogJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<IJobStatusReader>(sp =>
             new QuartzJobStatusReader(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.AddHostedService<FxStartupBackfill>();
+        services.AddHostedService<CatalogStartupSync>();
         return services;
     }
 }
