@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
 using Npgsql;
@@ -43,7 +44,7 @@ public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICa
 
     public async Task FinishAsync(CatalogSyncRun run, CancellationToken ct)
     {
-        var report = run.Report is null ? null : JsonSerializer.Serialize(run.Report, Json);
+        var report = run.Report is null ? null : JsonSerializer.Serialize(StoredReport.From(run), Json);
         await db.CatalogSyncRuns.Where(r => r.Id == run.Id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Status, Status(run.Status))
             .SetProperty(r => r.FinishedAt, run.FinishedAt)
@@ -79,8 +80,34 @@ public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICa
     };
 
     private static CatalogSyncRun ToRun(CatalogSyncRunRow row)
-        => new(row.Id, row.StartedAt, row.FinishedAt,
+    {
+        var stored = row.Report is null ? null : StoredReport.Read(row.Report);
+        return new CatalogSyncRun(row.Id, row.StartedAt, row.FinishedAt,
             row.Status switch { "running" => CatalogRunStatus.Running, "succeeded" => CatalogRunStatus.Succeeded, _ => CatalogRunStatus.Failed },
-            row.Commit, row.FailureCode, row.FailureMessage,
-            row.Report is null ? null : JsonSerializer.Deserialize<CatalogReport>(row.Report, Json));
+            row.Commit, row.FailureCode, row.FailureMessage, stored?.Report)
+        {
+            UsedBy = stored?.UsedBy is { } usedBy
+                ? usedBy.ToDictionary(e => e.Key, e => (IReadOnlyList<ItemId>)e.Value.Select(id => new ItemId(id)).ToList(), StringComparer.Ordinal)
+                : CatalogSyncRun.NoUsage,
+        };
+    }
+
+    /// <summary>
+    /// The <c>report</c> column: the report and, host-only, the subscriptions that used each household entry when the
+    /// sync ran (spec §3.6). A report stored bare, before the usage was recorded, reads with no usage: every household
+    /// entry is then hidden from every person, the safe side.
+    /// </summary>
+    private sealed record StoredReport(CatalogReport Report, Dictionary<string, List<Guid>>? UsedBy)
+    {
+        public static StoredReport From(CatalogSyncRun run)
+            => new(run.Report!, run.UsedBy.ToDictionary(e => e.Key, e => e.Value.Select(i => i.Value).ToList(), StringComparer.Ordinal));
+
+        public static StoredReport Read(string json)
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.TryGetProperty("report", out _)
+                ? JsonSerializer.Deserialize<StoredReport>(json, Json)!
+                : new StoredReport(JsonSerializer.Deserialize<CatalogReport>(json, Json)!, null);
+        }
+    }
 }

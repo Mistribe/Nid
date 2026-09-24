@@ -167,7 +167,18 @@ public sealed record CatalogSyncRun(
     string Commit,
     string? FailureCode,
     string? FailureMessage,
-    CatalogReport? Report);
+    CatalogReport? Report)
+{
+    /// <summary>
+    /// Host-only (spec §3.6, "Judged as of the sync"): for every adopted-replaced, adopted-remaining and conflict key of
+    /// <see cref="Report"/>, the subscriptions that used it when the sync ran. It decides what a reader sees of those
+    /// entries and is never serialized to a person: the views carry the filtered report, not this.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<ItemId>> UsedBy { get; init; } = NoUsage;
+
+    public static IReadOnlyDictionary<string, IReadOnlyList<ItemId>> NoUsage { get; } =
+        new Dictionary<string, IReadOnlyList<ItemId>>(StringComparer.Ordinal);
+}
 
 /// <summary>The sync journal: the same shape and rules as <c>core.fx_sync_run</c> (design §3.6, 1C2a design §10).</summary>
 public interface ICatalogRunLog
@@ -212,11 +223,10 @@ public interface IProviderStore
     Task<Result> CreateAsync(Provider provider, CancellationToken ct);
 
     /// <summary>
-    /// The keys among <paramref name="keys"/> a subscription among <paramref name="visibleItems"/> uses, or that name a
-    /// custom provider <paramref name="actor"/> created: what the reader of a sync report may see (spec §3.6).
+    /// For each of <paramref name="keys"/>, the subscriptions using it now (an empty list when none), whoever may see
+    /// them: what a sync records, host-only, to judge its report for each reader later (spec §3.6).
     /// </summary>
-    Task<IReadOnlySet<string>> SeenByAsync(
-        PersonId actor, IReadOnlyCollection<ItemId> visibleItems, IReadOnlyCollection<string> keys, CancellationToken ct);
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ItemId>>> UsageAsync(IReadOnlyCollection<string> keys, CancellationToken ct);
 
     /// <summary>
     /// Inside the caller's transaction, locks <c>provider</c> and <c>label</c> against every other writer (an import

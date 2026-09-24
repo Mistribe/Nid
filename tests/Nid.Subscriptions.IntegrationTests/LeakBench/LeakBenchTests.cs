@@ -589,9 +589,11 @@ public class LeakBenchTests(PostgresFixture fixture)
     private sealed record Harmless(string Name, int Count);
 
     /// <summary>
-    /// 1C2b spec §3.6: every item of the dataset uses an adopted provider of its own, which the sync leaves adopted. A,
-    /// the admin, reads the journal: each key appears exactly when A may read the item using it — the table of §2, not
-    /// the code under test, says which. The view has no count to leak what it dropped.
+    /// 1C2b spec §3.6: every item of the dataset uses an adopted provider of its own. A first sync leaves them all
+    /// adopted (remaining); a second, whose catalog holds every one of them, replaces them all. A, the admin, reads the
+    /// journal: a remaining key appears exactly when A may read the item using it, and a replaced key is listed as
+    /// replaced exactly then — otherwise as added, as if never adopted, since the catalog itself is public. The table
+    /// of §2, not the code under test, says which. The view has no count to leak what it dropped.
     /// </summary>
     [Fact]
     public async Task The_sync_report_names_no_provider_only_a_hidden_item_uses()
@@ -606,20 +608,34 @@ public class LeakBenchTests(PostgresFixture fixture)
             await app.LinkProviderAsync(item, key);
             keys[name] = key;
         }
-        app.Catalog.Serve(Encoding.UTF8.GetBytes("""[{"key":"streaming","name":"Streaming","color":"#FF6400F6"}]"""), Encoding.UTF8.GetBytes("[]"));
-        var (_, syncFailure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
-        Assert.Null(syncFailure);
+        var labels = Encoding.UTF8.GetBytes("""[{"key":"streaming","name":"Streaming","color":"#FF6400F6"}]""");
+        var catalog = "[" + string.Join(",", keys.Values.Select(k => $$"""{"key":"{{k}}","name":"{{k}}","categories":["streaming"]}""")) + "]";
+        foreach (var providers in new[] { "[]", catalog })
+        {
+            app.Catalog.Serve(labels, Encoding.UTF8.GetBytes(providers));
+            var (_, syncFailure) = await app.InvokeAsync(app.AdultA, new SyncCatalogCommand());
+            Assert.Null(syncFailure);
+        }
 
         var (answer, failure) = await app.InvokeAsync(app.AdultA, new GetCatalogRunsQuery());
 
         Assert.Null(failure);
-        var serialised = JsonSerializer.Serialize(answer, ResponseJson);
+        var runs = ((CatalogRunsView)answer!).Runs;
+        var (replacing, leaving) = (runs[0].Report!, runs[1].Report!);
+        var leavingSerialised = JsonSerializer.Serialize(runs[1], ResponseJson);
         foreach (var (name, key) in keys)
         {
             var readable = data.ExpectedReadable(app.AdultA).Contains(data[name]);
-            Assert.True(readable == serialised.Contains($"\"{key}\"", StringComparison.Ordinal),
-                $"{key} (used by {name}) in A's journal: expected {(readable ? "listed" : "absent")}");
+            Assert.True(readable == leavingSerialised.Contains($"\"{key}\"", StringComparison.Ordinal),
+                $"{key} (used by {name}) in A's first run: expected {(readable ? "listed" : "absent")}");
+            Assert.True(readable == replacing.AdoptedReplaced.Contains(key),
+                $"{key} (used by {name}) in A's replaced keys: expected {(readable ? "listed" : "absent")}");
+            Assert.True(readable != replacing.ProvidersAdded.Contains(key),
+                $"{key} (used by {name}) in A's added keys: expected {(readable ? "absent" : "listed")}");
         }
+        Assert.Empty(replacing.Refused);
+        Assert.Empty(replacing.AdoptedRemaining);
+        Assert.All(leaving.AdoptedRemaining, key => Assert.Contains(key, keys.Values));
     }
 
     public static TheoryData<bool, Type> ReachShapes => new()

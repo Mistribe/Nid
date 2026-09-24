@@ -46,22 +46,21 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         return Result.Success();
     }
 
-    public async Task<IReadOnlySet<string>> SeenByAsync(
-        PersonId actor, IReadOnlyCollection<ItemId> visibleItems, IReadOnlyCollection<string> keys, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<ItemId>>> UsageAsync(IReadOnlyCollection<string> keys, CancellationToken ct)
     {
-        if (keys.Count == 0)
-            return new HashSet<string>(StringComparer.Ordinal);
-
         var wanted = keys.Distinct(StringComparer.Ordinal).ToList();
-        var items = visibleItems.Select(i => i.Value).ToList();
-        var person = actor.Value;
-        var used = await db.Subscriptions.AsNoTracking()
-            .Where(s => s.ProviderKey != null && wanted.Contains(s.ProviderKey) && items.Contains(s.ItemId))
-            .Select(s => s.ProviderKey!).Distinct().ToListAsync(ct);
-        var created = await db.Providers.AsNoTracking()
-            .Where(p => wanted.Contains(p.Key) && p.Origin == "custom" && p.CreatedBy == person)
-            .Select(p => p.Key).ToListAsync(ct);
-        return used.Concat(created).ToHashSet(StringComparer.Ordinal);
+        if (wanted.Count == 0)
+            return new Dictionary<string, IReadOnlyList<ItemId>>(StringComparer.Ordinal);
+
+        var links = await db.Subscriptions.AsNoTracking()
+            .Where(s => s.ProviderKey != null && wanted.Contains(s.ProviderKey))
+            .Select(s => new { Key = s.ProviderKey!, s.ItemId })
+            .ToListAsync(ct);
+        var byKey = links.ToLookup(l => l.Key, l => l.ItemId, StringComparer.Ordinal);
+        return wanted.ToDictionary(
+            key => key,
+            key => (IReadOnlyList<ItemId>)byKey[key].Order().Select(id => new ItemId(id)).ToList(),
+            StringComparer.Ordinal);
     }
 
     public async Task<CatalogSnapshot> LockForSyncAsync(CancellationToken ct)

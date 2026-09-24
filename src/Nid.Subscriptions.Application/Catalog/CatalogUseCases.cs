@@ -19,7 +19,7 @@ public sealed record RequestCatalogSyncCommand : ICommand<CatalogSyncRequested>,
 public sealed record GetCatalogRunsQuery : IQuery<CatalogRunsView>, IAdminOnly;
 
 [RequestHandler<SyncCatalogCommand, CatalogSyncRunView>]
-public sealed class SyncCatalogHandler(CatalogSync sync, IVisibleItems visible, IProviderStore providers, IActorAccessor actor)
+public sealed class SyncCatalogHandler(CatalogSync sync, IVisibleItems visible, IActorAccessor actor)
     : IRequestHandler<SyncCatalogCommand, CatalogSyncRunView>
 {
     public async ValueTask<Result<CatalogSyncRunView>> HandleAsync(SyncCatalogCommand command, CancellationToken ct = default)
@@ -30,7 +30,7 @@ public sealed class SyncCatalogHandler(CatalogSync sync, IVisibleItems visible, 
         ran.TryGetValue(out var run);
 
         // The caller sees the report as the journal would show it to them (spec §3.6); the job, a system actor, all of it.
-        var filter = await CatalogReportFilter.ForAsync(actor.Current?.PersonId, [run!], visible, providers, ct);
+        var filter = await CatalogReportFilter.ForAsync(actor.Current, [run!], visible, ct);
         return Result.Success(CatalogSyncRunView.From(run!, filter));
     }
 }
@@ -53,13 +53,13 @@ public sealed class RequestCatalogSyncHandler(ICatalogRunLog runs, ICatalogJobTr
 
 [RequestHandler<GetCatalogRunsQuery, CatalogRunsView>]
 public sealed class GetCatalogRunsHandler(
-    ICatalogRunLog runs, CatalogOptions options, IVisibleItems visible, IProviderStore providers, IActorAccessor actor)
+    ICatalogRunLog runs, CatalogOptions options, IVisibleItems visible, IActorAccessor actor)
     : IRequestHandler<GetCatalogRunsQuery, CatalogRunsView>
 {
     public async ValueTask<Result<CatalogRunsView>> HandleAsync(GetCatalogRunsQuery query, CancellationToken ct = default)
     {
         var recent = await runs.RecentAsync(CatalogLimits.RecentRuns, ct);
-        var filter = await CatalogReportFilter.ForAsync(actor.Current?.PersonId, recent, visible, providers, ct);
+        var filter = await CatalogReportFilter.ForAsync(actor.Current, recent, visible, ct);
         return Result.Success(new CatalogRunsView(options.Commit, recent.Select(r => CatalogSyncRunView.From(r, filter)).ToList()));
     }
 }

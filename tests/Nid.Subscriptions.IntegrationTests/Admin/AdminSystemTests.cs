@@ -45,6 +45,16 @@ public class AdminSystemTests(PostgresFixture fixture)
 
         Assert.Contains(jobs, j => j.Key == "fx-daily" && j.NextRunAt is not null);
         Assert.Contains(jobs, j => j.Key == "fx-backfill");
+        Assert.Contains(jobs, j => j.Key == "catalog-sync");
+
+        // Fired on demand only: once the startup sync's one-shot trigger has fired (no sync has succeeded on an empty
+        // database), catalog-sync has no next run.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (jobs.Single(j => j.Key == "catalog-sync").NextRunAt is not null && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(100);
+            jobs = await app.GetAsync<List<Job>>(app.AdultA, "/api/v1/admin/jobs");
+        }
         Assert.Contains(jobs, j => j.Key == "catalog-sync" && j.NextRunAt is null);
     }
 

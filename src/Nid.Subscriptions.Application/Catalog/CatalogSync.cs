@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain.Catalog;
@@ -24,10 +25,11 @@ public sealed class CatalogSync(
 
         Failure? failure;
         CatalogReport? report = null;
+        IReadOnlyDictionary<string, IReadOnlyList<ItemId>> usedBy = CatalogSyncRun.NoUsage;
         var interrupted = false;
         try
         {
-            (failure, report) = await SyncAsync(ct);
+            (failure, report, usedBy) = await SyncAsync(ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -46,6 +48,7 @@ public sealed class CatalogSync(
             FailureCode = failure?.Code,
             FailureMessage = failure?.Message,
             Report = failure is null ? report : null,
+            UsedBy = failure is null ? usedBy : CatalogSyncRun.NoUsage,
         };
         await runs.FinishAsync(finished, CancellationToken.None); // a cancelled run is still closed
         if (interrupted)
@@ -55,23 +58,28 @@ public sealed class CatalogSync(
         return Result.Success(finished);
     }
 
-    private async Task<(Failure? Failure, CatalogReport? Report)> SyncAsync(CancellationToken ct)
+    private async Task<(Failure? Failure, CatalogReport? Report, IReadOnlyDictionary<string, IReadOnlyList<ItemId>> UsedBy)> SyncAsync(
+        CancellationToken ct)
     {
         var fetched = await source.FetchAsync(options.Commit, ct);
         if (fetched.TryGetFailure(out var fetchFailure))
-            return (fetchFailure, null);
+            return (fetchFailure, null, CatalogSyncRun.NoUsage);
         fetched.TryGetValue(out var files);
 
         var reading = CatalogReader.Read(files!.Labels, files.Providers);
         if (reading.TryGetFailure(out var readFailure))
-            return (readFailure, null);
+            return (readFailure, null, CatalogSyncRun.NoUsage);
         reading.TryGetValue(out var parsed);
 
         // One transaction: the lock, the read under it and every write (design §4 "Merge", Review Focus 5).
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var plan = CatalogMerge.Plan(await providers.LockForSyncAsync(ct), parsed!, options.Commit);
+        // Spec §3.6 "Judged as of the sync": who used each household entry, before the writes turn a replaced key into
+        // a catalog one. The report is later filtered by these subscriptions, never by the key's use at reading time.
+        var report = plan.Report;
+        var usedBy = await providers.UsageAsync([.. report.AdoptedReplaced, .. report.AdoptedRemaining, .. report.Conflicts], ct);
         await providers.WriteCatalogAsync(plan, clock.GetCurrentInstant(), ct);
         await transaction.CommitAsync(ct);
-        return (null, plan.Report);
+        return (null, report, usedBy);
     }
 }
