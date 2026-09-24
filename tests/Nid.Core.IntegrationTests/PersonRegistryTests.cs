@@ -39,6 +39,20 @@ public class PersonRegistryTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_known_subjects_new_email_claim_matching_another_adult_keeps_its_old_email()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default);
+        await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default);
+        Assert.True((await registry.ProvisionAdultAsync("sub-b", "Bob", "bob@example.test", default)).TryGetValue(out var bob));
+
+        Assert.True((await registry.ProvisionAdultAsync("sub-b", "Bob", "ALICE@Example.test", default)).TryGetValue(out var updated));
+
+        Assert.Equal(bob.Email, updated.Email);
+    }
+
+    [Fact]
     public async Task An_unknown_identity_is_refused_once_an_adult_exists()
     {
         await using var db = await postgres.NewDatabaseAsync();

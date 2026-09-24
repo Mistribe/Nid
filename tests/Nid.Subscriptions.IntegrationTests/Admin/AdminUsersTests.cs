@@ -92,6 +92,36 @@ public class AdminUsersTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_pending_adult_promoted_to_admin_is_admin_once_bound_at_first_sign_in()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { maxAdults = 3 })).EnsureSuccessStatusCode();
+        var pending = (await (await app.RawAsync(app.AdultA, HttpMethod.Post, Users,
+            new { displayName = "Carol", email = "carol@example.test" })).Content.ReadFromJsonAsync<Adult>(Json))!;
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Users}/{pending.Id}/admin", new { isAdmin = true }))
+            .EnsureSuccessStatusCode();
+
+        Assert.True(await SignInAsync(app, "sub-c", "Carol C.", "carol@example.test"));
+
+        var adults = await app.GetAsync<List<Adult>>(app.AdultA, Users);
+        Assert.Contains(adults, a => a.Id == pending.Id && a.Status == "active" && a.IsAdmin);
+    }
+
+    [Fact]
+    public async Task An_admin_can_sign_itself_out_everywhere()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        // Self "sign out everywhere": the last unsafe request this test sends as A, since its CSRF token
+        // (bound to A's session epoch) is stale for A once this succeeds.
+        var revoked = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Users}/{app.AdultA.Value}/revoke-sessions");
+
+        Assert.Equal(HttpStatusCode.OK, revoked.StatusCode);
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        Assert.Equal(1, await core.Persons.Where(p => p.Id == app.AdultA.Value).Select(p => p.SessionEpoch).SingleAsync());
+    }
+
+    [Fact]
     public async Task Only_a_pending_adult_can_be_removed_and_an_unknown_one_is_404()
     {
         await using var app = await NidApp.StartAsync(fixture);
