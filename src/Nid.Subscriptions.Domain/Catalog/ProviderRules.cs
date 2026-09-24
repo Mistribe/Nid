@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using Nid.Subscriptions.Contracts;
 
@@ -49,5 +51,33 @@ public static partial class ProviderRules
         var spaced = key.Replace('-', ' ').Trim();
         var name = spaced.Length == 0 ? key : char.ToUpperInvariant(spaced[0]) + spaced[1..];
         return name.Length > maxLength ? name[..maxLength] : name;
+    }
+
+    public const int SuffixLength = 6;
+
+    private const int MaxSlugLength = CatalogLimits.MaxKeyLength - 1 - SuffixLength; // 57: "<slug>-<6 chars>" stays within 64
+
+    /// <summary>
+    /// Design §3.3: the name with accents folded, lowercase, every run of anything else as one hyphen, cut at 57
+    /// characters and never ending on a hyphen; "provider" when nothing is left (Review Focus 4).
+    /// </summary>
+    public static string Slug(string name)
+    {
+        var slug = new StringBuilder(name.Length);
+        foreach (var c in name.Normalize(NormalizationForm.FormD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+                continue;
+            var lower = char.ToLowerInvariant(c);
+            if (lower is >= 'a' and <= 'z' or >= '0' and <= '9')
+                slug.Append(lower);
+            else if (slug.Length > 0 && slug[^1] != '-')
+                slug.Append('-');
+        }
+
+        var text = slug.ToString().TrimEnd('-');
+        if (text.Length > MaxSlugLength)
+            text = text[..MaxSlugLength].TrimEnd('-');
+        return text.Length == 0 ? "provider" : text;
     }
 }

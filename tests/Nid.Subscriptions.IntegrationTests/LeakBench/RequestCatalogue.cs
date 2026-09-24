@@ -110,6 +110,10 @@ public static class RequestCatalogue
         new(typeof(SyncCatalogCommand), false, (_, _) => new SyncCatalogCommand()),
         new(typeof(RequestCatalogSyncCommand), false, (_, _) => new RequestCatalogSyncCommand()),
         new(typeof(GetCatalogRunsQuery), false, (_, _) => new GetCatalogRunsQuery()),
+        new(typeof(ListProvidersQuery), false, (_, _) => new ListProvidersQuery(null)),
+        new(typeof(ListLabelsQuery), false, (_, _) => new ListLabelsQuery()),
+        new(typeof(CreateProviderCommand), false,
+            (_, _) => new CreateProviderCommand("bench-provider", null, null, [CatalogLimits.OtherLabel])),
 
         new(typeof(ListAdultsQuery), false, (_, _) => new ListAdultsQuery()),
         new(typeof(PreRegisterAdultCommand), false, (_, _) => new PreRegisterAdultCommand("bench-adult", "bench@example.test")),

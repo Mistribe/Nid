@@ -99,6 +99,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IProviderStore, ProviderStore>();
         services.AddScoped<ICatalogRunLog, CatalogRunLog>();
         services.AddScoped<CatalogSync>();
+        services.TryAddSingleton<IProviderKeySuffix, RandomProviderKeySuffix>();
+        services.AddScoped<ProviderAccess>();
+        services.AddScoped<ProviderKeys>();
 
         services.AddDbContext<PlatformDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

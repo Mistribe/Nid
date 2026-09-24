@@ -12,6 +12,7 @@ namespace Nid.Subscriptions.Infrastructure.Persistence;
 public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
 {
     private const string PrimaryKey = "pk_provider";
+    private const string LikeEscape = "\\";
 
     public async Task<IReadOnlyList<Label>> LabelsAsync(CancellationToken ct)
         => (await db.Labels.AsNoTracking().OrderBy(l => l.Key).ToListAsync(ct)).Select(ToLabel).ToList();
@@ -25,6 +26,52 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         var rows = await db.Providers.AsNoTracking().Where(p => wanted.Contains(p.Key)).ToListAsync(ct);
         return rows.ToDictionary(r => r.Key, ToProvider, StringComparer.Ordinal);
     }
+
+    public async Task<IReadOnlyList<Provider>> VisibleAsync(
+        PersonId actor, IReadOnlyCollection<ItemId> visibleItems, string? nameContains, CancellationToken ct)
+    {
+        var query = Visible(actor, visibleItems);
+        if (!string.IsNullOrWhiteSpace(nameContains))
+        {
+            var pattern = "%" + EscapeLike(nameContains.Trim()) + "%";
+            query = query.Where(p => EF.Functions.ILike(p.Name, pattern, LikeEscape));
+        }
+
+        var rows = await query.OrderBy(p => p.Name).ThenBy(p => p.Key).ToListAsync(ct);
+        return rows.Select(ToProvider).ToList();
+    }
+
+    public async Task<IReadOnlyDictionary<string, Provider>> FindVisibleAsync(
+        PersonId actor, IReadOnlyCollection<ItemId> visibleItems, IReadOnlyCollection<string> keys, CancellationToken ct)
+    {
+        if (keys.Count == 0)
+            return new Dictionary<string, Provider>();
+
+        var wanted = keys.Distinct(StringComparer.Ordinal).ToList();
+        var rows = await Visible(actor, visibleItems).Where(p => wanted.Contains(p.Key)).ToListAsync(ct);
+        return rows.ToDictionary(r => r.Key, ToProvider, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// The one place the rule of design §3.5 is written as a query. The creator clause ("while no subscription visible
+    /// to them uses it") complements the second one: together they make a custom provider always visible to its creator,
+    /// which reveals nothing (the creator knows it exists, and sees no subscription they could not see before). Written
+    /// as the spec reads anyway, so a later change of either clause stays a change of one line.
+    /// </summary>
+    private IQueryable<ProviderRow> Visible(PersonId actor, IReadOnlyCollection<ItemId> visibleItems)
+    {
+        var items = visibleItems.Select(i => i.Value).ToList();
+        var person = actor.Value;
+        var usedVisibly = db.Subscriptions.Where(s => s.ProviderKey != null && items.Contains(s.ItemId)).Select(s => s.ProviderKey);
+        return db.Providers.AsNoTracking().Where(p =>
+            p.Origin == "catalog"
+            || usedVisibly.Contains(p.Key)
+            || (p.Origin == "custom" && p.CreatedBy == person && !usedVisibly.Contains(p.Key)));
+    }
+
+    /// <summary>A search is taken literally: <c>%</c>, <c>_</c> and the escape character itself match only themselves.</summary>
+    private static string EscapeLike(string text)
+        => text.Replace(LikeEscape, LikeEscape + LikeEscape).Replace("%", LikeEscape + "%").Replace("_", LikeEscape + "_");
 
     public Task<bool> ExistsAsync(string key, CancellationToken ct) => db.Providers.AnyAsync(p => p.Key == key, ct);
 

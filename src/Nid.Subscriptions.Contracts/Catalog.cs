@@ -216,6 +216,18 @@ public interface IProviderStore
     /// </summary>
     Task<IReadOnlyDictionary<string, Provider>> FindAsync(IReadOnlyCollection<string> keys, CancellationToken ct);
 
+    /// <summary>
+    /// Design §3.5 (amended): every catalog provider; a custom or adopted one used by a subscription among
+    /// <paramref name="visibleItems"/>; a custom one <paramref name="actor"/> created while no subscription among
+    /// <paramref name="visibleItems"/> uses it. Archived providers included (the list says so), ordered by name then key.
+    /// <paramref name="nameContains"/> filters by name, ignoring case, taken literally; blank means no filter.
+    /// </summary>
+    Task<IReadOnlyList<Provider>> VisibleAsync(PersonId actor, IReadOnlyCollection<ItemId> visibleItems, string? nameContains, CancellationToken ct);
+
+    /// <summary>The providers among <paramref name="keys"/> the same rule lets <paramref name="actor"/> see.</summary>
+    Task<IReadOnlyDictionary<string, Provider>> FindVisibleAsync(
+        PersonId actor, IReadOnlyCollection<ItemId> visibleItems, IReadOnlyCollection<string> keys, CancellationToken ct);
+
     /// <summary>Whether any provider, of any origin, holds <paramref name="key"/>.</summary>
     Task<bool> ExistsAsync(string key, CancellationToken ct);
 

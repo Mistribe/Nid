@@ -39,6 +39,14 @@ public class AdminMarkerTests
         Assert.True(unmarked.Count == 0, "Not IAdminOnly:\n  " + string.Join("\n  ", unmarked.Select(t => t.FullName)));
     }
 
+    /// <summary>Adding a subscription needs them, so no admin marker may creep onto them.</summary>
+    [Fact]
+    public void The_provider_requests_stay_open_to_every_adult()
+    {
+        Type[] open = [typeof(ListProvidersQuery), typeof(ListLabelsQuery), typeof(CreateProviderCommand)];
+        Assert.DoesNotContain(open, t => typeof(IAdminOnly).IsAssignableFrom(t));
+    }
+
     [Fact]
     public void No_admin_only_request_touches_an_item()
     {
