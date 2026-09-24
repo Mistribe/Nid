@@ -120,7 +120,7 @@ public class GrantAccessTests(PostgresFixture fixture)
     private static object GiftPurchase(ItemId grantTo, int months) => new
     {
         date = "2025-01-01", label = "gift", kind = "gift",
-        price = new { amount = 0m, currency = "EUR" },
+        price = new { amount = "0", currency = "EUR" },
         payer = new { type = "external" },
         grants = new[]
         {
@@ -131,7 +131,7 @@ public class GrantAccessTests(PostgresFixture fixture)
     private static object BundlePurchase(ItemId first, ItemId second) => new
     {
         date = "2025-01-01", label = "two services", kind = "prepaid_term",
-        price = new { amount = 20m, currency = "EUR" },
+        price = new { amount = "20", currency = "EUR" },
         payer = new { type = "household" },
         grants = new[]
         {

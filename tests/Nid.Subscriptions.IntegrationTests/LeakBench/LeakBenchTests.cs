@@ -421,7 +421,7 @@ public class LeakBenchTests(PostgresFixture fixture)
         (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{data["P-A"].Value}/phases", new
         {
             startsOn = "2025-01-01",
-            price = new { amount = 99.99m, currency = "EUR" },
+            price = new { amount = "99.99", currency = "EUR" },
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
@@ -19,38 +20,46 @@ public static class SubscriptionEndpoints
             => (await invoker.InvokeAsync(
                     new ListSubscriptionsQuery(
                         ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
-                .ToHttp(list => list));
+                .ToHttp(list => list))
+            .Returns<SubscriptionList>();
 
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new GetSubscriptionQuery(
                         new ItemId(id), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
-                .ToHttp(detail => detail));
+                .ToHttp(detail => detail))
+            .Returns<SubscriptionDetail>();
 
         // Create / open phase / add purchase were implemented early because Task 4's own acceptance test
         // creates its fixtures through the real HTTP API — see the comment atop WriteUseCases.cs.
         api.MapPost("", async (CreateSubscriptionBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created));
+            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPatch("/{id:guid}", async (Guid id, EditSubscriptionBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)));
+            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
 
         api.MapPost("/{id:guid}/phases", async (Guid id, PhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToOpenCommand(new ItemId(id)), ct))
-                .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created));
+                .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPatch("/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, ClosePhaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), RequireDate(body.EndsOn)), ct))
-                .ToHttp(phase => new IdResponse(phase.Value)));
+                .ToHttp(phase => new IdResponse(phase.Value)))
+            .Returns<IdResponse>();
 
         api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct))
-                .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created));
+                .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapDelete("/{id:guid}/purchases/{purchaseId:guid}", async (Guid id, Guid purchaseId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new DeletePurchaseCommand(new ItemId(id), new PurchaseId(purchaseId)), ct))
-                .ToHttp(purchase => new IdResponse(purchase.Value)));
+                .ToHttp(purchase => new IdResponse(purchase.Value)))
+            .Returns<IdResponse>();
 
         return routes;
     }
@@ -83,12 +92,13 @@ public static class SubscriptionEndpoints
 
     public sealed record IdResponse(Guid Id);
 
-    public sealed record MoneyBody(decimal Amount, string Currency)
+    public sealed record MoneyBody(string Amount, string Currency)
     {
         public Money ToMoney()
-            => Core.Contracts.Currency.TryCreate(Currency, out var currency) && Money.Create(Amount, currency).TryGetValue(out var money)
+            => Money.TryParse(Amount, Currency, out var money)
                 ? money
-                : throw new BadHttpRequestException("An amount and a valid ISO 4217 currency are required.");
+                : throw new BadHttpRequestException(
+                    "An amount is a decimal string such as \"12.99\" (at most four decimals) with a valid ISO 4217 currency.");
     }
 
     public sealed record DurationBody(int Count, string Unit)
@@ -159,7 +169,7 @@ public static class SubscriptionEndpoints
 
     public sealed record PurchaseBody(
         string Date, string Label, MoneyBody Price, PayerBody Payer, string Kind,
-        IReadOnlyList<GrantBody> Grants, decimal? AllocatedAmount, string? Note)
+        IReadOnlyList<GrantBody> Grants, string? AllocatedAmount, string? Note)
     {
         public AddPurchaseCommand ToCommand(ItemId id) => new(id, new Purchase(
             PurchaseId.New(),
@@ -168,6 +178,12 @@ public static class SubscriptionEndpoints
                 : Enum.TryParse<PurchaseKind>(Kind, ignoreCase: true, out var kind) ? kind
                 : throw new BadHttpRequestException("A purchase kind of prepaid_term, bundle, gift, adjustment or refund is required."),
             Grants.Select(g => g.ToGrant()).ToList(),
-            AllocatedAmount));
+            OptionalAmount(AllocatedAmount)));
     }
+
+    private static decimal? OptionalAmount(string? value)
+        => value is null ? null
+            : decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount)
+                ? amount
+                : throw new BadHttpRequestException($"'{value}' is not a decimal string.");
 }

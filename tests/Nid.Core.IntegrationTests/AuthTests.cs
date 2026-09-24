@@ -105,6 +105,8 @@ public class UnauthenticatedHttpTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(body.GetProperty("authenticated").GetBoolean());
+        // Signing out of Nid leaves the identity provider's session open: the signed-out page links to it.
+        Assert.Equal("https://auth.example.test", body.GetProperty("identityProvider").GetString());
     }
 
     [Fact]

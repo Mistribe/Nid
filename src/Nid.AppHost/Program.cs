@@ -31,11 +31,11 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
     .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:5080")
     .WaitFor(authelia);
 
-// /web does not exist until sub-plan 1E (stage-1-overview.md): this task only creates Nid.AppHost and Nid.ServiceDefaults.
-// Add nid-web once /web exists; until then Caddy's catch-all route has nothing to reach and 1E must update it too.
+// The SPA is started by Vite on port 5173; Caddy's catch-all route forwards everything outside
+// /api, /auth, /mcp and /health there.
 var webPath = Path.Combine(builder.AppHostDirectory, "..", "..", "web");
 var web = Directory.Exists(webPath)
-    ? builder.AddViteApp("nid-web", webPath).WithHttpEndpoint(port: 5173, env: "PORT", isProxied: false)
+    ? builder.AddViteApp("nid-web", webPath).WithPnpm().WithHttpEndpoint(port: 5173, env: "PORT", isProxied: false)
     : null;
 
 // TLS reverse proxy, single origin. Reaches the host processes through host.docker.internal.

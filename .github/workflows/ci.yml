@@ -22,3 +22,24 @@ jobs:
         run: >
           dotnet test tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj
           --configuration Release --filter "FullyQualifiedName~LeakBench" --logger "console;verbosity=normal"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      # Regenerates web/src/api/openapi.json; check:api below fails if the committed copy differs.
+      - run: dotnet build src/Nid.Host --configuration Release
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web check:api
+      - run: pnpm --dir web check

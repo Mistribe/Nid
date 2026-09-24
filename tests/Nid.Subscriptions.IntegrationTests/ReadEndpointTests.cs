@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using Nid.Core.Contracts;
@@ -71,7 +72,7 @@ public class ReadEndpointTests(PostgresFixture fixture)
         Assert.Equal("2025-10-28", gift.Start);
         Assert.Equal("2026-01-28", gift.EndBefore);
         Assert.Equal("2026-01-28", detail.NextChargeOn);
-        Assert.Equal(17.20m, detail.NextChargeAmount!.Amount);
+        Assert.Equal("17.20", detail.NextChargeAmount!.Amount);
     }
 
     [Fact]
@@ -94,13 +95,13 @@ public class ReadEndpointTests(PostgresFixture fixture)
         var list = await app.GetAsync<ListResponse>(app.AdultA, "/api/v1/subscriptions?from=2025-01-01&to=2025-02-01");
 
         var perSubscription = list.Items.Where(i => i.Id == first.Value || i.Id == second.Value)
-            .Sum(i => i.CashCost.Single(m => m.Currency == "EUR").Amount);
+            .Sum(i => decimal.Parse(i.CashCost.Single(m => m.Currency == "EUR").Amount, CultureInfo.InvariantCulture));
         Assert.Equal(40m, perSubscription);                                             // each shows what it cost
-        Assert.Equal(20m, list.HouseholdCashCost.Single(m => m.Currency == "EUR").Amount); // the money left once
+        Assert.Equal("20", list.HouseholdCashCost.Single(m => m.Currency == "EUR").Amount); // the money left once
         Assert.Single(list.SharedPurchaseIds);
     }
 
-    public sealed record MoneyResponse(decimal Amount, string Currency);
+    public sealed record MoneyResponse(string Amount, string Currency);
     public sealed record FindingResponse(string Code, string Message, string? Reference);
     public sealed record SummaryResponse(Guid Id, string DisplayName, IReadOnlyList<MoneyResponse> CashCost);
     public sealed record ListResponse(

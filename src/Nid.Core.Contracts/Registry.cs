@@ -34,6 +34,12 @@ public interface IPersonRegistry
     Task<IReadOnlyList<PersonId>> AdultIdsAsync(CancellationToken ct);
 
     Task<IReadOnlyList<PersonInfo>> ListAsync(CancellationToken ct);
+
+    /// <summary>The person's preferences, defaults filled in; <c>null</c> when the person does not exist.</summary>
+    Task<Preferences?> PreferencesAsync(PersonId id, CancellationToken ct);
+
+    /// <summary>Writes the three keys it owns and keeps every other key of the stored object.</summary>
+    Task SavePreferencesAsync(PersonId id, Preferences preferences, CancellationToken ct);
 }
 
 public interface IItemRegistry

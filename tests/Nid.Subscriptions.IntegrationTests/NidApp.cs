@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
@@ -271,7 +272,7 @@ public sealed class NidApp : IAsyncDisposable
         (await RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
         {
             startsOn = "2025-01-01",
-            price = new { amount = price, currency = "EUR" },
+            price = new { amount = price.ToString(CultureInfo.InvariantCulture), currency = "EUR" },
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
@@ -284,21 +285,21 @@ public sealed class NidApp : IAsyncDisposable
         (await RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
         {
             startsOn = "2024-06-28", endsOn = "2025-06-28",
-            price = new { amount = 15.17m, currency = "EUR" },
+            price = new { amount = "15.17", currency = "EUR" },
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
         (await RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
         {
             startsOn = "2025-06-28",
-            price = new { amount = 17.20m, currency = "EUR" },
+            price = new { amount = "17.20", currency = "EUR" },
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
         (await RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", new
         {
             date = "2025-10-10", label = "Spotify gift card 3 months", kind = "gift",
-            price = new { amount = 0m, currency = "EUR" },
+            price = new { amount = "0", currency = "EUR" },
             payer = new { type = "external" },
             grants = new[] { new { subscriptionId = id.Value, duration = new { count = 3, unit = "month" }, source = "gift" } },
         })).EnsureSuccessStatusCode();
@@ -313,7 +314,7 @@ public sealed class NidApp : IAsyncDisposable
         (await RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{first.Value}/purchases", new
         {
             date = "2025-01-01", label = "two services", kind = "prepaid_term",
-            price = new { amount = price, currency = "EUR" },
+            price = new { amount = price.ToString(CultureInfo.InvariantCulture), currency = "EUR" },
             payer = new { type = "household" },
             grants = new[]
             {

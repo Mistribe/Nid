@@ -55,6 +55,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
         services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).

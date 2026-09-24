@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
@@ -15,16 +16,27 @@ public static class PersonEndpoints
 
     public sealed record CreateDependentBody(string DisplayName);
 
+    /// <summary>A key nobody reads is refused rather than silently dropped (400, like any unreadable body).</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record PreferencesBody(string? Theme, string? Mode, bool? ChartPatterns);
+
     public static IEndpointRouteBuilder MapPersonEndpoints(this IEndpointRouteBuilder routes)
     {
         var api = routes.MapGroup("/api/v1/core").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("/persons", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListPersonsQuery(), ct)).ToHttp(list => list.Select(ToDto)));
+            => (await invoker.InvokeAsync(new ListPersonsQuery(), ct)).ToHttp(list => list.Select(ToDto)))
+            .Returns<IEnumerable<PersonDto>>();
 
         api.MapPost("/persons/dependents", async (CreateDependentBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CreateDependentCommand(body.DisplayName), ct)).ToHttp(ToDto, StatusCodes.Status201Created));
+            => (await invoker.InvokeAsync(new CreateDependentCommand(body.DisplayName), ct)).ToHttp(ToDto, StatusCodes.Status201Created))
+            .Returns<PersonDto>(StatusCodes.Status201Created);
+
+        api.MapPatch("/me/preferences", async (PreferencesBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UpdatePreferencesCommand(new PreferencesChange(body.Theme, body.Mode, body.ChartPatterns)), ct))
+                .ToHttp(p => p))
+            .Returns<Preferences>();
 
         return routes;
     }

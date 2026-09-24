@@ -28,7 +28,7 @@ public class WriteEndpointTests(PostgresFixture fixture)
         var opened = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
         {
             startsOn = "2024-06-28",
-            price = new { amount = 15.17m, currency = "EUR" },
+            price = new { amount = "15.17", currency = "EUR" },
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         });
@@ -40,15 +40,15 @@ public class WriteEndpointTests(PostgresFixture fixture)
         (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
         {
             startsOn = "2025-06-28",
-            price = new { amount = 17.20m, currency = "EUR" },
+            price = new { amount = "17.20", currency = "EUR" },
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
 
         var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(
             app.AdultA, $"/api/v1/subscriptions/{id.Value}?horizon=2025-12-01");
-        Assert.Contains(detail.Charges, c => c.Price.Amount == 15.17m);
-        Assert.Contains(detail.Charges, c => c.Price.Amount == 17.20m);
+        Assert.Contains(detail.Charges, c => c.Price.Amount == "15.17");
+        Assert.Contains(detail.Charges, c => c.Price.Amount == "17.20");
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class WriteEndpointTests(PostgresFixture fixture)
             (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
             {
                 startsOn = starts,
-                price = new { amount = 10m, currency = "EUR" },
+                price = new { amount = "10", currency = "EUR" },
                 every = new { count = 1, unit = "month" },
                 payer = new { type = "household" },
             })).EnsureSuccessStatusCode();
@@ -123,7 +123,7 @@ public class WriteEndpointTests(PostgresFixture fixture)
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", new
         {
             date = "2025-01-01", label = "gift", kind = "gift",
-            price = new { amount = 0m, currency = "EUR" },
+            price = new { amount = "0", currency = "EUR" },
             payer = new { type = "external" },
             grants = new[] { new { subscriptionId = id.Value, duration = new { count = 3, unit = "month" }, source = "gift" } },
         });
@@ -147,7 +147,7 @@ public class WriteEndpointTests(PostgresFixture fixture)
         var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{first.Value}/purchases", new
         {
             date = "2025-01-01", label = "gift", kind = "gift",
-            price = new { amount = 0m, currency = "EUR" },
+            price = new { amount = "0", currency = "EUR" },
             payer = new { type = "external" },
             grants = new[] { new { subscriptionId = first.Value, duration = new { count = 3, unit = "month" }, source = "gift" } },
         });
