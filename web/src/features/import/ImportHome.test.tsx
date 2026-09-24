@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { fakeImportServer, session } from '@/test/importServer';
+import { fakeImportServer, householdPersons, session, SESSION_ID } from '@/test/importServer';
 import { nidFile, upload, workedExample } from '@/test/nidFile';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -60,5 +60,82 @@ describe('Import › home', () => {
     if (!zone) throw new Error('no drop zone');
     fireEvent.drop(zone, { dataTransfer: { files: [nidFile()] } });
     await waitFor(() => expect(screen.getByText('Lots à envoyer : 3.')).toBeInTheDocument());
+  });
+});
+
+describe('Import › adults and start', () => {
+  const [alice, bob] = householdPersons;
+  /** The field exists before the household persons arrive; its proposal only once they have. */
+  const proposed = (label: string, id: string) => waitFor(() => expect(screen.getByLabelText(label)).toHaveValue(id));
+  const startEnabled = () => waitFor(() => expect(screen.getByRole('button', { name: "Commencer l'import" })).toBeEnabled());
+
+  it('proposes the household adult with the same email, and no one otherwise', async () => {
+    server.use(...fakeImportServer().handlers);
+    const { user, container } = await renderApp('/import');
+
+    await upload(user, nidFile());
+    await proposed('Adulte 1 (adult-1)', alice!.id);
+    expect(screen.getByLabelText('Adulte 2 (adult-2)')).toHaveValue('');
+    // Only adults are offered: a dependent is never an account.
+    expect(screen.queryByRole('option', { name: /Léo/ })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('matches the email whatever its case', async () => {
+    server.use(...fakeImportServer().handlers);
+    const { user } = await renderApp('/import');
+
+    const file = { ...workedExample, persons: [{ ref: 'moi', kind: 'adult', display_name: 'Moi', email: 'ALICE@Example.test' }] };
+    await upload(user, nidFile(file));
+    await proposed('Moi (moi)', alice!.id);
+  });
+
+  it('starts the session with the adult map and opens it', async () => {
+    const fake = fakeImportServer();
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp('/import');
+
+    await upload(user, nidFile());
+    await proposed('Adulte 1 (adult-1)', alice!.id);
+    await user.selectOptions(screen.getByLabelText('Adulte 2 (adult-2)'), bob!.id);
+    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));
+    expect(fake.started).toEqual([{ format: 'nid.data', version: 1, adults: { 'adult-1': alice!.id, 'adult-2': bob!.id } }]);
+  });
+
+  it('leaves an unmapped adult out of the map, for the server to report', async () => {
+    const fake = fakeImportServer();
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp('/import');
+
+    await upload(user, nidFile());
+    await startEnabled();
+    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));
+    expect(fake.started).toEqual([{ format: 'nid.data', version: 1, adults: { 'adult-1': alice!.id } }]);
+  });
+
+  it('says when the file has no adult to map', async () => {
+    server.use(...fakeImportServer().handlers);
+    const { user } = await renderApp('/import');
+
+    await upload(user, nidFile({ ...workedExample, persons: [{ ref: 'kid', kind: 'dependent', display_name: 'Léo' }] }));
+    expect(await screen.findByText('Le fichier ne contient aucun adulte à associer.')).toBeInTheDocument();
+  });
+
+  it('offers the import in progress when one is already active', async () => {
+    const fake = fakeImportServer({ sessionActive: true, sessions: [session({ state: 'validated' })] });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp('/import');
+
+    await upload(user, nidFile());
+    await startEnabled();
+    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+
+    expect(await screen.findByText("Un import est déjà en cours. Reprenez-le ou annulez-le avant d'en commencer un autre.")).toBeInTheDocument();
+    await user.click(await screen.findByRole('link', { name: "Reprendre l'import en cours" }));
+    expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`);
   });
 });

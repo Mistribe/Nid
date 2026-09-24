@@ -100,7 +100,16 @@
     "expired": "Cet import a expiré. Recommencez avec le fichier.",
     "restart": "Recommencer",
     "cancelled": "Cet import a été annulé.",
-    "new": "Commencer un nouvel import"
+    "new": "Commencer un nouvel import",
+    "adults_title": "Associer les adultes",
+    "adults_hint": "Chaque adulte du fichier correspond à une personne du foyer. La personne qui a le même email est proposée.",
+    "adults_empty": "Le fichier ne contient aucun adulte à associer.",
+    "adult_label": "{{name}} ({{ref}})",
+    "adults_none": "Non associé",
+    "person_option": "{{name}} — {{email}}",
+    "start": "Commencer l'import",
+    "session_active": "Un import est déjà en cours. Reprenez-le ou annulez-le avant d'en commencer un autre.",
+    "resume_active": "Reprendre l'import en cours"
   },
   "admin": {
     "loading": "Chargement",
