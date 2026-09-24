@@ -169,6 +169,12 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
     public async Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Serialised against a first login or an import binding this same pending adult (both take the same
+        // lock): neither can turn it active out from under this delete, and this delete cannot remove it out
+        // from under either.
+        await LockAsync(ct);
+
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "adult", ct);
         if (row is null)
             return Result.Failure(new NotFoundFailure("person", id.ToString()));
@@ -180,6 +186,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
         db.Persons.Remove(row);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Result.Success();
     }
 
