@@ -3207,7 +3207,8 @@
       },
       "EditSubscriptionBody": {
         "required": [
-          "clearCancelledAt"
+          "clearCancelledAt",
+          "clearProviderKey"
         ],
         "type": "object",
         "properties": {
@@ -3231,6 +3232,16 @@
               "null",
               "string"
             ]
+          },
+          "providerKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearProviderKey": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

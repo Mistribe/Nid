@@ -145,5 +145,6 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         public Task<IReadOnlyDictionary<string, ImportedRow>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct) => inner.FindImportedAsync(table, refs, ct);
         public Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct) => inner.GrantedItemsAsync(purchase, ct);
         public Task<Result> DeletePurchaseAsync(ItemId id, PurchaseId purchase, CancellationToken ct) => inner.DeletePurchaseAsync(id, purchase, ct);
+        public Task<IReadOnlyDictionary<ItemId, string>> ProviderKeysAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct) => inner.ProviderKeysAsync(ids, ct);
     }
 }

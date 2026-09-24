@@ -1,4 +1,7 @@
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Application;
+using Nid.Subscriptions.Application.Catalog;
+using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.LeakBench;
@@ -58,6 +61,18 @@ public sealed class MixedDataset
                 .Select(o => (Person: PersonOf(app, o), ShareBp: 10_000 / row.Owners.Length))
                 .ToArray();
             items[row.Name] = await app.NewOwnedSubscriptionAsync(row.Label, row.Visibility, owners);
+        }
+
+        // Each private item gets a custom provider named after its label, through the real requests: a provider list
+        // that carried it to the other adult would put the forbidden label in the textual leak scan.
+        foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
+        {
+            var (created, refused) = await app.InvokeAsync(owner, new CreateProviderCommand(label + " provider", null, null, [CatalogLimits.OtherLabel]));
+            if (refused is not null)
+                throw new InvalidOperationException($"Seeding {name}'s provider failed: {refused.Code}");
+            var (_, notLinked) = await app.InvokeAsync(owner, new EditSubscriptionCommand(items[name], null, null, false, null, ((ProviderView)created!).Key));
+            if (notLinked is not null)
+                throw new InvalidOperationException($"Linking {name}'s provider failed: {notLinked.Code}");
         }
 
         return new MixedDataset(app, items);

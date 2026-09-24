@@ -2990,6 +2990,9 @@ export interface components {
             cancelledAt?: null | string;
             clearCancelledAt: boolean;
             note?: null | string;
+            providerKey?: null | string;
+            /** @default false */
+            clearProviderKey: boolean;
         };
         FindingView: {
             code: string;

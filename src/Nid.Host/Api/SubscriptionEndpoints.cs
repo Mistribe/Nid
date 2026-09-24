@@ -135,13 +135,17 @@ public static class SubscriptionEndpoints
             Note);
     }
 
-    public sealed record EditSubscriptionBody(bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note)
+    public sealed record EditSubscriptionBody(
+        bool? AutoRenew, string? CancelledAt, bool ClearCancelledAt, string? Note, string? ProviderKey = null, bool ClearProviderKey = false)
     {
         public EditSubscriptionCommand ToCommand(ItemId id)
             => ClearCancelledAt && CancelledAt is not null
                 ? throw new BadHttpRequestException(
                     "cancelledAt and clearCancelledAt contradict each other: send one or the other.")
-                : new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note);
+                : ClearProviderKey && ProviderKey is not null
+                    ? throw new BadHttpRequestException(
+                        "providerKey and clearProviderKey contradict each other: send one or the other.")
+                    : new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note, ProviderKey, ClearProviderKey);
     }
 
     public sealed record ClosePhaseBody(string EndsOn);

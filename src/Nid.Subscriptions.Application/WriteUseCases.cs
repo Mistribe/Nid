@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -24,7 +25,8 @@ public sealed record CreateSubscriptionCommand(
     string? Note) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditSubscriptionCommand(
-    ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note)
+    ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
+    string? ProviderKey = null, bool ClearProviderKey = false)
     : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -52,11 +54,18 @@ public sealed record DeletePurchaseCommand(ItemId ItemId, PurchaseId PurchaseId)
 }
 
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
-public sealed class CreateSubscriptionHandler(IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork)
+public sealed class CreateSubscriptionHandler(
+    IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IActorAccessor actor)
     : IRequestHandler<CreateSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSubscriptionCommand command, CancellationToken ct = default)
     {
+        // Design §5: the key names a provider the actor can see and that is not archived. Checked before anything is
+        // written, so a refused key leaves no Core item behind.
+        if (command.ProviderKey is { } key
+            && (await providers.EnsureLinkableAsync(actor.Current?.PersonId, key, ct)).TryGetFailure(out var unknown))
+            return Result.Failure<ItemId>(unknown!);
+
         // The Core item and the subscription row are two contexts: one transaction, or an orphan item when the
         // second write fails.
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -78,12 +87,21 @@ public sealed class CreateSubscriptionHandler(IItemRegistry items, ISubscription
 }
 
 [RequestHandler<EditSubscriptionCommand, ItemId>]
-public sealed class EditSubscriptionHandler(ISubscriptionStore store) : IRequestHandler<EditSubscriptionCommand, ItemId>
+public sealed class EditSubscriptionHandler(ISubscriptionStore store, ProviderAccess providers, IActorAccessor actor)
+    : IRequestHandler<EditSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditSubscriptionCommand command, CancellationToken ct = default)
     {
-        var result = await store.EditAsync(
-            command.ItemId, new SubscriptionEdit(command.AutoRenew, command.CancelledAt, command.ClearCancelledAt, command.Note), ct);
+        if (command.ProviderKey is { } key && !command.ClearProviderKey)
+        {
+            // Keeping the provider it already has is not a new link, even an archived one (design §5).
+            var current = (await store.ProviderKeysAsync([command.ItemId], ct)).GetValueOrDefault(command.ItemId);
+            if (current != key && (await providers.EnsureLinkableAsync(actor.Current?.PersonId, key, ct)).TryGetFailure(out var unknown))
+                return Result.Failure<ItemId>(unknown!);
+        }
+
+        var result = await store.EditAsync(command.ItemId, new SubscriptionEdit(
+            command.AutoRenew, command.CancelledAt, command.ClearCancelledAt, command.Note, command.ProviderKey, command.ClearProviderKey), ct);
         return result.TryGetFailure(out var failure) ? Result.Failure<ItemId>(failure!) : Result.Success(command.ItemId);
     }
 }

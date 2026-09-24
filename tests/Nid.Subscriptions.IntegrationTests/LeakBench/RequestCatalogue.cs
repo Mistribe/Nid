@@ -32,6 +32,14 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
     /// first — a purchase id, for instance.
     /// </summary>
     public Func<MixedDataset, ItemId, ItemId, Task<object>>? BuildNamingAnother { get; init; }
+
+    /// <summary>
+    /// The provider axis: the request, as <c>actor</c> (a creation must name its creator among the owners), aimed at
+    /// <c>target</c> while naming a provider only <em>another</em> item uses. A provider is visible through the
+    /// subscriptions that use it (design §3.5), so linking one is a way to reach a second item; required of every
+    /// request carrying a <c>ProviderKey</c>, which <c>LeakBenchTests</c> checks by reflection.
+    /// </summary>
+    public Func<MixedDataset, PersonId, ItemId, string, object>? BuildLinkingProvider { get; init; }
 }
 
 /// <summary>
@@ -131,9 +139,16 @@ public static class RequestCatalogue
             (_, item) => new GetSubscriptionQuery(item, null, null, null)),
         new(typeof(CreateSubscriptionCommand), false,
             (data, _) => new CreateSubscriptionCommand(
-                "bench-created", Visibility.Shared, [new OwnerShare(data.App.AdultA, 10_000)], null, true, [], null)),
+                "bench-created", Visibility.Shared, [new OwnerShare(data.App.AdultA, 10_000)], null, true, [], null))
+        {
+            BuildLinkingProvider = (_, actor, _, key) => new CreateSubscriptionCommand(
+                "bench-linked", Visibility.Shared, [new OwnerShare(actor, 10_000)], key, true, [], null),
+        },
         new(typeof(EditSubscriptionCommand), true,
-            (_, item) => new EditSubscriptionCommand(item, AutoRenew: false, null, false, null)),
+            (_, item) => new EditSubscriptionCommand(item, AutoRenew: false, null, false, null))
+        {
+            BuildLinkingProvider = (_, _, target, key) => new EditSubscriptionCommand(target, null, null, false, null, key),
+        },
         new(typeof(OpenPhaseCommand), true,
             (_, item) => new OpenPhaseCommand(item, new BillingPhase(
                 BillingPhaseId.New(), new LocalDate(2025, 1, 1), null,

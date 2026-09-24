@@ -526,6 +526,62 @@ public class LeakBenchTests(PostgresFixture fixture)
         }
     }
 
+    [Fact]
+    public void Every_request_that_names_a_provider_is_on_the_provider_axis()
+    {
+        var missing = RequestCatalogue.Entries
+            .Where(e => e.BuildLinkingProvider is null && e.RequestType.GetProperty("ProviderKey") is not null)
+            .Select(e => e.RequestType.FullName)
+            .ToList();
+
+        Assert.True(missing.Count == 0,
+            "These requests carry a ProviderKey but have no BuildLinkingProvider entry, so nothing checks that a "
+            + "provider only a hidden item uses cannot be linked:\n  " + string.Join("\n  ", missing));
+    }
+
+    /// <summary>
+    /// The provider axis: every write that links a provider, as A and as B, naming a provider only <c>other</c> uses.
+    /// The target's own refusal comes first, as on the item axes; then the link succeeds exactly when the actor may
+    /// read <c>other</c>, and is otherwise the same <c>subscriptions.unknown_provider</c> as a key that does not exist.
+    /// </summary>
+    [Fact]
+    public async Task No_write_links_a_provider_only_a_hidden_item_makes_visible()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+
+        foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildLinkingProvider is not null))
+        {
+            List<(string Name, ItemId Id)> targets = entry.IsItemScoped ? [.. data.Items.Select(i => (i.Key, i.Value))] : [("new", default)];
+            foreach (var (targetName, target) in targets)
+            foreach (var (otherName, other) in data.Items)
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                var key = await app.SeedCustomProviderUsedByAsync(other); // fresh each time: nothing else makes it visible
+                var where = $"{entry.RequestType.Name} on {targetName} linking {otherName}'s provider by {data.NameOf(actor)}";
+
+                var (_, failure) = await app.InvokeAsync(actor, entry.BuildLinkingProvider!(data, actor, target, key));
+
+                if (entry.IsItemScoped && !data.ExpectedReadable(actor).Contains(target))
+                {
+                    Assert.True(failure is NotFoundFailure { Resource: "item" }, $"{where}: expected 'not found', got {Describe(failure)}");
+                    continue;
+                }
+                if (entry.IsItemScoped && !data.ExpectedWritable(targetName, actor))
+                {
+                    Assert.True(failure is UnauthorizedFailure, $"{where}: expected forbidden, got {Describe(failure)}");
+                    continue;
+                }
+
+                if (data.ExpectedReadable(actor).Contains(other))
+                    Assert.True(failure is null, $"{where}: the actor can see {otherName}, yet the link was refused — {Describe(failure)}");
+                else
+                    Assert.True(failure?.Code == CatalogCodes.UnknownProvider,
+                        $"{where}: only a hidden item uses this provider, so it must be unknown — got {Describe(failure)}");
+            }
+        }
+    }
+
     private static string Describe(Failure? failure)
         => failure is null ? "success" : $"{failure.GetType().Name}({failure.Code})";
 

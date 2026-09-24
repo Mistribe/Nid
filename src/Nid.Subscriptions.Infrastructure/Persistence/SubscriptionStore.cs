@@ -80,9 +80,26 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             row.CancelledAt = cancelled;
         if (edit.Note is not null)
             row.Note = edit.Note;
+        if (edit.ClearProviderKey)
+            row.ProviderKey = null;
+        else if (edit.ProviderKey is { } providerKey)
+            row.ProviderKey = providerKey;
 
         await db.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    public async Task<IReadOnlyDictionary<ItemId, string>> ProviderKeysAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return new Dictionary<ItemId, string>();
+
+        var keys = ids.Select(i => i.Value).ToHashSet();
+        var rows = await db.Subscriptions.AsNoTracking()
+            .Where(s => keys.Contains(s.ItemId) && s.ProviderKey != null)
+            .Select(s => new { s.ItemId, s.ProviderKey })
+            .ToListAsync(ct);
+        return rows.ToDictionary(r => new ItemId(r.ItemId), r => r.ProviderKey!);
     }
 
     public async Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct)

@@ -370,6 +370,19 @@ public sealed class NidApp : IAsyncDisposable
         await subs.Subscriptions.Where(s => s.ItemId == item.Value).ExecuteUpdateAsync(s => s.SetProperty(r => r.ProviderKey, key));
     }
 
+    /// <summary>
+    /// A fresh custom provider that <paramref name="item"/>, and nothing else, uses: only that item makes it visible. Its
+    /// creator is nobody of the dataset — a creator always sees their provider (§3.5 as amended), which would hide the
+    /// very refusal the provider axis checks.
+    /// </summary>
+    public async Task<string> SeedCustomProviderUsedByAsync(ItemId item)
+    {
+        var key = "bench-" + Guid.NewGuid().ToString("N")[..12];
+        await SeedProviderAsync(key, key, ProviderOrigin.Custom, createdBy: PersonId.New());
+        await LinkProviderAsync(item, key);
+        return key;
+    }
+
     public ValueTask DisposeAsync()
     {
         factory.Dispose();

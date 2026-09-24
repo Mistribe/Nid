@@ -105,6 +105,43 @@ public class ProviderVisibilityTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Searching_for_the_name_of_the_other_adults_private_custom_provider_finds_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var tinder = await CreateCustomAsync(app, app.AdultA, "Tinder");
+        await app.LinkProviderAsync(await app.NewSubscriptionAsync("Tinder Gold", app.AdultA, Visibility.Private), tinder);
+
+        Assert.Equal([tinder], await VisibleAsync(app, app.AdultA, "tind"));
+        Assert.Empty(await VisibleAsync(app, app.AdultB, "tind"));
+    }
+
+    [Fact]
+    public async Task An_adopted_provider_only_a_private_subscription_uses_is_hidden_from_the_other_adult()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedProviderAsync("wow", "Wow", ProviderOrigin.Adopted);
+        await app.LinkProviderAsync(await app.NewSubscriptionAsync("World of Warcraft", app.AdultA, Visibility.Private), "wow");
+
+        Assert.Equal(["wow"], await VisibleAsync(app, app.AdultA));
+        Assert.Empty(await VisibleAsync(app, app.AdultB));
+    }
+
+    [Fact]
+    public async Task The_other_adults_private_subscription_using_a_custom_provider_changes_nothing_its_creator_sees()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var tinder = await CreateCustomAsync(app, app.AdultA, "Tinder");
+        var before = await VisibleAsync(app, app.AdultA);
+        var beforeSearch = await VisibleAsync(app, app.AdultA, "tind");
+
+        await app.LinkProviderAsync(await app.NewSubscriptionAsync("Tinder Gold", app.AdultB, Visibility.Private), tinder);
+
+        Assert.Equal([tinder], before);
+        Assert.Equal(before, await VisibleAsync(app, app.AdultA));
+        Assert.Equal(beforeSearch, await VisibleAsync(app, app.AdultA, "tind"));
+    }
+
+    [Fact]
     public async Task Every_label_is_listed()
     {
         await using var app = await NidApp.StartAsync(fixture);
