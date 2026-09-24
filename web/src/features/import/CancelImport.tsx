@@ -4,6 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ConfirmAction } from '@/features/admin/ConfirmAction';
+import { useRefreshImports } from './queries';
 
 /** `DELETE /imports/{id}`: cancels the session and clears its staging, after a confirmation in place. */
 export function CancelImport({ id, label, onCancelled, beforeCancel }: {
@@ -11,9 +12,13 @@ export function CancelImport({ id, label, onCancelled, beforeCancel }: {
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const refresh = useRefreshImports();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const cancel = $api.useMutation('delete', '/api/v1/platform/imports/{id}', {
-    onSuccess: onCancelled,
+    onSuccess: () => {
+      refresh();
+      onCancelled();
+    },
     onError: (error) => setProblem(present(toProblem(error))),
   });
   return (

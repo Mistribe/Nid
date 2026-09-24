@@ -24,8 +24,9 @@ type Phase =
  * Steps 4 and 5 of web design §6.2: every batch, in order, with progress, pause, retries and cancel; then the full
  * validation. A resumed import sends every batch again: the server replays the ones it already holds (§11.6).
  */
-export function SendStep({ id, file, onValidated, onCancelled }: {
-  id: string; file: ReadyFile; onValidated: () => void; onCancelled: () => void;
+export function SendStep({ id, file, onChanged, onOtherFile, onCancelled }: {
+  /** `onChanged` reads the session again; `onOtherFile` drops the draft, keeping the import, to pick the right file. */
+  id: string; file: ReadyFile; onChanged: () => void; onOtherFile: () => void; onCancelled: () => void;
 }) {
   const { t } = useTranslation();
   const { fetchClient } = useApi();
@@ -57,17 +58,22 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
       const { data, error } = await fetchClient.POST('/api/v1/platform/imports/{id}/validate', { params: { path: { id } } });
       if (!mounted.current) return; // left the page while validating: its report belongs to whoever is here now
       if (data) {
-        onValidated();
+        onChanged();
         return;
       }
       const problem = toProblem(error);
-      // A batch arrived while the server validated (import-format.md §12bis): its report would be stale.
-      setPhase(problem.code === 'import.state' ? { kind: 'stale' } : { kind: 'failed', problem });
+      // A batch arrived while the server validated (import-format.md §12bis): its report would be stale. Or the
+      // session is no longer open (expired, cancelled elsewhere): reading it again lets the page show its own view,
+      // and « Valider de nouveau » stays for a session still open.
+      if (problem.code === 'import.state') {
+        setPhase({ kind: 'stale' });
+        onChanged();
+      } else setPhase({ kind: 'failed', problem });
     } catch {
       if (!mounted.current) return;
       setPhase({ kind: 'failed', problem: { status: 0 } });
     }
-  }, [fetchClient, id, onValidated]);
+  }, [fetchClient, id, onChanged]);
 
   const run = useCallback(async () => {
     pauseRequested.current = false;
@@ -89,11 +95,13 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
     if (!mounted.current) return;
     refused.current = [...refused.current, ...outcome.refused];
     if (outcome.kind === 'paused') setPhase({ kind: 'paused' });
-    else if (outcome.kind === 'failed')
+    else if (outcome.kind === 'failed') {
       setPhase(outcome.problem.code === 'import.slot_taken' ? { kind: 'different_file' } : { kind: 'failed', problem: outcome.problem });
+      if (outcome.problem.code === 'import.state') onChanged(); // the session left `open`: show its own view
+    }
     else if (refused.current.length > 0) setPhase({ kind: 'refused', refused: refused.current });
     else await validate();
-  }, [file.batches, put, validate]);
+  }, [file.batches, put, validate, onChanged]);
 
   useEffect(() => {
     // Set before the `started` guard: StrictMode's mount-cleanup-mount leaves this true, as a real mount would.
@@ -144,6 +152,7 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
           <Button onClick={() => void (next.current === total ? validate() : run())}>{t('import.retry')}</Button>
         ) : null}
         {phase.kind === 'stale' ? <Button onClick={() => void validate()}>{t('import.validate_again')}</Button> : null}
+        {phase.kind === 'different_file' ? <Button variant="outline" onClick={onOtherFile}>{t('import.another')}</Button> : null}
         {phase.kind === 'refused' || phase.kind === 'different_file' || (phase.kind === 'failed' && phase.problem.status > 0 && phase.problem.status < 500)
           ? cancel(t('import.fix'))
           : cancel(t('import.cancel'))}

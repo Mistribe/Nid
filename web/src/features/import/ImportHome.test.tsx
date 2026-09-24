@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { fakeImportServer, householdPersons, session, SESSION_ID } from '@/test/importServer';
@@ -125,6 +125,28 @@ describe('Import › adults and start', () => {
 
     await upload(user, nidFile({ ...workedExample, persons: [{ ref: 'kid', kind: 'dependent', display_name: 'Léo' }] }));
     expect(await screen.findByText('Le fichier ne contient aucun adulte à associer.')).toBeInTheDocument();
+  });
+
+  it('offers the import just started when another start is refused', async () => {
+    const fake = fakeImportServer({ oneActive: true });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp('/import');
+
+    // The recent list is read (empty) before the import starts.
+    await screen.findByLabelText('Choisir un fichier');
+    await waitFor(() => expect(screen.queryByText('Chargement')).not.toBeInTheDocument());
+    await upload(user, nidFile());
+    await startEnabled();
+    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+    expect(await screen.findByRole('heading', { name: 'Rapport de validation' })).toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate({ to: '/import' });
+    });
+    await user.click(await screen.findByRole('button', { name: "Commencer l'import" }));
+    expect(await screen.findByText("Un import est déjà en cours. Reprenez-le ou annulez-le avant d'en commencer un autre.")).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: "Reprendre l'import en cours" })).toHaveAttribute('href', `/import/${SESSION_ID}`);
+    expect(fake.calls.filter((c) => c === 'start')).toHaveLength(2);
   });
 
   it('offers the import in progress when one is already active', async () => {

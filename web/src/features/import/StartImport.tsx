@@ -7,6 +7,7 @@ import type { components } from '@/api/schema';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import type { ReadyFile } from './draft';
+import { useRefreshImports } from './queries';
 import { ACTIVE_STATES, effectiveState } from './states';
 
 type Person = components['schemas']['PersonDto'];
@@ -27,12 +28,16 @@ export function StartImport({ file }: { file: ReadyFile }) {
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<Presentation | null>(null);
   const [active, setActive] = useState(false);
+  const refresh = useRefreshImports();
 
   const adults = (persons.data ?? []).filter((person) => person.kind === 'adult');
   const choice = (ref: string, email: string | null) => chosen[ref] ?? matchByEmail(adults, email) ?? '';
 
   const start = $api.useMutation('post', '/api/v1/platform/imports', {
-    onSuccess: (session) => { void navigate({ to: '/import/$id', params: { id: session.id } }); },
+    onSuccess: (session) => {
+      refresh();
+      void navigate({ to: '/import/$id', params: { id: session.id } });
+    },
     onError: (error) => {
       const failure = toProblem(error);
       if (failure.code === 'import.session_active') {
@@ -86,7 +91,8 @@ export function StartImport({ file }: { file: ReadyFile }) {
 function ActiveImport() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const list = $api.useQuery('get', '/api/v1/platform/imports');
+  // Read again whenever the refusal appears: the active import may be one this tab started since the list was read.
+  const list = $api.useQuery('get', '/api/v1/platform/imports', undefined, { refetchOnMount: 'always' });
   const current = list.data?.find((session) => ACTIVE_STATES.has(effectiveState(session)));
   return (
     <div role="alert" className="space-y-1 rounded-md border border-destructive p-3">

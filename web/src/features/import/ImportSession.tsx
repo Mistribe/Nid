@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { formatInstant } from '@/features/admin/format';
 import { useDraft } from './draft';
 import { FileStep } from './FileStep';
+import { CancelImport } from './CancelImport';
 import { FinalReport } from './FinalReport';
+import { useRefreshImports } from './queries';
 import { SendStep } from './SendStep';
 import { effectiveState, useStateLabel } from './states';
 import { ValidationStep } from './ValidationStep';
@@ -22,6 +24,7 @@ export function ImportSession() {
   const { file, setFile } = useDraft();
   const navigate = useNavigate();
   const label = useStateLabel();
+  const refresh = useRefreshImports();
   const session = $api.useQuery('get', '/api/v1/platform/imports/{id}', { params: { path: { id } } });
 
   const restart = () => {
@@ -59,13 +62,16 @@ export function ImportSession() {
         );
       case 'open':
         return file ? (
-          <SendStep id={id} file={file} onValidated={() => void session.refetch()} onCancelled={restart} />
+          <SendStep id={id} file={file} onChanged={refresh} onOtherFile={() => setFile(null)} onCancelled={restart} />
         ) : (
-          <FileStep title={t('import.reselect_title')} hint={t('import.reselect_hint')} onReady={setFile} />
+          <>
+            <FileStep title={t('import.reselect_title')} hint={t('import.reselect_hint')} onReady={setFile} />
+            <CancelImport id={id} label={t('import.cancel')} onCancelled={restart} />
+          </>
         );
       case 'validated':
       case 'invalid':
-        return <ValidationStep session={data} onChanged={() => void session.refetch()} onCancelled={restart} />;
+        return <ValidationStep session={data} onChanged={refresh} onCancelled={restart} />;
       case 'committed':
         return <FinalReport session={data} onNew={restart} />;
       default:

@@ -1,5 +1,6 @@
 import { delay, http, HttpResponse } from 'msw';
 import type { components } from '@/api/schema';
+import { ACTIVE_STATES, effectiveState } from '@/features/import/states';
 
 type Session = components['schemas']['ImportSessionView'];
 type Report = components['schemas']['ImportReport'];
@@ -26,6 +27,8 @@ export type FakeImportOptions = {
   sessions?: Session[];
   /** `POST /imports` answers 409 import.session_active. */
   sessionActive?: boolean;
+  /** `POST /imports` answers 409 import.session_active while the server holds an active session, as the server does. */
+  oneActive?: boolean;
   /** The first N batch PUTs answer a bare 503. */
   failPuts?: number;
   /** Each PUT waits this long before answering. */
@@ -60,7 +63,8 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
     http.post('*/api/v1/platform/imports', async ({ request }) => {
       calls.push('start');
       started.push(await request.json());
-      if (options.sessionActive) return problem({ status: 409, code: 'import.session_active', title: 'You already have an import in progress.' });
+      const active = options.oneActive && [...sessions.values()].some((s) => ACTIVE_STATES.has(effectiveState(s)));
+      if (options.sessionActive || active) return problem({ status: 409, code: 'import.session_active', title: 'You already have an import in progress.' });
       const created = session();
       sessions.set(created.id, created);
       return HttpResponse.json(created, { status: 201 });

@@ -35,6 +35,18 @@ describe('Import › one session', () => {
     expect(screen.getByRole('button', { name: 'Commencer un nouvel import' })).toBeInTheDocument();
   });
 
+  it('cancels an open import without its file', async () => {
+    const fake = fakeImportServer({ sessions: [session({ state: 'open' })] });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: "Annuler l'import" }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
+    expect(fake.calls).toEqual(['cancel']);
+  });
+
   it('says an unknown import is not found, as for another person’s', async () => {
     server.use(...fakeImportServer().handlers);
     await renderApp(`/import/${SESSION_ID}`);
@@ -126,6 +138,21 @@ describe('Import › sending', () => {
     expect(fake.calls).toContain('cancel');
   });
 
+  it('shows a cancelled import as cancelled in the recent list, not as still in progress', async () => {
+    const issue = { severity: 'error' as const, code: 'import.invalid_value', message: 'The name is empty.', path: 'subscriptions[0].name' };
+    const fake = fakeImportServer({ sessions: [session({ state: 'open' })], refuse: (s) => (s === 'subscriptions' ? [issue] : null) });
+    server.use(...fake.handlers);
+    const { user } = await renderApp('/import');
+
+    await user.click(await screen.findByRole('link', { name: 'Reprendre' }));
+    await upload(user, nidFile());
+    await user.click(await screen.findByRole('button', { name: 'Corriger' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    expect(await screen.findByRole('row', { name: /annulé/ })).toHaveTextContent('Voir');
+    expect(screen.queryByRole('row', { name: /en cours/ })).not.toBeInTheDocument();
+  });
+
   it('says so when the file is not the one of this import', async () => {
     const fake = fakeImportServer({
       sessions: [session({ state: 'open' })],
@@ -140,6 +167,22 @@ describe('Import › sending', () => {
     expect(fake.calls).toEqual(['put persons/0']);
   });
 
+  it('lets another file be chosen when the file is not the one of this import, and keeps the import', async () => {
+    const fake = fakeImportServer({
+      sessions: [session({ state: 'open' })],
+      failWith: (s) => (s === 'persons' ? { status: 409, code: 'import.slot_taken', title: "Batch 0 of 'persons' was already received with other content." } : null),
+    });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp(`/import/${SESSION_ID}`);
+
+    await upload(user, nidFile());
+    await user.click(await screen.findByRole('button', { name: 'Choisir un autre fichier' }));
+    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
+    expect(screen.getByLabelText('Choisir un fichier')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`);
+    expect(fake.calls).toEqual(['put persons/0']);
+  });
+
   it('stops at once on a 4xx and shows the server’s reason', async () => {
     const fake = fakeImportServer({
       sessions: [session({ state: 'open' })],
@@ -150,7 +193,8 @@ describe('Import › sending', () => {
 
     await upload(user, nidFile({ ...workedExample, providers: [{ key: 'maison', name: 'Maison' }] }));
     expect(await screen.findByText("The section 'providers' is not supported yet.")).toBeInTheDocument();
-    expect(fake.calls.filter((c) => c === 'put providers/0')).toHaveLength(1);
+    // Not retried, and no later batch was sent: the loop had stopped before the page said so.
+    expect(fake.calls).toEqual(['put persons/0', 'put providers/0']);
   });
 
   it('validates again when the import changed during validation', async () => {
@@ -162,6 +206,38 @@ describe('Import › sending', () => {
     expect(await screen.findByText("L'import a changé pendant la validation.")).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Valider de nouveau' }));
     await waitFor(() => expect(fake.calls.filter((c) => c === 'validate')).toHaveLength(2));
+  });
+
+  it('shows the import’s own view when validation finds it no longer open', async () => {
+    const fake = fakeImportServer({ sessions: [session({ state: 'open' })], validateStale: 1 });
+    server.use(...fake.handlers);
+    const { user } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
+    fake.sessions.get(SESSION_ID)!.state = 'expired'; // it expires while the batches are on their way
+    await upload(user, nidFile());
+    expect(await screen.findByText('Cet import a expiré. Recommencez avec le fichier.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Valider de nouveau' })).not.toBeInTheDocument();
+    expect(fake.calls.filter((c) => c === 'validate')).toHaveLength(1);
+  });
+
+  it('stops sending when the import is cancelled mid-send', async () => {
+    const fake = fakeImportServer({ sessions: [session({ state: 'open' })], putDelayMs: 150 });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp(`/import/${SESSION_ID}`);
+
+    await upload(user, nidFile());
+    await waitFor(() => expect(fake.calls).toEqual(['put persons/0']));
+    await user.click(screen.getByRole('button', { name: "Annuler l'import" }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
+
+    // Longer than the remaining batches' PUTs would take: a loop still running would have sent more by now.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const cancelled = fake.calls.indexOf('cancel');
+    expect(cancelled).toBeGreaterThan(0);
+    expect(fake.calls.slice(cancelled + 1)).toEqual([]);
+    expect(fake.calls).not.toContain('validate');
   });
 
   it('stops sending when the page is left, so a return does not race a second send', async () => {
@@ -276,7 +352,7 @@ describe('Import › report, confirmation and commit', () => {
     await user.click(await screen.findByRole('button', { name: 'Télécharger le rapport' }));
     expect(downloads).toEqual([`nid-import-${SESSION_ID}.json`]);
     expect(JSON.parse(await blobs[0]!.text())).toMatchObject({ id: SESSION_ID, report });
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:report');
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:report'));
     [createObjectURL, revokeObjectURL, click].forEach((spy) => spy.mockRestore());
   });
 });
