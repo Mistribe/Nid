@@ -55,7 +55,7 @@
     "loading": "Chargement",
     "confirm": "Confirmer",
     "cancel": "Annuler",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "jobs": "Tâches", "system": "Système" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -116,6 +116,49 @@
       "status_running": "en cours",
       "status_succeeded": "réussi",
       "status_failed": "échoué"
+    },
+    "catalog": {
+      "title": "Catalogue",
+      "sync_title": "Synchronisation",
+      "pinned": "Version épinglée : {{commit}}",
+      "sync": "Synchroniser maintenant",
+      "sync_confirm": "Le catalogue va être relu à la version épinglée : ses fournisseurs sont mis à jour, les fournisseurs personnalisés jamais.",
+      "sync_requested": "Synchronisation demandée : elle apparaîtra ci-dessous.",
+      "already_running": "Une synchronisation est déjà en cours : la page se met à jour quand elle se termine.",
+      "empty_title": "Aucune synchronisation pour l'instant",
+      "empty_body": "Lancez la première avec « Synchroniser maintenant ».",
+      "last": "Dernière synchronisation",
+      "history": "Historique",
+      "synced_commit": "Version synchronisée : {{commit}}",
+      "status": { "running": "En cours", "succeeded": "Réussie", "failed": "Échouée" },
+      "counts": {
+        "added": "Ajoutés",
+        "updated": "Mis à jour",
+        "unchanged": "Inchangés",
+        "archived": "Archivés",
+        "adopted_replaced": "Adoptés remplacés"
+      },
+      "report": {
+        "failure": "Échec",
+        "adopted_remaining": "Fournisseurs adoptés restants ({{n}})",
+        "labels_created": "Libellés créés ({{n}})",
+        "conflicts": "Conflits avec un fournisseur personnalisé ({{n}})",
+        "duplicates": "Clés en double ({{n}})",
+        "refused": "Entrées refusées ({{n}})"
+      },
+      "duplicate_entry": "{{file}} : {{key}}",
+      "refused_entry": "{{file}} n° {{index}} ({{key}}) : {{reason}}",
+      "reasons": {
+        "invalid_key": "clé invalide",
+        "invalid_name": "nom vide ou trop long",
+        "invalid_url": "adresse qui n'est pas en http ou https",
+        "no_category": "aucune catégorie",
+        "invalid_category": "catégorie invalide",
+        "invalid_color": "couleur invalide",
+        "not_an_object": "entrée illisible",
+        "reserved_key": "clé réservée",
+        "other": "motif inconnu"
+      }
     },
     "jobs": {
       "title": "Tâches planifiées",

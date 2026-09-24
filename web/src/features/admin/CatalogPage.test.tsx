@@ -1,0 +1,169 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { components } from '@/api/schema';
+import { expectNoAxeViolations } from '@/test/axe';
+import { adminCapabilities, allCapabilities } from '@/test/fixtures';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import { formatInstant } from './format';
+
+type Run = components['schemas']['CatalogSyncRunView'];
+type Report = components['schemas']['CatalogReport'];
+
+const PINNED = 'df0146a8f3532f5c790aa54a34d4871e96b62a95';
+
+const emptyReport: Report = {
+  providersAdded: [], providersUpdated: [], providersUnchanged: [], providersArchived: [], adoptedReplaced: [],
+  adoptedRemaining: [], conflicts: [], labelsAdded: [], labelsUpdated: [], labelsCreated: [], duplicates: [], refused: [],
+};
+
+const succeeded: Run = {
+  id: 'run-2', startedAt: '2026-09-24T07:00:00+00:00', finishedAt: '2026-09-24T07:00:05+00:00', status: 'succeeded', commit: PINNED,
+  failureCode: null, failureMessage: null,
+  report: {
+    ...emptyReport,
+    providersAdded: ['netflix', 'spotify'], providersUnchanged: ['nordvpn'], adoptedReplaced: ['battlenet'],
+    adoptedRemaining: ['wow'], labelsCreated: ['home'], duplicates: [{ file: 'labels', key: 'hosting' }],
+    refused: [{ file: 'providers', index: 3, key: 'Netflix', reason: 'invalid_key' }],
+  },
+};
+
+const failed: Run = {
+  id: 'run-1', startedAt: '2026-09-23T07:00:00+00:00', finishedAt: '2026-09-23T07:00:01+00:00', status: 'failed', commit: 'aaaaaaa0000',
+  failureCode: 'subscriptions.catalog_source_unavailable', failureMessage: 'raw.githubusercontent.com answered HTTP 503 for labels.json.',
+  report: null,
+};
+
+/** Each GET answers the next list, the last one for ever after. */
+function serveRuns(...answers: Run[][]) {
+  let call = 0;
+  server.use(http.get('*/api/v1/subscriptions/catalog/runs', () => {
+    const runs = answers[Math.min(call++, answers.length - 1)] ?? [];
+    return HttpResponse.json({ pinnedCommit: PINNED, runs });
+  }));
+}
+
+const render = (path = '/admin/catalog') => renderApp(path, { capabilities: adminCapabilities });
+const lastCard = () => screen.findByRole('region', { name: 'Dernière synchronisation' });
+const syncButton = () => screen.getByRole('button', { name: 'Synchroniser maintenant' });
+
+describe('Administration › Catalogue', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('sends a non-admin to the forbidden page', async () => {
+    await renderApp('/admin/catalog', { capabilities: allCapabilities });
+    expect(await screen.findByRole('heading', { name: "Vous n'avez pas le droit de faire cette action." })).toBeInTheDocument();
+  });
+
+  it('is a section of the admin navigation, marked current', async () => {
+    serveRuns([]);
+    await render();
+    const sections = screen.getByRole('navigation', { name: "Sections de l'administration" });
+    expect(within(sections).getByRole('link', { name: 'Catalogue' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { level: 1, name: 'Catalogue' })).toBeInTheDocument();
+  });
+
+  it('shows the last sync with its status in words, its time, its commit and its counts', async () => {
+    serveRuns([succeeded, failed]);
+    await render();
+
+    const last = await lastCard();
+    expect(within(last).getByText('Réussie')).toBeInTheDocument();
+    expect(within(last).getByText(formatInstant(succeeded.startedAt))).toBeInTheDocument();
+    expect(within(last).getByText('Version synchronisée : df0146a')).toBeInTheDocument();
+    expect(within(last).getByText('Ajoutés').parentElement).toHaveTextContent('Ajoutés2');
+    expect(within(last).getByText('Inchangés').parentElement).toHaveTextContent('Inchangés1');
+    expect(within(last).getByText('Adoptés remplacés').parentElement).toHaveTextContent('Adoptés remplacés1');
+    expect(screen.getByText('Version épinglée : df0146a')).toBeInTheDocument();
+  });
+
+  it('lists the report by category, each refused entry with its reason', async () => {
+    serveRuns([succeeded]);
+    await render();
+
+    const last = await lastCard();
+    expect(within(last).getByText('Fournisseurs adoptés restants (1)')).toBeInTheDocument();
+    expect(within(last).getByText('wow')).toBeInTheDocument();
+    expect(within(last).getByText('Libellés créés (1)')).toBeInTheDocument();
+    expect(within(last).getByText('labels : hosting')).toBeInTheDocument();
+    expect(within(last).getByText('providers n° 3 (Netflix) : clé invalide')).toBeInTheDocument();
+    expect(within(last).queryByText(/Conflits/)).not.toBeInTheDocument(); // an empty category is not shown
+  });
+
+  it('shows the failure code and message of a failed sync', async () => {
+    serveRuns([failed]);
+    await render();
+
+    const last = await lastCard();
+    expect(within(last).getByText('Échouée')).toBeInTheDocument();
+    expect(within(last).getByText('subscriptions.catalog_source_unavailable')).toBeInTheDocument();
+    expect(within(last).getByText('raw.githubusercontent.com answered HTTP 503 for labels.json.')).toBeInTheDocument();
+  });
+
+  it('says there is no sync yet', async () => {
+    serveRuns([]);
+    await render();
+    expect(await screen.findByRole('heading', { name: "Aucune synchronisation pour l'instant" })).toBeInTheDocument();
+  });
+
+  it('keeps the ten latest runs in the history', async () => {
+    serveRuns(Array.from({ length: 12 }, (_, i) => ({ ...failed, id: `run-${i}` })));
+    await render();
+
+    const history = await screen.findByRole('region', { name: 'Historique' });
+    expect(within(history).getAllByRole('listitem')).toHaveLength(10);
+  });
+
+  it('asks for a confirmation, starts a sync, then refreshes every 3 seconds until the new run ends', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const running: Run = { ...succeeded, id: 'run-3', startedAt: '2026-09-24T08:00:00+00:00', status: 'running', finishedAt: null, report: null };
+    const done: Run = { ...succeeded, id: 'run-3', startedAt: '2026-09-24T08:00:00+00:00' };
+    serveRuns([failed], [failed], [running, failed], [done, failed]);
+    let calls = 0;
+    let csrf: string | null = null;
+    server.use(http.post('*/api/v1/subscriptions/catalog/sync', ({ request }) => {
+      calls += 1;
+      csrf = request.headers.get('X-Nid-Csrf');
+      return HttpResponse.json({ requested: true }, { status: 202 });
+    }));
+    const { user } = await render();
+    await lastCard();
+
+    await user.click(syncButton());
+    expect(calls).toBe(0);
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Synchronisation demandée');
+    expect(csrf).toBe('csrf-alice');
+    await waitFor(() => expect(syncButton()).toBeDisabled());
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(await within(await lastCard()).findByText('En cours')).toBeInTheDocument();
+    expect(syncButton()).toBeDisabled();
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(await within(await lastCard()).findByText('Réussie')).toBeInTheDocument();
+    await waitFor(() => expect(syncButton()).toBeEnabled());
+  });
+
+  it('says a sync is already running when the server answers 409', async () => {
+    serveRuns([succeeded]);
+    server.use(http.post('*/api/v1/subscriptions/catalog/sync', () =>
+      HttpResponse.json({ status: 409, code: 'subscriptions.catalog_sync_running', title: 'A catalog sync is already running.' }, { status: 409 })));
+    const { user } = await render();
+    await lastCard();
+
+    await user.click(syncButton());
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Une synchronisation est déjà en cours');
+    expect(syncButton()).toBeEnabled();
+  });
+
+  it('has no accessibility violation', async () => {
+    serveRuns([succeeded, failed]);
+    const { container } = await render();
+    await lastCard();
+    await expectNoAxeViolations(container);
+  });
+});

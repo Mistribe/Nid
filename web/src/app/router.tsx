@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, createRoute, createRouter, redirect, RouterProvider, type RouterHistory } from '@tanstack/react-router';
 import { useState } from 'react';
+import { CatalogPage } from '@/features/admin/CatalogPage';
 import { FxPage } from '@/features/admin/FxPage';
 import { HouseholdPage } from '@/features/admin/HouseholdPage';
 import { JobsPage } from '@/features/admin/JobsPage';
@@ -73,12 +74,13 @@ const adminRoute = createRoute({
 const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: UsersPage });
 const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: HouseholdPage });
 const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: FxPage });
+const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: CatalogPage });
 const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: JobsPage });
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute, adminRoute, adminUsersRoute,
-  adminHouseholdRoute, adminFxRoute, adminJobsRoute, adminSystemRoute,
+  adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute, adminSystemRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {
