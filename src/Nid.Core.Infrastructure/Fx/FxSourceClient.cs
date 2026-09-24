@@ -13,19 +13,21 @@ public sealed class FxSourceClient(SafeHttpClient http, FxOptions options) : IFx
     public const int DayMaxBytes = 1024 * 1024;
     public const int EcbMaxBytes = 5 * 1024 * 1024;
 
+    /// <summary>A 404 is one more day without a file (design §4.3): the "last known rate" rule covers it.</summary>
     public Task<Result<FxFetch>> SubTrackerDayAsync(LocalDate date, CancellationToken ct)
         => FetchAsync(new Uri(new Uri(options.SubTrackerBaseUrl),
-            date.ToString("yyyy'/'MM'/'dd", CultureInfo.InvariantCulture) + ".json"), DayMaxBytes, ct);
+            date.ToString("yyyy'/'MM'/'dd", CultureInfo.InvariantCulture) + ".json"), DayMaxBytes, notFoundIsEmpty: true, ct);
 
+    /// <summary>The history file must exist: a 404 is <see cref="FxCodes.SourceUnavailable"/>, never an empty success.</summary>
     public Task<Result<FxFetch>> EcbHistoryAsync(CancellationToken ct)
-        => FetchAsync(new Uri(options.EcbHistoryUrl), EcbMaxBytes, ct);
+        => FetchAsync(new Uri(options.EcbHistoryUrl), EcbMaxBytes, notFoundIsEmpty: false, ct);
 
-    private async Task<Result<FxFetch>> FetchAsync(Uri url, int maxBytes, CancellationToken ct)
+    private async Task<Result<FxFetch>> FetchAsync(Uri url, int maxBytes, bool notFoundIsEmpty, CancellationToken ct)
     {
         try
         {
             var response = await http.GetAsync(url, maxBytes, ct);
-            if (response.Status == HttpStatusCode.NotFound)
+            if (response.Status == HttpStatusCode.NotFound && notFoundIsEmpty)
                 return Result.Success(new FxFetch(null));
             if ((int)response.Status is < 200 or > 299)
                 return Fail(FxCodes.SourceUnavailable, $"{url.Host} answered HTTP {(int)response.Status}.");

@@ -67,8 +67,6 @@ public sealed class FxRateStore(CoreDbContext db) : IFxRateStore
         return dates.ToHashSet();
     }
 
-    public async Task<bool> IsEmptyAsync(CancellationToken ct) => !await db.FxRates.AnyAsync(ct);
-
     private static FxRate ToRate(FxRateRow row)
         => new(row.OnDate,
             Currency.TryCreate(row.Quote.Trim(), out var quote)

@@ -3,6 +3,7 @@ using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;
 using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -19,12 +20,25 @@ public class FxCollectorTests(PostgresFixture postgres)
     private static readonly LocalDate Start = Options.SubTrackerStart;
     private static readonly LocalDate Today = Start.PlusDays(2);
 
-    private static (FxCollector Collector, FxRateStore Store, FxRunLog Log) Build(CoreDbContext db, FakeFxSources sources)
+    private static (FxCollector Collector, FxRateStore Store, FxRunLog Log) Build(CoreDbContext db, IFxSourceClient sources)
     {
         var clock = new FixedClock(Today.At(new LocalTime(7, 0)).InUtc().ToInstant());
         var store = new FxRateStore(db);
         var log = new FxRunLog(db, clock);
         return (new FxCollector(sources, store, log, Options, clock), store, log);
+    }
+
+    /// <summary>Cancels the run's token on the first SubTracker request, as a host shutting down would, then honours it.</summary>
+    private sealed class CancellingSources(CancellationTokenSource cts) : IFxSourceClient
+    {
+        public Task<Result<FxFetch>> SubTrackerDayAsync(LocalDate date, CancellationToken ct)
+        {
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+            return Task.FromResult(Result.Success(new FxFetch(null)));
+        }
+
+        public Task<Result<FxFetch>> EcbHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
     }
 
     private static async Task<decimal> RateAsync(FxRateStore store, string quote, LocalDate on)
@@ -116,7 +130,22 @@ public class FxCollectorTests(PostgresFixture postgres)
         var run = (await collector.BackfillAsync(default)).Ok();
 
         Assert.Equal(FxCodes.SourceMalformed, run.FailureCode);
-        Assert.True(await store.IsEmptyAsync(default));
+        Assert.Empty(await store.DatesFromAsync(FxRateSource.Ecb, LocalDate.MinIsoValue, default));
+    }
+
+    [Fact]
+    public async Task A_cancelled_run_is_closed_as_interrupted_and_the_cancellation_rethrown()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        using var cts = new CancellationTokenSource();
+        var (collector, _, log) = Build(db, new CancellingSources(cts));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => collector.CollectDailyAsync(cts.Token));
+
+        var run = Assert.Single(await log.RecentAsync(5, default));
+        Assert.Equal((FxRunStatus.Failed, FxCodes.RunInterrupted), (run.Status, run.FailureCode));
+        Assert.NotNull(run.FinishedAt);
+        Assert.False(await log.IsRunningAsync(default));
     }
 
     [Fact]

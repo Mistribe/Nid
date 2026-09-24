@@ -33,7 +33,10 @@ public static class FxFixtures
     }
 }
 
-/// <summary>Serves <see cref="Days"/> and <see cref="Ecb"/>; any other day is a 404. Never touches the network.</summary>
+/// <summary>
+/// Serves <see cref="Days"/> and <see cref="Ecb"/>; any other day is a 404, and no <see cref="Ecb"/> is the ECB's
+/// 404, which the real client reports as unavailable. Never touches the network.
+/// </summary>
 public sealed class FakeFxSources : IFxSourceClient
 {
     public Dictionary<LocalDate, byte[]> Days { get; } = [];
@@ -59,7 +62,9 @@ public sealed class FakeFxSources : IFxSourceClient
     {
         lock (Requested)
             Requested.Add("ecb");
-        return Task.FromResult(Serve(Ecb));
+        return Task.FromResult(Ecb is null && FailWith is null
+            ? Result.Failure<FxFetch>(new Failure(FxCodes.SourceUnavailable, "Fake ECB: no history file.", null))
+            : Serve(Ecb));
     }
 
     private Result<FxFetch> Serve(byte[]? bytes)

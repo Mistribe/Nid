@@ -31,7 +31,7 @@ public sealed class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
         var row = new FxSyncRunRow
         {
             Id = Guid.CreateVersion7(),
-            Kind = kind == FxRunKind.Daily ? "daily" : "backfill",
+            Kind = Kind(kind),
             StartedAt = now,
             Status = "running",
         };
@@ -66,12 +66,28 @@ public sealed class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
 
     public Task<bool> IsRunningAsync(CancellationToken ct) => db.FxSyncRuns.AnyAsync(r => r.Status == "running", ct);
 
+    public Task<bool> HasSucceededAsync(FxRunKind kind, CancellationToken ct)
+    {
+        var wire = Kind(kind);
+        return db.FxSyncRuns.AnyAsync(r => r.Kind == wire && r.Status == "succeeded", ct);
+    }
+
     public async Task<IReadOnlyList<FxSyncRun>> RecentAsync(int count, CancellationToken ct)
         => (await db.FxSyncRuns.AsNoTracking().OrderByDescending(r => r.StartedAt).Take(count).ToListAsync(ct))
             .Select(ToRun).ToList();
 
-    public Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
-        => db.FxSyncRuns.Where(r => r.StartedAt < before && r.Status != "running").ExecuteDeleteAsync(ct);
+    public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
+    {
+        // The latest succeeded backfill stays: the startup check (HasSucceededAsync) would otherwise re-run it.
+        var keep = await db.FxSyncRuns.Where(r => r.Kind == "backfill" && r.Status == "succeeded")
+            .OrderByDescending(r => r.StartedAt).Select(r => (Guid?)r.Id).FirstOrDefaultAsync(ct);
+        var purged = db.FxSyncRuns.Where(r => r.StartedAt < before && r.Status != "running");
+        if (keep is { } id)
+            purged = purged.Where(r => r.Id != id);
+        return await purged.ExecuteDeleteAsync(ct);
+    }
+
+    private static string Kind(FxRunKind kind) => kind == FxRunKind.Daily ? "daily" : "backfill";
 
     private static string Status(FxRunStatus status) => status switch
     {

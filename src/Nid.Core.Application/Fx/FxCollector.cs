@@ -8,8 +8,9 @@ using Duration = NodaTime.Duration;
 namespace Nid.Core.Application.Fx;
 
 /// <summary>
-/// One collection run, journaled (design §6.2). A run never throws: whatever goes wrong ends in the journal as a
-/// failed run, and the next run retries. Days are fetched one at a time, in order, so a failure leaves every earlier
+/// One collection run, journaled (design §6.2). Whatever goes wrong ends in the journal as a failed run, and the next
+/// run retries. The one exception that leaves: a cancellation of the caller's token, after the run is closed as
+/// <see cref="FxCodes.RunInterrupted"/>. Days are fetched one at a time, in order, so a failure leaves every earlier
 /// day written and the next run resumes after them.
 /// </summary>
 public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFxRunLog runs, FxOptions options, IClock clock)
@@ -39,16 +40,16 @@ public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFx
         if (ecb.TryGetFailure(out var fetchFailure))
             return fetchFailure;
         ecb.TryGetValue(out var file);
-        if (file!.Bytes is { } zip)
-        {
-            progress.FilesRead++;
-            var reading = EcbReader.Read(zip);
-            if (reading.TryGetFailure(out var readFailure))
-                return readFailure;
-            reading.TryGetValue(out var history);
-            progress.RowsWritten += await rates.WriteAsync(history!.Rates, token);
-            progress.Rejected.AddRange(history.Rejected);
-        }
+        if (file!.Bytes is not { } zip) // the client maps a 404 to a failure: the history file must exist
+            return new Failure(FxCodes.SourceUnavailable, "The ECB sent no history file.", null);
+
+        progress.FilesRead++;
+        var reading = EcbReader.Read(zip);
+        if (reading.TryGetFailure(out var readFailure))
+            return readFailure;
+        reading.TryGetValue(out var history);
+        progress.RowsWritten += await rates.WriteAsync(history!.Rates, token);
+        progress.Rejected.AddRange(history.Rejected);
 
         var stored = await rates.DatesFromAsync(FxRateSource.SubTrackerData, options.SubTrackerStart, token);
         return await CollectSubTrackerAsync(Days(options.SubTrackerStart, Today).Where(d => !stored.Contains(d)), progress, token);
@@ -89,11 +90,17 @@ public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFx
 
         var progress = new Progress();
         Failure? failure;
+        var interrupted = false;
         try
         {
             failure = await work(progress, ct);
         }
-        catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            interrupted = true;
+            failure = new Failure(FxCodes.RunInterrupted, "The run was interrupted before it finished (host shutting down).", null);
+        }
+        catch (Exception e)
         {
             failure = new Failure(FxCodes.SourceUnavailable, $"The run stopped on {e.GetType().Name}.", null);
         }
@@ -109,6 +116,8 @@ public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFx
             Rejected = progress.Rejected,
         };
         await runs.FinishAsync(finished, CancellationToken.None); // a cancelled run is still closed
+        if (interrupted)
+            ct.ThrowIfCancellationRequested();
         if (kind == FxRunKind.Daily)
             await runs.PurgeBeforeAsync(clock.GetCurrentInstant() - Duration.FromDays(RunRetentionDays), CancellationToken.None);
 

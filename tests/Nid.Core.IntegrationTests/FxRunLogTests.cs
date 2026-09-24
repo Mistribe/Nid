@@ -63,4 +63,25 @@ public class FxRunLogTests(PostgresFixture postgres)
         Assert.Equal(1, await log.PurgeBeforeAsync(Start + Duration.FromSeconds(1), default));
         Assert.Empty(await log.RecentAsync(10, default));
     }
+
+    [Fact]
+    public async Task The_purge_keeps_the_latest_succeeded_backfill()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var clock = new TestClock(Start);
+        var log = new FxRunLog(db, clock);
+        foreach (var kind in new[] { FxRunKind.Backfill, FxRunKind.Backfill, FxRunKind.Daily })
+        {
+            var run = (await log.TryStartAsync(kind, default))!;
+            await log.FinishAsync(run with { Status = FxRunStatus.Succeeded, FinishedAt = clock.Now }, default);
+            clock.Now += Duration.FromMinutes(1);
+        }
+
+        Assert.Equal(2, await log.PurgeBeforeAsync(clock.Now, default));
+
+        var kept = Assert.Single(await log.RecentAsync(10, default));
+        Assert.Equal((FxRunKind.Backfill, Start + Duration.FromMinutes(1)), (kept.Kind, kept.StartedAt));
+        Assert.True(await log.HasSucceededAsync(FxRunKind.Backfill, default));
+        Assert.False(await log.HasSucceededAsync(FxRunKind.Daily, default));
+    }
 }

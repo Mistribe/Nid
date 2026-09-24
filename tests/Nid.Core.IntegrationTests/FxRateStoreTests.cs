@@ -80,15 +80,13 @@ public class FxRateStoreTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Dates_of_a_source_and_emptiness()
+    public async Task Dates_of_a_source()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var store = new FxRateStore(db);
-        Assert.True(await store.IsEmptyAsync(default));
 
         await store.WriteAsync([Rate(Currency.Eur, 0.8m, FxRateSource.Ecb, Day.PlusDays(-1)), Rate(Currency.Eur, 0.8m, FxRateSource.SubTrackerData)], default);
 
-        Assert.False(await store.IsEmptyAsync(default));
         Assert.Equal([Day], (await store.DatesFromAsync(FxRateSource.SubTrackerData, Day.PlusDays(-5), default)).ToList());
     }
 

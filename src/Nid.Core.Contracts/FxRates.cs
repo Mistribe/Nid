@@ -49,6 +49,7 @@ public static class FxCodes
     public const string SyncRunning = "core.fx_sync_running";
     public const string JobsDisabled = "core.fx_jobs_disabled";
     public const string RunAbandoned = "core.fx_run_abandoned";
+    public const string RunInterrupted = "core.fx_run_interrupted";
 
     /// <summary>Reasons of an <see cref="FxRejection"/>: data, not failures.</summary>
     public const string ImplausibleChange = "implausible_change";
@@ -70,8 +71,6 @@ public interface IFxRateStore
 
     /// <summary>The dates on or after <paramref name="from"/> holding at least one rate of <paramref name="source"/>.</summary>
     Task<IReadOnlySet<LocalDate>> DatesFromAsync(FxRateSource source, LocalDate from, CancellationToken ct);
-
-    Task<bool> IsEmptyAsync(CancellationToken ct);
 }
 
 public enum FxRunKind
@@ -126,9 +125,13 @@ public interface IFxRunLog
 
     Task<bool> IsRunningAsync(CancellationToken ct);
 
+    /// <summary>Whether a run of <paramref name="kind"/> has ever succeeded (the purge keeps the latest succeeded backfill).</summary>
+    Task<bool> HasSucceededAsync(FxRunKind kind, CancellationToken ct);
+
     /// <summary>The most recent runs first.</summary>
     Task<IReadOnlyList<FxSyncRun>> RecentAsync(int count, CancellationToken ct);
 
+    /// <summary>Deletes finished runs started before <paramref name="before"/>, except the latest succeeded backfill (<see cref="HasSucceededAsync"/>).</summary>
     Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
 }
 
@@ -168,7 +171,7 @@ public interface IHouseholdSettings
     Task<Currency> ReferenceCurrencyAsync(CancellationToken ct);
 }
 
-/// <summary>A source file's bytes, or <c>null</c> when the source has none for that request (an HTTP 404).</summary>
+/// <summary>A source file's bytes, or <c>null</c> when SubTracker has no file that day (an HTTP 404; the ECB history never is).</summary>
 public sealed record FxFetch(byte[]? Bytes);
 
 /// <summary>The two rate sources (design §4.3). Failures carry <see cref="FxCodes"/> source codes; nothing throws.</summary>
