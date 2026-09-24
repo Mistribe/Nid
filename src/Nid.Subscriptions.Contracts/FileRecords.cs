@@ -82,3 +82,13 @@ public sealed record PurchaseRecord
     public required IReadOnlyList<GrantRecord> Grants { get; init; }
     public string? Note { get; init; }
 }
+
+/// <summary>import-format.md §5.2: a custom provider. <c>key</c> is local to the file (design §3.3), mapped at commit.</summary>
+public sealed record ProviderRecord
+{
+    public required string Key { get; init; }
+    public required string Name { get; init; }
+    public string? Website { get; init; }
+    public string? PricingPage { get; init; }
+    public required IReadOnlyList<string> LabelKeys { get; init; }
+}

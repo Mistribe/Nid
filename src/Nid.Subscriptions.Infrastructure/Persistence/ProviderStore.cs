@@ -75,6 +75,16 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
 
     public Task<bool> ExistsAsync(string key, CancellationToken ct) => db.Providers.AnyAsync(p => p.Key == key, ct);
 
+    public async Task<IReadOnlyList<Provider>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct)
+    {
+        if (refs.Count == 0)
+            return [];
+
+        var wanted = refs.Distinct(StringComparer.Ordinal).ToList();
+        var rows = await db.Providers.AsNoTracking().Where(p => p.ImportRef != null && wanted.Contains(p.ImportRef)).ToListAsync(ct);
+        return rows.Select(ToProvider).ToList();
+    }
+
     public async Task<Result> CreateAsync(Provider provider, CancellationToken ct)
     {
         var row = ToRow(provider);

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
 using NodaTime;
@@ -11,12 +12,13 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Subscriptions.Application.Import;
 
 /// <summary>
-/// Sections <c>subscriptions</c>, <c>billing_phases</c> and <c>purchases</c>. Writes go through the same
+/// Sections <c>providers</c> (through <see cref="ProvidersImport"/>), <c>subscriptions</c>, <c>billing_phases</c> and <c>purchases</c>. Writes go through the same
 /// <see cref="IItemRegistry"/> and <see cref="ISubscriptionStore"/> as the API; rules come from the Core and the
 /// engine, never from here.
 /// </summary>
 public sealed class SubscriptionsImportSection(
-    IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules, IFxRates fx, IHouseholdSettings household)
+    IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules, IFxRates fx, IHouseholdSettings household,
+    IProviderStore providers, ProviderAccess providerAccess, ProviderKeys providerKeys)
     : IImportSection
 {
     public const string Subscriptions = "subscriptions";
@@ -26,17 +28,21 @@ public sealed class SubscriptionsImportSection(
     /// <summary>Stands for every person and every subscription while a batch is checked alone.</summary>
     private static readonly ItemId Placeholder = new(Guid.Empty);
 
+    private readonly ProvidersImport providerImport = new(providers, providerAccess, providerKeys);
     private readonly List<(StagedEntity Entity, SubscriptionRecord Record)> newSubscriptions = [];
     private readonly List<(StagedEntity Entity, BillingPhaseRecord Record)> newPhases = [];
     private readonly List<(StagedEntity Entity, PurchaseRecord Record)> newPurchases = [];
     private IReadOnlyDictionary<string, SectionCounts> counts = new Dictionary<string, SectionCounts>();
 
     public string Module => "subscriptions";
-    public IReadOnlyList<string> Sections => [Subscriptions, Phases, Purchases];
+    public IReadOnlyList<string> Sections => [ProvidersImport.Section, Subscriptions, Phases, Purchases];
     public int Order => 10;
 
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
     {
+        if (section == ProvidersImport.Section)
+            return ProvidersImport.ValidateBatch(entities, firstIndex);
+
         var issues = new List<ImportIssue>();
         var anyone = (string _) => (PersonId?)new PersonId(Guid.Empty);
         // Every file ref stands for someone, one distinct stand-in per ref, so a ref repeated is still seen.
@@ -81,6 +87,9 @@ public sealed class SubscriptionsImportSection(
         newPurchases.Clear();
         var issues = new List<ImportIssue>();
 
+        // Before subscriptions: their provider_key may name an entry of this section (design §5 "Import").
+        var providerCounts = await providerImport.ValidateAllAsync(context, staged, issues, ct);
+
         var subscriptionRecords = ReadAll<SubscriptionRecord>(staged, Subscriptions, r => r.Id, issues);
         var phaseRecords = ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues);
         var purchaseRecords = ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues);
@@ -89,8 +98,12 @@ public sealed class SubscriptionsImportSection(
         var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);
         var knownPurchases = await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct);
 
+        var linkable = await providerImport.LinkableAsync(
+            context, subscriptionRecords.Select(s => s.Record.ProviderKey).OfType<string>().ToList(), ct);
+
         var tally = new Dictionary<string, SectionCounts>
         {
+            [ProvidersImport.Section] = providerCounts,
             [Subscriptions] = SectionCounts.Zero, [Phases] = SectionCounts.Zero, [Purchases] = SectionCounts.Zero,
         };
         var runs = new Dictionary<string, DryRun>(StringComparer.Ordinal);    // file id → what the engine will walk
@@ -146,6 +159,15 @@ public sealed class SubscriptionsImportSection(
                 {
                     issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
                         "An item is imported by one of its owners, unless every owner is a dependent.", path));
+                    failed.Add(record.Id);
+                    continue;
+                }
+
+                if (record.ProviderKey is { } providerKey && !providerImport.Resolves(providerKey, linkable))
+                {
+                    if (!providerImport.Failed(providerKey))
+                        issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference,
+                            $"'{providerKey}' is neither in providers nor a provider you can link.", path + ".provider_key"));
                     failed.Add(record.Id);
                     continue;
                 }
@@ -321,6 +343,10 @@ public sealed class SubscriptionsImportSection(
         var issues = new List<ImportIssue>();
         var person = Persons(context);
 
+        var providersCreated = await providerImport.ApplyAsync(context, ct);
+        if (providersCreated.TryGetFailure(out var providerFailure))
+            return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(providerFailure!);
+
         foreach (var (entity, record) in newSubscriptions)
         {
             var path = NidDataJson.Path(Subscriptions, entity.Index);
@@ -335,7 +361,7 @@ public sealed class SubscriptionsImportSection(
 
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
-                record.ProviderKey, record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash)), ct);
+                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash)), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }

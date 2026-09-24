@@ -231,6 +231,9 @@ public interface IProviderStore
     /// <summary>Whether any provider, of any origin, holds <paramref name="key"/>.</summary>
     Task<bool> ExistsAsync(string key, CancellationToken ct);
 
+    /// <summary>Every provider imported under one of <paramref name="refs"/>, whoever imported it (the caller decides which it may use).</summary>
+    Task<IReadOnlyList<Provider>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
     /// <summary>Inserts a provider; <see cref="CatalogCodes.KeyTaken"/> when its key exists already.</summary>
     Task<Result> CreateAsync(Provider provider, CancellationToken ct);
 

@@ -12,12 +12,19 @@ public static class GoldenFile
          {"ref":"adult-2","kind":"adult","display_name":"Adulte 2"}]
         """;
 
+    /// <summary>The three providers as custom ones: a test database holds no catalog unless a test syncs one.</summary>
+    public const string Providers = """
+        [{"key":"spotify","name":"Spotify","website":"https://www.spotify.com","label_keys":["other"]},
+         {"key":"nordvpn","name":"NordVPN","label_keys":["other"]},
+         {"key":"wow","name":"World of Warcraft","label_keys":["other"]}]
+        """;
+
     public const string Subscriptions = """
-        [{"id":"sub-spotify","name":"Spotify Premium Duo",
+        [{"id":"sub-spotify","provider_key":"spotify","name":"Spotify Premium Duo",
           "ownership":[{"person":"adult-1","share_bp":10000}],"service_users":["adult-1"],"auto_renew":true},
-         {"id":"sub-nordvpn","name":"NordVPN",
+         {"id":"sub-nordvpn","provider_key":"nordvpn","name":"NordVPN",
           "ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true},
-         {"id":"sub-wow","name":"World of Warcraft",
+         {"id":"sub-wow","provider_key":"wow","name":"World of Warcraft",
           "ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]
         """;
 
@@ -43,6 +50,7 @@ public static class GoldenFile
 
     public static Dictionary<string, string> Sections() => new()
     {
+        ["providers"] = Providers,
         ["persons"] = Persons,
         ["subscriptions"] = Subscriptions,
         ["billing_phases"] = Phases,
