@@ -19,7 +19,8 @@
     "home": "Revenir à l'accueil",
     "subscriptions": "Abonnements",
     "import": "Import",
-    "settings": "Réglages"
+    "settings": "Réglages",
+    "admin": "Administration"
   },
   "shell": { "sign_out": "Se déconnecter" },
   "signed_out": {
@@ -48,6 +49,36 @@
       "mode": "Mode",
       "theme": "Thème",
       "chart_patterns": "Motifs dans les graphiques"
+    }
+  },
+  "admin": {
+    "loading": "Chargement",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs" },
+    "users": {
+      "title": "Utilisateurs",
+      "name": "Nom",
+      "email": "Email",
+      "status": "État",
+      "role": "Rôle",
+      "actions": "Actions",
+      "pending": "en attente",
+      "active": "actif",
+      "admin": "admin",
+      "promote": "Rendre admin",
+      "promote_confirm": "{{name}} pourra gérer les utilisateurs et les réglages techniques du foyer.",
+      "demote": "Retirer le rôle admin",
+      "demote_confirm": "{{name}} n'aura plus accès à l'administration.",
+      "last_admin": "Le foyer a besoin d'au moins un administrateur connecté : nommez-en un autre d'abord.",
+      "cancel_invitation": "Annuler l'invitation",
+      "cancel_invitation_confirm": "{{email}} ne pourra plus se connecter.",
+      "revoke": "Déconnecter partout",
+      "revoke_confirm": "Toutes les sessions de {{name}} seront fermées.",
+      "add_title": "Ajouter un adulte",
+      "add_hint": "Cette personne pourra se connecter avec cette adresse email, une fois son compte créé auprès du fournisseur d'identité.",
+      "add": "Ajouter",
+      "cap_reached": "Le foyer est limité à {{max}} adultes : relevez le plafond dans Foyer pour en ajouter."
     }
   }
 }

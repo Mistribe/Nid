@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, createRoute, createRouter, redirect, RouterProvider, type RouterHistory } from '@tanstack/react-router';
 import { useState } from 'react';
+import { UsersPage } from '@/features/admin/UsersPage';
 import { ImportPage } from '@/features/import/ImportPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
 import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
@@ -51,8 +52,24 @@ const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/s
 
 const forbiddenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forbidden', component: ForbiddenPage });
 
+/** The admin area is routed for admins only; the server refuses anyway (authorization.md §6). */
+const requireAdmin = ({ context }: { context: RouterContext }) => {
+  if (!context.capabilities.admin) redirect({ to: '/forbidden', throw: true });
+};
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  beforeLoad: ({ context }) => {
+    requireAdmin({ context });
+    redirect({ to: '/admin/users', throw: true });
+  },
+});
+
+const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: UsersPage });
+
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute,
+  indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute, adminRoute, adminUsersRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {
