@@ -9,6 +9,7 @@ public sealed class HouseholdSettingsRow
     public string ReferenceCurrency { get; set; } = "EUR";
     public string Timezone { get; set; } = "Europe/Paris";
     public string Locale { get; set; } = "fr-FR";
+    public int MaxAdults { get; set; } = 2;
 }
 
 public sealed class PersonRow
@@ -18,6 +19,7 @@ public sealed class PersonRow
     public string? OidcSubject { get; set; }
     public string DisplayName { get; set; } = "";
     public string? Email { get; set; }
+    public bool IsAdmin { get; set; }
     public int SessionEpoch { get; set; }
     public string Preferences { get; set; } = "{}";
     public Instant CreatedAt { get; set; }

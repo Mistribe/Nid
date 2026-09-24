@@ -14,7 +14,13 @@ public sealed record NewItem(
 
 public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibility, IReadOnlyList<Owner> Owners);
 
-public sealed record PersonInfo(PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch);
+/// <summary>
+/// <paramref name="IsPending"/>: an adult an admin pre-registered who has not signed in yet (no OIDC subject).
+/// <paramref name="IsAdmin"/>: the technical role; it never widens Readers or Writers (authorization.md §1).
+/// </summary>
+public sealed record PersonInfo(
+    PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch,
+    bool IsAdmin = false, bool IsPending = false);
 
 public enum AccessKind
 {

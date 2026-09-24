@@ -33,7 +33,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
         var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
         if (adults >= MaxAdults)
-            return Result.Failure<PersonInfo>(new Failure("core.adult_cap", "This household already has two adults.", null));
+            return Result.Failure<PersonInfo>(new Failure(PersonCodes.AdultCap, "This household already has two adults.", null));
 
         var row = new PersonRow
         {
@@ -57,7 +57,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
     public async Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(displayName))
-            return Result.Failure<PersonInfo>(new Failure("core.name_required", "A name is required.", null));
+            return Result.Failure<PersonInfo>(new Failure(PersonCodes.NameRequired, "A name is required.", null));
 
         var row = new PersonRow
         {
@@ -112,5 +112,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         row.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent,
         row.DisplayName,
         row.Email,
-        row.SessionEpoch);
+        row.SessionEpoch,
+        row.IsAdmin,
+        row.Kind == "adult" && row.OidcSubject is null);
 }

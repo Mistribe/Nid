@@ -27,16 +27,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <summary>Creates an empty database, applies every module's migrations, and returns its connection string.</summary>
     public async Task<string> NewConnectionStringAsync()
     {
-        var name = $"nid_test_{Interlocked.Increment(ref databaseCounter)}";
-        await using (var admin = new Npgsql.NpgsqlConnection(container.GetConnectionString()))
-        {
-            await admin.OpenAsync();
-            await using var command = admin.CreateCommand();
-            command.CommandText = $"create database {name}";
-            await command.ExecuteNonQueryAsync();
-        }
-
-        var connectionString = new Npgsql.NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name }.ToString();
+        var connectionString = await NewEmptyConnectionStringAsync();
 
         await using (var core = NewCoreContext(connectionString))
             await core.Database.MigrateAsync();
@@ -46,6 +37,21 @@ public sealed class PostgresFixture : IAsyncLifetime
             await platform.Database.MigrateAsync();
 
         return connectionString;
+    }
+
+    /// <summary>Creates an empty database with no schema at all, for tests that migrate step by step.</summary>
+    public async Task<string> NewEmptyConnectionStringAsync()
+    {
+        var name = $"nid_test_{Interlocked.Increment(ref databaseCounter)}";
+        await using (var admin = new Npgsql.NpgsqlConnection(container.GetConnectionString()))
+        {
+            await admin.OpenAsync();
+            await using var command = admin.CreateCommand();
+            command.CommandText = $"create database {name}";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        return new Npgsql.NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name }.ToString();
     }
 
     public static CoreDbContext NewCoreContext(string connectionString)
