@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
 using NodaTime;
@@ -34,7 +35,7 @@ public sealed record GetSubscriptionQuery(
 [RequestHandler<ListSubscriptionsQuery, SubscriptionList>]
 public sealed class ListSubscriptionsHandler(
     IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IActorAccessor actor, IClock clock,
-    IFxRates fx, IHouseholdSettings household)
+    IFxRates fx, IHouseholdSettings household, IProviderStore providers)
     : IRequestHandler<ListSubscriptionsQuery, SubscriptionList>
 {
     public async ValueTask<Result<SubscriptionList>> HandleAsync(ListSubscriptionsQuery query, CancellationToken ct = default)
@@ -57,6 +58,9 @@ public sealed class ListSubscriptionsHandler(
             built.Add((input, timeline!, item?.DisplayName ?? ""));
         }
 
+        // One provider query for the whole list; every subscription in it is visible, so is its provider (design §5).
+        var providerViews = await ProviderLookup.ForAsync(store, providers, built.Select(b => b.Input.Subscription.Id).ToList(), ct);
+
         var timelines = built.Select(b => b.Timeline).ToList();
         var reference = await household.ReferenceCurrencyAsync(ct);
         var householdCash = HouseholdCost.CashPieces(timelines, window);
@@ -65,7 +69,7 @@ public sealed class ListSubscriptionsHandler(
             fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized), reference, today, ct);
 
         var summaries = built.Select(b => SubscriptionViews.Summarise(
-            b.Input, b.Timeline, b.DisplayName, window,
+            b.Input, b.Timeline, b.DisplayName, providerViews.GetValueOrDefault(b.Input.Subscription.Id), window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates))).ToList();
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
@@ -80,7 +84,7 @@ public sealed class ListSubscriptionsHandler(
 
 [RequestHandler<GetSubscriptionQuery, SubscriptionDetail>]
 public sealed class GetSubscriptionHandler(
-    ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household)
+    ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household, IProviderStore providers)
     : IRequestHandler<GetSubscriptionQuery, SubscriptionDetail>
 {
     public async ValueTask<Result<SubscriptionDetail>> HandleAsync(GetSubscriptionQuery query, CancellationToken ct = default)
@@ -106,8 +110,9 @@ public sealed class GetSubscriptionHandler(
         var rates = await Conversion.LoadAsync(fx, cashPieces.Concat(amortizedPieces), reference, today, ct);
 
         var item = await items.FindAsync(query.ItemId, ct);
+        var provider = (await ProviderLookup.ForAsync(store, providers, [query.ItemId], ct)).GetValueOrDefault(query.ItemId);
         return Result.Success(SubscriptionViews.Detail(
-            input, timeline, item?.DisplayName ?? "", window, Conversion.Of(cashPieces, amortizedPieces, reference, rates)));
+            input, timeline, item?.DisplayName ?? "", provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates)));
     }
 }
 

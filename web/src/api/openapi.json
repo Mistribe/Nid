@@ -3584,6 +3584,25 @@
         }
       },
       "JsonElement": { },
+      "LabelView": {
+        "required": [
+          "key",
+          "name",
+          "color"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
       "ManualRateBody": {
         "required": [
           "rate"
@@ -3844,6 +3863,32 @@
           }
         }
       },
+      "ProviderSummaryView": {
+        "required": [
+          "key",
+          "name",
+          "origin",
+          "labels"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelView"
+            }
+          }
+        }
+      },
       "PurchaseBody": {
         "required": [
           "date",
@@ -4041,6 +4086,16 @@
           "displayName": {
             "type": "string"
           },
+          "provider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProviderSummaryView"
+              }
+            ]
+          },
           "autoRenew": {
             "type": "boolean"
           },
@@ -4220,6 +4275,16 @@
           },
           "displayName": {
             "type": "string"
+          },
+          "provider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProviderSummaryView"
+              }
+            ]
           },
           "autoRenew": {
             "type": "boolean"

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
 using NodaTime;
@@ -34,10 +35,11 @@ public sealed record Converted(ConvertedTotal Cash, ConvertedTotal Amortized)
 public static class SubscriptionViews
 {
     public static SubscriptionSummary Summarise(
-        SubscriptionInput input, Timeline timeline, string displayName, DateRange window, Converted converted)
+        SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted)
         => new(
             input.Subscription.Id,
             displayName,
+            provider,
             input.Subscription.AutoRenew,
             timeline.ExpiresOn(),
             timeline.NextCharge()?.Date,
@@ -51,10 +53,11 @@ public static class SubscriptionViews
             timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList());
 
     public static SubscriptionDetail Detail(
-        SubscriptionInput input, Timeline timeline, string displayName, DateRange window, Converted converted)
+        SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted)
         => new(
             input.Subscription.Id,
             displayName,
+            provider,
             input.Subscription.AutoRenew,
             input.Subscription.CancelledAt,
             timeline.ExpiresOn(),

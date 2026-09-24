@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
 
@@ -28,6 +29,7 @@ public sealed record ChargeView(LocalDate Date, MoneyView Price, bool IsProjecte
 public sealed record SubscriptionSummary(
     ItemId Id,
     string DisplayName,
+    ProviderSummaryView? Provider,
     bool AutoRenew,
     LocalDate? ExpiresOn,
     LocalDate? NextChargeOn,
@@ -63,14 +65,11 @@ public sealed record SubscriptionList(
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }
 
-/// <summary>
-/// No `ProviderKey` here, deliberately: the 1B engine input carries only what it computes with, so the store
-/// writes the provider key but has nowhere to read it back into. It returns with the catalog in 1C2, which is
-/// what gives it meaning (name, icon, labels). A field that is always null is worse than an absent one.
-/// </summary>
+/// <summary>One subscription as its detail page reads it, with its provider (design §5 "Views"): null when it has none.</summary>
 public sealed record SubscriptionDetail(
     ItemId Id,
     string DisplayName,
+    ProviderSummaryView? Provider,
     bool AutoRenew,
     LocalDate? CancelledAt,
     LocalDate? ExpiresOn,

@@ -3090,6 +3090,11 @@ export interface components {
             state: string;
         };
         JsonElement: unknown;
+        LabelView: {
+            key: string;
+            name: string;
+            color: string;
+        };
         ManualRateBody: {
             rate: string;
         };
@@ -3156,6 +3161,12 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        ProviderSummaryView: {
+            key: string;
+            name: string;
+            origin: string;
+            labels: components["schemas"]["LabelView"][];
+        };
         PurchaseBody: {
             date: string;
             label: string;
@@ -3204,6 +3215,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             displayName: string;
+            provider?: null | components["schemas"]["ProviderSummaryView"];
             autoRenew: boolean;
             /** Format: date */
             cancelledAt?: null | string;
@@ -3237,6 +3249,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             displayName: string;
+            provider?: null | components["schemas"]["ProviderSummaryView"];
             autoRenew: boolean;
             /** Format: date */
             expiresOn?: null | string;
