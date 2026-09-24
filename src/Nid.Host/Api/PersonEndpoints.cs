@@ -3,6 +3,7 @@ using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
 using IResult = Microsoft.AspNetCore.Http.IResult;
 using UnambitiousFx.Functional.Failures;
@@ -106,6 +107,7 @@ public static class ResultHttp
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,
+            _ when failure.Code == CatalogCodes.SyncRunning => StatusCodes.Status409Conflict,
             _ when failure.Code is FxCodes.InvalidRate or FxCodes.InvalidRange => StatusCodes.Status400BadRequest,
             _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
             _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,

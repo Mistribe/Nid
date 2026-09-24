@@ -78,6 +78,7 @@ app.MapSubscriptionEndpoints();
 app.MapImportEndpoints();
 app.MapPlatformEndpoints();
 app.MapFxEndpoints();
+app.MapCatalogEndpoints();
 app.MapAdminEndpoints();
 app.Run();
 
