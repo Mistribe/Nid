@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { canonicalizeText } from '@/lib/canonical-json';
 import { sha256Hex } from '@/lib/hash';
@@ -162,5 +162,29 @@ describe('Import › sending', () => {
     expect(await screen.findByText("L'import a changé pendant la validation.")).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Valider de nouveau' }));
     await waitFor(() => expect(fake.calls.filter((c) => c === 'validate')).toHaveLength(2));
+  });
+
+  it('stops sending when the page is left, so a return does not race a second send', async () => {
+    const fake = fakeImportServer({ sessions: [session({ state: 'open' })], putDelayMs: 100 });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp(`/import/${SESSION_ID}`);
+
+    await upload(user, nidFile());
+    await waitFor(() => expect(fake.calls).toEqual(['put persons/0']));
+
+    await act(async () => {
+      await router.navigate({ to: '/import' });
+    });
+    // Longer than the remaining batches' PUTs would take: a loop still running would have sent more by now.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(fake.calls).toEqual(['put persons/0']);
+
+    await act(async () => {
+      await router.navigate({ to: '/import/$id', params: { id: SESSION_ID } });
+    });
+    await waitFor(() => expect(fake.calls).toContain('validate'));
+    // The abandoned loop sent exactly its one in-flight batch, then stopped; the new one sends every batch once,
+    // so no slot is ever in flight from two loops at the same time.
+    expect(fake.calls).toEqual(['put persons/0', 'put persons/0', 'put subscriptions/0', 'put billing_phases/0', 'validate']);
   });
 });

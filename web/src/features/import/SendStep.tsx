@@ -35,6 +35,7 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
   const refused = useRef<BatchView[]>([]);
   const pauseRequested = useRef(false);
   const started = useRef(false);
+  const mounted = useRef(false);
   const total = file.batches.length;
 
   const put = useCallback(async (batch: PreparedBatch): Promise<PutResult> => {
@@ -54,6 +55,7 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
     setPhase({ kind: 'validating' });
     try {
       const { data, error } = await fetchClient.POST('/api/v1/platform/imports/{id}/validate', { params: { path: { id } } });
+      if (!mounted.current) return; // left the page while validating: its report belongs to whoever is here now
       if (data) {
         onValidated();
         return;
@@ -62,6 +64,7 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
       // A batch arrived while the server validated (import-format.md §12bis): its report would be stale.
       setPhase(problem.code === 'import.state' ? { kind: 'stale' } : { kind: 'failed', problem });
     } catch {
+      if (!mounted.current) return;
       setPhase({ kind: 'failed', problem: { status: 0 } });
     }
   }, [fetchClient, id, onValidated]);
@@ -79,8 +82,11 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
         setPhase((current) => (current.kind === 'retrying' ? { kind: 'sending' } : current));
       },
       onRetry: () => setPhase({ kind: 'retrying' }),
-      shouldPause: () => pauseRequested.current,
+      // Also stops at the next batch boundary when the page was left: a second SendStep on the same draft
+      // (resuming by navigating back) must never send alongside this one, or its `validate` could race it.
+      shouldPause: () => pauseRequested.current || !mounted.current,
     });
+    if (!mounted.current) return;
     refused.current = [...refused.current, ...outcome.refused];
     if (outcome.kind === 'paused') setPhase({ kind: 'paused' });
     else if (outcome.kind === 'failed')
@@ -90,9 +96,15 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
   }, [file.batches, put, validate]);
 
   useEffect(() => {
-    if (started.current) return; // StrictMode runs effects twice; refs survive, so the file is sent once
-    started.current = true;
-    void run();
+    // Set before the `started` guard: StrictMode's mount-cleanup-mount leaves this true, as a real mount would.
+    mounted.current = true;
+    if (!started.current) {
+      started.current = true;
+      void run();
+    }
+    return () => {
+      mounted.current = false;
+    };
   }, [run]);
 
   const sending = phase.kind === 'sending' || phase.kind === 'retrying';
@@ -104,10 +116,11 @@ export function SendStep({ id, file, onValidated, onCancelled }: {
     <section aria-labelledby="import-send-title" className="space-y-4">
       <h2 id="import-send-title" className="text-lg font-semibold">{t('import.send_title')}</h2>
       <progress value={sent} max={total} aria-label={t('import.progress_label')} className="w-full" />
-      <p role="status" aria-live="polite">{t('import.progress', { sent, total })}</p>
-
-      {phase.kind === 'retrying' ? <p>{t('import.retrying')}</p> : null}
-      {phase.kind === 'paused' ? <p>{t('import.paused')}</p> : null}
+      <div role="status" aria-live="polite" className="space-y-1">
+        <p>{t('import.progress', { sent, total })}</p>
+        {phase.kind === 'retrying' ? <p>{t('import.retrying')}</p> : null}
+        {phase.kind === 'paused' ? <p>{t('import.paused')}</p> : null}
+      </div>
       {phase.kind === 'validating' ? (
         <div aria-busy="true" className="h-16 animate-pulse rounded-md bg-muted">
           <span className="sr-only">{t('import.validating')}</span>
