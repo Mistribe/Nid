@@ -15,5 +15,6 @@ export function downloadReport(session: Session): void {
   link.href = url;
   link.download = name;
   link.click();
-  URL.revokeObjectURL(url);
+  // Deferred: some browsers start the download after `click()` returns, and a revoked address downloads nothing.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

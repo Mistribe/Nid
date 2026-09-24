@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { session } from '@/test/importServer';
-import { reportFile } from './report';
+import { downloadReport, reportFile } from './report';
 
 describe('reportFile', () => {
   it('is the session and its report as indented JSON, named after the session', () => {
@@ -11,5 +11,25 @@ describe('reportFile', () => {
       id: '0192aaaa-0000-7000-8000-000000000001', state: 'committed', createdAt: '2026-09-24T10:00:00+00:00', report,
     });
     expect(file.content.endsWith('\n')).toBe(true);
+  });
+});
+
+describe('downloadReport', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('revokes the file’s address only after the click has been handled', () => {
+    vi.useFakeTimers();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:report');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    downloadReport(session({ state: 'committed' }));
+    expect(click).toHaveBeenCalledOnce();
+    expect(revoke).not.toHaveBeenCalled(); // some browsers read the address after `click()` returns
+    vi.runAllTimers();
+    expect(revoke).toHaveBeenCalledWith('blob:report');
   });
 });
