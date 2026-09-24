@@ -40,8 +40,7 @@
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "placeholder": {
     "title": "Bientôt ici",
-    "subscriptions": "La liste de vos abonnements arrive avec la prochaine version.",
-    "import": "L'assistant d'import arrive avec une prochaine version."
+    "subscriptions": "La liste de vos abonnements arrive avec la prochaine version."
   },
   "settings": {
     "appearance": {
@@ -50,6 +49,58 @@
       "theme": "Thème",
       "chart_patterns": "Motifs dans les graphiques"
     }
+  },
+  "import": {
+    "loading": "Chargement",
+    "recent_title": "Imports récents",
+    "started": "Commencé le",
+    "state_column": "État",
+    "action": "Action",
+    "resume": "Reprendre",
+    "view": "Voir",
+    "state": {
+      "open": "en cours",
+      "validated": "validé",
+      "invalid": "refusé",
+      "committed": "importé",
+      "cancelled": "annulé",
+      "expired": "expiré"
+    },
+    "file_title": "Choisir un fichier",
+    "file_hint": "Un fichier nid.data (JSON). Déposez-le ici ou choisissez-le.",
+    "file_pick": "Choisir un fichier",
+    "reading": "Lecture du fichier",
+    "problems_more": "Et {{n}} autres problèmes.",
+    "local": {
+      "unreadable": "Le fichier n'a pas pu être lu.",
+      "not_utf8": "Le fichier n'est pas encodé en UTF-8.",
+      "not_json": "Le fichier n'est pas du JSON valide (ligne {{line}}, colonne {{column}}).",
+      "duplicate_member": "Une clé apparaît deux fois dans le même objet (ligne {{line}}, colonne {{column}}).",
+      "too_deep": "Le fichier dépasse 32 niveaux d'imbrication (ligne {{line}}, colonne {{column}}).",
+      "not_object": "Le fichier doit contenir un objet JSON.",
+      "format": "Ce n'est pas un fichier nid.data : « format » doit valoir « nid.data ».",
+      "version": "Cette version du format n'est pas prise en charge.",
+      "unknown_section": "Section inconnue : {{path}}.",
+      "reserved_section": "La section {{path}} n'est pas encore importable.",
+      "not_array": "La section {{path}} doit être une liste.",
+      "lone_surrogate": "Un texte contient un caractère invalide : {{path}}.",
+      "nul": "Un texte contient le caractère nul : {{path}}.",
+      "number_out_of_range": "Un nombre est trop grand : {{path}}.",
+      "batch_too_large": "Le lot qui commence à {{path}} dépasse 1 Mo : allégez ces entités.",
+      "empty": "Le fichier ne contient aucune entité."
+    },
+    "check_title": "Contrôle local",
+    "check_file": "Fichier : {{name}}",
+    "check_section": "{{name}} : {{count}}",
+    "check_batches": "Lots à envoyer : {{n}}.",
+    "check_note": "Le serveur vérifie tout le reste avant d'écrire quoi que ce soit.",
+    "another": "Choisir un autre fichier",
+    "session_title": "Import du {{date}}",
+    "session_state": "État : {{state}}",
+    "expired": "Cet import a expiré. Recommencez avec le fichier.",
+    "restart": "Recommencer",
+    "cancelled": "Cet import a été annulé.",
+    "new": "Nouvel import"
   },
   "admin": {
     "loading": "Chargement",
