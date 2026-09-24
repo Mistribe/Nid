@@ -22,7 +22,8 @@
 
 ## 2. Scénarios E2E
 
-L'environnement de test lance le compose applicatif avec un **Authelia de test à deux utilisateurs**.
+L'environnement de test lance le compose applicatif avec un **Authelia de test à deux utilisateurs**. En étape 1, les
+parcours tournent en local contre la pile Aspire (`pnpm --dir web e2e`), pas en CI (web design §7).
 
 - Connexion, session expirée, déconnexion (et purge du cache hors ligne).
 - **Visibilité** : A ne voit pas le privé de B (et inversement), `404` sur un lien direct vers un élément invisible, `403` sur une écriture interdite.

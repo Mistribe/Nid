@@ -1,4 +1,12 @@
-import { createRootRouteWithContext, createRoute, createRouter, redirect, RouterProvider, type RouterHistory } from '@tanstack/react-router';
+import {
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  redirect,
+  RouterProvider,
+  type RouterHistory,
+} from '@tanstack/react-router';
 import { useState } from 'react';
 import { CatalogPage } from '@/features/admin/CatalogPage';
 import { FxPage } from '@/features/admin/FxPage';
@@ -6,7 +14,6 @@ import { HouseholdPage } from '@/features/admin/HouseholdPage';
 import { JobsPage } from '@/features/admin/JobsPage';
 import { SystemPage } from '@/features/admin/SystemPage';
 import { UsersPage } from '@/features/admin/UsersPage';
-import { ImportPage } from '@/features/import/ImportPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
 import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
 import { ForbiddenPage } from './ForbiddenPage';
@@ -45,8 +52,24 @@ const subscriptionsRoute = createRoute({
   getParentRoute: () => rootRoute, path: '/subscriptions', beforeLoad: requireModule('subscriptions'), component: SubscriptionsPage,
 });
 
+// Loaded on demand (web design §6.2): the wizard and its canonicalizer stay out of the initial bundle.
 const importRoute = createRoute({
-  getParentRoute: () => rootRoute, path: '/import', beforeLoad: requireModule('import'), component: ImportPage,
+  getParentRoute: () => rootRoute,
+  path: '/import',
+  beforeLoad: requireModule('import'),
+  component: lazyRouteComponent(() => import('@/features/import/ImportLayout'), 'ImportLayout'),
+});
+
+const importHomeRoute = createRoute({
+  getParentRoute: () => importRoute,
+  path: '/',
+  component: lazyRouteComponent(() => import('@/features/import/ImportHome'), 'ImportHome'),
+});
+
+const importSessionRoute = createRoute({
+  getParentRoute: () => importRoute,
+  path: '$id',
+  component: lazyRouteComponent(() => import('@/features/import/ImportSession'), 'ImportSession'),
 });
 
 const settingsRoute = createRoute({
@@ -79,8 +102,9 @@ const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ad
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute, adminRoute, adminUsersRoute,
-  adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute, adminSystemRoute,
+  indexRoute, subscriptionsRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), settingsRoute, appearanceRoute,
+  forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
+  adminSystemRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

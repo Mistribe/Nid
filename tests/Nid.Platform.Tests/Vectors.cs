@@ -8,13 +8,21 @@ internal static class Vectors
 
     /// <summary>The source directory, found by walking up to <c>Nid.slnx</c>. Only regeneration writes here.</summary>
     public static string InRepository(params string[] parts)
+        => Path.Combine([RepositoryRoot(), "tests", "vectors", "rfc8785", .. parts]);
+
+    /// <summary>The import fixtures the browser shares (<c>web/src/features/import/prepare.test.ts</c>).</summary>
+    public static string CopiedImport(params string[] parts)
+        => Path.Combine([AppContext.BaseDirectory, "vectors", "import", .. parts]);
+
+    public static string InRepositoryImport(params string[] parts)
+        => Path.Combine([RepositoryRoot(), "tests", "vectors", "import", .. parts]);
+
+    private static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Nid.slnx")))
             directory = directory.Parent;
 
-        return directory is null
-            ? throw new InvalidOperationException("Nid.slnx not found above the test output directory.")
-            : Path.Combine([directory.FullName, "tests", "vectors", "rfc8785", .. parts]);
+        return directory?.FullName ?? throw new InvalidOperationException("Nid.slnx not found above the test output directory.");
     }
 }

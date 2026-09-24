@@ -1,0 +1,51 @@
+[
+  {
+    "file": "batching.nid.json",
+    "section": "subscriptions",
+    "index": 0,
+    "count": 500,
+    "sha256": "c35f8b4fa3f64d789edce39dbb21ecbea2aab93f3f0857924e902ee4c3535d0c"
+  },
+  {
+    "file": "batching.nid.json",
+    "section": "subscriptions",
+    "index": 1,
+    "count": 500,
+    "sha256": "84b620a83beb36647376c6df833e70f61f797039b5a7e9042967f4b7e00f3fb4"
+  },
+  {
+    "file": "batching.nid.json",
+    "section": "subscriptions",
+    "index": 2,
+    "count": 201,
+    "sha256": "7598979bf9d6a346fe74e6f70d862775adf18b6316477d6329967bfe88646615"
+  },
+  {
+    "file": "worked-examples.nid.json",
+    "section": "billing_phases",
+    "index": 0,
+    "count": 2,
+    "sha256": "1288714bd3ca0aa684d1879f36970c24227962fa2e0cc3e12ad015c970bd342b"
+  },
+  {
+    "file": "worked-examples.nid.json",
+    "section": "persons",
+    "index": 0,
+    "count": 2,
+    "sha256": "ca81b969e755766d98c8004ef0ce4a9743dbf0d3ddae421372e01f0fcc4d9c8b"
+  },
+  {
+    "file": "worked-examples.nid.json",
+    "section": "purchases",
+    "index": 0,
+    "count": 3,
+    "sha256": "b8b92cb3dabc502ccd4cf1f6ae3c030f79e9431c07f5189986a1c0de7f316b99"
+  },
+  {
+    "file": "worked-examples.nid.json",
+    "section": "subscriptions",
+    "index": 0,
+    "count": 3,
+    "sha256": "90bea3dcdd79066995c013ac3afdafe044462ebc019c2560f7e9e27deb1a82ce"
+  }
+]

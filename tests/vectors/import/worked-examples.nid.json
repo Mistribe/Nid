@@ -1,0 +1,38 @@
+{
+  "format": "nid.data",
+  "version": 1,
+  "exported_at": "2026-09-24T08:00:00Z",
+  "persons": [
+    { "ref": "adult-1", "kind": "adult", "display_name": "Adulte 1", "email": "alice@example.test" },
+    { "ref": "adult-2", "kind": "adult", "display_name": "Adulte 2" }
+  ],
+  "subscriptions": [
+    { "id": "sub-spotify", "provider_key": "spotify", "name": "Spotify Premium Duo",
+      "ownership": [{ "person": "adult-1", "share_bp": 10000 }], "service_users": ["adult-1"], "auto_renew": true },
+    { "id": "sub-nordvpn", "provider_key": "nordvpn", "name": "NordVPN",
+      "ownership": [{ "person": "adult-1", "share_bp": 10000 }], "auto_renew": true },
+    { "id": "sub-wow", "provider_key": "wow", "name": "World of Warcraft",
+      "ownership": [{ "person": "adult-1", "share_bp": 10000 }], "auto_renew": true }
+  ],
+  "billing_phases": [
+    { "id": "ph-spotify-1", "subscription_id": "sub-spotify", "starts_on": "2024-06-28", "ends_on": "2025-06-28",
+      "price": { "amount": "15.17", "currency": "EUR" }, "every": { "count": 1, "unit": "month" }, "payer": { "type": "household" } },
+    { "id": "ph-spotify-2", "subscription_id": "sub-spotify", "starts_on": "2025-06-28", "ends_on": null,
+      "price": { "amount": 17.20, "currency": "EUR" }, "every": { "count": 1, "unit": "month" }, "payer": { "type": "household" },
+      "note": "Tarif réévalué en juin" }
+  ],
+  "purchases": [
+    { "id": "pu-gift", "date": "2025-10-10", "label": "Carte cadeau 3 mois", "kind": "gift",
+      "price": { "amount": "0.00", "currency": "EUR" }, "payer": { "type": "external" },
+      "grants": [{ "subscription_id": "sub-spotify", "duration": { "count": 3, "unit": "month" }, "source": "gift" }] },
+    { "id": "pu-nordvpn", "date": "2025-06-22", "label": "NordVPN 2 ans", "kind": "prepaid_term",
+      "price": { "amount": "179.86", "currency": "EUR" }, "payer": { "type": "person", "person": "adult-1" },
+      "grants": [
+        { "subscription_id": "sub-nordvpn", "duration": { "count": 24, "unit": "month" }, "source": "paid", "starts_on": "2025-06-22" },
+        { "subscription_id": "sub-nordvpn", "duration": { "count": 6, "unit": "month" }, "source": "bonus" }
+      ] },
+    { "id": "pu-wow", "date": "2024-11-18", "label": "Extension", "kind": "bundle",
+      "price": { "amount": "88.99", "currency": "EUR" }, "payer": { "type": "person", "person": "adult-1" }, "allocated_amount": "0",
+      "grants": [{ "subscription_id": "sub-wow", "duration": { "count": 1, "unit": "month" }, "source": "included" }] }
+  ]
+}
