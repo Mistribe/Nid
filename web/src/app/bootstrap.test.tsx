@@ -2,6 +2,7 @@ import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Root } from 'react-dom/client';
 import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSessionResponse, signedOutResponse } from '@/test/fixtures';
 import { server } from '@/test/server';
@@ -146,20 +147,26 @@ describe('bootstrap', () => {
     container = root;
     const location = fakeLocation('/login-refused', '?email=carol%40example.test');
 
-    await act(async () => { await bootstrap({ root, location }); });
+    let reactRoot: Root | null = null;
+    await act(async () => { reactRoot = await bootstrap({ root, location }); });
 
     expect(location.assign).not.toHaveBeenCalled();
     expect(await screen.findByRole('heading', { name: 'Vous ne pouvez pas encore entrer dans Nid' })).toBeInTheDocument();
     expect(screen.getByText(/carol@example\.test/)).toBeInTheDocument();
     await expectNoAxeViolations(root);
+
+    act(() => reactRoot?.unmount());
   });
 
   it('says so when the identity provider sent no email', async () => {
     const root = document.body.appendChild(document.createElement('div'));
     container = root;
 
-    await act(async () => { await bootstrap({ root, location: fakeLocation('/login-refused') }); });
+    let reactRoot: Root | null = null;
+    await act(async () => { reactRoot = await bootstrap({ root, location: fakeLocation('/login-refused') }); });
 
     expect(await screen.findByText(/aucune adresse email/)).toBeInTheDocument();
+
+    act(() => reactRoot?.unmount());
   });
 });
