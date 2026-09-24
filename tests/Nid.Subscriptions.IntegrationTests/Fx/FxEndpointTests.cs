@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using UnambitiousFx.Functional;
 
@@ -87,5 +88,25 @@ public class FxEndpointTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var response = await app.RawAnonymousAsync(HttpMethod.Get, $"{Root}/runs");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Rate_writes_and_the_run_journal_are_refused_to_a_non_admin_but_rates_stay_readable()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        foreach (var (method, url, body) in new (HttpMethod, string, object?)[]
+                 {
+                     (HttpMethod.Put, $"{Root}/2025-10-01/EUR", new { rate = "0.86" }),
+                     (HttpMethod.Post, $"{Root}/sync", null),
+                     (HttpMethod.Get, $"{Root}/runs", null),
+                 })
+        {
+            var response = await app.RawAsync(app.AdultB, method, url, body);
+            Assert.Equal((HttpStatusCode.Forbidden, AdminCodes.Required), (response.StatusCode, await CodeOf(response)));
+        }
+
+        var read = await app.RawAsync(app.AdultB, HttpMethod.Get, $"{Root}?quote=EUR&from=2025-09-01&to=2025-10-31");
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
     }
 }

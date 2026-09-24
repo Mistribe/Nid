@@ -43,3 +43,15 @@ public interface ICreatesItem
 
     Visibility Visibility { get; }
 }
+
+/// <summary>
+/// Reserved to administrators (authorization.md §4, stage 2 bis of the pipeline). Touches no item: the admin
+/// area shows no label, no amount and no item count.
+/// </summary>
+public interface IAdminOnly;
+
+public static class AdminCodes
+{
+    /// <summary>Written <c>admin_required</c> in the documentation; HTTP 403.</summary>
+    public const string Required = "platform.admin_required";
+}

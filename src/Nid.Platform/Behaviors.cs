@@ -12,6 +12,7 @@ public static class PipelineOrder
 {
     public const uint Trace = 10;
     public const uint Actor = 20;
+    public const uint Admin = 25;
     public const uint Scope = 30;
     public const uint ItemAccess = 40;
 
@@ -52,6 +53,22 @@ public sealed class ActorBehavior<TRequest, TResponse>(IActorAccessor accessor)
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
         => accessor.Current is null
             ? ValueTask.FromResult(Result.Failure<TResponse>(new UnauthenticatedFailure("Authentication is required.", null)))
+            : next(request, cancellationToken);
+}
+
+/// <summary>Stage 2 bis of <c>authorization.md</c> §2: an <see cref="IAdminOnly"/> request needs an admin actor.</summary>
+public sealed class AdminBehavior<TRequest, TResponse>(IActorAccessor accessor)
+    : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
+    where TRequest : IRequest<TResponse>
+    where TResponse : notnull
+{
+    public uint Order => PipelineOrder.Admin;
+
+    public ValueTask<Result<TResponse>> HandleAsync(
+        TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
+        => request is IAdminOnly && !accessor.Current!.IsAdmin
+            ? ValueTask.FromResult(Result.Failure<TResponse>(
+                new Failure(AdminCodes.Required, "This action is reserved to administrators.", null)))
             : next(request, cancellationToken);
 }
 

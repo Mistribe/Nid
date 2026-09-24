@@ -15,7 +15,7 @@ describe('the shell', () => {
   });
 
   it('hides a module the server does not enable, and its route sends you home', async () => {
-    const { router } = await renderApp('/import', { capabilities: { modules: ['core', 'subscriptions'] } });
+    const { router } = await renderApp('/import', { capabilities: { modules: ['core', 'subscriptions'], admin: false } });
     expect(within(sidebar()).queryByRole('link', { name: 'Import' })).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/subscriptions');
   });

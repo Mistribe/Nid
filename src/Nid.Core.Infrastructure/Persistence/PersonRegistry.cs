@@ -10,54 +10,114 @@ namespace Nid.Core.Infrastructure.Persistence;
 
 public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegistry
 {
-    public const int MaxAdults = 2;
-    private const long ProvisioningLockKey = 0x4E49_4401; // "NID" + 1
+    /// <summary>Serialises everything that counts adults or admins: first logins, pre-registration, the cap, demotions.</summary>
+    internal const long ProvisioningLockKey = 0x4E49_4401; // "NID" + 1
 
     public async Task<Result<PersonInfo>> ProvisionAdultAsync(
         string oidcSubject, string displayName, string? email, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-
-        // Two first logins at the same instant must not both pass the cap check.
-        await db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock({ProvisioningLockKey})", ct);
+        await LockAsync(ct);
 
         var existing = await db.Persons.SingleOrDefaultAsync(p => p.OidcSubject == oidcSubject, ct);
         if (existing is not null)
         {
             existing.DisplayName = displayName;
-            existing.Email = email;
+            // A claim that now carries another adult's email must not break the unique index: keep the old one.
+            if (email is null || !await EmailTakenAsync(email, existing.Id, ct))
+                existing.Email = email?.Trim();
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return Result.Success(ToInfo(existing));
         }
 
-        var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
-        if (adults >= MaxAdults)
-            return Result.Failure<PersonInfo>(new Failure("core.adult_cap", "This household already has two adults.", null));
-
-        var row = new PersonRow
+        if (!await db.Persons.AnyAsync(p => p.Kind == "adult", ct))
         {
-            Id = PersonId.New().Value,
-            Kind = "adult",
-            OidcSubject = oidcSubject,
-            DisplayName = displayName,
-            Email = email,
-            CreatedAt = clock.GetCurrentInstant(),
-        };
+            // The first person to sign in administers the household (administration-and-audit.md §2.1).
+            var first = NewAdult(oidcSubject, displayName, email?.Trim(), isAdmin: true);
+            db.Persons.Add(first);
+            if (!await db.HouseholdSettings.AnyAsync(ct))
+                db.HouseholdSettings.Add(new HouseholdSettingsRow());
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Result.Success(ToInfo(first));
+        }
+
+        var normalized = email?.Trim().ToLowerInvariant();
+        var pending = normalized is null
+            ? null
+            : await db.Persons.SingleOrDefaultAsync(
+                p => p.Kind == "adult" && p.OidcSubject == null && p.Email != null && p.Email.ToLower() == normalized, ct);
+        if (pending is null)
+            return Fail(PersonCodes.NotRegistered, "No administrator has added this person to the household.");
+
+        pending.OidcSubject = oidcSubject;
+        pending.DisplayName = displayName;
+        pending.Email = email!.Trim();
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(ToInfo(pending));
+    }
+
+    public async Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+            return Fail(PersonCodes.NameRequired, "A name is required.");
+        var address = email?.Trim() ?? "";
+        if (!LooksLikeEmail(address))
+            return Fail(PersonCodes.EmailRequired, "An email address is required: it is how the person is recognised at their first sign-in.");
+
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await LockAsync(ct);
+
+        if (await EmailTakenAsync(address, null, ct))
+            return Fail(PersonCodes.EmailTaken, "Another adult already has this email address.");
+        var cap = await db.HouseholdSettings.Select(s => (int?)s.MaxAdults).FirstOrDefaultAsync(ct) ?? new HouseholdSettingsRow().MaxAdults;
+        if (await db.Persons.CountAsync(p => p.Kind == "adult", ct) >= cap)
+            return Fail(PersonCodes.AdultCap, $"This household is limited to {cap} adults.");
+
+        var row = NewAdult(null, displayName.Trim(), address, isAdmin: false);
         db.Persons.Add(row);
-
-        if (!await db.HouseholdSettings.AnyAsync(ct))
-            db.HouseholdSettings.Add(new HouseholdSettingsRow());
-
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return Result.Success(ToInfo(row));
     }
 
+    private Task LockAsync(CancellationToken ct)
+        => db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock({ProvisioningLockKey})", ct);
+
+    private Task<bool> EmailTakenAsync(string email, Guid? except, CancellationToken ct)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        return db.Persons.AnyAsync(
+            p => p.Kind == "adult" && p.Email != null && p.Email.ToLower() == normalized && (except == null || p.Id != except.Value), ct);
+    }
+
+    /// <summary>Only what the binding needs: one '@' with something on each side, no space. Authelia owns the real address.</summary>
+    private static bool LooksLikeEmail(string value)
+    {
+        var at = value.IndexOf('@');
+        return value.Length <= 254 && at > 0 && at == value.LastIndexOf('@') && at < value.Length - 1 && !value.Any(char.IsWhiteSpace);
+    }
+
+    private PersonRow NewAdult(string? subject, string displayName, string? email, bool isAdmin) => new()
+    {
+        Id = PersonId.New().Value,
+        Kind = "adult",
+        OidcSubject = subject,
+        DisplayName = displayName,
+        Email = email,
+        IsAdmin = isAdmin,
+        CreatedAt = clock.GetCurrentInstant(),
+    };
+
+    private static Result<PersonInfo> Fail(string code, string message)
+        => Result.Failure<PersonInfo>(new Failure(code, message, null));
+
     public async Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(displayName))
-            return Result.Failure<PersonInfo>(new Failure("core.name_required", "A name is required.", null));
+            return Result.Failure<PersonInfo>(new Failure(PersonCodes.NameRequired, "A name is required.", null));
 
         var row = new PersonRow
         {
@@ -107,10 +167,67 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Serialised against a first login or an import binding this same pending adult (both take the same
+        // lock): neither can turn it active out from under this delete, and this delete cannot remove it out
+        // from under either.
+        await LockAsync(ct);
+
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "adult", ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("person", id.ToString()));
+        if (row.OidcSubject is not null)
+            return Result.Failure(new Failure(PersonCodes.PersonActive, "Only an adult who has not signed in yet can be removed.", null));
+        // The import resolves adults by email, pending ones included (import-format.md §5.1).
+        if (await db.Ownerships.AnyAsync(o => o.PersonId == row.Id, ct))
+            return Result.Failure(new Failure(PersonCodes.PersonActive, "This adult already owns items: they cannot be removed.", null));
+
+        db.Persons.Remove(row);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<PersonInfo>> SetAdminAsync(PersonId id, bool isAdmin, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Two admins demoting each other at once must not both see "another admin remains".
+        await LockAsync(ct);
+
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
+        if (row.Kind != "adult")
+            return Fail(PersonCodes.NotAnAdult, "Only an adult can be an administrator.");
+        if (row.IsAdmin && !isAdmin && row.OidcSubject is not null
+            && await db.Persons.CountAsync(p => p.IsAdmin && p.OidcSubject != null, ct) == 1)
+            return Fail(PersonCodes.LastAdmin, "The household needs at least one administrator who has signed in.");
+
+        row.IsAdmin = isAdmin;
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(ToInfo(row));
+    }
+
+    public async Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct)
+    {
+        var changed = await db.Persons.Where(p => p.Id == id.Value && p.Kind == "adult")
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.SessionEpoch, p => p.SessionEpoch + 1), ct);
+        if (changed == 0)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
+
+        var row = await db.Persons.AsNoTracking().SingleAsync(p => p.Id == id.Value, ct);
+        return Result.Success(ToInfo(row));
+    }
+
     private static PersonInfo ToInfo(PersonRow row) => new(
         new PersonId(row.Id),
         row.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent,
         row.DisplayName,
         row.Email,
-        row.SessionEpoch);
+        row.SessionEpoch,
+        row.IsAdmin,
+        row.Kind == "adult" && row.OidcSubject is null);
 }

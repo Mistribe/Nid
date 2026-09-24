@@ -50,7 +50,8 @@ fx_rate (indépendante)
 | Champ | Type | Remarques |
 |---|---|---|
 | `name` | text | Nom du foyer |
-| `reference_currency` | char(3) | Devise des totaux (défaut `EUR`) |
+| `reference_currency` | char(3) | Devise des totaux (défaut `EUR`). Modifiée par un admin |
+| `max_adults` | int | Plafond d'adultes, en attente compris (défaut 2, au moins 1 et au moins le nombre d'adultes). Modifié par un admin (`identity-and-access/administration-and-audit.md` §2) |
 | `timezone` | text | Fuseau IANA (défaut `Europe/Paris`) : jour courant, tâches planifiées |
 | `locale` | text | Langue et formats d'affichage |
 
@@ -60,9 +61,10 @@ fx_rate (indépendante)
 |---|---|---|
 | `id` | uuid | |
 | `kind` | text | `adult` (peut se connecter) ou `dependent` (enfant du foyer, sans connexion) |
-| `oidc_subject` | text?, unique | `sub` fourni par Authelia. **Obligatoire pour un `adult`, vide pour un `dependent`** |
+| `oidc_subject` | text?, unique | `sub` fourni par Authelia. Vide pour un `dependent`, et pour un `adult` **en attente** (pré-enregistré, pas encore connecté) |
 | `display_name` | text | Repris des claims OIDC pour un `adult`, saisi pour un `dependent` |
-| `email` | text? | Repris des claims OIDC ; vide pour un `dependent` |
+| `email` | text? | Saisi au pré-enregistrement, puis repris des claims OIDC ; clé de rattachement d'un adulte en attente, unique sans tenir compte de la casse parmi les `adult` ; vide pour un `dependent` |
+| `is_admin` | bool | Rôle technique (`identity-and-access/administration-and-audit.md` §2). Faux pour un `dependent` ; au moins un `adult` admin dès qu'un adulte existe |
 | `session_epoch` | int | Incrémenté par « déconnecter partout » : les cookies d'un ancien epoch sont refusés (`identity-and-access/authentication.md` §3) |
 | `preferences` | jsonb | Préférences d'interface de l'adulte : `theme`, `mode`, `chart_patterns` (`frontend/design-system.md` §7.6) et `ai_cloud_default` (`ask` ou `never`, `ingestion/llm-providers.md` §6). Lues par `GET /auth/session`, modifiées par `PATCH /api/v1/core/me/preferences` (fusion des clés fournies). Vide pour un `dependent` |
 | `created_at` | timestamptz | |
@@ -95,7 +97,9 @@ Vérifiés à l'écriture par Core, doublés de tests d'intégration :
 - Ajouter un propriétaire à un élément privé le passe en `shared`.
 - Pas de suppression physique d'un `item` : on l'archive.
 - `module` + `kind` appartiennent au module : Core n'interprète pas ces valeurs.
-- Un `adult` a un `oidc_subject`, un `dependent` n'en a pas. Il y a au plus **deux `adult`**.
+- Un `adult` actif a un `oidc_subject`, un `adult` en attente et un `dependent` n'en ont pas. Le nombre d'`adult` ne dépasse pas `max_adults`.
+- Dès qu'un `adult` existe, au moins un `adult` est admin ; un `dependent` ne l'est jamais. Le rôle n'entre pas dans la matrice de droits (§4.3).
+- Seul un `adult` en attente peut être supprimé : un adulte actif a pu posséder des éléments.
 - Un `dependent` **n'agit jamais** : il ne se connecte pas et ne crée rien. Il peut être propriétaire d'un élément ou utilisateur d'un service.
 - Un élément dont les seuls propriétaires sont des `dependent` ne peut pas être `private` (les deux adultes seraient exclus).
 
@@ -117,10 +121,11 @@ Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tabl
 - **Total « moi »** : éléments partagés au prorata de mes parts, plus mes éléments privés.
 - **Personne agissante** : les contrats d'accès (`IAccessPolicy`, `IVisibleItems`) prennent toujours un `adult`. La répartition par personne (« moi », « ma femme », un enfant) couvre tous les `person`, y compris les `dependent`.
 
-### 4.4 Amorçage des deux utilisateurs
+### 4.4 Amorçage des utilisateurs
 
-- Authelia est la source des identités. À la première connexion OIDC, Core crée la `person` de type `adult` depuis les claims (`sub`, nom, email).
-- Après **deux `adult`**, toute nouvelle identité OIDC est refusée (application prévue pour deux utilisateurs). Verrou levable par configuration.
+- Authelia est la source des identités. À la **toute première** connexion OIDC (base sans adulte), Core crée la `person` de type `adult` depuis les claims (`sub`, nom, email), avec `is_admin = true`.
+- Les adultes suivants sont **pré-enregistrés** par un admin (nom, email, `oidc_subject` vide : « en attente ») puis rattachés à leur première connexion par l'email. Une identité sans adulte en attente correspondant est refusée (`../identity-and-access/authentication.md` §5).
+- Le nombre d'adultes, en attente compris, est plafonné par `household_settings.max_adults` (2 par défaut, réglable dans la zone admin).
 - Les `dependent` sont créés par un adulte dans l'interface (un nom suffit), sans connexion.
 
 ### 4.5 Jetons et identifiants de service

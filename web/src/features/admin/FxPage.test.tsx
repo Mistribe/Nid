@@ -1,0 +1,69 @@
+import { screen, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { describe, expect, it } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
+import { adminCapabilities } from '@/test/fixtures';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import { formatInstant } from './format';
+
+const run = {
+  id: '01926b9e-0000-7000-8000-0000000000f1', kind: 'backfill', startedAt: '2026-09-24T07:00:00+00:00',
+  finishedAt: '2026-09-24T07:02:00+00:00', status: 'succeeded', filesRead: 2, rowsWritten: 1200, failureCode: null, rejected: [],
+};
+
+describe('Administration › Taux de change', () => {
+  it('lists the collection runs', async () => {
+    server.use(http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([run])));
+    const { container } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    const row = await screen.findByRole('row', { name: /rattrapage/ });
+    expect(row).toHaveTextContent('réussi');
+    expect(row).toHaveTextContent(formatInstant(run.startedAt));
+    expect(row).toHaveTextContent('1200');
+    await expectNoAxeViolations(container);
+  });
+
+  it('asks for a collection, and says when one is already running', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])),
+      http.post('*/api/v1/core/fx-rates/sync', () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ requested: true }, { status: 202 })
+          : HttpResponse.json({ status: 409, code: 'core.fx_sync_running', title: 'A rate collection is already running.' }, { status: 409 });
+      }),
+    );
+    const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Synchroniser' }));
+    expect(calls).toBe(0);
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Collecte demandée');
+
+    await user.click(screen.getByRole('button', { name: 'Synchroniser' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une collecte est déjà en cours'));
+  });
+
+  it('enters a manual rate', async () => {
+    const sent: Array<{ path: string; body: unknown }> = [];
+    server.use(
+      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])),
+      http.put('*/api/v1/core/fx-rates/:date/:quote', async ({ request, params }) => {
+        sent.push({ path: `${String(params.date)}/${String(params.quote)}`, body: await request.json() });
+        return HttpResponse.json({ onDate: params.date, quote: params.quote, rate: '0.8612', source: 'manual' });
+      }),
+    );
+    const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    await user.type(await screen.findByLabelText('Date'), '2025-10-01');
+    await user.type(screen.getByLabelText('Devise'), 'eur');
+    await user.type(screen.getByLabelText('Taux pour 1 USD'), '0,8612');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
+
+    await waitFor(() => expect(sent).toEqual([{ path: '2025-10-01/EUR', body: { rate: '0.8612' } }]));
+    expect(await screen.findByRole('status')).toHaveTextContent('Taux enregistré');
+  });
+});

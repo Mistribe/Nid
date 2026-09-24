@@ -16,4 +16,6 @@ export const signedOutResponse: SessionResponse = {
   authenticated: false, person: null, csrf: null, sessionEpoch: null, preferences: null,
 };
 
-export const allCapabilities: components['schemas']['CapabilitiesView'] = { modules: ['core', 'subscriptions', 'import'] };
+export const allCapabilities: components['schemas']['CapabilitiesView'] = { modules: ['core', 'subscriptions', 'import'], admin: false };
+
+export const adminCapabilities: components['schemas']['CapabilitiesView'] = { ...allCapabilities, admin: true };

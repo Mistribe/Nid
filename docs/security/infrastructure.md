@@ -69,7 +69,7 @@ Voir aussi `../architecture.md` §11.
 
 ## 6. Observabilité de sécurité
 
-- Événements de sécurité de l'audit (`../identity-and-access/administration-and-audit.md` §3.1) plus `access_violation`.
+- Événements de sécurité de l'audit (`../identity-and-access/administration-and-audit.md` §4.1) plus `access_violation`.
 - Métriques : échecs d'authentification, refus du `SafeHttpClient`, appels LLM et coût du mois, âge de la dernière sauvegarde.
 - Alertes par email aux deux adultes pour les événements critiques.
 

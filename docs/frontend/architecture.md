@@ -40,7 +40,7 @@
   theme-init.js   script externe bloquant (voir §9)
 ```
 
-- Les dossiers de `/features` reprennent les modules du backend. Un module désactivé disparaît de la navigation : le SPA lit `GET /api/v1/platform/capabilities`.
+- Les dossiers de `/features` reprennent les modules du backend. Un module désactivé disparaît de la navigation : le SPA lit `GET /api/v1/platform/capabilities`. Ses champs : `modules` et `admin` (l'acteur est-il admin ; la feature `admin` n'est routée et affichée que si vrai, le serveur refusant de toute façon en `403 platform.admin_required`).
 - `schema.d.ts` est généré par le développeur depuis l'OpenAPI (`dotnet build` réécrit `src/api/openapi.json`, puis `pnpm --dir web gen:api`), **versionné** ; la CI vérifie qu'il est à jour (`pnpm check:api`, `../architecture.md` §13).
 
 ## 3. Amorçage

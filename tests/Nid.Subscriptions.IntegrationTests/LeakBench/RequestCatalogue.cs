@@ -1,9 +1,11 @@
 using System.Reflection;
 using System.Text.Json;
 using Nid.Core.Application;
+using Nid.Core.Application.Admin;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Platform;
+using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Subscriptions.Application;
@@ -104,6 +106,16 @@ public static class RequestCatalogue
         new(typeof(GetFxRatesQuery), false,
             (_, _) => new GetFxRatesQuery("EUR", new NodaTime.LocalDate(2025, 1, 1), new NodaTime.LocalDate(2025, 1, 31))),
         new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery()),
+
+        new(typeof(ListAdultsQuery), false, (_, _) => new ListAdultsQuery()),
+        new(typeof(PreRegisterAdultCommand), false, (_, _) => new PreRegisterAdultCommand("bench-adult", "bench@example.test")),
+        new(typeof(DeletePendingAdultCommand), false, (_, _) => new DeletePendingAdultCommand(PersonId.New())),
+        new(typeof(SetAdminCommand), false, (data, _) => new SetAdminCommand(data.App.AdultB, false)),
+        new(typeof(RevokeSessionsCommand), false, (data, _) => new RevokeSessionsCommand(data.App.AdultB)),
+        new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
+        new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null)),
+        new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
+        new(typeof(GetSystemStatusQuery), false, (_, _) => new GetSystemStatusQuery()),
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),

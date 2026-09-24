@@ -46,7 +46,10 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The host's root provider; create a scope before resolving scoped services.</summary>
     public IServiceProvider Services => factory.Services;
 
+    /// <summary>The household's admin (the first adult, administration-and-audit.md §2.1).</summary>
     public PersonId AdultA { get; }
+
+    /// <summary>An adult who is not admin.</summary>
     public PersonId AdultB { get; }
     public PersonId Dependent { get; }
 
@@ -67,7 +70,7 @@ public sealed class NidApp : IAsyncDisposable
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
         {
             db.Persons.AddRange(
-                NewPerson(out var a, "adult", "sub-a"),
+                NewPerson(out var a, "adult", "sub-a", isAdmin: true),
                 NewPerson(out var b, "adult", "sub-b"),
                 NewPerson(out var d, "dependent", null));
             await db.SaveChangesAsync();
@@ -92,6 +95,8 @@ public sealed class NidApp : IAsyncDisposable
                 {
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
+                    // No test reaches the identity provider (https://auth.test.localhost does not exist).
+                    services.AddSingleton<Nid.Host.Admin.IIdentityProviderProbe>(new ReachableIdentityProvider());
                     overrides?.Invoke(services);
                 });
             });
@@ -100,13 +105,13 @@ public sealed class NidApp : IAsyncDisposable
         }
     }
 
-    private static PersonRow NewPerson(out PersonId id, string kind, string? subject)
+    private static PersonRow NewPerson(out PersonId id, string kind, string? subject, bool isAdmin = false)
     {
         var guid = Guid.CreateVersion7();
         id = new PersonId(guid);
         return new PersonRow
         {
-            Id = guid, Kind = kind, OidcSubject = subject,
+            Id = guid, Kind = kind, OidcSubject = subject, IsAdmin = isAdmin,
             DisplayName = kind + "-" + guid.ToString("N")[..4],
             CreatedAt = SystemClock.Instance.GetCurrentInstant(),
         };
@@ -231,7 +236,8 @@ public sealed class NidApp : IAsyncDisposable
             i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>));
 
         await using var scope = factory.Services.CreateAsyncScope();
-        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(actor);
+        var person = await scope.ServiceProvider.GetRequiredService<IPersonRegistry>().FindAsync(actor, ct);
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(actor, person?.IsAdmin == true);
 
         var invoke = typeof(NidApp)
             .GetMethod(nameof(InvokeCoreAsync), BindingFlags.NonPublic | BindingFlags.Static)!
@@ -342,5 +348,10 @@ public sealed class NidApp : IAsyncDisposable
     private sealed class FixedClock(Instant instant) : IClock
     {
         public Instant GetCurrentInstant() => instant;
+    }
+
+    private sealed class ReachableIdentityProvider : Nid.Host.Admin.IIdentityProviderProbe
+    {
+        public Task<bool> IsReachableAsync(CancellationToken ct) => Task.FromResult(true);
     }
 }

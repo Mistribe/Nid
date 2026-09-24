@@ -4,8 +4,9 @@ import { createRoot, type Root } from 'react-dom/client';
 import { createApi, type Api } from '@/api/client';
 import { isProblem, present, toProblem } from '@/api/errors';
 import { App } from './App';
+import { LoginRefusedPage } from './LoginRefusedPage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
-import { loadSession, loginUrl, SIGNED_OUT_PATH, type Session } from './session';
+import { loadSession, loginUrl, LOGIN_REFUSED_PATH, SIGNED_OUT_PATH, type Session } from './session';
 import { SignedOutPage } from './SignedOutPage';
 import { StartupFailure } from './StartupFailure';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from './theme';
@@ -48,6 +49,18 @@ async function renderSignedOut(root: HTMLElement, api: Api): Promise<Root> {
   return reactRoot;
 }
 
+/** No session exists, and the login redirect would loop through the identity provider: render the page as it is. */
+function renderLoginRefused(root: HTMLElement, location: AppLocation): Root {
+  const email = new URLSearchParams(location.search).get('email');
+  const reactRoot = createRoot(root);
+  reactRoot.render(
+    <StrictMode>
+      <LoginRefusedPage email={email} />
+    </StrictMode>,
+  );
+  return reactRoot;
+}
+
 /** frontend/architecture.md §3: session, preferences, capabilities, then the app. `null` when it redirected to login instead of rendering. */
 export async function bootstrap({ root, location }: { root: HTMLElement; location: AppLocation }): Promise<Root | null> {
   let csrf: string | null = null;
@@ -62,6 +75,7 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
 
   // Never the login redirect here: the identity provider's open session would sign the same person straight back in.
   if (location.pathname === SIGNED_OUT_PATH) return renderSignedOut(root, api);
+  if (location.pathname === LOGIN_REFUSED_PATH) return renderLoginRefused(root, location);
 
   let session: Session | null;
   try {
