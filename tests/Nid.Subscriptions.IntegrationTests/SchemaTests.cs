@@ -161,5 +161,11 @@ public class SchemaTests(PostgresFixture fixture)
             .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'core' and table_name like 'fx%' order by table_name")
             .ToListAsync();
         Assert.Equal(["fx_rate", "fx_sync_run"], fx);
+
+        // The rate reads go by quote (FxRateStore.ReadAsync, PreviousAsync): an index leads with it.
+        var quoteIndex = await core.Database
+            .SqlQueryRaw<string>("select indexdef as \"Value\" from pg_indexes where schemaname = 'core' and indexname = 'ix_fx_rate_quote_on_date'")
+            .SingleAsync();
+        Assert.EndsWith("(quote, on_date)", quoteIndex);
     }
 }

@@ -4,6 +4,7 @@ using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain;
 using NodaTime;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -306,7 +307,7 @@ public sealed class SubscriptionsImportSection(
                 var at = origin is not null && paths.TryGetValue(origin, out var found) ? found : run.Path;
                 if (reported.Add((at, miss)))
                     issues.Add(ImportIssue.Warning(FxCodes.RateMissing,
-                        $"No {miss.Currency.Code} rate on or within {table.MaxGapDays} days before {miss.Date}: the totals of this payment stay in {charge.Price.Currency.Code}.",
+                        $"No {miss.Currency.Code} rate on or within {table.MaxGapDays} days before {LocalDatePattern.Iso.Format(miss.Date)}: the totals of this payment stay in {charge.Price.Currency.Code}.",
                         at));
             }
         }

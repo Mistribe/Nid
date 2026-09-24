@@ -112,6 +112,25 @@ public class FxReaderTests
     }
 
     [Fact]
+    public void A_duplicated_ECB_date_row_yields_one_rate_per_quote_the_first_row_winning()
+    {
+        const string csv = """
+            Date,USD,GBP,
+            2026-09-22,1.25,0.75,
+            2026-09-22,1.6,0.8,
+            2026-09-21,1.25,0.8,
+
+            """;
+
+        var reading = EcbReader.Read(Zip(("eurofxref-hist.csv", csv))).Ok();
+
+        var day = reading.Rates.Where(r => r.OnDate == new LocalDate(2026, 9, 22)).ToList();
+        Assert.Equal(2, day.Count); // EUR and GBP, once each
+        Assert.Equal(0.8m, Assert.Single(day, r => r.Quote == Currency.Eur).Rate);  // 1 / 1.25, the first row
+        Assert.Equal(0.6m, Assert.Single(day, r => r.Quote == Code("GBP")).Rate);   // 0.75 / 1.25
+    }
+
+    [Fact]
     public void An_ECB_zip_with_two_entries_or_not_a_zip_is_malformed()
     {
         Assert.Equal(FxCodes.SourceMalformed, FailureCode(EcbReader.Read(Zip(("a.csv", EcbCsv), ("b.csv", EcbCsv)))));

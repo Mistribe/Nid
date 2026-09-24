@@ -76,7 +76,7 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 
 | Risque | Vérifié pendant | Statut |
 |---|---|---|
-| Quartz.NET sur PostgreSQL | 1C2a | **levé** (2026-09-24) : tables migrées, job persisté et déclenché, exécution journalisée, second déclenchement pendant qu'un run tourne refusé (`QuartzTests`) |
+| Quartz.NET sur PostgreSQL | 1C2a | **levé** (2026-09-24) : tables migrées, job persisté et déclenché, exécution journalisée, (`QuartzTests`) ; le refus d'un second déclenchement pendant qu'un run tourne est vérifié par `FxRunLogTests`, `FxCollectorTests` et `FxEndpointTests` |
 | `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) | premier consommateur réel (hors étape 1, décidé le 2026-09-22) | à faire |
 | Client OpenAPI généré et bibliothèques du frontend | début de 1E1 | **levé** (2026-09-23) : document généré au build, client `openapi-typescript`, régénérés et comparés par la CI |
 | SDK MCP C# en exécution | étape 4 | à faire |

@@ -69,6 +69,8 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
                 t.HasCheckConstraint("ck_fx_rate_source", "source in ('ecb','subtracker_data','manual')");
             });
             e.HasKey(x => new { x.OnDate, x.Quote });
+            // The reads go by quote first (FxRateStore.ReadAsync, PreviousAsync's distinct on): the key leads with the date.
+            e.HasIndex(x => new { x.Quote, x.OnDate });
             e.Property(x => x.Quote).HasColumnType("char(3)");
             e.Property(x => x.Rate).HasColumnType("numeric(19,10)");
             e.Property(x => x.FetchedAt).HasDefaultValueSql("now()");

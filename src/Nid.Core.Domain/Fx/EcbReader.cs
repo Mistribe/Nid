@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using Nid.Core.Contracts;
+using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -10,7 +11,9 @@ namespace Nid.Core.Domain.Fx;
 
 /// <summary>
 /// <c>eurofxref-hist.zip</c>: one CSV, <c>Date,USD,JPY,…,</c>, newest row first, <c>N/A</c> for a missing value,
-/// each row ending with an empty column. Base EUR, rebased on USD row by row (design §4.3).
+/// each row ending with an empty column. Base EUR, rebased on USD row by row (design §4.3). A date listed twice
+/// keeps the rates of its first row: one write never carries the same (date, quote) twice, which PostgreSQL's
+/// <c>on conflict do update</c> refuses.
 /// </summary>
 public static class EcbReader
 {
@@ -64,6 +67,7 @@ public static class EcbReader
             columns[i] = Currency.TryCreate(header[i], out var currency) ? currency : null;
 
         var rates = new List<FxRate>();
+        var seen = new HashSet<(LocalDate, Currency)>();
         var rejected = new List<FxRejection>();
         for (var line = 1; line < lines.Length; line++)
         {
@@ -88,7 +92,7 @@ public static class EcbReader
                 continue; // no USD that day: nothing can be rebased
 
             var reading = FxRebase.ToUsd(date, Currency.Eur, perEur, FxRateSource.Ecb);
-            rates.AddRange(reading.Rates);
+            rates.AddRange(reading.Rates.Where(r => seen.Add((r.OnDate, r.Quote))));
             rejected.AddRange(reading.Rejected);
         }
 

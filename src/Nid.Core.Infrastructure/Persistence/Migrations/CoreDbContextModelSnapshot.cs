@@ -52,6 +52,9 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.HasKey("OnDate", "Quote")
                         .HasName("pk_fx_rate");
 
+                    b.HasIndex("Quote", "OnDate")
+                        .HasDatabaseName("ix_fx_rate_quote_on_date");
+
                     b.ToTable("fx_rate", "core", t =>
                         {
                             t.HasCheckConstraint("ck_fx_rate_not_usd", "quote <> 'USD'");
