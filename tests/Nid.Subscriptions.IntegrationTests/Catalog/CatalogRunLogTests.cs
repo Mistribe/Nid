@@ -54,6 +54,23 @@ public class CatalogRunLogTests(PostgresFixture fixture)
         Assert.Equal((CatalogRunStatus.Failed, CatalogCodes.RunAbandoned), (abandoned.Status, abandoned.FailureCode));
     }
 
+    /// <summary>Final review F1: a run left running by a crash no longer blocks a request once it is an hour old.</summary>
+    [Fact]
+    public async Task A_run_left_running_for_an_hour_no_longer_counts_as_running()
+    {
+        var (log, clock) = await NewLogAsync();
+        Assert.NotNull(await log.TryStartAsync(Commit, default));
+
+        clock.Now = Start + Duration.FromMinutes(59);
+        Assert.True(await log.IsRunningAsync(default));
+
+        clock.Now = Start + Duration.FromMinutes(61);
+        Assert.False(await log.IsRunningAsync(default));
+        var abandoned = Assert.Single(await log.RecentAsync(10, default));
+        Assert.Equal((CatalogRunStatus.Failed, CatalogCodes.RunAbandoned, (Instant?)clock.Now),
+            (abandoned.Status, abandoned.FailureCode, abandoned.FinishedAt));
+    }
+
     [Fact]
     public async Task The_report_round_trips()
     {

@@ -17,14 +17,7 @@ public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICa
     public async Task<CatalogSyncRun?> TryStartAsync(string commit, CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
-        var stale = now - AbandonedAfter;
-        await db.CatalogSyncRuns
-            .Where(r => r.Status == "running" && r.StartedAt < stale)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.Status, "failed")
-                .SetProperty(r => r.FinishedAt, (Instant?)now)
-                .SetProperty(r => r.FailureCode, CatalogCodes.RunAbandoned)
-                .SetProperty(r => r.FailureMessage, "The sync did not finish within an hour."), ct);
+        await CloseAbandonedAsync(now, ct);
 
         var row = new CatalogSyncRunRow { Id = Guid.CreateVersion7(), StartedAt = now, Status = "running", Commit = commit };
         db.CatalogSyncRuns.Add(row);
@@ -53,7 +46,27 @@ public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICa
             .SetProperty(r => r.Report, report), ct);
     }
 
-    public Task<bool> IsRunningAsync(CancellationToken ct) => db.CatalogSyncRuns.AnyAsync(r => r.Status == "running", ct);
+    public async Task<bool> IsRunningAsync(CancellationToken ct)
+    {
+        // Final review F1: the catalog has no schedule and the startup stops syncing after a success, so a run a crash
+        // left running would otherwise refuse every request for ever.
+        await CloseAbandonedAsync(clock.GetCurrentInstant(), ct);
+        return await db.CatalogSyncRuns.AnyAsync(r => r.Status == "running", ct);
+    }
+
+    public Task CloseAbandonedAsync(CancellationToken ct) => CloseAbandonedAsync(clock.GetCurrentInstant(), ct);
+
+    private Task<int> CloseAbandonedAsync(Instant now, CancellationToken ct)
+    {
+        var stale = now - AbandonedAfter;
+        return db.CatalogSyncRuns
+            .Where(r => r.Status == "running" && r.StartedAt < stale)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, "failed")
+                .SetProperty(r => r.FinishedAt, (Instant?)now)
+                .SetProperty(r => r.FailureCode, CatalogCodes.RunAbandoned)
+                .SetProperty(r => r.FailureMessage, "The sync did not finish within an hour."), ct);
+    }
 
     public Task<bool> HasSucceededAsync(CancellationToken ct) => db.CatalogSyncRuns.AnyAsync(r => r.Status == "succeeded", ct);
 

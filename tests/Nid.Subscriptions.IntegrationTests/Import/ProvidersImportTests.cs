@@ -69,6 +69,33 @@ public class ProvidersImportTests(PostgresFixture fixture)
         Assert.Equal(3, (await CustomProvidersAsync(app)).Count);
     }
 
+    /// <summary>
+    /// Final review H4: an entry is resolved to an earlier import's provider only while it can still be linked — visible
+    /// and not archived, the rule every write applies. The importer's own archived provider keeps its reference, so its
+    /// entry is a conflict; another adult's archived one is left alone and the entry gets a new provider.
+    /// </summary>
+    [Fact]
+    public async Task An_archived_provider_of_an_earlier_import_is_not_reused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, GoldenFile.Sections());
+        await using (var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+            await subs.Providers.Where(p => p.ImportRef == "wow")
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ArchivedAt, (NodaTime.Instant?)NodaTime.SystemClock.Instance.GetCurrentInstant()));
+
+        var mine = await client.RunAsync(app.AdultA, Adults(app), GoldenFile.Sections());
+
+        Assert.Equal(new CountsResponse(0, 2, 1), mine.Report!.Sections["providers"]);
+        Assert.Equal("providers[2]", Assert.Single(mine.Report.Issues, i => i.Code == ImportCodes.Conflict).Path);
+        Assert.True((await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{ImportClient.Root}/{mine.Id}")).IsSuccessStatusCode);
+
+        var theirs = await CommitAsync(client, app, app.AdultB, GoldenFile.Sections());
+
+        Assert.Equal(new CountsResponse(1, 2, 0), theirs.Report!.Sections["providers"]);
+        Assert.Equal("wow", Assert.Single(await CustomProvidersAsync(app), p => p.CreatedBy == app.AdultB.Value).ImportRef);
+    }
+
     [Fact]
     public async Task The_same_reference_with_other_content_is_a_conflict_that_blocks_the_commit()
     {

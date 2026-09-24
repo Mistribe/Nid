@@ -23,7 +23,11 @@ public sealed class ListProvidersHandler(ProviderAccess access, IProviderStore p
 {
     public async ValueTask<Result<IReadOnlyList<ProviderView>>> HandleAsync(ListProvidersQuery query, CancellationToken ct = default)
     {
-        var visible = await access.ListAsync(actor.Current!.PersonId!.Value, query.Q, ct);
+        // As CreateProviderHandler: the providers are a person's (final review F2).
+        if (actor.Current?.PersonId is not { } person)
+            return Result.Failure<IReadOnlyList<ProviderView>>(new Failure(CatalogCodes.InvalidProvider, "Providers are listed for a person.", null));
+
+        var visible = await access.ListAsync(person, query.Q, ct);
         var labels = await ProviderViews.LabelsAsync(providers, ct);
         return Result.Success<IReadOnlyList<ProviderView>>(visible.Select(p => ProviderView.From(p, labels)).ToList());
     }
@@ -57,9 +61,13 @@ public sealed class CreateProviderHandler(IProviderStore providers, ProviderKeys
         if (!ProviderRules.IsUrl(website) || !ProviderRules.IsUrl(pricingPage))
             return Invalid($"A website or pricing page is an http or https address of at most {CatalogLimits.MaxUrlLength} characters.");
 
-        var labelKeys = command.LabelKeys.Distinct(StringComparer.Ordinal).ToList();
+        // HTTP refuses a null list or element before the command (RequireLabelKeys); any other caller gets a refusal
+        // here, never an exception (final review F2). A null list is an empty one.
+        var labelKeys = (command.LabelKeys ?? []).Distinct(StringComparer.Ordinal).ToList();
         if (labelKeys.Count == 0)
             return Invalid("A provider has at least one label.");
+        if (labelKeys.Any(string.IsNullOrWhiteSpace))
+            return Invalid("A label key is never empty.");
         var labels = await ProviderViews.LabelsAsync(providers, ct);
         if (labelKeys.FirstOrDefault(key => !labels.ContainsKey(key)) is { } unknown)
             return Invalid($"'{unknown}' is not a label.");

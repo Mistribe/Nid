@@ -3,6 +3,7 @@ using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Quartz;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Jobs;
@@ -54,19 +55,32 @@ public sealed class QuartzCatalogJobTrigger(ISchedulerFactory schedulers) : ICat
 {
     public async Task<Result> TriggerSyncAsync(CancellationToken ct)
     {
-        var scheduler = await schedulers.GetScheduler(ct);
-        await scheduler.TriggerJob(CatalogJobs.SyncKey, cancellationToken: ct);
-        return Result.Success();
+        // Final review H2: a scheduler shut down (or not started) is a coded refusal, never a 500.
+        try
+        {
+            var scheduler = await schedulers.GetScheduler(ct);
+            await scheduler.TriggerJob(CatalogJobs.SyncKey, cancellationToken: ct);
+            return Result.Success();
+        }
+        catch (SchedulerException e)
+        {
+            return Result.Failure(new Failure(CatalogCodes.JobsDisabled, "The job scheduler cannot take the request: " + e.Message, null));
+        }
     }
 }
 
-/// <summary>Design §4 "Trigger": at startup, a sync runs until one has succeeded. Runs after the migrations (Program).</summary>
+/// <summary>
+/// Design §4 "Trigger": at startup, a sync runs until one has succeeded. Runs after the migrations (Program). It first
+/// closes a run a crash left running for an hour, so the journal shows it failed (final review F1).
+/// </summary>
 public sealed class CatalogStartupSync(IServiceScopeFactory scopes, ICatalogJobTrigger trigger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
-        if (!await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().HasSucceededAsync(cancellationToken))
+        var runs = scope.ServiceProvider.GetRequiredService<ICatalogRunLog>();
+        await runs.CloseAbandonedAsync(cancellationToken);
+        if (!await runs.HasSucceededAsync(cancellationToken))
             await trigger.TriggerSyncAsync(cancellationToken);
     }
 

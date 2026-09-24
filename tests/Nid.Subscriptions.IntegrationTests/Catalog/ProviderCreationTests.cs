@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
+using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
@@ -36,6 +38,47 @@ public class ProviderCreationTests(PostgresFixture fixture)
         Assert.Equal([new LabelView(CatalogLimits.OtherLabel, "Other", CatalogLimits.NeutralColor)], view.Labels);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
         Assert.Equal(app.AdultA.Value, (await subs.Providers.AsNoTracking().SingleAsync(p => p.Key == view.Key)).CreatedBy);
+    }
+
+    /// <summary>
+    /// Final review F2: HTTP refuses these before the command (RequireLabelKeys); any other caller reaching the handler
+    /// gets the same refusal as an empty list, never an exception.
+    /// </summary>
+    [Theory]
+    [InlineData("null list")]
+    [InlineData("null element")]
+    [InlineData("blank element")]
+    [InlineData("empty element")]
+    public async Task Missing_label_keys_are_an_invalid_provider_not_a_crash(string @case)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        IReadOnlyList<string> labelKeys = @case switch
+        {
+            "null list" => null!,
+            "null element" => [CatalogLimits.OtherLabel, null!],
+            "blank element" => [CatalogLimits.OtherLabel, "  "],
+            _ => [""],
+        };
+
+        var (view, code) = await CreateAsync(app, new CreateProviderCommand("Tinder", null, null, labelKeys));
+
+        Assert.Equal((null, CatalogCodes.InvalidProvider), (view, code));
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.False(await subs.Providers.AnyAsync(p => p.Origin == "custom"));
+    }
+
+    /// <summary>Final review F2: the providers are listed for a person; another caller gets CreateProviderHandler's refusal.</summary>
+    [Fact]
+    public async Task Listing_providers_without_a_person_is_refused_not_a_crash()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+
+        var listed = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync<IReadOnlyList<ProviderView>>(new ListProvidersQuery(null));
+
+        Assert.True(listed.TryGetFailure(out var failure));
+        Assert.Equal(CatalogCodes.InvalidProvider, failure!.Code);
     }
 
     [Fact]

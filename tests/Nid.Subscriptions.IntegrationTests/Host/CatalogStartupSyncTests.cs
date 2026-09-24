@@ -1,8 +1,12 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Host.Jobs;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 using UnambitiousFx.Functional;
+using Duration = NodaTime.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
@@ -58,5 +62,29 @@ public class CatalogStartupSyncTests(PostgresFixture fixture)
         await JournalAsync(app, CatalogRunStatus.Succeeded);
         await JournalAsync(app, CatalogRunStatus.Failed); // a later failure does not reopen it
         Assert.Equal(0, await StartupTriggersAsync(app));
+    }
+
+    /// <summary>Final review F1: the startup closes a run a crash left running, so the journal shows it failed.</summary>
+    [Fact]
+    public async Task The_startup_closes_a_run_left_running_for_an_hour()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await JournalAsync(app, CatalogRunStatus.Succeeded);
+        var now = app.Services.GetRequiredService<IClock>().GetCurrentInstant();
+        var stale = Guid.CreateVersion7();
+        await using (var seed = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+        {
+            seed.CatalogSyncRuns.Add(new CatalogSyncRunRow
+            {
+                Id = stale, StartedAt = now - Duration.FromHours(2), Status = "running", Commit = CatalogFixtures.PinnedCommit,
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        Assert.Equal(0, await StartupTriggersAsync(app));
+
+        await using var check = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var row = await check.CatalogSyncRuns.AsNoTracking().SingleAsync(r => r.Id == stale);
+        Assert.Equal(("failed", CatalogCodes.RunAbandoned), (row.Status, row.FailureCode));
     }
 }

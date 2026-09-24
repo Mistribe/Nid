@@ -83,9 +83,22 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
         var counts = SectionCounts.Zero;
         foreach (var (entity, record) in records)
         {
+            // Only a provider the importer may still link is reused: visible and not archived, the rule of every write
+            // (final review H4). The importer's own archived one keeps its reference (unique per importer), so the entry
+            // is a conflict; another adult's archived one is left alone and the entry gets a new provider.
             var mine = known.FirstOrDefault(p => p.Import!.Ref == record.Key && p.CreatedBy == context.Actor);
             if (mine is not null)
             {
+                if (mine.IsArchived)
+                {
+                    issues.Add(ImportIssue.Error(ImportCodes.Conflict,
+                        $"'{record.Key}' was imported before and its provider is archived; nothing is overwritten (import-format.md §8).",
+                        NidDataJson.Path(Section, entity.Index)));
+                    failed.Add(record.Key);
+                    counts += new SectionCounts(0, 0, 1);
+                    continue;
+                }
+
                 if (mine.Import!.Hash != entity.Hash)
                 {
                     issues.Add(ImportIssue.Error(ImportCodes.Conflict,
@@ -101,7 +114,7 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
                 continue;
             }
 
-            var shared = known.FirstOrDefault(p => p.Import!.Ref == record.Key && p.Import.Hash == entity.Hash && visible.ContainsKey(p.Key));
+            var shared = known.FirstOrDefault(p => p.Import!.Ref == record.Key && p.Import.Hash == entity.Hash && visible.ContainsKey(p.Key) && !p.IsArchived);
             if (shared is not null)
             {
                 resolved[record.Key] = shared.Key;

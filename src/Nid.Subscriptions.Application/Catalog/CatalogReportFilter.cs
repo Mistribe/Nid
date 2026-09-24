@@ -27,14 +27,15 @@ public sealed class CatalogReportFilter
 
     /// <summary>
     /// The filter for <paramref name="reader"/>: none for <see cref="ActorKind.System"/> only, whatever a person's
-    /// role; one visibility query for every run read, and none when no run holds a household entry.
+    /// role; one visibility query for every run read — always, even when no run holds a household entry, so the time
+    /// the journal takes says nothing about whether one exists (final review H1).
     /// </summary>
     public static async Task<CatalogReportFilter> ForAsync(
         Actor? reader, IReadOnlyList<CatalogSyncRun> runs, IVisibleItems visible, CancellationToken ct)
     {
         if (reader?.Kind == ActorKind.System)
             return None;
-        if (reader?.PersonId is not { } person || !runs.Any(r => r.Report is { } report && Household(report).Any()))
+        if (reader?.PersonId is not { } person)
             return new CatalogReportFilter(Nothing);
 
         return new CatalogReportFilter(await visible.ForAsync(person, VisibilityScope.Me, ct));
@@ -57,7 +58,4 @@ public sealed class CatalogReportFilter
             Conflicts = report.Conflicts.Where(Seen).ToList(),
         };
     }
-
-    private static IEnumerable<string> Household(CatalogReport report)
-        => report.AdoptedReplaced.Concat(report.AdoptedRemaining).Concat(report.Conflicts);
 }

@@ -1,12 +1,16 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 using UnambitiousFx.Functional;
+using Duration = NodaTime.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
@@ -149,6 +153,39 @@ public class CatalogEndpointTests(PostgresFixture fixture)
             await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync(CatalogFixtures.PinnedCommit, default);
         var busy = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/catalog/sync");
         Assert.Equal((HttpStatusCode.Conflict, CatalogCodes.SyncRunning), (busy.StatusCode, await CodeOf(busy)));
+    }
+
+    /// <summary>
+    /// Final review F1: a run a crash left running blocks the on-demand sync for an hour, not for ever — after a success
+    /// the startup no longer syncs and the catalog has no schedule, so nothing else would ever close it.
+    /// </summary>
+    [Theory]
+    [InlineData(120, HttpStatusCode.Accepted)]
+    [InlineData(5, HttpStatusCode.Conflict)]
+    public async Task A_run_left_running_blocks_the_sync_for_an_hour_only(int startedMinutesAgo, HttpStatusCode expected)
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<ICatalogJobTrigger>(new OkTrigger()));
+        await SyncAsync(app);
+        var now = app.Services.GetRequiredService<IClock>().GetCurrentInstant();
+        var stale = Guid.CreateVersion7();
+        await using (var seed = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+        {
+            seed.CatalogSyncRuns.Add(new CatalogSyncRunRow
+            {
+                Id = stale, StartedAt = now - Duration.FromMinutes(startedMinutesAgo), Status = "running", Commit = CatalogFixtures.PinnedCommit,
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/catalog/sync");
+
+        Assert.Equal(expected, response.StatusCode);
+        await using var check = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var row = await check.CatalogSyncRuns.AsNoTracking().SingleAsync(r => r.Id == stale);
+        if (expected == HttpStatusCode.Accepted)
+            Assert.Equal(("failed", CatalogCodes.RunAbandoned, (Instant?)now), (row.Status, row.FailureCode, row.FinishedAt));
+        else
+            Assert.Equal(("running", CatalogCodes.SyncRunning), (row.Status, await CodeOf(response)));
     }
 
     [Fact]

@@ -134,6 +134,39 @@ public class CatalogWriteTests(PostgresFixture fixture)
     }
 
     /// <summary>
+    /// Review Focus 5, the other half (final review H5): while a sync holds the provider table in SHARE ROW EXCLUSIVE,
+    /// a subscription write linking an existing provider proceeds — its foreign-key check takes ROW SHARE, which the
+    /// sync's lock admits — and completes before the sync ends.
+    /// </summary>
+    [Fact]
+    public async Task A_subscription_links_a_provider_while_a_sync_holds_the_lock()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        await using (var first = PostgresFixture.NewSubscriptionsContext(connectionString))
+            await SyncAsync(first, RealReading());
+
+        await using var sync = PostgresFixture.NewSubscriptionsContext(connectionString);
+        await using var syncTransaction = await sync.Database.BeginTransactionAsync();
+        await new ProviderStore(sync).LockForSyncAsync(default);
+
+        try
+        {
+            await using var write = PostgresFixture.NewSubscriptionsContext(connectionString);
+            var item = new ItemId(Guid.CreateVersion7());
+            var created = await new SubscriptionStore(write).CreateAsync(item, new NewSubscription("netflix", true, [], null), default)
+                .WaitAsync(TimeSpan.FromSeconds(10)); // bounded: a write blocked by the sync's lock times out here
+            created.Ok();
+
+            await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
+            Assert.Equal("netflix", (await check.Subscriptions.AsNoTracking().SingleAsync(s => s.ItemId == item.Value)).ProviderKey);
+        }
+        finally
+        {
+            await syncTransaction.RollbackAsync(); // on failure too: releases the lock, so nothing is left waiting
+        }
+    }
+
+    /// <summary>
     /// Bounded: throws after 10 seconds. <c>pg_locks</c> spans the whole server, so only a wait on this database's
     /// <c>provider</c> table counts (a sync without the table lock would instead wait on the import's row, then collide).
     /// </summary>

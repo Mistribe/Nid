@@ -192,7 +192,15 @@ public interface ICatalogRunLog
 
     Task FinishAsync(CatalogSyncRun run, CancellationToken ct);
 
+    /// <summary>
+    /// Whether a run is under way. A run still running an hour after it started is closed as
+    /// <see cref="CatalogCodes.RunAbandoned"/> first and does not count: nothing else would close it once a sync
+    /// has succeeded, the catalog having no schedule (final review F1).
+    /// </summary>
     Task<bool> IsRunningAsync(CancellationToken ct);
+
+    /// <summary>Closes as <see cref="CatalogCodes.RunAbandoned"/> every run still running an hour after it started.</summary>
+    Task CloseAbandonedAsync(CancellationToken ct);
 
     /// <summary>Whether a sync has ever succeeded: the startup trigger's condition (design §4 "Trigger").</summary>
     Task<bool> HasSucceededAsync(CancellationToken ct);
