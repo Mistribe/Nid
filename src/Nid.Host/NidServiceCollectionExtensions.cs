@@ -6,8 +6,10 @@ using Nid.Core.Contracts;
 using Nid.Core.Domain;
 using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Host.Admin;
 using Nid.Host.Jobs;
 using Nid.Platform;
+using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Persistence;
@@ -73,6 +75,12 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IFxRates, FxRates>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
         services.AddScoped<FxCollector>();
+
+        // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
+        services.AddSingleton(new ProcessStart());
+        services.TryAddSingleton<IJobStatusReader, NoJobStatusReader>();
+        services.TryAddSingleton<IIdentityProviderProbe, OidcIdentityProviderProbe>();
+        services.AddScoped<ISystemStatusSource, SystemStatusSource>();
 
         services.AddDbContext<SubscriptionsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

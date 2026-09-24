@@ -5,6 +5,7 @@ using Nid.Core.Application.Admin;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Platform;
+using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Subscriptions.Application;
@@ -113,6 +114,8 @@ public static class RequestCatalogue
         new(typeof(RevokeSessionsCommand), false, (data, _) => new RevokeSessionsCommand(data.App.AdultB)),
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null)),
+        new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
+        new(typeof(GetSystemStatusQuery), false, (_, _) => new GetSystemStatusQuery()),
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),

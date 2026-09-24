@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
+using Nid.Platform.Admin;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Api;
@@ -53,6 +54,14 @@ public static class AdminEndpoints
                 => (await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(body.MaxAdults, body.ReferenceCurrency), ct))
                     .ToHttp(settings => settings))
             .Returns<HouseholdSettingsView>();
+
+        api.MapGet("/jobs", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListJobsQuery(), ct)).ToHttp(jobs => jobs))
+            .Returns<IReadOnlyList<JobStatusView>>();
+
+        api.MapGet("/system", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetSystemStatusQuery(), ct)).ToHttp(status => status))
+            .Returns<SystemStatusView>();
 
         return routes;
     }

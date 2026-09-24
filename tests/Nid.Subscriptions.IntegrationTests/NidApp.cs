@@ -95,6 +95,8 @@ public sealed class NidApp : IAsyncDisposable
                 {
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
+                    // No test reaches the identity provider (https://auth.test.localhost does not exist).
+                    services.AddSingleton<Nid.Host.Admin.IIdentityProviderProbe>(new ReachableIdentityProvider());
                     overrides?.Invoke(services);
                 });
             });
@@ -346,5 +348,10 @@ public sealed class NidApp : IAsyncDisposable
     private sealed class FixedClock(Instant instant) : IClock
     {
         public Instant GetCurrentInstant() => instant;
+    }
+
+    private sealed class ReachableIdentityProvider : Nid.Host.Admin.IIdentityProviderProbe
+    {
+        public Task<bool> IsReachableAsync(CancellationToken ct) => Task.FromResult(true);
     }
 }

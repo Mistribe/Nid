@@ -2822,6 +2822,167 @@
           }
         }
       }
+    },
+    "/api/v1/admin/jobs": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobStatusView"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/system": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatusView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3381,6 +3542,35 @@
           "error",
           "warning"
         ]
+      },
+      "JobStatusView": {
+        "required": [
+          "key",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "lastRunAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
       },
       "JsonElement": { },
       "ManualRateBody": {
@@ -4091,6 +4281,48 @@
             "items": {
               "$ref": "#/components/schemas/FindingView"
             }
+          }
+        }
+      },
+      "SystemHealthView": {
+        "required": [
+          "database",
+          "identityProvider"
+        ],
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "identityProvider": {
+            "type": "string"
+          }
+        }
+      },
+      "SystemStatusView": {
+        "required": [
+          "version",
+          "startedAt",
+          "health"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "health": {
+            "$ref": "#/components/schemas/SystemHealthView"
+          },
+          "databaseSizeBytes": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
           }
         }
       }
