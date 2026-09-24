@@ -167,6 +167,54 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct)
+    {
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value && p.Kind == "adult", ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("person", id.ToString()));
+        if (row.OidcSubject is not null)
+            return Result.Failure(new Failure(PersonCodes.PersonActive, "Only an adult who has not signed in yet can be removed.", null));
+        // The import resolves adults by email, pending ones included (import-format.md §5.1).
+        if (await db.Ownerships.AnyAsync(o => o.PersonId == row.Id, ct))
+            return Result.Failure(new Failure(PersonCodes.PersonActive, "This adult already owns items: they cannot be removed.", null));
+
+        db.Persons.Remove(row);
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<PersonInfo>> SetAdminAsync(PersonId id, bool isAdmin, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Two admins demoting each other at once must not both see "another admin remains".
+        await LockAsync(ct);
+
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
+        if (row.Kind != "adult")
+            return Fail(PersonCodes.NotAnAdult, "Only an adult can be an administrator.");
+        if (row.IsAdmin && !isAdmin && row.OidcSubject is not null
+            && await db.Persons.CountAsync(p => p.IsAdmin && p.OidcSubject != null, ct) == 1)
+            return Fail(PersonCodes.LastAdmin, "The household needs at least one administrator who has signed in.");
+
+        row.IsAdmin = isAdmin;
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(ToInfo(row));
+    }
+
+    public async Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct)
+    {
+        var changed = await db.Persons.Where(p => p.Id == id.Value && p.Kind == "adult")
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.SessionEpoch, p => p.SessionEpoch + 1), ct);
+        if (changed == 0)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
+
+        var row = await db.Persons.AsNoTracking().SingleAsync(p => p.Id == id.Value, ct);
+        return Result.Success(ToInfo(row));
+    }
+
     private static PersonInfo ToInfo(PersonRow row) => new(
         new PersonId(row.Id),
         row.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent,

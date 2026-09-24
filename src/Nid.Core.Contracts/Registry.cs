@@ -53,6 +53,15 @@ public interface IPersonRegistry
 
     /// <summary>Writes the three keys it owns and keeps every other key of the stored object.</summary>
     Task SavePreferencesAsync(PersonId id, Preferences preferences, CancellationToken ct);
+
+    /// <summary>Removes an adult who has not signed in and owns nothing (<see cref="PersonCodes.PersonActive"/> otherwise).</summary>
+    Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct);
+
+    /// <summary>Promotes or demotes an adult; at least one admin who has signed in always remains (<see cref="PersonCodes.LastAdmin"/>).</summary>
+    Task<Result<PersonInfo>> SetAdminAsync(PersonId id, bool isAdmin, CancellationToken ct);
+
+    /// <summary>"Sign out everywhere": increments the adult's session epoch, so every cookie they hold is refused.</summary>
+    Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct);
 }
 
 public interface IItemRegistry
