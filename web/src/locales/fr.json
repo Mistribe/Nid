@@ -28,6 +28,13 @@
     "portal": "Ouvrir le portail d'identité",
     "sign_in_again": "Se reconnecter"
   },
+  "login_refused": {
+    "title": "Vous ne pouvez pas encore entrer dans Nid",
+    "ask_admin": "Demandez à un administrateur du foyer de vous ajouter avec votre adresse email, puis reconnectez-vous.",
+    "email": "Adresse reçue du fournisseur d'identité : {{email}}",
+    "no_email": "Le fournisseur d'identité n'a transmis aucune adresse email : demandez à la personne qui l'administre d'en ajouter une à votre compte.",
+    "sign_in_again": "Se reconnecter"
+  },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "placeholder": {

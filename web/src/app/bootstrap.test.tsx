@@ -140,4 +140,26 @@ describe('bootstrap', () => {
 
     act(() => reactRoot?.unmount());
   });
+
+  it('renders the refusal page with the email received, and never the login redirect', async () => {
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/login-refused', '?email=carol%40example.test');
+
+    await act(async () => { await bootstrap({ root, location }); });
+
+    expect(location.assign).not.toHaveBeenCalled();
+    expect(await screen.findByRole('heading', { name: 'Vous ne pouvez pas encore entrer dans Nid' })).toBeInTheDocument();
+    expect(screen.getByText(/carol@example\.test/)).toBeInTheDocument();
+    await expectNoAxeViolations(root);
+  });
+
+  it('says so when the identity provider sent no email', async () => {
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+
+    await act(async () => { await bootstrap({ root, location: fakeLocation('/login-refused') }); });
+
+    expect(await screen.findByText(/aucune adresse email/)).toBeInTheDocument();
+  });
 });
