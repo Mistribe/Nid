@@ -1980,6 +1980,9 @@ export interface components {
             nextChargeAmount?: null | components["schemas"]["MoneyView"];
             cashCost: components["schemas"]["MoneyView"][];
             amortizedCost: components["schemas"]["MoneyView"][];
+            cashCostConverted?: null | components["schemas"]["MoneyView"];
+            amortizedCostConverted?: null | components["schemas"]["MoneyView"];
+            convertedIsEstimate: boolean;
             /** Format: int32 */
             freeDays: number;
             coverage: components["schemas"]["CoverageView"][];
@@ -1990,6 +1993,9 @@ export interface components {
             items: components["schemas"]["SubscriptionSummary"][];
             householdCashCost: components["schemas"]["MoneyView"][];
             householdAmortizedCost: components["schemas"]["MoneyView"][];
+            householdCashCostConverted?: null | components["schemas"]["MoneyView"];
+            householdAmortizedCostConverted?: null | components["schemas"]["MoneyView"];
+            householdConvertedIsEstimate: boolean;
             sharedPurchaseIds: string[];
             findings: components["schemas"]["FindingView"][];
         };
@@ -2005,6 +2011,9 @@ export interface components {
             nextChargeAmount?: null | components["schemas"]["MoneyView"];
             cashCost: components["schemas"]["MoneyView"][];
             amortizedCost: components["schemas"]["MoneyView"][];
+            cashCostConverted?: null | components["schemas"]["MoneyView"];
+            amortizedCostConverted?: null | components["schemas"]["MoneyView"];
+            convertedIsEstimate: boolean;
             /** Format: int32 */
             freeDays: number;
             findings: components["schemas"]["FindingView"][];

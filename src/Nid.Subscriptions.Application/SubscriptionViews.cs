@@ -19,10 +19,22 @@ public static class CostWindow
     }
 }
 
+/// <summary>The cash and amortized totals of one subscription or of the household, converted.</summary>
+public sealed record Converted(ConvertedTotal Cash, ConvertedTotal Amortized)
+{
+    public MoneyView? CashView => Cash.Total is { } m ? MoneyView.From(m) : null;
+    public MoneyView? AmortizedView => Amortized.Total is { } m ? MoneyView.From(m) : null;
+    public bool IsEstimate => Cash.IsEstimate || Amortized.IsEstimate;
+
+    /// <summary>One finding per missing rate across both totals.</summary>
+    public IEnumerable<FindingView> Findings
+        => Cash.Missing.Concat(Amortized.Missing).DistinctBy(f => f.Reference).Select(FindingView.From);
+}
+
 public static class SubscriptionViews
 {
     public static SubscriptionSummary Summarise(
-        SubscriptionInput input, Timeline timeline, string displayName, DateRange window)
+        SubscriptionInput input, Timeline timeline, string displayName, DateRange window, Converted converted)
         => new(
             input.Subscription.Id,
             displayName,
@@ -32,11 +44,14 @@ public static class SubscriptionViews
             timeline.NextCharge() is { } next ? MoneyView.From(next.Price) : null,
             MoneyView.From(timeline.CashCost(window)),
             MoneyView.From(timeline.AmortizedCost(window)),
+            converted.CashView,
+            converted.AmortizedView,
+            converted.IsEstimate,
             timeline.FreeDays(window),
-            timeline.Warnings.Select(FindingView.From).ToList());
+            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList());
 
     public static SubscriptionDetail Detail(
-        SubscriptionInput input, Timeline timeline, string displayName, DateRange window)
+        SubscriptionInput input, Timeline timeline, string displayName, DateRange window, Converted converted)
         => new(
             input.Subscription.Id,
             displayName,
@@ -47,13 +62,16 @@ public static class SubscriptionViews
             timeline.NextCharge() is { } next ? MoneyView.From(next.Price) : null,
             MoneyView.From(timeline.CashCost(window)),
             MoneyView.From(timeline.AmortizedCost(window)),
+            converted.CashView,
+            converted.AmortizedView,
+            converted.IsEstimate,
             timeline.FreeDays(window),
             timeline.Coverage.Select(c => new CoverageView(
                 c.Start, c.EndBefore, c.Source.ToString().ToLowerInvariant(), c.IsProjected)).ToList(),
             timeline.Charges.Select(c => new ChargeView(
                 c.Date, MoneyView.From(c.Price), c.IsProjected,
                 c.Origin is ChargeOrigin.FromPurchase p ? p.PurchaseId.Value : null)).ToList(),
-            timeline.Warnings.Select(FindingView.From).ToList());
+            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList());
 }
 
 /// <summary>

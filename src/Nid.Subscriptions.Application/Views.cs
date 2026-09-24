@@ -34,6 +34,9 @@ public sealed record SubscriptionSummary(
     MoneyView? NextChargeAmount,
     IReadOnlyList<MoneyView> CashCost,
     IReadOnlyList<MoneyView> AmortizedCost,
+    MoneyView? CashCostConverted,
+    MoneyView? AmortizedCostConverted,
+    bool ConvertedIsEstimate,
     int FreeDays,
     IReadOnlyList<FindingView> Findings);
 
@@ -44,11 +47,16 @@ public sealed record SubscriptionSummary(
 /// <paramref name="Findings"/> says so in the machine-readable form the rest of the module uses: the cash
 /// total deduplicates such a purchase while the amortized one does not, so the two can disagree on the same
 /// response (<c>subscriptions.amortized_double_count</c>).
+/// The converted totals are in the household's reference currency, each charge at the rate of its date; null
+/// when any rate is missing, with a <c>core.fx_rate_missing</c> finding naming it (1C2a design §5).
 /// </summary>
 public sealed record SubscriptionList(
     IReadOnlyList<SubscriptionSummary> Items,
     IReadOnlyList<MoneyView> HouseholdCashCost,
     IReadOnlyList<MoneyView> HouseholdAmortizedCost,
+    MoneyView? HouseholdCashCostConverted,
+    MoneyView? HouseholdAmortizedCostConverted,
+    bool HouseholdConvertedIsEstimate,
     IReadOnlyList<Guid> SharedPurchaseIds,
     IReadOnlyList<FindingView> Findings) : IExposesItems
 {
@@ -70,6 +78,9 @@ public sealed record SubscriptionDetail(
     MoneyView? NextChargeAmount,
     IReadOnlyList<MoneyView> CashCost,
     IReadOnlyList<MoneyView> AmortizedCost,
+    MoneyView? CashCostConverted,
+    MoneyView? AmortizedCostConverted,
+    bool ConvertedIsEstimate,
     int FreeDays,
     IReadOnlyList<CoverageView> Coverage,
     IReadOnlyList<ChargeView> Charges,

@@ -33,7 +33,8 @@ public sealed record GetSubscriptionQuery(
 
 [RequestHandler<ListSubscriptionsQuery, SubscriptionList>]
 public sealed class ListSubscriptionsHandler(
-    IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IActorAccessor actor, IClock clock)
+    IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IActorAccessor actor, IClock clock,
+    IFxRates fx, IHouseholdSettings household)
     : IRequestHandler<ListSubscriptionsQuery, SubscriptionList>
 {
     public async ValueTask<Result<SubscriptionList>> HandleAsync(ListSubscriptionsQuery query, CancellationToken ct = default)
@@ -46,29 +47,40 @@ public sealed class ListSubscriptionsHandler(
         var ids = await visible.ForAsync(person, query.Scope, ct);
         var inputs = await store.LoadManyAsync(ids.ToList(), ct);
 
-        var summaries = new List<SubscriptionSummary>(inputs.Count);
-        var timelines = new List<Timeline>(inputs.Count);
-
+        var built = new List<(SubscriptionInput Input, Timeline Timeline, string DisplayName)>(inputs.Count);
         foreach (var input in inputs)
         {
             if (!SubscriptionTimeline.Build(input, today, horizon).TryGetValue(out var timeline))
                 continue; // a refused subscription is reported by its own detail endpoint, not by hiding the list
 
-            timelines.Add(timeline!);
             var item = await items.FindAsync(input.Subscription.Id, ct);
-            summaries.Add(SubscriptionViews.Summarise(input, timeline!, item?.DisplayName ?? "", window));
+            built.Add((input, timeline!, item?.DisplayName ?? ""));
         }
 
+        var timelines = built.Select(b => b.Timeline).ToList();
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var householdCash = HouseholdCost.CashPieces(timelines, window);
+        var householdAmortized = HouseholdCost.AmortizedPieces(timelines, window);
+        var rates = await Conversion.LoadAsync(
+            fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized), reference, today, ct);
+
+        var summaries = built.Select(b => SubscriptionViews.Summarise(
+            b.Input, b.Timeline, b.DisplayName, window,
+            Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates))).ToList();
+
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
+        var householdConverted = Conversion.Of(householdCash, householdAmortized, reference, rates);
         return Result.Success(new SubscriptionList(
-            summaries, cash, amortized, shared,
-            HouseholdCost.Divergences(shared).Select(FindingView.From).ToList()));
+            summaries, cash, amortized,
+            householdConverted.CashView, householdConverted.AmortizedView, householdConverted.IsEstimate,
+            shared,
+            HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(householdConverted.Findings).ToList()));
     }
 }
 
 [RequestHandler<GetSubscriptionQuery, SubscriptionDetail>]
 public sealed class GetSubscriptionHandler(
-    ISubscriptionStore store, IItemRegistry items, IClock clock)
+    ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household)
     : IRequestHandler<GetSubscriptionQuery, SubscriptionDetail>
 {
     public async ValueTask<Result<SubscriptionDetail>> HandleAsync(GetSubscriptionQuery query, CancellationToken ct = default)
@@ -88,7 +100,25 @@ public sealed class GetSubscriptionHandler(
                     ? failure!
                     : new Failure("subscriptions.unknown", "The subscription could not be read.", null));
 
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var cashPieces = timeline!.CashCostPieces(window);
+        var amortizedPieces = timeline.AmortizedCostPieces(window);
+        var rates = await Conversion.LoadAsync(fx, cashPieces.Concat(amortizedPieces), reference, today, ct);
+
         var item = await items.FindAsync(query.ItemId, ct);
-        return Result.Success(SubscriptionViews.Detail(input, timeline!, item?.DisplayName ?? "", window));
+        return Result.Success(SubscriptionViews.Detail(
+            input, timeline, item?.DisplayName ?? "", window, Conversion.Of(cashPieces, amortizedPieces, reference, rates)));
     }
+}
+
+/// <summary>One rate query per read, whatever the number of subscriptions (1C2a design §5.2).</summary>
+internal static class Conversion
+{
+    public static Converted Of(IReadOnlyList<CostPiece> cash, IReadOnlyList<CostPiece> amortized, Currency reference, RateTable rates)
+        => new(FxConversion.Convert(cash, rates, reference), FxConversion.Convert(amortized, rates, reference));
+
+    public static async Task<RateTable> LoadAsync(IFxRates fx, IEnumerable<CostPiece> pieces, Currency reference, LocalDate today, CancellationToken ct)
+        => FxConversion.Need(pieces, reference) is { } need
+            ? await fx.LoadAsync(need.Quotes, need.From, need.To, ct)
+            : RateTable.Empty(today, 0);
 }

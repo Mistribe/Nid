@@ -2591,6 +2591,7 @@
           "autoRenew",
           "cashCost",
           "amortizedCost",
+          "convertedIsEstimate",
           "freeDays",
           "coverage",
           "charges",
@@ -2651,6 +2652,29 @@
               "$ref": "#/components/schemas/MoneyView"
             }
           },
+          "cashCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "amortizedCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "convertedIsEstimate": {
+            "type": "boolean"
+          },
           "freeDays": {
             "type": "integer",
             "format": "int32"
@@ -2680,6 +2704,7 @@
           "items",
           "householdCashCost",
           "householdAmortizedCost",
+          "householdConvertedIsEstimate",
           "sharedPurchaseIds",
           "findings"
         ],
@@ -2703,6 +2728,29 @@
               "$ref": "#/components/schemas/MoneyView"
             }
           },
+          "householdCashCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "householdAmortizedCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "householdConvertedIsEstimate": {
+            "type": "boolean"
+          },
           "sharedPurchaseIds": {
             "type": "array",
             "items": {
@@ -2725,6 +2773,7 @@
           "autoRenew",
           "cashCost",
           "amortizedCost",
+          "convertedIsEstimate",
           "freeDays",
           "findings"
         ],
@@ -2775,6 +2824,29 @@
             "items": {
               "$ref": "#/components/schemas/MoneyView"
             }
+          },
+          "cashCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "amortizedCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "convertedIsEstimate": {
+            "type": "boolean"
           },
           "freeDays": {
             "type": "integer",
