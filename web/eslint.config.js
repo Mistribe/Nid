@@ -14,7 +14,7 @@ export default defineConfig(
       globals: globals.browser,
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['*.js', 'eslint-rules/*.js', 'vite.config.ts'],
+          allowDefaultProject: ['*.js', 'eslint-rules/*.js', 'vite.config.ts', 'playwright.config.ts', 'e2e/*.ts'],
           defaultProject: './tsconfig.node.json',
         },
         tsconfigRootDir: import.meta.dirname,
