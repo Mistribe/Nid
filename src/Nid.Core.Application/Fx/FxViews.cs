@@ -8,7 +8,14 @@ namespace Nid.Core.Application.Fx;
 public sealed record FxRateView(LocalDate OnDate, string Quote, string Rate, string Source)
 {
     public static FxRateView From(FxRate rate)
-        => new(rate.OnDate, rate.Quote.Code, rate.Rate.ToString(CultureInfo.InvariantCulture), rate.Source.ToWire());
+        => new(rate.OnDate, rate.Quote.Code, WireDecimal(rate.Rate), rate.Source.ToWire());
+
+    /// <summary>
+    /// The <c>numeric(19,10)</c> column always round-trips with ten decimal places (e.g. <c>0.8612000000</c>);
+    /// dividing by 1 re-normalizes a decimal to its minimal exact representation before it goes on the wire.
+    /// </summary>
+    internal static string WireDecimal(decimal value)
+        => (value / 1.000000000000000000000000000m).ToString(CultureInfo.InvariantCulture);
 }
 
 public sealed record FxRejectionView(LocalDate OnDate, string Quote, string Rate, string? Previous, string Reason);

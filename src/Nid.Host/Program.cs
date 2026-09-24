@@ -74,6 +74,7 @@ app.MapPersonEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapImportEndpoints();
 app.MapPlatformEndpoints();
+app.MapFxEndpoints();
 app.Run();
 
 public partial class Program;

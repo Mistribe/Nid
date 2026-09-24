@@ -140,6 +140,14 @@ public sealed class NidApp : IAsyncDisposable
         return await client.SendAsync(request);
     }
 
+    /// <summary>A request with no actor header: what an unauthenticated caller gets.</summary>
+    public async Task<HttpResponseMessage> RawAnonymousAsync(HttpMethod method, string url)
+    {
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(method, url);
+        return await client.SendAsync(request);
+    }
+
     /// <summary>Like <see cref="RawAsync"/>, with a body sent exactly as given.</summary>
     public async Task<HttpResponseMessage> RawTextAsync(PersonId actor, HttpMethod method, string url, string json)
     {
