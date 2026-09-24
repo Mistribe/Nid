@@ -147,3 +147,4 @@ Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2)
 
 - Aucun libellé, montant ni compteur d'éléments : l'Administration ne dit rien des données du foyer.
 - Chaque action d'écriture est confirmée ; une confirmation dit l'effet (« Cette personne pourra se connecter avec l'email … », « Toutes ses sessions seront fermées »).
+- La soumission d'un formulaire (« Ajouter un adulte », enregistrer le Foyer) vaut confirmation à elle seule ; la confirmation en ligne ne concerne que les écritures déclenchées par un bouton isolé.

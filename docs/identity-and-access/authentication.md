@@ -39,7 +39,7 @@ Configuration fournie **à titre d'exemple** dans `deploy/` ; le secret vient d'
 | Contenu | `person_id`, `sub`, `session_epoch`. Chiffré avec les clés Data Protection (volume sauvegardé) |
 | Attributs | Nom préfixé `__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, sans `Domain` |
 | Durée | Glissante 7 jours, **absolue 30 jours** (configurables) |
-| Révocation | `person.session_epoch` : « déconnecter partout » (page Sécurité, ou un admin pour un autre adulte) l'incrémente ; tout cookie portant un ancien epoch est refusé. La même lecture de la `person` fournit `is_admin` à l'acteur : une rétrogradation prend effet à la requête suivante |
+| Révocation | `person.session_epoch` : « déconnecter partout » (page Sécurité, ou un admin pour un autre adulte) l'incrémente ; tout cookie portant un ancien epoch est refusé. C'est `ActorFilter`, pas ce validateur, qui relit la `person` au point d'entrée HTTP et fournit `is_admin` à l'acteur (`authorization.md` §1) : une rétrogradation prend effet à la requête suivante |
 | CSRF | En-tête personnalisé obligatoire sur les méthodes non sûres, plus contrôle de `Origin` et de `Sec-Fetch-Site`. Le jeton est fourni par `GET /auth/session`. Aucune configuration CORS (même origine) |
 
 Le préfixe `__Host-` impose `Secure` : le HTTPS est terminé en amont (hypothèse §7) et l'application fait confiance aux en-têtes `X-Forwarded-*` du proxy pour le savoir.
