@@ -74,3 +74,42 @@ public sealed class GrantRow
     public string Source { get; set; } = "paid";
     public LocalDate? StartsOn { get; set; }
 }
+
+/// <summary>Design §3.1. Keyed by the catalog key; the one local label is <c>other</c>.</summary>
+public sealed class LabelRow
+{
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Color { get; set; } = "";
+    public string Origin { get; set; } = "catalog";
+}
+
+/// <summary>Design §3.2. Never deleted: a provider leaving the catalog is archived, and its subscriptions keep it.</summary>
+public sealed class ProviderRow
+{
+    public string Key { get; set; } = "";
+    public string Origin { get; set; } = "catalog";
+    public string Name { get; set; } = "";
+    public string? Website { get; set; }
+    public string? PricingPage { get; set; }
+    public List<string> LabelKeys { get; set; } = [];
+    public string? CatalogCommit { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public Instant? ArchivedAt { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>Design §3.6: one row per sync, the report as JSON once it succeeded.</summary>
+public sealed class CatalogSyncRunRow
+{
+    public Guid Id { get; set; }
+    public Instant StartedAt { get; set; }
+    public Instant? FinishedAt { get; set; }
+    public string Status { get; set; } = "";
+    public string Commit { get; set; } = "";
+    public string? FailureCode { get; set; }
+    public string? FailureMessage { get; set; }
+    public string? Report { get; set; }
+}

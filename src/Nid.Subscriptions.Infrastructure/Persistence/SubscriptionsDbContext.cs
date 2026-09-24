@@ -11,6 +11,9 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
     public DbSet<BillingPhaseRow> Phases => Set<BillingPhaseRow>();
     public DbSet<PurchaseRow> Purchases => Set<PurchaseRow>();
     public DbSet<GrantRow> Grants => Set<GrantRow>();
+    public DbSet<LabelRow> Labels => Set<LabelRow>();
+    public DbSet<ProviderRow> Providers => Set<ProviderRow>();
+    public DbSet<CatalogSyncRunRow> CatalogSyncRuns => Set<CatalogSyncRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +28,8 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             e.HasMany(x => x.Phases).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
             MapXmin(e.Property(x => x.Version));
             MapImport(e);
+            // Design §3.2: a subscription names an existing provider. Restrict: a provider is archived, never deleted.
+            e.HasOne<ProviderRow>().WithMany().HasForeignKey(x => x.ProviderKey).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<SubscriptionUserRow>(e =>
@@ -82,6 +87,50 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             });
             e.HasKey(x => new { x.PurchaseId, x.Index });
             e.HasIndex(x => x.SubscriptionItemId);
+        });
+
+        modelBuilder.Entity<LabelRow>(e =>
+        {
+            e.ToTable("label", t =>
+            {
+                t.HasCheckConstraint("ck_label_key", "key ~ '^[a-z0-9][a-z0-9-]{0,63}$'");
+                t.HasCheckConstraint("ck_label_name", "char_length(name) between 1 and 50");
+                t.HasCheckConstraint("ck_label_color", "color ~ '^#[0-9A-Fa-f]{6}$'");
+                t.HasCheckConstraint("ck_label_origin", "origin in ('catalog','local')");
+            });
+            e.HasKey(x => x.Key);
+        });
+
+        modelBuilder.Entity<ProviderRow>(e =>
+        {
+            e.ToTable("provider", t =>
+            {
+                // An adopted key is whatever 1C1 and 1D3 stored: free text (design §3.4). Every other key has the pattern.
+                t.HasCheckConstraint("ck_provider_key", "origin = 'adopted' or key ~ '^[a-z0-9][a-z0-9-]{0,63}$'");
+                t.HasCheckConstraint("ck_provider_origin", "origin in ('catalog','custom','adopted')");
+                t.HasCheckConstraint("ck_provider_name", "char_length(name) between 1 and 100");
+                t.HasCheckConstraint("ck_provider_labels", "cardinality(label_keys) >= 1");
+                t.HasCheckConstraint("ck_provider_urls", "char_length(website) <= 2048 and char_length(pricing_page) <= 2048");
+                t.HasCheckConstraint("ck_provider_created_by", "(origin = 'custom') = (created_by is not null)");
+                t.HasCheckConstraint("ck_provider_commit", "(origin = 'catalog') = (catalog_commit is not null)");
+                ImportConstraint(t, "provider");
+            });
+            e.HasKey(x => x.Key);
+            e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            // A file-local key means something in its importer's files only (design §3.3): unique per importer.
+            e.HasIndex(x => new { x.CreatedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<CatalogSyncRunRow>(e =>
+        {
+            e.ToTable("catalog_sync_run", t => t.HasCheckConstraint("ck_catalog_sync_run_status", "status in ('running','succeeded','failed')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Report).HasColumnType("jsonb");
+            // At most one running row, as core.fx_sync_run: this is what makes a second sync a 409 (design §4).
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'running'");
+            e.HasIndex(x => x.StartedAt);
         });
 
         ApplySnakeCase(modelBuilder);

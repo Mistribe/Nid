@@ -34,6 +34,7 @@ public class SchemaTests(PostgresFixture fixture)
 
         await using (var subs = PostgresFixture.NewSubscriptionsContext(connectionString))
         {
+            subs.Providers.Add(new ProviderRow { Key = "spotify", Origin = "catalog", Name = "Spotify", LabelKeys = ["other"], CatalogCommit = "test" });
             subs.Subscriptions.Add(new SubscriptionRow
             {
                 ItemId = itemId,
@@ -130,7 +131,9 @@ public class SchemaTests(PostgresFixture fixture)
             .SqlQueryRaw<string>("select table_name from information_schema.tables where table_schema = 'subscriptions' order by table_name")
             .ToListAsync();
 
-        Assert.Equal(["__ef_migrations_history", "billing_phase", "coverage_grant", "purchase", "subscription", "subscription_user"], tables);
+        Assert.Equal(
+            ["__ef_migrations_history", "billing_phase", "catalog_sync_run", "coverage_grant", "label", "provider", "purchase", "subscription", "subscription_user"],
+            tables);
     }
 
     [Fact]

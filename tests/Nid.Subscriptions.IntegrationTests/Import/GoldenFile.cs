@@ -13,11 +13,11 @@ public static class GoldenFile
         """;
 
     public const string Subscriptions = """
-        [{"id":"sub-spotify","provider_key":"spotify","name":"Spotify Premium Duo",
+        [{"id":"sub-spotify","name":"Spotify Premium Duo",
           "ownership":[{"person":"adult-1","share_bp":10000}],"service_users":["adult-1"],"auto_renew":true},
-         {"id":"sub-nordvpn","provider_key":"nordvpn","name":"NordVPN",
+         {"id":"sub-nordvpn","name":"NordVPN",
           "ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true},
-         {"id":"sub-wow","provider_key":"wow","name":"World of Warcraft",
+         {"id":"sub-wow","name":"World of Warcraft",
           "ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]
         """;
 

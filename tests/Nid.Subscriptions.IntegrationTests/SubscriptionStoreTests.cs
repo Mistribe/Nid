@@ -20,7 +20,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
         var connectionString = await f.NewConnectionStringAsync();
         var store = new SubscriptionStore(PostgresFixture.NewSubscriptionsContext(connectionString));
         var id = new ItemId(Guid.CreateVersion7());
-        (await store.CreateAsync(id, new NewSubscription("spotify", AutoRenew: true, [], null), default)).Ok();
+        (await store.CreateAsync(id, new NewSubscription(null, AutoRenew: true, [], null), default)).Ok();
         return (store, id);
     }
 
