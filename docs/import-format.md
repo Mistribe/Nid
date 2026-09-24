@@ -82,17 +82,25 @@ Uniquement les fournisseurs absents du catalogue. Un fournisseur du catalogue n'
 
 | Champ | Type | Remarques |
 |---|---|---|
-| `key` | string | Unique, différente de toute clé du catalogue |
+| `key` | string | Clé **locale au fichier** (`^[a-z0-9][a-z0-9-]*$`), unique dans la section ; ce n'est pas la clé stockée. Mappée à une clé générée (`<slug>-<6 [a-z0-9] aléatoires>`) au `commit`, jamais choisie |
 | `name` | string | |
 | `website`, `pricing_page` | url? | `http` ou `https` |
 | `label_keys` | `[string]` | Au moins une |
+
+Résolution de chaque entrée à la validation puis au `commit` (dans cet ordre) :
+
+1. l'entrée a déjà été importée sous cette même référence (`import_ref`) par **cet importeur** : contenu identique → `unchanged`, sinon → `conflict` (rien n'est écrasé) ;
+2. sinon, une entrée déjà importée sous cette même référence, de contenu identique, **visible de l'importeur** : le fournisseur existant est réutilisé, aucune ligne n'est créée ;
+3. sinon, un nouveau fournisseur `custom` est créé au `commit`, avec une clé générée.
+
+Un fournisseur ainsi créé garde `import_ref`/`import_hash` comme toute autre entité importée (§9).
 
 ### 5.3 `subscriptions`
 
 | Champ | Type | Remarques |
 |---|---|---|
 | `id` | string | |
-| `provider_key` | string? | Clé du catalogue ou de `providers` ; inconnue = erreur |
+| `provider_key` | string? | Désigne une entrée de `providers` du même fichier (résolue en §5.2 : c'est **le premier candidat**), sinon un fournisseur existant **visible de l'importeur et non archivé** ; sinon `import.unresolved_reference` au chemin `subscriptions[i].provider_key`. Une entrée `providers` du fichier de même orthographe **prime toujours** sur une clé existante de même nom |
 | `name` | string | |
 | `ownership` | `[{ person, share_bp }]` | Références vers `persons`. Somme des `share_bp` = 10 000 |
 | `visibility` | string | `shared` (défaut) ou `private` (un seul propriétaire adulte) |
@@ -360,7 +368,7 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
 - **`replace` est reporté à 1F**, avec le journal d'audit dont dépend sa promesse.
 - **Nombres dans l'empreinte** : sérialisés comme ECMAScript (RFC 8785 §3.2.2.3). Un montant écrit en nombre JSON est accepté et lu en décimal ; l'empreinte ne sert qu'à identifier.
 - **Lots** : numérotés à partir de 0 sans trou ; tous sauf le dernier d'une section contiennent exactement 500 entités, ce qui rend exact l'indice global `n × 500 + position`. Un lot en erreur n'est pas mis en staging : son emplacement reste libre pour le lot corrigé.
-- **Sections refusées pour l'instant** : `providers` (avec le catalogue, 1C2) et les sections des modules à venir, avec `import.section_not_supported`. `provider_key` reste un texte libre non vérifié jusqu'à 1C2.
+- **Sections refusées pour l'instant** (`import.section_not_supported`) : seules celles des modules à venir. `providers` n'est plus refusée depuis 1C2b (2026-09-24, voir « Décisions prises en 1C2b » ci-dessous) ; `provider_key` y est désormais vérifié.
 - **Avertissements** : ceux du moteur (sauf `subscriptions.horizon_reached`, propre à la lecture) et `import.phase_not_whole_periods`. `fx_rate_missing` (code `core.fx_rate_missing`), livré en 1C2a, est un avertissement **non bloquant** : à la validation, il est levé pour chaque paiement (charge de phase ou achat) dans une devise autre que celle de référence sans cours à sa date ; il signale, avant le `commit`, que le rattrapage n'a pas encore tourné ou qu'aucune des deux sources ne couvre cette devise, sans empêcher l'import.
 - **Droits sur un enregistrement existant** : une ligne réimportée `unchanged` ne demande que le droit de lecture sur l'élément qu'elle référence ; une ligne nouvelle qu'un fichier ajoute à un élément déjà importé (par exemple une phase ou un achat) demande le droit d'écriture. La règle de création (§6) ne s'applique donc qu'aux enregistrements qui créent un élément.
 - **Un lot accepté n'est jamais perdu en silence.** Le retour de la session à `open` et l'insertion du lot forment une seule transaction : le verrou pris sur la ligne de la session par ce retour est tenu jusqu'à ce que le lot soit validé en base. Un `commit` qui a pris la session avant fait attendre le lot, qui trouve ensuite la session terminée et est refusé avec `import.state` sans rien écrire ; un `validate` ou un `commit` arrivé après attend que le lot soit en base, puis le voit. Un `validate` ne range son rapport que si la session n'a pas bougé pendant qu'il tournait (sa date de mise à jour, qui avance à chaque transition, sert de version) ; sinon il répond `409 import.state` (« validez de nouveau »), pour ne pas ranger un rapport qui ignore un lot arrivé entre-temps.
@@ -369,6 +377,7 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
 - **Un utilisateur listé deux fois dans `service_users`** est refusé dès la réception (et à la validation) avec `import.duplicate_id` au chemin `subscriptions[i].service_users[j]`.
 - **Pas encore faits** : l'entrée d'audit par import (1F), le schéma JSON publié (1E).
 - **Codes** : les erreurs du protocole sont préfixées `import.` ; les règles des modules gardent leurs codes (`core.share_sum`, `subscriptions.phase_overlap`…). `import_too_large` (§11.5) s'écrit `import.too_large`.
+- **Décisions prises en 1C2b (2026-09-24)** (détail et raisons : `superpowers/specs/2026-09-24-provider-catalog-design.md` §5 et §10) : `providers` (§5.2) n'est plus refusée — chaque entrée est résolue, dans l'ordre, contre une entrée déjà importée sous la même référence par cet importeur (`unchanged` ou `conflict`), puis contre une entrée de même référence et même empreinte **visible de l'importeur**, puis sinon créée au `commit` avec une clé générée, en gardant `import_ref`/`import_hash` comme toute autre entité importée ; `provider_key` (§5.3) est désormais vérifié — une entrée `providers` du fichier prime toujours sur une clé existante de même orthographe, sinon une clé existante doit être visible de l'importeur et non archivée, sinon `import.unresolved_reference` au chemin `subscriptions[i].provider_key` (non répété quand l'entrée `providers` de cette clé a déjà échoué) ; la provenance d'un import (« déjà importé sous cette référence ? ») est tenue **par importeur**, index séparé pour chacun, si bien que deux personnes qui importent le même fichier reçoivent chacune leur propre fournisseur et jamais celui de l'autre si elles ne peuvent pas le voir — une clé qui n'existe que par une souscription privée d'un autre adulte répond comme une clé inconnue, au mot près.
 
 ## 13. Questions ouvertes
 

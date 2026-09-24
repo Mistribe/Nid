@@ -193,6 +193,40 @@ fichiers du week-end présents, couverture SubTracker débutant le 2025-07-30) ;
 rencontrée sur les cinq jours SubTracker et le fichier ECB complet. Referme les « points à vérifier à
 l'implémentation » de `core-data-model.md` §8.3 et la question ouverte du format réel en §13.
 
+## 9quinquies. Catalogue de fournisseurs : dépôt réel (1C2b, 2026-09-24)
+
+**Exécuté** : petite console jetable (non conservée, `dotnet test` sur un test isolé supprimé aussitôt après),
+référençant les vrais `SafeHttpClient`, `CatalogSourceClient` et `CatalogReader` du dépôt (aucun test de la
+suite ne touche le réseau ; cette vérification est hors CI). Requête réelle vers `raw.githubusercontent.com`, au
+commit épinglé par la conception (`df0146a8f3532f5c790aa54a34d4871e96b62a95`, dépôt `Mistribe/SubTracker-Data`).
+
+**Résultat : les deux fichiers sont identiques, octet pour octet, aux fixtures gelées en Tâche 2** :
+
+| Fichier | Taille | SHA-256 |
+|---|---|---|
+| `labels.json` | 1 491 octets | `69d2c0380c4e189c4dea38f332162c1fe325bc9bc6b2e018155d90b0b2f7ed93` |
+| `providers.json` | 7 510 octets | `a1a78bfe33edd2c3917d3cd48e81b7d66bccaf18577065abadf7be36a08cbe14` |
+
+**Lecture** (`CatalogReader.Read`) : **17 fournisseurs**, **19 libellés**, un libellé créé (`[home]`, catégorie
+sans libellé dans `providers.json`), une clé en double (`[labels:hosting]`), **0** entrée refusée. Confirme les
+deux défauts déjà connus de `subscription-data-model.md` § « Catalog source » : `hosting` apparaît deux fois
+dans `labels.json` (la première occurrence est gardée) et la catégorie `home` (utilisée par `home-insurance`)
+n'a pas de libellé propre (un libellé neutre est créé à son nom). Les couleurs du fichier réel sont bien en
+`#AARRGGBB` (alpha d'abord, casse mixte, ex. `#FF1DB954` et `#ff1db954` cohabitent) : converties en `#RRGGBB` en
+supprimant l'alpha (§4 de la conception). Les membres `icon` et `plans` de `providers.json` sont présents dans
+le fichier réel et **ignorés** par le lecteur, comme prévu (ni stockés ni lus, décision §2 de la conception).
+
+**Non exécuté** : le second volet de la Tâche 12 (démarrer l'application via `deploy/dev`, se connecter en admin,
+lancer « Synchroniser maintenant » depuis Administration › Catalogue et relire Administration › Tâches) n'a pas
+été fait dans cette passe — la conséquence de la synchronisation réelle contre le dépôt amont est déjà couverte
+par les tests d'intégration de la Tâche 4 (`CatalogSyncTests`, avec un double de la source) et par ce contrôle
+d'octets ; aucun résultat n'est inventé pour cette partie.
+
+**Conclusion** : referme la vérification manuelle demandée par la conception §7 (« Un contrôle manuel contre le
+dépôt réel au commit épinglé, consigné dans `docs/spikes.md` ») et par `superpowers/plans/2026-09-19-stage-1-overview.md` §« What each remaining sub-plan must prove ». Rien de nouveau côté anomalies de format : les deux défauts
+recensés en conception restent les deux seuls écarts entre le dépôt réel et le format cible (§8 de la
+conception).
+
 ## 10. Vecteurs à conserver pour les tests réels
 
 - **Échéancier** : le générateur Python (référence en précision 60 chiffres, formule « multiplier d'abord ») et ses 3 000 cas servent d'**oracle** pour les tests de `realestate/loans.md` §12.

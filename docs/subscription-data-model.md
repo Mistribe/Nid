@@ -123,21 +123,23 @@ A provider gives a subscription its identity in the UI (name, icon, labels) and 
 
 | Field | Type | Notes |
 |---|---|---|
-| `key` | string | Unique, lowercase, hyphenated (`spotify`, `nordvpn`). Same key space as the catalog. |
+| `key` | string | Unique, lowercase, hyphenated (`spotify`, `nordvpn`). Same key space as the catalog. Catalog keys are used as published; a `custom` key is **generated**, never chosen by the caller: `<slug of the name>-<6 random [a-z0-9]>` (`tinder-k3f9qa`). |
 | `name` | string | Display name. Optional localized variants: `default` plus `local` keyed by locale (`fr-fr`). |
-| `origin` | enum | `catalog` (imported) or `custom` (created by a user) |
+| `origin` | enum | `catalog` (imported), `custom` (created by a user) or `adopted` (a key stored in `subscription.provider_key` before any catalog existed) |
 | `website`, `pricing_page` | url? | `http`/`https` only |
-| `icon_asset` | id? | Locally stored copy of the icon. Null = generated monogram (see below). |
+| `icon_asset` | id? | Not built yet (1C2c). Until then the UI shows a generated monogram (see below). |
 | `label_keys` | `[string]` | At least one |
-| `plans` | json? | Raw catalog plan suggestions, read-only and indicative |
+| `plans` | json? | Not built for now (to be rethought before it is); not stored, not read |
 | `catalog_commit` | string? | Commit the row was imported from |
-| `archived_at` | date? | |
+| `archived_at` | date? | Set when a `catalog` provider leaves the catalog. Never deleted; its subscriptions keep it. |
 
 Rules:
 
 - `custom` providers are never overwritten by a sync. `catalog` providers are updated by a sync.
-- A provider referenced by a subscription is never deleted: it is archived.
-- A custom key may not equal a catalog key. If a later catalog version adds a key that a custom provider already uses, the sync reports the conflict for manual resolution.
+- A provider referenced by a subscription is never deleted: a `catalog` provider that leaves the catalog is archived and keeps its subscriptions.
+- A custom key may not equal a catalog key: a generated key never collides with a catalog key by construction (catalog keys carry no random suffix), and the draw is retried on the rare accidental collision.
+- **`adopted` providers.** Keys already stored in `subscription.provider_key` before the catalog existed (imported before 1C2b, or written through the API since 1C1) are adopted at the migration: one `adopted` provider per distinct stored key, name derived from the key (`wow` → "Wow"), label `other`, no website. At the first sync afterwards, an `adopted` provider whose key matches a catalog key **becomes** that `catalog` provider (same key, no subscription changes); those that stay `adopted` are listed in every sync report (§ "Catalog source" below) until someone moves their subscriptions to another provider.
+- **Visibility is derived, never stored**: a `catalog` provider is visible to every adult; a `custom` or `adopted` provider is visible to an adult who can see a subscription using it; a `custom` provider is also visible to its creator while no subscription visible to them uses it. A provider the actor cannot see answers exactly like one that does not exist, on every path (list, write, import).
 
 ### Label
 
@@ -145,9 +147,10 @@ Rules:
 |---|---|---|
 | `key` | string | Unique |
 | `name` | string | Display name, localized in the UI by key (the catalog is single-language) |
-| `color` | string | CSS color |
+| `color` | string | CSS color, `#RRGGBB` |
+| `origin` | enum | `catalog` or `local` |
 
-The catalog stores colors as `#AARRGGBB` (alpha first, Android style). They are converted to CSS at import. Duplicate keys are merged at import.
+The catalog stores colors as `#AARRGGBB` (alpha first, Android style); they are converted to `#RRGGBB` at sync, dropping the alpha. A key appearing twice in the catalog file keeps its first occurrence; a category with no matching label gets one created for it (name from the key, neutral color). One `local` label exists, `other`, created for `adopted` providers.
 
 ### Catalog source
 
@@ -159,15 +162,16 @@ Catalog fields used:
 |---|---|
 | `key`, `name` | `key`, `name` (with `local` variants) |
 | `website`, `pricing_page` | same |
-| `icon` | Source of `icon_asset` (see below) |
+| `icon` | Source of `icon_asset` once 1C2c builds it; ignored for now |
 | `categories` (18 allowed values) | `label_keys` |
-| `plans[]` (`name`, `description`, `features`, `prices`, `recurrency`, `options`) | `plans`, suggestions only |
+| `plans[]` (`name`, `description`, `features`, `prices`, `recurrency`, `options`) | Ignored for now (1C2b §2): not stored, not read |
 
 Sync rules:
 
-- **Pinned**: the configuration names a commit or tag. The sync is an explicit action (and once at first run), never on every startup.
-- **Validated on ingestion**: schema validation, `http`/`https` URLs only, length limits on text. The repository itself advises validating and sanitizing before use.
-- The report lists added, updated, unchanged and conflicting providers.
+- **Pinned**: the configuration names a commit (`Catalog:Commit`, default `df0146a8f3532f5c790aa54a34d4871e96b62a95`). The sync is an explicit action — a durable job started at startup while no sync has ever succeeded, and on demand from Administration › Catalogue — never on a schedule (the commit is pinned, so a periodic run would only repeat the same version).
+- **Validated on ingestion**: an entry that breaks a rule (key pattern, name empty or too long, URL not `http`/`https`, no category, malformed color) is refused and listed with its reason; the rest of the file is still written. A file that is not the expected JSON array fails the whole run and writes nothing.
+- **Journal**: every sync is recorded in `catalog_sync_run` (`id`, `started_at`, `finished_at`, `status`, `commit`, `failure_code`, `failure_message`, `report`), the same shape and rules as `core.fx_sync_run` (`core-data-model.md`): at most one running row, a run left running for an hour closed as abandoned, an interrupted run closed as interrupted, runs older than 400 days purged except the latest success. The report lists providers added, updated, unchanged and archived; adopted providers replaced by the catalog and adopted providers remaining; labels added, updated and created for a category without one; duplicate keys; refused entries with their reason. **The stored report is filtered for its reader**: an adopted-replaced, adopted-remaining or custom-conflict entry is shown only if the reader can see, at present, one of the subscriptions that used that key at sync time; a replaced key the reader cannot see is shown to them as added instead (what a household that never used it would have seen), so every catalog key of the run stays accounted for; a conflict the reader cannot see is dropped. No count of dropped entries is exposed. Only the system actor gets the complete, unfiltered report.
+- Syncing the same commit twice changes nothing: every catalog key comes out unchanged.
 
 ### Icons
 
