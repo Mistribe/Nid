@@ -102,6 +102,7 @@ describe('Import › adults and start', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));
     expect(fake.started).toEqual([{ format: 'nid.data', version: 1, adults: { 'adult-1': alice!.id, 'adult-2': bob!.id } }]);
+    await waitFor(() => expect(fake.calls).toContain('validate'));
   });
 
   it('leaves an unmapped adult out of the map, for the server to report', async () => {
@@ -115,6 +116,7 @@ describe('Import › adults and start', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));
     expect(fake.started).toEqual([{ format: 'nid.data', version: 1, adults: { 'adult-1': alice!.id } }]);
+    await waitFor(() => expect(fake.calls).toContain('validate'));
   });
 
   it('says when the file has no adult to map', async () => {

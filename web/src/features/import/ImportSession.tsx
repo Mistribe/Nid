@@ -6,6 +6,8 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { formatInstant } from '@/features/admin/format';
 import { useDraft } from './draft';
+import { FileStep } from './FileStep';
+import { SendStep } from './SendStep';
 import { effectiveState, useStateLabel } from './states';
 
 const route = getRouteApi('/import/$id');
@@ -15,7 +17,7 @@ export function ImportSession() {
   const { t } = useTranslation();
   const { id } = route.useParams();
   const { $api } = useApi();
-  const { setFile } = useDraft();
+  const { file, setFile } = useDraft();
   const navigate = useNavigate();
   const label = useStateLabel();
   const session = $api.useQuery('get', '/api/v1/platform/imports/{id}', { params: { path: { id } } });
@@ -52,6 +54,12 @@ export function ImportSession() {
             <p>{t('import.cancelled')}</p>
             <Button onClick={restart}>{t('import.new')}</Button>
           </>
+        );
+      case 'open':
+        return file ? (
+          <SendStep id={id} file={file} onValidated={() => void session.refetch()} onCancelled={restart} />
+        ) : (
+          <FileStep title={t('import.reselect_title')} hint={t('import.reselect_hint')} onReady={setFile} />
         );
       default:
         return null;
