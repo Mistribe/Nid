@@ -14,8 +14,10 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
+using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
 using Npgsql;
@@ -89,6 +91,13 @@ public static class NidServiceCollectionExtensions
         }));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+
+        // Provider catalog (1C2b). The options are bound by Program; the defaults are the design's pinned commit.
+        services.TryAddSingleton(new CatalogOptions());
+        services.TryAddSingleton<ICatalogSourceClient, CatalogSourceClient>();
+        services.AddScoped<IProviderStore, ProviderStore>();
+        services.AddScoped<ICatalogRunLog, CatalogRunLog>();
+        services.AddScoped<CatalogSync>();
 
         services.AddDbContext<PlatformDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

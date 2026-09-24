@@ -9,6 +9,7 @@ using Nid.Host.Jobs;
 using Nid.Platform;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
+using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -32,6 +33,7 @@ var generatingOpenApi = System.Reflection.Assembly.GetEntryAssembly()?.GetName()
 var fxOptions = builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new FxOptions();
 builder.Services.AddSingleton(fxOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection("Catalog").Get<CatalogOptions>() ?? new CatalogOptions());
 var connectionString = builder.Configuration.GetConnectionString("nid")
     ?? (generatingOpenApi ? "Host=openapi-generation" : throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 builder.Services.AddNid(connectionString);

@@ -37,8 +37,9 @@ public sealed class NidApp : IAsyncDisposable
     private readonly Dictionary<Guid, string> csrfTokens = [];
 
     private NidApp(
-        WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d, FakeFxSources sources)
-        => (this.factory, ConnectionString, AdultA, AdultB, Dependent, Sources) = (factory, connectionString, a, b, d, sources);
+        WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
+        FakeFxSources sources, FakeCatalogSource catalog)
+        => (this.factory, ConnectionString, AdultA, AdultB, Dependent, Sources, Catalog) = (factory, connectionString, a, b, d, sources, catalog);
 
     /// <summary>The database this harness runs against, for tests that read rows back directly.</summary>
     public string ConnectionString { get; }
@@ -56,6 +57,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="IFxSourceClient"/> this host runs against; every request fails unless a test configures it.</summary>
     public FakeFxSources Sources { get; }
 
+    /// <summary>The offline <see cref="ICatalogSourceClient"/> this host runs against; every fetch fails unless a test serves files.</summary>
+    public FakeCatalogSource Catalog { get; }
+
     /// <param name="overrides">
     /// Applied last, so a test can replace a registered service. The leak bench uses it to install a
     /// deliberately broken <c>IVisibleItems</c> and watch the output guard catch it (access-tests.md §5).
@@ -66,6 +70,7 @@ public sealed class NidApp : IAsyncDisposable
     {
         var connectionString = await fixture.NewConnectionStringAsync();
         var sources = FakeFxSources.Offline();
+        var catalog = FakeCatalogSource.Offline();
 
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
         {
@@ -95,13 +100,14 @@ public sealed class NidApp : IAsyncDisposable
                 {
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
+                    services.AddSingleton<ICatalogSourceClient>(catalog);
                     // No test reaches the identity provider (https://auth.test.localhost does not exist).
                     services.AddSingleton<Nid.Host.Admin.IIdentityProviderProbe>(new ReachableIdentityProvider());
                     overrides?.Invoke(services);
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources);
+            return new NidApp(factory, connectionString, a, b, d, sources, catalog);
         }
     }
 

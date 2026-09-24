@@ -1,3 +1,7 @@
+using Nid.Subscriptions.Contracts;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
+
 namespace Nid.TestSupport;
 
 /// <summary>
@@ -13,4 +17,41 @@ public static class CatalogFixtures
     public static byte[] RealProviders() => File.ReadAllBytes(PathOf("providers.json"));
 
     private static string PathOf(string name) => Path.Combine(AppContext.BaseDirectory, "fixtures", "catalog", name);
+}
+
+/// <summary>Serves <see cref="Files"/> for any commit, or fails with <see cref="FailWith"/>. Never touches the network.</summary>
+public sealed class FakeCatalogSource : ICatalogSourceClient
+{
+    public CatalogFiles? Files { get; set; }
+
+    /// <summary>When set, every fetch fails with this code.</summary>
+    public string? FailWith { get; set; }
+
+    /// <summary>The commits asked for, in order.</summary>
+    public List<string> Requested { get; } = [];
+
+    /// <summary>Runs before the answer, with the caller's token: lets a test hold a fetch open or cancel it.</summary>
+    public Func<CancellationToken, Task>? Before { get; set; }
+
+    /// <summary>What every test host uses unless a test serves files: every fetch is unavailable.</summary>
+    public static FakeCatalogSource Offline() => new() { FailWith = CatalogCodes.SourceUnavailable };
+
+    public void Serve(byte[] labels, byte[] providers)
+    {
+        FailWith = null;
+        Files = new CatalogFiles(labels, providers);
+    }
+
+    public async Task<Result<CatalogFiles>> FetchAsync(string commit, CancellationToken ct)
+    {
+        lock (Requested)
+            Requested.Add(commit);
+        if (Before is { } before)
+            await before(ct);
+        return FailWith is { } code
+            ? Result.Failure<CatalogFiles>(new Failure(code, "Fake catalog failure.", null))
+            : Files is { } files
+                ? Result.Success(files)
+                : Result.Failure<CatalogFiles>(new Failure(CatalogCodes.SourceUnavailable, "The fake serves no files.", null));
+    }
 }

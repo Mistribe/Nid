@@ -246,3 +246,22 @@ public sealed record CatalogSnapshot(IReadOnlyList<Provider> Providers, IReadOnl
 /// and the report. A custom provider and a local label never appear in it.
 /// </summary>
 public sealed record CatalogPlan(IReadOnlyList<Label> Labels, IReadOnlyList<Provider> Providers, IReadOnlyList<string> Archive, CatalogReport Report);
+
+/// <summary>The two files of one catalog version, as fetched.</summary>
+public sealed record CatalogFiles(byte[] Labels, byte[] Providers);
+
+/// <summary>The catalog source (design §4 "Source"). Failures carry <see cref="CatalogCodes"/> source codes; nothing throws.</summary>
+public interface ICatalogSourceClient
+{
+    Task<Result<CatalogFiles>> FetchAsync(string commit, CancellationToken ct);
+}
+
+/// <summary>Bound from the <c>Catalog</c> configuration section by the host; the defaults are the design's (§4).</summary>
+public sealed class CatalogOptions
+{
+    /// <summary>A file is <c>{BaseUrl}/{Commit}/providers.json</c>; <c>raw.githubusercontent.com</c> is already an allowed host.</summary>
+    public string BaseUrl { get; set; } = "https://raw.githubusercontent.com/Mistribe/SubTracker-Data";
+
+    /// <summary>2025-11-29, the latest commit touching <c>providers.json</c>. Changing version is changing this and syncing again.</summary>
+    public string Commit { get; set; } = "df0146a8f3532f5c790aa54a34d4871e96b62a95";
+}
