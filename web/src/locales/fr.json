@@ -132,7 +132,19 @@
     "errors": "Erreurs ({{n}})",
     "warnings": "Avertissements ({{n}})",
     "no_issues": "Aucune erreur ni avertissement.",
-    "no_path": "fichier entier"
+    "no_path": "fichier entier",
+    "report_title": "Rapport de validation",
+    "section": "Section",
+    "created": "Créés",
+    "unchanged": "Inchangés",
+    "conflict": "Conflits",
+    "invalid": "Le serveur a refusé ce fichier. Corrigez les erreurs ci-dessous puis recommencez.",
+    "conflicts_block": "Des entités existent déjà avec un autre contenu : l'import ne peut pas continuer. Corrigez le fichier.",
+    "not_committed": "L'import n'a pas pu être écrit. Le rapport ci-dessous en donne la raison.",
+    "commit": "Importer",
+    "done_title": "Import terminé",
+    "download": "Télécharger le rapport",
+    "see_subscriptions": "Voir les abonnements"
   },
   "admin": {
     "loading": "Chargement",

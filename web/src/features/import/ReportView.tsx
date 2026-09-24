@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 
 type Issue = components['schemas']['ImportIssue'];
+type Report = components['schemas']['ImportReport'];
 
 /** Errors then warnings, each with the server's path (global index in the section) and code, as plain text. */
 export function IssueList({ issues }: { issues: readonly Issue[] }) {
@@ -32,5 +33,34 @@ function IssueGroup({ title, issues }: { title: string; issues: readonly Issue[]
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Per section, what the server counted (import-format.md §9): created, unchanged, conflicts. */
+export function SectionCounts({ report }: { report: Report }) {
+  const { t } = useTranslation();
+  const rows = Object.entries(report.sections);
+  if (rows.length === 0) return null;
+  return (
+    <table className="w-full text-left">
+      <thead>
+        <tr className="border-b">
+          <th scope="col" className="py-2 pr-4">{t('import.section')}</th>
+          <th scope="col" className="py-2 pr-4">{t('import.created')}</th>
+          <th scope="col" className="py-2 pr-4">{t('import.unchanged')}</th>
+          <th scope="col" className="py-2">{t('import.conflict')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(([name, counts]) => (
+          <tr key={name} className="border-b">
+            <th scope="row" className="py-2 pr-4 font-normal">{name}</th>
+            <td className="py-2 pr-4">{counts.created}</td>
+            <td className="py-2 pr-4">{counts.unchanged}</td>
+            <td className="py-2">{counts.conflict}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

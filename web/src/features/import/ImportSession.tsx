@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { formatInstant } from '@/features/admin/format';
 import { useDraft } from './draft';
 import { FileStep } from './FileStep';
+import { FinalReport } from './FinalReport';
 import { SendStep } from './SendStep';
 import { effectiveState, useStateLabel } from './states';
+import { ValidationStep } from './ValidationStep';
 
 const route = getRouteApi('/import/$id');
 
@@ -61,6 +63,11 @@ export function ImportSession() {
         ) : (
           <FileStep title={t('import.reselect_title')} hint={t('import.reselect_hint')} onReady={setFile} />
         );
+      case 'validated':
+      case 'invalid':
+        return <ValidationStep session={data} onChanged={() => void session.refetch()} onCancelled={restart} />;
+      case 'committed':
+        return <FinalReport session={data} onNew={restart} />;
       default:
         return null;
     }

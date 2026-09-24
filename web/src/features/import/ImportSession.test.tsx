@@ -1,5 +1,5 @@
 import { act, cleanup, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { canonicalizeText } from '@/lib/canonical-json';
 import { sha256Hex } from '@/lib/hash';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -186,5 +186,97 @@ describe('Import › sending', () => {
     // The abandoned loop sent exactly its one in-flight batch, then stopped; the new one sends every batch once,
     // so no slot is ever in flight from two loops at the same time.
     expect(fake.calls).toEqual(['put persons/0', 'put persons/0', 'put subscriptions/0', 'put billing_phases/0', 'validate']);
+  });
+});
+
+describe('Import › report, confirmation and commit', () => {
+  const counts = (created: number, unchanged = 0, conflict = 0) => ({ created, unchanged, conflict });
+
+  it('goes from the file to the final report', async () => {
+    const fake = fakeImportServer();
+    server.use(...fake.handlers);
+    const { user, container } = await renderApp('/import');
+
+    await upload(user, nidFile());
+    await waitFor(() => expect(screen.getByRole('button', { name: "Commencer l'import" })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+
+    expect(await screen.findByRole('heading', { name: 'Rapport de validation' })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /subscriptions/ })).toHaveTextContent('1');
+    expect(screen.getByText('Aucune erreur ni avertissement.')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('button', { name: 'Importer' }));
+    expect(await screen.findByRole('heading', { name: 'Import terminé' })).toBeInTheDocument();
+    expect(fake.calls.at(-1)).toBe('commit');
+    expect(screen.getByRole('link', { name: 'Voir les abonnements' })).toHaveAttribute('href', '/subscriptions');
+    await expectNoAxeViolations(container);
+  });
+
+  it('opens a validated import without the file, and imports it', async () => {
+    const report = { state: 'validated', sections: { persons: counts(2), subscriptions: counts(1) }, issues: [] };
+    const fake = fakeImportServer({ sessions: [session({ state: 'validated', report })] });
+    server.use(...fake.handlers);
+    const { user } = await renderApp(`/import/${SESSION_ID}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Importer' }));
+    expect(await screen.findByRole('heading', { name: 'Import terminé' })).toBeInTheDocument();
+  });
+
+  it('blocks the import on a conflict, and « Corriger » cancels it', async () => {
+    const conflict = { severity: 'error' as const, code: 'import.conflict', message: 'sub-spotify was imported with other content.', path: 'subscriptions[0]' };
+    const report = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict] };
+    const fake = fakeImportServer({ sessions: [session({ state: 'invalid', report })] });
+    server.use(...fake.handlers);
+    const { user, router } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByText("Des entités existent déjà avec un autre contenu : l'import ne peut pas continuer. Corrigez le fichier.")).toBeInTheDocument();
+    expect(screen.getByText('subscriptions[0]')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Importer' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Corriger' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
+  });
+
+  it('lets warnings through', async () => {
+    const warning = { severity: 'warning' as const, code: 'core.fx_rate_missing', message: 'No USD rate on 2024-01-05.', path: 'purchases[3]' };
+    const report = { state: 'validated', sections: { purchases: counts(4) }, issues: [warning] };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'validated', report })] }).handlers);
+    await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByRole('heading', { name: 'Avertissements (1)' })).toBeInTheDocument();
+    expect(screen.getByText('No USD rate on 2024-01-05.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importer' })).toBeInTheDocument();
+  });
+
+  it('shows why a commit was not written', async () => {
+    const report = { state: 'validated', sections: { subscriptions: counts(1) }, issues: [] };
+    const failure = { severity: 'error' as const, code: 'import.apply_failed', message: 'The database refused the write.', path: '' };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'validated', report })], commitFails: [failure] }).handlers);
+    const { user } = await renderApp(`/import/${SESSION_ID}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Importer' }));
+    expect(await screen.findByText("L'import n'a pas pu être écrit. Le rapport ci-dessous en donne la raison.")).toBeInTheDocument();
+    expect(await screen.findByText('The database refused the write.')).toBeInTheDocument();
+    expect(screen.getByText('fichier entier')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Importer' })).not.toBeInTheDocument();
+  });
+
+  it('downloads the final report', async () => {
+    const report = { state: 'committed', sections: { subscriptions: counts(1) }, issues: [] };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'committed', report })] }).handlers);
+    const blobs: Blob[] = [];
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => { blobs.push(blob as Blob); return 'blob:report'; });
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const downloads: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloads.push(this.download); });
+    const { user } = await renderApp(`/import/${SESSION_ID}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Télécharger le rapport' }));
+    expect(downloads).toEqual([`nid-import-${SESSION_ID}.json`]);
+    expect(JSON.parse(await blobs[0]!.text())).toMatchObject({ id: SESSION_ID, report });
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:report');
+    [createObjectURL, revokeObjectURL, click].forEach((spy) => spy.mockRestore());
   });
 });
