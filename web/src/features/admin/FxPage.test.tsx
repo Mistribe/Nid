@@ -38,8 +38,12 @@ describe('Administration › Taux de change', () => {
     const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('button', { name: 'Synchroniser' }));
+    expect(calls).toBe(0);
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Collecte demandée');
+
     await user.click(screen.getByRole('button', { name: 'Synchroniser' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une collecte est déjà en cours'));
   });
 

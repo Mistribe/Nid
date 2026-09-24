@@ -94,6 +94,7 @@
       "sync_title": "Collecte",
       "sync_hint": "Les taux sont collectés chaque jour. Une collecte à la demande reprend l'historique manquant.",
       "sync": "Synchroniser",
+      "sync_confirm": "Une collecte des taux va démarrer maintenant : elle reprend l'historique manquant.",
       "sync_requested": "Collecte demandée : elle apparaîtra dans le journal ci-dessous.",
       "already_running": "Une collecte est déjà en cours : son résultat apparaîtra dans le journal.",
       "manual_title": "Saisir un taux",

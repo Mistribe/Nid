@@ -6,6 +6,7 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { ConfirmAction } from './ConfirmAction';
 import { formatInstant } from './format';
 
 const RUNS = '/api/v1/core/fx-rates/runs';
@@ -76,7 +77,12 @@ export function FxPage() {
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.sync_title')}</h2>
         <p className="text-sm text-muted-foreground">{t('admin.fx.sync_hint')}</p>
-        <Button onClick={() => sync.mutate({})} disabled={sync.isPending}>{t('admin.fx.sync')}</Button>
+        <ConfirmAction
+          label={t('admin.fx.sync')}
+          confirmation={t('admin.fx.sync_confirm')}
+          disabled={sync.isPending}
+          onConfirm={() => sync.mutate({})}
+        />
       </section>
 
       <form onSubmit={submit} className="max-w-md space-y-3">
