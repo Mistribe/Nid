@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
@@ -10,4 +12,52 @@ public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
         var code = await db.HouseholdSettings.AsNoTracking().Select(s => s.ReferenceCurrency).FirstOrDefaultAsync(ct);
         return Currency.TryCreate(code?.Trim(), out var currency) ? currency : Currency.Eur;
     }
+
+    public async Task<HouseholdSettingsInfo> ReadAsync(CancellationToken ct)
+    {
+        var row = await db.HouseholdSettings.AsNoTracking().FirstOrDefaultAsync(ct) ?? new HouseholdSettingsRow();
+        var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
+        return new HouseholdSettingsInfo(
+            row.MaxAdults, Currency.TryCreate(row.ReferenceCurrency.Trim(), out var currency) ? currency : Currency.Eur, adults);
+    }
+
+    public async Task<Result<HouseholdSettingsInfo>> UpdateAsync(HouseholdSettingsChange change, CancellationToken ct)
+    {
+        Currency? currency = null;
+        if (change.ReferenceCurrency is not null)
+        {
+            if (!Currency.TryCreate(change.ReferenceCurrency, out var parsed))
+                return Fail(PersonCodes.UnknownCurrency, "The reference currency is a three-letter ISO 4217 code, in capitals.");
+            currency = parsed;
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // The same lock as pre-registration: a cap lowered while an adult is being added must see that adult.
+        await db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock({PersonRegistry.ProvisioningLockKey})", ct);
+
+        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
+        if (row is null)
+        {
+            row = new HouseholdSettingsRow();
+            db.HouseholdSettings.Add(row);
+        }
+
+        if (change.MaxAdults is { } cap)
+        {
+            var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
+            if (cap < 1 || cap < adults)
+                return Fail(PersonCodes.CapBelowCount, $"The cap cannot be lower than 1, nor than the {adults} adults the household already has.");
+            row.MaxAdults = cap;
+        }
+
+        if (currency is { } chosen)
+            row.ReferenceCurrency = chosen.Code;
+
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(await ReadAsync(ct));
+    }
+
+    private static Result<HouseholdSettingsInfo> Fail(string code, string message)
+        => Result.Failure<HouseholdSettingsInfo>(new Failure(code, message, null));
 }

@@ -1,21 +1,23 @@
 import { Link, Outlet } from '@tanstack/react-router';
-import { Repeat, Settings, Upload } from 'lucide-react';
+import { Repeat, ShieldCheck, Settings, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
 import { useSession } from './Providers';
 
 const NAV = [
-  { module: 'subscriptions', to: '/subscriptions', icon: Repeat, label: 'nav.subscriptions' },
-  { module: 'import', to: '/import', icon: Upload, label: 'nav.import' },
-  { module: null, to: '/settings/appearance', icon: Settings, label: 'nav.settings' },
+  { module: 'subscriptions', admin: false, to: '/subscriptions', icon: Repeat, label: 'nav.subscriptions' },
+  { module: 'import', admin: false, to: '/import', icon: Upload, label: 'nav.import' },
+  { module: null, admin: false, to: '/settings/appearance', icon: Settings, label: 'nav.settings' },
+  { module: null, admin: true, to: '/admin/users', icon: ShieldCheck, label: 'nav.admin' },
 ] as const;
 
 /** Sidebar on desktop, bottom tabs on mobile, same entries (screens.md §1). */
 export function Shell() {
   const { t } = useTranslation();
   const { capabilities, signOut } = useSession();
-  const items = NAV.filter((item) => item.module === null || capabilities.modules.includes(item.module));
+  const items = NAV.filter((item) =>
+    (item.module === null || capabilities.modules.includes(item.module)) && (!item.admin || capabilities.admin));
 
   const links = items.map((item) => (
     <Link

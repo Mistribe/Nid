@@ -16,7 +16,8 @@ public class AccessPolicyTests(PostgresFixture postgres)
         var persons = new PersonRegistry(db, PostgresFixture.Clock);
         var items = new ItemRegistry(db, PostgresFixture.Clock);
         Assert.True((await persons.ProvisionAdultAsync("sub-a", "Alice", null, default)).TryGetValue(out var alice));
-        Assert.True((await persons.ProvisionAdultAsync("sub-b", "Bob", null, default)).TryGetValue(out var bob));
+        Assert.True((await persons.PreRegisterAdultAsync("Bob", "bob@example.test", default)).IsSuccess);
+        Assert.True((await persons.ProvisionAdultAsync("sub-b", "Bob", "bob@example.test", default)).TryGetValue(out var bob));
         Assert.True((await persons.CreateDependentAsync("Kid", default)).TryGetValue(out var kid));
         return new World(alice.Id, bob.Id, kid.Id, items, new AccessPolicy(items, persons), db);
     }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application;
+using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Host;
 using Nid.Platform;
@@ -31,14 +32,60 @@ public class PipelineTests(PostgresFixture postgres)
         await using var scope = provider.CreateAsyncScope();
 
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<CreateDependentCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
+    }
+
+    private static async Task<UnambitiousFx.Functional.Failures.Failure?> RunAsync(IServiceScope scope, Actor actor, object request)
+    {
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = actor;
+        var invoker = scope.ServiceProvider.GetRequiredService<IInvoker>();
+        var result = request switch
+        {
+            GetFxSyncRunsQuery q => (await invoker.InvokeAsync(q)).TryGetFailure(out var f1) ? f1 : null,
+            RequestFxSyncCommand c => (await invoker.InvokeAsync(c)).TryGetFailure(out var f2) ? f2 : null,
+            _ => throw new ArgumentOutOfRangeException(nameof(request)),
+        };
+        return result;
+    }
+
+    [Fact]
+    public async Task An_admin_only_request_is_refused_to_an_adult_who_is_not_admin()
+    {
+        await using var provider = await ProviderAsync();
+        await using var scope = provider.CreateAsyncScope();
+
+        var failure = await RunAsync(scope, Actor.Browser(PersonId.New()), new RequestFxSyncCommand());
+
+        Assert.Equal(AdminCodes.Required, failure?.Code);
+    }
+
+    [Fact]
+    public async Task An_admin_and_the_system_pass_the_admin_stage()
+    {
+        await using var provider = await ProviderAsync();
+
+        await using (var scope = provider.CreateAsyncScope())
+            Assert.Null(await RunAsync(scope, Actor.Browser(PersonId.New(), isAdmin: true), new GetFxSyncRunsQuery()));
+        await using (var scope = provider.CreateAsyncScope())
+            Assert.Null(await RunAsync(scope, Actor.System, new GetFxSyncRunsQuery()));
+    }
+
+    [Fact]
+    public async Task An_actor_built_for_a_token_is_never_admin()
+    {
+        await using var provider = await ProviderAsync();
+        await using var scope = provider.CreateAsyncScope();
+        var token = new Actor(ActorKind.Person, PersonId.New(), ActorOrigin.Mcp,
+            new HashSet<string> { ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect });
+
+        Assert.Equal(AdminCodes.Required, (await RunAsync(scope, token, new GetFxSyncRunsQuery()))?.Code);
     }
 
     private static Type[] ChainOf<TRequest, TResponse>(IServiceScope scope)

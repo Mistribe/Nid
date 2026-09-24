@@ -13,6 +13,8 @@ type SessionState = {
   capabilities: Capabilities;
   setPreferences: (preferences: Preferences) => void;
   signOut: () => Promise<void>;
+  /** A full reload of the app, for the rare write whose effect the running app cannot reflect on its own (a self-demotion leaves capabilities stale). */
+  reload: () => void;
 };
 
 const SessionContext = createContext<SessionState | null>(null);
@@ -38,6 +40,7 @@ export function Providers(props: {
       queryClient.clear();
       location.assign(SIGNED_OUT_PATH);
     },
+    reload: () => location.reload(),
   }), [session, capabilities, api, queryClient, location]);
 
   return (

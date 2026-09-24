@@ -165,12 +165,6 @@ public interface IFxRates
     Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct);
 }
 
-public interface IHouseholdSettings
-{
-    /// <summary>The currency of household totals; EUR while the settings row does not exist yet (it is created at the first login).</summary>
-    Task<Currency> ReferenceCurrencyAsync(CancellationToken ct);
-}
-
 /// <summary>A source file's bytes, or <c>null</c> when SubTracker has no file that day (an HTTP 404; the ECB history never is).</summary>
 public sealed record FxFetch(byte[]? Bytes);
 

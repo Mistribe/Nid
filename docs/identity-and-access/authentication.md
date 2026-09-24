@@ -1,6 +1,6 @@
 # Authentification du navigateur
 
-> Statut : brouillon. Connexion des deux adultes via Authelia, session côté serveur (BFF).
+> Statut : brouillon. Connexion des adultes via Authelia, session côté serveur (BFF), provisionnement du premier administrateur et des adultes pré-enregistrés.
 > Références : `README.md` (principes), `../core-data-model.md` §4.4 (provisionnement), `../architecture.md` §7 (API) et §10.2 (hypothèses envers l'hébergeur).
 
 ---
@@ -39,7 +39,7 @@ Configuration fournie **à titre d'exemple** dans `deploy/` ; le secret vient d'
 | Contenu | `person_id`, `sub`, `session_epoch`. Chiffré avec les clés Data Protection (volume sauvegardé) |
 | Attributs | Nom préfixé `__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, sans `Domain` |
 | Durée | Glissante 7 jours, **absolue 30 jours** (configurables) |
-| Révocation | `person.session_epoch` : « déconnecter partout » l'incrémente ; tout cookie portant un ancien epoch est refusé. Lecture en cache court (deux utilisateurs) |
+| Révocation | `person.session_epoch` : « déconnecter partout » (page Sécurité, ou un admin pour un autre adulte) l'incrémente ; tout cookie portant un ancien epoch est refusé. C'est `ActorFilter`, pas ce validateur, qui relit la `person` au point d'entrée HTTP et fournit `is_admin` à l'acteur (`authorization.md` §1) : une rétrogradation prend effet à la requête suivante |
 | CSRF | En-tête personnalisé obligatoire sur les méthodes non sûres, plus contrôle de `Origin` et de `Sec-Fetch-Site`. Le jeton est fourni par `GET /auth/session`. Aucune configuration CORS (même origine) |
 
 Le préfixe `__Host-` impose `Secure` : le HTTPS est terminé en amont (hypothèse §7) et l'application fait confiance aux en-têtes `X-Forwarded-*` du proxy pour le savoir.
@@ -57,9 +57,16 @@ Une API non authentifiée répond `401` **sans redirection HTML** : le SPA relan
 
 ## 5. Provisionnement et récupération
 
-- **Première connexion** : Core crée la `person` de type `adult` (`../core-data-model.md` §4.4). Une fois deux adultes créés, toute nouvelle identité est refusée avec un message clair (événement `login_refused`).
-- **Récupération** : la `person` est retrouvée par `oidc_subject`. Si le `sub` change (Authelia réinstallé, utilisateur recréé), le nouvel `sub` serait refusé par le plafond de deux. La commande d'administration `rebind-subject` (`administration-and-audit.md`) rattache la personne existante au nouvel `sub`. Sans elle, l'accès serait perdu.
-- **Pas de rôles** : les deux adultes ont les mêmes droits ; aucun claim de groupe n'est requis. Qui peut atteindre Nid se règle dans Authelia.
+À la première connexion d'un `sub` inconnu, sous un verrou consultatif PostgreSQL (deux premières connexions simultanées ne passent pas ensemble) :
+
+1. **Aucun adulte en base** : Core crée la `person` de type `adult` **avec `is_admin = true`**. Le premier utilisateur est l'administrateur (`administration-and-audit.md` §2).
+2. **Sinon, un adulte en attente dont l'email correspond** au claim `email` (sans tenir compte de la casse) : son `oidc_subject` est renseigné, son nom rafraîchi depuis les claims. Un adulte en attente a été **pré-enregistré** par un admin dans la zone admin (nom, email). Sans claim `email`, aucun rattachement n'est possible.
+3. **Sinon** : refus (`core.not_registered`, événement `login_refused`). La page `/login-refused` invite à demander à un administrateur d'ajouter la personne et affiche l'email reçu, pour qu'il puisse le faire correspondre.
+
+- **Plafond** : `household_settings.max_adults` (2 par défaut, réglable dans la zone admin). Il s'applique **au pré-enregistrement** : les adultes en attente comptent, et le plafond ne peut pas descendre sous le nombre d'adultes. Une connexion ne le rencontre donc plus.
+- **Confiance** : qui administre Authelia peut donner à un compte l'email d'un adulte en attente. C'est l'hébergeur, déjà dans la frontière de confiance (`administration-and-audit.md` §1).
+- **Récupération** : la `person` est retrouvée par `oidc_subject`. Si le `sub` change (Authelia réinstallé, utilisateur recréé), le nouvel `sub` serait refusé. La commande d'administration `rebind-subject` (`administration-and-audit.md` §3) rattache la personne existante au nouvel `sub`. Sans elle, l'accès serait perdu.
+- **Un seul rôle, technique** : `admin`, porté par `person.is_admin` et géré dans Nid, pas par un claim de groupe. Il ne donne aucun droit sur les éléments (`authorization.md` §1). Qui peut atteindre Nid se règle toujours dans Authelia ; qui peut entrer dans le foyer, dans Nid.
 
 ## 6. Limites d'Authelia à assumer
 
@@ -78,4 +85,4 @@ D'après la documentation d'Authelia :
 ## 8. Points à vérifier à l'intégration
 
 - Le montage de développement : Authelia n'accepte que le HTTPS et un domaine de cookie qui n'est pas `localhost` ; la pile de développement (Aspire, `architecture.md` §10.3) inclut donc un proxy TLS et un domaine à point (`*.localtest.me`). Le flux a été exécuté ainsi (`../spikes.md` §8).
-- Comportement du plafond d'adultes lors d'une première connexion simultanée des deux adultes (création atomique de la `person`).
+- Deux premières connexions simultanées sur une base vide : une seule devient admin, l'autre est refusée ou rattachée à un adulte en attente (création atomique sous verrou).

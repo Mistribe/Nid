@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
+using Nid.Host.Admin;
+using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Npgsql;
 using Quartz;
@@ -134,6 +136,8 @@ public static class JobsSetup
         // A named scheduler's parts are keyed services: there is no unkeyed ISchedulerFactory to inject.
         services.Replace(ServiceDescriptor.Singleton<IFxJobTrigger>(sp =>
             new QuartzFxJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
+        services.Replace(ServiceDescriptor.Singleton<IJobStatusReader>(sp =>
+            new QuartzJobStatusReader(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.AddHostedService<FxStartupBackfill>();
         return services;
     }

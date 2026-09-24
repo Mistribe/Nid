@@ -22,6 +22,9 @@ export async function loadSession(api: Api): Promise<Session | null> {
 /** Where signing out lands: rendered without the login redirect, it says what stays open (SignedOutPage). */
 export const SIGNED_OUT_PATH = '/signed-out';
 
+/** Where the server sends an identity no administrator added (identity-and-access/authentication.md §5). */
+export const LOGIN_REFUSED_PATH = '/login-refused';
+
 /** A relative path only: /auth/login refuses anything else (ReturnUrl.IsSafe). */
 export const loginUrl = (location: Pick<Location, 'pathname' | 'search'>): string =>
   `/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`;

@@ -1,5 +1,10 @@
 import { createRootRouteWithContext, createRoute, createRouter, redirect, RouterProvider, type RouterHistory } from '@tanstack/react-router';
 import { useState } from 'react';
+import { FxPage } from '@/features/admin/FxPage';
+import { HouseholdPage } from '@/features/admin/HouseholdPage';
+import { JobsPage } from '@/features/admin/JobsPage';
+import { SystemPage } from '@/features/admin/SystemPage';
+import { UsersPage } from '@/features/admin/UsersPage';
 import { ImportPage } from '@/features/import/ImportPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
 import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
@@ -51,8 +56,29 @@ const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/s
 
 const forbiddenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forbidden', component: ForbiddenPage });
 
+/** The admin area is routed for admins only; the server refuses anyway (authorization.md §6). */
+const requireAdmin = ({ context }: { context: RouterContext }) => {
+  if (!context.capabilities.admin) redirect({ to: '/forbidden', throw: true });
+};
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  beforeLoad: ({ context }) => {
+    requireAdmin({ context });
+    redirect({ to: '/admin/users', throw: true });
+  },
+});
+
+const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: UsersPage });
+const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: HouseholdPage });
+const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: FxPage });
+const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: JobsPage });
+const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
+
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute,
+  indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute, adminRoute, adminUsersRoute,
+  adminHouseholdRoute, adminFxRoute, adminJobsRoute, adminSystemRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

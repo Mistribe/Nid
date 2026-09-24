@@ -11,7 +11,7 @@ Le filtrage est applicatif (pas de Row-Level Security). La garantie repose donc 
 
 ## 2. Jeu de données mixte
 
-Deux adultes A et B, un dépendant D. Chaque élément porte des valorisations, des flux, des documents et des propositions.
+Deux adultes A (admin) et B, un dépendant D. Chaque élément porte des valorisations, des flux, des documents et des propositions.
 
 | Élément | Propriétaires | Visibilité | `Readers` | `Writers` |
 |---|---|---|---|---|
@@ -33,7 +33,8 @@ Le jeu inclut au moins un élément de chaque `module` / `kind`, pour couvrir ch
    - Aucun libellé d'un élément privé de l'autre ne doit apparaître (recherche textuelle dans la réponse sérialisée).
 3. **Commandes sur élément** : chacune est exécutée sur chaque élément du jeu par chaque acteur. Le résultat attendu est calculé par les fonctions `Readers` / `Writers` : succès, `403 forbidden` ou `404 not_found`.
 4. **Portées** : chaque commande est rejouée avec `read`, `write`, `write:direct` ; résultat attendu : refus, conversion en `Proposal`, ou exécution directe (`authorization.md` §3).
-5. **Autres surfaces**, passées dans la même boucle :
+5. **Rôle admin** : chaque requête `IAdminOnly` est exécutée par un adulte non admin (résultat attendu : `403 platform.admin_required`), par un admin et par un jeton d'admin (refusé : un jeton n'est jamais admin). Exécutée par un admin, sa réponse sérialisée ne contient **aucun libellé d'élément** ; le jeu de données donne à A le rôle admin, pour prouver que ce rôle n'ouvre pas `P-B`.
+6. **Autres surfaces**, passées dans la même boucle :
    - les outils MCP ;
    - l'export (`../import-format.md` §10) ;
    - la construction du résumé mensuel de chaque adulte ;
@@ -50,6 +51,7 @@ Générateur d'éléments respectant les invariants du Core (`../core-data-model
 - Un adulte ne peut jamais s'ajouter comme propriétaire à l'élément de l'autre (`ChangeOwners`).
 - Passer `private` → `shared` puis `shared` → `private` (propriétaire unique) rend un élément à l'état initial du point de vue des lecteurs.
 - Les totaux du foyer ne dépendent d'aucun élément privé.
+- `Readers` et `Writers` ne dépendent pas de `is_admin` : promouvoir ou rétrograder un adulte ne change aucun résultat.
 
 ## 5. Garde de sortie
 

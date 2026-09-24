@@ -469,6 +469,36 @@ public class LeakBenchTests(PostgresFixture fixture)
         Assert.Contains(nameof(ListSubscriptionsQuery), violations.Recorded);
     }
 
+    /// <summary>
+    /// access-tests.md §3.5: every admin-only request is refused to B, who is not admin; run by A, who is, its
+    /// response names no item — the role opens nothing, not even A's own labels.
+    /// </summary>
+    [Fact]
+    public async Task Every_admin_only_request_is_refused_to_the_non_admin_and_shows_the_admin_no_label()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+        var adminOnly = RequestCatalogue.Entries.Where(e => typeof(IAdminOnly).IsAssignableFrom(e.RequestType)).ToList();
+        Assert.NotEmpty(adminOnly);
+
+        foreach (var entry in adminOnly)
+        {
+            var (_, refused) = await app.InvokeAsync(app.AdultB, entry.Build(data, data["S-A"]));
+            Assert.True(refused?.Code == AdminCodes.Required,
+                $"{entry.RequestType.Name} as B (not admin): expected {AdminCodes.Required}, got {refused?.Code ?? "success"}");
+        }
+
+        foreach (var entry in adminOnly.Where(e => !typeof(ICommandMarker).IsAssignableFrom(e.RequestType)))
+        {
+            var (response, failure) = await app.InvokeAsync(app.AdultA, entry.Build(data, data["S-A"]));
+            Assert.True(failure is null, $"{entry.RequestType.Name} as A (admin) failed with {failure?.Code}");
+
+            var serialised = JsonSerializer.Serialize(response, ResponseJson);
+            foreach (var label in new[] { MixedDataset.PrivateLabelA, MixedDataset.PrivateLabelB, "shared-a", "joint-ab" })
+                Assert.DoesNotContain(label, serialised, StringComparison.Ordinal);
+        }
+    }
+
     /// <summary>Truthful where the guard looks (Me), generous where the handler looks (Household).</summary>
     private sealed class GenerousInTheHouseholdScope(CoreDbContext db) : IVisibleItems
     {

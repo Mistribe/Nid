@@ -21,10 +21,15 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
 
         modelBuilder.Entity<HouseholdSettingsRow>(e =>
         {
-            e.ToTable("household_settings", t => t.HasCheckConstraint("ck_household_settings_single_row", "id = 1"));
+            e.ToTable("household_settings", t =>
+            {
+                t.HasCheckConstraint("ck_household_settings_single_row", "id = 1");
+                t.HasCheckConstraint("ck_household_settings_max_adults", "max_adults >= 1");
+            });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.ReferenceCurrency).HasColumnType("char(3)");
+            e.Property(x => x.MaxAdults).HasDefaultValue(2);
         });
 
         modelBuilder.Entity<PersonRow>(e =>
@@ -32,13 +37,18 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.ToTable("person", t =>
             {
                 t.HasCheckConstraint("ck_person_kind", "kind in ('adult','dependent')");
+                // An adult is active (a subject) or pending (an email to be recognised by); a dependent never signs in.
                 t.HasCheckConstraint("ck_person_subject",
-                    "(kind = 'adult' and oidc_subject is not null) or (kind = 'dependent' and oidc_subject is null)");
+                    "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
+                t.HasCheckConstraint("ck_person_admin", "kind = 'adult' or not is_admin");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Preferences).HasColumnType("jsonb");
+            e.Property(x => x.IsAdmin).HasDefaultValue(false);
             e.HasIndex(x => x.OidcSubject).IsUnique().HasFilter("oidc_subject is not null");
+            // ix_person_adult_email (unique on lower(email) among adults) is an expression index: created by the
+            // AdminArea migration in SQL, EF Core has no model for it.
             MapXmin(e.Property(x => x.Version));
         });
 

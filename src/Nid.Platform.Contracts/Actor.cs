@@ -29,10 +29,16 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     private static readonly IReadOnlySet<string> AllScopes =
         new HashSet<string> { ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect };
 
-    public static Actor Browser(PersonId person)
-        => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes);
+    /// <summary>
+    /// The technical role (administration-and-audit.md §2). Carried by a browser session of an admin and by the
+    /// system; never by a token, even its owner's. It opens no item: Readers and Writers ignore it.
+    /// </summary>
+    public bool IsAdmin { get; init; }
 
-    public static Actor System { get; } = new(ActorKind.System, null, ActorOrigin.Job, AllScopes);
+    public static Actor Browser(PersonId person, bool isAdmin = false)
+        => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes) { IsAdmin = isAdmin };
+
+    public static Actor System { get; } = new(ActorKind.System, null, ActorOrigin.Job, AllScopes) { IsAdmin = true };
 
     /// <summary><c>write:direct</c> includes <c>write</c>, which includes <c>read</c>.</summary>
     public bool Has(string scope) => scope switch
