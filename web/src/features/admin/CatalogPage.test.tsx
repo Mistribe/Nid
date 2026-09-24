@@ -146,6 +146,32 @@ describe('Administration › Catalogue', () => {
     await waitFor(() => expect(syncButton()).toBeEnabled());
   });
 
+  it('stops waiting for the requested run after 30 seconds and stops refreshing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let gets = 0;
+    server.use(http.get('*/api/v1/subscriptions/catalog/runs', () => {
+      gets += 1;
+      return HttpResponse.json({ pinnedCommit: PINNED, runs: [failed] }); // the job never creates its run
+    }));
+    server.use(http.post('*/api/v1/subscriptions/catalog/sync', () => HttpResponse.json({ requested: true }, { status: 202 })));
+    const { user } = await render();
+    await lastCard();
+
+    await user.click(syncButton());
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(syncButton()).toBeDisabled());
+
+    await vi.advanceTimersByTimeAsync(27_000);
+    expect(syncButton()).toBeDisabled();
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    await waitFor(() => expect(syncButton()).toBeEnabled());
+    expect(within(await lastCard()).getByText('Échouée')).toBeInTheDocument();
+    const settled = gets;
+    await vi.advanceTimersByTimeAsync(9_000);
+    expect(gets).toBe(settled);
+  });
+
   it('says a sync is already running when the server answers 409', async () => {
     serveRuns([succeeded]);
     server.use(http.post('*/api/v1/subscriptions/catalog/sync', () =>

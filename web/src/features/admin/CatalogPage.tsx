@@ -1,5 +1,5 @@
 import { CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
@@ -18,6 +18,12 @@ export const REFRESH_MS = 3_000;
 
 /** How many runs the history shows (design §6). */
 export const HISTORY_SIZE = 10;
+
+/**
+ * How long, after a 202, the page waits for the job's run to appear before it stops being busy and shows the latest
+ * state as it is (final review H3): a job that never ran must not leave the page polling for ever.
+ */
+export const REQUEST_WAIT_MS = 30_000;
 
 const RUNS = '/api/v1/subscriptions/catalog/runs';
 
@@ -80,6 +86,19 @@ export function CatalogPage() {
   const list = runs.data?.runs ?? [];
   const latest = list[0];
   const busy = isBusy(latest, requestedAfter);
+
+  // Once the requested run has appeared, or after REQUEST_WAIT_MS without it, only the runs say whether a sync runs.
+  const waiting = requestedAfter !== undefined;
+  const appeared = waiting && latest !== undefined && latest.id !== requestedAfter;
+  useEffect(() => {
+    if (!waiting) return undefined;
+    if (appeared) {
+      setRequestedAfter(undefined);
+      return undefined;
+    }
+    const timer = setTimeout(() => setRequestedAfter(undefined), REQUEST_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [waiting, appeared]);
 
   const sync = $api.useMutation('post', '/api/v1/subscriptions/catalog/sync', {
     onSuccess: () => {
