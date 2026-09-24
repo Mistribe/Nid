@@ -76,6 +76,7 @@ app.MapSubscriptionEndpoints();
 app.MapImportEndpoints();
 app.MapPlatformEndpoints();
 app.MapFxEndpoints();
+app.MapAdminEndpoints();
 app.Run();
 
 public partial class Program;
