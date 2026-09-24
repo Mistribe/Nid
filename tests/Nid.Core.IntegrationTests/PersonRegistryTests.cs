@@ -12,7 +12,7 @@ public class PersonRegistryTests(PostgresFixture postgres)
         => result.TryGetFailure(out var failure) ? failure!.Code : null;
 
     [Fact]
-    public async Task First_login_creates_an_adult_and_the_household_settings()
+    public async Task The_first_login_creates_an_admin_adult_and_the_household_settings()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
@@ -20,7 +20,7 @@ public class PersonRegistryTests(PostgresFixture postgres)
         var result = await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default);
 
         Assert.True(result.TryGetValue(out var person));
-        Assert.Equal(PersonKind.Adult, person.Kind);
+        Assert.Equal((PersonKind.Adult, true, false), (person.Kind, person.IsAdmin, person.IsPending));
         Assert.Equal(1, db.HouseholdSettings.Count());
     }
 
@@ -39,33 +39,88 @@ public class PersonRegistryTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task A_third_adult_is_refused()
+    public async Task An_unknown_identity_is_refused_once_an_adult_exists()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
-
         await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
-        await registry.ProvisionAdultAsync("sub-b", "Bob", null, default);
-        var third = await registry.ProvisionAdultAsync("sub-c", "Carol", null, default);
 
-        Assert.Equal("core.adult_cap", Code(third));
+        var stranger = await registry.ProvisionAdultAsync("sub-x", "Mallory", "mallory@example.test", default);
+
+        Assert.Equal(PersonCodes.NotRegistered, Code(stranger));
+        Assert.Single(db.Persons);
     }
 
     [Fact]
-    public async Task Two_simultaneous_first_logins_never_exceed_two_adults()
+    public async Task A_preregistered_adult_is_bound_by_email_whatever_the_case()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
+
+        Assert.True((await registry.PreRegisterAdultAsync(" Bob ", " bob@example.test ", default)).TryGetValue(out var pending));
+        Assert.Equal(("Bob", "bob@example.test", true, false), (pending.DisplayName, pending.Email, pending.IsPending, pending.IsAdmin));
+
+        Assert.True((await registry.ProvisionAdultAsync("sub-b", "Bob B.", "BOB@Example.test", default)).TryGetValue(out var bound));
+        Assert.Equal((pending.Id, "Bob B.", false), (bound.Id, bound.DisplayName, bound.IsPending));
+        Assert.Equal(2, db.Persons.Count());
+    }
+
+    [Fact]
+    public async Task Without_an_email_claim_no_pending_adult_is_bound()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
+        await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default);
+
+        Assert.Equal(PersonCodes.NotRegistered, Code(await registry.ProvisionAdultAsync("sub-b", "Bob", null, default)));
+    }
+
+    [Fact]
+    public async Task Preregistration_needs_a_name_and_an_email_unique_among_adults()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default);
+
+        Assert.Equal(PersonCodes.NameRequired, Code(await registry.PreRegisterAdultAsync("  ", "bob@example.test", default)));
+        Assert.Equal(PersonCodes.EmailRequired, Code(await registry.PreRegisterAdultAsync("Bob", "not-an-email", default)));
+        Assert.Equal(PersonCodes.EmailTaken, Code(await registry.PreRegisterAdultAsync("Bob", "ALICE@example.test", default)));
+    }
+
+    [Fact]
+    public async Task Pending_adults_count_against_the_cap()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
+        Assert.True((await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default)).IsSuccess);
+
+        Assert.Equal(PersonCodes.AdultCap, Code(await registry.PreRegisterAdultAsync("Carol", "carol@example.test", default)));
+
+        await db.HouseholdSettings.ExecuteUpdateAsync(s => s.SetProperty(x => x.MaxAdults, 3));
+        Assert.True((await registry.PreRegisterAdultAsync("Carol", "carol@example.test", default)).IsSuccess);
+    }
+
+    [Fact]
+    public async Task Simultaneous_first_logins_make_exactly_one_admin()
     {
         var connectionString = await postgres.NewConnectionStringAsync();
 
         var attempts = Enumerable.Range(0, 6).Select(async i =>
         {
             await using var db = PostgresFixture.NewCoreContext(connectionString);
-            return await new PersonRegistry(db, PostgresFixture.Clock).ProvisionAdultAsync($"sub-{i}", $"Person {i}", null, default);
+            return await new PersonRegistry(db, PostgresFixture.Clock)
+                .ProvisionAdultAsync($"sub-{i}", $"Person {i}", $"person{i}@example.test", default);
         });
         var results = await Task.WhenAll(attempts);
 
-        Assert.Equal(2, results.Count(r => r.IsSuccess));
+        Assert.Single(results, r => r.IsSuccess);
+        Assert.Equal(5, results.Count(r => Code(r) == PersonCodes.NotRegistered));
         await using var probe = PostgresFixture.NewCoreContext(connectionString);
-        Assert.Equal(2, probe.Persons.Count(p => p.Kind == "adult"));
+        Assert.Equal(1, await probe.Persons.CountAsync(p => p.Kind == "adult" && p.IsAdmin));
+        Assert.Equal(1, await probe.Persons.CountAsync(p => p.Kind == "adult"));
     }
 
     [Fact]

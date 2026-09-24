@@ -30,8 +30,15 @@ public enum AccessKind
 
 public interface IPersonRegistry
 {
-    /// <summary>Finds the adult for an OIDC subject or creates it. Refused once two adults exist.</summary>
+    /// <summary>
+    /// Signs in an OIDC identity (identity-and-access/authentication.md §5): a known subject is refreshed; with no
+    /// adult yet, the identity becomes the first adult and admin; otherwise it binds the pending adult whose email
+    /// matches, ignoring case, or fails with <see cref="PersonCodes.NotRegistered"/>.
+    /// </summary>
     Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, CancellationToken ct);
+
+    /// <summary>An admin adds an adult who will be recognised by email at their first sign-in. Pending adults count against the cap.</summary>
+    Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct);
 
     Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct);
 

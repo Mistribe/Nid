@@ -107,9 +107,10 @@ public static class AuthenticationSetup
 
         if (!result.TryGetValue(out var person))
         {
-            // Third adult: refuse with a clear message instead of a generic error page.
+            // Not registered: the page tells the person to ask an administrator, with the email Nid received so
+            // the administrator can match it (authentication.md §5). The web page renders it as text.
             context.HandleResponse();
-            context.Response.Redirect("/login-refused");
+            context.Response.Redirect(email is null ? "/login-refused" : "/login-refused?email=" + Uri.EscapeDataString(email));
             return;
         }
 
