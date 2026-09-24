@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { canonicalizeText } from '@/lib/canonical-json';
 import { sha256Hex } from '@/lib/hash';
-import { prepareFile, type Prepared, type ReadyPreparation } from './prepare';
+import { MAX_ENTITIES, MAX_STRING_LENGTH, prepareFile, type Prepared, type ReadyPreparation } from './prepare';
 
 /**
  * Built with `node:path` rather than `new URL(template, import.meta.url)`: Vite statically rewrites that pattern
@@ -122,6 +122,12 @@ describe('the local check', () => {
     expect((await problemsOf(deep))[0]?.code).toBe('too_deep');
   });
 
+  it('accepts exactly 32 levels of nesting', async () => {
+    // The root object and the section's list are two levels; 30 nested lists make 32.
+    const deepest = `{"format":"nid.data","version":1,"persons":[${'['.repeat(30)}${']'.repeat(30)}]}`;
+    expect((await prepareFile(bytesOf(deepest))).ok).toBe(true);
+  });
+
   it('checks the envelope: an object, format and version', async () => {
     expect(await problemsOf('[]')).toEqual([{ code: 'not_object' }]);
     expect(await problemsOf('{"format":"other","version":2,"persons":[]}')).toEqual([
@@ -146,6 +152,25 @@ describe('the local check', () => {
       { code: 'lone_surrogate', path: 'subscriptions[1].tags' },
       { code: 'number_out_of_range', path: 'purchases[0].price.amount' },
     ]);
+  });
+
+  it('refuses a text or a member name longer than the server allows, at its path', async () => {
+    const longest = 'x'.repeat(MAX_STRING_LENGTH);
+    const tooLong = 'x'.repeat(MAX_STRING_LENGTH + 1);
+    const text = `{"format":"nid.data","version":1,"subscriptions":[{"id":"a","name":"${longest}"},{"id":"b","note":"${tooLong}","tags":{"${tooLong}":1}}]}`;
+    expect(await problemsOf(text)).toEqual([
+      { code: 'string_too_long', path: 'subscriptions[1].note' },
+      { code: 'string_too_long', path: 'subscriptions[1].tags' },
+    ]);
+  });
+
+  it('refuses a file with more entities than one import holds', async () => {
+    const entities = (n: number) => Array.from({ length: n }, () => '{}').join(',');
+    expect(await problemsOf(`{"format":"nid.data","version":1,"persons":[${entities(20_000)}],"subscriptions":[${entities(MAX_ENTITIES - 20_000 + 1)}]}`)).toEqual([
+      { code: 'too_many_entities' },
+    ]);
+    const full = await prepareFile(bytesOf(`{"format":"nid.data","version":1,"subscriptions":[${entities(MAX_ENTITIES)}]}`));
+    expect(ready(full).batches).toHaveLength(MAX_ENTITIES / 500);
   });
 
   it('refuses a batch whose body exceeds 1 MB, naming where it starts', async () => {

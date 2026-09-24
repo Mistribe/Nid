@@ -6,6 +6,13 @@ import { JsonNumber, JsonTextError, parseJson, serializeJson, type JsonValue } f
 export const BATCH_SIZE = 500;
 export const MAX_BATCH_BYTES = 1_048_576;
 export const MAX_DEPTH = 32;
+/**
+ * The server's default bounds (import-format.md §11.5, `ImportOptions.MaxStringLength` and
+ * `MaxEntitiesPerSession`), configurable server-side: the server stays the authority if they are changed there.
+ * A length is counted in UTF-16 code units, as C#'s `string.Length` and JS's `.length` both do.
+ */
+export const MAX_STRING_LENGTH = 10_000;
+export const MAX_ENTITIES = 50_000;
 export const FORMAT = 'nid.data';
 export const VERSIONS: readonly number[] = [1];
 
@@ -23,7 +30,7 @@ const MAX_REPORTED = 100;
 export type LocalProblemCode =
   | 'unreadable' | 'not_utf8' | 'not_json' | 'duplicate_member' | 'too_deep' | 'not_object' | 'format' | 'version'
   | 'unknown_section' | 'reserved_section' | 'not_array' | 'lone_surrogate' | 'nul' | 'number_out_of_range'
-  | 'batch_too_large' | 'empty';
+  | 'string_too_long' | 'too_many_entities' | 'batch_too_large' | 'empty';
 export type LocalProblem = { code: LocalProblemCode; path?: string; line?: number; column?: number };
 export type PreparedBatch = { section: string; index: number; count: number; hash: string; body: string };
 export type FileAdult = { ref: string; displayName: string; email: string | null };
@@ -73,6 +80,7 @@ export async function prepareFile(bytes: ArrayBuffer): Promise<Prepared> {
     else sections.push({ name, entities: value });
   }
   sections.sort((a, b) => SECTIONS.indexOf(a.name as (typeof SECTIONS)[number]) - SECTIONS.indexOf(b.name as (typeof SECTIONS)[number]));
+  if (sections.reduce((total, s) => total + s.entities.length, 0) > MAX_ENTITIES) problems.push({ code: 'too_many_entities' });
 
   for (const section of sections) section.entities.forEach((entity, i) => scan(entity, `${section.name}[${i}]`, problems));
   if (problems.length > 0) return refuse(...problems.slice(0, MAX_REPORTED));
@@ -107,6 +115,7 @@ function scan(value: JsonValue, path: string, problems: LocalProblem[]): void {
   if (typeof value === 'string') {
     if (hasLoneSurrogate(value)) problems.push({ code: 'lone_surrogate', path });
     else if (value.includes('\u0000')) problems.push({ code: 'nul', path });
+    else if (value.length > MAX_STRING_LENGTH) problems.push({ code: 'string_too_long', path });
   } else if (value instanceof JsonNumber) {
     if (!Number.isFinite(Number(value.raw))) problems.push({ code: 'number_out_of_range', path });
   } else if (Array.isArray(value)) {
@@ -116,6 +125,7 @@ function scan(value: JsonValue, path: string, problems: LocalProblem[]): void {
       // A name is reported at its object: the server's path has no notation for a member name.
       if (hasLoneSurrogate(name)) problems.push({ code: 'lone_surrogate', path });
       else if (name.includes('\u0000')) problems.push({ code: 'nul', path });
+      else if (name.length > MAX_STRING_LENGTH) problems.push({ code: 'string_too_long', path });
       scan(member, `${path}.${name}`, problems);
     }
   }

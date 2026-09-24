@@ -86,6 +86,8 @@
       "lone_surrogate": "Un texte contient un caractère invalide : {{path}}.",
       "nul": "Un texte contient le caractère nul : {{path}}.",
       "number_out_of_range": "Un nombre est trop grand : {{path}}.",
+      "string_too_long": "Un texte dépasse 10 000 caractères : {{path}}.",
+      "too_many_entities": "Le fichier contient plus de 50 000 entités : découpez-le par section.",
       "batch_too_large": "Le lot qui commence à {{path}} dépasse 1 Mo : allégez ces entités.",
       "empty": "Le fichier ne contient aucune entité."
     },

@@ -4,5 +4,8 @@ import { prepareFile, type Prepared } from './prepare';
 const scope = self as unknown as { onmessage: ((event: MessageEvent<ArrayBuffer>) => void) | null; postMessage: (message: Prepared) => void };
 
 scope.onmessage = (event) => {
-  void prepareFile(event.data).then((prepared) => scope.postMessage(prepared));
+  // A rejection inside the worker never reaches `Worker.onerror`: without this, the page would wait forever.
+  void prepareFile(event.data)
+    .then((prepared) => scope.postMessage(prepared))
+    .catch(() => scope.postMessage({ ok: false, problems: [{ code: 'unreadable' }] }));
 };
