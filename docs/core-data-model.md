@@ -307,17 +307,20 @@ Le payload d'origine est **toujours conservé** ; le payload appliqué est `edit
 | `on_date` | date | |
 | `quote` | char(3) | Devise cotée |
 | `rate` | numeric(19,10) | Cours pour **1 USD** (devise pivot, voir §8.2) |
-| `source` | text | `subtracker_data` ou `manual` |
+| `source` | text | `subtracker_data`, `ecb` ou `manual` |
 | `fetched_at` | timestamptz | |
 
-Clé primaire `(on_date, quote)`. Le rafraîchissement automatique **n'écrase jamais** une ligne `manual`.
+Clé primaire `(on_date, quote)`, contrainte `rate > 0`, contrainte `quote <> 'USD'` (l'USD vaut 1 par définition et n'est jamais stocké).
+
+**Priorité d'écriture** `manual` > `subtracker_data` > `ecb`. Une écriture ne remplace jamais une ligne d'une source de priorité supérieure ; une ligne de même priorité est remplacée (un fichier amont corrigé l'emporte). La BCE ne fait donc que combler les trous, SubTracker-Data remplace la BCE là où les deux existent, et rien n'écrase une saisie manuelle.
 
 ### 8.2 Règles
 
 - **Devise pivot USD.** Un cours A → B se calcule par `rate_B / rate_A` ; `USD` vaut 1. Fonctionne quelle que soit la devise de référence du foyer.
-- **Normalisation à l'écriture** : toute source dont la base n'est pas l'USD est **rebasée** avant stockage (`rate_q / rate_USD`). La lecture reste identique quelle que soit la source.
-- **Conversion à la date d** : dernier cours avec `on_date ≤ d` (week-ends, jours fériés). Au-delà d'un écart maximal configurable : erreur `fx_rate_missing`, jamais de valeur inventée.
-- **Toutes les devises fournies sont stockées** (environ 170 lignes par jour, soit quelque 60 000 par an) : utiliser une nouvelle devise ne demande aucun rattrapage.
+- **Normalisation à l'écriture** : toute source dont la base n'est pas l'USD est **rebasée** avant stockage (`rate_q / rate_USD`, `rate_USD = 1 / rate_pivot_USD` pour la devise pivot de la source). La lecture reste identique quelle que soit la source.
+- **Conversion à la date d** : dernier cours avec `on_date ≤ d` (week-ends, jours fériés), avec un **écart maximal de 7 jours par défaut** (configurable) : la BCE a au plus quatre jours ouvrés entre deux cours, jours fériés compris. Au-delà de l'écart : erreur `fx_rate_missing`, jamais de valeur inventée.
+- **Plausibilité** : un cours collecté dont la variation relative par rapport au dernier cours stocké de la même devise dépasse un seuil (**25 % par jour par défaut**, configurable) est refusé et consigné dans `fx_sync_run.rejected` (§8.5) ; le refus ne porte que sur cette devise, le reste du fichier est écrit. La comparaison se fait avec le cours stocké le plus proche antérieur, y compris à travers un écart de plusieurs jours. Les saisies manuelles ne sont pas vérifiées (l'auteur en est l'autorité) ; l'historique BCE est écrit sans vérification (c'est la référence, et ses premiers cours n'ont rien à comparer), mais un cours SubTracker est vérifié contre un cours BCE.
+- **Toutes les devises fournies sont stockées** (environ 170 lignes par jour pour SubTracker-Data, soit quelque 60 000 par an) : utiliser une nouvelle devise ne demande aucun rattrapage.
 - **Arrondi** : pleine précision en interne, arrondi à l'affichage uniquement.
 - Les taux sont **indicatifs** (affichage et agrégation du foyer), pas des taux comptables ou bancaires.
 
@@ -325,25 +328,33 @@ Clé primaire `(on_date, quote)`. Le rafraîchissement automatique **n'écrase j
 
 Source principale : dépôt public `Mistribe/SubTracker-Data` (licence MIT, attribution à conserver en cas de redistribution).
 
-| Constat (documentation et fichiers lus) | Détail |
+| Constat (documentation, fichiers lus et vérification réelle du 2026-09-24, `spikes.md` §9quater) | Détail |
 |---|---|
 | Fichiers | `exchange/{AAAA}/{MM}/{JJ}.json`, un fichier par jour |
-| Format | `{ "from": "USD", "to": { "EUR": 0.870604, "GBP": 0.746547, … } }` : base **USD**, valeurs numériques à 5-6 décimales, environ 168 devises, **aucune date dans le fichier** (la date vient du chemin) |
+| Format | `{ "from": "USD", "to": { "EUR": 0.870604, "GBP": 0.746547, … } }` : base **USD**, valeurs numériques à 5-6 décimales, environ 168 à 173 devises selon la date, **aucune date dans le fichier** (la date vient du chemin). Format stable et confirmé sur cinq jours réels, aucun rejet |
 | `exchange/list.json` | Table `code → nom` de 155 devises, utilisable pour les listes de choix et pour écarter les codes inconnus |
-| Mise à jour | Action GitHub quotidienne à 01:00 UTC, et rattrapage sur 60 jours en fin de mois |
-| Couverture | Dossiers présents depuis **juillet 2025** (2025/07) |
+| Mise à jour amont | Vers **05:30 UTC** (constat de la conception, `superpowers/specs/2026-09-23-fx-rates-design.md` §3), pas 01:00 comme indiqué initialement dans ce document |
+| Fichiers du week-end | **Présents**, avec un contenu comparable aux jours ouvrés (vérifié les 2026-09-19 et 2026-09-20) : la règle « dernier cours connu » couvre malgré tout les jours sans fichier (jour férié amont, panne) |
+| Devise absente un jour donné | Non observée sur la fenêtre vérifiée (5 jours consécutifs, 173 codes identiques) ; seule une **croissance** de couverture a été vue (171 codes le 2025-07-30, 173 en 2026-09), jamais une régression |
+| Couverture | Dossiers présents depuis **le 2025-07-30** (premier fichier confirmé) |
 | Fournisseur amont | Non identifiable : les URL sont des secrets du dépôt |
 
 **Collecte côté application**
 
-- Job Quartz quotidien, planifié **après** l'action amont (03:00 UTC par défaut). Il lit le fichier du jour, vérifie la forme, rebase si besoin, écrit les lignes `subtracker_data`.
-- **Rattrapage** au démarrage et à la demande : télécharge les jours manquants sur la plage nécessaire, un fichier par jour, en séquence, en ignorant les jours déjà présents.
-- URL de base **configurable** : le dépôt (fichiers bruts) par défaut, mais aussi un miroir ou un dossier local. Sans accès sortant, saisie manuelle possible (`source = manual`).
+- Job Quartz quotidien (`fx-daily`), planifié à **07:00 UTC** (configurable), après l'heure amont observée. Il lit chaque jour manquant depuis le dernier cours SubTracker jusqu'à aujourd'hui, un fichier à la fois, en séquence ; un jour manqué est rattrapé le lendemain matin. Il purge aussi les lignes de `fx_sync_run` de plus de 400 jours.
+- **Rattrapage** (`fx-backfill`) au démarrage quand `fx_rate` est vide, et à la demande : la BCE d'abord (elle ne fait que combler les trous, §8.1), puis SubTracker depuis le 2025-07-30 jusqu'à aujourd'hui, les jours déjà couverts par SubTracker étant sautés. Dans cet ordre, chaque cours SubTracker a un cours BCE contre lequel être vérifié (§8.2).
+- URL de base **configurable** : le dépôt (fichiers bruts) par défaut, mais aussi un miroir ou un dossier local (ce dernier hors 1C2a, voir `superpowers/specs/2026-09-23-fx-rates-design.md` §2). Sans accès sortant, saisie manuelle possible (`source = manual`).
 - L'accès sortant ne révèle aucune donnée financière : les requêtes portent sur des dates, pas sur le contenu du foyer.
 
-**Points à vérifier à l'implémentation** : présence des fichiers le week-end (la règle « dernier cours connu » couvre les deux cas), comportement des devises absentes un jour donné, stabilité du format.
+### 8.4 Source : BCE (historique)
 
-**Historique avant juillet 2025** : non couvert par les dossiers actuels. Voir §13.
+Historique de référence : `eurofxref-hist.zip` (`www.ecb.europa.eu`), une archive zip contenant un CSV `Date,USD,JPY,…`, une ligne par jour ouvré, `N/A` pour une valeur absente, base **EUR**. Vérifié en réel le 2026-09-24 (`spikes.md` §9quater) : 639 760 octets, **220 919** lignes `(date, devise)`, **7099** dates distinctes du **1999-01-04** au jour ouvré le plus récent, 27 devises déjà cotées à la première date dont neuf aujourd'hui retirées de la zone euro (`CYP`, `EEK`, `LTL`, `LVL`, `MTL`, `ROL`, `SIT`, `SKK`, `TRL`) dont les colonnes et les anciens cours restent dans la série complète (un paiement ancien peut en avoir besoin). Bornée contre une bombe de décompression : au plus 5 Mo téléchargés, une seule entrée, 50 Mo décompressés ; les valeurs `N/A` sont ignorées sans erreur, jamais une erreur de format.
+
+Un cours qui ne tient pas dans `numeric(19,10)` une fois rebasé (plus de 9 chiffres avant la virgule) est refusé comme un cours implausible (§8.2), jamais tronqué.
+
+### 8.5 Journal des collectes (`fx_sync_run`)
+
+Une ligne par exécution (planifiée ou à la demande) : `id`, `kind` (`daily`, `backfill`), `started_at`, `finished_at`, `status` (`running`, `succeeded`, `failed`), `files_read`, `rows_written`, `failure` (code et message, nul en cas de succès), `rejected` (jsonb : `[{on_date, quote, rate, previous, reason}]`). Rend concret le « refusé **et signalé** » de `security/application.md` §8 ; le futur écran d'administration n'a qu'à l'afficher. Les lignes de plus de 400 jours sont purgées par le job quotidien.
 
 ## 9. Contrats exposés (`Core.Contracts`)
 
@@ -446,9 +457,9 @@ Les deux lignes restent en base ; seule la seconde est courante.
 
 ## 13. Questions ouvertes
 
-- Seuil de péremption des valeurs (45 jours proposé) et écart maximal de cours (`fx_rate_missing`).
+- Seuil de péremption des valeurs (45 jours proposé). ~~Écart maximal de cours (`fx_rate_missing`).~~ Tranché en 1C2a : 7 jours par défaut, configurable (§8.2).
 - Liste blanche des types de fichiers et taille maximale.
-- **Historique des taux avant juillet 2025** : les abonnements remontent à 2014 et les placements à 12-24 mois, donc des paiements ou valorisations en devise étrangère peuvent tomber avant la première date disponible (`fx_rate_missing`). Piste : rattrapage plus long côté `SubTracker-Data` si sa source historique le permet ; sinon saisie manuelle.
-- Format et couverture réels (week-ends, devises absentes) à confirmer à l'implémentation (§8.3).
+- ~~**Historique des taux avant juillet 2025** : les abonnements remontent à 2014 et les placements à 12-24 mois, donc des paiements ou valorisations en devise étrangère peuvent tomber avant la première date disponible (`fx_rate_missing`). Piste : rattrapage plus long côté `SubTracker-Data` si sa source historique le permet ; sinon saisie manuelle.~~ Tranché en 1C2a : la BCE (`eurofxref-hist.zip`) couvre les jours ouvrés depuis 1999, avant SubTracker-Data (§8.4) ; au-delà (paiement le week-end ou jour férié sans cours BCE ni SubTracker), `fx_rate_missing` reste possible et la saisie manuelle couvre le reste.
+- ~~Format et couverture réels (week-ends, devises absentes) à confirmer à l'implémentation (§8.3).~~ Vérifié en réel le 2026-09-24 (1C2a, `spikes.md` §9quater) : format stable, fichiers du week-end présents, aucune devise disparue d'un jour sur l'autre dans la fenêtre vérifiée.
 - Propriétaires d'un élément **non-personne** (société, association) : hors périmètre. Les enfants du foyer sont couverts par les `person` de type `dependent`.
 - Les éléments d'un `dependent` comptent-ils dans le total du foyer ? Par défaut oui, ventilés par personne ; une option d'exclusion reste à décider.

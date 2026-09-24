@@ -43,7 +43,7 @@ Toute requête que `nid-api` émet vers l'extérieur passe par un **`SafeHttpCli
 | **Redirections** | Non suivies automatiquement ; **chaque saut est revalidé** (mêmes règles) |
 | Résolution épinglée | La résolution vérifiée est celle utilisée pour la connexion (contre la liaison DNS) |
 | Bornes | Délais, taille maximale de réponse |
-| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data`, hôtes d'icônes, hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
+| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes, hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
 | Journal | Chaque refus est journalisé (hôte, motif) |
 
 Un éventuel proxy de sortie (par exemple Smokescreen) peut s'ajouter côté hébergeur.
@@ -83,9 +83,9 @@ Les `icon` du catalogue sont des URL de tiers, donc du contenu non fiable.
 
 | Source | Risque | Mesure |
 |---|---|---|
-| Taux de change | Taux aberrants ou empoisonnés | Variation quotidienne aberrante **refusée et signalée** ; source affichée ; saisie manuelle prioritaire ; taux indicatifs |
+| Taux de change | Taux aberrants ou empoisonnés | Variation quotidienne aberrante **refusée et signalée** (`fx_sync_run.rejected`) ; source affichée ; saisie manuelle prioritaire sur `subtracker_data` et `ecb` ; taux indicatifs |
 | Catalogue | Contenu piégé, plans trompeurs | Commit **épinglé** ; schéma validé ; textes bornés ; plans en **suggestions** jamais appliquées sans validation ; rapport de synchronisation |
-| Dépôt du taux | Compromission de l'amont | Bornes de plausibilité ; miroir possible (`../core-data-model.md` §8.3) |
+| Dépôt du taux | Compromission de l'amont | Bornes de plausibilité ; **la BCE (`www.ecb.europa.eu`) sert de second point de comparaison et d'historique** (`../core-data-model.md` §8.4), un cours SubTracker étant vérifié contre elle ; miroir possible (`../core-data-model.md` §8.3) |
 
 ## 9. Tests
 

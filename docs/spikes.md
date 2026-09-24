@@ -127,9 +127,10 @@ retenir pour les sous-plans suivants :
 
 - Dans le flux OIDC (§8) : `session_epoch`, la réponse `401` sans redirection pour les appels d'API (un essai montre `401` sur `/whoami` non authentifié, mais pas dans l'application finale), la première connexion simultanée des deux adultes, et le comportement de PAR avec `client_secret_post`.
 - Un `IEventOutboxStorage` transactionnel complet (relances, lettres mortes) : seule la faisabilité transactionnelle est vérifiée.
-- Quartz.NET sur Postgres, le SDK MCP C# en exécution, ~~la génération de client OpenAPI~~, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).
+- ~~Quartz.NET sur Postgres~~, le SDK MCP C# en exécution, ~~la génération de client OpenAPI~~, tout le frontend (Recharts, TanStack Router, React Hook Form, i18next, pdf.js).
 - ~~La canonicalisation contre les vecteurs officiels de la RFC 8785.~~ Vérifiée le 2026-09-23 (1D1), voir §5.
 - ~~La génération de client OpenAPI.~~ Vérifiée le 2026-09-23 (1E1) : document généré au build (`Microsoft.Extensions.ApiDescription.Server`) puis client `openapi-typescript`, tous deux régénérés et comparés par la CI.
+- ~~Quartz.NET sur Postgres.~~ Vérifiée le 2026-09-24 (1C2a) : tables migrées par `Nid.Platform.Infrastructure`, job persisté et déclenché, exécution journalisée dans `fx_sync_run`, second déclenchement refusé pendant qu'un run tourne (`QuartzTests`, `docs/roadmap.md` §5).
 - Les performances sous charge (les volumes du projet sont petits).
 
 ## 9bis. `IsAotCompatible` sur `Nid.Subscriptions.Domain` (vérifié le 2026-09-22)
@@ -148,6 +149,49 @@ premier essai du §9. Chaque module obtient sa propre table `__ef_migrations_his
 même base pour prouver qu'ils coexistent réellement plutôt que de se limiter à coexister au niveau du schéma.
 Le risque cité en §9 est levé pour ce couple de `DbContext`s ; un futur troisième module devra revérifier avec
 le sien.
+
+## 9quater. Taux de change : sources réelles (1C2a, 2026-09-24)
+
+**Exécuté** : petite console jetable (non conservée), référençant les vrais `SafeHttpClient`, `SubTrackerReader`
+et `EcbReader` du dépôt (aucun test de la suite ne touche le réseau ; cette vérification est hors CI). Requêtes
+réelles vers `raw.githubusercontent.com` (dépôt `Mistribe/SubTracker-Data`) et `www.ecb.europa.eu`.
+
+**SubTracker-Data** (`exchange/{yyyy}/{MM}/{dd}.json`) :
+
+| Date | Résultat |
+|---|---|
+| 2025-07-30 (premier fichier annoncé par la conception §3) | `200`, 3722 octets, **171** cotations lues, 0 rejet |
+| 2026-09-19 (samedi) | `200`, 3785 octets, **173** cotations, 0 rejet |
+| 2026-09-20 (dimanche) | `200`, 3798 octets, **173** cotations, 0 rejet |
+| 2026-09-22 (mardi) | `200`, 3786 octets, **173** cotations, 0 rejet |
+| 2026-09-23 (mercredi) | `200`, 3790 octets, **173** cotations, 0 rejet |
+
+**Confirmé** : les fichiers existent bien le week-end (conception §3, point 2), avec un contenu de taille et de
+nombre de cotations comparables aux jours ouvrés — aucune génération dégradée le week-end. Entre les cinq
+journées comparées (dont les deux jours de week-end), **aucune devise présente un jour n'est absente le
+lendemain** : l'ensemble des 173 codes est strictement identique du 19 au 23 septembre. Le seul mouvement
+observé est une croissance de couverture entre juillet 2025 (171 codes) et septembre 2026 (173 codes), deux
+codes rares (`MXV`, `SSP`) étant apparus entretemps — cohérent avec « une nouvelle devise ne demande aucun
+rattrapage » (`core-data-model.md` §8.2). `SubTrackerReader.Read` n'a rejeté aucune ligne sur les cinq fichiers
+(format stable : `from: "USD"`, valeurs numériques positives, codes ISO 4217 valides).
+
+**ECB** (`eurofxref-hist.zip`) :
+
+- `200`, 639 760 octets (bien en-deçà des bornes de 5 Mo téléchargés / 50 Mo décompressés de la conception §4.3).
+- `EcbReader.Read` : **220 919** lignes `(date, devise, cours)`, 0 rejet, **7099** dates distinctes du
+  **1999-01-04** (confirme l'historique depuis 1999, `core-data-model.md` §13) au 2026-09-23 (jour ouvré le plus
+  récent avant l'exécution).
+- Première date (1999-01-04) : **27** devises déjà cotées, dont neuf aujourd'hui retirées de la zone euro
+  (`CYP`, `EEK`, `LTL`, `LVL`, `MTL`, `ROL`, `SIT`, `SKK`, `TRL`) : leurs colonnes et leurs anciens cours restent
+  dans la série complète (conception §4.3), un paiement ancien pouvant en avoir besoin.
+- Aucune valeur `N/A` ni ligne malformée n'a fait échouer la lecture ; le BOM UTF-8 en tête de fichier a été
+  découpé comme prévu (`EcbReader`, décision d'exécution notée en §10 de la conception).
+
+**Conclusion** : les trois constats de la conception §3 sont confirmés en conditions réelles (fichiers amont
+vers 05:30 UTC — non re-mesuré ici, seule l'horodatation avait été vérifiée en amont de la conception —,
+fichiers du week-end présents, couverture SubTracker débutant le 2025-07-30) ; aucune anomalie de format n'a été
+rencontrée sur les cinq jours SubTracker et le fichier ECB complet. Referme les « points à vérifier à
+l'implémentation » de `core-data-model.md` §8.3 et la question ouverte du format réel en §13.
 
 ## 10. Vecteurs à conserver pour les tests réels
 

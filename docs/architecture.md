@@ -326,7 +326,7 @@ Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors
 - en-têtes `X-Forwarded-*` de confiance (liste de proxys configurable) ;
 - une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA ;
 - **une seule origine** : le proxy route `/api`, `/auth`, `/mcp` et `/health` vers `nid-api`, et le reste vers `nid-web`, sur le même nom d'hôte (cookie de session du BFF, pas de CORS) ;
-- un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
+- un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs) et vers l'historique de la Banque centrale européenne (`www.ecb.europa.eu`, taux de change depuis 1999), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
 
