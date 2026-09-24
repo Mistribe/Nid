@@ -1,5 +1,7 @@
 import { createRootRouteWithContext, createRoute, createRouter, redirect, RouterProvider, type RouterHistory } from '@tanstack/react-router';
 import { useState } from 'react';
+import { FxPage } from '@/features/admin/FxPage';
+import { HouseholdPage } from '@/features/admin/HouseholdPage';
 import { UsersPage } from '@/features/admin/UsersPage';
 import { ImportPage } from '@/features/import/ImportPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
@@ -67,9 +69,12 @@ const adminRoute = createRoute({
 });
 
 const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: UsersPage });
+const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: HouseholdPage });
+const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: FxPage });
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, subscriptionsRoute, importRoute, settingsRoute, appearanceRoute, forbiddenRoute, adminRoute, adminUsersRoute,
+  adminHouseholdRoute, adminFxRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

@@ -55,7 +55,7 @@
     "loading": "Chargement",
     "confirm": "Confirmer",
     "cancel": "Annuler",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -79,6 +79,41 @@
       "add_hint": "Cette personne pourra se connecter avec cette adresse email, une fois son compte créé auprès du fournisseur d'identité.",
       "add": "Ajouter",
       "cap_reached": "Le foyer est limité à {{max}} adultes : relevez le plafond dans Foyer pour en ajouter."
+    },
+    "household": {
+      "title": "Foyer",
+      "max_adults": "Plafond d'adultes",
+      "max_adults_hint": "Le foyer compte {{count}} adultes, invitations en attente comprises : le plafond ne peut pas descendre en dessous.",
+      "currency": "Devise de référence",
+      "currency_warning": "Code ISO à trois lettres (EUR, USD…). En la changeant, tous les totaux seront reconvertis dans la nouvelle devise.",
+      "save": "Enregistrer",
+      "saved": "Réglages enregistrés."
+    },
+    "fx": {
+      "title": "Taux de change",
+      "sync_title": "Collecte",
+      "sync_hint": "Les taux sont collectés chaque jour. Une collecte à la demande reprend l'historique manquant.",
+      "sync": "Synchroniser",
+      "sync_requested": "Collecte demandée : elle apparaîtra dans le journal ci-dessous.",
+      "already_running": "Une collecte est déjà en cours : son résultat apparaîtra dans le journal.",
+      "manual_title": "Saisir un taux",
+      "date": "Date",
+      "quote": "Devise",
+      "rate": "Taux pour 1 USD",
+      "save_rate": "Enregistrer le taux",
+      "rate_saved": "Taux enregistré.",
+      "runs_title": "Journal des collectes",
+      "no_runs": "Aucune collecte pour l'instant.",
+      "started": "Début",
+      "kind": "Type",
+      "status": "État",
+      "rows": "Taux écrits",
+      "failure": "Erreur",
+      "kind_daily": "quotidienne",
+      "kind_backfill": "rattrapage",
+      "status_running": "en cours",
+      "status_succeeded": "réussi",
+      "status_failed": "échoué"
     }
   }
 }
