@@ -98,6 +98,9 @@ Orchestre le protocole de `../import-format.md` §11. L'identifiant de session e
 - Le navigateur **ne décide jamais** : le rapport du serveur fait foi.
 - **Reprise** : après fermeture de l'onglet, l'utilisateur re-sélectionne le fichier ; les lots sont recalculés de façon déterministe et ceux que le serveur possède déjà sont sautés.
 
+Étape 1 (1E3) : `nid.data` seulement ; la correspondance CSV (étape 2) et le schéma compilé au build (étape 3)
+viennent avec l'import CSV, après l'étape 1 (web design §2).
+
 ## 8. Assistant d'export
 
 - Choix des sections et du format : `nid.data` ou un CSV par section (archive ZIP).
