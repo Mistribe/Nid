@@ -55,7 +55,7 @@
     "loading": "Chargement",
     "confirm": "Confirmer",
     "cancel": "Annuler",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "jobs": "Tâches", "system": "Système" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -115,6 +115,31 @@
       "status_running": "en cours",
       "status_succeeded": "réussi",
       "status_failed": "échoué"
+    },
+    "jobs": {
+      "title": "Tâches planifiées",
+      "key": "Tâche",
+      "last": "Dernière exécution",
+      "next": "Prochaine exécution",
+      "state": "État",
+      "never": "jamais",
+      "on_demand": "à la demande",
+      "running": "en cours",
+      "idle": "en attente",
+      "empty_title": "Aucune tâche planifiée",
+      "empty_body": "Les tâches planifiées sont désactivées sur cette instance : les taux de change ne sont pas collectés automatiquement."
+    },
+    "system": {
+      "title": "Système",
+      "version": "Version",
+      "started": "Démarré le",
+      "database": "Base de données",
+      "identity_provider": "Fournisseur d'identité",
+      "size": "Taille de la base",
+      "megabytes": "{{size}} Mo",
+      "unknown": "inconnue",
+      "healthy": "disponible",
+      "unhealthy": "injoignable"
     }
   }
 }

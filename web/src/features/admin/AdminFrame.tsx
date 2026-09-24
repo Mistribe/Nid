@@ -2,11 +2,13 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-/** The sections of screens.md §12. Task 11 of the 1G plan adds its own here. */
+/** The sections of screens.md §12. */
 const SECTIONS = [
   { to: '/admin/users', label: 'admin.nav.users' },
   { to: '/admin/household', label: 'admin.nav.household' },
   { to: '/admin/fx', label: 'admin.nav.fx' },
+  { to: '/admin/jobs', label: 'admin.nav.jobs' },
+  { to: '/admin/system', label: 'admin.nav.system' },
 ] as const;
 
 /** Every admin screen: the section links, the title, the content. */
