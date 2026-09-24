@@ -35,7 +35,7 @@
 | Écritures via un jeton | Proposition par défaut ; écriture directe avec la portée `write:direct` | `authorization.md` §3 |
 | Élément inaccessible | `404` (existence non divulguée) ; `403` si lisible mais non modifiable | `authorization.md` §6 |
 | Rôle admin | Colonne `person.is_admin` ; le premier utilisateur est admin ; plusieurs admins possibles, jamais zéro ; porté par la session navigateur seulement, jamais par un jeton | `administration-and-audit.md` §2 |
-| Arrivée d'un adulte | Pré-enregistré par un admin (nom, email), rattaché à sa première connexion par l'email ; toute autre identité est refusée | `authentication.md` §5 |
+| Arrivée d'un adulte | Pré-enregistré par un admin (nom, email), rattaché à sa première connexion par l'email ; toute autre identité est refusée (`core.not_registered`) | `authentication.md` §5 |
 | Administration | Zone admin dans l'interface (API `/api/v1/admin`) ; la CLI `nid admin` reste le recours de secours | `administration-and-audit.md` §2 et §3 |
 
 ## 4. Réglages par défaut

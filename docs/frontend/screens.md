@@ -7,9 +7,9 @@
 
 ## 1. Navigation
 
-- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Validation (avec badge), Plus.
+- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Validation (avec badge), Plus. Il n'existe pas encore de menu « Plus » : en attendant, **Administration** rejoint directement la barre d'onglets, au même niveau que les autres entrées, pour un admin seulement.
 - **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import/Export, Sécurité, Réglages, et **Administration** pour un admin.
-- **Administration** n'apparaît (barre latérale, ou sous « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
+- **Administration** n'apparaît (barre latérale sur bureau, barre d'onglets sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer.
 

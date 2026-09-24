@@ -19,7 +19,7 @@ Chaque requête Synapse s'exécute pour un `Actor`, posé dans le contexte par u
 
 Une session navigateur porte toutes les portées ; un jeton (`tokens-and-credentials.md`) en porte un sous-ensemble. Un `dependent` n'est jamais un acteur.
 
-`is_admin` est relu en base à chaque requête, avec le contrôle de `session_epoch` (`authentication.md` §3) : rien du rôle n'est dans le cookie. Il **n'ouvre aucun élément** : `Readers` et `Writers` (§5) l'ignorent.
+`is_admin` est relu en base à chaque requête par le point d'entrée HTTP (`ActorFilter`), avec la personne elle-même — pas par le validateur de cookie : rien du rôle n'est dans le cookie. Il **n'ouvre aucun élément** : `Readers` et `Writers` (§5) l'ignorent.
 
 ## 2. Pipeline
 
@@ -29,7 +29,7 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 |---|---|
 | 1. Trace et journal | Identifiant de requête, OpenTelemetry |
 | 2. Acteur | Session, jeton ou tâche → `Actor` |
-| 2 bis. Admin | Une requête `IAdminOnly` d'un acteur non admin est refusée : `403 admin_required` |
+| 2 bis. Admin | Une requête `IAdminOnly` d'un acteur non admin est refusée : `403 platform.admin_required` |
 | 3. Portée | Voir §3 |
 | 4. Accès | Contrôle sur l'élément visé (§4 et §5) |
 | 5. Idempotence | `Idempotency-Key` |
@@ -92,7 +92,7 @@ Source unique : deux fonctions pures, testées par propriétés (`access-tests.m
 | Élément qu'on ne peut pas lire | `404 not_found`, comme s'il n'existait pas |
 | Élément lisible mais non modifiable | `403 forbidden` |
 | Portée de jeton insuffisante | `403 insufficient_scope` |
-| Requête réservée aux admins, acteur non admin | `403 admin_required` (pas de `404` : la zone admin est la même pour tous les foyers, rien à cacher) |
+| Requête réservée aux admins, acteur non admin | `403 platform.admin_required` (pas de `404` : la zone admin est la même pour tous les foyers, rien à cacher) |
 
 **Listes filtrées**
 - `IVisibleItems.For(personne, portée)` renvoie les identifiants lisibles : `Household` (éléments partagés seulement) ou `Me` (partagés et mes privés). Les modules filtrent avec `WHERE item_id = ANY(@ids)` ; le volume est de quelques centaines d'éléments.

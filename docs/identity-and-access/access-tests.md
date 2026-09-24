@@ -33,7 +33,7 @@ Le jeu inclut au moins un élément de chaque `module` / `kind`, pour couvrir ch
    - Aucun libellé d'un élément privé de l'autre ne doit apparaître (recherche textuelle dans la réponse sérialisée).
 3. **Commandes sur élément** : chacune est exécutée sur chaque élément du jeu par chaque acteur. Le résultat attendu est calculé par les fonctions `Readers` / `Writers` : succès, `403 forbidden` ou `404 not_found`.
 4. **Portées** : chaque commande est rejouée avec `read`, `write`, `write:direct` ; résultat attendu : refus, conversion en `Proposal`, ou exécution directe (`authorization.md` §3).
-5. **Rôle admin** : chaque requête `IAdminOnly` est exécutée par un adulte non admin (résultat attendu : `403 admin_required`), par un admin et par un jeton d'admin (refusé : un jeton n'est jamais admin). Exécutée par un admin, sa réponse sérialisée ne contient **aucun libellé d'élément** ; le jeu de données donne à A le rôle admin, pour prouver que ce rôle n'ouvre pas `P-B`.
+5. **Rôle admin** : chaque requête `IAdminOnly` est exécutée par un adulte non admin (résultat attendu : `403 platform.admin_required`), par un admin et par un jeton d'admin (refusé : un jeton n'est jamais admin). Exécutée par un admin, sa réponse sérialisée ne contient **aucun libellé d'élément** ; le jeu de données donne à A le rôle admin, pour prouver que ce rôle n'ouvre pas `P-B`.
 6. **Autres surfaces**, passées dans la même boucle :
    - les outils MCP ;
    - l'export (`../import-format.md` §10) ;

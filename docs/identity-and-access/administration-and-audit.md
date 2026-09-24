@@ -23,10 +23,10 @@ La confidentialité des éléments privés vaut **entre les deux adultes, pas co
 |---|---|
 | Porteur | `person.is_admin` (schéma `core`) |
 | Premier utilisateur | La première `person` créée (base sans adulte) est admin (`authentication.md` §5) |
-| Plusieurs admins | Un admin promeut ou rétrograde un autre adulte, y compris en attente ; **le dernier admin ne peut pas être rétrogradé** (`core.last_admin`) |
+| Plusieurs admins | Un admin promeut ou rétrograde un autre adulte, y compris en attente ; **le dernier admin ne peut pas être rétrogradé** (`core.last_admin`) — « dernier admin » compte seulement les admins **actifs** : rétrograder le dernier admin actif est refusé même s'il existe un admin en attente, qui ne peut agir avant sa première connexion |
 | Périmètre | Technique seulement : n'élargit jamais `Readers` ni `Writers` (`authorization.md` §1) |
 | Canal | La session navigateur seulement ; un jeton d'accès personnel n'est jamais admin (principe 5) |
-| Contrôle | Marqueur `IAdminOnly`, étape « Admin » du pipeline, `403 admin_required` (`authorization.md` §2 et §4) |
+| Contrôle | Marqueur `IAdminOnly`, étape « Admin » du pipeline, `403 platform.admin_required` (`authorization.md` §2 et §4) |
 | Interface | `capabilities.admin` pilote l'affichage de la zone (`../frontend/screens.md` §1) |
 
 ### 2.2 Zone admin
@@ -35,7 +35,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 | Section | Contenu | API |
 |---|---|---|
-| **Utilisateurs** | Adultes (en attente ou actifs, admin ou non) ; pré-enregistrer un adulte (nom, email) ; annuler un adulte en attente ; promouvoir, rétrograder ; « déconnecter partout » un adulte (incrémente son `session_epoch`) | `GET/POST /admin/users`, `DELETE /admin/users/{id}`, `PUT /admin/users/{id}/admin`, `POST /admin/users/{id}/revoke-sessions` |
+| **Utilisateurs** | Adultes (en attente ou actifs, admin ou non) ; pré-enregistrer un adulte (nom, email) ; annuler un adulte en attente (`DELETE /admin/users/{id}` répond `200 { id }`) ; promouvoir, rétrograder ; « déconnecter partout » un adulte (incrémente son `session_epoch`) | `GET/POST /admin/users`, `DELETE /admin/users/{id}`, `PUT /admin/users/{id}/admin`, `POST /admin/users/{id}/revoke-sessions` |
 | **Foyer** | Plafond d'adultes (`max_adults`, au moins 1 et au moins le nombre d'adultes), devise de référence | `GET/PATCH /admin/household` |
 | **Taux de change** | Saisie manuelle, synchronisation à la demande, journal des collectes | `/api/v1/core/fx-rates` (écritures et journal réservés aux admins ; la lecture des taux reste ouverte) |
 | **Tâches planifiées** | Jobs Quartz : dernière et prochaine exécution, état | `GET /admin/jobs` |
@@ -44,7 +44,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 | **Plus tard** | Catalogue (1C2b), IA : fournisseurs, clés, budget (étape 4), identifiants des workers (étape 4) | |
 
 - **Aucun libellé, aucun montant, aucun compteur d'éléments** : un total d'éléments révélerait que l'autre adulte en a de privés.
-- Supprimer un adulte **actif** est hors périmètre : il possède des éléments, cela demanderait un transfert de propriété.
+- Supprimer un adulte **actif** est hors périmètre : il possède des éléments, cela demanderait un transfert de propriété. Un adulte **en attente** qui possède déjà des éléments (atteint par un import, qui résout les adultes par email y compris en attente) ne peut pas non plus être supprimé, pour la même raison (`core.person_active`).
 - Chaque action d'écriture est confirmée dans l'interface et journalisée (§4.1).
 
 ## 3. Commandes d'administration (CLI)
