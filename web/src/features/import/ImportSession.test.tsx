@@ -29,7 +29,7 @@ describe('Import › one session', () => {
     await renderApp(`/import/${SESSION_ID}`);
 
     expect(await screen.findByText('Cet import a été annulé.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Nouvel import' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Commencer un nouvel import' })).toBeInTheDocument();
   });
 
   it('says an unknown import is not found, as for another person’s', async () => {

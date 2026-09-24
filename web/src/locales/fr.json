@@ -100,7 +100,7 @@
     "expired": "Cet import a expiré. Recommencez avec le fichier.",
     "restart": "Recommencer",
     "cancelled": "Cet import a été annulé.",
-    "new": "Nouvel import"
+    "new": "Commencer un nouvel import"
   },
   "admin": {
     "loading": "Chargement",
