@@ -80,7 +80,7 @@ export function FxPage() {
         <ConfirmAction
           label={t('admin.fx.sync')}
           confirmation={t('admin.fx.sync_confirm')}
-          disabled={sync.isPending}
+          pending={sync.isPending}
           onConfirm={() => sync.mutate({})}
         />
       </section>

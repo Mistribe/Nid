@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
+import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
@@ -19,6 +20,7 @@ export function UsersPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
+  const { session, reload } = useSession();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const adults = $api.useQuery('get', USERS);
   const household = $api.useQuery('get', HOUSEHOLD);
@@ -61,6 +63,7 @@ export function UsersPage() {
 
   const row = (adult: Adult) => {
     const isLastAdmin = adult.isAdmin && adult.status === 'active' && activeAdmins === 1;
+    const isSelf = adult.id === session.person.id;
     const target = { params: { path: { id: adult.id } } };
     return (
       <tr key={adult.id} className="border-b align-top">
@@ -75,7 +78,10 @@ export function UsersPage() {
                 label={t('admin.users.demote')}
                 confirmation={t('admin.users.demote_confirm', { name: adult.displayName })}
                 disabled={isLastAdmin}
-                onConfirm={() => setAdmin.mutate({ ...target, body: { isAdmin: false } })}
+                pending={setAdmin.isPending}
+                // Demoting oneself leaves the running app's capabilities stale (the session cookie still says
+                // admin): a full reload picks up the server's fresh answer instead of a client patch.
+                onConfirm={() => setAdmin.mutate({ ...target, body: { isAdmin: false } }, isSelf ? { onSuccess: reload } : undefined)}
               />
               {isLastAdmin ? <p className="text-sm text-muted-foreground">{t('admin.users.last_admin')}</p> : null}
             </>
@@ -83,6 +89,7 @@ export function UsersPage() {
             <ConfirmAction
               label={t('admin.users.promote')}
               confirmation={t('admin.users.promote_confirm', { name: adult.displayName })}
+              pending={setAdmin.isPending}
               onConfirm={() => setAdmin.mutate({ ...target, body: { isAdmin: true } })}
             />
           )}
@@ -90,12 +97,14 @@ export function UsersPage() {
             <ConfirmAction
               label={t('admin.users.cancel_invitation')}
               confirmation={t('admin.users.cancel_invitation_confirm', { email: adult.email ?? '' })}
+              pending={remove.isPending}
               onConfirm={() => remove.mutate(target)}
             />
           ) : (
             <ConfirmAction
               label={t('admin.users.revoke')}
-              confirmation={t('admin.users.revoke_confirm', { name: adult.displayName })}
+              confirmation={isSelf ? t('admin.users.revoke_self_confirm') : t('admin.users.revoke_confirm', { name: adult.displayName })}
+              pending={revoke.isPending}
               onConfirm={() => revoke.mutate(target)}
             />
           )}
@@ -107,18 +116,20 @@ export function UsersPage() {
   return (
     <AdminFrame title={title}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b">
-            <th scope="col" className="py-2 pr-4">{t('admin.users.name')}</th>
-            <th scope="col" className="py-2 pr-4">{t('admin.users.email')}</th>
-            <th scope="col" className="py-2 pr-4">{t('admin.users.status')}</th>
-            <th scope="col" className="py-2 pr-4">{t('admin.users.role')}</th>
-            <th scope="col" className="py-2">{t('admin.users.actions')}</th>
-          </tr>
-        </thead>
-        <tbody>{adults.data.map(row)}</tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b">
+              <th scope="col" className="py-2 pr-4">{t('admin.users.name')}</th>
+              <th scope="col" className="py-2 pr-4">{t('admin.users.email')}</th>
+              <th scope="col" className="py-2 pr-4">{t('admin.users.status')}</th>
+              <th scope="col" className="py-2 pr-4">{t('admin.users.role')}</th>
+              <th scope="col" className="py-2">{t('admin.users.actions')}</th>
+            </tr>
+          </thead>
+          <tbody>{adults.data.map(row)}</tbody>
+        </table>
+      </div>
 
       <form onSubmit={submit} className="max-w-md space-y-3">
         <h2 className="text-lg font-semibold">{t('admin.users.add_title')}</h2>

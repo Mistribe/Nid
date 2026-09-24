@@ -49,9 +49,10 @@ describe('Administration › Foyer', () => {
     );
     const { user } = await renderApp('/admin/household', { capabilities: adminCapabilities });
 
+    // XYZ is three uppercase letters: Currency.TryCreate accepts it. EU1 is a value the real server refuses.
     const currency = await screen.findByLabelText('Devise de référence');
     await user.clear(currency);
-    await user.type(currency, 'XYZ');
+    await user.type(currency, 'EU1');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('three-letter ISO 4217 code');

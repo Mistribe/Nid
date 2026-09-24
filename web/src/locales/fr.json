@@ -75,6 +75,7 @@
       "cancel_invitation_confirm": "{{email}} ne pourra plus se connecter.",
       "revoke": "Déconnecter partout",
       "revoke_confirm": "Toutes les sessions de {{name}} seront fermées.",
+      "revoke_self_confirm": "Toutes vos sessions seront fermées, celle-ci comprise : vous devrez vous reconnecter.",
       "add_title": "Ajouter un adulte",
       "add_hint": "Cette personne pourra se connecter avec cette adresse email, une fois son compte créé auprès du fournisseur d'identité.",
       "add": "Ajouter",

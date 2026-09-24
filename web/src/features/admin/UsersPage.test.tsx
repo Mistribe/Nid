@@ -9,9 +9,11 @@ import { server } from '@/test/server';
 
 type Adult = components['schemas']['AdultView'];
 
+// aliceSession (the default renderApp() session) is this same person: these tests exercise the self rows.
 const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true };
 const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false };
 const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false };
+const dave: Adult = { id: '01926b9e-0000-7000-8000-00000000000d', displayName: 'Dave', email: 'dave@example.test', status: 'active', isAdmin: true };
 
 function serve(adults: Adult[], maxAdults = 3) {
   let reads = 0;
@@ -109,5 +111,27 @@ describe('Administration › Utilisateurs', () => {
     await renderApp('/subscriptions', { capabilities: adminCapabilities });
 
     expect(screen.getAllByRole('link', { name: 'Administration' }).length).toBeGreaterThan(0);
+  });
+
+  it('reloads the app once an admin demotes itself', async () => {
+    serve([alice, dave]);
+    server.use(http.put('*/api/v1/admin/users/:id/admin', () => HttpResponse.json({ ...alice, isAdmin: false })));
+    const { user, location } = await renderApp('/admin/users', { capabilities: adminCapabilities });
+
+    const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
+    await user.click(within(aliceRow).getByRole('button', { name: 'Retirer le rôle admin' }));
+    await user.click(within(aliceRow).getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(location.reload).toHaveBeenCalledOnce());
+  });
+
+  it('warns the admin distinctly before it signs itself out everywhere', async () => {
+    serve([alice, bob]);
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
+
+    const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
+    await user.click(within(aliceRow).getByRole('button', { name: 'Déconnecter partout' }));
+
+    expect(within(aliceRow).getByText(/vous devrez vous reconnecter/)).toBeInTheDocument();
   });
 });
