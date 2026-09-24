@@ -35,7 +35,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 | Section | Contenu | API |
 |---|---|---|
-| **Utilisateurs** | Adultes (en attente ou actifs, admin ou non) ; pré-enregistrer un adulte (nom, email) ; annuler un adulte en attente (`DELETE /admin/users/{id}` répond `200 { id }`) ; promouvoir, rétrograder ; « déconnecter partout » un adulte (incrémente son `session_epoch`) | `GET/POST /admin/users`, `DELETE /admin/users/{id}`, `PUT /admin/users/{id}/admin`, `POST /admin/users/{id}/revoke-sessions` |
+| **Utilisateurs** | Adultes (en attente ou actifs, admin ou non) ; pré-enregistrer un adulte (nom, email) ; annuler un adulte en attente (`DELETE /admin/users/{id}` répond `200 { id }`) ; promouvoir, rétrograder ; « déconnecter partout » un adulte (incrémente son `session_epoch` ; `POST /admin/users/{id}/revoke-sessions` répond `200` avec l'adulte) | `GET/POST /admin/users`, `DELETE /admin/users/{id}`, `PUT /admin/users/{id}/admin`, `POST /admin/users/{id}/revoke-sessions` |
 | **Foyer** | Plafond d'adultes (`max_adults`, au moins 1 et au moins le nombre d'adultes), devise de référence | `GET/PATCH /admin/household` |
 | **Taux de change** | Saisie manuelle, synchronisation à la demande, journal des collectes | `/api/v1/core/fx-rates` (écritures et journal réservés aux admins ; la lecture des taux reste ouverte) |
 | **Tâches planifiées** | Jobs Quartz : dernière et prochaine exécution, état | `GET /admin/jobs` |
