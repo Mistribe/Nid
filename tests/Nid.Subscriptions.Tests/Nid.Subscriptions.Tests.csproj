@@ -13,4 +13,7 @@
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Domain\Nid.Subscriptions.Domain.csproj" />
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\fixtures\**\*" LinkBase="fixtures" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

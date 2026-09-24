@@ -211,3 +211,20 @@ public interface IProviderStore
     /// <summary>Inserts a provider; <see cref="CatalogCodes.KeyTaken"/> when its key exists already.</summary>
     Task<Result> CreateAsync(Provider provider, CancellationToken ct);
 }
+
+/// <summary>A label as the catalog gives it, already checked; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>
+public sealed record CatalogLabel(string Key, string Name, string Color);
+
+/// <summary>A provider as the catalog gives it, already checked; <paramref name="LabelKeys"/> are its <c>categories</c>.</summary>
+public sealed record CatalogProvider(string Key, string Name, string? Website, string? PricingPage, IReadOnlyList<string> LabelKeys);
+
+/// <summary>
+/// What the readers make of the two files (design §4). <paramref name="Labels"/> includes the labels created for a
+/// category without one, whose keys <paramref name="LabelsCreated"/> lists; what was not read is in <paramref name="Refused"/>.
+/// </summary>
+public sealed record CatalogReading(
+    IReadOnlyList<CatalogLabel> Labels,
+    IReadOnlyList<CatalogProvider> Providers,
+    IReadOnlyList<string> LabelsCreated,
+    IReadOnlyList<CatalogDuplicate> Duplicates,
+    IReadOnlyList<CatalogRefusal> Refused);
