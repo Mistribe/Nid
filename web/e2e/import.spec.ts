@@ -33,8 +33,6 @@ test('imports a small nid.data file and finds its subscription', async ({ page }
   await page.getByRole('button', { name: 'Importer' }).click();
   await expect(page.getByRole('heading', { name: 'Import terminé' })).toBeVisible();
 
-  // The list screen is 1E2's: until it lands, the subscription is looked up through the API.
-  const list = await page.request.get('/api/v1/subscriptions?scope=me');
-  expect(list.ok()).toBe(true);
-  expect(await list.text()).toContain(name);
+  await page.goto('/subscriptions?scope=me');
+  await expect(page.getByText(name)).toBeVisible();
 });
