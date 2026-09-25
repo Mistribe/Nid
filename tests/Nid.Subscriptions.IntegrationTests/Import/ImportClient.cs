@@ -57,6 +57,9 @@ public sealed class ImportClient(NidApp app)
     public async Task<HttpResponseMessage> CommitRawAsync(PersonId actor, Guid session)
         => await app.RawAsync(actor, HttpMethod.Post, $"{Root}/{session}/commit");
 
+    public async Task<HttpResponseMessage> CancelRawAsync(PersonId actor, Guid session)
+        => await app.RawAsync(actor, HttpMethod.Delete, $"{Root}/{session}");
+
     public async Task<SessionResponse> GetAsync(PersonId actor, Guid session)
         => await app.GetAsync<SessionResponse>(actor, $"{Root}/{session}");
 

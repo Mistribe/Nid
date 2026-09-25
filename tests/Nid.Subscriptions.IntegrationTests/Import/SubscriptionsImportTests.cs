@@ -192,9 +192,9 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// A imports and commits a subscription private to them. B later imports the identical record (same id,
-    /// same content — the hash matches, so it is not a conflict): the creation rule does not apply, since
-    /// nothing is created, but a private item grants no one but its owner even READ, so B cannot see it either.
+    /// A imports and commits a subscription private to them. B later imports the identical record. A's row is
+    /// invisible to B, so B's entry is a new one (spec 2026-09-25 §4). What refuses it is the creation rule, since
+    /// the record is owned by A alone, with exactly the answer an unused id gets, never "imported before".
     /// </summary>
     [Fact]
     public async Task B_cannot_reimport_a_subscription_committed_private_to_A()
@@ -204,13 +204,13 @@ public class SubscriptionsImportTests(PostgresFixture fixture)
         var subscription = """[{"id":"sub-private","name":"A's private","visibility":"private","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]""";
         await CommitAsync(client, app, new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = subscription });
 
-        var validated = await client.RunAsync(app.AdultB,
-            new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value },
+        var validated = await client.RunAsync(app.AdultB, Adults(app),
             new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = subscription });
 
         Assert.Equal("invalid", validated.State);
         var issue = Assert.Single(validated.Report!.Issues);
-        Assert.Equal((ImportCodes.NotPermitted, "subscriptions[0]"), (issue.Code, issue.Path));
+        Assert.Equal((ImportCodes.NotPermitted, "subscriptions[0]", "An item is imported by one of its owners, unless every owner is a dependent."),
+            (issue.Code, issue.Path, issue.Message));
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, validated.Id)).StatusCode);
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
         Assert.Equal(1, await subs.Subscriptions.CountAsync());

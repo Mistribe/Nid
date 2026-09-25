@@ -60,6 +60,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             CancelledAt = subscription.CancelledAt,
             ImportRef = subscription.Import?.Ref,
             ImportHash = subscription.Import?.Hash,
+            ImportedBy = subscription.Import?.ImportedBy?.Value,
             Users = subscription.Users.Select(u => new SubscriptionUserRow { ItemId = id.Value, PersonId = u.Value }).ToList(),
         });
         await db.SaveChangesAsync(ct);
@@ -125,6 +126,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             Note = origin.Note,
             ImportRef = origin.Import?.Ref,
             ImportHash = origin.Import?.Hash,
+            ImportedBy = origin.Import?.ImportedBy?.Value,
         });
         await db.SaveChangesAsync(ct);
         return Result.Success(phase.Id);
@@ -160,6 +162,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             Note = origin.Note,
             ImportRef = origin.Import?.Ref,
             ImportHash = origin.Import?.Hash,
+            ImportedBy = origin.Import?.ImportedBy?.Value,
             Grants = purchase.Grants.Select((g, index) => new GrantRow
             {
                 PurchaseId = purchase.Id.Value,
@@ -175,27 +178,42 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(purchase.Id);
     }
 
-    public async Task<IReadOnlyDictionary<string, ImportedRow>> FindImportedAsync(
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>>> FindImportedAsync(
         ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct)
     {
         if (refs.Count == 0)
-            return new Dictionary<string, ImportedRow>();
+            return new Dictionary<string, IReadOnlyList<ImportedRow>>();
 
         var keys = refs.ToList();
         var rows = table switch
         {
-            ImportedTable.Subscription => await db.Subscriptions.AsNoTracking()
-                .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
-                .Select(r => new { Ref = r.ImportRef!, Id = r.ItemId, Hash = r.ImportHash! }).ToListAsync(ct),
-            ImportedTable.BillingPhase => await db.Phases.AsNoTracking()
-                .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
-                .Select(r => new { Ref = r.ImportRef!, r.Id, Hash = r.ImportHash! }).ToListAsync(ct),
-            _ => await db.Purchases.AsNoTracking()
-                .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
-                .Select(r => new { Ref = r.ImportRef!, r.Id, Hash = r.ImportHash! }).ToListAsync(ct),
+            ImportedTable.Subscription => (await db.Subscriptions.AsNoTracking()
+                    .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                    .Select(r => new { Ref = r.ImportRef!, Id = r.ItemId, Hash = r.ImportHash!, r.ImportedBy })
+                    .ToListAsync(ct))
+                .Select(r => (r.Ref, Row: Row(r.Id, r.Hash, r.ImportedBy, [r.Id]))),
+            ImportedTable.BillingPhase => (await db.Phases.AsNoTracking()
+                    .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                    .Select(r => new { Ref = r.ImportRef!, r.Id, Hash = r.ImportHash!, r.ImportedBy, r.ItemId })
+                    .ToListAsync(ct))
+                .Select(r => (r.Ref, Row: Row(r.Id, r.Hash, r.ImportedBy, [r.ItemId]))),
+            _ => (await db.Purchases.AsNoTracking()
+                    .Where(r => r.ImportRef != null && keys.Contains(r.ImportRef))
+                    .Select(r => new
+                    {
+                        Ref = r.ImportRef!, r.Id, Hash = r.ImportHash!, r.ImportedBy,
+                        Items = r.Grants.OrderBy(g => g.Index).Select(g => g.SubscriptionItemId).ToList(),
+                    })
+                    .ToListAsync(ct))
+                .Select(r => (r.Ref, Row: Row(r.Id, r.Hash, r.ImportedBy, r.Items.Distinct()))),
         };
 
-        return rows.ToDictionary(r => r.Ref, r => new ImportedRow(r.Id, r.Hash), StringComparer.Ordinal);
+        return rows
+            .GroupBy(r => r.Ref, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<ImportedRow>)g.Select(r => r.Row).OrderBy(r => r.Id).ToList(), StringComparer.Ordinal);
+
+        static ImportedRow Row(Guid id, string hash, Guid? importedBy, IEnumerable<Guid> items)
+            => new(id, hash, importedBy is { } by ? new PersonId(by) : null, items.Select(i => new ItemId(i)).ToList());
     }
 
     public async Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct)
