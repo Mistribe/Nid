@@ -171,4 +171,29 @@ public class SchemaTests(PostgresFixture fixture)
             .SingleAsync();
         Assert.EndsWith("(quote, on_date)", quoteIndex);
     }
+
+    /// <summary>Import provenance design §3: an import ref is unique per importer, and a row with an importer is an imported row.</summary>
+    [Theory]
+    [InlineData("subscription")]
+    [InlineData("billing_phase")]
+    [InlineData("purchase")]
+    public async Task An_import_ref_is_unique_per_importer(string table)
+    {
+        await using var subs = PostgresFixture.NewSubscriptionsContext(await fixture.NewConnectionStringAsync());
+
+        var index = await subs.Database
+            .SqlQuery<string>($"select indexdef as \"Value\" from pg_indexes where schemaname = 'subscriptions' and indexname = {$"ix_{table}_imported_by_import_ref"}")
+            .SingleAsync();
+        var old = await subs.Database
+            .SqlQuery<string>($"select indexname::text as \"Value\" from pg_indexes where schemaname = 'subscriptions' and indexname = {$"ix_{table}_import_ref"}")
+            .ToListAsync();
+        var check = await subs.Database
+            .SqlQuery<string>($"select conname::text as \"Value\" from pg_constraint where conname = {$"ck_{table}_imported_by"}")
+            .ToListAsync();
+
+        Assert.StartsWith("CREATE UNIQUE INDEX", index);
+        Assert.EndsWith("(imported_by, import_ref) WHERE (import_ref IS NOT NULL)", index);
+        Assert.Empty(old);
+        Assert.Single(check);
+    }
 }

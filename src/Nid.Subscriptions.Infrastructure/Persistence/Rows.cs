@@ -12,6 +12,7 @@ public sealed class SubscriptionRow
     public string? Note { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
     public List<SubscriptionUserRow> Users { get; set; } = [];
     public List<BillingPhaseRow> Phases { get; set; } = [];
@@ -41,6 +42,7 @@ public sealed class BillingPhaseRow
     public string? Note { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
 }
 
 public sealed class PurchaseRow
@@ -57,6 +59,7 @@ public sealed class PurchaseRow
     public string? Note { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public List<GrantRow> Grants { get; set; } = [];
 }
 

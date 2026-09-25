@@ -4,8 +4,12 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.Contracts;
 
-/// <summary>Where an imported row came from: its file id and the RFC 8785 hash of its file record.</summary>
-public sealed record ImportRef(string Ref, string Hash);
+/// <summary>
+/// Where an imported row came from: its file id, the RFC 8785 hash of its file record, and who imported it.
+/// <paramref name="ImportedBy"/> is null for a provider (its importer is <c>created_by</c>) and for rows written
+/// before import provenance privacy (spec 2026-09-25 §3).
+/// </summary>
+public sealed record ImportRef(string Ref, string Hash, PersonId? ImportedBy = null);
 
 /// <summary>What a row carries besides the engine's fields.</summary>
 public sealed record RowOrigin(string? Note = null, ImportRef? Import = null)
@@ -20,8 +24,12 @@ public enum ImportedTable
     Purchase,
 }
 
-/// <summary>An imported row: its id (the item id for a subscription) and the hash it was imported with.</summary>
-public sealed record ImportedRow(Guid Id, string Hash);
+/// <summary>
+/// An imported row: its id (the item id for a subscription), the hash it was imported with, who imported it
+/// (null before import provenance privacy), and the subscription items it touches — what decides whether an
+/// importer can see it.
+/// </summary>
+public sealed record ImportedRow(Guid Id, string Hash, PersonId? ImportedBy, IReadOnlyList<ItemId> Items);
 
 /// <summary>What a subscription needs beyond its Core item, for creation.</summary>
 public sealed record NewSubscription(
@@ -57,8 +65,11 @@ public interface ISubscriptionStore
 
     Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct);
 
-    /// <summary>The rows of <paramref name="table"/> imported under one of <paramref name="refs"/>, by ref.</summary>
-    Task<IReadOnlyDictionary<string, ImportedRow>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
+    /// <summary>
+    /// Every row of <paramref name="table"/> imported under one of <paramref name="refs"/>, by ref, ordered by id,
+    /// whoever imported it. The caller decides which of them the importer may see; nothing here filters.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
 
     /// <summary>
     /// The subscriptions a purchase grants coverage to — exactly what deleting it would take coverage away

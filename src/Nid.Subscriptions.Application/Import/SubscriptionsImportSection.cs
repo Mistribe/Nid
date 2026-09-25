@@ -94,9 +94,13 @@ public sealed class SubscriptionsImportSection(
         var phaseRecords = ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues);
         var purchaseRecords = ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues);
 
-        var knownSubscriptions = await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct);
-        var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);
-        var knownPurchases = await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct);
+        var knownSubscriptions = First(await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct));
+        var knownPhases = First(await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct));
+        var knownPurchases = First(await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct));
+
+        // Task 1 only: keep 1D1's single-row lookup until Task 2 resolves by visibility.
+        static IReadOnlyDictionary<string, ImportedRow> First(IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>> found)
+            => found.ToDictionary(f => f.Key, f => f.Value[0], StringComparer.Ordinal);
 
         var linkable = await providerImport.LinkableAsync(
             context, subscriptionRecords.Select(s => s.Record.ProviderKey).OfType<string>().ToList(), ct);
