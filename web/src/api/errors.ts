@@ -1,5 +1,8 @@
 /** A Problem Details body (RFC 9457) as the API sends it: `code` is the stable identifier. */
-export type Problem = { status: number; code?: string | null; title?: string | null; traceId?: string | null };
+/** One refused field of a 422 (1E2a design §2.1): its camelCase body path, a stable code and the server's sentence. */
+export type FieldError = { path: string; code: string; message: string };
+
+export type Problem = { status: number; code?: string | null; title?: string | null; traceId?: string | null; errors?: FieldError[] | null };
 
 export type ProblemKind = 'unauthenticated' | 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'bad_request' | 'unexpected';
 

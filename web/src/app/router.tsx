@@ -26,6 +26,9 @@ export type RouterContext = { capabilities: Capabilities };
 /** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
 export type RootSearch = { scope?: 'me' };
 
+/** The list's own filters, in the URL beside the root scope (1E2a design §3). */
+export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string };
+
 export function homePath(capabilities: Capabilities): '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('subscriptions')) return '/subscriptions';
   if (capabilities.modules.includes('import')) return '/import';
@@ -49,7 +52,29 @@ const indexRoute = createRoute({
 });
 
 const subscriptionsRoute = createRoute({
-  getParentRoute: () => rootRoute, path: '/subscriptions', beforeLoad: requireModule('subscriptions'), component: SubscriptionsPage,
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions',
+  beforeLoad: requireModule('subscriptions'),
+  validateSearch: (search: Record<string, unknown>): SubscriptionsSearch => ({
+    ...(search.status === 'active' || search.status === 'ended' ? { status: search.status } : {}),
+    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+  }),
+  component: SubscriptionsPage,
+});
+
+// Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
+const subscriptionNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions/new',
+  beforeLoad: requireModule('subscriptions'),
+  component: lazyRouteComponent(() => import('@/features/subscriptions/NewSubscription'), 'NewSubscription'),
+});
+
+const subscriptionDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions/$id',
+  beforeLoad: requireModule('subscriptions'),
+  component: lazyRouteComponent(() => import('@/features/subscriptions/SubscriptionDetailPage'), 'SubscriptionDetailPage'),
 });
 
 // Loaded on demand (web design §6.2): the wizard and its canonicalizer stay out of the initial bundle.
@@ -102,7 +127,7 @@ const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ad
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), settingsRoute, appearanceRoute,
+  indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), settingsRoute, appearanceRoute,
   forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute,
 ]);

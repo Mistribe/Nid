@@ -38,9 +38,43 @@
   },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
-  "placeholder": {
-    "title": "Bientôt ici",
-    "subscriptions": "La liste de vos abonnements arrive avec la prochaine version."
+  "subscriptions": {
+    "title": "Abonnements",
+    "add": "Ajouter un abonnement",
+    "empty_title": "Aucun abonnement pour l'instant",
+    "empty_body": "Ajoutez votre premier abonnement pour suivre son coût et sa prochaine échéance.",
+    "empty_action": "Ajouter votre premier abonnement",
+    "no_match": "Aucun abonnement ne correspond à ces filtres.",
+    "search": "Rechercher par nom",
+    "status_label": "État",
+    "status_all": "Tous",
+    "status_active": "Actifs",
+    "status_ended": "Terminés",
+    "cash": "Coût réel",
+    "amortized": "Coût amorti",
+    "next_charge": "Prochaine échéance : {{date}}",
+    "expires": "Expire le {{date}}",
+    "household_totals": "Total du foyer",
+    "shared_purchases_note": "Le total du foyer compte une seule fois les achats partagés entre plusieurs abonnements : il n'est donc pas la somme des lignes.",
+    "loading": "Chargement des abonnements"
+  },
+  "field_error": {
+    "request_required": "Ce champ est obligatoire.",
+    "request_date": "Saisissez une date valide.",
+    "request_amount": "Saisissez un montant comme 12,99, avec quatre décimales au plus.",
+    "request_currency": "Saisissez un code de devise à trois lettres, comme EUR.",
+    "request_unit": "Choisissez jour, semaine, mois ou année.",
+    "request_count": "Saisissez un nombre entier positif.",
+    "request_payer": "Choisissez qui paie.",
+    "request_visibility": "Choisissez partagé ou privé.",
+    "subscriptions_phase_range": "La fin doit venir après le début.",
+    "subscriptions_max_cycles": "Le nombre de cycles doit être positif.",
+    "subscriptions_price_negative": "Le prix ne peut pas être négatif.",
+    "subscriptions_no_open_phase": "Aucun tarif n'est en cours à cette date : choisissez une date où l'abonnement a déjà un prix.",
+    "subscriptions_phase_overlap": "Cette période chevauche un tarif existant : choisissez une autre date.",
+    "subscriptions_unknown_provider": "Ce fournisseur n'existe pas ou ne peut pas être choisi.",
+    "core_share_sum": "Les parts des propriétaires doivent faire 100 % au total.",
+    "core_private_single_owner": "Un abonnement privé n'a qu'un seul propriétaire."
   },
   "settings": {
     "appearance": {
