@@ -283,6 +283,9 @@ public interface IProviderStore
     /// provider's icon URL is no longer <paramref name="source"/> (a sync changed it meanwhile) — nothing was linked.
     /// </summary>
     Task<int> SetIconAsync(string key, string source, string asset, CancellationToken ct);
+
+    /// <summary>Whether <paramref name="hash"/> is the stored icon of a catalog provider, archived or not (1C2c design §6).</summary>
+    Task<bool> IsCatalogIconAsync(string hash, CancellationToken ct);
 }
 
 /// <summary>A label as the catalog gives it, already checked; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>

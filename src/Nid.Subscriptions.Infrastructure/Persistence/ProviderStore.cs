@@ -190,6 +190,9 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
             .Where(p => p.Key == key && p.Origin == "catalog" && p.IconUrl == source)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.IconAsset, asset).SetProperty(p => p.IconSource, source), ct);
 
+    public Task<bool> IsCatalogIconAsync(string hash, CancellationToken ct)
+        => db.Providers.AnyAsync(p => p.Origin == "catalog" && p.IconAsset == hash, ct);
+
     private void RequireTransaction()
     {
         if (db.Database.CurrentTransaction is null)

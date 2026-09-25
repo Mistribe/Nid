@@ -172,6 +172,16 @@ public sealed class NidApp : IAsyncDisposable
         return await client.SendAsync(request);
     }
 
+    /// <summary>A GET as <paramref name="actor"/> with extra request headers (<c>If-None-Match</c>, for instance).</summary>
+    public async Task<HttpResponseMessage> GetWithHeadersAsync(PersonId actor, string url, IReadOnlyDictionary<string, string> headers)
+    {
+        using var client = ClientFor(actor);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        foreach (var (name, value) in headers)
+            request.Headers.TryAddWithoutValidation(name, value);
+        return await client.SendAsync(request);
+    }
+
     /// <summary>A request with no actor header: what an unauthenticated caller gets.</summary>
     public async Task<HttpResponseMessage> RawAnonymousAsync(HttpMethod method, string url)
     {
@@ -388,6 +398,22 @@ public sealed class NidApp : IAsyncDisposable
     {
         await using var subs = PostgresFixture.NewSubscriptionsContext(ConnectionString);
         await subs.Subscriptions.Where(s => s.ItemId == item.Value).ExecuteUpdateAsync(s => s.SetProperty(r => r.ProviderKey, key));
+    }
+
+    /// <summary>
+    /// Stores <paramref name="webp"/> in this host's asset store and links it to <paramref name="key"/> as the icon
+    /// pass would (1C2c): what a test of the route or the views starts from. Answers the hash.
+    /// </summary>
+    public async Task<string> SeedProviderIconAsync(string key, byte[] webp)
+    {
+        var hash = await factory.Services.GetRequiredService<IAssetStore>().PutAsync(webp, "image/webp", CancellationToken.None);
+        var url = $"https://1000logos.net/{key}.png";
+        await using var subs = PostgresFixture.NewSubscriptionsContext(ConnectionString);
+        await subs.Providers.Where(p => p.Key == key).ExecuteUpdateAsync(s => s
+            .SetProperty(p => p.IconUrl, url)
+            .SetProperty(p => p.IconSource, url)
+            .SetProperty(p => p.IconAsset, hash));
+        return hash;
     }
 
     /// <summary>

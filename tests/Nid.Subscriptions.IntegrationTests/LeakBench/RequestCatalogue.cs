@@ -122,6 +122,7 @@ public static class RequestCatalogue
         new(typeof(ListLabelsQuery), false, (_, _) => new ListLabelsQuery()),
         new(typeof(CreateProviderCommand), false,
             (_, _) => new CreateProviderCommand("bench-provider", null, null, [CatalogLimits.OtherLabel])),
+        new(typeof(GetProviderIconQuery), false, (_, _) => new GetProviderIconQuery(new string('0', 64))),
 
         new(typeof(ListAdultsQuery), false, (_, _) => new ListAdultsQuery()),
         new(typeof(PreRegisterAdultCommand), false, (_, _) => new PreRegisterAdultCommand("bench-adult", "bench@example.test")),

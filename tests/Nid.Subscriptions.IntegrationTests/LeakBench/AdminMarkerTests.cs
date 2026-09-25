@@ -43,7 +43,7 @@ public class AdminMarkerTests
     [Fact]
     public void The_provider_requests_stay_open_to_every_adult()
     {
-        Type[] open = [typeof(ListProvidersQuery), typeof(ListLabelsQuery), typeof(CreateProviderCommand)];
+        Type[] open = [typeof(ListProvidersQuery), typeof(ListLabelsQuery), typeof(CreateProviderCommand), typeof(GetProviderIconQuery)];
         Assert.DoesNotContain(open, t => typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
