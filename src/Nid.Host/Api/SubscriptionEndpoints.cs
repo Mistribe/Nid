@@ -32,8 +32,14 @@ public static class SubscriptionEndpoints
 
         // Create / open phase / add purchase were implemented early because Task 4's own acceptance test
         // creates its fixtures through the real HTTP API — see the comment atop WriteUseCases.cs.
-        api.MapPost("", async (CreateSubscriptionBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created))
+        api.MapPost("", async (CreateSubscriptionBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
+            })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPatch("/{id:guid}", async (Guid id, EditSubscriptionBody body, IInvoker invoker, CancellationToken ct)
@@ -121,18 +127,22 @@ public static class SubscriptionEndpoints
     public sealed record OwnerBody(Guid PersonId, int ShareBp);
 
     public sealed record CreateSubscriptionBody(
-        string DisplayName, string Visibility, IReadOnlyList<OwnerBody> Owners,
-        string? ProviderKey, bool AutoRenew, IReadOnlyList<Guid>? Users, string? Note)
+        string DisplayName, string? Visibility, IReadOnlyList<OwnerBody> Owners,
+        string? ProviderKey, bool AutoRenew, IReadOnlyList<Guid>? Users, string? Note, PhaseInput? Phase = null)
     {
-        public CreateSubscriptionCommand ToCommand() => new(
-            DisplayName,
-            Enum.TryParse<Visibility>(Visibility, ignoreCase: true, out var visibility)
-                ? visibility
-                : throw new BadHttpRequestException("Visibility is shared or private."),
-            Owners.Select(o => new OwnerShare(new Core.Contracts.PersonId(o.PersonId), o.ShareBp)).ToList(),
-            ProviderKey, AutoRenew,
-            (Users ?? []).Select(u => new Core.Contracts.PersonId(u)).ToList(),
-            Note);
+        internal CreateSubscriptionCommand? ToCommand(FieldReader reader)
+        {
+            var visibility = reader.Visibility(Visibility, "visibility");
+            var phase = Phase?.Read(reader, "phase");
+            return reader.Ok
+                ? new CreateSubscriptionCommand(
+                    DisplayName, visibility!.Value,
+                    (Owners ?? []).Select(o => new OwnerShare(new Core.Contracts.PersonId(o.PersonId), o.ShareBp)).ToList(),
+                    ProviderKey, AutoRenew,
+                    (Users ?? []).Select(u => new Core.Contracts.PersonId(u)).ToList(),
+                    Note, phase)
+                : null;
+        }
     }
 
     public sealed record EditSubscriptionBody(
@@ -159,6 +169,28 @@ public static class SubscriptionEndpoints
             RequireDate(StartsOn),
             OptionalDate(EndsOn),
             Price.ToMoney(), Every.ToDuration(), Covers?.ToDuration(), MaxCycles, Payer.ToPayer()));
+    }
+
+    /// <summary>A phase as the creation and the price change read it: every refusal located (1E2a design §2.1).</summary>
+    public sealed record PhaseInput(
+        string? StartsOn, string? EndsOn, MoneyBody? Price, DurationBody? Every, DurationBody? Covers, int? MaxCycles, PayerBody? Payer)
+    {
+        internal BillingPhase? Read(FieldReader reader, string path)
+        {
+            var startsOn = reader.Date(StartsOn, path + ".startsOn");
+            var endsOn = reader.Date(EndsOn, path + ".endsOn", required: false);
+            var price = reader.Money(Price, path + ".price");
+            if (price is { Amount: < 0 })
+                reader.Add(path + ".price.amount", "subscriptions.price_negative", "A phase has a price of zero or more.");
+            var every = reader.Duration(Every, path + ".every");
+            var covers = reader.Duration(Covers, path + ".covers", required: false);
+            if (MaxCycles is <= 0)
+                reader.Add(path + ".maxCycles", "subscriptions.max_cycles", "A cycle limit is positive.");
+            var payer = reader.Payer(Payer, path + ".payer");
+            return startsOn is { } s && price is { Amount: >= 0 } p && every is { } e && payer is { } y && MaxCycles is not <= 0 && reader.Ok
+                ? new BillingPhase(BillingPhaseId.New(), s, endsOn, p, e, covers, MaxCycles, y)
+                : null;
+        }
     }
 
     public sealed record GrantBody(Guid SubscriptionId, DurationBody Duration, string Source, string? StartsOn)

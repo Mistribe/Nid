@@ -113,9 +113,13 @@ public static class ResultHttp
             _ when failure.Code == ExportCodes.BadCursor => StatusCodes.Status400BadRequest,
             _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
             _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,
+            _ when failure.Code == FieldErrors.ShapeCode => StatusCodes.Status422UnprocessableEntity,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 
-        return Results.Problem(statusCode: status, title: failure.Message, extensions: new Dictionary<string, object?> { ["code"] = failure.Code });
+        var extensions = new Dictionary<string, object?> { ["code"] = failure.Code };
+        if (FieldErrors.Of(failure) is { } errors)
+            extensions["errors"] = errors.Select(e => new { path = e.Path, code = e.Code, message = e.Message }).ToList();
+        return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }

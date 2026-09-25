@@ -2,6 +2,7 @@ using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -22,7 +23,8 @@ public sealed record CreateSubscriptionCommand(
     string? ProviderKey,
     bool AutoRenew,
     IReadOnlyList<PersonId> Users,
-    string? Note) : ICommand<ItemId>, ICreatesItem;
+    string? Note,
+    BillingPhase? Phase = null) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
@@ -64,7 +66,7 @@ public sealed class CreateSubscriptionHandler(
         // written, so a refused key leaves no Core item behind.
         if (command.ProviderKey is { } key
             && (await providers.EnsureLinkableAsync(actor.Current?.PersonId, key, ct)).TryGetFailure(out var unknown))
-            return Result.Failure<ItemId>(unknown!);
+            return Result.Failure<ItemId>(FieldErrors.At(unknown!, "providerKey"));
 
         // The Core item and the subscription row are two contexts: one transaction, or an orphan item when the
         // second write fails.
@@ -74,12 +76,23 @@ public sealed class CreateSubscriptionHandler(
         var created = await items.CreateAsync(
             new NewItem("subscriptions", "subscription", command.DisplayName, command.Visibility, null, command.Owners), ct);
         if (!created.TryGetValue(out var id))
-            return created;
+            return created.TryGetFailure(out var refusedOwners) ? Result.Failure<ItemId>(FieldErrors.At(refusedOwners!, "owners")) : created;
 
         var stored = await store.CreateAsync(
             id, new NewSubscription(command.ProviderKey, command.AutoRenew, command.Users, command.Note), ct);
         if (stored.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
+
+        if (command.Phase is { } phase)
+        {
+            // The engine's rules on the phase alone, before it is written: a refusal rolls the item back with it.
+            var input = new SubscriptionInput(new SubscriptionHeader(id, command.AutoRenew, null), [phase], []);
+            if (SubscriptionTimeline.Build(input, phase.StartsOn, phase.StartsOn).TryGetFailure(out var refused))
+                return Result.Failure<ItemId>(FieldErrors.At(refused!, PhasePaths.Of(refused!.Code, "phase")));
+            var added = await store.AddPhaseAsync(id, phase, RowOrigin.None, ct);
+            if (added.TryGetFailure(out var notAdded))
+                return Result.Failure<ItemId>(notAdded!);
+        }
 
         await transaction.CommitAsync(ct);
         return Result.Success(id);
