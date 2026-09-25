@@ -156,4 +156,23 @@ public sealed class PersonsImportSection(IPersonRegistry persons) : IImportSecti
 
         return valid ? record : null;
     }
+
+    /// <summary>1D2 design §5.4: the persons the other sections referenced, adults with their email.</summary>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
+    {
+        // A snapshot: PersonRef marks what it is given, which is the set being read.
+        var records = context.Referenced.ToList()
+            .Select(id => (Ref: context.PersonRef(id), Info: context.Person(id)))
+            .OrderBy(p => p.Info.Kind).ThenBy(p => p.Ref.Length).ThenBy(p => p.Ref, StringComparer.Ordinal)
+            .Select(p => JsonSerializer.SerializeToElement(new PersonRecord
+            {
+                Ref = p.Ref,
+                Kind = p.Info.Kind == PersonKind.Adult ? "adult" : "dependent",
+                DisplayName = p.Info.DisplayName,
+                Email = p.Info.Kind == PersonKind.Adult ? p.Info.Email : null,
+            }, NidDataJson.Options))
+            .ToList();
+        return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(
+            new Dictionary<string, IReadOnlyList<JsonElement>> { [Section] = records });
+    }
 }

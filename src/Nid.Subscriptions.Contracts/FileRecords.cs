@@ -7,8 +7,8 @@ namespace Nid.Subscriptions.Contracts;
 
 public sealed record MoneyRecord
 {
-    /// <summary>A string or a JSON number, read as decimal either way — never as a double (§2).</summary>
-    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    /// <summary>A string or a JSON number, read as decimal either way — never as a double (§2); written as a string by the export.</summary>
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public required decimal Amount { get; init; }
 
     public required string Currency { get; init; }
@@ -76,7 +76,7 @@ public sealed record PurchaseRecord
     public required MoneyRecord Price { get; init; }
     public required PayerRecord Payer { get; init; }
 
-    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public decimal? AllocatedAmount { get; init; }
 
     public required IReadOnlyList<GrantRecord> Grants { get; init; }

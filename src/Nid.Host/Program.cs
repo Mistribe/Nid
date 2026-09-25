@@ -78,6 +78,7 @@ app.MapAuth();
 app.MapPersonEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapImportEndpoints();
+app.MapExportEndpoints();
 app.MapPlatformEndpoints();
 app.MapFxEndpoints();
 app.MapCatalogEndpoints();

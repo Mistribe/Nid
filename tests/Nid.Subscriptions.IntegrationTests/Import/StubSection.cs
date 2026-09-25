@@ -7,6 +7,9 @@ namespace Nid.Subscriptions.IntegrationTests.Import;
 /// <summary>A section with one rule — an entity carrying "bad" is refused — to test the protocol alone.</summary>
 internal sealed class StubSection : IImportSection
 {
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
+        => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(new Dictionary<string, IReadOnlyList<JsonElement>>());
+
     public const string Name = "stub_things";
 
     public string Module => "stub";

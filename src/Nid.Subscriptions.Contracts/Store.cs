@@ -31,6 +31,16 @@ public enum ImportedTable
 /// </summary>
 public sealed record ImportedRow(Guid Id, string Hash, PersonId? ImportedBy, IReadOnlyList<ItemId> Items);
 
+/// <summary>A subscription as stored, for the export (1D2): what the file needs beyond the engine's input.</summary>
+public sealed record StoredSubscription(
+    ItemId Id, string? ProviderKey, bool AutoRenew, LocalDate? CancelledAt, string? Note, IReadOnlyList<PersonId> Users, ImportRef? Import);
+
+public sealed record StoredPhase(ItemId SubscriptionId, BillingPhase Phase, string? Note, ImportRef? Import);
+
+public sealed record StoredPurchase(Purchase Purchase, string? Note, ImportRef? Import);
+
+public sealed record StoredRows(IReadOnlyList<StoredSubscription> Subscriptions, IReadOnlyList<StoredPhase> Phases, IReadOnlyList<StoredPurchase> Purchases);
+
 /// <summary>What a subscription needs beyond its Core item, for creation.</summary>
 public sealed record NewSubscription(
     string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note,
@@ -70,6 +80,12 @@ public interface ISubscriptionStore
     /// whoever imported it. The caller decides which of them the importer may see; nothing here filters.
     /// </summary>
     Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>
+    /// The subscriptions among <paramref name="ids"/>, their phases, and every purchase granting to one of them with all
+    /// of its grants (the caller drops the ones it may not show). Ids the store does not hold are skipped.
+    /// </summary>
+    Task<StoredRows> ReadAllAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
     /// <summary>
     /// The subscriptions a purchase grants coverage to — exactly what deleting it would take coverage away
