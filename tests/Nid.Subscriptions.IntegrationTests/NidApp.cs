@@ -39,8 +39,17 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakeCatalogSource catalog)
-        => (this.factory, ConnectionString, AdultA, AdultB, Dependent, Sources, Catalog) = (factory, connectionString, a, b, d, sources, catalog);
+        FakeFxSources sources, FakeCatalogSource catalog, string assetsRoot)
+    {
+        this.factory = factory;
+        ConnectionString = connectionString;
+        AdultA = a;
+        AdultB = b;
+        Dependent = d;
+        Sources = sources;
+        Catalog = catalog;
+        AssetsRoot = assetsRoot;
+    }
 
     /// <summary>The database this harness runs against, for tests that read rows back directly.</summary>
     public string ConnectionString { get; }
@@ -61,6 +70,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="ICatalogSourceClient"/> this host runs against; every fetch fails unless a test serves files.</summary>
     public FakeCatalogSource Catalog { get; }
 
+    /// <summary>This host's asset store (1C2c): a temporary folder of its own, deleted when the host is disposed.</summary>
+    public string AssetsRoot { get; }
+
     /// <param name="overrides">
     /// Applied last, so a test can replace a registered service. The leak bench uses it to install a
     /// deliberately broken <c>IVisibleItems</c> and watch the output guard catch it (access-tests.md §5).
@@ -72,6 +84,7 @@ public sealed class NidApp : IAsyncDisposable
         var connectionString = await fixture.NewConnectionStringAsync();
         var sources = FakeFxSources.Offline();
         var catalog = FakeCatalogSource.Offline();
+        var assetsRoot = Path.Combine(Path.GetTempPath(), "nid-assets-" + Guid.NewGuid().ToString("N"));
 
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
         {
@@ -91,6 +104,7 @@ public sealed class NidApp : IAsyncDisposable
                 builder.UseSetting("Auth:CsrfKey", "test-csrf-key-0123456789abcdef0123456789");
                 // No test host runs Quartz unless a test asks for it (Task 7), and none reaches the network.
                 builder.UseSetting("Jobs:Enabled", "false");
+                builder.UseSetting("Assets:Root", assetsRoot);
                 foreach (var (key, value) in settings ?? new Dictionary<string, string>())
                     builder.UseSetting(key, value);
                 // The golden-case fixtures (NewSpotifyGoldenCaseAsync) are dated around October 2025, matching
@@ -108,7 +122,7 @@ public sealed class NidApp : IAsyncDisposable
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, catalog);
+            return new NidApp(factory, connectionString, a, b, d, sources, catalog, assetsRoot);
         }
     }
 
@@ -386,6 +400,16 @@ public sealed class NidApp : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         factory.Dispose();
+        try
+        {
+            if (Directory.Exists(AssetsRoot))
+                Directory.Delete(AssetsRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // A file still open elsewhere: the operating system cleans its temporary folder.
+        }
+
         return ValueTask.CompletedTask;
     }
 

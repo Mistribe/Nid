@@ -14,3 +14,6 @@ deploy/dev/authelia/notification.txt
 
 # Private data copied locally for checks; never committed
 .secrets/
+
+# Local development data (the AppHost's asset store, 1C2c); never committed
+.data/

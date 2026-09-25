@@ -12,6 +12,7 @@ using Nid.Platform;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Nid.Platform.Import;
+using Nid.Platform.Infrastructure.Assets;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
 using Nid.Subscriptions.Application.Catalog;
@@ -91,6 +92,11 @@ public static class NidServiceCollectionExtensions
         }));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+
+        // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
+        // production volume. Nothing touches the disk before the first write, so building the host never does.
+        services.TryAddSingleton(new AssetOptions());
+        services.TryAddSingleton<IAssetStore, FileAssetStore>();
 
         // Provider catalog (1C2b). The options are bound by Program; the defaults are the design's pinned commit.
         services.TryAddSingleton(new CatalogOptions());
