@@ -191,9 +191,15 @@ public class CatalogWriteTests(PostgresFixture fixture)
         throw new TimeoutException("The sync never waited on the import's lock.");
     }
 
-    /// <summary>What a household synced by 1C2b sees at its first sync of the new pin: five labels change, nothing else.</summary>
+    /// <summary>
+    /// The legacy and the pinned commits' provider files agree field for field once both are read by the current
+    /// reader (<c>icon_url</c> included: the legacy file already carries <c>icon</c>): replaying the pinned commit
+    /// after the legacy one only moves every provider's <c>catalog_commit</c> and changes five labels' colour or
+    /// name (final review: this is not what a real 1C2b-era sync would show, since it predates <c>icon_url</c>
+    /// entirely — see `specs/2026-09-25-provider-icons-design.md` §11).
+    /// </summary>
     [Fact]
-    public async Task Moving_from_the_1C2b_commit_to_the_pinned_one_updates_five_labels_and_only_moves_the_providers_commit()
+    public async Task Moving_from_the_legacy_commit_to_the_pinned_one_only_moves_the_providers_commit_and_five_labels_change()
     {
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);

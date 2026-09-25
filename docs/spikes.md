@@ -274,7 +274,7 @@ pas vers un format raster.
 sur une pile `deploy/dev` démarrée, et lecture de `.data/assets`) n'a pas été faite dans cette passe — aucun
 environnement de développement n'était à disposition pour cette vérification ; aucun résultat n'est inventé pour
 cette partie. Le pipeline de bout en bout (téléchargement, traitement, stockage, liaison) est déjà couvert par les
-tests d'intégration des Tâches 4 et 8 (`CatalogIconSyncTests`) avec un double de la source.
+tests d'intégration de la Tâche 4 (`CatalogIconSyncTests`) avec un double de la source.
 
 **Conclusion** : referme le contrôle réel demandé par la conception §9 (« Un contrôle réel contre les 17 URL
 d'icônes réelles ») et par le plan. Les valeurs observées correspondent exactement à celles notées en écrivant le

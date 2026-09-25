@@ -10,11 +10,14 @@ using Duration = NodaTime.Duration;
 namespace Nid.Subscriptions.Application.Catalog;
 
 /// <summary>
-/// One sync of the pinned commit, journaled (design §3.6, §4). Whatever goes wrong ends in the journal as a failed run
-/// and writes nothing. The one exception that leaves: a cancellation of the caller's token (the host shutting down),
-/// after the run is closed as <see cref="CatalogCodes.RunInterrupted"/> (1C2a design §10).
-/// After the merge commits, the icon pass runs (1C2c design §5); an icon failure is in the report, never a failed run,
-/// and a cancellation during the pass closes the run as interrupted like any other.
+/// One sync of the pinned commit, journaled (design §3.6, §4). A failure before the merge commits — fetching the
+/// source, reading it, or the merge itself — ends in the journal as a failed run and writes nothing; a cancellation
+/// of the caller's token (the host shutting down) before that point closes the run the same way, as
+/// <see cref="CatalogCodes.RunInterrupted"/> (1C2a design §10), still writing nothing.
+/// After the merge commits, the icon pass runs (1C2c design §5): an icon failure is in the report, never a failed
+/// run. A cancellation during the pass still closes the run as interrupted, but the merge's writes already stand —
+/// only its report and <c>UsedBy</c> are then lost from the journal (never attached to this run), not the writes
+/// themselves.
 /// </summary>
 public sealed class CatalogSync(
     ICatalogSourceClient source, IProviderStore providers, ICatalogRunLog runs, IUnitOfWork unitOfWork,

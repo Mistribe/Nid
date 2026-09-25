@@ -69,7 +69,9 @@ Les `icon` du catalogue sont des URL de tiers, donc du contenu non fiable. Tel q
   `https` valide) et `store_failed` (l'écriture sur le volume a échoué).
 - La route qui les sert ne renvoie **que** l'`icon_asset` d'un fournisseur du catalogue : une empreinte inconnue,
   mal formée ou qui n'est celle d'aucun fournisseur répond **404**, jamais autre chose que le volume d'actifs
-  pourrait contenir plus tard (documents de l'étape 4). `X-Content-Type-Options: nosniff` sur la réponse.
+  pourrait contenir plus tard (documents de l'étape 4). Sur la réponse : `X-Content-Type-Options: nosniff`,
+  `Content-Security-Policy: default-src 'none'; sandbox` (l'icône ne charge rien et n'est jamais elle-même cadrée
+  ni naviguée) et `Cache-Control: private, max-age=31536000, immutable` (adressée par empreinte, jamais revalidée).
 - Servies depuis l'origine, jamais depuis l'URL d'origine (`../subscription-data-model.md`, « Icons »).
 
 ## 5. Uploads
