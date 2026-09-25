@@ -139,7 +139,7 @@ public class SubscriptionStoreTests(PostgresFixture fixture)
                                      Eur(10m), Months(1), null, null, new Payer(PayerType.Household, null));
         (await store.AddPhaseAsync(id, phase, RowOrigin.None, default)).Ok();
 
-        (await store.ClosePhaseAsync(id, phase.Id, new LocalDate(2025, 6, 1), default)).Ok();
+        (await store.ClosePhaseAsync(id, phase.Id, new LocalDate(2025, 6, 1), null, default)).Ok();
 
         Assert.Equal(new LocalDate(2025, 6, 1), (await store.LoadAsync(id, default))!.Phases.Single().EndsOn);
     }

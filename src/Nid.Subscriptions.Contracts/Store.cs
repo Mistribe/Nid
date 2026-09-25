@@ -71,7 +71,11 @@ public interface ISubscriptionStore
 
     Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct);
 
-    Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, CancellationToken ct);
+    /// <summary>
+    /// Ends a phase on <paramref name="endsOn"/>. <paramref name="maxCycles"/>, when given, becomes its cycle limit: a price
+    /// change leaves the closed phase the cycles it spent (1E2a final review).
+    /// </summary>
+    Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, int? maxCycles, CancellationToken ct);
 
     Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct);
 

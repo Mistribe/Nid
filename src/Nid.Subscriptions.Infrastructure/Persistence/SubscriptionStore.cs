@@ -132,7 +132,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(phase.Id);
     }
 
-    public async Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, CancellationToken ct)
+    public async Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, int? maxCycles, CancellationToken ct)
     {
         var row = await db.Phases.FirstOrDefaultAsync(p => p.Id == phase.Value && p.ItemId == id.Value, ct);
         if (row is null)
@@ -142,6 +142,8 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             return Result.Failure(new Failure("subscriptions.phase_range", "A phase ends after it starts.", null));
 
         row.EndsOn = endsOn;
+        if (maxCycles is { } cycles)
+            row.MaxCycles = cycles;
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }

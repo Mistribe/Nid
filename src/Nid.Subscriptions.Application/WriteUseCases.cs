@@ -131,7 +131,7 @@ public sealed class ClosePhaseHandler(ISubscriptionStore store) : IRequestHandle
 {
     public async ValueTask<Result<BillingPhaseId>> HandleAsync(ClosePhaseCommand command, CancellationToken ct = default)
     {
-        var result = await store.ClosePhaseAsync(command.ItemId, command.PhaseId, command.EndsOn, ct);
+        var result = await store.ClosePhaseAsync(command.ItemId, command.PhaseId, command.EndsOn, null, ct);
         return result.TryGetFailure(out var failure) ? Result.Failure<BillingPhaseId>(failure!) : Result.Success(command.PhaseId);
     }
 }
@@ -232,19 +232,32 @@ public sealed class ChangePriceHandler(ISubscriptionStore store, IUnitOfWork uni
         if (command.StartsOn <= open.StartsOn)
             return Refuse("subscriptions.phase_range", "A price change starts after the phase it replaces.");
 
+        // A cycle limit is shared out, never dropped (final review): the closed phase keeps the cycles it charged before
+        // the change, the new one the rest; a phase that charged them all is over, whatever its dates say.
+        int? spent = null;
+        if (open.MaxCycles is { } limit)
+        {
+            var before = SubscriptionTimeline.Build(input, command.StartsOn, command.StartsOn);
+            spent = before.TryGetValue(out var walked)
+                ? walked!.Charges.Count(c => c.Origin is ChargeOrigin.FromPhase f && f.PhaseId == open.Id && c.Date < command.StartsOn)
+                : 0;
+            if (spent >= limit)
+                return Refuse("subscriptions.no_open_phase", "No phase is open on this date: add a phase instead.");
+        }
+
         var every = command.Every ?? open.Every;
         var next = new BillingPhase(
             BillingPhaseId.New(), command.StartsOn, open.EndsOn, command.Price, every,
             command.Covers ?? (command.Every is null ? open.Covers : null),
-            command.MaxCycles, command.Payer ?? open.Payer);
+            command.MaxCycles ?? (open.MaxCycles - spent), command.Payer ?? open.Payer);
 
-        var after = input with { Phases = input.Phases.Select(p => p.Id == open.Id ? p with { EndsOn = command.StartsOn } : p).Append(next).ToList() };
+        var after = input with { Phases = input.Phases.Select(p => p.Id == open.Id ? p with { EndsOn = command.StartsOn, MaxCycles = spent ?? p.MaxCycles } : p).Append(next).ToList() };
         if (SubscriptionTimeline.Build(after, command.StartsOn, command.StartsOn).TryGetFailure(out var refused))
             // The change's own fields: an overlap or anything about the phase as a whole is its start date.
             return Result.Failure<BillingPhaseId>(FieldErrors.At(refused!, PhasePaths.Field(refused!.Code) ?? "startsOn"));
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var closed = await store.ClosePhaseAsync(command.ItemId, open.Id, command.StartsOn, ct);
+        var closed = await store.ClosePhaseAsync(command.ItemId, open.Id, command.StartsOn, spent, ct);
         if (closed.TryGetFailure(out var notClosed))
             return Result.Failure<BillingPhaseId>(notClosed!);
         var added = await store.AddPhaseAsync(command.ItemId, next, RowOrigin.None, ct);

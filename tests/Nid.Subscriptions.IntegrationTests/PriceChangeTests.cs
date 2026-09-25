@@ -70,4 +70,49 @@ public class PriceChangeTests(PostgresFixture fixture)
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    private static async Task<Guid> FixedTermAsync(NidApp app, int cycles)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions", new
+        {
+            displayName = "Engagement", visibility = "shared", autoRenew = true,
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            phase = new
+            {
+                startsOn = "2025-01-01", price = new { amount = "10", currency = "EUR" }, every = new { count = 1, unit = "month" },
+                maxCycles = cycles, payer = new { type = "household" },
+            },
+        });
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+    }
+
+    /// <summary>Final review: a fixed-term plan stays fixed-term across a price change, and the old phase spends its cycles.</summary>
+    [Fact]
+    public async Task A_cycle_limit_is_split_between_the_closed_and_the_new_phase()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await FixedTermAsync(app, 12);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id}/price-changes", Change("2025-06-01"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var detail = await app.GetAsync<JsonElement>(app.AdultA, $"/api/v1/subscriptions/{id}");
+        var cycles = detail.GetProperty("phases").EnumerateArray().Select(p => p.GetProperty("maxCycles").GetInt32()).ToList();
+        Assert.Equal([5, 7], cycles);
+        Assert.DoesNotContain(detail.GetProperty("findings").EnumerateArray(), f => f.GetProperty("code").GetString() == "subscriptions.phase_cycles_unspent");
+    }
+
+    [Fact]
+    public async Task A_phase_whose_cycles_are_all_spent_is_not_open()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await FixedTermAsync(app, 3); // January to March, then nothing
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id}/price-changes", Change("2025-06-01"));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray());
+        Assert.Equal("subscriptions.no_open_phase", error.GetProperty("code").GetString());
+    }
 }
