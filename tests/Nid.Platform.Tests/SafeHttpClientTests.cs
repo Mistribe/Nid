@@ -105,4 +105,26 @@ public class SafeHttpClientTests
         using var handler = OutboundHandler.Create(new FixedResolver(answers));
         Assert.Equal("address_refused", await RefusalOf(Client(handler).GetAsync(new Uri(Allowed), 1024, default)));
     }
+
+    [Fact]
+    public void The_default_hosts_are_the_catalog_the_ecb_and_the_three_icon_hosts()
+        => Assert.Equal(
+            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr"],
+            new OutboundOptions().AllowedHosts);
+
+    /// <summary>upload.wikimedia.org answers 403 to a request without one (checked 2026-09-25, 1C2c plan).</summary>
+    [Fact]
+    public async Task Every_request_names_the_application()
+    {
+        string? agent = null;
+        var handler = new StubHandler(request =>
+        {
+            agent = request.Headers.TryGetValues("User-Agent", out var values) ? string.Join(" ", values) : null;
+            return Ok("x");
+        });
+
+        await Client(handler).GetAsync(new Uri(Allowed), 1024, default);
+
+        Assert.Equal("Nid/1.0 (+https://github.com/Mistribe/Nid)", agent);
+    }
 }

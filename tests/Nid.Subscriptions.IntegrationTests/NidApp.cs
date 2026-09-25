@@ -39,7 +39,7 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakeCatalogSource catalog, string assetsRoot)
+        FakeFxSources sources, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot)
     {
         this.factory = factory;
         ConnectionString = connectionString;
@@ -48,6 +48,7 @@ public sealed class NidApp : IAsyncDisposable
         Dependent = d;
         Sources = sources;
         Catalog = catalog;
+        Icons = icons;
         AssetsRoot = assetsRoot;
     }
 
@@ -70,6 +71,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="ICatalogSourceClient"/> this host runs against; every fetch fails unless a test serves files.</summary>
     public FakeCatalogSource Catalog { get; }
 
+    /// <summary>The offline <see cref="ICatalogIconSource"/> this host runs against; every icon is unreachable unless a test serves it.</summary>
+    public FakeIconSource Icons { get; }
+
     /// <summary>This host's asset store (1C2c): a temporary folder of its own, deleted when the host is disposed.</summary>
     public string AssetsRoot { get; }
 
@@ -84,6 +88,7 @@ public sealed class NidApp : IAsyncDisposable
         var connectionString = await fixture.NewConnectionStringAsync();
         var sources = FakeFxSources.Offline();
         var catalog = FakeCatalogSource.Offline();
+        var icons = FakeIconSource.Offline();
         var assetsRoot = Path.Combine(Path.GetTempPath(), "nid-assets-" + Guid.NewGuid().ToString("N"));
 
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
@@ -116,13 +121,14 @@ public sealed class NidApp : IAsyncDisposable
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
                     services.AddSingleton<ICatalogSourceClient>(catalog);
+                    services.AddSingleton<ICatalogIconSource>(icons);
                     // No test reaches the identity provider (https://auth.test.localhost does not exist).
                     services.AddSingleton<Nid.Host.Admin.IIdentityProviderProbe>(new ReachableIdentityProvider());
                     overrides?.Invoke(services);
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, catalog, assetsRoot);
+            return new NidApp(factory, connectionString, a, b, d, sources, catalog, icons, assetsRoot);
         }
     }
 

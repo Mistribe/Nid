@@ -16,6 +16,7 @@ const PINNED = 'df0146a8f3532f5c790aa54a34d4871e96b62a95';
 const emptyReport: Report = {
   providersAdded: [], providersUpdated: [], providersUnchanged: [], providersArchived: [], adoptedReplaced: [],
   adoptedRemaining: [], conflicts: [], labelsAdded: [], labelsUpdated: [], labelsCreated: [], duplicates: [], refused: [],
+  icons: { fetched: [], unchanged: 0, refused: [] },
 };
 
 const succeeded: Run = {

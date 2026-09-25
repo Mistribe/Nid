@@ -102,6 +102,9 @@ public static class NidServiceCollectionExtensions
         services.TryAddSingleton(new CatalogOptions());
         services.TryAddSingleton<ICatalogSourceClient, CatalogSourceClient>();
         services.TryAddSingleton<ICatalogJobTrigger, JobsDisabledCatalogTrigger>();
+        // Icons (1C2c): downloaded through the SafeHttpClient, processed, stored; the pass runs inside each sync.
+        services.TryAddSingleton<ICatalogIconSource>(sp => new CatalogIconSource(sp.GetRequiredService<SafeHttpClient>()));
+        services.AddScoped<CatalogIconPass>();
         services.AddScoped<IProviderStore, ProviderStore>();
         services.AddScoped<ICatalogRunLog, CatalogRunLog>();
         services.AddScoped<CatalogSync>();

@@ -157,6 +157,9 @@ public sealed record CatalogReport(
     IReadOnlyList<CatalogRefusal> Refused)
 {
     public static CatalogReport Empty { get; } = new([], [], [], [], [], [], [], [], [], [], [], []);
+
+    /// <summary>The icon pass (1C2c design §5). A report stored before 1C2c reads with <see cref="IconReport.Empty"/>.</summary>
+    public IconReport Icons { get; init; } = IconReport.Empty;
 }
 
 public enum CatalogRunStatus
@@ -309,6 +312,25 @@ public sealed record CatalogReading(
 
 /// <summary>An icon that was not stored, with why (<see cref="IconCodes"/>). Only catalog providers appear: they are public.</summary>
 public sealed record IconRefusal(string Key, string Reason);
+
+/// <summary>
+/// The icon pass of one sync (1C2c design §5): the providers whose icon was fetched and linked, how many already had
+/// theirs, and every icon refused with its reason — by the reader or by the pass — sorted by key. Catalog providers
+/// only: public, so no visibility filter applies.
+/// </summary>
+public sealed record IconReport(IReadOnlyList<string> Fetched, int Unchanged, IReadOnlyList<IconRefusal> Refused)
+{
+    public static IconReport Empty { get; } = new([], 0, []);
+}
+
+/// <summary>
+/// One catalog icon, downloaded and processed (1C2c design §4, §5). A failure's code is an <see cref="IconCodes"/>
+/// reason; a cancellation of <paramref name="ct"/> is thrown, never reported as a refusal.
+/// </summary>
+public interface ICatalogIconSource
+{
+    Task<Result<ProcessedIcon>> FetchAsync(string url, CancellationToken ct);
+}
 
 /// <summary>What is stored, read under the sync's lock (design §4 "Merge").</summary>
 public sealed record CatalogSnapshot(IReadOnlyList<Provider> Providers, IReadOnlyList<Label> Labels);

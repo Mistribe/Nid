@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
@@ -111,5 +113,40 @@ public class CatalogRunLogTests(PostgresFixture fixture)
         var kept = Assert.Single(await log.RecentAsync(10, default));
         Assert.Equal((CatalogRunStatus.Succeeded, Start + Duration.FromMinutes(1)), (kept.Status, kept.StartedAt));
         Assert.True(await log.HasSucceededAsync(default));
+    }
+
+    [Fact]
+    public async Task The_icon_section_round_trips_and_a_report_stored_before_it_reads_without_icons()
+    {
+        var (log, _) = await NewLogAsync();
+        var run = (await log.TryStartAsync(Commit, default))!;
+        var report = CatalogReport.Empty with
+        {
+            Icons = new IconReport(["netflix"], 14, [new IconRefusal("nounou-top", IconCodes.UnsupportedFormat)]),
+        };
+        await log.FinishAsync(run with { Status = CatalogRunStatus.Succeeded, FinishedAt = Start, Report = report }, default);
+
+        var read = Assert.Single(await log.RecentAsync(10, default)).Report!.Icons;
+        Assert.Equal(["netflix"], read.Fetched);
+        Assert.Equal(14, read.Unchanged);
+        Assert.Equal([new IconRefusal("nounou-top", IconCodes.UnsupportedFormat)], read.Refused);
+
+        var connectionString = await fixture.NewConnectionStringAsync();
+        var older = JsonSerializer.SerializeToNode(CatalogReport.Empty with { ProvidersAdded = ["netflix"] }, new JsonSerializerOptions(JsonSerializerDefaults.Web))!.AsObject();
+        Assert.True(older.Remove("icons"));
+        await using (var seed = PostgresFixture.NewSubscriptionsContext(connectionString))
+        {
+            seed.CatalogSyncRuns.Add(new CatalogSyncRunRow
+            {
+                Id = Guid.CreateVersion7(), StartedAt = Start, FinishedAt = Start, Status = "succeeded", Commit = Commit,
+                Report = new JsonObject { ["report"] = older, ["usedBy"] = new JsonObject() }.ToJsonString(),
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        var stored = Assert.Single(await new CatalogRunLog(PostgresFixture.NewSubscriptionsContext(connectionString), new TestClock(Start)).RecentAsync(10, default));
+        Assert.Equal(["netflix"], stored.Report!.ProvidersAdded);
+        Assert.Empty(stored.Report.Icons.Fetched);
+        Assert.Equal(0, stored.Report.Icons.Unchanged);
     }
 }

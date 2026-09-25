@@ -3408,6 +3408,7 @@ export interface components {
             labelsCreated: string[];
             duplicates: components["schemas"]["CatalogDuplicate"][];
             refused: components["schemas"]["CatalogRefusal"][];
+            icons: components["schemas"]["IconReport"];
         };
         CatalogRunsView: {
             pinnedCommit: string;
@@ -3537,6 +3538,16 @@ export interface components {
             referenceCurrency: string;
             /** Format: int32 */
             adultCount: number;
+        };
+        IconRefusal: {
+            key: string;
+            reason: string;
+        };
+        IconReport: {
+            fetched: string[];
+            /** Format: int32 */
+            unchanged: number;
+            refused: components["schemas"]["IconRefusal"][];
         };
         IdResponse: {
             /** Format: uuid */

@@ -3539,7 +3539,8 @@
           "labelsUpdated",
           "labelsCreated",
           "duplicates",
-          "refused"
+          "refused",
+          "icons"
         ],
         "type": "object",
         "properties": {
@@ -3614,6 +3615,9 @@
             "items": {
               "$ref": "#/components/schemas/CatalogRefusal"
             }
+          },
+          "icons": {
+            "$ref": "#/components/schemas/IconReport"
           }
         }
       },
@@ -4114,6 +4118,47 @@
           "adultCount": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "IconRefusal": {
+        "required": [
+          "key",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "IconReport": {
+        "required": [
+          "fetched",
+          "unchanged",
+          "refused"
+        ],
+        "type": "object",
+        "properties": {
+          "fetched": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unchanged": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IconRefusal"
+            }
           }
         }
       },
