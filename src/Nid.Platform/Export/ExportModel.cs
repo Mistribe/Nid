@@ -19,20 +19,14 @@ public sealed record ExportModel(IReadOnlyList<ExportSection> Sections, string R
     public static async Task<ExportModel> BuildAsync(
         PersonId reader, IReadOnlyList<PersonInfo> persons, IEnumerable<IImportSection> sections, CancellationToken ct)
     {
-        var context = new ExportContext(reader, Refs(persons));
         var modules = sections.ToList();
 
-        // Descending order: item sections mark the persons they name before persons (order 0) reads them (§2).
-        var exported = new Dictionary<string, IReadOnlyList<JsonElement>>(StringComparer.Ordinal);
-        foreach (var section in modules.OrderByDescending(s => s.Order).ThenBy(s => s.Module, StringComparer.Ordinal))
-        {
-            foreach (var (name, entities) in await section.ExportAsync(context, ct))
-            {
-                if (!section.Sections.Contains(name))
-                    throw new InvalidOperationException($"Module '{section.Module}' exported '{name}', which is not one of its sections.");
-                exported[name] = entities;
-            }
-        }
+        // Two passes: the first only finds who is referenced, so the second numbers those persons alone (§5.4) and a
+        // ref does not depend on who else lives in the household — a fresh instance gives the same refs back.
+        var probe = new ExportContext(reader, Refs(persons, persons.Select(p => p.Id).ToHashSet()));
+        await ExportAllAsync(modules, probe, ct);
+        var context = new ExportContext(reader, Refs(persons, probe.Referenced.ToHashSet()));
+        var exported = await ExportAllAsync(modules, context, ct);
 
         // File order: modules by ascending order, each section in the order the module lists them (import-format.md §3).
         var ordered = modules.OrderBy(s => s.Order).ThenBy(s => s.Module, StringComparer.Ordinal)
@@ -43,15 +37,35 @@ public sealed record ExportModel(IReadOnlyList<ExportSection> Sections, string R
         return new ExportModel(ordered, Fingerprint(ordered), context.Exposed.ToList());
     }
 
-    /// <summary>§5.4: every person the reader can see, adults first, by what a file carries, then id; numbered per kind.</summary>
-    private static Dictionary<PersonId, (string Ref, PersonInfo Info)> Refs(IReadOnlyList<PersonInfo> persons)
+    /// <summary>Descending order: item sections mark the persons they name before persons (order 0) reads them (§2).</summary>
+    private static async Task<Dictionary<string, IReadOnlyList<JsonElement>>> ExportAllAsync(
+        IReadOnlyList<IImportSection> modules, ExportContext context, CancellationToken ct)
+    {
+        var exported = new Dictionary<string, IReadOnlyList<JsonElement>>(StringComparer.Ordinal);
+        foreach (var section in modules.OrderByDescending(s => s.Order).ThenBy(s => s.Module, StringComparer.Ordinal))
+        {
+            foreach (var (name, entities) in await section.ExportAsync(context, ct))
+            {
+                if (!section.Sections.Contains(name))
+                    throw new InvalidOperationException($"Module '{section.Module}' exported '{name}', which is not one of its sections.");
+                exported[name] = entities;
+            }
+        }
+        return exported;
+    }
+
+    /// <summary>
+    /// §5.4: adults first, by what a file carries (name, email), then id; numbered per kind. The referenced persons get
+    /// the first numbers; the others follow, only so that a write between the two passes never finds a person without a ref.
+    /// </summary>
+    private static Dictionary<PersonId, (string Ref, PersonInfo Info)> Refs(IReadOnlyList<PersonInfo> persons, IReadOnlySet<PersonId> referenced)
     {
         var refs = new Dictionary<PersonId, (string, PersonInfo)>();
         foreach (var group in persons.GroupBy(p => p.Kind))
         {
             var prefix = group.Key == PersonKind.Adult ? "adult" : "dependent";
             var n = 0;
-            foreach (var person in group.OrderBy(p => p.DisplayName, StringComparer.Ordinal)
+            foreach (var person in group.OrderBy(p => referenced.Contains(p.Id) ? 0 : 1).ThenBy(p => p.DisplayName, StringComparer.Ordinal)
                          .ThenBy(p => p.Email ?? "", StringComparer.Ordinal).ThenBy(p => p.Id.Value))
                 refs[person.Id] = ($"{prefix}-{++n}", person);
         }

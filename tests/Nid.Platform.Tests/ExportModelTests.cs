@@ -42,7 +42,7 @@ public class ExportModelTests
 
         var model = await ExportModel.BuildAsync(Reader, [], [core, subs], default);
 
-        Assert.Equal(["subscriptions", "core"], calls);
+        Assert.Equal(["subscriptions", "core", "subscriptions", "core"], calls); // a probe pass, then the real one
         Assert.Equal(["persons", "providers", "subscriptions"], model.Sections.Select(s => s.Name));
         Assert.Single(model.Sections.Single(s => s.Name == "persons").Entities);
     }
@@ -64,7 +64,8 @@ public class ExportModelTests
 
         await ExportModel.BuildAsync(Reader, [kid, zoe, anna], [section], default);
 
-        Assert.Equal(["adult-2", "dependent-1"], marked);
+        // Anna is not referenced, so she does not take a number before Zoé (§5.4). The probe pass marks too: last two.
+        Assert.Equal(["adult-1", "dependent-1"], marked.TakeLast(2));
     }
 
     [Fact]

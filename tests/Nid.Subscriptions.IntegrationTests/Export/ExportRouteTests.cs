@@ -43,6 +43,7 @@ public class ExportRouteTests(PostgresFixture fixture)
     [Theory]
     [InlineData("not-a-cursor", HttpStatusCode.BadRequest, "export.bad_cursor")]
     [InlineData("eyJyIjoiMDAwMCIsIm8iOjB9", HttpStatusCode.Conflict, "export.revision_changed")] // {"r":"0000","o":0}
+    [InlineData("eyJyIjoiMDAwMCIsIm8iOjk5OX0", HttpStatusCode.Conflict, "export.revision_changed")] // {"r":"0000","o":999}: stale first, even past the end
     public async Task A_bad_or_stale_cursor_is_refused(string cursor, HttpStatusCode status, string code)
     {
         await using var app = await NidApp.StartAsync(fixture);

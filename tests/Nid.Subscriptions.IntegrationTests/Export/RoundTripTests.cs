@@ -13,8 +13,12 @@ namespace Nid.Subscriptions.IntegrationTests.Export;
 [Collection("postgres")]
 public class RoundTripTests(PostgresFixture fixture)
 {
-    /// <summary>Same catalog, same adult names in both instances: what the file carries must be the same on both sides.</summary>
-    private static async Task PrepareAsync(NidApp app)
+    /// <summary>
+    /// Same catalog and same adult names in both instances, since the file carries the adults' names. The seeded
+    /// dependent, which no file references, has a different name in each: person refs must not depend on who else
+    /// lives in the household (§5.4).
+    /// </summary>
+    private static async Task PrepareAsync(NidApp app, string unreferencedDependent)
     {
         app.Catalog.Serve(CatalogFixtures.RealLabels(), CatalogFixtures.RealProviders());
         await using (var scope = app.Services.CreateAsyncScope())
@@ -22,8 +26,7 @@ public class RoundTripTests(PostgresFixture fixture)
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         (await core.Persons.SingleAsync(p => p.Id == app.AdultA.Value)).DisplayName = "Adulte 1";
         (await core.Persons.SingleAsync(p => p.Id == app.AdultB.Value)).DisplayName = "Adulte 2";
-        // The seeded dependent's name is random, and person refs are numbered over every person (§5.4).
-        (await core.Persons.SingleAsync(p => p.Id == app.Dependent.Value)).DisplayName = "Zoé";
+        (await core.Persons.SingleAsync(p => p.Id == app.Dependent.Value)).DisplayName = unreferencedDependent;
         await core.SaveChangesAsync();
     }
 
@@ -41,6 +44,35 @@ public class RoundTripTests(PostgresFixture fixture)
     private static Dictionary<string, string> AsFile(Dictionary<string, List<JsonElement>> export)
         => export.Where(s => s.Value.Count > 0).ToDictionary(s => s.Key, s => JsonSerializer.Serialize(s.Value));
 
+    /// <summary>
+    /// Spec §7: the reads agree. What differs by construction is left out: internal ids, provider keys (an import
+    /// generates them), and a finding's reference (an internal id).
+    /// </summary>
+    private static async Task<string> ReadsAsync(NidApp app, PersonId reader)
+    {
+        var response = await app.RawAsync(reader, HttpMethod.Get, "/api/v1/subscriptions?scope=me&from=2024-01-01&to=2026-12-31&horizon=2028-01-01");
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var list = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
+        Strip(list);
+        var items = list["items"]!.AsArray().Select(i => i!.DeepClone()).OrderBy(i => i["displayName"]!.GetValue<string>(), StringComparer.Ordinal).ToList();
+        list["items"] = new JsonArray(items.ToArray());
+        return list.ToJsonString();
+
+        static void Strip(JsonNode? node)
+        {
+            if (node is JsonObject obj)
+            {
+                foreach (var name in new[] { "id", "provider", "sharedPurchaseIds", "reference" })
+                    obj.Remove(name);
+                foreach (var (_, child) in obj.ToList())
+                    Strip(child);
+            }
+            else if (node is JsonArray array)
+                foreach (var child in array)
+                    Strip(child);
+        }
+    }
+
     private static string Canonical(Dictionary<string, List<JsonElement>> export)
         => JsonSerializer.Serialize(export.OrderBy(s => s.Key, StringComparer.Ordinal).ToDictionary(s => s.Key, s => s.Value));
 
@@ -48,7 +80,7 @@ public class RoundTripTests(PostgresFixture fixture)
     public async Task An_export_imported_into_a_fresh_instance_exports_the_same_again()
     {
         await using var source = await NidApp.StartAsync(fixture);
-        await PrepareAsync(source);
+        await PrepareAsync(source, "Anna");
         await CommitAsync(source, source.AdultA, GoldenFile.Sections());
         await CommitAsync(source, source.AdultA, new Dictionary<string, string>
         {
@@ -72,11 +104,12 @@ public class RoundTripTests(PostgresFixture fixture)
         var first = await new ExportClient(source).ExportAllAsync(source.AdultA);
 
         await using var target = await NidApp.StartAsync(fixture);
-        await PrepareAsync(target);
+        await PrepareAsync(target, "Zoé");
         await CommitAsync(target, target.AdultA, AsFile(first));
         var second = await new ExportClient(target).ExportAllAsync(target.AdultA);
 
         Assert.Equal(Canonical(first), Canonical(second));
+        Assert.Equal(await ReadsAsync(source, source.AdultA), await ReadsAsync(target, target.AdultA));
         Assert.Equal(6, first["subscriptions"].Count);
     }
 }
