@@ -41,6 +41,7 @@ public class ProviderIconEndpointTests(PostgresFixture fixture)
         Assert.Equal(TimeSpan.FromSeconds(31_536_000), cache.MaxAge);
         Assert.Contains(cache.Extensions, e => e.Name == "immutable");
         Assert.Equal(["nosniff"], response.Headers.GetValues("X-Content-Type-Options"));
+        Assert.Equal(["default-src 'none'; sandbox"], response.Headers.GetValues("Content-Security-Policy"));
     }
 
     [Theory]
@@ -59,7 +60,12 @@ public class ProviderIconEndpointTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.NotModified, response.StatusCode);
         Assert.Empty(await response.Content.ReadAsByteArrayAsync());
         Assert.Equal($"\"{hash}\"", response.Headers.ETag?.Tag);
-        Assert.True(response.Headers.CacheControl!.Private);
+        // Same three headers as the 200 (brief §6): a 304 still carries the ETag, the full Cache-Control and nosniff.
+        var cache = response.Headers.CacheControl!;
+        Assert.True(cache.Private);
+        Assert.Equal(TimeSpan.FromSeconds(31_536_000), cache.MaxAge);
+        Assert.Contains(cache.Extensions, e => e.Name == "immutable");
+        Assert.Equal(["nosniff"], response.Headers.GetValues("X-Content-Type-Options"));
     }
 
     [Fact]
@@ -114,6 +120,18 @@ public class ProviderIconEndpointTests(PostgresFixture fixture)
 
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, Icons + loose)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, Icons + custom)).StatusCode);
+    }
+
+    /// <summary>As <see cref="A_stored_file_that_is_no_catalog_icon_is_404"/>, for the other non-catalog origin (design §3.4).</summary>
+    [Fact]
+    public async Task A_hash_linked_only_to_an_adopted_provider_is_404()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SeedNetflixIconAsync(app);
+        await app.SeedProviderAsync("disney-plus-z8n2wq", "Disney+", ProviderOrigin.Adopted);
+        var adopted = await app.SeedProviderIconAsync("disney-plus-z8n2wq", Webp("#4FC3F7")); // a state no write produces
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, Icons + adopted)).StatusCode);
     }
 
     [Fact]

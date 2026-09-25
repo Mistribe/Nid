@@ -50,6 +50,9 @@ public static class CatalogEndpoints
                 headers.ETag = $"\"{icon.Hash}\"";
                 headers.CacheControl = IconLimits.CacheControl;
                 headers.XContentTypeOptions = "nosniff";
+                // An icon is a person-uploaded catalog image served from Nid's own origin: it never runs script,
+                // fetches nothing else, and is never itself framed or navigated to.
+                headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
                 return Names(http.Request.Headers.IfNoneMatch, icon.Hash)
                     ? Results.StatusCode(StatusCodes.Status304NotModified)
                     : Results.Bytes(icon.Content, IconLimits.ContentType);
