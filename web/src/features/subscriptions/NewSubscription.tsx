@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,10 @@ export function NewSubscription() {
       <h1 className="text-2xl font-semibold">{t('wizard.title')}</h1>
       <p aria-live="polite" className="text-sm text-muted-foreground">{t('wizard.step_progress', { n: step + 1 })} · {titles[step]}</p>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
+      {people.error ? <ProblemMessage problem={present(toProblem(people.error))} /> : null}
+      {/* The owner and payer selects are born with their options: a select registered before them would show its
+          first option while the form holds the reader (final review). */}
+      {!people.data ? <div aria-busy="true" aria-label={t('wizard.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /> : (
       <form noValidate onSubmit={(e) => {
         e.preventDefault();
         if (step < 2) void next();
@@ -86,6 +91,7 @@ export function NewSubscription() {
             : <Button type="submit" disabled={create.isPending}>{t('wizard.submit')}</Button>}
         </div>
       </form>
+      )}
     </div>
   );
 }

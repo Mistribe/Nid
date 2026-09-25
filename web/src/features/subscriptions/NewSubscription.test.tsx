@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { ALICE, persons } from './testData';
+import { aliceSession } from '@/test/fixtures';
+import { ALICE, BOB, persons } from './testData';
 
 const NEW_ID = '0192f0aa-0000-7000-8000-0000000000c1';
 
@@ -20,6 +21,7 @@ function serve(create: Parameters<typeof http.post>[1]) {
 async function start() {
   const utils = await renderApp('/subscriptions/new');
   await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+  await screen.findByRole('group', { name: 'Propriétaires' }); // the steps wait for the household's persons
   return utils;
 }
 
@@ -43,6 +45,26 @@ describe('Abonnements › ajout', () => {
     expect(await within(owners).findByDisplayValue('Alice Dev')).toBeInTheDocument();
     expect(within(owners).getByLabelText('Part (%)')).toHaveValue('100');
     await expectNoAxeViolations(container);
+  });
+
+  it('shows and sends the signed-in person as owner, even when they are not the first of the household', async () => {
+    const sent: { owners: unknown }[] = [];
+    serve(async ({ request }) => {
+      sent.push((await request.json()) as { owners: unknown });
+      return HttpResponse.json({ id: NEW_ID }, { status: 201 });
+    });
+    server.use(http.get('*/api/v1/subscriptions/:id', () => HttpResponse.json({ status: 404 }, { status: 404 })));
+    const bob = { ...aliceSession, person: { ...aliceSession.person, id: BOB, name: 'Bob Dev' } };
+    const { user } = await renderApp('/subscriptions/new', { session: bob });
+    await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+
+    const owners = await screen.findByRole('group', { name: 'Propriétaires' });
+    expect(await within(owners).findByDisplayValue('Bob Dev')).toBeInTheDocument();
+    await fillCommon(user);
+    await fillOffer(user);
+    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+
+    await waitFor(() => expect(sent.map((b) => b.owners)).toEqual([[{ personId: BOB, shareBp: 10000 }]]));
   });
 
   it('fills the name from the chosen provider', async () => {
