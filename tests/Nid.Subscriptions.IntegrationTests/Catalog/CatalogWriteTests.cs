@@ -190,4 +190,36 @@ public class CatalogWriteTests(PostgresFixture fixture)
 
         throw new TimeoutException("The sync never waited on the import's lock.");
     }
+
+    /// <summary>What a household synced by 1C2b sees at its first sync of the new pin: five labels change, nothing else.</summary>
+    [Fact]
+    public async Task Moving_from_the_1C2b_commit_to_the_pinned_one_updates_five_labels_and_only_moves_the_providers_commit()
+    {
+        var connectionString = await fixture.NewConnectionStringAsync();
+        await using var db = PostgresFixture.NewSubscriptionsContext(connectionString);
+        await SyncAtAsync(db, RealReading(), CatalogFixtures.LegacyCommit);
+
+        var moved = await SyncAtAsync(db, CatalogReader.Read(CatalogFixtures.PinnedLabels(), CatalogFixtures.PinnedProviders()).Ok(), CatalogFixtures.PinnedCommit);
+
+        Assert.Equal(17, moved.ProvidersUnchanged.Count);
+        Assert.Empty(moved.ProvidersAdded);
+        Assert.Empty(moved.ProvidersUpdated);
+        Assert.Empty(moved.LabelsAdded);
+        Assert.Equal(["cloud", "home", "hosting", "kid", "work"], moved.LabelsUpdated); // case of #A855B4, and home's own colour
+        Assert.Empty(moved.LabelsCreated);
+        await using var check = PostgresFixture.NewSubscriptionsContext(connectionString);
+        Assert.All(await check.Providers.AsNoTracking().ToListAsync(), p => Assert.Equal(CatalogFixtures.PinnedCommit, p.CatalogCommit));
+        var home = await check.Labels.AsNoTracking().SingleAsync(l => l.Key == "home");
+        Assert.Equal(("Home", "#A1887F", "catalog"), (home.Name, home.Color, home.Origin));
+    }
+
+    private static async Task<CatalogReport> SyncAtAsync(SubscriptionsDbContext db, CatalogReading reading, string commit)
+    {
+        var store = new ProviderStore(db);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var plan = CatalogMerge.Plan(await store.LockForSyncAsync(default), reading, commit);
+        await store.WriteCatalogAsync(plan, Now, default);
+        await transaction.CommitAsync();
+        return plan.Report;
+    }
 }

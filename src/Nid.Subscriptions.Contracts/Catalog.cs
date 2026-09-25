@@ -359,8 +359,11 @@ public sealed class CatalogOptions
     /// <summary>A file is <c>{BaseUrl}/{Commit}/providers.json</c>; <c>raw.githubusercontent.com</c> is already an allowed host.</summary>
     public string BaseUrl { get; set; } = "https://raw.githubusercontent.com/Mistribe/SubTracker-Data";
 
-    /// <summary>2025-11-29, the latest commit touching <c>providers.json</c>. Changing version is changing this and syncing again.</summary>
-    public string Commit { get; set; } = "df0146a8f3532f5c790aa54a34d4871e96b62a95";
+    /// <summary>
+    /// 2026-09-25, the merge of Mistribe/SubTracker-Data#5 (1C2c spec §8): the target format, which the reader already
+    /// expected. Changing version is changing this and syncing again from Administration › Catalogue.
+    /// </summary>
+    public string Commit { get; set; } = "882b195d7923ada66993548adda10791e05d198a";
 }
 
 /// <summary>Starts the <c>catalog-sync</c> job now (Quartz in the host); <see cref="CatalogCodes.JobsDisabled"/> when jobs are off.</summary>

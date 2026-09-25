@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Nid.Platform.Outbound;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
+using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
@@ -79,4 +80,8 @@ public class CatalogSourceClientTests
         var (client, _) = Client(_ => throw new HttpRequestException("down"));
         Assert.Equal(CatalogCodes.SourceUnavailable, (await client.FetchAsync(Commit, default)).FailureCode());
     }
+
+    [Fact]
+    public void The_default_commit_is_the_pinned_one()
+        => Assert.Equal(CatalogFixtures.PinnedCommit, new CatalogOptions().Commit);
 }

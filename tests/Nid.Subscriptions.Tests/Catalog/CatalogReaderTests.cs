@@ -238,4 +238,19 @@ public class CatalogReaderTests
         Assert.Equal("https://1000logos.net/wp-content/uploads/2017/05/Netflix-Logo-1536x864.png",
             Assert.Single(reading.Providers, p => p.Key == "netflix").IconUrl);
     }
+
+    [Fact]
+    public void The_files_of_the_pinned_commit_read_without_a_defect()
+    {
+        var reading = CatalogReader.Read(Fixture(Path.Combine("pinned", "labels.json")), Fixture(Path.Combine("pinned", "providers.json"))).Ok();
+
+        Assert.Equal(17, reading.Providers.Count);
+        Assert.Equal(19, reading.Labels.Count);
+        Assert.Empty(reading.LabelsCreated); // home is a label of its own now
+        Assert.Empty(reading.Duplicates); // hosting once
+        Assert.Empty(reading.Refused);
+        Assert.Empty(reading.IconsRefused);
+        Assert.Equal(new CatalogLabel("home", "Home", "#A1887F"), Assert.Single(reading.Labels, l => l.Key == "home"));
+        Assert.All(reading.Labels, l => Assert.Matches("^#[0-9A-F]{6}$", l.Color)); // #RRGGBB, upper case, as written
+    }
 }
