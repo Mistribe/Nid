@@ -305,7 +305,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 | Service | Rôle | Obligatoire |
 |---|---|---|
 | `nid-api` | API + BFF + MCP + Quartz | oui |
-| `nid-web` | SPA statique | oui |
+| `nid-web` | SPA statique ; relaie `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (origine unique, 1F1) | oui |
 | `postgres` | Base | oui |
 | `authelia` | OIDC | oui |
 | `nid-worker-*` | Workers d'ingestion | à la carte |
@@ -315,7 +315,8 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 - Configuration par variables d'environnement et secrets Docker (fichiers). Aucun secret dans l'image ni dans le dépôt.
 - Images multi-architecture (amd64/arm64), utilisateur non-root, système de fichiers en lecture seule sauf volumes, healthchecks.
 - **Migrations** EF Core par module, appliquées au démarrage de `nid-api` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
-- Volumes : `pgdata`, `documents`, `dataprotection-keys`, `authelia`. Tous couverts par la sauvegarde.
+- Volumes : `pgdata`, `authelia`, `dataprotection-keys` (clés Data Protection de `nid-api`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2).
+- Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et configuration d'Authelia), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
 - Mises à jour : tags d'image épinglés, procédure documentée (sauvegarde → pull → up). Pas de mise à jour automatique.
 
 ### 10.2 Hypothèses envers l'hébergeur
@@ -325,7 +326,7 @@ Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors
 - HTTPS terminé en amont ;
 - en-têtes `X-Forwarded-*` de confiance (liste de proxys configurable) ;
 - une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA ;
-- **une seule origine** : le proxy route `/api`, `/auth`, `/mcp` et `/health` vers `nid-api`, et le reste vers `nid-web`, sur le même nom d'hôte (cookie de session du BFF, pas de CORS) ;
+- **une seule origine** : le proxy de l'hébergeur envoie tout `nid.<domaine>` à `nid-web`, qui relaie lui-même `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (1F1) ; `auth.<domaine>` va à `authelia`. L'hébergeur a donc **deux cibles** et aucun routage par préfixe. Même nom d'hôte pour l'interface et l'API (cookie de session du BFF, pas de CORS) ;
 - un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs) et vers l'historique de la Banque centrale européenne (`www.ecb.europa.eu`, taux de change depuis 1999), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
@@ -362,7 +363,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 
 - Logs structurés JSON, **sans données financières** (montants et libellés masqués hors niveau debug).
 - OpenTelemetry : traces API ↔ workers ; métriques (durée des jobs, propositions en attente, âge de la dernière sauvegarde, âge des consentements bancaires). Export OTLP optionnel vers ce que l'hébergeur fournit ; sans backend, logs des conteneurs et page d'état dans l'interface.
-- `/health/live` et `/health/ready` (base, migrations, Authelia joignable).
+- `/health/live` (le processus) et `/health/ready` (le processus et la base), dans tous les environnements, réponse `Healthy` ou `Unhealthy` sans détail (1F1). La joignabilité d'Authelia est visible dans Administration › Système, pas dans `/health/ready` : une panne du fournisseur d'identité ne doit pas faire redémarrer l'API.
 
 ## 13. Stratégie de tests
 

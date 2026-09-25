@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/** Journeys against the Aspire dev stack (web design §7): local only, not in blocking CI. */
+/** Journeys against the Aspire dev stack, or the reference compose in deploy/smoke.sh, which CI runs (1F1). */
 export default defineConfig({
   testDir: './e2e',
   // *.smoke.ts run only from deploy/smoke.sh (NID_SMOKE=1): they restart services or wait for the catalog sync.

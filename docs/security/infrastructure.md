@@ -20,8 +20,9 @@
 
 | Réseau | Membres | Accès Internet |
 |---|---|---|
-| `edge` | Proxy de l'hébergeur, `nid-web`, `nid-api` | Via l'hébergeur |
-| `data` | `nid-api`, Postgres, Authelia | Non (sauf ce que `nid-api` sort, voir ci-dessous) |
+| `edge` | Proxy de l'hébergeur, `nid-web`, Authelia (le navigateur doit l'atteindre) | Via l'hébergeur |
+| `app` | `nid-web`, `nid-api` (sous-réseau fixe, seul source d'en-têtes `X-Forwarded-*` acceptés par `nid-api`) | Oui, pour `nid-api` |
+| `data` | `nid-api`, Postgres | Non (`internal: true`) |
 | `workers` | `nid-api` (API interne et passerelle LLM), workers, Ollama | **Non** |
 
 - **`nid-api` est le seul composant qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3).
