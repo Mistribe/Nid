@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -28,27 +28,31 @@ export function SettingsForm({ detail }: { detail: Detail }) {
     note: z.string(),
     provider: z.object({ key: z.string(), name: z.string() }).nullable(),
   });
-  const initial = {
+  const initial = useMemo(() => ({
     autoRenew: detail.autoRenew,
     cancelledAt: detail.cancelledAt ?? '',
     note: detail.note ?? '',
     provider: detail.provider ? { key: detail.provider.key, name: detail.provider.name } : null,
-  };
+  }), [detail]);
   const form = useForm({ resolver: zodResolver(schema), defaultValues: initial });
+  // A newer version of the subscription (Reload, refetch) refreshes every field the user has not touched (final review).
+  useEffect(() => { form.reset(initial, { keepDirtyValues: true }); }, [form, initial]);
   const errors = useSubmitErrors(form.setError, PATHS);
   const save = $api.useMutation('patch', DETAIL, {
-    onSuccess: () => { setSaved(true); errors.clear(); void invalidateSubscriptions(queryClient); },
+    onSuccess: () => { setSaved(true); errors.clear(); form.reset(form.getValues()); void invalidateSubscriptions(queryClient); },
     onError: (error) => { setSaved(false); errors.onError(error); },
   });
 
   const submit = form.handleSubmit((values) => {
+    // Only what the user changed: a field left alone is never sent back over someone else's edit (final review).
+    const dirty = form.formState.dirtyFields;
     const body = {
-      clearCancelledAt: values.cancelledAt === '' && initial.cancelledAt !== '',
-      clearProviderKey: values.provider === null && initial.provider !== null,
-      ...(values.autoRenew !== initial.autoRenew ? { autoRenew: values.autoRenew } : {}),
-      ...(values.cancelledAt !== '' && values.cancelledAt !== initial.cancelledAt ? { cancelledAt: values.cancelledAt } : {}),
-      ...(values.note !== initial.note ? { note: values.note } : {}),
-      ...(values.provider && values.provider.key !== initial.provider?.key ? { providerKey: values.provider.key } : {}),
+      clearCancelledAt: !!dirty.cancelledAt && values.cancelledAt === '',
+      clearProviderKey: !!dirty.provider && values.provider === null,
+      ...(dirty.autoRenew ? { autoRenew: values.autoRenew } : {}),
+      ...(dirty.cancelledAt && values.cancelledAt !== '' ? { cancelledAt: values.cancelledAt } : {}),
+      ...(dirty.note ? { note: values.note } : {}),
+      ...(dirty.provider && values.provider ? { providerKey: values.provider.key } : {}),
     };
     setSaved(false);
     save.mutate({ params: { path: { id: detail.id } }, body });

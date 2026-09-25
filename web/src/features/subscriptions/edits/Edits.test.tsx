@@ -65,6 +65,29 @@ describe('Abonnements › modifications', () => {
     expect(await screen.findByRole('button', { name: 'Recharger' })).toBeInTheDocument();
   });
 
+  it("never sends back a field it did not change, even after the subscription changed meanwhile", async () => {
+    const sent: unknown[] = [];
+    let first = true;
+    const state = serve(detail(), [http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
+      if (first) {
+        first = false;
+        state.set(detail({ note: 'Changée par Bob' }));
+        return HttpResponse.json({ status: 409, code: 'core.conflict' }, { status: 409 });
+      }
+      sent.push(await request.json());
+      return HttpResponse.json({ id: SUB });
+    })]);
+    const { user } = await open();
+
+    await user.click(screen.getByLabelText('Renouvellement automatique'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+    await user.click(await screen.findByRole('button', { name: 'Recharger' }));
+    await waitFor(() => expect(screen.getByLabelText('Note')).toHaveValue('Changée par Bob'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await waitFor(() => expect(sent).toEqual([{ autoRenew: false, clearCancelledAt: false, clearProviderKey: false }]));
+  });
+
   it('changes the price with the amount written with a comma', async () => {
     const sent: unknown[] = [];
     serve(detail(), [http.post('*/api/v1/subscriptions/:id/price-changes', async ({ request }) => {
