@@ -45,7 +45,7 @@ public sealed record SectionOutcome(IReadOnlyList<ImportIssue> Issues, IReadOnly
 /// A module's share of <c>nid.data</c> (<c>import-format.md</c> §11.7). Platform calls, in <see cref="Order"/>,
 /// <see cref="ValidateAllAsync"/> on every section, then — only at commit, only if no section reported an
 /// error, inside the one transaction — <see cref="ApplyAsync"/> on the same instances. A section may keep
-/// what it planned between the two calls.
+/// what it planned between the two calls. The export (1D2) calls <see cref="ExportAsync"/>, outside any import.
 /// </summary>
 public interface IImportSection
 {
@@ -61,6 +61,12 @@ public interface IImportSection
     Task<SectionOutcome> ValidateAllAsync(ImportContext context, IStagedBatches staged, CancellationToken ct);
 
     Task<Result<IReadOnlyDictionary<string, SectionCounts>>> ApplyAsync(ImportContext context, IStagedBatches staged, CancellationToken ct);
+
+    /// <summary>
+    /// Every record of each of <see cref="Sections"/> that <see cref="ExportContext.Reader"/> may export, in a stable
+    /// order, as file JSON (1D2 design §2). Platform pages them; a section returns its whole sections every time.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct);
 }
 
 /// <summary>How every section reads its entities: <c>snake_case</c>, unknown members refused (§2 "strict").</summary>

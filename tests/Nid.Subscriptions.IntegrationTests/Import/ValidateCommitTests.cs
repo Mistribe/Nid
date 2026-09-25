@@ -148,6 +148,9 @@ public class ValidateCommitTests(PostgresFixture fixture)
     /// <summary>A section, past <c>persons</c> in order, whose apply step throws instead of failing a <c>Result</c>.</summary>
     private sealed class ThrowingApplySection : IImportSection
     {
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
+            => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(new Dictionary<string, IReadOnlyList<JsonElement>>());
+
         public string Module => "test";
         public IReadOnlyList<string> Sections => ["throwing_things"];
         public int Order => 100;
@@ -164,6 +167,9 @@ public class ValidateCommitTests(PostgresFixture fixture)
     /// <summary>A section whose apply step never returns on its own — only a commit timeout ends it.</summary>
     private sealed class SlowApplySection : IImportSection
     {
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
+            => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(new Dictionary<string, IReadOnlyList<JsonElement>>());
+
         public string Module => "test";
         public IReadOnlyList<string> Sections => ["slow_things"];
         public int Order => 100;

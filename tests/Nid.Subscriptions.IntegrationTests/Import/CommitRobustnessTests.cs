@@ -106,6 +106,9 @@ public class CommitRobustnessTests(PostgresFixture fixture)
     /// <summary>Validates, then refuses to write: the injected failure of the first test.</summary>
     private sealed class RefusingSection : IImportSection
     {
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
+            => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(new Dictionary<string, IReadOnlyList<JsonElement>>());
+
         public string Module => "test";
         public IReadOnlyList<string> Sections => [Last];
         public int Order => 100;

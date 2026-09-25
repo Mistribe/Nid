@@ -407,6 +407,9 @@ public sealed class SubscriptionsImportSection(
         return Result.Success(counts);
     }
 
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
+        => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(new Dictionary<string, IReadOnlyList<JsonElement>>());
+
     private sealed record DryRun(ItemId Id, string Path, bool AutoRenew, LocalDate? CancelledAt)
     {
         public List<BillingPhase> Phases { get; } = [];
