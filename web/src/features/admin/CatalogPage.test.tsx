@@ -27,6 +27,10 @@ const succeeded: Run = {
     providersAdded: ['netflix', 'spotify'], providersUnchanged: ['nordvpn'], adoptedReplaced: ['battlenet'],
     adoptedRemaining: ['wow'], labelsCreated: ['home'], duplicates: [{ file: 'labels', key: 'hosting' }],
     refused: [{ file: 'providers', index: 3, key: 'Netflix', reason: 'invalid_key' }],
+    icons: {
+      fetched: ['netflix'], unchanged: 14,
+      refused: [{ key: 'nounou-top', reason: 'unsupported_format' }, { key: 'ovh-cloud', reason: 'http_status' }],
+    },
   },
 };
 
@@ -90,6 +94,25 @@ describe('Administration › Catalogue', () => {
     expect(within(last).getByText('labels : hosting')).toBeInTheDocument();
     expect(within(last).getByText('providers n° 3 (Netflix) : clé invalide')).toBeInTheDocument();
     expect(within(last).queryByText(/Conflits/)).not.toBeInTheDocument(); // an empty category is not shown
+  });
+
+  it('lists the icons fetched and refused, each with its reason', async () => {
+    serveRuns([succeeded]);
+    await render();
+
+    const last = await lastCard();
+    expect(within(last).getByText('Icônes (récupérées : 1, inchangées : 14, refusées : 2)')).toBeInTheDocument();
+    expect(within(last).getByText('netflix')).toBeInTheDocument();
+    expect(within(last).getByText('nounou-top : format non pris en charge (SVG compris)')).toBeInTheDocument();
+    expect(within(last).getByText("ovh-cloud : réponse en erreur de l'hôte")).toBeInTheDocument();
+  });
+
+  it('shows no icon category when every icon was already there', async () => {
+    serveRuns([{ ...succeeded, report: { ...emptyReport, icons: { fetched: [], unchanged: 17, refused: [] } } }]);
+    await render();
+
+    const last = await lastCard();
+    expect(within(last).queryByText(/Icônes/)).not.toBeInTheDocument();
   });
 
   it('shows the failure code and message of a failed sync', async () => {

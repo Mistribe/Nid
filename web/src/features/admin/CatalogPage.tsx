@@ -12,6 +12,7 @@ import { formatInstant } from './format';
 
 type Run = components['schemas']['CatalogSyncRunView'];
 type Report = components['schemas']['CatalogReport'];
+type Icons = components['schemas']['IconReport'];
 
 /** How often the page refreshes its runs while a sync is under way (design §6). */
 export const REFRESH_MS = 3_000;
@@ -69,6 +70,23 @@ function reasonKey(reason: string) {
     case 'not_an_object': return 'admin.catalog.reasons.not_an_object' as const;
     case 'reserved_key': return 'admin.catalog.reasons.reserved_key' as const;
     default: return 'admin.catalog.reasons.other' as const;
+  }
+}
+
+function iconReasonKey(reason: string) {
+  switch (reason) {
+    case 'unsupported_format': return 'admin.catalog.icon_reasons.unsupported_format' as const;
+    case 'too_many_pixels': return 'admin.catalog.icon_reasons.too_many_pixels' as const;
+    case 'too_large': return 'admin.catalog.icon_reasons.too_large' as const;
+    case 'undecodable': return 'admin.catalog.icon_reasons.undecodable' as const;
+    case 'host_not_allowed': return 'admin.catalog.icon_reasons.host_not_allowed' as const;
+    case 'not_https': return 'admin.catalog.icon_reasons.not_https' as const;
+    case 'address_refused': return 'admin.catalog.icon_reasons.address_refused' as const;
+    case 'unreachable': return 'admin.catalog.icon_reasons.unreachable' as const;
+    case 'http_status': return 'admin.catalog.icon_reasons.http_status' as const;
+    case 'invalid_url': return 'admin.catalog.icon_reasons.invalid_url' as const;
+    case 'store_failed': return 'admin.catalog.icon_reasons.store_failed' as const;
+    default: return 'admin.catalog.icon_reasons.other' as const;
   }
 }
 
@@ -221,9 +239,41 @@ function Findings({ run }: { run: Run }) {
               text: t('admin.catalog.refused_entry', { file: r.file, index: r.index, key: r.key ?? '—', reason: t(reasonKey(r.reason)) }),
             }))}
           />
+          <IconFindings icons={report.icons} />
         </>
       ) : null}
     </div>
+  );
+}
+
+/** 1C2c design §7: one more collapsible category, shown when an icon was fetched or refused. */
+function IconFindings({ icons }: { icons: Icons }) {
+  const { t } = useTranslation();
+  if (icons.fetched.length === 0 && icons.refused.length === 0) return null;
+  return (
+    <details>
+      <summary className="cursor-pointer font-medium">
+        {t('admin.catalog.report.icons', { fetched: icons.fetched.length, unchanged: icons.unchanged, refused: icons.refused.length })}
+      </summary>
+      {icons.fetched.length > 0 ? (
+        <>
+          <p className="text-sm text-muted-foreground">{t('admin.catalog.icons.fetched')}</p>
+          <ul className="list-inside list-disc">
+            {icons.fetched.map((key) => <li key={key}><code>{key}</code></li>)}
+          </ul>
+        </>
+      ) : null}
+      {icons.refused.length > 0 ? (
+        <>
+          <p className="text-sm text-muted-foreground">{t('admin.catalog.icons.refused')}</p>
+          <ul className="list-inside list-disc">
+            {icons.refused.map((r) => (
+              <li key={r.key}>{t('admin.catalog.icons.refused_entry', { key: r.key, reason: t(iconReasonKey(r.reason)) })}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </details>
   );
 }
 
