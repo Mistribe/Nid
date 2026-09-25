@@ -185,7 +185,7 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         return rows.OrderBy(p => p.Key, StringComparer.Ordinal).Select(ToProvider).ToList();
     }
 
-    public async Task SetIconAsync(string key, string source, string asset, CancellationToken ct)
+    public async Task<int> SetIconAsync(string key, string source, string asset, CancellationToken ct)
         => await db.Providers
             .Where(p => p.Key == key && p.Origin == "catalog" && p.IconUrl == source)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.IconAsset, asset).SetProperty(p => p.IconSource, source), ct);

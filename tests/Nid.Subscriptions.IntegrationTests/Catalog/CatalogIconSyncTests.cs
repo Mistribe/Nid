@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Nid.Platform.Contracts;
+using Nid.Platform.Infrastructure.Assets;
 using Nid.Platform.Outbound;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
@@ -224,6 +226,70 @@ public class CatalogIconSyncTests(PostgresFixture fixture)
         await SyncAsync(app); // netflix leaves the catalog: archived
 
         Assert.Equal(1, app.Icons.Requested.Count(u => u == NetflixIcon));
+    }
+
+    /// <summary>Review follow-up, Important 1: an exception the source never promised not to throw is this icon's refusal.</summary>
+    [Fact]
+    public async Task An_icon_source_that_throws_is_refused_and_the_next_icon_is_still_processed()
+    {
+        var inner = FakeIconSource.Offline();
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<ICatalogIconSource>(new ThrowingIconSource(inner, NetflixIcon)));
+        ServeCatalog(app);
+        inner.Serve(SpotifyIcon, IconSamples.Png(64, 64));
+
+        var icons = await SyncAsync(app);
+
+        Assert.Equal(["spotify"], icons.Fetched);
+        Assert.Equal([new IconRefusal("netflix", IconCodes.Unreachable)], icons.Refused);
+    }
+
+    /// <summary>Review follow-up, Important 1: an exception storing or linking is this icon's refusal, not a failed run.</summary>
+    [Fact]
+    public async Task A_store_or_link_that_throws_is_refused_and_the_next_icon_is_still_processed()
+    {
+        var netflixWebp = IconProcessor.Process(IconSamples.Png(64, 64)).Ok().Webp;
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<IAssetStore>(
+            sp => new ThrowingAssetStore(new FileAssetStore(sp.GetRequiredService<AssetOptions>()), netflixWebp)));
+        ServeCatalog(app);
+        app.Icons.Serve(NetflixIcon, IconSamples.Png(64, 64));
+        app.Icons.Serve(SpotifyIcon, IconSamples.Png(64, 64, "#F06292"));
+
+        var icons = await SyncAsync(app);
+
+        Assert.Equal(["spotify"], icons.Fetched);
+        Assert.Equal([new IconRefusal("netflix", IconCodes.StoreFailed)], icons.Refused);
+    }
+
+    /// <summary>Review follow-up, Minor 2: a catalog key a custom provider already holds never becomes a catalog
+    /// provider, so the reader's refusal for its bad icon is not this pass's to report.</summary>
+    [Fact]
+    public async Task A_conflicting_keys_bad_icon_is_not_reported()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.SeedProviderAsync("netflix", "My Netflix", ProviderOrigin.Custom, app.AdultA);
+        ServeCatalog(app, netflixIcon: "http://1000logos.net/netflix.png", spotifyIcon: null); // not https: the reader refuses it
+
+        var run = (await RunAsync(app)).Ok();
+
+        Assert.Equal(CatalogRunStatus.Succeeded, run.Status);
+        Assert.Equal(["netflix"], run.Report!.Conflicts);
+        Assert.Empty(run.Report.Icons.Refused);
+    }
+
+    private sealed class ThrowingIconSource(ICatalogIconSource inner, string throwFor) : ICatalogIconSource
+    {
+        public Task<Result<ProcessedIcon>> FetchAsync(string url, CancellationToken ct)
+            => url == throwFor ? throw new InvalidOperationException("the icon source exploded") : inner.FetchAsync(url, ct);
+    }
+
+    private sealed class ThrowingAssetStore(IAssetStore inner, byte[] failFor) : IAssetStore
+    {
+        public Task<string> PutAsync(ReadOnlyMemory<byte> content, string contentType, CancellationToken ct)
+            => content.Span.SequenceEqual(failFor)
+                ? throw new InvalidOperationException("the asset store exploded")
+                : inner.PutAsync(content, contentType, ct);
+
+        public Task<Stream?> OpenAsync(string hash, CancellationToken ct) => inner.OpenAsync(hash, ct);
     }
 
     private sealed class RecordingHandler : HttpMessageHandler

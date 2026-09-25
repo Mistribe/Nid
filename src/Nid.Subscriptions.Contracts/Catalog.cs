@@ -279,10 +279,10 @@ public interface IProviderStore
 
     /// <summary>
     /// Links the stored icon <paramref name="asset"/>, fetched from <paramref name="source"/>, to the catalog provider
-    /// <paramref name="key"/>: one statement, its own transaction. Nothing happens if the provider's icon URL is no
-    /// longer <paramref name="source"/> (a sync changed it meanwhile).
+    /// <paramref name="key"/>: one statement, its own transaction. Answers how many rows it updated: 0 when the
+    /// provider's icon URL is no longer <paramref name="source"/> (a sync changed it meanwhile) — nothing was linked.
     /// </summary>
-    Task SetIconAsync(string key, string source, string asset, CancellationToken ct);
+    Task<int> SetIconAsync(string key, string source, string asset, CancellationToken ct);
 }
 
 /// <summary>A label as the catalog gives it, already checked; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>

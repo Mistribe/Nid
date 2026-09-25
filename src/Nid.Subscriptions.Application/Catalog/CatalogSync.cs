@@ -76,7 +76,7 @@ public sealed class CatalogSync(
 
         var (report, usedBy) = await MergeAsync(parsed!, ct);
         // 1C2c design §5: after the commit, outside the lock; each icon links itself in a statement of its own.
-        var iconReport = await icons.RunAsync(parsed!.IconsRefused, ct);
+        var iconReport = await icons.RunAsync(parsed!.IconsRefused, report.Conflicts, ct);
         return (null, report with { Icons = iconReport }, usedBy);
     }
 
