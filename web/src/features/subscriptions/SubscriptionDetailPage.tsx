@@ -8,12 +8,13 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
-import { DETAIL, PERSONS, type Detail } from './api';
+import { DETAIL, PERSONS } from './api';
 import { CoverageBand } from './CoverageBand';
+import { DeletePurchase, Edits, ReadOnly } from './edits/Edits';
 import { accessOf, durationText, kindText, payerText } from './format';
 
-/** 1E2a design §4, reading. Edits (Task 7) mount in `editing` when the reader may write. */
-export function SubscriptionDetailPage({ editing }: { editing?: (detail: Detail) => ReactNode } = {}) {
+/** 1E2a design §4: the subscription as it stands, and its edits when the reader may write. */
+export function SubscriptionDetailPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { id } = useParams({ from: '/subscriptions/$id' });
@@ -34,6 +35,7 @@ export function SubscriptionDetailPage({ editing }: { editing?: (detail: Detail)
         <h1 className="text-2xl font-semibold">{detail.displayName}</h1>
         <AccessBadge access={accessOf(detail, persons)} />
       </header>
+      {detail.canWrite ? null : <ReadOnly detail={detail} persons={persons} />}
 
       <Section title={t('subscription.costs')}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
@@ -98,6 +100,7 @@ export function SubscriptionDetailPage({ editing }: { editing?: (detail: Detail)
                       : t('subscription.grant_elsewhere', { duration: durationText(t, g.duration) })}</li>
                   ))}
                 </ul>
+                {detail.canWrite ? <DeletePurchase detail={detail} purchase={p} /> : null}
               </li>
             ))}
           </ul>
@@ -126,7 +129,7 @@ export function SubscriptionDetailPage({ editing }: { editing?: (detail: Detail)
         </table>
       </Section>
 
-      {editing ? editing(detail) : null}
+      {detail.canWrite ? <Edits detail={detail} /> : null}
     </article>
   );
 }

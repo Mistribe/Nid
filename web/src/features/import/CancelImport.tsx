@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { ConfirmAction } from '@/features/admin/ConfirmAction';
+import { ConfirmAction } from '@/components/ConfirmAction';
 import { useRefreshImports } from './queries';
 
 /** `DELETE /imports/{id}`: cancels the session and clears its staging, after a confirmation in place. */

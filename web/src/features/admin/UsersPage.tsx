@@ -8,7 +8,7 @@ import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { ConfirmAction } from './ConfirmAction';
+import { ConfirmAction } from '@/components/ConfirmAction';
 
 type Adult = components['schemas']['AdultView'];
 

@@ -1,0 +1,190 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import type { Detail } from '../api';
+import { BOB, detail, persons, PURCHASE, SUB } from '../testData';
+
+function serve(body: Detail, extra: Parameters<typeof server.use> = []) {
+  let current = body;
+  // The test's own handlers first: `:id` would also match /subscriptions/providers.
+  server.use(
+    ...extra,
+    http.get('*/api/v1/subscriptions/:id', () => HttpResponse.json(current)),
+    http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
+  );
+  return { set: (next: Detail) => { current = next; } };
+}
+
+const open = async () => {
+  const utils = await renderApp(`/subscriptions/${SUB}`);
+  await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+  return utils;
+};
+
+describe('Abonnements › modifications', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('sends only the setting that changed', async () => {
+    const sent: unknown[] = [];
+    serve(detail(), [http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: SUB });
+    })]);
+    const { user } = await open();
+
+    await user.click(screen.getByLabelText('Renouvellement automatique'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await waitFor(() => expect(sent).toEqual([{ autoRenew: false, clearCancelledAt: false, clearProviderKey: false }]));
+  });
+
+  it('clears a cancellation date', async () => {
+    const sent: unknown[] = [];
+    serve(detail({ cancelledAt: '2026-03-01' }), [http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: SUB });
+    })]);
+    const { user } = await open();
+
+    await user.clear(screen.getByLabelText('Date de résiliation'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await waitFor(() => expect(sent).toEqual([{ clearCancelledAt: true, clearProviderKey: false }]));
+  });
+
+  it('offers to reload when the subscription changed meanwhile', async () => {
+    serve(detail(), [http.patch('*/api/v1/subscriptions/:id', () => HttpResponse.json({ status: 409, code: 'core.conflict' }, { status: 409 }))]);
+    const { user } = await open();
+
+    await user.click(screen.getByLabelText('Renouvellement automatique'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    expect(await screen.findByRole('button', { name: 'Recharger' })).toBeInTheDocument();
+  });
+
+  it('changes the price with the amount written with a comma', async () => {
+    const sent: unknown[] = [];
+    serve(detail(), [http.post('*/api/v1/subscriptions/:id/price-changes', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: 'x' }, { status: 201 });
+    })]);
+    const { user } = await open();
+
+    const form = screen.getByRole('form', { name: 'Changer le prix' });
+    await user.type(within(form).getByLabelText('À partir du'), '2026-02-28');
+    await user.type(within(form).getByLabelText('Nouveau montant'), '15,99');
+    await user.click(within(form).getByRole('button', { name: 'Changer le prix' }));
+
+    await waitFor(() => expect(sent).toEqual([{ startsOn: '2026-02-28', price: { amount: '15.99', currency: 'EUR' } }]));
+  });
+
+  it('shows a refusal of the server on its field', async () => {
+    serve(detail(), [http.post('*/api/v1/subscriptions/:id/price-changes', () => HttpResponse.json({
+      status: 422, code: 'subscriptions.no_open_phase', title: 'No phase is open on this date.',
+      errors: [{ path: 'startsOn', code: 'subscriptions.no_open_phase', message: 'No phase is open on this date.' }],
+    }, { status: 422 }))]);
+    const { user } = await open();
+
+    const form = screen.getByRole('form', { name: 'Changer le prix' });
+    await user.type(within(form).getByLabelText('À partir du'), '2020-01-01');
+    await user.type(within(form).getByLabelText('Nouveau montant'), '15');
+    await user.click(within(form).getByRole('button', { name: 'Changer le prix' }));
+
+    const date = within(form).getByLabelText('À partir du');
+    await waitFor(() => expect(date).toHaveAttribute('aria-invalid', 'true'));
+    expect(date).toHaveAccessibleDescription(/Aucun tarif n'est en cours à cette date/);
+  });
+
+  it('adds a purchase granting time to this subscription', async () => {
+    const sent: unknown[] = [];
+    serve(detail(), [http.post('*/api/v1/subscriptions/:id/purchases', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: 'p' });
+    })]);
+    const { user } = await open();
+
+    const form = screen.getByRole('form', { name: 'Ajouter un achat' });
+    await user.type(within(form).getByLabelText('Libellé'), 'Carte cadeau');
+    await user.type(within(form).getByLabelText('Date'), '2025-12-01');
+    await user.selectOptions(within(form).getByLabelText('Type'), 'gift');
+    await user.type(within(form).getByLabelText('Montant'), '0');
+    await user.clear(within(form).getByLabelText('Durée couverte'));
+    await user.type(within(form).getByLabelText('Durée couverte'), '2');
+    await user.click(within(form).getByRole('button', { name: 'Ajouter un achat' }));
+
+    await waitFor(() => expect(sent).toEqual([{
+      date: '2025-12-01', label: 'Carte cadeau', kind: 'gift', price: { amount: '0', currency: 'EUR' },
+      payer: { type: 'external', personId: null },
+      grants: [{ subscriptionId: SUB, duration: { count: 2, unit: 'month' }, source: 'gift', startsOn: null }],
+      allocatedAmount: null, note: null,
+    }]));
+  });
+
+  it('asks before deleting a purchase', async () => {
+    const deleted: string[] = [];
+    serve(detail(), [http.delete('*/api/v1/subscriptions/:id/purchases/:purchaseId', ({ params }) => {
+      deleted.push(String(params.purchaseId));
+      return HttpResponse.json({ id: params.purchaseId });
+    })]);
+    const { user } = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Supprimer l’achat Carte cadeau 3 mois' }));
+    expect(deleted).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(deleted).toEqual([PURCHASE]));
+  });
+
+  it('shows no action and says who can write when the reader may not', async () => {
+    serve(detail({ canWrite: false }));
+    const { container } = await open();
+
+    expect(container.querySelector('form')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Supprimer/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Cet abonnement ne peut être modifié que par Alice Dev.')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('names every owner who can write', async () => {
+    serve(detail({ canWrite: false, owners: [{ personId: persons[0]!.id, shareBp: 5000 }, { personId: BOB, shareBp: 5000 }] }));
+    await open();
+
+    expect(screen.getByText('Cet abonnement ne peut être modifié que par Alice Dev et Bob Dev.')).toBeInTheDocument();
+  });
+
+  it('has no accessibility violation with the forms shown', async () => {
+    serve(detail());
+    const { container } = await open();
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('ProviderPicker', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('searches the visible providers and links the one chosen', async () => {
+    const queries: string[] = [];
+    const sent: unknown[] = [];
+    serve(detail(), [
+      http.get('*/api/v1/subscriptions/providers', ({ request }) => {
+        queries.push(new URL(request.url).searchParams.get('q') ?? '');
+        return HttpResponse.json([{ key: 'spotify', name: 'Spotify', origin: 'catalog', labels: [], website: null, archived: false, iconUrl: null }]);
+      }),
+      http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json({ id: SUB });
+      }),
+    ]);
+    const { user } = await open();
+
+    await user.type(screen.getByLabelText('Fournisseur'), 'spo');
+    await user.click(await screen.findByRole('button', { name: 'Choisir Spotify' }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    expect(queries.at(-1)).toBe('spo');
+    await waitFor(() => expect(sent).toEqual([{ providerKey: 'spotify', clearCancelledAt: false, clearProviderKey: false }]));
+  });
+});

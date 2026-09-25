@@ -6,7 +6,7 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { ConfirmAction } from './ConfirmAction';
+import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from './format';
 
 const RUNS = '/api/v1/core/fx-rates/runs';

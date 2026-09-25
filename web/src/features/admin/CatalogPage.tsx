@@ -7,7 +7,7 @@ import type { components } from '@/api/schema';
 import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
-import { ConfirmAction } from './ConfirmAction';
+import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from './format';
 
 type Run = components['schemas']['CatalogSyncRunView'];
