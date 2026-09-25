@@ -206,7 +206,8 @@ public sealed class SubscriptionsImportSection(
             if (!RecordParsing.TryPhase(record, path, person, issues, out var phase))
                 continue;
 
-            var resolvedPhase = await ResolveAsync(context.Actor, knownPhases, record.Id, readable, ct);
+            var resolvedPhase = await ResolveAsync(context.Actor, knownPhases, record.Id, readable, ct,
+                candidate => candidate.Items.Contains(run.Id));
             if (resolvedPhase.OwnHidden)
             {
                 issues.Add(ImportedUnseen(path, record.Id));
@@ -254,7 +255,9 @@ public sealed class SubscriptionsImportSection(
                 continue;
 
             var targets = record.Grants.Select(g => g.SubscriptionId).Distinct(StringComparer.Ordinal).ToList();
-            var resolvedPurchase = await ResolveAsync(context.Actor, knownPurchases, record.Id, readable, ct);
+            var targetIds = targets.Select(t => runs[t].Id).ToHashSet();
+            var resolvedPurchase = await ResolveAsync(context.Actor, knownPurchases, record.Id, readable, ct,
+                candidate => candidate.Items.Any(targetIds.Contains));
             if (resolvedPurchase.OwnHidden)
             {
                 issues.Add(ImportedUnseen(path, record.Id));
@@ -502,16 +505,21 @@ public sealed class SubscriptionsImportSection(
     /// Import provenance privacy (spec 2026-09-25 §4). A candidate is visible when the importer can read one of
     /// the items it touches. The importer's own visible row wins, then the visible row with the smallest id. With
     /// none visible, the importer's own row is refused. A row of someone else that the importer cannot see is
-    /// never looked at again, so the answer is the one an unused id gets.
+    /// never looked at again, so the answer is the one an unused id gets. <paramref name="belongs"/> narrows the
+    /// rows of others to those under the subscriptions this file resolved to: a phase or purchase of another
+    /// adult's same-id subscription is not this file's. The importer's own rows are always candidates, since
+    /// the unique index (imported_by, import_ref) forbids creating a second one.
     /// </summary>
     private async Task<Resolution> ResolveAsync(
         PersonId actor, IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>> known, string fileId,
-        Dictionary<ItemId, bool> readable, CancellationToken ct)
+        Dictionary<ItemId, bool> readable, CancellationToken ct, Func<ImportedRow, bool>? belongs = null)
     {
         if (!known.TryGetValue(fileId, out var candidates))
             return Resolution.New;
 
-        foreach (var candidate in candidates.OrderBy(c => c.ImportedBy == actor ? 0 : 1).ThenBy(c => c.Id))
+        foreach (var candidate in candidates
+                     .Where(c => c.ImportedBy == actor || belongs is null || belongs(c))
+                     .OrderBy(c => c.ImportedBy == actor ? 0 : 1).ThenBy(c => c.Id))
             if (await SeesAnyAsync(actor, candidate.Items, readable, ct))
                 return new Resolution(candidate, false);
 

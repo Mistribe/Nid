@@ -150,4 +150,40 @@ public class ImportProvenanceTests(PostgresFixture fixture)
 
         AssertAllUnchanged((await CommitAsync(client, app, app.AdultA, FileOfA())).Report!);
     }
+
+    /// <summary>
+    /// B's subscription and A's share a file id, and A's is now visible to B. A phase or purchase of B's file
+    /// belongs to the subscription B's file id resolved to — B's own — never to A's row of the same id under
+    /// A's subscription, which would report it unchanged and leave B's subscription without it.
+    /// </summary>
+    [Fact]
+    public async Task A_phase_or_purchase_resolves_under_the_subscription_its_file_resolved_to()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, FileOfA());
+        var ofB = FileOfB();
+        await CommitAsync(client, app, app.AdultB, new Dictionary<string, string> { ["persons"] = ofB["persons"], ["subscriptions"] = ofB["subscriptions"] });
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+        {
+            var item = await core.Items.SingleAsync(i => i.DisplayName == "A's");
+            item.Visibility = "shared";
+            await core.SaveChangesAsync();
+        }
+
+        var ofA = FileOfA();
+        var committed = await CommitAsync(client, app, app.AdultB, new Dictionary<string, string>
+        {
+            ["persons"] = ofB["persons"], ["subscriptions"] = ofB["subscriptions"],
+            ["billing_phases"] = ofA["billing_phases"], ["purchases"] = ofA["purchases"],
+        });
+
+        Assert.Equal(new CountsResponse(0, 1, 0), committed.Report!.Sections["subscriptions"]);
+        Assert.Equal(new CountsResponse(1, 0, 0), committed.Report.Sections["billing_phases"]);
+        Assert.Equal(new CountsResponse(1, 0, 0), committed.Report.Sections["purchases"]);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var ofBItem = await subs.Subscriptions.Where(s => s.ImportRef == "sub-p" && s.ImportedBy == app.AdultB.Value).Select(s => s.ItemId).SingleAsync();
+        Assert.True(await subs.Phases.AnyAsync(p => p.ItemId == ofBItem && p.ImportRef == "ph-p"));
+        Assert.True(await subs.Grants.AnyAsync(g => g.SubscriptionItemId == ofBItem));
+    }
 }
