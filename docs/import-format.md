@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) ; l'export (§10) suit en 1D2. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Seules les sections du module Abonnements sont définies ; les autres modules ajouteront les leurs.
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Seules les sections du module Abonnements sont définies ; les autres modules ajouteront les leurs.
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -215,12 +215,18 @@ L'export est **assemblé par le navigateur** à partir d'appels paginés ; le se
 
 | Appel | Rôle |
 |---|---|
-| `GET /api/v1/platform/export/manifest` | Sections disponibles pour cet utilisateur, nombre d'entités par section, `exported_at` (heure du serveur), `revision` |
-| `GET /api/v1/platform/export/{section}?cursor=&limit=` | Page d'au plus 500 entités, curseur opaque, ordre stable |
+| `GET /api/v1/platform/export/manifest` | `format`, `version`, `exportedAt` (heure du serveur), `revision`, `sections` : `[{ name, count }]`, toutes les sections connues, vides comprises |
+| `GET /api/v1/platform/export/{section}?cursor=&limit=` | `{ section, entities, nextCursor }` : page de `limit` entités (1 à 500, 500 par défaut), curseur opaque, ordre stable ; `nextCursor` vaut `null` à la dernière page. Les entités sont écrites comme dans le fichier (`snake_case`, montants en chaînes, valeurs par défaut explicites) |
 
 - Portée `read`. **Chacun exporte ce qu'il peut lire** : les éléments privés d'un adulte n'apparaissent que dans son export. N'apparaissent dans `persons` que les personnes référencées.
 - Le navigateur assemble l'enveloppe `nid.data` (§3) et déclenche le téléchargement. Il peut aussi produire **un CSV par section**, converti côté client ; toute cellule **texte** commençant par `=`, `+`, `-`, `@`, tabulation ou retour chariot est **neutralisée** (préfixe d'une apostrophe) pour empêcher l'injection de formules dans un tableur (`security/application.md` §6).
-- **Cohérence** : `revision` est un compteur monotone (numéro de séquence de l'audit). À la fin, le navigateur relit le manifeste ; si `revision` a changé, il signale que des données ont bougé pendant l'export et propose de relancer. Aucun verrou n'est posé.
+- **Cohérence** : `revision` est le SHA-256 (RFC 8785) de tout ce que ce lecteur exporterait. Elle ne bouge que si ce qu'il voit bouge, donc ne dit rien des éléments privés de l'autre adulte. Le curseur porte la `revision` : une page demandée avec le curseur d'une autre `revision` répond `409 export.revision_changed` (le navigateur relance l'export), un curseur illisible `400 export.bad_cursor`, une section inconnue `404`. À la fin, le navigateur relit le manifeste. Rien n'est stocké ni verrouillé : chaque appel reconstruit l'export du lecteur.
+- **Identifiants** : l'`id` d'une entité est son `import_ref` s'il est unique dans la section exportée (en cas de doublon, la ligne importée par le lecteur le garde) ; sinon une clé dérivée de l'UUID interne (`sub-…`, `ph-…`, `pu-…`). Un réimport écrit cet `id` en `import_ref`, si bien qu'un second export redonne les mêmes `id`.
+- **Fournisseurs** : seuls ceux qu'une instance au même catalogue ne saurait pas résoudre (`custom`, `adopted`, et ceux du catalogue qu'il a archivés). Leur clé de fichier est leur `import_ref`, sinon leur clé stockée, sinon une version slugifiée ; jamais une clé que le fichier utilise déjà, y compris une clé du catalogue nommée directement (suffixe `-2`, `-3`…).
+- **Personnes** : `adult-N` puis `dependent-N`, numérotés par nom affiché puis email sur toutes les personnes du foyer ; seules les personnes référencées sont écrites, l'`email` pour un adulte.
+- **Achats** : un achat ne garde que ses grants vers des abonnements exportés. Réimporté seul, il couvre donc moins d'abonnements et son coût se répartit sur les grants restants.
+- **Non garanti** : réimporter un export dans l'instance d'où il vient. Une ligne créée dans l'interface n'a pas d'`import_ref` et serait recréée ; une ligne modifiée depuis son import ressortirait en `conflict`.
+- `archived_at` n'est pas encore dans le format : rien n'archive un abonnement. Il arrivera avec l'archivage.
 - Les contenus des documents (PDF) ne sont pas dans le fichier ; une section future les référencera par `sha256`.
 - L'export ne remplace pas la sauvegarde complète (`architecture.md` §11) : il garantit de pouvoir quitter l'application.
 
@@ -296,7 +302,7 @@ Chaque module fournit une `IImportSection` dans ses `Contracts` (il possède sa 
 | `ValidateBatch` | Règles locales aux entités d'un lot |
 | `ValidateAll` | Validation complète sur le staging de la session |
 | `Apply` | Écriture, appelée dans la transaction de `commit` |
-| `ExportCount`, `ExportPage` | Manifeste et pages d'export (§10) |
+| `ExportAsync` | Tous les enregistrements de la section que le lecteur peut exporter ; Platform les pagine (§10) |
 
 Platform ne connaît aucune entité métier : elle orchestre l'ordre, le rapport, la transaction et l'audit.
 
