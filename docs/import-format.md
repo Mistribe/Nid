@@ -195,11 +195,12 @@ Règles : devise identique à celle de l'élément ; au plus une valorisation co
 
 ## 8. Idempotence et conflits
 
-- Chaque entité importée conserve son `id` de fichier comme **`import_ref`**, unique par section dans l'instance. Deux fichiers différents qui réutilisent les mêmes `id` sont en conflit : préfixer les `id` de chaque source.
+- Chaque entité importée conserve son `id` de fichier comme **`import_ref`**, unique **par importeur** et par section. Un réimport ne reconnaît que les entités que l'importeur peut voir : les siennes d'abord, puis celles d'un autre adulte qui lui sont visibles. Un `id` déjà utilisé par une entité qu'il ne voit pas est importé comme nouveau, avec la même réponse qu'un `id` jamais utilisé, de sorte que l'import ne révèle rien d'un élément privé de l'autre adulte. Deux fichiers qui réutilisent les mêmes `id` sont en conflit entre entités visibles : préfixer les `id` de chaque source.
 - Réimport :
   - même `id`, contenu identique → `unchanged` ;
   - même `id`, contenu différent → `conflict`, **rien n'est écrasé** ;
   - option `replace` : le contenu de l'entité est mis à jour, l'ancienne valeur restant dans l'audit.
+- Une entité importée par l'importeur et qu'il ne voit plus (ses droits ont changé) est refusée (`import.not_permitted`) plutôt que dupliquée.
 
 ## 9. Provenance, audit et rapport
 

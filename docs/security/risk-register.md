@@ -53,7 +53,7 @@
 
 | ID | Risque | Gravité | Mesures | Étape | Résiduel |
 |---|---|---|---|---|---|
-| APP-1 | Fuite d'un élément privé à l'autre adulte | Moyenne | Pipeline, garde de sortie, banc anti-fuite | 1 | Faible |
+| APP-1 | Fuite d'un élément privé à l'autre adulte | Moyenne | Pipeline, garde de sortie, banc anti-fuite, réponses d'import limitées aux entités visibles | 1 | Faible |
 | APP-2 | XSS (données importées, pdf.js) | Élevée | Échappement, lint, CSP, pdf.js ≥ 4.2.67 | 1 | Faible |
 | APP-3 | SSRF (icônes, taux, URL configurables) | Moyenne | `SafeHttpClient` | 1 | Faible |
 | APP-4 | Injection de formules CSV | Faible | Neutralisation à l'export | 1 | Aucun |
