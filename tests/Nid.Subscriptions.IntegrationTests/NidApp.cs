@@ -39,8 +39,18 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakeCatalogSource catalog)
-        => (this.factory, ConnectionString, AdultA, AdultB, Dependent, Sources, Catalog) = (factory, connectionString, a, b, d, sources, catalog);
+        FakeFxSources sources, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot)
+    {
+        this.factory = factory;
+        ConnectionString = connectionString;
+        AdultA = a;
+        AdultB = b;
+        Dependent = d;
+        Sources = sources;
+        Catalog = catalog;
+        Icons = icons;
+        AssetsRoot = assetsRoot;
+    }
 
     /// <summary>The database this harness runs against, for tests that read rows back directly.</summary>
     public string ConnectionString { get; }
@@ -61,6 +71,12 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="ICatalogSourceClient"/> this host runs against; every fetch fails unless a test serves files.</summary>
     public FakeCatalogSource Catalog { get; }
 
+    /// <summary>The offline <see cref="ICatalogIconSource"/> this host runs against; every icon is unreachable unless a test serves it.</summary>
+    public FakeIconSource Icons { get; }
+
+    /// <summary>This host's asset store (1C2c): a temporary folder of its own, deleted when the host is disposed.</summary>
+    public string AssetsRoot { get; }
+
     /// <param name="overrides">
     /// Applied last, so a test can replace a registered service. The leak bench uses it to install a
     /// deliberately broken <c>IVisibleItems</c> and watch the output guard catch it (access-tests.md §5).
@@ -72,6 +88,8 @@ public sealed class NidApp : IAsyncDisposable
         var connectionString = await fixture.NewConnectionStringAsync();
         var sources = FakeFxSources.Offline();
         var catalog = FakeCatalogSource.Offline();
+        var icons = FakeIconSource.Offline();
+        var assetsRoot = Path.Combine(Path.GetTempPath(), "nid-assets-" + Guid.NewGuid().ToString("N"));
 
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
         {
@@ -91,6 +109,7 @@ public sealed class NidApp : IAsyncDisposable
                 builder.UseSetting("Auth:CsrfKey", "test-csrf-key-0123456789abcdef0123456789");
                 // No test host runs Quartz unless a test asks for it (Task 7), and none reaches the network.
                 builder.UseSetting("Jobs:Enabled", "false");
+                builder.UseSetting("Assets:Root", assetsRoot);
                 foreach (var (key, value) in settings ?? new Dictionary<string, string>())
                     builder.UseSetting(key, value);
                 // The golden-case fixtures (NewSpotifyGoldenCaseAsync) are dated around October 2025, matching
@@ -102,13 +121,14 @@ public sealed class NidApp : IAsyncDisposable
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
                     services.AddSingleton<ICatalogSourceClient>(catalog);
+                    services.AddSingleton<ICatalogIconSource>(icons);
                     // No test reaches the identity provider (https://auth.test.localhost does not exist).
                     services.AddSingleton<Nid.Host.Admin.IIdentityProviderProbe>(new ReachableIdentityProvider());
                     overrides?.Invoke(services);
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, catalog);
+            return new NidApp(factory, connectionString, a, b, d, sources, catalog, icons, assetsRoot);
         }
     }
 
@@ -149,6 +169,16 @@ public sealed class NidApp : IAsyncDisposable
             request.Content = JsonContent.Create(body, options: Json);
         if (!SafeMethods.Contains(method.Method))
             request.Headers.Add(CsrfMiddleware.HeaderName, await CsrfTokenForAsync(actor));
+        return await client.SendAsync(request);
+    }
+
+    /// <summary>A GET as <paramref name="actor"/> with extra request headers (<c>If-None-Match</c>, for instance).</summary>
+    public async Task<HttpResponseMessage> GetWithHeadersAsync(PersonId actor, string url, IReadOnlyDictionary<string, string> headers)
+    {
+        using var client = ClientFor(actor);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        foreach (var (name, value) in headers)
+            request.Headers.TryAddWithoutValidation(name, value);
         return await client.SendAsync(request);
     }
 
@@ -371,6 +401,22 @@ public sealed class NidApp : IAsyncDisposable
     }
 
     /// <summary>
+    /// Stores <paramref name="webp"/> in this host's asset store and links it to <paramref name="key"/> as the icon
+    /// pass would (1C2c): what a test of the route or the views starts from. Answers the hash.
+    /// </summary>
+    public async Task<string> SeedProviderIconAsync(string key, byte[] webp)
+    {
+        var hash = await factory.Services.GetRequiredService<IAssetStore>().PutAsync(webp, "image/webp", CancellationToken.None);
+        var url = $"https://1000logos.net/{key}.png";
+        await using var subs = PostgresFixture.NewSubscriptionsContext(ConnectionString);
+        await subs.Providers.Where(p => p.Key == key).ExecuteUpdateAsync(s => s
+            .SetProperty(p => p.IconUrl, url)
+            .SetProperty(p => p.IconSource, url)
+            .SetProperty(p => p.IconAsset, hash));
+        return hash;
+    }
+
+    /// <summary>
     /// A fresh custom provider that <paramref name="item"/>, and nothing else, uses: only that item makes it visible. Its
     /// creator is nobody of the dataset — a creator always sees their provider (§3.5 as amended), which would hide the
     /// very refusal the provider axis checks.
@@ -386,6 +432,16 @@ public sealed class NidApp : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         factory.Dispose();
+        try
+        {
+            if (Directory.Exists(AssetsRoot))
+                Directory.Delete(AssetsRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // A file still open elsewhere: the operating system cleans its temporary folder.
+        }
+
         return ValueTask.CompletedTask;
     }
 

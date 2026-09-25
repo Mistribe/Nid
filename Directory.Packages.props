@@ -33,5 +33,9 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+    <!-- 1C2c: icon decoding and lossless WebP encoding (MIT). SkiaSharp brings its macOS and Windows native libraries;
+         the Linux one (CI, the 1F image) is the no-dependencies build: it needs glibc and libstdc++, nothing else. -->
+    <PackageVersion Include="SkiaSharp" Version="4.152.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.152.1" />
   </ItemGroup>
 </Project>

@@ -127,7 +127,9 @@ A provider gives a subscription its identity in the UI (name, icon, labels) and 
 | `name` | string | Display name. Optional localized variants: `default` plus `local` keyed by locale (`fr-fr`). |
 | `origin` | enum | `catalog` (imported), `custom` (created by a user) or `adopted` (a key stored in `subscription.provider_key` before any catalog existed) |
 | `website`, `pricing_page` | url? | `http`/`https` only |
-| `icon_asset` | id? | Not built yet (1C2c). Until then the UI shows a generated monogram (see below). |
+| `icon_url` | url? | Declared by the catalog. `https` only, at most 2048 characters. |
+| `icon_asset` | string? | SHA-256 of the stored WebP. `null` until fetched, or if the download failed or was never attempted. |
+| `icon_source` | url? | The URL the stored asset was fetched from. `null` alongside `icon_asset`; differs from `icon_url` between the merge and the next successful icon pass. |
 | `label_keys` | `[string]` | At least one |
 | `plans` | json? | Not built for now (to be rethought before it is); not stored, not read |
 | `catalog_commit` | string? | Commit the row was imported from |
@@ -162,25 +164,28 @@ Catalog fields used:
 |---|---|
 | `key`, `name` | `key`, `name` (with `local` variants) |
 | `website`, `pricing_page` | same |
-| `icon` | Source of `icon_asset` once 1C2c builds it; ignored for now |
+| `icon` | Read into `icon_url`: an `https` URL of at most 2048 characters, else ignored and reported (the provider is kept) |
 | `categories` (18 allowed values) | `label_keys` |
 | `plans[]` (`name`, `description`, `features`, `prices`, `recurrency`, `options`) | Ignored for now (1C2b §2): not stored, not read |
 
 Sync rules:
 
-- **Pinned**: the configuration names a commit (`Catalog:Commit`, default `df0146a8f3532f5c790aa54a34d4871e96b62a95`). The sync is an explicit action — a durable job started at startup while no sync has ever succeeded, and on demand from Administration › Catalogue — never on a schedule (the commit is pinned, so a periodic run would only repeat the same version).
+- **Pinned**: the configuration names a commit (`Catalog:Commit`, default `882b195d7923ada66993548adda10791e05d198a`, the merge of `Mistribe/SubTracker-Data#5`, 2026-09-25). The sync is an explicit action — a durable job started at startup while no sync has ever succeeded, and on demand from Administration › Catalogue — never on a schedule (the commit is pinned, so a periodic run would only repeat the same version).
 - **Validated on ingestion**: an entry that breaks a rule (key pattern, name empty or too long, URL not `http`/`https`, no category, malformed color) is refused and listed with its reason; the rest of the file is still written. A file that is not the expected JSON array fails the whole run and writes nothing.
 - **Journal**: every sync is recorded in `catalog_sync_run` (`id`, `started_at`, `finished_at`, `status`, `commit`, `failure_code`, `failure_message`, `report`), the same shape and rules as `core.fx_sync_run` (`core-data-model.md`): at most one running row, a run left running for an hour closed as abandoned, an interrupted run closed as interrupted, runs older than 400 days purged except the latest success. The report lists providers added, updated, unchanged and archived; adopted providers replaced by the catalog and adopted providers remaining; labels added, updated and created for a category without one; duplicate keys; refused entries with their reason. **The stored report is filtered for its reader**: an adopted-replaced, adopted-remaining or custom-conflict entry is shown only if the reader can see, at present, one of the subscriptions that used that key at sync time; a replaced key the reader cannot see is shown to them as added instead (what a household that never used it would have seen), so every catalog key of the run stays accounted for; a conflict the reader cannot see is dropped. No count of dropped entries is exposed. Only the system actor gets the complete, unfiltered report.
 - Syncing the same commit twice changes nothing: every catalog key comes out unchanged.
 
 ### Icons
 
-Catalog `icon` values are third-party URLs (a logo aggregator, Wikimedia). Displaying them straight from the browser would tell those hosts which providers the household uses, and the links can rot. Therefore:
+Catalog `icon` values are third-party URLs (a logo aggregator, Wikimedia). Displaying them straight from the browser would tell those hosts which providers the household uses, and the links can rot. Therefore, as built:
 
-- The icon is **downloaded once during the sync**, on the server, and stored in a content-addressed local asset store.
-- It is served from the application's own origin.
-- The download goes through the application's single outbound HTTP client: HTTPS only, private and link-local addresses refused after DNS resolution, redirects revalidated, host allow-list, 512 KB maximum, type checked by content, **re-encoded to WebP**, **SVG refused** (`security/application.md` §3 and §4).
-- If the download fails or there is no icon, the UI shows a **monogram** (initials on the label color).
+- **Downloaded after the merge**, outside its lock, one provider at a time in key order, for every non-archived catalog provider whose icon is missing or came from another URL: through the application's single outbound HTTP client (`security/application.md` §3), 15 s per icon.
+- **Processed** from the content, never from the URL or the declared `Content-Type` (`IconProcessor`): PNG, JPEG, WebP and GIF (first frame) accepted; SVG and anything else refused `unsupported_format`. At most 4096 × 4096 read from the header before any pixel is decoded; the EXIF orientation applied. Fitted within a 256 px square, ratio kept, never enlarged. Re-encoded as **lossless WebP** without metadata (EXIF, ICC, XMP all stripped); the SHA-256 of that WebP is its hash.
+- **Stored** at `{root}/{first 2 hex chars}/{sha256}.webp` under `Assets:Root` (`.data/assets` in development, `/var/lib/nid/assets` in production).
+- **Served** by `GET /api/v1/subscriptions/providers/icons/{hash}`, behind the session, `Cache-Control: private, max-age=31536000, immutable`, `ETag` = the hash, `If-None-Match` answering `304`.
+- **A failure never fails the run**: the provider keeps its previous icon (or its monogram, if it never had one), and is retried at the next sync (`icon_source` still differs from `icon_url`).
+- **A provider the catalog no longer gives an icon** loses `icon_url`, `icon_asset` and `icon_source` at the merge, and shows its **monogram**: the initials of its name on the color of its first label, in black or white, whichever contrasts more.
+- The run report's `icons` section lists what was fetched, how many were already current, and every refusal with its reason.
 - Logos remain third-party trademarks: they are displayed to identify a service in a private application and are not redistributed.
 
 ### Plan suggestions

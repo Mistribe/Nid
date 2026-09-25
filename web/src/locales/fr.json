@@ -241,7 +241,8 @@
         "labels_created": "Libellés créés ({{n}})",
         "conflicts": "Conflits avec un fournisseur personnalisé ({{n}})",
         "duplicates": "Clés en double ({{n}})",
-        "refused": "Entrées refusées ({{n}})"
+        "refused": "Entrées refusées ({{n}})",
+        "icons": "Icônes (récupérées : {{fetched}}, inchangées : {{unchanged}}, refusées : {{refused}})"
       },
       "duplicate_entry": "{{file}} : {{key}}",
       "refused_entry": "{{file}} n° {{index}} ({{key}}) : {{reason}}",
@@ -254,6 +255,25 @@
         "invalid_color": "couleur invalide",
         "not_an_object": "entrée illisible",
         "reserved_key": "clé réservée",
+        "other": "motif inconnu"
+      },
+      "icons": {
+        "fetched": "Récupérées",
+        "refused": "Refusées",
+        "refused_entry": "{{key}} : {{reason}}"
+      },
+      "icon_reasons": {
+        "unsupported_format": "format non pris en charge (SVG compris)",
+        "too_many_pixels": "image de plus de 4096 × 4096",
+        "too_large": "fichier de plus de 512 Ko",
+        "undecodable": "image illisible",
+        "host_not_allowed": "hôte non autorisé",
+        "not_https": "adresse qui n'est pas en https",
+        "address_refused": "adresse réseau refusée",
+        "unreachable": "hôte injoignable",
+        "http_status": "réponse en erreur de l'hôte",
+        "invalid_url": "adresse invalide",
+        "store_failed": "écriture impossible sur le volume des actifs",
         "other": "motif inconnu"
       }
     },

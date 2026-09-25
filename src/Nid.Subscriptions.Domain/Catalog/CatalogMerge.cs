@@ -36,7 +36,8 @@ public static class CatalogMerge
         foreach (var entry in reading.Providers)
         {
             inCatalog.Add(entry.Key);
-            var fresh = new Provider(entry.Key, ProviderOrigin.Catalog, entry.Name, entry.Website, entry.PricingPage, entry.LabelKeys, commit, null, null, null);
+            var fresh = new Provider(
+                entry.Key, ProviderOrigin.Catalog, entry.Name, entry.Website, entry.PricingPage, entry.LabelKeys, commit, null, null, null, entry.IconUrl);
             if (!providers.TryGetValue(entry.Key, out var existing))
             {
                 writes.Add(fresh);
@@ -84,6 +85,7 @@ public static class CatalogMerge
 
     private static bool SameContent(Provider stored, CatalogProvider entry)
         => stored.Name == entry.Name && stored.Website == entry.Website && stored.PricingPage == entry.PricingPage
+           && stored.IconUrl == entry.IconUrl
            && stored.LabelKeys.SequenceEqual(entry.LabelKeys, StringComparer.Ordinal);
 
     private static List<string> Sorted(List<string> keys) => keys.Order(StringComparer.Ordinal).ToList();

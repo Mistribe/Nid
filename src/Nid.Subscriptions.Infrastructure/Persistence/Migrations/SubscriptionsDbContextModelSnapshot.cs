@@ -280,6 +280,18 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("IconAsset")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("icon_asset");
+
+                    b.Property<string>("IconSource")
+                        .HasColumnType("text")
+                        .HasColumnName("icon_source");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("icon_url");
+
                     b.Property<string>("ImportHash")
                         .HasColumnType("char(64)")
                         .HasColumnName("import_hash");
@@ -320,6 +332,9 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                     b.HasKey("Key")
                         .HasName("pk_provider");
 
+                    b.HasIndex("IconAsset")
+                        .HasDatabaseName("ix_provider_icon_asset");
+
                     b.HasIndex("CreatedBy", "ImportRef")
                         .IsUnique()
                         .HasDatabaseName("ix_provider_created_by_import_ref")
@@ -330,6 +345,12 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_provider_commit", "(origin = 'catalog') = (catalog_commit is not null)");
 
                             t.HasCheckConstraint("ck_provider_created_by", "(origin = 'custom') = (created_by is not null)");
+
+                            t.HasCheckConstraint("ck_provider_icon", "(icon_asset is null) = (icon_source is null)");
+
+                            t.HasCheckConstraint("ck_provider_icon_asset", "icon_asset ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("ck_provider_icon_url", "char_length(icon_url) <= 2048");
 
                             t.HasCheckConstraint("ck_provider_import", "(import_ref is null) = (import_hash is null)");
 

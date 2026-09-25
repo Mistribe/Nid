@@ -6,8 +6,16 @@ namespace Nid.Platform.Outbound;
 
 public sealed class OutboundOptions
 {
-    /// <summary>An array, not a list: configuration binding replaces an array but appends to a pre-filled list.</summary>
-    public string[] AllowedHosts { get; set; } = ["raw.githubusercontent.com", "www.ecb.europa.eu"];
+    /// <summary>
+    /// An array, not a list: configuration binding replaces an array but appends to a pre-filled list. The catalog and
+    /// the ECB (1C2a), and the hosts of the catalog's icons (1C2c design §5): an icon anywhere else is refused
+    /// <c>host_not_allowed</c> until the operator adds its host here.
+    /// </summary>
+    public string[] AllowedHosts { get; set; } =
+        ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr"];
+
+    /// <summary>Sent on every request: <c>upload.wikimedia.org</c> refuses a request without one (403).</summary>
+    public string UserAgent { get; set; } = "Nid/1.0 (+https://github.com/Mistribe/Nid)";
 
     public int TimeoutSeconds { get; set; } = 30;
 
@@ -84,6 +92,7 @@ public sealed partial class SafeHttpClient(HttpMessageInvoker invoker, OutboundO
         {
             Check(current);
             using var request = new HttpRequestMessage(HttpMethod.Get, current);
+            request.Headers.TryAddWithoutValidation("User-Agent", options.UserAgent);
             HttpResponseMessage response;
             try
             {

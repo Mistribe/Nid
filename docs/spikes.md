@@ -227,6 +227,59 @@ dépôt réel au commit épinglé, consigné dans `docs/spikes.md` ») et par `s
 recensés en conception restent les deux seuls écarts entre le dépôt réel et le format cible (§8 de la
 conception).
 
+## 9sexies. Icônes des fournisseurs : URL réelles (1C2c, 2026-09-25)
+
+**Exécuté** : `tests/Nid.Subscriptions.IntegrationTests/Catalog/RealIconCheck.cs`, un test jetable créé pour cette
+seule vérification puis supprimé aussitôt après (jamais commité), référençant le vrai `SafeHttpClient`, la vraie
+`CatalogIconSource` et `CatalogReader.Read` sur les fixtures gelées de Tâche 8 (`tests/fixtures/catalog/pinned/`) —
+aucun test de la suite ne touche le réseau ; cette vérification est hors CI (`dotnet test
+tests/Nid.Subscriptions.IntegrationTests --filter "FullyQualifiedName~RealIconCheck"`). Puis, pour les
+redirections (que `SafeHttpClient` suit sans le dire), une boucle `curl` sur les 17 URL `icon` du fichier réel,
+avec le même `User-Agent` que le client applicatif.
+
+**Résultat : 15 icônes récupérées, 2 refusées, sur les 17 fournisseurs du catalogue épinglé** :
+
+| Clé | Hôte | Résultat | Dimensions ou motif |
+|---|---|---|---|
+| `netflix` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `spotify` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `amazon-prime` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `disney-plus` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `apple-music` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `youtube-premium` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `nordvpn` | `1000logos.net` | récupérée | 1536 × 864 PNG → 256 × 144 |
+| `google-one` | `1000logos.net` | récupérée | 248 × 156 JPEG, conservée à sa taille (sous 256 px) |
+| `bouygues-telecom` | `upload.wikimedia.org` | récupérée | 256 × 95 |
+| `red-by-sfr` | `upload.wikimedia.org` | récupérée | 256 × 150 |
+| `jetbrains` | `upload.wikimedia.org` | récupérée | 256 × 55 |
+| `battlenet` | `upload.wikimedia.org` | récupérée | 256 × 144 |
+| `github` | `upload.wikimedia.org` | récupérée | 256 × 256 |
+| `car-insurance` | `raw.githubusercontent.com` | récupérée | WebP 256 × 256, déjà à sa taille |
+| `home-insurance` | `raw.githubusercontent.com` | récupérée | WebP 256 × 256, déjà à sa taille |
+| `nounou-top` | `www.nounou-top.fr` | **refusée** | `unsupported_format` — un SVG, que Skia ne décode pas |
+| `ovh-cloud` | `upload.wikimedia.org` | **refusée** | `http_status` — Wikimedia répond `400` à une vignette de 2560 px, plus large que l'original |
+
+Aucune des 17 URL ne redirige (la boucle `curl` répond `redirect_url=` vide sur chacune, `200` ou `400`, jamais un
+`3xx`). Sans le `User-Agent` que `SafeHttpClient` envoie désormais (Tâche 4), les six icônes `upload.wikimedia.org`
+répondent `403` (déjà observé en écrivant la conception, §« Decisions », non ré-exécuté ici : le point est acquis
+depuis le client sortant lui-même).
+
+Les deux refus produisent chacun un monogramme côté web : `nounou-top` (une image SVG jamais redistribuable telle
+quelle par ce pipeline) et `ovh-cloud` (le seul hôte qui refuse la requête, pas un format non pris en charge).
+Aucun des deux n'est corrigé ici : le sync suivant retente `ovh-cloud` (le motif n'est pas définitif — Wikimedia
+peut répondre différemment à une autre heure), `nounou-top` restera refusé tant que le catalogue amont ne pointera
+pas vers un format raster.
+
+**Non exécuté** : la seconde partie de l'Étape 1 (« Synchroniser maintenant » depuis Administration › Catalogue
+sur une pile `deploy/dev` démarrée, et lecture de `.data/assets`) n'a pas été faite dans cette passe — aucun
+environnement de développement n'était à disposition pour cette vérification ; aucun résultat n'est inventé pour
+cette partie. Le pipeline de bout en bout (téléchargement, traitement, stockage, liaison) est déjà couvert par les
+tests d'intégration de la Tâche 4 (`CatalogIconSyncTests`) avec un double de la source.
+
+**Conclusion** : referme le contrôle réel demandé par la conception §9 (« Un contrôle réel contre les 17 URL
+d'icônes réelles ») et par le plan. Les valeurs observées correspondent exactement à celles notées en écrivant le
+plan (2026-09-25) : 15 récupérées, 2 refusées, aucune redirection.
+
 ## 10. Vecteurs à conserver pour les tests réels
 
 - **Échéancier** : le générateur Python (référence en précision 60 chiffres, formule « multiplier d'abord ») et ses 3 000 cas servent d'**oracle** pour les tests de `realestate/loans.md` §12.

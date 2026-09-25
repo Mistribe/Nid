@@ -176,6 +176,23 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         db.ChangeTracker.Clear();
     }
 
+    public async Task<IReadOnlyList<Provider>> CatalogIconsAsync(CancellationToken ct)
+    {
+        var rows = await db.Providers.AsNoTracking()
+            .Where(p => p.Origin == "catalog" && p.ArchivedAt == null && p.IconUrl != null)
+            .ToListAsync(ct);
+        // Ordered here, not by the database: its collation may ignore hyphens.
+        return rows.OrderBy(p => p.Key, StringComparer.Ordinal).Select(ToProvider).ToList();
+    }
+
+    public async Task<int> SetIconAsync(string key, string source, string asset, CancellationToken ct)
+        => await db.Providers
+            .Where(p => p.Key == key && p.Origin == "catalog" && p.IconUrl == source)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.IconAsset, asset).SetProperty(p => p.IconSource, source), ct);
+
+    public Task<bool> IsCatalogIconAsync(string hash, CancellationToken ct)
+        => db.Providers.AnyAsync(p => p.Origin == "catalog" && p.IconAsset == hash, ct);
+
     private void RequireTransaction()
     {
         if (db.Database.CurrentTransaction is null)
@@ -194,7 +211,10 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         row.CatalogCommit,
         row.CreatedBy is { } person ? new PersonId(person) : null,
         row.ArchivedAt,
-        row.ImportRef is { } importRef ? new ImportRef(importRef, row.ImportHash!) : null);
+        row.ImportRef is { } importRef ? new ImportRef(importRef, row.ImportHash!) : null,
+        row.IconUrl,
+        row.IconAsset,
+        row.IconSource);
 
     internal static ProviderRow ToRow(Provider provider)
     {
@@ -216,5 +236,13 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         row.ArchivedAt = provider.ArchivedAt;
         row.ImportRef = provider.Import?.Ref;
         row.ImportHash = provider.Import?.Hash;
+        // 1C2c design §5: a sync writes the declared URL only; the stored icon is the icon pass's (SetIconAsync). A
+        // provider the catalog no longer gives an icon loses the one it had and shows its monogram.
+        row.IconUrl = provider.IconUrl;
+        if (provider.IconUrl is null)
+        {
+            row.IconAsset = null;
+            row.IconSource = null;
+        }
     }
 }

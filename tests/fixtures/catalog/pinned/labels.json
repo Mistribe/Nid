@@ -1,0 +1,97 @@
+[
+  {
+    "key": "streaming-music",
+    "name": "Music",
+    "color": "#81C784"
+  },
+  {
+    "key": "streaming",
+    "name": "Streaming",
+    "color": "#6400F6"
+  },
+  {
+    "key": "vod",
+    "name": "VOD",
+    "color": "#F06292"
+  },
+  {
+    "key": "streaming-video",
+    "name": "Video",
+    "color": "#F06292"
+  },
+  {
+    "key": "mobile",
+    "name": "Mobile",
+    "color": "#FFD54F"
+  },
+  {
+    "key": "internet",
+    "name": "Internet",
+    "color": "#64B5F6"
+  },
+  {
+    "key": "gaming",
+    "name": "Gaming",
+    "color": "#4DB6AC"
+  },
+  {
+    "key": "software",
+    "name": "Software",
+    "color": "#7986CB"
+  },
+  {
+    "key": "utilities",
+    "name": "Utilities",
+    "color": "#9575CD"
+  },
+  {
+    "key": "vpn",
+    "name": "VPN",
+    "color": "#7723AA"
+  },
+  {
+    "key": "shopping",
+    "name": "Shopping",
+    "color": "#798600"
+  },
+  {
+    "key": "storage",
+    "name": "Storage",
+    "color": "#798900"
+  },
+  {
+    "key": "work",
+    "name": "Work",
+    "color": "#A855B4"
+  },
+  {
+    "key": "cloud",
+    "name": "Cloud",
+    "color": "#A855B4"
+  },
+  {
+    "key": "hosting",
+    "name": "Hosting",
+    "color": "#A855B4"
+  },
+  {
+    "key": "kid",
+    "name": "Kid",
+    "color": "#A855B4"
+  },
+  {
+    "key": "insurance",
+    "name": "Insurance",
+    "color": "#64B5F6"
+  },
+  {
+    "key": "car",
+    "name": "Car",
+    "color": "#64B5F6"
+  },
+  {
+    "key": "home",
+    "name": "Home",
+    "color": "#A1887F"
+  }
+]

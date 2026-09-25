@@ -10,12 +10,18 @@ using Duration = NodaTime.Duration;
 namespace Nid.Subscriptions.Application.Catalog;
 
 /// <summary>
-/// One sync of the pinned commit, journaled (design §3.6, §4). Whatever goes wrong ends in the journal as a failed run
-/// and writes nothing. The one exception that leaves: a cancellation of the caller's token (the host shutting down),
-/// after the run is closed as <see cref="CatalogCodes.RunInterrupted"/> (1C2a design §10).
+/// One sync of the pinned commit, journaled (design §3.6, §4). A failure before the merge commits — fetching the
+/// source, reading it, or the merge itself — ends in the journal as a failed run and writes nothing; a cancellation
+/// of the caller's token (the host shutting down) before that point closes the run the same way, as
+/// <see cref="CatalogCodes.RunInterrupted"/> (1C2a design §10), still writing nothing.
+/// After the merge commits, the icon pass runs (1C2c design §5): an icon failure is in the report, never a failed
+/// run. A cancellation during the pass still closes the run as interrupted, but the merge's writes already stand —
+/// only its report and <c>UsedBy</c> are then lost from the journal (never attached to this run), not the writes
+/// themselves.
 /// </summary>
 public sealed class CatalogSync(
-    ICatalogSourceClient source, IProviderStore providers, ICatalogRunLog runs, IUnitOfWork unitOfWork, CatalogOptions options, IClock clock)
+    ICatalogSourceClient source, IProviderStore providers, ICatalogRunLog runs, IUnitOfWork unitOfWork,
+    CatalogIconPass icons, CatalogOptions options, IClock clock)
 {
     public async Task<Result<CatalogSyncRun>> RunAsync(CancellationToken ct)
     {
@@ -71,15 +77,24 @@ public sealed class CatalogSync(
             return (readFailure, null, CatalogSyncRun.NoUsage);
         reading.TryGetValue(out var parsed);
 
-        // One transaction: the lock, the read under it and every write (design §4 "Merge", Review Focus 5).
+        var (report, usedBy) = await MergeAsync(parsed!, ct);
+        // 1C2c design §5: after the commit, outside the lock; each icon links itself in a statement of its own.
+        var iconReport = await icons.RunAsync(parsed!.IconsRefused, report.Conflicts, ct);
+        return (null, report with { Icons = iconReport }, usedBy);
+    }
+
+    /// <summary>One transaction: the lock, the read under it and every write (design §4 "Merge", Review Focus 5 of 1C2b).</summary>
+    private async Task<(CatalogReport Report, IReadOnlyDictionary<string, IReadOnlyList<ItemId>> UsedBy)> MergeAsync(
+        CatalogReading reading, CancellationToken ct)
+    {
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var plan = CatalogMerge.Plan(await providers.LockForSyncAsync(ct), parsed!, options.Commit);
+        var plan = CatalogMerge.Plan(await providers.LockForSyncAsync(ct), reading, options.Commit);
         // Spec §3.6 "Judged as of the sync": who used each household entry, before the writes turn a replaced key into
         // a catalog one. The report is later filtered by these subscriptions, never by the key's use at reading time.
         var report = plan.Report;
         var usedBy = await providers.UsageAsync([.. report.AdoptedReplaced, .. report.AdoptedRemaining, .. report.Conflicts], ct);
         await providers.WriteCatalogAsync(plan, clock.GetCurrentInstant(), ct);
         await transaction.CommitAsync(ct);
-        return (null, report, usedBy);
+        return (report, usedBy);
     }
 }

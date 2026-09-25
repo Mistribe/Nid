@@ -60,6 +60,9 @@ public class CatalogSchemaTests(PostgresFixture fixture)
     [InlineData("insert into subscriptions.provider (key, origin, name, label_keys, catalog_commit) values ('netflix', 'catalog', 'N', array[]::text[], 'c')")]
     [InlineData("insert into subscriptions.provider (key, origin, name, label_keys) values ('tinder-k3f9qa', 'custom', 'T', array['other'])")]
     [InlineData("insert into subscriptions.label (key, name, color, origin) values ('vod', 'VOD', '#FFF06292', 'catalog')")]
+    [InlineData("insert into subscriptions.provider (key, origin, name, label_keys, catalog_commit, icon_url) values ('netflix', 'catalog', 'N', array['other'], 'c', 'https://' || repeat('a', 2041))")]
+    [InlineData("insert into subscriptions.provider (key, origin, name, label_keys, catalog_commit, icon_url, icon_asset, icon_source) values ('netflix', 'catalog', 'N', array['other'], 'c', 'https://x.test/n.png', 'NOT-A-HASH', 'https://x.test/n.png')")]
+    [InlineData("insert into subscriptions.provider (key, origin, name, label_keys, catalog_commit, icon_url, icon_asset) values ('netflix', 'catalog', 'N', array['other'], 'c', 'https://x.test/n.png', repeat('a', 64))")]
     public async Task The_database_refuses_what_the_rules_refuse(string sql)
     {
         await using var db = PostgresFixture.NewSubscriptionsContext(await fixture.NewConnectionStringAsync());

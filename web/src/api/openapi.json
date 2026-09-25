@@ -2909,6 +2909,58 @@
         }
       }
     },
+    "/api/v1/subscriptions/providers/icons/{hash}": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stream"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "tags": [
@@ -3822,7 +3874,8 @@
           "labelsUpdated",
           "labelsCreated",
           "duplicates",
-          "refused"
+          "refused",
+          "icons"
         ],
         "type": "object",
         "properties": {
@@ -3897,6 +3950,9 @@
             "items": {
               "$ref": "#/components/schemas/CatalogRefusal"
             }
+          },
+          "icons": {
+            "$ref": "#/components/schemas/IconReport"
           }
         }
       },
@@ -4521,6 +4577,47 @@
           "adultCount": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "IconRefusal": {
+        "required": [
+          "key",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "IconReport": {
+        "required": [
+          "fetched",
+          "unchanged",
+          "refused"
+        ],
+        "type": "object",
+        "properties": {
+          "fetched": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unchanged": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IconRefusal"
+            }
           }
         }
       },
@@ -5168,6 +5265,12 @@
             "items": {
               "$ref": "#/components/schemas/LabelView"
             }
+          },
+          "iconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -5204,6 +5307,12 @@
           },
           "archived": {
             "type": "boolean"
+          },
+          "iconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -5433,6 +5542,10 @@
             }
           }
         }
+      },
+      "Stream": {
+        "type": "string",
+        "format": "binary"
       },
       "SubscriptionDetail": {
         "required": [

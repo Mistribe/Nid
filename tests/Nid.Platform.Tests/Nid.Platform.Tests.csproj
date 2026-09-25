@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\**\*" LinkBase="vectors" CopyToOutputDirectory="PreserveNewest" />

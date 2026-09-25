@@ -43,17 +43,35 @@ Toute requête que `nid-api` émet vers l'extérieur passe par un **`SafeHttpCli
 | **Redirections** | Non suivies automatiquement ; **chaque saut est revalidé** (mêmes règles) |
 | Résolution épinglée | La résolution vérifiée est celle utilisée pour la connexion (contre la liaison DNS) |
 | Bornes | Délais, taille maximale de réponse |
-| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes, hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
+| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes (`1000logos.net`, `upload.wikimedia.org`, `www.nounou-top.fr`, `raw.githubusercontent.com`), hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
+| `User-Agent` | Envoyé sur **chaque** requête (`Nid/1.0 (+https://github.com/Mistribe/Nid)`) : `upload.wikimedia.org` refuse une requête qui n'en porte pas (`403`) |
 | Journal | Chaque refus est journalisé (hôte, motif) |
 
 Un éventuel proxy de sortie (par exemple Smokescreen) peut s'ajouter côté hébergeur.
 
 ## 4. Icônes du catalogue
 
-Les `icon` du catalogue sont des URL de tiers, donc du contenu non fiable.
+Les `icon` du catalogue sont des URL de tiers, donc du contenu non fiable. Tel que construit :
 
 - Téléchargement par le `SafeHttpClient`, **hôte dans la liste autorisée** ; sinon monogramme.
-- **512 Ko** au plus, type vérifié par le contenu, **ré-encodage en WebP**, **SVG refusé**.
+- **512 Ko** au plus. Format déterminé par **SkiaSharp** (bibliothèque native, `libSkiaSharp`, tenue à jour comme
+  toute dépendance) à partir du contenu, jamais de l'URL ni du `Content-Type` : seuls **quatre formats** sont
+  acceptés (PNG, JPEG, WebP, GIF — première image) selon ce que le codec de Skia reconnaît lui-même ; tout le
+  reste, **SVG compris** (Skia n'a pas de codec SVG), est refusé.
+- **En-tête lu avant tout tampon de pixels** : dimensions bornées à 4096 × 4096 avant tout décodage, soit au plus
+  64 Mo de pixels par icône ; une seule image (la première d'un GIF animé) est décodée.
+- Redimensionnée dans un carré de 256 px sans jamais agrandir, orientation EXIF appliquée, puis **ré-encodée en
+  WebP sans perte à partir des pixels seuls**, sans métadonnées ni profil colorimétrique (aucun EXIF, ICC ni XMP
+  ne peut donc survivre au ré-encodage).
+- Onze motifs de refus stables, jamais un message libre : les neuf de la conception
+  (`unsupported_format`, `too_many_pixels`, `too_large`, `undecodable`, `host_not_allowed`, `not_https`,
+  `address_refused`, `unreachable`, `http_status`) plus `invalid_url` (l'`icon` du catalogue n'est pas une URL
+  `https` valide) et `store_failed` (l'écriture sur le volume a échoué).
+- La route qui les sert ne renvoie **que** l'`icon_asset` d'un fournisseur du catalogue : une empreinte inconnue,
+  mal formée ou qui n'est celle d'aucun fournisseur répond **404**, jamais autre chose que le volume d'actifs
+  pourrait contenir plus tard (documents de l'étape 4). Sur la réponse : `X-Content-Type-Options: nosniff`,
+  `Content-Security-Policy: default-src 'none'; sandbox` (l'icône ne charge rien et n'est jamais elle-même cadrée
+  ni naviguée) et `Cache-Control: private, max-age=31536000, immutable` (adressée par empreinte, jamais revalidée).
 - Servies depuis l'origine, jamais depuis l'URL d'origine (`../subscription-data-model.md`, « Icons »).
 
 ## 5. Uploads

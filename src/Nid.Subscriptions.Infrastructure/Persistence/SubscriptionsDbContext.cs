@@ -120,9 +120,15 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_provider_created_by", "(origin = 'custom') = (created_by is not null)");
                 t.HasCheckConstraint("ck_provider_commit", "(origin = 'catalog') = (catalog_commit is not null)");
                 ImportConstraint(t, "provider");
+                // 1C2c design §5: the declared URL is bounded like every URL; the asset is a hash; both icon columns go together.
+                t.HasCheckConstraint("ck_provider_icon_url", "char_length(icon_url) <= 2048");
+                t.HasCheckConstraint("ck_provider_icon_asset", "icon_asset ~ '^[0-9a-f]{64}$'");
+                t.HasCheckConstraint("ck_provider_icon", "(icon_asset is null) = (icon_source is null)");
             });
             e.HasKey(x => x.Key);
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            e.Property(x => x.IconAsset).HasColumnType("char(64)");
+            e.HasIndex(x => x.IconAsset); // the icon route asks whether a hash is a catalog provider's (Task 5)
             // A file-local key means something in its importer's files only (design §3.3): unique per importer.
             e.HasIndex(x => new { x.CreatedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
             MapXmin(e.Property(x => x.Version));

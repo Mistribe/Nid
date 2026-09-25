@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Primitives;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Synapse.Abstractions;
+using EntityTag = Microsoft.Net.Http.Headers.EntityTagHeaderValue;
 
 namespace Nid.Host.Api;
 
@@ -37,6 +39,29 @@ public static class CatalogEndpoints
                 => (await invoker.InvokeAsync(new RequestCatalogSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))
             .Returns<CatalogSyncRequested>(StatusCodes.Status202Accepted);
 
+        api.MapGet("/providers/icons/{hash}", async (string hash, HttpContext http, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new GetProviderIconQuery(hash), ct);
+                if (!result.TryGetValue(out var icon))
+                    return result.ToHttp(i => i); // the 404 as Problem Details
+
+                // Design §6: content-addressed, so cached for a year and never revalidated before; the ETag is the hash.
+                var headers = http.Response.Headers;
+                headers.ETag = $"\"{icon.Hash}\"";
+                headers.CacheControl = IconLimits.CacheControl;
+                headers.XContentTypeOptions = "nosniff";
+                // An icon is a person-uploaded catalog image served from Nid's own origin: it never runs script,
+                // fetches nothing else, and is never itself framed or navigated to.
+                headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+                return Names(http.Request.Headers.IfNoneMatch, icon.Hash)
+                    ? Results.StatusCode(StatusCodes.Status304NotModified)
+                    : Results.Bytes(icon.Content, IconLimits.ContentType);
+            })
+            .Produces(StatusCodes.Status200OK, typeof(Stream), IconLimits.ContentType)
+            .Produces(StatusCodes.Status304NotModified)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         return routes;
     }
 
@@ -58,4 +83,9 @@ public static class CatalogEndpoints
             : labelKeys.Any(key => key is null)
                 ? throw new BadHttpRequestException("A label key is required for each entry of 'labelKeys'.")
                 : labelKeys;
+
+    /// <summary>RFC 9110 §13.1.2: <c>If-None-Match</c> is compared weakly; <c>*</c> matches any current version.</summary>
+    private static bool Names(StringValues ifNoneMatch, string hash)
+        => EntityTag.TryParseList(ifNoneMatch, out var tags)
+           && tags!.Any(tag => tag.Equals(EntityTag.Any) || tag.Tag.Equals($"\"{hash}\""));
 }
