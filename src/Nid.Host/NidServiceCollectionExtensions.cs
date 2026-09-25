@@ -11,6 +11,7 @@ using Nid.Host.Jobs;
 using Nid.Platform;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
+using Nid.Platform.Export;
 using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
@@ -112,6 +113,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportStaging, ImportStagingStore>();
         services.AddSingleton(new ImportOptions());
         services.AddScoped<ImportRunner>();
+        services.AddScoped<ExportBuilder>();
         services.AddScoped<IImportSection, PersonsImportSection>();
         services.AddScoped<IImportSection, SubscriptionsImportSection>();
 

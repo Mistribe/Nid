@@ -7,6 +7,7 @@ using Nid.Core.Contracts;
 using Nid.Platform;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
+using Nid.Platform.Export;
 using Nid.Platform.Import;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
@@ -192,6 +193,11 @@ public static class RequestCatalogue
             (_, _) => new PutBatchCommand(Guid.NewGuid(), "persons", 0, new string('0', 64), JsonDocument.Parse("[]").RootElement)),
         new(typeof(ValidateImportCommand), false, (_, _) => new ValidateImportCommand(Guid.NewGuid())),
         new(typeof(CommitImportCommand), false, (_, _) => new CommitImportCommand(Guid.NewGuid())),
+
+        // The export is the reader's own view of what they can read; its views expose every exported item to the
+        // output guard (1D2 design §6), and ExportPrivacyTests checks the content.
+        new(typeof(ExportManifestQuery), false, (_, _) => new ExportManifestQuery()),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("subscriptions", null, null)),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

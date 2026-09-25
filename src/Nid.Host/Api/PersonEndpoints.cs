@@ -109,6 +109,8 @@ public static class ResultHttp
             _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,
             _ when failure.Code == CatalogCodes.SyncRunning => StatusCodes.Status409Conflict,
             _ when failure.Code is FxCodes.InvalidRate or FxCodes.InvalidRange => StatusCodes.Status400BadRequest,
+            _ when failure.Code == ExportCodes.RevisionChanged => StatusCodes.Status409Conflict,
+            _ when failure.Code == ExportCodes.BadCursor => StatusCodes.Status400BadRequest,
             _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
             _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status422UnprocessableEntity,
