@@ -18,7 +18,7 @@ namespace Nid.Subscriptions.Application.Import;
 /// </summary>
 public sealed class SubscriptionsImportSection(
     IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules, IFxRates fx, IHouseholdSettings household,
-    IProviderStore providers, ProviderAccess providerAccess, ProviderKeys providerKeys)
+    IProviderStore providers, ProviderAccess providerAccess, ProviderKeys providerKeys, IVisibleItems visible)
     : IImportSection
 {
     public const string Subscriptions = "subscriptions";
@@ -408,7 +408,7 @@ public sealed class SubscriptionsImportSection(
     }
 
     public Task<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>> ExportAsync(ExportContext context, CancellationToken ct)
-        => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(new Dictionary<string, IReadOnlyList<JsonElement>>());
+        => new SubscriptionsExport(visible, store, items, providers).ExportAsync(context, ct);
 
     private sealed record DryRun(ItemId Id, string Path, bool AutoRenew, LocalDate? CancelledAt)
     {

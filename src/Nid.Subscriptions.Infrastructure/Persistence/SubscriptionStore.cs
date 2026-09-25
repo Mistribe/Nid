@@ -178,6 +178,33 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(purchase.Id);
     }
 
+    public async Task<StoredRows> ReadAllAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return new StoredRows([], [], []);
+
+        var keys = ids.Select(i => i.Value).ToHashSet();
+        var subscriptions = await db.Subscriptions.AsNoTracking()
+            .Include(s => s.Users).Include(s => s.Phases)
+            .Where(s => keys.Contains(s.ItemId))
+            .ToListAsync(ct);
+        var purchaseIds = await db.Grants.AsNoTracking()
+            .Where(g => keys.Contains(g.SubscriptionItemId)).Select(g => g.PurchaseId).Distinct().ToListAsync(ct);
+        var purchases = await db.Purchases.AsNoTracking().Include(p => p.Grants)
+            .Where(p => purchaseIds.Contains(p.Id)).ToListAsync(ct);
+
+        return new StoredRows(
+            subscriptions.Select(s => new StoredSubscription(
+                new ItemId(s.ItemId), s.ProviderKey, s.AutoRenew, s.CancelledAt, s.Note,
+                s.Users.Select(u => new PersonId(u.PersonId)).ToList(), Origin(s.ImportRef, s.ImportHash, s.ImportedBy))).ToList(),
+            subscriptions.SelectMany(s => s.Phases.Select(p => new StoredPhase(
+                new ItemId(s.ItemId), ToPhase(p), p.Note, Origin(p.ImportRef, p.ImportHash, p.ImportedBy)))).ToList(),
+            purchases.Select(p => new StoredPurchase(ToPurchase(p), p.Note, Origin(p.ImportRef, p.ImportHash, p.ImportedBy))).ToList());
+
+        static ImportRef? Origin(string? importRef, string? hash, Guid? by)
+            => importRef is null ? null : new ImportRef(importRef, hash!, by is { } b ? new PersonId(b) : null);
+    }
+
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>>> FindImportedAsync(
         ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct)
     {
