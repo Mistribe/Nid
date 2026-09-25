@@ -6,6 +6,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <ProjectReference Include="..\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Platform\Nid.Platform.csproj" />

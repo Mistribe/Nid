@@ -311,3 +311,43 @@ public interface ICatalogJobTrigger
 {
     Task<Result> TriggerSyncAsync(CancellationToken ct);
 }
+
+/// <summary>
+/// Why an icon was not stored (1C2c design §4, §5): stable strings, data like the reasons of a <see cref="CatalogRefusal"/>,
+/// never failures of a request. The last two are this plan's (its "Decisions" table).
+/// </summary>
+public static class IconCodes
+{
+    public const string UnsupportedFormat = "unsupported_format";
+    public const string TooManyPixels = "too_many_pixels";
+    public const string TooLarge = "too_large";
+    public const string Undecodable = "undecodable";
+    public const string HostNotAllowed = "host_not_allowed";
+    public const string NotHttps = "not_https";
+    public const string AddressRefused = "address_refused";
+    public const string Unreachable = "unreachable";
+    public const string HttpStatus = "http_status";
+
+    /// <summary>The catalog's <c>icon</c> is not a string, not an absolute URL, longer than 2 048 characters or carries a user name.</summary>
+    public const string InvalidUrl = CatalogCodes.InvalidUrl;
+
+    /// <summary>The asset volume refused the write: the run goes on, the icon is retried at the next sync.</summary>
+    public const string StoreFailed = "store_failed";
+}
+
+/// <summary>The binding values of the icon design (1C2c §4 to §6), written once.</summary>
+public static class IconLimits
+{
+    public const int MaxBytes = 512 * 1024;
+    public const int MaxDimension = 4096;
+    public const int Size = 256;
+    public const int FetchTimeoutSeconds = 15;
+    public const string ContentType = "image/webp";
+    public const string CacheControl = "private, max-age=31536000, immutable";
+
+    /// <summary>The route serving an icon (design §6); a view's <c>iconUrl</c> is this prefix followed by the hash.</summary>
+    public const string PathPrefix = "/api/v1/subscriptions/providers/icons/";
+}
+
+/// <summary>An icon as Nid stores it: a lossless WebP within 256 px, without metadata; <paramref name="Hash"/> is the SHA-256 of <paramref name="Webp"/>.</summary>
+public sealed record ProcessedIcon(byte[] Webp, string Hash, int Width, int Height);
