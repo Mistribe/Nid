@@ -4648,6 +4648,12 @@
             "items": {
               "$ref": "#/components/schemas/LabelView"
             }
+          },
+          "iconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4684,6 +4690,12 @@
           },
           "archived": {
             "type": "boolean"
+          },
+          "iconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

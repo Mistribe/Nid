@@ -3725,6 +3725,7 @@ export interface components {
             name: string;
             origin: string;
             labels: components["schemas"]["LabelView"][];
+            iconUrl?: null | string;
         };
         ProviderView: {
             key: string;
@@ -3733,6 +3734,7 @@ export interface components {
             labels: components["schemas"]["LabelView"][];
             website?: null | string;
             archived: boolean;
+            iconUrl?: null | string;
         };
         PurchaseBody: {
             date: string;
