@@ -53,7 +53,8 @@ public static class SubscriptionViews
             timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList());
 
     public static SubscriptionDetail Detail(
-        SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted)
+        SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
+        SubscriptionEditing editing)
         => new(
             input.Subscription.Id,
             displayName,
@@ -74,7 +75,8 @@ public static class SubscriptionViews
             timeline.Charges.Select(c => new ChargeView(
                 c.Date, MoneyView.From(c.Price), c.IsProjected,
                 c.Origin is ChargeOrigin.FromPurchase p ? p.PurchaseId.Value : null)).ToList(),
-            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList());
+            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList(),
+            editing.Visibility, editing.Owners, editing.Users, editing.Note, editing.Phases, editing.Purchases, editing.CanWrite);
 }
 
 /// <summary>

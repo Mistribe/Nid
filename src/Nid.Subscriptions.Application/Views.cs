@@ -83,7 +83,35 @@ public sealed record SubscriptionDetail(
     int FreeDays,
     IReadOnlyList<CoverageView> Coverage,
     IReadOnlyList<ChargeView> Charges,
-    IReadOnlyList<FindingView> Findings) : IExposesItems
+    IReadOnlyList<FindingView> Findings,
+    string Visibility,
+    IReadOnlyList<OwnerView> Owners,
+    IReadOnlyList<Guid> Users,
+    string? Note,
+    IReadOnlyList<PhaseView> Phases,
+    IReadOnlyList<PurchaseView> Purchases,
+    bool CanWrite) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => [Id];
+    // Every item the detail names: the output guard then proves each grant target is the reader's to see.
+    public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId))];
 }
+
+public sealed record OwnerView(Guid PersonId, int ShareBp);
+public sealed record DurationView(int Count, string Unit)
+{
+    public static DurationView From(Core.Contracts.Duration d) => new(d.Count, d.Unit.ToString().ToLowerInvariant());
+}
+public sealed record PayerView(string Type, Guid? PersonId)
+{
+    public static PayerView From(Payer p) => new(p.Type.ToString().ToLowerInvariant(), p.PersonId?.Value);
+}
+public sealed record PhaseView(Guid Id, LocalDate StartsOn, LocalDate? EndsOn, MoneyView Price, DurationView Every, DurationView Covers,
+    int? MaxCycles, PayerView Payer, string? Note);
+public sealed record GrantView(Guid SubscriptionId, DurationView Duration, string Source, LocalDate? StartsOn);
+public sealed record PurchaseView(Guid Id, LocalDate Date, string Label, MoneyView Price, PayerView Payer, string Kind,
+    string? AllocatedAmount, IReadOnlyList<GrantView> Grants, string? Note);
+
+/// <summary>1E2a design §2.4: what the detail page needs to edit, already filtered for the reader.</summary>
+public sealed record SubscriptionEditing(
+    string Visibility, IReadOnlyList<OwnerView> Owners, IReadOnlyList<Guid> Users, string? Note,
+    IReadOnlyList<PhaseView> Phases, IReadOnlyList<PurchaseView> Purchases, bool CanWrite);

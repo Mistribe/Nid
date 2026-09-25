@@ -883,6 +883,101 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/subscriptions/{id}/price-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PriceChangeBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/{id}/purchases": {
         parameters: {
             query?: never;
@@ -3642,14 +3737,20 @@ export interface components {
         };
         CreateSubscriptionBody: {
             displayName: string;
-            visibility: string;
+            visibility?: null | string;
             owners: components["schemas"]["OwnerBody"][];
             providerKey?: null | string;
             autoRenew: boolean;
             users?: null | string[];
             note?: null | string;
+            phase?: null | components["schemas"]["PhaseInput"];
         };
         DurationBody: {
+            /** Format: int32 */
+            count: number;
+            unit: string;
+        };
+        DurationView: {
             /** Format: int32 */
             count: number;
             unit: string;
@@ -3728,6 +3829,14 @@ export interface components {
             source: string;
             startsOn?: null | string;
         };
+        GrantView: {
+            /** Format: uuid */
+            subscriptionId: string;
+            duration: components["schemas"]["DurationView"];
+            source: string;
+            /** Format: date */
+            startsOn?: null | string;
+        };
         HouseholdBody: {
             /** Format: int32 */
             maxAdults?: null | number;
@@ -3800,7 +3909,18 @@ export interface components {
             /** Format: int32 */
             shareBp: number;
         };
+        OwnerView: {
+            /** Format: uuid */
+            personId: string;
+            /** Format: int32 */
+            shareBp: number;
+        };
         PayerBody: {
+            type: string;
+            /** Format: uuid */
+            personId?: null | string;
+        };
+        PayerView: {
             type: string;
             /** Format: uuid */
             personId?: null | string;
@@ -3827,6 +3947,31 @@ export interface components {
             payer: components["schemas"]["PayerBody"];
             note?: null | string;
         };
+        PhaseInput: {
+            startsOn?: null | string;
+            endsOn?: null | string;
+            price?: null | components["schemas"]["MoneyBody"];
+            every?: null | components["schemas"]["DurationBody"];
+            covers?: null | components["schemas"]["DurationBody"];
+            /** Format: int32 */
+            maxCycles?: null | number;
+            payer?: null | components["schemas"]["PayerBody"];
+        };
+        PhaseView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            startsOn: string;
+            /** Format: date */
+            endsOn?: null | string;
+            price: components["schemas"]["MoneyView"];
+            every: components["schemas"]["DurationView"];
+            covers: components["schemas"]["DurationView"];
+            /** Format: int32 */
+            maxCycles?: null | number;
+            payer: components["schemas"]["PayerView"];
+            note?: null | string;
+        };
         Preferences: {
             theme: string;
             mode: string;
@@ -3840,6 +3985,15 @@ export interface components {
         PreRegisterBody: {
             displayName: string;
             email: string;
+        };
+        PriceChangeBody: {
+            startsOn?: null | string;
+            price?: null | components["schemas"]["MoneyBody"];
+            every?: null | components["schemas"]["DurationBody"];
+            covers?: null | components["schemas"]["DurationBody"];
+            /** Format: int32 */
+            maxCycles?: null | number;
+            payer?: null | components["schemas"]["PayerBody"];
         };
         ProblemDetails: {
             type?: null | string;
@@ -3871,6 +4025,19 @@ export interface components {
             kind: string;
             grants: components["schemas"]["GrantBody"][];
             allocatedAmount?: null | string;
+            note?: null | string;
+        };
+        PurchaseView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            date: string;
+            label: string;
+            price: components["schemas"]["MoneyView"];
+            payer: components["schemas"]["PayerView"];
+            kind: string;
+            allocatedAmount?: null | string;
+            grants: components["schemas"]["GrantView"][];
             note?: null | string;
         };
         SectionCounts: {
@@ -3930,6 +4097,13 @@ export interface components {
             coverage: components["schemas"]["CoverageView"][];
             charges: components["schemas"]["ChargeView"][];
             findings: components["schemas"]["FindingView"][];
+            visibility: string;
+            owners: components["schemas"]["OwnerView"][];
+            users: string[];
+            note?: null | string;
+            phases: components["schemas"]["PhaseView"][];
+            purchases: components["schemas"]["PurchaseView"][];
+            canWrite: boolean;
         };
         SubscriptionList: {
             items: components["schemas"]["SubscriptionSummary"][];

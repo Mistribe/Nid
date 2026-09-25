@@ -910,6 +910,106 @@
         }
       }
     },
+    "/api/v1/subscriptions/{id}/price-changes": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceChangeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/subscriptions/{id}/purchases": {
       "post": {
         "tags": [
@@ -3992,7 +4092,6 @@
       "CreateSubscriptionBody": {
         "required": [
           "displayName",
-          "visibility",
           "owners",
           "autoRenew"
         ],
@@ -4002,7 +4101,10 @@
             "type": "string"
           },
           "visibility": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "owners": {
             "type": "array",
@@ -4034,10 +4136,36 @@
               "null",
               "string"
             ]
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseInput"
+              }
+            ]
           }
         }
       },
       "DurationBody": {
+        "required": [
+          "count",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "DurationView": {
         "required": [
           "count",
           "unit"
@@ -4329,6 +4457,33 @@
           }
         }
       },
+      "GrantView": {
+        "required": [
+          "subscriptionId",
+          "duration",
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "subscriptionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "duration": {
+            "$ref": "#/components/schemas/DurationView"
+          },
+          "source": {
+            "type": "string"
+          },
+          "startsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
       "HouseholdBody": {
         "type": "object",
         "properties": {
@@ -4578,7 +4733,42 @@
           }
         }
       },
+      "OwnerView": {
+        "required": [
+          "personId",
+          "shareBp"
+        ],
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shareBp": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "PayerBody": {
+        "required": [
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "personId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "PayerView": {
         "required": [
           "type"
         ],
@@ -4686,6 +4876,123 @@
           }
         }
       },
+      "PhaseInput": {
+        "type": "object",
+        "properties": {
+          "startsOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "endsOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
+            ]
+          },
+          "every": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationBody"
+              }
+            ]
+          },
+          "covers": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationBody"
+              }
+            ]
+          },
+          "maxCycles": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "payer": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayerBody"
+              }
+            ]
+          }
+        }
+      },
+      "PhaseView": {
+        "required": [
+          "id",
+          "startsOn",
+          "price",
+          "every",
+          "covers",
+          "payer"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "endsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "price": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "every": {
+            "$ref": "#/components/schemas/DurationView"
+          },
+          "covers": {
+            "$ref": "#/components/schemas/DurationView"
+          },
+          "maxCycles": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "payer": {
+            "$ref": "#/components/schemas/PayerView"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "Preferences": {
         "required": [
           "theme",
@@ -4741,6 +5048,64 @@
           },
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "PriceChangeBody": {
+        "type": "object",
+        "properties": {
+          "startsOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
+            ]
+          },
+          "every": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationBody"
+              }
+            ]
+          },
+          "covers": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationBody"
+              }
+            ]
+          },
+          "maxCycles": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "payer": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayerBody"
+              }
+            ]
           }
         }
       },
@@ -4879,6 +5244,58 @@
               "null",
               "string"
             ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PurchaseView": {
+        "required": [
+          "id",
+          "date",
+          "label",
+          "price",
+          "payer",
+          "kind",
+          "grants"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "label": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "payer": {
+            "$ref": "#/components/schemas/PayerView"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "allocatedAmount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrantView"
+            }
           },
           "note": {
             "type": [
@@ -5028,7 +5445,13 @@
           "freeDays",
           "coverage",
           "charges",
-          "findings"
+          "findings",
+          "visibility",
+          "owners",
+          "users",
+          "phases",
+          "purchases",
+          "canWrite"
         ],
         "type": "object",
         "properties": {
@@ -5139,6 +5562,43 @@
             "items": {
               "$ref": "#/components/schemas/FindingView"
             }
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnerView"
+            }
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhaseView"
+            }
+          },
+          "purchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseView"
+            }
+          },
+          "canWrite": {
+            "type": "boolean"
           }
         }
       },

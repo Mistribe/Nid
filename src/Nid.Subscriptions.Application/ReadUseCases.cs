@@ -84,7 +84,8 @@ public sealed class ListSubscriptionsHandler(
 
 [RequestHandler<GetSubscriptionQuery, SubscriptionDetail>]
 public sealed class GetSubscriptionHandler(
-    ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household, IProviderStore providers)
+    ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household, IProviderStore providers,
+    IVisibleItems visible, IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<GetSubscriptionQuery, SubscriptionDetail>
 {
     public async ValueTask<Result<SubscriptionDetail>> HandleAsync(GetSubscriptionQuery query, CancellationToken ct = default)
@@ -110,9 +111,33 @@ public sealed class GetSubscriptionHandler(
         var rates = await Conversion.LoadAsync(fx, cashPieces.Concat(amortizedPieces), reference, today, ct);
 
         var item = await items.FindAsync(query.ItemId, ct);
+        if (item is null)
+            return Result.Failure<SubscriptionDetail>(new NotFoundFailure("subscription", query.ItemId.ToString()));
         var provider = (await ProviderLookup.ForAsync(store, providers, [query.ItemId], ct)).GetValueOrDefault(query.ItemId);
+
+        var reader = actor.Current!.PersonId!.Value;
+        var rows = await store.ReadAllAsync([query.ItemId], ct);
+        var stored = rows.Subscriptions.Single();
+        var visibleItems = await visible.ForAsync(reader, VisibilityScope.Me, ct);
+        var editing = new SubscriptionEditing(
+            item!.Visibility == Visibility.Private ? "private" : "shared",
+            item.Owners.Select(o => new OwnerView(o.PersonId.Value, o.ShareBp)).ToList(),
+            stored.Users.Select(u => u.Value).ToList(),
+            stored.Note,
+            rows.Phases.OrderBy(p => p.Phase.StartsOn).Select(p => new PhaseView(
+                p.Phase.Id.Value, p.Phase.StartsOn, p.Phase.EndsOn, MoneyView.From(p.Phase.Price), DurationView.From(p.Phase.Every),
+                DurationView.From(p.Phase.CoverageEvery), p.Phase.MaxCycles, PayerView.From(p.Phase.Payer), p.Note)).ToList(),
+            rows.Purchases.OrderBy(p => p.Purchase.Date).ThenBy(p => p.Purchase.Id.Value).Select(p => new PurchaseView(
+                p.Purchase.Id.Value, p.Purchase.Date, p.Purchase.Label, MoneyView.From(p.Purchase.Price), PayerView.From(p.Purchase.Payer),
+                p.Purchase.Kind == PurchaseKind.PrepaidTerm ? "prepaid_term" : p.Purchase.Kind.ToString().ToLowerInvariant(),
+                p.Purchase.AllocatedAmount?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                // 1E2a design §2.4: a grant to what the reader cannot read is left out, as in the export (1D2 §5.1).
+                p.Purchase.Grants.Where(g => visibleItems.Contains(g.SubscriptionId)).Select(g => new GrantView(
+                    g.SubscriptionId.Value, DurationView.From(g.Duration), g.Source.ToString().ToLowerInvariant(), g.StartsOn)).ToList(),
+                p.Note)).ToList(),
+            !(await policy.CheckAsync(reader, query.ItemId, AccessKind.Write, ct)).TryGetFailure(out _));
         return Result.Success(SubscriptionViews.Detail(
-            input, timeline, item?.DisplayName ?? "", provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates)));
+            input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing));
     }
 }
 
