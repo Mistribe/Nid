@@ -98,7 +98,11 @@ public static class CatalogCodes
 /// <summary>A label (design §3.1). The UI translates labels by key; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>
 public sealed record Label(string Key, string Name, string Color, LabelOrigin Origin);
 
-/// <summary>A provider (design §3.2). <paramref name="Import"/> is the provenance of one created by an import (§5).</summary>
+/// <summary>
+/// A provider (design §3.2). <paramref name="Import"/> is the provenance of one created by an import (§5).
+/// <paramref name="IconUrl"/> is what the catalog declares; <paramref name="IconAsset"/> the hash of the stored icon
+/// and <paramref name="IconSource"/> the URL it came from (1C2c design §5): only the icon pass sets those two.
+/// </summary>
 public sealed record Provider(
     string Key,
     ProviderOrigin Origin,
@@ -109,7 +113,10 @@ public sealed record Provider(
     string? CatalogCommit,
     PersonId? CreatedBy,
     Instant? ArchivedAt,
-    ImportRef? Import)
+    ImportRef? Import,
+    string? IconUrl = null,
+    string? IconAsset = null,
+    string? IconSource = null)
 {
     public bool IsArchived => ArchivedAt is not null;
 
@@ -121,7 +128,8 @@ public sealed record Provider(
            && Website == other.Website && PricingPage == other.PricingPage
            && LabelKeys.SequenceEqual(other.LabelKeys)
            && CatalogCommit == other.CatalogCommit && CreatedBy == other.CreatedBy
-           && ArchivedAt == other.ArchivedAt && Import == other.Import;
+           && ArchivedAt == other.ArchivedAt && Import == other.Import
+           && IconUrl == other.IconUrl && IconAsset == other.IconAsset && IconSource == other.IconSource;
 
     public override int GetHashCode()
         => HashCode.Combine(Key, Origin, Name, Website, PricingPage, CatalogCommit, CreatedBy, ArchivedAt);
@@ -259,13 +267,30 @@ public interface IProviderStore
 
     /// <summary>Writes <paramref name="plan"/> in the caller's transaction; archived providers get <paramref name="now"/>.</summary>
     Task WriteCatalogAsync(CatalogPlan plan, Instant now, CancellationToken ct);
+
+    /// <summary>
+    /// The live (not archived) catalog providers whose catalog declares an icon, in key order (ordinal): what the icon
+    /// pass looks at (1C2c design §5).
+    /// </summary>
+    Task<IReadOnlyList<Provider>> CatalogIconsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Links the stored icon <paramref name="asset"/>, fetched from <paramref name="source"/>, to the catalog provider
+    /// <paramref name="key"/>: one statement, its own transaction. Nothing happens if the provider's icon URL is no
+    /// longer <paramref name="source"/> (a sync changed it meanwhile).
+    /// </summary>
+    Task SetIconAsync(string key, string source, string asset, CancellationToken ct);
 }
 
 /// <summary>A label as the catalog gives it, already checked; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>
 public sealed record CatalogLabel(string Key, string Name, string Color);
 
-/// <summary>A provider as the catalog gives it, already checked; <paramref name="LabelKeys"/> are its <c>categories</c>.</summary>
-public sealed record CatalogProvider(string Key, string Name, string? Website, string? PricingPage, IReadOnlyList<string> LabelKeys);
+/// <summary>
+/// A provider as the catalog gives it, already checked; <paramref name="LabelKeys"/> are its <c>categories</c>,
+/// <paramref name="IconUrl"/> its <c>icon</c> when that is an https URL (1C2c design §5).
+/// </summary>
+public sealed record CatalogProvider(
+    string Key, string Name, string? Website, string? PricingPage, IReadOnlyList<string> LabelKeys, string? IconUrl = null);
 
 /// <summary>
 /// What the readers make of the two files (design §4). <paramref name="Labels"/> includes the labels created for a
@@ -276,7 +301,14 @@ public sealed record CatalogReading(
     IReadOnlyList<CatalogProvider> Providers,
     IReadOnlyList<string> LabelsCreated,
     IReadOnlyList<CatalogDuplicate> Duplicates,
-    IReadOnlyList<CatalogRefusal> Refused);
+    IReadOnlyList<CatalogRefusal> Refused)
+{
+    /// <summary>Icons the reader ignored, their provider kept (1C2c design §5): reported by the icon pass.</summary>
+    public IReadOnlyList<IconRefusal> IconsRefused { get; init; } = [];
+}
+
+/// <summary>An icon that was not stored, with why (<see cref="IconCodes"/>). Only catalog providers appear: they are public.</summary>
+public sealed record IconRefusal(string Key, string Reason);
 
 /// <summary>What is stored, read under the sync's lock (design §4 "Merge").</summary>
 public sealed record CatalogSnapshot(IReadOnlyList<Provider> Providers, IReadOnlyList<Label> Labels);

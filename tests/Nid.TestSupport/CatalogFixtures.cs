@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -17,6 +19,19 @@ public static class CatalogFixtures
     public static byte[] RealProviders() => File.ReadAllBytes(PathOf("providers.json"));
 
     private static string PathOf(string name) => Path.Combine(AppContext.BaseDirectory, "fixtures", "catalog", name);
+
+    /// <summary>One label, <c>streaming</c>, in the target format.</summary>
+    public static byte[] StreamingLabels() => Encoding.UTF8.GetBytes("""[{"key":"streaming","name":"Streaming","color":"#6400F6"}]""");
+
+    /// <summary>A <c>providers.json</c> of the given entries, all in <c>streaming</c>; a null icon is written as <c>"icon": null</c>.</summary>
+    public static byte[] Providers(params (string Key, string Name, string? Icon)[] entries)
+        => JsonSerializer.SerializeToUtf8Bytes(entries.Select(e => new Dictionary<string, object?>
+        {
+            ["key"] = e.Key,
+            ["name"] = e.Name,
+            ["categories"] = new[] { "streaming" },
+            ["icon"] = e.Icon,
+        }).ToList());
 }
 
 /// <summary>Serves <see cref="Files"/> for any commit, or fails with <see cref="FailWith"/>. Never touches the network.</summary>

@@ -8,7 +8,8 @@ namespace Nid.Subscriptions.Domain.Catalog;
 /// <summary>
 /// <c>labels.json</c> and <c>providers.json</c> of <c>Mistribe/SubTracker-Data</c> (design §4). Targets the format of
 /// design §8 and tolerates today's: <c>#AARRGGBB</c> colours, a duplicate key (the first wins), a category without a
-/// label (one is created), members Nid does not read (<c>icon</c>, <c>plans</c>). An entry breaking a rule is refused
+/// label (one is created), a member Nid does not read (<c>plans</c>); an <c>icon</c> that is not an https URL is ignored
+/// and reported, its provider kept (1C2c design §5). An entry breaking a rule is refused
 /// and listed; a file that is not a JSON array fails the reading, so nothing is written. <c>JsonDocument</c> only:
 /// this assembly is AOT-compatible.
 /// </summary>
@@ -35,12 +36,13 @@ public static class CatalogReader
         var readLabels = ReadLabels(labels.RootElement, refused, duplicates);
         var known = readLabels.Select(l => l.Key).Append(CatalogLimits.OtherLabel).ToHashSet(StringComparer.Ordinal);
         var created = new SortedSet<string>(StringComparer.Ordinal);
-        var readProviders = ReadProviders(providers.RootElement, known, created, refused, duplicates);
+        var iconsRefused = new List<IconRefusal>();
+        var readProviders = ReadProviders(providers.RootElement, known, created, refused, duplicates, iconsRefused);
 
         var allLabels = readLabels
             .Concat(created.Select(key => new CatalogLabel(key, ProviderRules.NameFromKey(key, CatalogLimits.MaxLabelNameLength), CatalogLimits.NeutralColor)))
             .ToList();
-        return Result.Success(new CatalogReading(allLabels, readProviders, created.ToList(), duplicates, refused));
+        return Result.Success(new CatalogReading(allLabels, readProviders, created.ToList(), duplicates, refused) { IconsRefused = iconsRefused });
     }
 
     private static List<CatalogLabel> ReadLabels(JsonElement entries, List<CatalogRefusal> refused, List<CatalogDuplicate> duplicates)
@@ -96,7 +98,7 @@ public static class CatalogReader
 
     private static List<CatalogProvider> ReadProviders(
         JsonElement entries, IReadOnlySet<string> knownLabels, SortedSet<string> created,
-        List<CatalogRefusal> refused, List<CatalogDuplicate> duplicates)
+        List<CatalogRefusal> refused, List<CatalogDuplicate> duplicates, List<IconRefusal> iconsRefused)
     {
         var providers = new List<CatalogProvider>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -143,7 +145,7 @@ public static class CatalogReader
             foreach (var category in categories.Where(c => !knownLabels.Contains(c)))
                 created.Add(category);
             keys.Add(key);
-            providers.Add(new CatalogProvider(key, name, website, pricingPage, categories));
+            providers.Add(new CatalogProvider(key, name, website, pricingPage, categories, Icon(entry, key, iconsRefused)));
         }
 
         return providers;
@@ -178,6 +180,21 @@ public static class CatalogReader
             return false;
         url = value.GetString();
         return ProviderRules.IsUrl(url);
+    }
+
+    /// <summary>1C2c design §5: absent or <c>null</c> is no icon; anything but an https URL is ignored and reported.</summary>
+    private static string? Icon(JsonElement entry, string key, List<IconRefusal> refused)
+    {
+        if (!entry.TryGetProperty("icon", out var value) || value.ValueKind == JsonValueKind.Null)
+            return null;
+
+        var url = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        var problem = url is null ? IconCodes.InvalidUrl : ProviderRules.IconProblem(url);
+        if (problem is null)
+            return url;
+
+        refused.Add(new IconRefusal(key, problem));
+        return null;
     }
 
     private static string? Text(JsonElement entry, string member)

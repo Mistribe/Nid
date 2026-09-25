@@ -101,6 +101,9 @@ public sealed class ProviderRow
     public Instant? ArchivedAt { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
+    public string? IconUrl { get; set; }
+    public string? IconAsset { get; set; }
+    public string? IconSource { get; set; }
     public uint Version { get; set; }
 }
 

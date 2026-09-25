@@ -38,6 +38,18 @@ public static partial class ProviderRules
     /// <summary>A URL a person typed: blank means absent. What is left still has to pass <see cref="IsUrl"/>.</summary>
     public static string? Url(string? url) => string.IsNullOrWhiteSpace(url) ? null : url.Trim();
 
+    /// <summary>
+    /// 1C2c design §5: an icon is an absolute https URL of at most 2 048 characters, without a user name. Answers the
+    /// reason it is not (<see cref="IconCodes.NotHttps"/> for another scheme, <see cref="IconCodes.InvalidUrl"/>
+    /// otherwise), or <c>null</c>.
+    /// </summary>
+    public static string? IconProblem(string url)
+    {
+        if (url.Length > CatalogLimits.MaxUrlLength || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.UserInfo.Length > 0)
+            return IconCodes.InvalidUrl;
+        return uri.Scheme == Uri.UriSchemeHttps ? null : IconCodes.NotHttps;
+    }
+
     /// <summary>CSS <c>#RRGGBB</c> as is; <c>#AARRGGBB</c> without its alpha (the schema forces <c>FF</c>, design §8); anything else <c>null</c>.</summary>
     public static string? Color(string? color)
         => color is null ? null

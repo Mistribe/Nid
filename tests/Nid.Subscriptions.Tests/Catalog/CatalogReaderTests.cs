@@ -170,4 +170,72 @@ public class CatalogReaderTests
         var labels = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Utf8(Streaming)).ToArray();
         Assert.Equal("streaming", Assert.Single(CatalogReader.Read(labels, Utf8("[]")).Ok().Labels).Key);
     }
+
+    private static CatalogReading WithIcon(string iconJson)
+        => Read(Streaming, $$"""[{"key":"spotify","name":"Spotify","categories":["streaming"],"icon":{{iconJson}}}]""");
+
+    [Fact]
+    public void An_https_icon_is_read()
+    {
+        var reading = WithIcon("\"https://1000logos.net/spotify.png\"");
+
+        Assert.Equal("https://1000logos.net/spotify.png", Assert.Single(reading.Providers).IconUrl);
+        Assert.Empty(reading.IconsRefused);
+    }
+
+    [Theory]
+    [InlineData("\"http://1000logos.net/spotify.png\"", IconCodes.NotHttps)]
+    [InlineData("\"ftp://1000logos.net/spotify.png\"", IconCodes.NotHttps)]
+    [InlineData("\"not a url\"", IconCodes.InvalidUrl)]
+    [InlineData("\"https://user:secret@1000logos.net/spotify.png\"", IconCodes.InvalidUrl)]
+    [InlineData("42", IconCodes.InvalidUrl)]
+    [InlineData("{}", IconCodes.InvalidUrl)]
+    public void An_icon_breaking_a_rule_is_ignored_and_reported_the_provider_kept(string iconJson, string reason)
+    {
+        var reading = WithIcon(iconJson);
+
+        Assert.Null(Assert.Single(reading.Providers).IconUrl);
+        Assert.Equal([new IconRefusal("spotify", reason)], reading.IconsRefused);
+        Assert.Empty(reading.Refused); // the provider itself is not refused
+    }
+
+    [Fact]
+    public void An_icon_url_longer_than_2048_characters_is_ignored()
+    {
+        var url = "https://1000logos.net/" + new string('a', CatalogLimits.MaxUrlLength);
+
+        Assert.Equal([new IconRefusal("spotify", IconCodes.InvalidUrl)], WithIcon($"\"{url}\"").IconsRefused);
+    }
+
+    [Fact]
+    public void An_absent_or_null_icon_is_no_icon_and_nothing_to_report()
+    {
+        var absent = Read(Streaming, $"[{Spotify}]");
+        var none = WithIcon("null");
+
+        Assert.Null(Assert.Single(absent.Providers).IconUrl);
+        Assert.Null(Assert.Single(none.Providers).IconUrl);
+        Assert.Empty(absent.IconsRefused);
+        Assert.Empty(none.IconsRefused);
+    }
+
+    [Fact]
+    public void An_icon_of_a_refused_provider_is_not_reported_twice()
+    {
+        var reading = Read(Streaming, """[{"key":"Spotify","name":"Spotify","categories":["streaming"],"icon":"http://x.test/a.png"}]""");
+
+        Assert.Single(reading.Refused);
+        Assert.Empty(reading.IconsRefused);
+    }
+
+    [Fact]
+    public void Every_real_provider_has_its_https_icon()
+    {
+        var reading = CatalogReader.Read(Fixture("labels.json"), Fixture("providers.json")).Ok();
+
+        Assert.All(reading.Providers, p => Assert.StartsWith("https://", p.IconUrl, StringComparison.Ordinal));
+        Assert.Empty(reading.IconsRefused);
+        Assert.Equal("https://1000logos.net/wp-content/uploads/2017/05/Netflix-Logo-1536x864.png",
+            Assert.Single(reading.Providers, p => p.Key == "netflix").IconUrl);
+    }
 }

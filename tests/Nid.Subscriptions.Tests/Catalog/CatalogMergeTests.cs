@@ -151,4 +151,26 @@ public class CatalogMergeTests
         Assert.Equal([new CatalogDuplicate(CatalogReader.LabelsFile, "hosting")], report.Duplicates);
         Assert.Equal([new CatalogRefusal(CatalogReader.ProvidersFile, 3, "Netflix", CatalogCodes.InvalidKey)], report.Refused);
     }
+
+    [Fact]
+    public void A_changed_icon_url_updates_the_provider()
+    {
+        var stored = Stored("netflix", ProviderOrigin.Catalog) with { IconUrl = "https://1000logos.net/old.png" };
+
+        var plan = CatalogMerge.Plan(Snapshot(stored), Reading(Entry("netflix") with { IconUrl = "https://1000logos.net/new.png" }), Commit);
+
+        Assert.Equal(["netflix"], plan.Report.ProvidersUpdated);
+        Assert.Equal("https://1000logos.net/new.png", Assert.Single(plan.Providers).IconUrl);
+    }
+
+    [Fact]
+    public void The_same_icon_url_leaves_the_provider_unchanged()
+    {
+        var stored = Stored("netflix", ProviderOrigin.Catalog) with { IconUrl = "https://1000logos.net/n.png" };
+
+        var plan = CatalogMerge.Plan(Snapshot(stored), Reading(Entry("netflix") with { IconUrl = "https://1000logos.net/n.png" }), Commit);
+
+        Assert.Equal(["netflix"], plan.Report.ProvidersUnchanged);
+        Assert.Empty(plan.Providers);
+    }
 }
