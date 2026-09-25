@@ -14,7 +14,7 @@ namespace Nid.Subscriptions.Application.Import;
 /// <summary>
 /// Sections <c>providers</c> (through <see cref="ProvidersImport"/>), <c>subscriptions</c>, <c>billing_phases</c> and <c>purchases</c>. Writes go through the same
 /// <see cref="IItemRegistry"/> and <see cref="ISubscriptionStore"/> as the API; rules come from the Core and the
-/// engine, never from here.
+/// engine, never from here. A file id resolves only among rows the importer can see (spec 2026-09-25 §4).
 /// </summary>
 public sealed class SubscriptionsImportSection(
     IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules, IFxRates fx, IHouseholdSettings household,
@@ -94,13 +94,10 @@ public sealed class SubscriptionsImportSection(
         var phaseRecords = ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues);
         var purchaseRecords = ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues);
 
-        var knownSubscriptions = First(await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct));
-        var knownPhases = First(await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct));
-        var knownPurchases = First(await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct));
-
-        // Task 1 only: keep 1D1's single-row lookup until Task 2 resolves by visibility.
-        static IReadOnlyDictionary<string, ImportedRow> First(IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>> found)
-            => found.ToDictionary(f => f.Key, f => f.Value[0], StringComparer.Ordinal);
+        var knownSubscriptions = await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct);
+        var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);
+        var knownPurchases = await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct);
+        var readable = new Dictionary<ItemId, bool>(); // one policy check per item, however many rows touch it
 
         var linkable = await providerImport.LinkableAsync(
             context, subscriptionRecords.Select(s => s.Record.ProviderKey).OfType<string>().ToList(), ct);
@@ -133,18 +130,18 @@ public sealed class SubscriptionsImportSection(
             }
 
             ItemId id;
-            if (knownSubscriptions.TryGetValue(record.Id, out var known))
+            var resolved = await ResolveAsync(context.Actor, knownSubscriptions, record.Id, readable, ct);
+            if (resolved.OwnHidden)
             {
-                // Nothing is created, so the creation rule does not apply: an unchanged record only has to be
-                // one the actor can see. What the file adds to it is checked for write access below.
-                if (!await CanAccessAsync(context.Actor, new ItemId(known.Id), AccessKind.Read, ct))
-                {
-                    issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
-                        $"'{record.Id}' was imported before as an item you cannot see.", path));
-                    failed.Add(record.Id);
-                    continue;
-                }
+                issues.Add(ImportedUnseen(path, record.Id));
+                failed.Add(record.Id);
+                continue;
+            }
 
+            if (resolved.Row is { } known)
+            {
+                // Nothing is created, so the creation rule does not apply. The row is one the actor can see
+                // (ResolveAsync). What the file adds to it is checked for write access below.
                 if (known.Hash != entity.Hash)
                 {
                     issues.Add(Conflict(path, record.Id));
@@ -209,7 +206,14 @@ public sealed class SubscriptionsImportSection(
             if (!RecordParsing.TryPhase(record, path, person, issues, out var phase))
                 continue;
 
-            if (knownPhases.TryGetValue(record.Id, out var known))
+            var resolvedPhase = await ResolveAsync(context.Actor, knownPhases, record.Id, readable, ct);
+            if (resolvedPhase.OwnHidden)
+            {
+                issues.Add(ImportedUnseen(path, record.Id));
+                continue;
+            }
+
+            if (resolvedPhase.Row is { } known)
             {
                 if (known.Hash != entity.Hash)
                 {
@@ -250,7 +254,14 @@ public sealed class SubscriptionsImportSection(
                 continue;
 
             var targets = record.Grants.Select(g => g.SubscriptionId).Distinct(StringComparer.Ordinal).ToList();
-            if (knownPurchases.TryGetValue(record.Id, out var known))
+            var resolvedPurchase = await ResolveAsync(context.Actor, knownPurchases, record.Id, readable, ct);
+            if (resolvedPurchase.OwnHidden)
+            {
+                issues.Add(ImportedUnseen(path, record.Id));
+                continue;
+            }
+
+            if (resolvedPurchase.Row is { } known)
             {
                 if (known.Hash != entity.Hash)
                 {
@@ -365,7 +376,7 @@ public sealed class SubscriptionsImportSection(
 
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
-                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash)), ct);
+                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
@@ -375,7 +386,7 @@ public sealed class SubscriptionsImportSection(
             if (!RecordParsing.TryPhase(record, NidDataJson.Path(Phases, entity.Index), person, issues, out var phase))
                 return Drift(issues);
             var added = await store.AddPhaseAsync(context.Items[(Subscriptions, record.SubscriptionId)], phase,
-                new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash)), ct);
+                new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (added.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
@@ -385,7 +396,7 @@ public sealed class SubscriptionsImportSection(
             if (!RecordParsing.TryPurchase(record, NidDataJson.Path(Purchases, entity.Index), person,
                     fileId => context.Items.TryGetValue((Subscriptions, fileId), out var id) ? id : null, issues, out var purchase))
                 return Drift(issues);
-            var added = await store.AddPurchaseAsync(purchase, new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash)), ct);
+            var added = await store.AddPurchaseAsync(purchase, new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (added.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
@@ -480,6 +491,47 @@ public sealed class SubscriptionsImportSection(
         }
         return false;
     }
+
+    /// <summary>What a file id resolves to: a row the importer sees, their own row they no longer see, or nothing.</summary>
+    private sealed record Resolution(ImportedRow? Row, bool OwnHidden)
+    {
+        public static Resolution New { get; } = new(null, false);
+    }
+
+    /// <summary>
+    /// Import provenance privacy (spec 2026-09-25 §4). A candidate is visible when the importer can read one of
+    /// the items it touches. The importer's own visible row wins, then the visible row with the smallest id. With
+    /// none visible, the importer's own row is refused. A row of someone else that the importer cannot see is
+    /// never looked at again, so the answer is the one an unused id gets.
+    /// </summary>
+    private async Task<Resolution> ResolveAsync(
+        PersonId actor, IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>> known, string fileId,
+        Dictionary<ItemId, bool> readable, CancellationToken ct)
+    {
+        if (!known.TryGetValue(fileId, out var candidates))
+            return Resolution.New;
+
+        foreach (var candidate in candidates.OrderBy(c => c.ImportedBy == actor ? 0 : 1).ThenBy(c => c.Id))
+            if (await SeesAnyAsync(actor, candidate.Items, readable, ct))
+                return new Resolution(candidate, false);
+
+        return candidates.Any(c => c.ImportedBy == actor) ? new Resolution(null, true) : Resolution.New;
+    }
+
+    private async Task<bool> SeesAnyAsync(PersonId actor, IReadOnlyList<ItemId> items, Dictionary<ItemId, bool> readable, CancellationToken ct)
+    {
+        foreach (var item in items)
+        {
+            if (!readable.TryGetValue(item, out var canRead))
+                readable[item] = canRead = await CanAccessAsync(actor, item, AccessKind.Read, ct);
+            if (canRead)
+                return true;
+        }
+        return false;
+    }
+
+    private static ImportIssue ImportedUnseen(string path, string id)
+        => ImportIssue.Error(ImportCodes.NotPermitted, $"'{id}' was imported before as an item you cannot see.", path);
 
     private Task<bool> CanWriteAsync(PersonId actor, ItemId item, CancellationToken ct)
         => CanAccessAsync(actor, item, AccessKind.Write, ct);
