@@ -1,17 +1,21 @@
-# Both images build from the repository root: keep secrets, build outputs and local state out of the context.
+# Both images build from the repository root. An allowlist: nothing enters the build context unless named here, so no
+# secret, private data (.secrets/ holds the household's real files) or local state can reach an image (1F1 final review).
+*
+!global.json
+!Directory.Build.props
+!Directory.Packages.props
+!Nid.slnx
+!src/
+!web/
+
+# Inside what is allowed: build outputs and local files.
 **/bin/
 **/obj/
 **/node_modules/
+**/*.local
+**/.env
+**/.env.*
+**/TestResults/
 web/dist/
 web/test-results/
 web/playwright-report/
-.data/
-.git/
-.github/
-.superpowers/
-.playwright-mcp/
-deploy/secrets/
-deploy/.env
-deploy/authelia/
-deploy/dev/authelia/
-**/*.user

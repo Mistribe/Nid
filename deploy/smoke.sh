@@ -25,6 +25,20 @@ echo "ok: every service is up and healthy"
 curl -skf "$URL/auth/session" | grep -q '"authenticated":false'
 echo "ok: the session route answers"
 
+# Hardening (1F1 final review): the key folder is private, only nid-api reaches the Internet, the SPA fallback never
+# answers for an asset or an API path.
+[ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c %a /k)" = "700" ]
+echo "ok: the Data Protection key folder is 0700"
+for service in authelia nid-web; do
+  if "${COMPOSE[@]}" exec -T "$service" wget -q -T 5 -O /dev/null https://raw.githubusercontent.com 2>/dev/null; then
+    echo "FAIL: $service reaches the Internet" >&2; exit 1
+  fi
+done
+echo "ok: authelia and nid-web have no way out"
+[ "$(curl -sk -o /dev/null -w '%{http_code}' "$URL/assets/missing-chunk.js")" = "404" ]
+[ "$(curl -sk -o /dev/null -w '%{content_type}' "$URL/mcp")" != "text/html; charset=utf-8" ]
+echo "ok: a missing asset is a 404 and /mcp is not the SPA"
+
 playwright
 echo "ok: journeys"
 

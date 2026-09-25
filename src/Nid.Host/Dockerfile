@@ -12,16 +12,17 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
       -p:OpenApiGenerateDocumentsOnBuild=false \
  && test -f /app/libSkiaSharp.so
 
-# The folders the named volumes start from: a fresh volume copies their owner and mode (1F1 design §2.1).
-RUN mkdir -p /volumes/keys /volumes/assets && chown -R 1654:1654 /volumes && chmod 0700 /volumes/keys
+# The folders the named volumes start from: a fresh volume copies their owner and mode (1F1 design §2.1). They are
+# copied whole, as /volumes/var/lib/nid, so each folder keeps its own mode (a COPY of a folder's contents would not).
+RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets \
+ && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys
 
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:6385dc0eaef704fad88d3f65c334e791a371bbe448f52ca39d83d2df49251e28
 WORKDIR /app
 COPY --from=build /app ./
-COPY --from=build --chown=1654:1654 /volumes/keys /var/lib/nid/keys
-COPY --from=build --chown=1654:1654 /volumes/assets /var/lib/nid/assets
+COPY --from=build /volumes/ /
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     Assets__Root=/var/lib/nid/assets \
     DataProtection__KeysPath=/var/lib/nid/keys

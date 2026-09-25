@@ -9,9 +9,14 @@ services:
       edge:
         # nid-api reaches Authelia at its public URL: inside the stack, that name must lead to this proxy.
         aliases: [nid.localtest.me, auth.localtest.me]
+      # edge is internal: publishing 443 needs a normal network, as the hoster's proxy has its own.
+      outside: {}
 
   nid-api:
-    networks: [app, data, edge]
+    networks: [app, data, egress, edge]
     environment:
       # The proxy's certificate comes from its own local authority; only this overlay accepts it.
       Auth__TrustAnyIdentityProviderCertificate: "true"
+
+networks:
+  outside: {}

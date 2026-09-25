@@ -82,7 +82,8 @@ services:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
     tmpfs: [/tmp]
-    networks: [app, data]
+    # The only service with a way out (egress): catalog, rates, icons, and the identity provider's public URL.
+    networks: [app, data, egress]
     depends_on: { postgres: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
 
@@ -95,11 +96,15 @@ services:
     depends_on: { nid-api: { condition: service_started } }
     deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
 
+# Only nid-api goes out to the Internet (security/infrastructure.md §2): every other network is internal. The hoster's
+# proxy joins `edge` and keeps its own networks for the outside.
 networks:
-  edge: {}
+  edge: { internal: true }
   app:
+    internal: true
     ipam: { config: [{ subnet: 172.30.10.0/24 }] }
   data: { internal: true }
+  egress: {}
 
 volumes:
   pgdata: {}

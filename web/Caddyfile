@@ -11,19 +11,25 @@
 }
 
 :8080 {
-	@api path /api/* /auth/* /mcp/* /health/*
+	@api path /api /api/* /auth /auth/* /mcp /mcp/* /health /health/*
 	handle @api {
 		reverse_proxy nid-api:8080
 	}
 
+	# Hashed build files never change. A missing one is a 404, never the SPA: after an upgrade, a browser asking for an old
+	# chunk must not get index.html cached for a year (1F1 final review).
+	handle /assets/* {
+		root * /srv
+		import /etc/caddy/headers.caddy
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Everything else: the file if it exists, else the SPA, always revalidated.
 	handle {
 		root * /srv
 		import /etc/caddy/headers.caddy
-		# Hashed build files never change; everything else (index.html, the SPA fallback) is revalidated.
-		@immutable path /assets/*
-		header @immutable Cache-Control "public, max-age=31536000, immutable"
-		@revalidate not path /assets/*
-		header @revalidate Cache-Control "no-cache"
+		header Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}
