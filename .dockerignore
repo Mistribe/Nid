@@ -1,0 +1,17 @@
+# Both images build from the repository root: keep secrets, build outputs and local state out of the context.
+**/bin/
+**/obj/
+**/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+.data/
+.git/
+.github/
+.superpowers/
+.playwright-mcp/
+deploy/secrets/
+deploy/.env
+deploy/authelia/
+deploy/dev/authelia/
+**/*.user
