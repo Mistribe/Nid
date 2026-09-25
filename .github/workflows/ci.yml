@@ -43,3 +43,45 @@ jobs:
       - run: pnpm --dir web install --frozen-lockfile
       - run: pnpm --dir web check:api
       - run: pnpm --dir web check
+
+  # 1F1: the images, their SBOM and scan, and the reference compose proven end to end (Playwright is blocking here).
+  images:
+    runs-on: ubuntu-latest
+    needs: [test, web]
+    env:
+      TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - name: Build images
+        run: |
+          docker build -f src/Nid.Host/Dockerfile -t nid-api:local .
+          docker build -f web/Dockerfile -t nid-web:local .
+      # The Docker socket is mounted into Trivy here only, to read the local images; never into the application
+      # (security/infrastructure.md §1).
+      - name: SBOM (CycloneDX) and scan (fails on CRITICAL)
+        run: |
+          for image in nid-api nid-web; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/out "$TRIVY" \
+              image --quiet --format cyclonedx --output "/out/sbom-$image.cdx.json" "$image:local"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.trivyignore":/.trivyignore "$TRIVY" \
+              image --quiet --severity CRITICAL --exit-code 1 --ignorefile /.trivyignore "$image:local"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-*.cdx.json
+      - name: Smoke test of the reference compose
+        run: deploy/smoke.sh
+      - name: Compose logs
+        if: failure()
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color | tail -300
