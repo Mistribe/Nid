@@ -1,0 +1,17 @@
+# Local trial and CI smoke (1F1 design §5): a TLS proxy with local certificates in front of the two targets.
+# docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml up -d --build
+services:
+  proxy:
+    image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    volumes: [./local/Caddyfile:/etc/caddy/Caddyfile:ro]
+    ports: ["443:443"]
+    networks:
+      edge:
+        # nid-api reaches Authelia at its public URL: inside the stack, that name must lead to this proxy.
+        aliases: [nid.localtest.me, auth.localtest.me]
+
+  nid-api:
+    networks: [app, data, edge]
+    environment:
+      # The proxy's certificate comes from its own local authority; only this overlay accepts it.
+      Auth__TrustAnyIdentityProviderCertificate: "true"

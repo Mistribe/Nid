@@ -1,0 +1,14 @@
+# Stands in for the hoster's TLS proxy on a workstation or in CI (1F1 design §5). Local certificates: not for production.
+{
+	local_certs
+}
+
+nid.localtest.me {
+	tls internal
+	reverse_proxy nid-web:8080
+}
+
+auth.localtest.me {
+	tls internal
+	reverse_proxy authelia:9091
+}

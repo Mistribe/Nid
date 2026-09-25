@@ -2,6 +2,9 @@
 # The session, storage, reset and HMAC secrets come from Docker secrets through AUTHELIA_*_FILE (deploy/compose.yaml).
 server:
   address: 'tcp://:9091'
+  # Authelia would write /app/.healthcheck.env for its image's healthcheck; the container is read-only, so the compose
+  # checks /api/health itself instead.
+  disable_healthcheck: true
 log:
   level: info
 authentication_backend:
