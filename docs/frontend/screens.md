@@ -60,6 +60,7 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
   - carte cadeau ;
   - essai ou offre de lancement.
 - Le catalogue préremplit nom, icône et libellés ; ses plans sont proposés comme **suggestions indicatives** (`../subscription-data-model.md`, « Plan suggestions »).
+- **Livré en 1E2a** (2026-09-25) : liste (recherche, état, portée), détail avec bande de couverture et modifications (réglages, changement de prix, achats), assistant de l'offre **récurrente**. **En 1E2b** : les quatre autres types d'offre, le filtre par libellé, la création d'un fournisseur depuis l'assistant, les suggestions de plans (`../superpowers/specs/2026-09-25-subscription-screens-design.md` §1).
 
 ## 5. Routine mensuelle
 
