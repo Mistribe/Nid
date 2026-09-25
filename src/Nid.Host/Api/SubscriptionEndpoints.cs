@@ -57,6 +57,16 @@ public static class SubscriptionEndpoints
                 .ToHttp(phase => new IdResponse(phase.Value)))
             .Returns<IdResponse>();
 
+        api.MapPost("/{id:guid}/price-changes", async (Guid id, PriceChangeBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
         api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct))
                 .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created))
@@ -190,6 +200,24 @@ public static class SubscriptionEndpoints
             return startsOn is { } s && price is { Amount: >= 0 } p && every is { } e && payer is { } y && MaxCycles is not <= 0 && reader.Ok
                 ? new BillingPhase(BillingPhaseId.New(), s, endsOn, p, e, covers, MaxCycles, y)
                 : null;
+        }
+    }
+
+    public sealed record PriceChangeBody(
+        string? StartsOn, MoneyBody? Price, DurationBody? Every, DurationBody? Covers, int? MaxCycles, PayerBody? Payer)
+    {
+        internal ChangePriceCommand? ToCommand(ItemId id, FieldReader reader)
+        {
+            var startsOn = reader.Date(StartsOn, "startsOn");
+            var price = reader.Money(Price, "price");
+            if (price is { Amount: < 0 })
+                reader.Add("price.amount", "subscriptions.price_negative", "A phase has a price of zero or more.");
+            var every = reader.Duration(Every, "every", required: false);
+            var covers = reader.Duration(Covers, "covers", required: false);
+            if (MaxCycles is <= 0)
+                reader.Add("maxCycles", "subscriptions.max_cycles", "A cycle limit is positive.");
+            var payer = Payer is null ? null : reader.Payer(Payer, "payer");
+            return reader.Ok ? new ChangePriceCommand(id, startsOn!.Value, price!.Value, every, covers, MaxCycles, payer) : null;
         }
     }
 

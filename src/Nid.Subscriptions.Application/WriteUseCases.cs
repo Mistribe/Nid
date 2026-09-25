@@ -205,3 +205,55 @@ internal static class ItemWriteGuard
         return Result.Success();
     }
 }
+
+public sealed record ChangePriceCommand(
+    ItemId ItemId, LocalDate StartsOn, Money Price, Core.Contracts.Duration? Every, Core.Contracts.Duration? Covers, int? MaxCycles, Payer? Payer)
+    : ICommand<BillingPhaseId>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>
+/// 1E2a design §2.3: the phase open on <see cref="ChangePriceCommand.StartsOn"/> ends there and the next one starts there,
+/// in one transaction; what the change leaves out is taken from the phase it replaces.
+/// </summary>
+[RequestHandler<ChangePriceCommand, BillingPhaseId>]
+public sealed class ChangePriceHandler(ISubscriptionStore store, IUnitOfWork unitOfWork) : IRequestHandler<ChangePriceCommand, BillingPhaseId>
+{
+    public async ValueTask<Result<BillingPhaseId>> HandleAsync(ChangePriceCommand command, CancellationToken ct = default)
+    {
+        var input = await store.LoadAsync(command.ItemId, ct);
+        if (input is null)
+            return Result.Failure<BillingPhaseId>(new NotFoundFailure("subscription", command.ItemId.ToString()));
+
+        var open = input.Phases.FirstOrDefault(p => p.StartsOn <= command.StartsOn && (p.EndsOn is null || p.EndsOn > command.StartsOn));
+        if (open is null)
+            return Refuse("subscriptions.no_open_phase", "No phase is open on this date: add a phase instead.");
+        if (command.StartsOn <= open.StartsOn)
+            return Refuse("subscriptions.phase_range", "A price change starts after the phase it replaces.");
+
+        var every = command.Every ?? open.Every;
+        var next = new BillingPhase(
+            BillingPhaseId.New(), command.StartsOn, open.EndsOn, command.Price, every,
+            command.Covers ?? (command.Every is null ? open.Covers : null),
+            command.MaxCycles, command.Payer ?? open.Payer);
+
+        var after = input with { Phases = input.Phases.Select(p => p.Id == open.Id ? p with { EndsOn = command.StartsOn } : p).Append(next).ToList() };
+        if (SubscriptionTimeline.Build(after, command.StartsOn, command.StartsOn).TryGetFailure(out var refused))
+            // The change's own fields: an overlap or anything about the phase as a whole is its start date.
+            return Result.Failure<BillingPhaseId>(FieldErrors.At(refused!, PhasePaths.Field(refused!.Code) ?? "startsOn"));
+
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        var closed = await store.ClosePhaseAsync(command.ItemId, open.Id, command.StartsOn, ct);
+        if (closed.TryGetFailure(out var notClosed))
+            return Result.Failure<BillingPhaseId>(notClosed!);
+        var added = await store.AddPhaseAsync(command.ItemId, next, RowOrigin.None, ct);
+        if (added.TryGetFailure(out var notAdded))
+            return Result.Failure<BillingPhaseId>(notAdded!);
+        await transaction.CommitAsync(ct);
+        return Result.Success(next.Id);
+
+        static Result<BillingPhaseId> Refuse(string code, string message)
+            => Result.Failure<BillingPhaseId>(FieldErrors.At(new Failure(code, message, null), "startsOn"));
+    }
+}

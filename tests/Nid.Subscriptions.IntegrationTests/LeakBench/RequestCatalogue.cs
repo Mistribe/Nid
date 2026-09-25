@@ -150,6 +150,8 @@ public static class RequestCatalogue
         {
             BuildLinkingProvider = (_, _, target, key) => new EditSubscriptionCommand(target, null, null, false, null, key),
         },
+        new(typeof(ChangePriceCommand), true,
+            (_, item) => new ChangePriceCommand(item, new NodaTime.LocalDate(2025, 6, 1), Money.Create(1m, Currency.Eur).Ok(), null, null, null, null)),
         new(typeof(OpenPhaseCommand), true,
             (_, item) => new OpenPhaseCommand(item, new BillingPhase(
                 BillingPhaseId.New(), new LocalDate(2025, 1, 1), null,
