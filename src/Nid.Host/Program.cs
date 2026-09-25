@@ -24,6 +24,7 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddSecretFiles();
 builder.AddServiceDefaults();
 // Build-time OpenAPI generation (Microsoft.Extensions.ApiDescription.Server) runs this entry point up to
 // Build() with no configuration: it must not throw for a missing connection string, and nothing may connect
@@ -44,6 +45,8 @@ if (!generatingOpenApi && builder.Configuration.GetValue("Jobs:Enabled", true))
     builder.Services.AddNidJobs(connectionString, fxOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
+builder.Services.AddNidDataProtection(builder.Configuration);
+builder.Services.AddNidHealth();
 // Never set in production: swaps the default scheme so IntegrationTestAuthenticationHandler — which reads
 // IntegrationTestGate.ActorHeader itself — becomes what authenticates every request.
 if (builder.Environment.IsEnvironment(IntegrationTestGate.Environment))
@@ -61,7 +64,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 var app = builder.Build();
 
 // EF Core takes a database lock while migrating, so several instances starting together are safe.
-if (!generatingOpenApi)
+// Health:SkipMigrations is for the readiness test only (HostingTests): it starts a host whose database is unreachable.
+if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigrations"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
@@ -70,6 +74,7 @@ if (!generatingOpenApi)
 }
 
 app.MapDefaultEndpoints();
+app.MapNidHealth();
 app.UseForwardedHeaders();
 app.UseAuthentication();
 app.UseMiddleware<CsrfMiddleware>();

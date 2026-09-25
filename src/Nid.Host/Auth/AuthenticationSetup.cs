@@ -24,6 +24,9 @@ public static partial class AuthenticationSetup
             // The reverse proxy is the host's responsibility (architecture.md §10.2): trust what it forwards.
             o.KnownIPNetworks.Clear();
             o.KnownProxies.Clear();
+            // Empty lists trust any proxy; the reference compose names the network nid-web lives on (1F1 design §2.3).
+            foreach (var network in options.TrustedNetworks)
+                o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
         });
 
         services.AddAuthentication(o =>

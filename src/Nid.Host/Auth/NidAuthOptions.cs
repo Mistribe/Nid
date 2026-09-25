@@ -17,6 +17,12 @@ public sealed class NidAuthOptions
     public int SessionSlidingDays { get; set; } = 7;
     public int SessionAbsoluteDays { get; set; } = 30;
 
+    /// <summary>
+    /// Networks whose forwarded headers are trusted (CIDR), e.g. the compose's `app` network where `nid-web` lives.
+    /// Empty trusts any: development, and a host only its proxy can reach.
+    /// </summary>
+    public List<string> TrustedNetworks { get; set; } = [];
+
     /// <summary>Development only: accept the local TLS proxy's certificate for calls to the identity provider.</summary>
     public bool TrustAnyIdentityProviderCertificate { get; set; }
 }
