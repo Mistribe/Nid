@@ -1,0 +1,115 @@
+# Nid reference compose (architecture.md §10.1, 1F1 design §3). Run deploy/setup.sh first.
+# The hoster's proxy reaches two targets on the `edge` network: nid-web:8080 (NID_HOST) and authelia:9091 (AUTH_HOST).
+name: nid
+
+x-hardened: &hardened
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *hardened
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    # The image's own postgres user: its data folder is already owned by it, so a fresh volume is too, and the entrypoint
+    # needs no capability to change owners.
+    user: "70:70"
+    environment:
+      POSTGRES_DB: nid
+      POSTGRES_USER: nid
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=70,gid=70"]
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U nid -d nid]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1g } } }
+
+  # Authelia's image runs as root; Nid runs it as a dedicated user instead, whose data volume this one-shot owns first.
+  authelia-volume:
+    image: busybox:1.37@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+    command: [chown, "8000:8000", /var/lib/authelia]
+    volumes: [authelia:/var/lib/authelia]
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    restart: "no"
+
+  authelia:
+    <<: *hardened
+    image: authelia/authelia:4.39@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54
+    user: "8000:8000"
+    environment:
+      X_AUTHELIA_CONFIG_FILTERS: template
+      AUTHELIA_SESSION_SECRET_FILE: /run/secrets/authelia_session
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/authelia_storage
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /run/secrets/authelia_jwt
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE: /run/secrets/authelia_hmac
+    secrets: [authelia_session, authelia_storage, authelia_jwt, authelia_hmac, authelia_jwks]
+    volumes:
+      - ./authelia:/config:ro
+      - authelia:/var/lib/authelia
+    tmpfs: [/tmp]
+    networks: [edge]
+    depends_on: { authelia-volume: { condition: service_completed_successfully } }
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
+
+  nid-api:
+    <<: *hardened
+    build: { context: .., dockerfile: src/Nid.Host/Dockerfile }
+    image: ${NID_API_IMAGE:-nid-api:local}
+    environment:
+      Auth__PublicUrl: https://${NID_HOST:?run deploy/setup.sh first}
+      Auth__Authority: https://${AUTH_HOST:?run deploy/setup.sh first}
+      # Forwarded headers are trusted from nid-web's network only (1F1 design §2.3).
+      Auth__TrustedNetworks__0: 172.30.10.0/24
+    secrets:
+      - { source: nid_connection_string, target: ConnectionStrings__nid }
+      - { source: oidc_client_secret, target: Auth__ClientSecret }
+      - { source: csrf_key, target: Auth__CsrfKey }
+    volumes:
+      - dataprotection-keys:/var/lib/nid/keys
+      - assets:/var/lib/nid/assets
+    tmpfs: [/tmp]
+    networks: [app, data]
+    depends_on: { postgres: { condition: service_healthy } }
+    deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
+
+  nid-web:
+    <<: *hardened
+    build: { context: .., dockerfile: web/Dockerfile }
+    image: ${NID_WEB_IMAGE:-nid-web:local}
+    tmpfs: [/tmp]
+    networks: [edge, app]
+    depends_on: { nid-api: { condition: service_started } }
+    deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
+
+networks:
+  edge: {}
+  app:
+    ipam: { config: [{ subnet: 172.30.10.0/24 }] }
+  data: { internal: true }
+
+volumes:
+  pgdata: {}
+  authelia: {}
+  dataprotection-keys: {}
+  assets: {}
+
+# Plain files (compose outside Swarm bind-mounts them): deploy/secrets/ is 0700, so only its owner and the daemon read them.
+secrets:
+  postgres_password: { file: ./secrets/postgres_password }
+  nid_connection_string: { file: ./secrets/nid_connection_string }
+  oidc_client_secret: { file: ./secrets/oidc_client_secret }
+  csrf_key: { file: ./secrets/csrf_key }
+  authelia_session: { file: ./secrets/authelia_session }
+  authelia_storage: { file: ./secrets/authelia_storage }
+  authelia_jwt: { file: ./secrets/authelia_jwt }
+  authelia_hmac: { file: ./secrets/authelia_hmac }
+  authelia_jwks: { file: ./secrets/authelia_jwks }
