@@ -54,13 +54,17 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 - **Liste** : filtre par libellé et par actif. Carte : nom, icône (ou monogramme), coût mensuel réel et amorti, prochaine échéance ou expiration.
 - **Détail** : bande de couverture dans le temps (`dataviz.md` §5), historique des prix, paiements, valeur des mois offerts.
-- **Ajout par assistant selon le type d'offre** plutôt que par formulaire générique, chacune pouvant être suivie d'une
-  étape « Et ensuite ? » ouvrant un abonnement récurrent :
-  - récurrent (une phase de facturation) ;
+- **Ajout par assistant selon le type d'offre** plutôt que par formulaire générique :
+  - récurrent (une phase de facturation, sans étape « Et ensuite ? ») ;
   - prépayé avec mois offerts ;
   - bundle (achat incluant une période) ;
   - carte cadeau ;
   - essai ou offre de lancement.
+  Les quatre autres offres (prépayé, essai ou prix de lancement, carte cadeau, bundle) peuvent être suivies d'une
+  étape « Et ensuite ? » ouvrant un abonnement récurrent : activée par défaut pour le prépayé et l'essai, désactivée
+  par défaut pour la carte cadeau et le bundle, obligatoire (« Prix normal ensuite ») pour l'offre de lancement.
+  Chaque étape d'offre qui porte un montant (récurrent, prépayé, achat, bundle, prix de lancement réduit) affiche
+  son propre champ « Devise », relié à la devise unique de l'abonnement et de ses achats.
 - Le catalogue préremplit nom, icône et libellés ; ses plans sont proposés comme **suggestions indicatives** (`../subscription-data-model.md`, « Plan suggestions »).
 - **Livré en 1E2a** (2026-09-25) : liste (recherche, état, portée), détail avec bande de couverture et modifications (réglages, changement de prix, achats), assistant de l'offre **récurrente**. **Livré en 1E2b1** (2026-09-26) : les quatre autres types d'offre et l'étape « Et ensuite ? » (`../superpowers/specs/2026-09-26-offer-types-design.md`). **En 1E2b2** : la création d'un fournisseur personnalisé depuis l'assistant, le filtre par libellé. Les suggestions de plans du catalogue restent hors de 1E2b, à concevoir avec le catalogue (`../subscription-data-model.md`, « Plan suggestions »).
 
