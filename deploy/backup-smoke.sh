@@ -54,12 +54,26 @@ backup backup-now
 backup status >/dev/null || fail "still unhealthy after a good run: $(backup status)"
 echo "ok: a failed run is named and leaves the repository alone; the next good run clears it"
 
-# Review Focus 4: a bad schedule stops the service with a message instead of looping.
-if "${COMPOSE[@]}" run --rm --no-deps -T -e NID_BACKUP_AT=25:00 backup schedule 2>/tmp/nid-backup-at.log; then
-  fail "the scheduler accepted 25:00"
+# Review Focus 4 (final review): a bad schedule keeps the deployed service up and unhealthy with the reason; it does
+# not restart forever under restart: unless-stopped.
+NID_BACKUP_AT=25:00 "${COMPOSE[@]}" up -d backup
+sleep 10
+state=$(docker inspect --format '{{.RestartCount}} {{.State.Running}}' "$("${COMPOSE[@]}" ps -q backup)")
+[ "$state" = "0 true" ] || fail "a bad NID_BACKUP_AT made the service restart (restarts, running: $state)"
+health=$(backup status || true)
+[[ $health == *"NID_BACKUP_AT invalide"* ]] || fail "status with a bad NID_BACKUP_AT: $health"
+"${COMPOSE[@]}" up -d --wait --wait-timeout 120 backup
+echo "ok: a bad NID_BACKUP_AT leaves the service up, unhealthy, with the reason"
+
+# Final review: compose never creates a missing deploy/backup-secrets/ (as root, which setup.sh could not fix).
+mv backup-secrets backup-secrets.keep
+if "${COMPOSE[@]}" up -d --force-recreate backup 2>/tmp/nid-missing.log; then
+  rm -rf backup-secrets; mv backup-secrets.keep backup-secrets; fail "up started backup without deploy/backup-secrets/"
 fi
-grep -q "NID_BACKUP_AT invalide" /tmp/nid-backup-at.log || fail "no message for a bad NID_BACKUP_AT"
-echo "ok: a bad NID_BACKUP_AT stops the scheduler with a message"
+[ ! -e backup-secrets ] || { mv backup-secrets.keep backup-secrets.keep2; fail "compose created deploy/backup-secrets/"; }
+mv backup-secrets.keep backup-secrets
+"${COMPOSE[@]}" up -d --wait --wait-timeout 120 backup
+echo "ok: a missing deploy/backup-secrets/ stops up instead of being created"
 
 # Review Focus 5: a remote configured without the overlay fails within bounded time, keeps the local snapshot.
 echo 'rest:http://backup-remote-test:8000/nid' > backup-secrets/remote_repository
@@ -93,6 +107,27 @@ grep -qi "mot de passe" /tmp/nid-verify.log || fail "no clear message for a wron
 [ -z "$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'nid-restore.*' 2>/dev/null)" ] || fail "the temporary folder is still there"
 echo "ok: a failed --verify says why and leaves nothing behind"
 
+# Final review: restore-files and check-keys on scratch volumes, which are Linux filesystems like a CI runner's (a bind
+# mount on macOS shows root's files as the user's). deploy/'s folders go to the host user, so --verify can remove its
+# work folder; a key nid-api adds after a restore is fine, a key of the backup gone is not.
+scratch() {
+  docker run --rm --network none -v "$PWD/backups":/repo -v "$PWD/backup-secrets":/run/backup-secrets:ro \
+    -v nid-scratch-keys:/target/volumes/dataprotection-keys -v nid-scratch-assets:/target/volumes/assets \
+    -v nid-scratch-authelia:/target/volumes/authelia -v nid-scratch-deploy:/target/deploy \
+    -e NID_HOST_UID=4242 -e NID_HOST_GID=4242 "$@"
+}
+id=$(scratch nid-backup:local snapshot-id)
+scratch nid-backup:local restore-files "$id"
+owners=$(scratch --entrypoint stat nid-backup:local -c '%u' /target/deploy/authelia /target/deploy/secrets | sort -u)
+[ "$owners" = 4242 ] || fail "deploy/ folders not given to the host user: $owners"
+scratch --entrypoint touch nid-backup:local /target/volumes/dataprotection-keys/key-00000000-0000-0000-0000-000000000000.xml
+scratch nid-backup:local check-keys "$id" >/dev/null || fail "a key added after the restore failed the check"
+scratch --entrypoint sh nid-backup:local -c \
+  'rm "$(ls /target/volumes/dataprotection-keys/key-*.xml | grep -v key-00000000 | head -1)"'
+if scratch nid-backup:local check-keys "$id" >/dev/null 2>&1; then fail "a key of the backup went missing unnoticed"; fi
+docker volume rm nid-scratch-keys nid-scratch-assets nid-scratch-authelia nid-scratch-deploy >/dev/null
+echo "ok: restored deploy/ folders belong to the host user; the key check wants the backup's keys, not an exact count"
+
 # The guard: the running installation holds data.
 if ./restore.sh </dev/null 2>/tmp/nid-guard.log; then fail "restore.sh replaced a running installation"; fi
 grep -q -- "--force" /tmp/nid-guard.log || fail "the guard does not say how to go on"
@@ -113,6 +148,21 @@ echo "ok: after a disaster, a backup restores into a new stack with its sessions
 [ "$(docker run --rm -v nid_authelia:/a busybox:1.37 stat -c '%u' /a/db.sqlite3)" = "8000" ] || fail "Authelia base"
 [ "$(stat -c '%a' secrets 2>/dev/null || stat -f '%Lp' secrets)" = "700" ] || fail "deploy/secrets/ mode"
 [ -O secrets/csrf_key ] && [ -O .env ] || fail "deploy/ files not owned by the host user"
+# Final review: the backup settings the README puts in .env survive a rerun of setup.sh.
+echo "NID_BACKUP_MAX_AGE=26" >> .env
 ./setup.sh --nid-host nid.localtest.me --auth-host auth.localtest.me | tee /tmp/nid-setup.log
 if grep -q "créé" /tmp/nid-setup.log; then fail "setup.sh created a secret on a restored deploy/"; fi
+grep -qx "NID_BACKUP_MAX_AGE=26" .env || fail "setup.sh erased the backup settings of .env"
+grep -qx "NID_HOST=nid.localtest.me" .env || fail "setup.sh lost NID_HOST"
 echo "ok: restored owners and modes; setup.sh reruns on the restored deploy/ without creating anything"
+
+# Final review (Critical): --force with a backup that cannot be read must stop before it deletes anything.
+mv backup-secrets/restic_password backup-secrets/restic_password.keep
+echo wrong > backup-secrets/restic_password
+if printf 'RESTAURER\n' | ./restore.sh --force 2>/tmp/nid-force.log; then
+  mv backup-secrets/restic_password.keep backup-secrets/restic_password; fail "--force restored with a wrong password"
+fi
+mv backup-secrets/restic_password.keep backup-secrets/restic_password
+docker volume inspect nid_pgdata >/dev/null 2>&1 || fail "--force deleted the data before checking the backup"
+[ -n "$("${COMPOSE[@]}" ps -q postgres)" ] || fail "--force stopped the stack before checking the backup"
+echo "ok: --force checks the backup before it deletes anything"

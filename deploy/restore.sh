@@ -62,14 +62,13 @@ c() {
 }
 tool() { c run --rm --no-deps -T backup-restore "$@"; }
 
+HAS_DATA=0
 if [ "$VERIFY" = 0 ]; then
-  if docker volume inspect nid_pgdata >/dev/null 2>&1 || [ -n "$(ls -A secrets 2>/dev/null)" ]; then
-    [ "$FORCE" = 1 ] || die "Cette installation contient déjà des données (volume nid_pgdata ou deploy/secrets/).
+  if docker volume inspect nid_pgdata >/dev/null 2>&1 || [ -n "$(ls -A secrets 2>/dev/null)" ]; then HAS_DATA=1; fi
+  [ "$HAS_DATA" = 0 ] || [ "$FORCE" = 1 ] || die "Cette installation contient déjà des données (volume nid_pgdata ou deploy/secrets/).
 Pour tout remplacer par la sauvegarde : deploy/restore.sh --force. Pour l'essayer sans risque : deploy/restore.sh --verify."
-    read -r -p "Tout remplacer par la sauvegarde ? Tapez RESTAURER : " answer
-    [ "$answer" = RESTAURER ] || die "Abandon : rien n'a été modifié."
-    c down -v --remove-orphans
-  fi
+  # A remote-only restore on a new machine: the local repository folder the compose file mounts must exist.
+  [ "$FROM" = local ] || mkdir -p "$NID_BACKUP_DIR"
 else
   # Whatever happens, the throwaway project and its copy of the secrets go.
   cleanup() { c down -v --remove-orphans >/dev/null 2>&1 || true; rm -rf "$WORK"; }
@@ -82,15 +81,24 @@ id=$(tool snapshot-id "$SNAPSHOT")
 if [ "$FROM" = local ]; then where=local; else where=distant; fi
 ok "instantané $id (dépôt $where)"
 
+# Captured first: a failing read must stop the restore, not look like a backup without migrations.
+migrations=$(tool migrations "$id") || die "impossible de lire le manifeste de l'instantané $id"
+[ -n "$migrations" ] || die "l'instantané $id ne liste aucune migration : ce n'est pas une sauvegarde de Nid lisible"
 missing=0
-while read -r migration; do
-  [ -n "$migration" ] || continue
+for migration in $migrations; do
   if ! ls ../src/*/Persistence/Migrations/"$migration".cs >/dev/null 2>&1; then
     echo "migration inconnue de ce code : $migration" >&2; missing=1
   fi
-done < <(tool migrations "$id")
+done
 [ "$missing" = 0 ] || die "Cette sauvegarde vient d'une version plus récente de Nid : mettez le dépôt à jour d'abord (git pull)."
 ok "le code connaît toutes les migrations de la sauvegarde"
+
+# Only now that the backup is known to open and to fit this code: the installation it replaces goes.
+if [ "$HAS_DATA" = 1 ]; then
+  read -r -p "Tout remplacer par la sauvegarde $id ? Tapez RESTAURER : " answer || answer=""
+  [ "$answer" = RESTAURER ] || die "Abandon : rien n'a été modifié."
+  c down -v --remove-orphans
+fi
 
 tool restore-files "$id"
 ok "volumes et fichiers de deploy/ restaurés"

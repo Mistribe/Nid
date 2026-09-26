@@ -87,12 +87,15 @@ run_once() {
   dump_migrations < /tmp/data.sql | jq -Rn '[inputs | select(length > 0)]' > /tmp/migrations.json
   rm -f /tmp/data.sql
   keys=$(find /source/volumes/dataprotection-keys -name 'key-*.xml' | wc -l)
+  find /source/volumes/dataprotection-keys -name 'key-*.xml' -exec basename {} \; | jq -Rn '[inputs]' > /tmp/keys.json
   jq -n --slurpfile rows /tmp/counts.json --slurpfile migrations /tmp/migrations.json --argjson keys "$keys" \
+    --slurpfile key_files /tmp/keys.json \
     --argjson postgres "$postgres" --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg restic "$(restic version | cut -d ' ' -f 2)" '
     {format: 1, created_at: $created, postgres_major: $postgres, restic_version: $restic,
      parts: ["database", "authelia", "dataprotection-keys", "assets", "deploy"],
-     migrations: $migrations[0], row_counts: $rows[0], dataprotection_keys: $keys}' > "$STAGE/manifest.json"
+     migrations: $migrations[0], row_counts: $rows[0], dataprotection_keys: $keys,
+     dataprotection_key_files: $key_files[0]}' > "$STAGE/manifest.json"
 
   step snapshot
   local_restic backup --host nid --tag nid --json "$STAGE" /source > /tmp/backup.json
@@ -173,7 +176,9 @@ restore_files() {
   cp "$out/source/deploy/authelia/configuration.yml" "$out/source/deploy/authelia/users.yml" /target/deploy/authelia/
   cp "$out/source/deploy/.env" /target/deploy/.env
   chown -R "$host" /target/deploy/secrets
-  chown "$host" /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml /target/deploy/.env
+  # The folders too: in --verify they sit in restore.sh's work folder, which the host user must be able to remove.
+  chown "$host" /target/deploy/authelia /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml \
+    /target/deploy/.env
   chmod 700 /target/deploy/secrets
   chmod 644 /target/deploy/secrets/* /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml \
     /target/deploy/.env
@@ -198,12 +203,19 @@ check_database() {
   echo "$(jq length /tmp/actual.json) tables, autant de lignes que dans la sauvegarde"
 }
 
-# Once nid-api is up: it used the restored key ring, it did not create a new key.
+# Once nid-api is up: every key of the backup is there. nid-api may add one (an old backup's default key expired),
+# which is normal; a key of the backup missing would sign everyone out and lose what it encrypted.
 check_keys() {
-  expected=$(manifest "$1" | jq '.dataprotection_keys')
+  manifest "$1" > /tmp/manifest.json
   found=$(find /target/volumes/dataprotection-keys -name 'key-*.xml' | wc -l | tr -d ' ')
-  [ "$found" = "$expected" ] || die "clés Data Protection : $expected dans la sauvegarde, $found après démarrage"
-  echo "$found clé(s) Data Protection reprise(s), aucune créée"
+  if jq -e 'has("dataprotection_key_files")' /tmp/manifest.json >/dev/null; then
+    for key in $(jq -r '.dataprotection_key_files[]' /tmp/manifest.json); do
+      [ -f "/target/volumes/dataprotection-keys/$key" ] || die "clé Data Protection de la sauvegarde absente : $key"
+    done
+  else # a backup made before the manifest listed its keys
+    [ "$found" -ge "$(jq '.dataprotection_keys' /tmp/manifest.json)" ] || die "clés Data Protection manquantes"
+  fi
+  echo "$(jq '.dataprotection_keys' /tmp/manifest.json) clé(s) Data Protection de la sauvegarde reprise(s), $found en place"
 }
 
 # One run under the lock: a manual run waits for the nightly one instead of failing.
@@ -223,15 +235,26 @@ backup_now() {
   ) 9> /tmp/nid-backup.lock
 }
 
+# A configuration the scheduler cannot run with: said once, then the service stays up and unhealthy with the reason.
+# Exiting would only make restart: unless-stopped start it again, forever.
+config_error() {
+  mkdir -p "$STATE_DIR"
+  echo "$*" > "$STATE_DIR/configuration"
+  log "$*"
+  while :; do sleep 3600; done
+}
+
 status() {
+  if [ -s "$STATE_DIR/configuration" ]; then cat "$STATE_DIR/configuration"; exit 1; fi
   [ -s "$STATE" ] || { echo "état absent : le service démarre"; exit 1; }
   remote=no; if remote_configured; then remote=yes; fi
   health_check "$STATE" "$(date +%s)" "$NID_BACKUP_MAX_AGE" "$remote" "$(cat "$STATE_DIR/started_at")"
 }
 
 schedule() {
-  valid_time "$NID_BACKUP_AT" || die "NID_BACKUP_AT invalide : $NID_BACKUP_AT (attendu HH:MM, de 00:00 à 23:59)"
-  [ -s "$SECRETS/restic_password" ] || die "restic_password manque dans deploy/backup-secrets/ : relancez deploy/setup.sh"
+  valid_time "$NID_BACKUP_AT" || config_error "NID_BACKUP_AT invalide : $NID_BACKUP_AT (attendu HH:MM, de 00:00 à 23:59)"
+  [ -s "$SECRETS/restic_password" ] ||
+    config_error "restic_password manque dans deploy/backup-secrets/ : relancez deploy/setup.sh"
   mkdir -p "$STATE_DIR"
   date +%s > "$STATE_DIR/started_at"
   rebuild_status

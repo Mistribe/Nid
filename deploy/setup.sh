@@ -92,5 +92,14 @@ fi
 # Read by Authelia's own user; no secret inside, only the client secret's hash and the users' password hashes.
 chmod 644 authelia/configuration.yml authelia/users.yml
 
-printf 'NID_HOST=%s\nAUTH_HOST=%s\n' "$NID_HOST" "$AUTH_HOST" > .env
+# Only its own two keys: the backup settings the hoster adds to .env (README §6) survive a rerun.
+env_set() { # key, value
+  if [ -f .env ] && grep -q "^$1=" .env; then
+    sed "s|^$1=.*|$1=$2|" .env > .env.new && mv .env.new .env
+  else
+    echo "$1=$2" >> .env
+  fi
+}
+env_set NID_HOST "$NID_HOST"
+env_set AUTH_HOST "$AUTH_HOST"
 echo "Prêt : docker compose -f deploy/compose.yaml up -d --build"

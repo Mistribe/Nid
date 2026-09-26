@@ -136,11 +136,13 @@ Playwright) ; ce script est jetable, ne le lancez pas sur une installation réel
 
 ## 5. Mettre à jour
 
+**Installation d'avant la sauvegarde (1F1)** : le service `backup` n'existe pas encore. Faites `git pull`, puis
+`deploy/setup.sh`, qui crée `deploy/backup-secrets/` et le mot de passe de la sauvegarde sans toucher aux autres
+secrets, puis l'étape 3. Sans `deploy/backup-secrets/`, `up` s'arrête avec un message plutôt que de le créer.
+
 1. **Sauvegardez** : `docker compose -f deploy/compose.yaml exec backup nid-backup backup-now`.
 2. `git pull`.
-3. Pour une installation antérieure à la sauvegarde (1F1) : relancez une fois `deploy/setup.sh`, qui crée le mot de
-   passe de la sauvegarde sans toucher aux autres secrets.
-4. `docker compose -f deploy/compose.yaml up -d --build`.
+3. `docker compose -f deploy/compose.yaml up -d --build`.
 
 Les migrations de la base s'appliquent au démarrage de `nid-api`. Les images de base sont épinglées par empreinte ; une
 mise à jour de Nid les fait évoluer.
@@ -157,7 +159,8 @@ restic chiffré** qui contient tout ce qu'il faut pour repartir :
 - un manifeste : nombre de lignes par table, migrations de la base, nombre de clés.
 
 Le dépôt local est `deploy/backups/` (réglable : `NID_BACKUP_DIR`). C'est un dossier de l'hôte et non un volume Docker :
-un `docker compose down -v` ne l'emporte pas. Ses fichiers appartiennent à root ; lisez-les ou copiez-les avec `sudo`.
+un `docker compose down -v` ne l'emporte pas. Le dossier doit exister : s'il manque (un disque externe non monté), `up`
+s'arrête au lieu de commencer un dépôt vide. Ses fichiers appartiennent à root ; lisez-les ou copiez-les avec `sudo`.
 
 Rétention : 7 quotidiennes, 4 hebdomadaires, 12 mensuelles (`NID_BACKUP_KEEP`). Le dépôt est vérifié chaque dimanche
 (`restic check`).
@@ -179,7 +182,7 @@ Une sauvegarde lancée pendant celle de la nuit attend qu'elle se termine.
 
 ### Surveiller
 
-`backup` devient `unhealthy` si la dernière sauvegarde a échoué, si la dernière réussite date de plus de 26 h
+`backup` devient `unhealthy` si sa configuration est invalide (par exemple `NID_BACKUP_AT`), si la dernière sauvegarde a échoué, si la dernière réussite date de plus de 26 h
 (`NID_BACKUP_MAX_AGE`) ou si le dépôt distant n'a pas reçu la dernière. La commande suivante dit pourquoi :
 
 ```bash
@@ -235,12 +238,13 @@ Sur une machine neuve, avec les prérequis du §1 :
 1. `git clone` du dépôt de Nid, à la même version ou plus récente que la sauvegarde.
 2. Remettez `deploy/backup-secrets/restic_password` (et les fichiers du dépôt distant) ; pour le dépôt local,
    remettez aussi `deploy/backups/`.
-3. `deploy/restore.sh` (ou `deploy/restore.sh --from remote`). Il remet `deploy/secrets/`, la configuration, les
+3. `deploy/restore.sh` (ou `deploy/restore.sh --from remote`). Il vérifie d'abord que la sauvegarde s'ouvre et que
+   le code la connaît, puis remet `deploy/secrets/`, la configuration, les
    volumes et la base, démarre la pile et fait les mêmes vérifications que `--verify`.
 4. Branchez le proxy (§3).
 
 Le script refuse une installation qui contient déjà des données. `--force` la remplace entièrement, après que vous
-avez tapé `RESTAURER`. Si la sauvegarde vient d'une version de Nid plus récente que le code, il s'arrête : faites
+avez tapé `RESTAURER` ; rien n'est supprimé tant que la sauvegarde n'a pas été ouverte et reconnue. Si la sauvegarde vient d'une version de Nid plus récente que le code, il s'arrête : faites
 d'abord `git pull`.
 
 ## 7. Secrets et rotation
