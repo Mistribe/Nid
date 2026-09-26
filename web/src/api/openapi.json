@@ -4594,15 +4594,23 @@
               "string"
             ]
           },
-          "phase": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PhaseInput"
-              }
-            ]
+          "phases": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PhaseInput"
+            }
+          },
+          "purchases": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PurchaseInput"
+            }
           }
         }
       },

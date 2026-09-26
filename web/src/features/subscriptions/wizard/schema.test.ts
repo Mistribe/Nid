@@ -22,15 +22,15 @@ describe('toCreateBody', () => {
     expect(toCreateBody(values({ provider: { key: 'netflix', name: 'Netflix' }, users: [ALICE], note: 'n' }))).toEqual({
       displayName: 'Netflix', visibility: 'shared', owners: [{ personId: ALICE, shareBp: 10000 }], providerKey: 'netflix',
       autoRenew: true, users: [ALICE], note: 'n',
-      phase: {
+      phases: [{
         startsOn: '2025-01-01', endsOn: null, price: { amount: '9.99', currency: 'EUR' }, every: { count: 1, unit: 'month' },
         covers: null, maxCycles: null, payer: { type: 'household', personId: null },
-      },
+      }],
     }));
 
   it('sends a covered period, a cycle limit and a paying person when given', () => {
     const body = toCreateBody(values({ sameCovers: false, coversCount: '3', coversUnit: 'month', maxCycles: '4', payerType: 'person', payerPerson: BOB }));
-    expect(body.phase).toMatchObject({ covers: { count: 3, unit: 'month' }, maxCycles: 4, payer: { type: 'person', personId: BOB } });
+    expect(body.phases?.[0]).toMatchObject({ covers: { count: 3, unit: 'month' }, maxCycles: 4, payer: { type: 'person', personId: BOB } });
   });
 });
 
@@ -52,6 +52,6 @@ describe('wizardSchema', () => {
 describe('STEP_PATHS', () => {
   it('puts the provider on the first step and the phase on the second', () => {
     expect(STEP_PATHS[0]).toContain('providerKey');
-    expect(STEP_PATHS[1]).toEqual(['phase']);
+    expect(STEP_PATHS[1]).toEqual(['phases']);
   });
 });

@@ -77,10 +77,13 @@ public class PriceChangeTests(PostgresFixture fixture)
         {
             displayName = "Engagement", visibility = "shared", autoRenew = true,
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
-            phase = new
+            phases = new[]
             {
-                startsOn = "2025-01-01", price = new { amount = "10", currency = "EUR" }, every = new { count = 1, unit = "month" },
-                maxCycles = cycles, payer = new { type = "household" },
+                new
+                {
+                    startsOn = "2025-01-01", price = new { amount = "10", currency = "EUR" }, every = new { count = 1, unit = "month" },
+                    maxCycles = cycles, payer = new { type = "household" },
+                },
             },
         });
         response.EnsureSuccessStatusCode();

@@ -109,10 +109,10 @@ describe('Abonnements › ajout', () => {
     expect(sent).toEqual([{
       displayName: 'Netflix', visibility: 'shared', owners: [{ personId: ALICE, shareBp: 10000 }], providerKey: null,
       autoRenew: true, users: [], note: null,
-      phase: {
+      phases: [{
         startsOn: '2025-01-01', endsOn: null, price: { amount: '13.49', currency: 'EUR' }, every: { count: 1, unit: 'month' },
         covers: null, maxCycles: null, payer: { type: 'household', personId: null },
-      },
+      }],
     }]);
   });
 
@@ -136,7 +136,7 @@ describe('Abonnements › ajout', () => {
   it('brings the user back to the offer step for an amount refused by the server', async () => {
     serve(() => HttpResponse.json({
       status: 422, code: 'request.invalid', title: 'x',
-      errors: [{ path: 'phase.price.amount', code: 'request.amount', message: 'x' }],
+      errors: [{ path: 'phases[0].price.amount', code: 'request.amount', message: 'x' }],
     }, { status: 422 }));
     const { user } = await start();
 

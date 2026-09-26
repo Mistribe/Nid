@@ -65,7 +65,7 @@ export function toCreateBody(v: WizardValues): CreateBody {
     autoRenew: true,
     users: v.users,
     note: v.note.trim() === '' ? null : v.note,
-    phase: {
+    phases: [{
       startsOn: v.startsOn,
       endsOn: null,
       price: { amount: toWireAmount(v.amount), currency: v.currency.trim().toUpperCase() },
@@ -73,14 +73,14 @@ export function toCreateBody(v: WizardValues): CreateBody {
       covers: v.sameCovers ? null : { count: Number(v.coversCount), unit: v.coversUnit },
       maxCycles: v.maxCycles === '' ? null : Number(v.maxCycles),
       payer: v.payerType === 'person' ? { type: 'person', personId: v.payerPerson } : { type: 'household', personId: null },
-    },
+    }],
   };
 }
 
 /** Which step owns which server path: a refusal brings the user back to the step where it can be fixed. */
 export const STEP_PATHS: Record<number, string[]> = {
   0: ['displayName', 'visibility', 'owners', 'providerKey', 'users', 'note'],
-  1: ['phase'],
+  1: ['phases'],
 };
 
 /** A server path as the form field it concerns; the rest shows above the form. */
@@ -89,10 +89,10 @@ export function fieldOf(path: string): keyof WizardValues | `owners.${number}.sh
   if (share) return `owners.${Number(share[1])}.share`;
   const fields: Record<string, keyof WizardValues> = {
     displayName: 'displayName', visibility: 'visibility', owners: 'owners', providerKey: 'provider', users: 'users', note: 'note',
-    'phase.startsOn': 'startsOn', 'phase.endsOn': 'startsOn', 'phase.price': 'amount', 'phase.price.amount': 'amount',
-    'phase.price.currency': 'currency', 'phase.every': 'everyCount', 'phase.every.count': 'everyCount', 'phase.every.unit': 'everyUnit',
-    'phase.covers': 'coversCount', 'phase.covers.count': 'coversCount', 'phase.covers.unit': 'coversUnit', 'phase.maxCycles': 'maxCycles',
-    'phase.payer': 'payerType', 'phase.payer.type': 'payerType', 'phase.payer.personId': 'payerPerson',
+    'phases[0].startsOn': 'startsOn', 'phases[0].endsOn': 'startsOn', 'phases[0].price': 'amount', 'phases[0].price.amount': 'amount',
+    'phases[0].price.currency': 'currency', 'phases[0].every': 'everyCount', 'phases[0].every.count': 'everyCount', 'phases[0].every.unit': 'everyUnit',
+    'phases[0].covers': 'coversCount', 'phases[0].covers.count': 'coversCount', 'phases[0].covers.unit': 'coversUnit', 'phases[0].maxCycles': 'maxCycles',
+    'phases[0].payer': 'payerType', 'phases[0].payer.type': 'payerType', 'phases[0].payer.personId': 'payerPerson',
   };
   return fields[path];
 }

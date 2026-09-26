@@ -24,7 +24,8 @@ public sealed record CreateSubscriptionCommand(
     bool AutoRenew,
     IReadOnlyList<PersonId> Users,
     string? Note,
-    BillingPhase? Phase = null) : ICommand<ItemId>, ICreatesItem;
+    IReadOnlyList<BillingPhase>? Phases = null,
+    IReadOnlyList<PurchaseDraft>? Purchases = null) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
@@ -57,22 +58,30 @@ public sealed record DeletePurchaseCommand(ItemId ItemId, PurchaseId PurchaseId)
 
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
 public sealed class CreateSubscriptionHandler(
-    IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IActorAccessor actor)
+    IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IAccessPolicy policy,
+    IActorAccessor actor)
     : IRequestHandler<CreateSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSubscriptionCommand command, CancellationToken ct = default)
     {
+        var phases = command.Phases ?? [];
+        var drafts = command.Purchases ?? [];
+
         // Design §5: the key names a provider the actor can see and that is not archived. Checked before anything is
         // written, so a refused key leaves no Core item behind.
         if (command.ProviderKey is { } key
             && (await providers.EnsureLinkableAsync(actor.Current?.PersonId, key, ct)).TryGetFailure(out var unknown))
             return Result.Failure<ItemId>(FieldErrors.At(unknown!, "providerKey"));
 
-        // The Core item and the subscription row are two contexts: one transaction, or an orphan item when the
-        // second write fails.
+        // 1E2b1 design §3.1 step 2: every other subscription a grant names, before anything is written.
+        for (var i = 0; i < drafts.Count; i++)
+            if (await GrantTargets.RefusedAsync(policy, actor.Current!, drafts[i], null, $"purchases[{i}]", ct) is { } refused)
+                return Result.Failure<ItemId>(refused);
+
+        // The Core item and the subscription rows are two contexts: one transaction, or an orphan item when a later
+        // write fails. Returning without committing rolls everything back.
         await using var transaction = await unitOfWork.BeginAsync(ct);
 
-        // The Core owns name, owners and visibility, and enforces the ownership invariants.
         var created = await items.CreateAsync(
             new NewItem("subscriptions", "subscription", command.DisplayName, command.Visibility, null, command.Owners), ct);
         if (!created.TryGetValue(out var id))
@@ -83,19 +92,38 @@ public sealed class CreateSubscriptionHandler(
         if (stored.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
 
-        if (command.Phase is { } phase)
+        var purchases = drafts.Select(d => d.ToPurchase(id)).ToList();
+        if (phases.Count > 0 || purchases.Count > 0)
         {
-            // The engine's rules on the phase alone, before it is written: a refusal rolls the item back with it.
-            var input = new SubscriptionInput(new SubscriptionHeader(id, command.AutoRenew, null), [phase], []);
-            if (SubscriptionTimeline.Build(input, phase.StartsOn, phase.StartsOn).TryGetFailure(out var refused))
-                return Result.Failure<ItemId>(FieldErrors.At(refused!, PhasePaths.Of(refused!.Code, "phase")));
-            var added = await store.AddPhaseAsync(id, phase, RowOrigin.None, ct);
-            if (added.TryGetFailure(out var notAdded))
-                return Result.Failure<ItemId>(notAdded!);
+            // The engine's rules on the whole new subscription, before any of it is written; each refusal located.
+            var from = phases.Select(p => p.StartsOn).Concat(purchases.Select(p => p.Date)).Min();
+            var input = new SubscriptionInput(new SubscriptionHeader(id, command.AutoRenew, null), phases, purchases);
+            if (SubscriptionTimeline.Build(input, from, from).TryGetFailure(out var broken))
+                return Result.Failure<ItemId>(Locate(broken!, phases, purchases));
         }
+
+        foreach (var phase in phases)
+            if ((await store.AddPhaseAsync(id, phase, RowOrigin.None, ct)).TryGetFailure(out var notAdded))
+                return Result.Failure<ItemId>(notAdded!);
+        for (var i = 0; i < purchases.Count; i++)
+            if ((await store.AddPurchaseAsync(purchases[i], new RowOrigin(Note: drafts[i].Note), ct)).TryGetFailure(out var notBought))
+                return Result.Failure<ItemId>(notBought!);
 
         await transaction.CommitAsync(ct);
         return Result.Success(id);
+    }
+
+    /// <summary>An engine refusal names a phase or a purchase by id: its path is that entry's in the request.</summary>
+    private static Failure Locate(Failure failure, IReadOnlyList<BillingPhase> phases, IReadOnlyList<Purchase> purchases)
+    {
+        var reference = failure.Metadata is { } metadata && metadata.TryGetValue("reference", out var r) ? r as string : null;
+        for (var i = 0; i < phases.Count; i++)
+            if (phases[i].Id.ToString() == reference)
+                return FieldErrors.At(failure, PhasePaths.Of(failure.Code, $"phases[{i}]"));
+        for (var i = 0; i < purchases.Count; i++)
+            if (purchases[i].Id.ToString() == reference)
+                return PurchasePaths.Locate(failure, $"purchases[{i}]");
+        return failure;
     }
 }
 

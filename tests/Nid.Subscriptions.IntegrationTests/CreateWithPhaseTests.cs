@@ -17,7 +17,7 @@ public class CreateWithPhaseTests(PostgresFixture fixture)
         owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
         providerKey,
         autoRenew = true,
-        phase,
+        phases = phase is null ? null : new[] { phase },
     };
 
     private static object Phase(string amount = "13.49", string startsOn = "2025-01-01", string? endsOn = null, string unit = "month") => new
@@ -58,7 +58,7 @@ public class CreateWithPhaseTests(PostgresFixture fixture)
         var problem = await ProblemOf(response);
         Assert.Equal("request.invalid", problem.GetProperty("code").GetString());
         Assert.Equal(
-            ["phase.every.unit", "phase.price.amount", "phase.startsOn", "visibility"],
+            ["phases[0].every.unit", "phases[0].price.amount", "phases[0].startsOn", "visibility"],
             ErrorsOf(problem).Select(e => e.Path).Order(StringComparer.Ordinal));
     }
 
@@ -74,7 +74,7 @@ public class CreateWithPhaseTests(PostgresFixture fixture)
             Body(app, Phase(startsOn: "2025-03-01", endsOn: "2025-02-01")));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Equal([("phase.endsOn", "subscriptions.phase_range")], ErrorsOf(await ProblemOf(response)));
+        Assert.Equal([("phases[0].endsOn", "subscriptions.phase_range")], ErrorsOf(await ProblemOf(response)));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
             Assert.Equal(items, await core.Items.CountAsync());
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);

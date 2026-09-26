@@ -4178,7 +4178,8 @@ export interface components {
             autoRenew: boolean;
             users?: null | string[];
             note?: null | string;
-            phase?: null | components["schemas"]["PhaseInput"];
+            phases?: null | components["schemas"]["PhaseInput"][];
+            purchases?: null | components["schemas"]["PurchaseInput"][];
         };
         DurationBody: {
             /** Format: int32 */
