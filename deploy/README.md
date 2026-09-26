@@ -279,9 +279,13 @@ docker compose -f deploy/compose.yaml exec nid-api nid admin rebind-subject --pe
   Si plusieurs personnes correspondent, la commande refuse et les liste : relancez avec l'identifiant.
 - `grant-admin` et `rebind-subject` demandent de taper `oui` ; `--yes` s'en passe, par exemple dans un script. Sans
   terminal (`exec -T`) et sans `--yes`, elles refusent sans rien changer.
-- `rebind-subject` ferme aussi les sessions de l'adulte. Le nouveau `sub` se lit dans Authelia (l'identifiant de
-  l'utilisateur, visible par exemple dans `deploy/authelia/users.yml` ou dans les journaux d'Authelia à sa connexion
-  refusée).
+- `rebind-subject` ferme aussi les sessions de l'adulte. Le nouveau `sub` est un identifiant opaque d'Authelia : faites
+  tenter une connexion à l'adulte, que Nid refuse, puis lisez le `sub` de ce refus :
+
+  ```bash
+  docker compose -f deploy/compose.yaml exec -T postgres psql -U nid -d nid -c \
+    "select at, data->>'subject' as sub from platform.audit_log where action = 'login_refused' order by seq desc limit 5"
+  ```
 - **Si l'API ne démarre pas**, lancez la commande dans un conteneur à part, sans `nid` (le point d'entrée de l'image
   est déjà l'hôte) : `docker compose -f deploy/compose.yaml run --rm nid-api admin list-persons`.
 - La CLI n'applique jamais les migrations : si la base n'est pas à jour, elle le dit ; démarrez d'abord `nid-api`.
