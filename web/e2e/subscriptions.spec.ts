@@ -51,4 +51,8 @@ test('alice records a free trial followed by a monthly price', async ({ browser 
 
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
   await expect(alice.getByText('Essai', { exact: false }).first()).toBeVisible(); // the coverage band's legend
+  // The free trial covers one month from 2026-01-01: the monthly price's first charge follows it, on 2026-02-01
+  // (final review, finding 3; 1E2b1 design §5). "Prochaine échéance" moves on with today's date, so the covered
+  // periods table (a historical record) is what shows this first charge, not that paragraph.
+  await expect(alice.getByRole('row', { name: /^1 février 2026.*Payé/ })).toBeVisible();
 });

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -53,20 +53,55 @@ describe('Abonnements › ajout › offres', () => {
     await user.type(screen.getByLabelText('Prix payé'), '179,86');
     await user.clear(screen.getByLabelText('Durée payée'));
     await user.type(screen.getByLabelText('Durée payée'), '24');
-    await user.type(screen.getByLabelText('Mois offerts'), '3');
+    // The bonus duration's unit can be days or weeks, not just months: its label must not name one (final
+    // review, finding 4).
+    await user.type(screen.getByLabelText('Durée offerte'), '3');
     await expectNoAxeViolations(container);
     await next(user);
     expect(screen.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
+    // The hint names the covered period, not an "offered" one: a bought or launch-priced term is covered
+    // too, not offered (final review, finding 4).
+    expect(screen.getByText('La facturation commence quand la période couverte se termine.')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Montant'), '9,99');
     await expectNoAxeViolations(container);
     await next(user);
+    // The gender-neutral wording must hold for any unit ("mois" masculine, "semaine(s)" feminine) — final
+    // review, finding 4.
+    const summary = await screen.findByRole('region', { name: 'Récapitulatif' });
+    expect(summary).toHaveTextContent('Payé : 24 mois ; offert : 3 mois');
     await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
 
     await screen.findByText(/introuvable/i);
     expect(fake.bodies[0]).toMatchObject({
       purchases: [{ kind: 'prepaid_term', grants: [{ source: 'paid', duration: { count: 24 } }, { source: 'bonus', duration: { count: 3 } }] }],
-      phases: [{ startsOn: '2025-01-01', price: { amount: '9.99' } }],
+      // The covered term runs to 2027-04-01 (24 paid + 3 bonus months from 2025-01-01): the normal price
+      // must not start before then (final review, finding 2).
+      phases: [{ startsOn: '2027-04-01', price: { amount: '9.99' } }],
     });
+  });
+
+  // Final review, finding 2: the following phase's start (and the summary's first charge) must follow the
+  // purchase date even after it is changed once "Et ensuite ?" already computed a (now stale) value.
+  it('keeps the following phase\'s start in step with a purchase date changed after "Et ensuite ?"', async () => {
+    const fake = serve();
+    const { user } = await begin(/Prépayé/);
+    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText('Prix payé'), '179,86'); // paidCount defaults to 12 months, no bonus
+    await next(user); // -> "Et ensuite ?": computes startsOn from the 2025-01-01 purchase
+    expect(screen.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
+    await user.type(screen.getByLabelText('Montant'), '9,99');
+    await user.click(screen.getByRole('button', { name: 'Retour' })); // -> offer, unvalidated
+    await user.clear(screen.getByLabelText("Date d'achat"));
+    await user.type(screen.getByLabelText("Date d'achat"), '2025-06-01');
+    await next(user); // -> "Et ensuite ?" again: startsOn must follow the new date, not the stale one
+    await next(user); // -> summary
+
+    const summary = await screen.findByRole('region', { name: 'Récapitulatif' });
+    expect(summary).toHaveTextContent('1 juin 2026'); // 2025-06-01 + 12 paid months
+    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+
+    await screen.findByText(/introuvable/i);
+    expect(fake.bodies[0]).toMatchObject({ phases: [{ startsOn: '2026-06-01' }] });
   });
 
   it('records a launch price with its normal price, the next start computed', async () => {
@@ -169,5 +204,56 @@ describe('Abonnements › ajout › offres', () => {
     await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
 
     expect(await screen.findByLabelText('Montant')).toHaveAccessibleDescription(/montant/i);
+  });
+
+  // Final review, finding 1 (scenario A): a hidden payerPerson, left over from turning the following phase on
+  // then off again, must not block "Continuer".
+  it('does not block "Continuer" on a hidden payer left empty after turning the following phase off', async () => {
+    serve();
+    const { user } = await begin(/Prépayé/);
+    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText('Prix payé'), '179,86');
+    await next(user); // -> "Et ensuite ?": prepaid defaults it on
+    expect(screen.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'Une personne' })); // payerPerson left on "Aucun"
+    await user.click(screen.getByRole('radio', { name: "Rien pour l'instant" })); // then off: the payer is now hidden
+    await next(user);
+
+    await screen.findByRole('region', { name: 'Récapitulatif' });
+  });
+
+  // Final review, finding 1 (scenario B): a hidden offerPayerPerson, left over from "Achetée", must not block
+  // the offer step once the gift is "Reçue" again.
+  it('does not block "Continuer" on a hidden gift payer left empty after switching back to "Reçue"', async () => {
+    serve();
+    const { user } = await begin(/Carte cadeau/);
+    await user.type(screen.getByLabelText('Date'), '2025-01-01');
+    await user.click(screen.getByRole('radio', { name: 'Achetée' }));
+    await user.click(screen.getByRole('radio', { name: 'Une personne' })); // offerPayerPerson left on "Aucun"
+    await user.click(screen.getByRole('radio', { name: 'Reçue' })); // the payer fields are now hidden
+    await next(user);
+
+    expect(screen.getByRole('group', { name: 'Et ensuite ?' })).toBeInTheDocument();
+  });
+
+  // Final review, finding 1 (scenario C): a stale offerPayerPerson from a prepaid offer, kept after an
+  // unvalidated "Retour" to the type step, must not silently block the final submit for a recurring offer.
+  it('submits a recurring offer after a stale hidden payer was left from a prepaid offer', async () => {
+    const fake = serve();
+    const { user } = await begin(/Prépayé/);
+    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText('Prix payé'), '179,86');
+    await user.click(screen.getByRole('radio', { name: 'Une personne' })); // offerPayerPerson left on "Aucun"
+    await user.click(screen.getByRole('button', { name: 'Retour' })); // -> common, unvalidated
+    await user.click(screen.getByRole('button', { name: 'Retour' })); // -> type, unvalidated
+    await user.click(screen.getByRole('radio', { name: /Récurrent/ }));
+    await next(user); // -> common
+    await next(user); // -> offer (recurring)
+    await user.type(await screen.findByLabelText('Début'), '2025-01-01');
+    await user.type(screen.getByLabelText('Montant'), '9,99');
+    await next(user); // -> summary
+    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+
+    await waitFor(() => expect(fake.bodies).toHaveLength(1));
   });
 });

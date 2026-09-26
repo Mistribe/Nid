@@ -66,13 +66,9 @@ export function wizardSchema(t: TFunction) {
       ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_share_sum') });
     if (v.visibility === 'private' && v.owners.length !== 1)
       ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_private_single_owner') });
-    if (!v.sameCovers && !POSITIVE_COUNT.test(v.coversCount))
-      ctx.addIssue({ code: 'custom', path: ['coversCount'], message: t('edit.invalid_count') });
-    if (v.payerType === 'person' && v.payerPerson === '')
-      ctx.addIssue({ code: 'custom', path: ['payerPerson'], message: t('edit.required') });
-
     // The 1E2a phase fields: checked only when a phase is actually sent (the recurring offer always sends
-    // one, others only when "then" asks for the following phase, or the launch price requires it). The
+    // one, others only when "then" asks for the following phase, or the launch price requires it), so a
+    // hidden field left over from an earlier choice never blocks the wizard (final review, finding 1). The
     // launch price never reads `startsOn` (its phases start on `offerDate` and `nextStartsOn`), so it is
     // exempted from that one check, but still reuses `amount`/`everyCount`/`maxCycles` for its normal-price
     // phase.
@@ -82,6 +78,10 @@ export function wizardSchema(t: TFunction) {
       if (!AMOUNT.test(v.amount.trim())) ctx.addIssue({ code: 'custom', path: ['amount'], message: t('edit.invalid_amount') });
       if (!POSITIVE_COUNT.test(v.everyCount)) ctx.addIssue({ code: 'custom', path: ['everyCount'], message: t('edit.invalid_count') });
       if (!/^([1-9]\d*)?$/.test(v.maxCycles)) ctx.addIssue({ code: 'custom', path: ['maxCycles'], message: t('edit.invalid_count') });
+      if (!v.sameCovers && !POSITIVE_COUNT.test(v.coversCount))
+        ctx.addIssue({ code: 'custom', path: ['coversCount'], message: t('edit.invalid_count') });
+      if (v.payerType === 'person' && v.payerPerson === '')
+        ctx.addIssue({ code: 'custom', path: ['payerPerson'], message: t('edit.required') });
     }
 
     switch (v.offer) {
@@ -125,7 +125,10 @@ export function wizardSchema(t: TFunction) {
       case 'recurring':
         break;
     }
-    if (v.offerPayerType === 'person' && v.offerPayerPerson === '')
+    // Only a purchase that actually records this payer sends it (final review, finding 1): the trial's
+    // purchase always pays the household, and a received gift always pays outside it.
+    const offerPayerSent = v.offer === 'prepaid' || v.offer === 'bundle' || (v.offer === 'gift' && !v.giftReceived);
+    if (offerPayerSent && v.offerPayerType === 'person' && v.offerPayerPerson === '')
       ctx.addIssue({ code: 'custom', path: ['offerPayerPerson'], message: t('edit.required') });
   });
 }

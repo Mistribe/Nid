@@ -12,14 +12,14 @@ import { Button } from '@/components/ui/button';
 import { invalidateSubscriptions, LIST, PERSONS } from './api';
 import { useSubmitErrors } from './edits/useSubmitErrors';
 import { fieldErrorsOf } from './fieldErrors';
-import { stepOfPath, stepsFor, type Offer, type StepName } from './wizard/offers';
+import { stepOfPath, stepsFor, thenMode, type Offer, type StepName } from './wizard/offers';
 import { Bundle } from './wizard/offers/Bundle';
 import type { Form, Person } from './wizard/offers/fields';
 import { Gift } from './wizard/offers/Gift';
 import { Prepaid } from './wizard/offers/Prepaid';
 import { leaveTrial, Trial } from './wizard/offers/Trial';
 import { fieldOf, toCreateBody, wizardSchema, type WizardValues } from './wizard/schema';
-import { CommonStep, RecurringOffer, SummaryStep } from './wizard/steps';
+import { CommonStep, fillFollowingStart, RecurringOffer, SummaryStep } from './wizard/steps';
 import { ThenStep } from './wizard/ThenStep';
 import { TypeStep } from './wizard/TypeStep';
 
@@ -27,25 +27,34 @@ type Fields = Path<WizardValues>[];
 const PURCHASE: Fields = ['offerDate', 'offerLabel', 'offerAmount', 'currency', 'offerPayerType', 'offerPayerPerson'];
 const PHASE: Fields = ['amount', 'currency', 'everyCount', 'everyUnit', 'sameCovers', 'coversCount', 'coversUnit', 'maxCycles', 'payerType', 'payerPerson'];
 
-/** The fields the offer step checks before going on, by offer (1E2b1 design §4.1). */
-function offerFields(offer: Offer, trialVariant: WizardValues['trialVariant']): Fields {
-  switch (offer) {
+/** The fields the offer step checks before going on, by offer (1E2b1 design §4.1); never a field the current
+ * choice hides (final review, finding 1), so a stale value left there cannot block "Continuer". */
+function offerFields(v: WizardValues): Fields {
+  switch (v.offer) {
     case 'recurring': return ['startsOn', ...PHASE];
     case 'prepaid': return [...PURCHASE, 'paidCount', 'paidUnit', 'bonusCount', 'bonusUnit'];
-    case 'trial': return trialVariant === 'free'
+    case 'trial': return v.trialVariant === 'free'
       ? ['trialVariant', 'offerDate', 'durationCount', 'durationUnit']
       : ['trialVariant', 'offerDate', 'launchAmount', 'currency', 'everyCount', 'everyUnit', 'launchCycles'];
-    case 'gift': return ['offerDate', 'offerLabel', 'giftReceived', 'offerAmount', 'currency', 'offerPayerType', 'offerPayerPerson', 'durationCount', 'durationUnit'];
+    case 'gift': {
+      const base: Fields = ['offerDate', 'offerLabel', 'giftReceived', 'durationCount', 'durationUnit'];
+      return v.giftReceived ? base : [...base, 'offerAmount', 'currency', 'offerPayerType', 'offerPayerPerson'];
+    }
     case 'bundle': return [...PURCHASE, 'allocated', 'durationCount', 'durationUnit', 'others'];
   }
 }
 
-const stepFields = (name: StepName, offer: Offer, trialVariant: WizardValues['trialVariant']): Fields => {
+const stepFields = (name: StepName, v: WizardValues): Fields => {
   switch (name) {
     case 'type': return ['offer'];
     case 'common': return ['provider', 'displayName', 'visibility', 'owners', 'users', 'note'];
-    case 'offer': return offerFields(offer, trialVariant);
-    case 'then': return ['then', 'startsOn', 'nextStartsOn', ...PHASE];
+    case 'offer': return offerFields(v);
+    case 'then': {
+      const mode = thenMode(v);
+      if (mode === 'none') return [];
+      if (mode === 'required') return ['nextStartsOn', ...PHASE];
+      return v.then ? ['then', 'startsOn', ...PHASE] : ['then'];
+    }
     case 'summary': return [];
   }
 };
@@ -100,13 +109,15 @@ export function NewSubscription() {
   }, [pendingErrors, step, errors]);
 
   const offer = form.watch('offer');
-  const trialVariant = form.watch('trialVariant');
   const steps = stepsFor(offer);
   const name = steps[step] ?? 'summary';
   const last = step === steps.length - 1;
   const next = async () => {
-    if (!(await form.trigger(stepFields(name, offer, trialVariant)))) return;
-    if (name === 'offer' && offer === 'trial') leaveTrial(form, t('wizard.offer.trial_label'));
+    if (!(await form.trigger(stepFields(name, form.getValues())))) return;
+    if (name === 'offer') {
+      if (offer === 'trial') leaveTrial(form, t('wizard.offer.trial_label'));
+      if (thenMode(form.getValues()) === 'optional') fillFollowingStart(form);
+    }
     setStep(step + 1);
   };
   const titles: Record<StepName, string> = {

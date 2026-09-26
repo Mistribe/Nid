@@ -133,13 +133,37 @@ type Values = WizardValues;
 const valid = (date: string) => ISO_DATE.test(date);
 const plus = (date: string, count: string, unit: Unit) => (/^[1-9]\d*$/.test(count) ? addDuration(date, Number(count), unit) : date);
 
-/** 1E2b1 design §4.1 step 4: when the first charge falls, by offer; nothing when no phase follows the offer. */
+/** When the offer's covered term ends: the earliest the following phase may start (1E2b1 design §4.1 step 4). */
+function coverageEnd(v: Values): string | null {
+  if (!valid(v.offerDate)) return null;
+  if (v.offer === 'prepaid') return plus(plus(v.offerDate, v.paidCount, v.paidUnit), v.bonusCount, v.bonusUnit);
+  return plus(v.offerDate, v.durationCount, v.durationUnit);
+}
+
+/**
+ * Leaving the offer step for an offer that may be followed by a phase: keep that phase's start in step with
+ * the coverage end, unless the person already typed their own — final review, finding 2. `isTouched` (not
+ * `isDirty`, which leaveTrial uses for `nextStartsOn`) is the field the person actually edited: `isDirty`
+ * also turns true here once any other field changes, since it compares the whole form to its defaults.
+ */
+export function fillFollowingStart(form: Form): void {
+  if (form.getFieldState('startsOn').isTouched) return;
+  const end = coverageEnd(form.getValues());
+  if (end !== null) form.setValue('startsOn', end);
+}
+
+/**
+ * 1E2b1 design §4.1 step 4: when the first charge falls, by offer; nothing when no phase follows the offer.
+ * The following phase's real start (`startsOn`) may already sit later than the coverage end (the person
+ * typed their own date): the first charge is then the later of the two (final review, finding 2).
+ */
 export function firstCharge(v: Values): string | null {
   if (v.offer === 'recurring') return v.startsOn;
   if (v.offer === 'trial' && v.trialVariant === 'launch') return v.offerDate;
-  if (!v.then || !valid(v.offerDate)) return null;
-  if (v.offer === 'prepaid') return plus(plus(v.offerDate, v.paidCount, v.paidUnit), v.bonusCount, v.bonusUnit);
-  return plus(v.offerDate, v.durationCount, v.durationUnit);
+  if (!v.then) return null;
+  const end = coverageEnd(v);
+  if (end === null) return null;
+  return valid(v.startsOn) && v.startsOn > end ? v.startsOn : end;
 }
 
 export function SummaryStep({ form, persons }: { form: Form; persons: Person[] }) {

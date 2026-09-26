@@ -239,7 +239,7 @@
     "summary_purchase": "Achat",
     "summary_first_charge": "Première facturation",
     "summary_phase": "{{price}}, période : {{period}}, à partir du {{date}}",
-    "summary_durations": "{{paid}} + {{bonus}} offerts",
+    "summary_durations": "Payé : {{paid}} ; offert : {{bonus}}",
     "offer": {
       "legend": "Type d'offre",
       "recurring": "Récurrent",
@@ -257,7 +257,7 @@
       "prepaid_label": "{{name}} — prépayé",
       "paid_price": "Prix payé",
       "paid_duration": "Durée payée",
-      "bonus_duration": "Mois offerts",
+      "bonus_duration": "Durée offerte",
       "bonus_hint": "Laissez vide s'il n'y en a pas",
       "trial_variant": "Type d'essai",
       "trial_free": "Essai gratuit",
@@ -291,7 +291,7 @@
       "recurring": "Un abonnement récurrent",
       "required_title": "Prix normal ensuite",
       "next_start": "Début du prix normal",
-      "hint": "La facturation commence quand la période offerte se termine."
+      "hint": "La facturation commence quand la période couverte se termine."
     }
   },
   "field_error": {

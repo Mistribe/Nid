@@ -1,19 +1,19 @@
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DateField, type Form, type Person } from './offers/fields';
 import { thenMode } from './offers';
 import { RecurringOffer } from './steps';
 
-/** 1E2b1 design §4.1 "Et ensuite ?": the phase that follows the offer; required after a launch price. */
+/**
+ * 1E2b1 design §4.1 "Et ensuite ?": the phase that follows the offer; required after a launch price. The
+ * following phase's start is filled (and kept in step with the purchase date) when leaving the offer step,
+ * by `fillFollowingStart` (final review, finding 2), not here.
+ */
 export function ThenStep({ form, persons }: { form: Form; persons: Person[] }) {
   const { t } = useTranslation();
   const titleId = useId();
   const mode = thenMode({ offer: form.watch('offer'), trialVariant: form.watch('trialVariant') });
   const on = form.watch('then');
-
-  useEffect(() => {
-    if (form.getValues('startsOn') === '') form.setValue('startsOn', form.getValues('offerDate'));
-  }, [form]);
 
   if (mode === 'required') {
     return (
