@@ -430,6 +430,13 @@ public sealed class NidApp : IAsyncDisposable
         return key;
     }
 
+    /// <summary>The adult's current session epoch, read from the database.</summary>
+    public async Task<int> EpochOfAsync(PersonId person)
+    {
+        await using var core = PostgresFixture.NewCoreContext(ConnectionString);
+        return (await core.Persons.SingleAsync(p => p.Id == person.Value)).SessionEpoch;
+    }
+
     public ValueTask DisposeAsync()
     {
         factory.Dispose();

@@ -39,6 +39,15 @@ public static class PersonEndpoints
                 .ToHttp(p => p))
             .Returns<Preferences>();
 
+        // "Déconnecter partout" for oneself (administration-and-audit.md §5, 1F3a spec U16). The success branch
+        // is written explicitly: ToHttp's Results.Json(null, statusCode: 204) would still write a JSON body,
+        // which a 204 must not carry.
+        api.MapPost("/me/revoke-sessions", async (IInvoker invoker, CancellationToken ct) =>
+        {
+            var result = await invoker.InvokeAsync(new RevokeMySessionsCommand(), ct);
+            return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+        }).Produces<object>(StatusCodes.Status204NoContent);
+
         return routes;
     }
 

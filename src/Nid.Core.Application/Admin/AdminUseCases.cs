@@ -20,17 +20,40 @@ public sealed record HouseholdSettingsView(int MaxAdults, string ReferenceCurren
 
 public sealed record ListAdultsQuery : IQuery<IReadOnlyList<AdultView>>, IAdminOnly;
 
-public sealed record PreRegisterAdultCommand(string DisplayName, string Email) : ICommand<AdultView>, IAdminOnly;
+public sealed record PreRegisterAdultCommand(string DisplayName, string Email) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent EventFor(object response)
+        => SecurityEvent.Of(SecurityEventNames.PersonPreregistered, new PersonId(((AdultView)response).Id));
+}
 
-public sealed record DeletePendingAdultCommand(PersonId Person) : ICommand<PersonId>, IAdminOnly;
+public sealed record DeletePendingAdultCommand(PersonId Person) : ICommand<PersonId>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.PersonPreregistrationCancelled, Person);
+}
 
-public sealed record SetAdminCommand(PersonId Person, bool IsAdmin) : ICommand<AdultView>, IAdminOnly;
+public sealed record SetAdminCommand(PersonId Person, bool IsAdmin) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent EventFor(object response)
+        => SecurityEvent.Of(IsAdmin ? SecurityEventNames.AdminGranted : SecurityEventNames.AdminRevoked, Person);
+}
 
-public sealed record RevokeSessionsCommand(PersonId Person) : ICommand<AdultView>, IAdminOnly;
+public sealed record RevokeSessionsCommand(PersonId Person) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.SessionRevoked, Person);
+}
 
 public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, IAdminOnly;
 
-public sealed record UpdateHouseholdSettingsCommand(int? MaxAdults, string? ReferenceCurrency) : ICommand<HouseholdSettingsView>, IAdminOnly;
+public sealed record UpdateHouseholdSettingsCommand(int? MaxAdults, string? ReferenceCurrency)
+    : ICommand<HouseholdSettingsView>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent EventFor(object response)
+    {
+        var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency" };
+        return new SecurityEvent(SecurityEventNames.HouseholdSettingsChanged, null, [],
+            new Dictionary<string, string> { ["fields"] = string.Join(",", fields.OfType<string>()) });
+    }
+}
 
 [RequestHandler<ListAdultsQuery, IReadOnlyList<AdultView>>]
 public sealed class ListAdultsHandler(IPersonRegistry persons) : IRequestHandler<ListAdultsQuery, IReadOnlyList<AdultView>>

@@ -7,7 +7,7 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform;
 
-/// <summary>Where an access violation is recorded. 1F routes this to the audit log and an alert.</summary>
+/// <summary>Where an access violation is recorded: the log and the audit (1F3a); the email waits for the notification channel (spec U14).</summary>
 public interface IAccessViolations
 {
     ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct);
@@ -25,6 +25,18 @@ public sealed partial class LoggingAccessViolations(ILogger<LoggingAccessViolati
     [LoggerMessage(Level = LogLevel.Critical, EventId = 4001,
         Message = "access_violation: {Request} exposed {Count} item(s) outside the actor's visible set")]
     private partial void LogViolation(string request, int count);
+}
+
+/// <summary>1F3a: the violation is logged (Critical, whatever happens) and recorded as a security event.</summary>
+public sealed class AuditedAccessViolations(LoggingAccessViolations log, ISecurityEvents events) : IAccessViolations
+{
+    public async ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
+    {
+        await log.RecordAsync(request, actor, leaked, ct);
+        await events.RecordAsync(new SecurityEvent(
+            SecurityEventNames.AccessViolation, actor == default ? null : actor, leaked.ToList(),
+            new Dictionary<string, string> { ["request"] = request }), ct);
+    }
 }
 
 /// <summary>

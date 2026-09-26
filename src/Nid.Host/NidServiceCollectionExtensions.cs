@@ -10,6 +10,7 @@ using Nid.Host.Admin;
 using Nid.Host.Jobs;
 using Nid.Platform;
 using Nid.Platform.Admin;
+using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
 using Nid.Platform.Export;
 using Nid.Platform.Import;
@@ -68,7 +69,10 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IItemRules, ItemRules>();
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();
-        services.AddSingleton<IAccessViolations, LoggingAccessViolations>();
+        services.AddSingleton<LoggingAccessViolations>();
+        services.AddScoped<IAccessViolations, AuditedAccessViolations>();
+        services.AddScoped<ISecurityEvents, SecurityEventWriter>();
+        services.AddSingleton<AccessDeniedThrottle>();
         services.AddSingleton(new EnabledModules(["core", "subscriptions", "import"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults

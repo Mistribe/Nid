@@ -130,6 +130,7 @@ public static class RequestCatalogue
         new(typeof(DeletePendingAdultCommand), false, (_, _) => new DeletePendingAdultCommand(PersonId.New())),
         new(typeof(SetAdminCommand), false, (data, _) => new SetAdminCommand(data.App.AdultB, false)),
         new(typeof(RevokeSessionsCommand), false, (data, _) => new RevokeSessionsCommand(data.App.AdultB)),
+        new(typeof(RevokeMySessionsCommand), false, (_, _) => new RevokeMySessionsCommand()),
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null)),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),

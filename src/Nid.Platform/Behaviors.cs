@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Nid.Core.Contracts;
+using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -101,7 +102,8 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
 /// (<see cref="IItemScoped"/>) and, for a request that creates one (<see cref="ICreatesItem"/>), against the
 /// owners it names — the one access rule of §5 that cannot be expressed as a check on an existing item.
 /// </summary>
-public sealed class ItemAccessBehavior<TRequest, TResponse>(IActorAccessor accessor, IAccessPolicy policy)
+public sealed class ItemAccessBehavior<TRequest, TResponse>(
+    IActorAccessor accessor, IAccessPolicy policy, ISecurityEvents events, AccessDeniedThrottle throttle)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
@@ -119,16 +121,31 @@ public sealed class ItemAccessBehavior<TRequest, TResponse>(IActorAccessor acces
         {
             var check = await policy.CheckAsync(person, scoped.ItemId, scoped.Access, cancellationToken);
             if (check.TryGetFailure(out var failure))
+            {
+                await DeniedAsync(person, scoped.ItemId, scoped.Access.ToString().ToLowerInvariant(), cancellationToken);
                 return Result.Failure<TResponse>(failure!);
+            }
         }
 
         if (request is ICreatesItem creating)
         {
             var check = await policy.CheckCreationAsync(person, creating.Owners, cancellationToken);
             if (check.TryGetFailure(out var failure))
+            {
+                await DeniedAsync(person, null, "create", cancellationToken);
                 return Result.Failure<TResponse>(failure!);
+            }
         }
 
         return await next(request, cancellationToken);
+    }
+
+    private async Task DeniedAsync(PersonId person, ItemId? item, string access, CancellationToken ct)
+    {
+        if (!throttle.ShouldRecord(person.Value, item?.Value ?? Guid.Empty))
+            return;
+        await events.RecordAsync(new SecurityEvent(
+            SecurityEventNames.AccessDenied, person, item is { } id ? [id] : [],
+            new Dictionary<string, string> { ["access"] = access }), ct);
     }
 }

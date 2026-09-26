@@ -1,3 +1,4 @@
+using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -10,17 +11,20 @@ public sealed class AuditRequest
 }
 
 /// <summary>Pipeline stage "Audit", right after the actor is known (1F3a spec §4.1).</summary>
-public sealed class AuditBehavior<TRequest, TResponse>(AuditRequest audit)
+public sealed class AuditBehavior<TRequest, TResponse>(AuditRequest audit, ISecurityEvents events)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
 {
     public uint Order => PipelineOrder.Audit;
 
-    public ValueTask<Result<TResponse>> HandleAsync(
+    public async ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
         audit.Name ??= typeof(TRequest).Name;
-        return next(request, cancellationToken);
+        var result = await next(request, cancellationToken);
+        if (request is IRecordsSecurityEvent declared && result.TryGetValue(out var response))
+            await events.RecordAsync(declared.EventFor(response), cancellationToken);
+        return result;
     }
 }

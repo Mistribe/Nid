@@ -296,6 +296,23 @@
         }
       }
     },
+    "/api/v1/core/me/revoke-sessions": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": {
+                "schema": { }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/subscriptions": {
       "get": {
         "tags": [
