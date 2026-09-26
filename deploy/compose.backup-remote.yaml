@@ -1,0 +1,5 @@
+# Opens the way out to a remote restic repository (1F2 design §3): the backup services join egress, nothing else does.
+# docker compose -f deploy/compose.yaml -f deploy/compose.backup-remote.yaml up -d
+services:
+  backup:
+    networks: [data, egress]

@@ -3,13 +3,18 @@
 # if every check passed. Throwaway: never run it on a real deployment.
 set -euo pipefail
 cd "$(dirname "$0")"
-COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml)
+# The throwaway remote (an append-only rest-server) is on egress: backup reaches it only through the remote overlay.
+COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml -f local/compose.backup-test.yaml)
+REMOTE=("${COMPOSE[@]}" -f compose.backup-remote.yaml)
+RR='restic --no-cache --repository-file /run/backup-secrets/remote_repository --password-file /run/backup-secrets/restic_password'
 R='restic --no-cache --repo /repo --password-file /run/backup-secrets/restic_password'
 fail() { echo "FAIL: $*" >&2; exit 1; }
 backup() { "${COMPOSE[@]}" exec -T backup nid-backup "$@"; }
 in_backup() { "${COMPOSE[@]}" exec -T backup sh -c "$1"; }
 snapshots() { in_backup "$R snapshots --json | jq length"; }
 
+# A previous run left its remote configured: the first checks are about the local repository alone.
+rm -f backup-secrets/remote_repository
 "${COMPOSE[@]}" up -d --build --wait --wait-timeout 180
 echo "ok: the backup service is up and healthy before its first run"
 
@@ -53,3 +58,19 @@ if "${COMPOSE[@]}" run --rm --no-deps -T -e NID_BACKUP_AT=25:00 backup schedule 
 fi
 grep -q "NID_BACKUP_AT invalide" /tmp/nid-backup-at.log || fail "no message for a bad NID_BACKUP_AT"
 echo "ok: a bad NID_BACKUP_AT stops the scheduler with a message"
+
+# Review Focus 5: a remote configured without the overlay fails within bounded time, keeps the local snapshot.
+echo 'rest:http://backup-remote-test:8000/nid' > backup-secrets/remote_repository
+start=$(date +%s)
+backup backup-now || fail "the local backup failed because of the remote"
+[ $(( $(date +%s) - start )) -lt 180 ] || fail "an unreachable remote took $(( $(date +%s) - start )) s"
+if backup status >/dev/null; then fail "healthy with an unreachable remote"; fi
+health=$(backup status || true)
+[[ $health == *"dépôt distant : unreachable"* ]] || fail "status: $health"
+echo "ok: an unreachable remote is reported, the local backup still happens"
+
+NID_BACKUP_REMOTE_FORGET=false "${REMOTE[@]}" up -d --wait --wait-timeout 120 backup
+backup backup-now
+backup status >/dev/null || fail "unhealthy with a reachable remote: $(backup status)"
+[ "$("${REMOTE[@]}" exec -T backup sh -c "$RR snapshots --json | jq length")" -ge 1 ] || fail "no remote snapshot"
+echo "ok: the remote overlay sends each snapshot to an append-only remote"

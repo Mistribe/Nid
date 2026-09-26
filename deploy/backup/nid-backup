@@ -104,13 +104,34 @@ run_once() {
   local_restic forget --host nid --tag nid --prune $NID_BACKUP_KEEP >/dev/null
   if [ "$(date +%u)" = 7 ]; then step check; local_restic check >/dev/null; fi
 
+  # A remote failure fails the remote result, never the local backup.
   step remote
   remote=none
+  if remote_configured; then
+    rc=0; "$SELF" copy-remote "$snapshot" || rc=$?
+    case $rc in 0) remote=ok ;; 3) remote=unreachable ;; *) remote=failed ;; esac
+  fi
 
   write_status ok "$remote" "$snapshot" "$(date +%s)"
   rm -rf "$STAGE" /tmp/pgpass
   log "sauvegarde réussie : instantané $snapshot, $(echo "$summary" | jq -r '.data_added') octets ajoutés," \
     "$(( $(date +%s) - started )) s, dépôt distant : $remote"
+}
+
+# copy-remote SNAPSHOT: sends one local snapshot to the remote (exit 3: unreachable or unreadable). Bounded: restic
+# retries a missing host for minutes, the probe gets 60 s.
+copy_remote() {
+  rc=0; timeout 60 "$SELF" probe-remote || rc=$?
+  case $rc in
+    0) ;;
+    10) log "création du dépôt distant"; remote_restic init >/dev/null || exit 3 ;;
+    *) log "dépôt distant injoignable ou illisible (code $rc)"; exit 3 ;;
+  esac
+  remote_restic copy --from-repo "$REPO" --from-password-file "$SECRETS/restic_password" "$1" >/dev/null
+  if [ "$NID_BACKUP_REMOTE_FORGET" = true ]; then
+    # shellcheck disable=SC2086 # NID_BACKUP_KEEP is a list of options
+    remote_restic forget --host nid --tag nid --prune $NID_BACKUP_KEEP >/dev/null
+  fi
 }
 
 # One run under the lock: a manual run waits for the nightly one instead of failing.
@@ -154,6 +175,8 @@ case ${1:-schedule} in
   schedule) schedule ;;
   backup-now) backup_now ;;
   run-once) run_once ;;
+  copy-remote) copy_remote "$2" ;;
+  probe-remote) remote_restic cat config >/dev/null 2>&1 ;;
   status) status ;;
   *) die "commande inconnue : $1" ;;
 esac

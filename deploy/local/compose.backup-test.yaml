@@ -1,0 +1,12 @@
+# Throwaway remote for deploy/backup-smoke.sh (1F2 design §8): an append-only rest-server, on egress like a real remote.
+services:
+  backup-remote-test:
+    image: restic/rest-server:0.14.0@sha256:d2aff06f47eb38637dff580c3e6bce4af98f386c396a25d32eb6727ec96214a5
+    environment:
+      DISABLE_AUTHENTICATION: "1"
+      OPTIONS: --append-only
+    tmpfs: [/data]
+    # remote-test has a fixed name so that restore.sh --verify's own project can join it (--compose-file, Task 4).
+    networks: [egress, remote-test]
+networks:
+  remote-test: { name: nid-remote-test }
