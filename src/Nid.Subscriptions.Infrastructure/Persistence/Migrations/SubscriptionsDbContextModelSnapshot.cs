@@ -25,6 +25,105 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Audit.AuditEntryRow", b =>
+                {
+                    b.Property<long>("Seq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("seq");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Seq"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorKind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("actor_kind");
+
+                    b.Property<Instant>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Entity")
+                        .HasColumnType("text")
+                        .HasColumnName("entity");
+
+                    b.Property<string>("EntityKey")
+                        .HasColumnType("text")
+                        .HasColumnName("entity_key");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.PrimitiveCollection<Guid[]>("ItemIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("item_ids");
+
+                    b.Property<Guid?>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<string>("Request")
+                        .HasColumnType("text")
+                        .HasColumnName("request");
+
+                    b.Property<string>("RequestId")
+                        .HasColumnType("text")
+                        .HasColumnName("request_id");
+
+                    b.PrimitiveCollection<string[]>("Scopes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("scopes");
+
+                    b.Property<Guid?>("SubjectPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("subject_person_id");
+
+                    b.Property<string>("Via")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("via");
+
+                    b.HasKey("Seq")
+                        .HasName("pk_audit_log");
+
+                    b.HasIndex("ItemIds")
+                        .HasDatabaseName("ix_audit_log_item_ids");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("ItemIds"), "gin");
+
+                    b.HasIndex("SubjectPersonId", "Seq")
+                        .HasDatabaseName("ix_audit_log_subject_person_id_seq")
+                        .HasFilter("category = 'security'");
+
+                    b.HasIndex("Category", "Action", "Seq")
+                        .HasDatabaseName("ix_audit_log_category_action_seq");
+
+                    b.ToTable("audit_log", "platform", t =>
+                        {
+                            t.ExcludeFromMigrations();
+
+                            t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Subscriptions.Infrastructure.Persistence.BillingPhaseRow", b =>
                 {
                     b.Property<Guid>("Id")

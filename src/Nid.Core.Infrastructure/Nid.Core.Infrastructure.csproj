@@ -9,5 +9,6 @@
     <ProjectReference Include="..\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Core.Domain\Nid.Core.Domain.csproj" />
     <ProjectReference Include="..\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

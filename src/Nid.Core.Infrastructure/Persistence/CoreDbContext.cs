@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Nid.Platform.Infrastructure.Audit;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
@@ -102,6 +103,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.StartedAt);
         });
 
+        modelBuilder.MapAuditLog(ownedHere: false);
         ApplySnakeCase(modelBuilder);
     }
 

@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Nid.Platform.Infrastructure.Audit;
 
 namespace Nid.Subscriptions.Infrastructure.Persistence;
 
@@ -145,6 +146,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             e.HasIndex(x => x.StartedAt);
         });
 
+        modelBuilder.MapAuditLog(ownedHere: false);
         ApplySnakeCase(modelBuilder);
     }
 

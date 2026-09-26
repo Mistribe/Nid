@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Nid.Platform.Infrastructure.Audit;
 
 namespace Nid.Platform.Infrastructure.Persistence;
 
@@ -10,6 +11,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ImportSessionRow> Sessions => Set<ImportSessionRow>();
     public DbSet<ImportBatchRow> Batches => Set<ImportBatchRow>();
+    public DbSet<AuditEntryRow> AuditLog => Set<AuditEntryRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +42,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.Payload).HasColumnType("jsonb");
         });
 
+        modelBuilder.MapAuditLog(ownedHere: true);
         ApplySnakeCase(modelBuilder);
     }
 
