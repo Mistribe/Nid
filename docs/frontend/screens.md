@@ -8,7 +8,7 @@
 ## 1. Navigation
 
 - **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Validation (avec badge), Plus. Il n'existe pas encore de menu « Plus » : en attendant, **Administration** rejoint directement la barre d'onglets, au même niveau que les autres entrées, pour un admin seulement.
-- **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import/Export, Sécurité, Réglages, et **Administration** pour un admin.
+- **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import, Export, Sécurité, Réglages, et **Administration** pour un admin.
 - **Administration** n'apparaît (barre latérale sur bureau, barre d'onglets sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer.
@@ -26,7 +26,8 @@
 | **Boîte de validation** | Voir §6 |
 | **Éléments** | Fiche : propriétaires et parts, badge **Privé / Partagé / Enfant** (icône et texte). Changer la visibilité affiche l'effet (« L'autre adulte verra cet élément »). Un élément non modifiable est en lecture seule avec la raison |
 | **Documents** | Dépôt de PDF avec **choix Local ou Cloud**, aperçu de ce qui sera envoyé et coût estimé (`../ingestion/llm-providers.md` §6 et §8) ; état du job d'extraction (seule vraie tâche de fond, suivie par interrogation périodique) |
-| **Import / Export** | Voir §7 et §8 |
+| **Import** | Voir §7 |
+| **Export** | Voir §8. Entrée à part, offerte à tout adulte connecté (module `core`), même là où l'import est désactivé (1E4) |
 | **Sécurité** | Jetons, sessions, événements (`../identity-and-access/administration-and-audit.md` §5) |
 | **Réglages** | Voir §9 |
 | **Administration** | Voir §12 ; admins seulement |
@@ -104,10 +105,14 @@ viennent avec l'import CSV, après l'étape 1 (web design §2).
 
 ## 8. Assistant d'export
 
-- Choix des sections et du format : `nid.data` ou un CSV par section (archive ZIP).
-- Lecture du manifeste, pages séquentielles (500 entités), progression, annulation.
-- À la fin, relecture du manifeste : si `revision` a changé, l'interface le signale et propose de relancer.
-- Téléchargement : écriture directe dans un fichier quand l'API de fichiers du navigateur existe, sinon `Blob`.
+Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route `/export` :
+
+- Au repos : le contenu de l'export d'après le manifeste (une ligne par section non vide), et la règle « le fichier contient ce que vous pouvez voir ; les éléments privés de l'autre adulte n'y sont pas ».
+- `nid.data` seul, toutes les sections : pas de choix de sections, qui casserait les références entre personnes, fournisseurs, abonnements et phases.
+- Lecture du manifeste, pages séquentielles (500 entités), progression accessible, annulation ; quitter l'écran arrête l'export.
+- À la fin, relecture du manifeste : si `revision` a changé (ou si une page répond `409 export.revision_changed`), **rien n'est téléchargé** et l'interface propose de relancer. Un fichier téléchargé correspond donc toujours à un seul état des données.
+- Téléchargement par un `Blob`, fichier `nid-AAAA-MM-JJ.nid.json` : l'export d'un foyer pèse quelques centaines de Ko, l'API d'écriture de fichiers du navigateur (Chromium seulement) n'apporte rien.
+- **Plus tard** : un CSV par section (archive ZIP), avec la neutralisation des formules de `../import-format.md` §10.
 
 ## 9. Réglages
 
