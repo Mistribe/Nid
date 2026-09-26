@@ -71,8 +71,10 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
 
                     b.PrimitiveCollection<Guid[]>("ItemIds")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid[]")
-                        .HasColumnName("item_ids");
+                        .HasColumnName("item_ids")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<Guid?>("PersonId")
                         .HasColumnType("uuid")

@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nid.Platform.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    [Migration("20260926091732_AuditLog")]
+    [Migration("20260926092628_AuditLog")]
     partial class AuditLog
     {
         /// <inheritdoc />
@@ -74,8 +74,10 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
 
                     b.PrimitiveCollection<Guid[]>("ItemIds")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid[]")
-                        .HasColumnName("item_ids");
+                        .HasColumnName("item_ids")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<Guid?>("PersonId")
                         .HasColumnType("uuid")

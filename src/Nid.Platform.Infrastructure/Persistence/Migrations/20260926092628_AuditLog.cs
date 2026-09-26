@@ -32,7 +32,7 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                     request = table.Column<string>(type: "text", nullable: true),
                     entity = table.Column<string>(type: "text", nullable: true),
                     entity_key = table.Column<string>(type: "text", nullable: true),
-                    item_ids = table.Column<Guid[]>(type: "uuid[]", nullable: false),
+                    item_ids = table.Column<Guid[]>(type: "uuid[]", nullable: false, defaultValueSql: "'{}'"),
                     subject_person_id = table.Column<Guid>(type: "uuid", nullable: true),
                     data = table.Column<string>(type: "jsonb", nullable: false)
                 },

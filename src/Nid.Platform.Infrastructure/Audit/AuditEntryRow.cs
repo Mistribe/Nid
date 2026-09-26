@@ -49,6 +49,7 @@ public static class AuditLogMapping
             e.HasKey(x => x.Seq);
             e.Property(x => x.Seq).UseIdentityAlwaysColumn();
             e.Property(x => x.Data).HasColumnType("jsonb");
+            e.Property(x => x.ItemIds).HasDefaultValueSql("'{}'");
             e.HasIndex(x => x.ItemIds).HasMethod("gin");
             e.HasIndex(x => new { x.SubjectPersonId, x.Seq }).HasFilter("category = 'security'");
             e.HasIndex(x => new { x.Category, x.Action, x.Seq });
