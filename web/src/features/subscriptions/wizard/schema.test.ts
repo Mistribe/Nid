@@ -53,4 +53,13 @@ describe('wizardSchema', () => {
   });
 
   it('accepts a valid recurring offer', () => expect(wizardSchema(t).safeParse(values()).success).toBe(true));
+
+  it('refuses a recurring offer with no start date', () =>
+    expect(wizardSchema(t).safeParse(values({ startsOn: '' })).success).toBe(false));
+
+  it('does not require the start date for a launch price, which never sends it', () =>
+    expect(wizardSchema(t).safeParse(values({
+      offer: 'trial', trialVariant: 'launch', startsOn: '',
+      offerDate: '2025-01-01', launchAmount: '0,99', launchCycles: '3', nextStartsOn: '2025-04-01', amount: '9,99', everyCount: '1',
+    })).success).toBe(true));
 });

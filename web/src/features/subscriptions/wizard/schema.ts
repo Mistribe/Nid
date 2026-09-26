@@ -72,9 +72,13 @@ export function wizardSchema(t: TFunction) {
       ctx.addIssue({ code: 'custom', path: ['payerPerson'], message: t('edit.required') });
 
     // The 1E2a phase fields: checked only when a phase is actually sent (the recurring offer always sends
-    // one, others only when "then" asks for the following phase, or the launch price requires it).
+    // one, others only when "then" asks for the following phase, or the launch price requires it). The
+    // launch price never reads `startsOn` (its phases start on `offerDate` and `nextStartsOn`), so it is
+    // exempted from that one check, but still reuses `amount`/`everyCount`/`maxCycles` for its normal-price
+    // phase.
+    const launchPrice = v.offer === 'trial' && v.trialVariant === 'launch';
     if (v.offer === 'recurring' || v.then || thenMode(v) === 'required') {
-      if (!ISO_DATE.test(v.startsOn)) ctx.addIssue({ code: 'custom', path: ['startsOn'], message: t('edit.invalid_date') });
+      if (!launchPrice && !ISO_DATE.test(v.startsOn)) ctx.addIssue({ code: 'custom', path: ['startsOn'], message: t('edit.invalid_date') });
       if (!AMOUNT.test(v.amount.trim())) ctx.addIssue({ code: 'custom', path: ['amount'], message: t('edit.invalid_amount') });
       if (!POSITIVE_COUNT.test(v.everyCount)) ctx.addIssue({ code: 'custom', path: ['everyCount'], message: t('edit.invalid_count') });
       if (!/^([1-9]\d*)?$/.test(v.maxCycles)) ctx.addIssue({ code: 'custom', path: ['maxCycles'], message: t('edit.invalid_count') });
