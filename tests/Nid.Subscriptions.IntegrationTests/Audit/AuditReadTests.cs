@@ -105,6 +105,25 @@ public class AuditReadTests(PostgresFixture fixture)
         Assert.Equal(app.AdultA.Value, entry.GetProperty("actor").GetProperty("personId").GetGuid());
     }
 
+    /// <summary>T5b: the filter never widens what the journal shows, even for an event that really happened.</summary>
+    [Theory]
+    [InlineData("logout")]
+    [InlineData("access_denied")]
+    public async Task Filtering_on_an_event_outside_the_journal_is_an_empty_page(string filtered)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var hidden = await app.NewSubscriptionAsync("hidden", app.AdultA, Visibility.Private);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, "/auth/logout");
+        await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/subscriptions/{hidden.Value}");
+        Assert.NotEmpty(await SecurityEventTests.EventsAsync(app, "logout"));
+        Assert.NotEmpty(await SecurityEventTests.EventsAsync(app, "access_denied"));
+
+        var page = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/admin/security-journal?event={filtered}"));
+
+        Assert.Empty(page.GetProperty("entries").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, page.GetProperty("next").ValueKind);
+    }
+
     [Fact]
     public async Task The_journal_shows_an_access_violation_without_its_item_ids()
     {
