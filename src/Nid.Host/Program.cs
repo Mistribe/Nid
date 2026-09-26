@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host;
+using Nid.Host.Admin;
 using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Host.Jobs;
@@ -24,7 +25,11 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
+// 1F4: `nid admin …` runs one use case and stops (AdminCli).
+var adminMode = args is ["admin", ..];
 var builder = WebApplication.CreateBuilder(args);
+// The CLI's output is for the person at the terminal, not EF's SQL.
+if (adminMode) builder.Logging.SetMinimumLevel(LogLevel.Warning);
 builder.Configuration.AddSecretFiles();
 builder.AddServiceDefaults();
 // Build-time OpenAPI generation (Microsoft.Extensions.ApiDescription.Server) runs this entry point up to
@@ -42,7 +47,7 @@ var connectionString = builder.Configuration.GetConnectionString("nid")
     ?? (generatingOpenApi ? "Host=openapi-generation" : throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
-if (!generatingOpenApi && builder.Configuration.GetValue("Jobs:Enabled", true))
+if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
     builder.Services.AddNidJobs(connectionString, fxOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
@@ -63,6 +68,11 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 });
 
 var app = builder.Build();
+
+// 1F4: `nid admin …` runs one use case and stops; it never migrates and never serves.
+if (adminMode)
+    return await AdminCli.RunAsync(app.Services, args[1..],
+        new CliConsole(Console.In, Console.Out, Console.Error, !Console.IsInputRedirected));
 
 // EF Core takes a database lock while migrating, so several instances starting together are safe.
 // Health:SkipMigrations is for the readiness test only (HostingTests): it starts a host whose database is unreachable.
@@ -90,5 +100,6 @@ app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();
 app.Run();
+return 0;
 
 public partial class Program;
