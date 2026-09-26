@@ -86,4 +86,18 @@ public static class OpenApiSetup
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+    /// <summary>
+    /// Like <see cref="Returns{T}"/>, for an endpoint whose success carries no body at all: a real 204, with
+    /// no <c>content</c> in the document (unlike <c>.Produces&lt;object&gt;(204)</c>, which would still claim
+    /// an empty JSON body), and the same Problem Details responses its failure branch can answer with.
+    /// </summary>
+    public static RouteHandlerBuilder ReturnsNoContent(this RouteHandlerBuilder builder)
+        => builder.Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 }

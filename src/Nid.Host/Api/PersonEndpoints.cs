@@ -46,7 +46,7 @@ public static class PersonEndpoints
         {
             var result = await invoker.InvokeAsync(new RevokeMySessionsCommand(), ct);
             return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
-        }).Produces<object>(StatusCodes.Status204NoContent);
+        }).ReturnsNoContent();
 
         return routes;
     }

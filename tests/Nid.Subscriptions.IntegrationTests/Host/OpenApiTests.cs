@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,10 +24,17 @@ public class OpenApiTests(PostgresFixture fixture)
             .ToList();
 
         Assert.NotEmpty(endpoints);
-        Assert.All(endpoints, endpoint => Assert.True(
-            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>()
-                .Any(p => p.StatusCode is >= 200 and < 300 && p.Type is not null && p.Type != typeof(void)),
-            $"{endpoint.DisplayName} declares no typed success response"));
+        Assert.All(endpoints, endpoint =>
+        {
+            var success = endpoint.Metadata.OfType<IProducesResponseTypeMetadata>()
+                .Where(p => p.StatusCode is >= 200 and < 300)
+                .ToList();
+            Assert.True(success.Count > 0, $"{endpoint.DisplayName} declares no success response");
+            // A 204 carries no body, so it needs no type; every other success status does.
+            Assert.True(
+                success.All(p => p.StatusCode == StatusCodes.Status204NoContent || p.Type is not null && p.Type != typeof(void)),
+                $"{endpoint.DisplayName} declares no typed success response");
+        });
     }
 
     // Both facts below read the document the build just regenerated, not the committed one: the drift gate
