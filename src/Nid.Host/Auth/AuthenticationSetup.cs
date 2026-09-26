@@ -2,15 +2,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.Logging;
-using Nid.Core.Application;
 using Nid.Core.Contracts;
-using Nid.Platform.Contracts;
-using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Auth;
 
-public static partial class AuthenticationSetup
+public static class AuthenticationSetup
 {
     public static IServiceCollection AddNidAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
@@ -105,9 +101,7 @@ public static partial class AuthenticationSetup
         var email = claims.FindFirst("email")?.Value;
 
         var services = context.HttpContext.RequestServices;
-        services.GetRequiredService<IActorAccessor>().Current = Actor.System;
-        var result = await services.GetRequiredService<IInvoker>()
-            .InvokeAsync(new ProvisionAdultCommand(subject, name, email), context.HttpContext.RequestAborted);
+        var result = await services.GetRequiredService<OidcSignIn>().CompleteAsync(subject, name, email, context.HttpContext.RequestAborted);
 
         if (!result.TryGetValue(out var person))
         {
@@ -122,8 +116,6 @@ public static partial class AuthenticationSetup
 
             // Not registered: the page tells the person to ask an administrator, with the email Nid received so
             // the administrator can match it (authentication.md §5). The web page renders it as text.
-            var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Nid.Host.Auth.AuthenticationSetup");
-            LogRefused(logger, subject);
             context.HandleResponse();
             context.Response.Redirect(email is null ? "/login-refused" : "/login-refused?email=" + Uri.EscapeDataString(email));
             return;
@@ -133,9 +125,4 @@ public static partial class AuthenticationSetup
         context.Properties!.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(services.GetRequiredService<Microsoft.Extensions.Options.IOptions<NidAuthOptions>>().Value.SessionAbsoluteDays);
         context.Properties.IsPersistent = true;
     }
-
-    // The trace of the login_refused event (administration-and-audit.md), until 1F's audit log records it
-    // properly: subject only, never the email or name a claim carried.
-    [LoggerMessage(Level = LogLevel.Information, Message = "Sign-in refused for an unregistered subject {Subject}")]
-    private static partial void LogRefused(ILogger logger, string subject);
 }

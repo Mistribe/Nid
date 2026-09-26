@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 
 namespace Nid.Host.Auth;
 
@@ -16,8 +17,10 @@ public static class AuthEndpoints
                 : Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "returnUrl must be a relative path."))
             .ExcludeFromDescription();
 
-        routes.MapPost("/auth/logout", async (HttpContext http) =>
+        routes.MapPost("/auth/logout", async (HttpContext http, ISecurityEvents events) =>
         {
+            if (SessionClaims.ReadPersonId(http.User) is { } person)
+                await events.RecordAsync(SecurityEvent.Of(SecurityEventNames.Logout, person), Actor.Browser(person), http.RequestAborted);
             // Only Nid's cookie is removed: Authelia has no standard logout, its own session stays open.
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.NoContent();
