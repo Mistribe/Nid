@@ -41,7 +41,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 | **Tâches planifiées** | Jobs Quartz : dernière et prochaine exécution, état | `GET /admin/jobs` |
 | **Système** | Version, démarrage, santé (base, fournisseur d'identité), taille de la base | `GET /admin/system` |
 | **Catalogue** (1C2b) | Dernière synchronisation (état, heure, version synchronisée, comptes et rapport par catégorie), version épinglée, historique des 10 dernières, synchronisation à la demande confirmée ; le rapport est filtré pour son lecteur (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6) | `GET /api/v1/subscriptions/catalog/runs`, `POST /api/v1/subscriptions/catalog/sync` |
-| **Journal de sécurité** (1F) | Événements techniques globaux (`login_refused`, `access_violation`, `admin_command`, §4.1), identifiants seulement | avec le journal d'audit |
+| **Journal de sécurité** (livré en 1F3a) | Événements techniques globaux (`login_refused`, `access_violation`, les événements de la zone admin, §4.1 ; `admin_command` à l'étape 1F4), identifiants seulement | `GET /api/v1/admin/security-journal` |
 | **Plus tard** | IA : fournisseurs, clés, budget (étape 4), identifiants des workers (étape 4) | |
 
 - **Aucun libellé, aucun montant, aucun compteur d'éléments** : un total d'éléments révélerait que l'autre adulte en a de privés.
@@ -66,7 +66,7 @@ Chaque commande écrit une entrée d'audit `admin_command` (`via: admin-cli`, pa
 
 ## 4. Audit
 
-Le journal d'audit (Platform, `../architecture.md` §6) reçoit ces champs supplémentaires :
+Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoit ces champs supplémentaires :
 
 | Champ | Contenu |
 |---|---|
@@ -74,47 +74,48 @@ Le journal d'audit (Platform, `../architecture.md` §6) reçoit ces champs suppl
 | `person_id` | La personne concernée |
 | `via` | `ui`, `api`, `mcp`, `job`, `import`, `admin-cli` |
 | `scopes` | Portées de l'acteur |
-| `token_id?` | Jeton utilisé |
-| `on_behalf_of?` | Personne au nom de qui agit une tâche |
+| `token_id?` | Jeton utilisé (arrive à l'étape 4 avec les jetons) |
+| `on_behalf_of?` | Personne au nom de qui agit une tâche (arrive à l'étape 4) |
 | `request_id` | Corrélation avec les traces |
 
 ### 4.1 Événements de sécurité
 
 | Événement | Quand |
 |---|---|
-| `login`, `logout` | Ouverture et fin de session |
-| `login_refused` | `sub` inconnu et aucun adulte en attente avec cet email (`not_registered`) |
-| `session_revoked` | « Déconnecter partout », par soi-même, par un admin ou par commande d'administration |
-| `token_created`, `token_revoked`, `token_expired` | Cycle de vie des jetons |
-| `token_auth_failed` | Échec d'authentification par jeton (fréquence limitée) |
-| `access_denied` | `403` ou `404` sur un élément |
-| `access_violation` | La garde de sortie a bloqué une réponse (`authorization.md` §7) |
-| `admin_command` | Commande d'administration |
-| `person_preregistered`, `person_preregistration_cancelled` | Un admin ajoute ou retire un adulte en attente |
-| `admin_granted`, `admin_revoked` | Promotion ou rétrogradation |
-| `household_settings_changed` | Plafond d'adultes ou devise de référence modifiés |
+| `login`, `logout` | Ouverture et fin de session — livré en 1F3a |
+| `login_refused` | `sub` inconnu et aucun adulte en attente avec cet email (`not_registered`) — livré en 1F3a |
+| `session_revoked` | « Déconnecter partout », par soi-même ou par un admin — livré en 1F3a ; par commande d'administration à l'étape 1F4 |
+| `token_created`, `token_revoked`, `token_expired` | Cycle de vie des jetons — étape 4 |
+| `token_auth_failed` | Échec d'authentification par jeton (fréquence limitée) — étape 4 |
+| `access_denied` | `403` ou `404` sur un élément — livré en 1F3a |
+| `access_violation` | La garde de sortie a bloqué une réponse (`authorization.md` §7) — livré en 1F3a |
+| `admin_command` | Commande d'administration — attend l'étape 1F4 |
+| `person_preregistered`, `person_preregistration_cancelled` | Un admin ajoute ou retire un adulte en attente — livré en 1F3a |
+| `admin_granted`, `admin_revoked` | Promotion ou rétrogradation — livré en 1F3a |
+| `household_settings_changed` | Plafond d'adultes ou devise de référence modifiés — livré en 1F3a |
 
 ### 4.2 Visibilité
 
-- Les entrées liées à un **élément** suivent les règles d'accès de cet élément (`Readers`).
+- Les entrées liées à un **élément** suivent les règles d'accès de cet élément (`Readers`) : une entrée n'est visible d'un lecteur que si **tous ses éléments** (`item_ids`) le sont.
 - Les événements de sécurité d'une **personne** ne sont visibles que d'elle.
-- Le **journal de sécurité de la zone admin** (1F) montre aux admins les événements techniques sans lien avec une personne ou un élément (`login_refused`, `access_violation`, `admin_command`, et les événements de la zone admin elle-même), avec des identifiants seulement. Il ne montre pas les connexions ni les jetons d'un autre adulte.
-- `access_violation` fait exception : il contient des identifiants seulement, pas de libellé, et **les deux adultes** en sont avertis par email « critique ».
-- L'audit des écritures est conservé indéfiniment (volume minuscule) ; les événements de sécurité au moins un an.
+- Le **journal de sécurité de la zone admin** (livré en 1F3a) montre aux admins les événements techniques sans lien avec une personne ou un élément (`login_refused`, `access_violation`, et les événements de la zone admin elle-même ; `admin_command` à l'étape 1F4), avec des identifiants seulement. Il ne montre pas les connexions ni les jetons d'un autre adulte.
+- **Aucune vue d'événement de sécurité ne porte d'identifiant d'élément** : `access_violation` ne montre que le nom de la requête, `access_denied` que le type d'accès ; les identifiants d'élément restent dans la table, pour l'hébergeur seul.
+- `access_violation` fait exception sur un point seulement : il contient des identifiants, pas de libellé. L'alerte email « critique » aux deux adultes attend un canal de notification (§6).
+- L'audit des écritures et les événements de sécurité sont conservés indéfiniment : aucun job de purge (le volume est minuscule pour deux personnes).
 
 ## 5. Page « Sécurité »
 
 Dans l'interface, pour chaque adulte :
 
-- **Mes jetons** : créer (nom, préréglage, expiration), révoquer.
-- **Mes sessions** : dernière connexion, « déconnecter partout » (avec l'option de révoquer aussi les jetons).
-- **Mes derniers événements de sécurité**.
+- **Mes jetons** : créer (nom, préréglage, expiration), révoquer. Attend l'étape 4 (jetons d'accès personnels).
+- **Mes sessions** : « déconnecter partout » (livré en 1F3a, sur soi-même ; l'option de révoquer aussi les jetons attend l'étape 4).
+- **Mes derniers événements de sécurité** (livré en 1F3a).
 - Un rappel : la déconnexion de Nid ne ferme pas la session Authelia (`authentication.md` §6).
 
 ## 6. Alertes
 
 | Événement | Canal |
 |---|---|
-| `access_violation` | Email « critique » aux deux adultes |
-| Jeton proche de l'expiration | Email à son propriétaire, 7 jours avant |
+| `access_violation` | Email « critique » aux deux adultes — **reporté** : attend un canal de notification (`INotificationChannel`), hors périmètre de 1F3a (U14) |
+| Jeton proche de l'expiration | Email à son propriétaire, 7 jours avant — étape 4 |
 | Échecs d'authentification répétés | Métrique et journal ; pas d'email en v1 |

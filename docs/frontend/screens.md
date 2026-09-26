@@ -28,7 +28,7 @@
 | **Documents** | Dépôt de PDF avec **choix Local ou Cloud**, aperçu de ce qui sera envoyé et coût estimé (`../ingestion/llm-providers.md` §6 et §8) ; état du job d'extraction (seule vraie tâche de fond, suivie par interrogation périodique) |
 | **Import** | Voir §7 |
 | **Export** | Voir §8. Entrée à part, offerte à tout adulte connecté (module `core`), même là où l'import est désactivé (1E4) |
-| **Sécurité** | Jetons, sessions, événements (`../identity-and-access/administration-and-audit.md` §5) |
+| **Sécurité** | Mes derniers événements, Déconnecter partout (1F3a) ; jetons à l'étape 4 (`../identity-and-access/administration-and-audit.md` §5) |
 | **Réglages** | Voir §9 |
 | **Administration** | Voir §12 ; admins seulement |
 
@@ -141,7 +141,7 @@ Libellés en minuscules sauf noms propres ; verbe d'abord (« Ajouter un abonnem
 
 ## 12. Administration
 
-Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2). Routes `/admin/users` (défaut de `/admin`), `/admin/household`, `/admin/fx`, `/admin/catalog`, `/admin/jobs`, `/admin/system`.
+Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2). Routes `/admin/users` (défaut de `/admin`), `/admin/household`, `/admin/fx`, `/admin/catalog`, `/admin/jobs`, `/admin/system`, `/admin/security` (1F3a).
 
 | Section | Contenu |
 |---|---|
@@ -151,7 +151,7 @@ Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2)
 | **Catalogue** (1C2b/1C2c, `/admin/catalog`) | Carte de la dernière synchronisation : état (icône et texte, jamais la couleur seule), date et heure, commit synchronisé (court), compteurs (ajoutés, mis à jour, inchangés, archivés, adoptés remplacés). Rapport dépliable par catégorie : fournisseurs adoptés restants, libellés créés, doublons, entrées refusées avec leur raison, code et message d'échec, et depuis 1C2c une catégorie **Icônes**, intitulée avec ses trois compteurs (récupérées, **inchangées**, refusées) et dépliable sur la liste des clés récupérées et des clés refusées avec leur raison (des clés en `<code>`, pas d'image ni de monogramme à cet écran) — tous des longueurs de listes reçues, jamais un compteur séparé de ce qui a été filtré. Historique : les 10 dernières synchronisations, une ligne compacte chacune, avec le commit épinglé. « Synchroniser maintenant » (`POST /catalog/sync`) passe par la confirmation en ligne comme toute écriture admin à bouton isolé (voir ci-dessous) ; pendant qu'une synchronisation tourne, le bouton est désactivé et la page se rafraîchit toutes les 3 secondes jusqu'à la fin ; un `409` dit qu'une synchronisation tourne déjà. Réservée aux admins ; les listes de fournisseurs et de libellés et la création d'un fournisseur personnalisé restent ouvertes à tout adulte (elles servent l'ajout d'un abonnement, hors Administration). Le composant `ProviderIcon` (`web/src/components/ProviderIcon.tsx`, 1C2c §7) — image servie depuis l'origine de Nid quand `iconUrl` est renseigné, sinon monogramme (initiales sur la couleur du premier libellé), repli sur le monogramme si l'image échoue au chargement, décoratif (`alt=""`) — sera utilisé partout où l'application montre un fournisseur, à commencer par 1E2 (liste et détail des abonnements, §4) ; Administration › Catalogue elle-même n'affiche aucune icône, seulement des clés |
 | **Tâches** | Jobs planifiés : dernière et prochaine exécution, état ; lecture seule. `catalog-sync` y figure comme tout autre job |
 | **Système** | Version, démarrage, santé de la base et du fournisseur d'identité, taille de la base ; lecture seule |
-| **Journal de sécurité** (1F) | Événements techniques globaux, identifiants seulement |
+| **Journal de sécurité** (1F3a, `/admin/security`) | date, événement, personne visée, auteur, identifiants ; filtre par événement |
 | **IA** (étape 4) | Fournisseurs et clés, mode (local, gratuit puis local, avec payant), types de documents autorisés au cloud, budget mensuel, masquage, conditions avec date de revue, page « Utilisation IA » (`../ingestion/llm-providers.md` §13) |
 
 - Aucun libellé, montant ni compteur d'éléments : l'Administration ne dit rien des données du foyer.
