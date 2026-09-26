@@ -138,6 +138,30 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "1.0", memory: 512m } } }
 
+  # Run by deploy/restore.sh only (profile restore): writes the volumes and deploy/ back with their owners.
+  backup-restore:
+    profiles: [restore]
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+    build: { context: ./backup }
+    image: ${NID_BACKUP_IMAGE:-nid-backup:local}
+    environment:
+      NID_RESTORE_FROM: ${NID_RESTORE_FROM:-local}
+      NID_HOST_UID: ${NID_HOST_UID:-0}
+      NID_HOST_GID: ${NID_HOST_GID:-0}
+    volumes:
+      - dataprotection-keys:/target/volumes/dataprotection-keys
+      - assets:/target/volumes/assets
+      - authelia:/target/volumes/authelia
+      - ./:/target/deploy
+      - ./backup-secrets:/run/backup-secrets:ro
+      - ${NID_BACKUP_DIR:-./backups}:/repo
+    tmpfs: ["/tmp:size=${NID_BACKUP_TMP_SIZE:-1g}"]
+    networks: [data]
+
 # Only nid-api goes out to the Internet (security/infrastructure.md §2): every other network is internal. The hoster's
 # proxy joins `edge` and keeps its own networks for the outside.
 networks:

@@ -74,3 +74,19 @@ backup backup-now
 backup status >/dev/null || fail "unhealthy with a reachable remote: $(backup status)"
 [ "$("${REMOTE[@]}" exec -T backup sh -c "$RR snapshots --json | jq length")" -ge 1 ] || fail "no remote snapshot"
 echo "ok: the remote overlay sends each snapshot to an append-only remote"
+
+./restore.sh --verify || fail "restore.sh --verify from the local repository"
+./restore.sh --verify --from remote --compose-file "$PWD/local/compose.backup-test-client.yaml" ||
+  fail "restore.sh --verify from the remote"
+echo "ok: --verify passes from both repositories while the real stack runs"
+
+# Review Focus 2: a failed --verify leaves nothing behind, not even its copy of the secrets.
+mv backup-secrets/restic_password backup-secrets/restic_password.keep
+echo wrong > backup-secrets/restic_password
+if ./restore.sh --verify 2>/tmp/nid-verify.log; then fail "--verify passed with a wrong password"; fi
+mv backup-secrets/restic_password.keep backup-secrets/restic_password
+grep -qi "mot de passe" /tmp/nid-verify.log || fail "no clear message for a wrong password: $(tail -5 /tmp/nid-verify.log)"
+[ -z "$(docker compose -p nid-restore-test ps -a -q)" ] || fail "the throwaway project is still there"
+[ -z "$(docker volume ls -q --filter name=nid-restore-test)" ] || fail "throwaway volumes are still there"
+[ -z "$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'nid-restore.*' 2>/dev/null)" ] || fail "the temporary folder is still there"
+echo "ok: a failed --verify says why and leaves nothing behind"

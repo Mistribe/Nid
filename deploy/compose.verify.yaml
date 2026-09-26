@@ -1,0 +1,14 @@
+# Throwaway project of deploy/restore.sh --verify (1F2 design §6): another subnet for app, nid-api without a way out,
+# no backup service. Nothing is published.
+services:
+  nid-api:
+    networks: !override [app, data]
+    environment:
+      Auth__TrustedNetworks__0: 172.30.11.0/24
+  backup:
+    profiles: [disabled]
+networks:
+  app:
+    internal: true
+    ipam: !override
+      config: [{ subnet: 172.30.11.0/24 }]

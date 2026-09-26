@@ -134,6 +134,78 @@ copy_remote() {
   fi
 }
 
+# --- restore (1F2 design §6), run in backup-restore with the targets writable ---
+
+snapshot_id() {
+  id=$(source_restic snapshots --host nid --tag nid --json "$1" 2>/tmp/restic.err \
+    | jq -r 'sort_by(.time) | last | .short_id // empty') || true
+  if [ -z "$id" ]; then
+    if grep -qi 'wrong password' /tmp/restic.err; then die "mot de passe restic refusé par le dépôt"; fi
+    die "aucun instantané « $1 » : $(tail -1 /tmp/restic.err)"
+  fi
+  echo "$id"
+}
+manifest() { source_restic dump "$1" /tmp/stage/manifest.json; }
+
+replace_folder() { # restored folder, target folder, owner, folder mode
+  find "$2" -mindepth 1 -delete
+  cp -a "$1/." "$2/"
+  chown -R "$3" "$2"
+  chmod "$4" "$2"
+}
+
+restore_files() {
+  out=/tmp/restore
+  rm -rf "$out"; mkdir -p "$out"
+  source_restic restore "$1" --target "$out" >/dev/null
+  jq -e '.format == 1' "$out/tmp/stage/manifest.json" >/dev/null || die "l'instantané $1 n'a pas de manifeste lisible"
+  replace_folder "$out/source/volumes/dataprotection-keys" /target/volumes/dataprotection-keys 1654:1654 700
+  replace_folder "$out/source/volumes/assets" /target/volumes/assets 1654:1654 755
+  find /target/volumes/authelia -mindepth 1 -delete
+  cp "$out/tmp/stage/authelia.sqlite3" /target/volumes/authelia/db.sqlite3
+  chown -R 8000:8000 /target/volumes/authelia
+  chmod 600 /target/volumes/authelia/db.sqlite3
+  # deploy/ goes back to the host user, so deploy/setup.sh can still rewrite it.
+  host=${NID_HOST_UID:?}:${NID_HOST_GID:?}
+  mkdir -p /target/deploy/secrets /target/deploy/authelia
+  find /target/deploy/secrets -mindepth 1 -delete
+  cp -a "$out/source/deploy/secrets/." /target/deploy/secrets/
+  cp "$out/source/deploy/authelia/configuration.yml" "$out/source/deploy/authelia/users.yml" /target/deploy/authelia/
+  cp "$out/source/deploy/.env" /target/deploy/.env
+  chown -R "$host" /target/deploy/secrets
+  chown "$host" /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml /target/deploy/.env
+  chmod 700 /target/deploy/secrets
+  chmod 644 /target/deploy/secrets/* /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml \
+    /target/deploy/.env
+  rm -rf "$out"
+}
+
+restore_database() {
+  pgpass /target/deploy/secrets/postgres_password
+  source_restic dump "$1" /tmp/stage/database.pgdump > /tmp/database.pgdump
+  pg_restore --host=postgres --username=nid --dbname=nid --no-owner --role=nid --exit-on-error /tmp/database.pgdump
+  rm -f /tmp/database.pgdump
+}
+
+# Row counts of a fresh dump of the restored base against the manifest's: run before nid-api starts, which could write.
+check_database() {
+  pgpass /target/deploy/secrets/postgres_password
+  manifest "$1" | jq '.row_counts' > /tmp/expected.json
+  pg_dump --host=postgres --username=nid --dbname=nid --format=custom --file=/tmp/now.pgdump
+  pg_restore --data-only --file=- /tmp/now.pgdump | count_rows | counts_json > /tmp/actual.json
+  rm -f /tmp/now.pgdump
+  compare_counts /tmp/expected.json /tmp/actual.json || die "la base restaurée n'a pas les lignes de la sauvegarde"
+  echo "$(jq length /tmp/actual.json) tables, autant de lignes que dans la sauvegarde"
+}
+
+# Once nid-api is up: it used the restored key ring, it did not create a new key.
+check_keys() {
+  expected=$(manifest "$1" | jq '.dataprotection_keys')
+  found=$(find /target/volumes/dataprotection-keys -name 'key-*.xml' | wc -l | tr -d ' ')
+  [ "$found" = "$expected" ] || die "clés Data Protection : $expected dans la sauvegarde, $found après démarrage"
+  echo "$found clé(s) Data Protection reprise(s), aucune créée"
+}
+
 # One run under the lock: a manual run waits for the nightly one instead of failing.
 backup_now() {
   mkdir -p "$STATE_DIR"
@@ -177,6 +249,13 @@ case ${1:-schedule} in
   run-once) run_once ;;
   copy-remote) copy_remote "$2" ;;
   probe-remote) remote_restic cat config >/dev/null 2>&1 ;;
+  snapshot-id) snapshot_id "${2:-latest}" ;;
+  manifest) manifest "$2" ;;
+  migrations) manifest "$2" | jq -r '.migrations[]' ;;
+  restore-files) restore_files "$2" ;;
+  restore-database) restore_database "$2" ;;
+  check-database) check_database "$2" ;;
+  check-keys) check_keys "$2" ;;
   status) status ;;
   *) die "commande inconnue : $1" ;;
 esac

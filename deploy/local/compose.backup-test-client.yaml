@@ -1,0 +1,7 @@
+# For deploy/backup-smoke.sh only: restore.sh --verify's own project reaches the throwaway remote of
+# compose.backup-test.yaml through its fixed-name network.
+services:
+  backup-restore:
+    networks: [data, egress, remote-test]
+networks:
+  remote-test: { name: nid-remote-test, external: true }

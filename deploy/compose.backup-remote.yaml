@@ -3,3 +3,5 @@
 services:
   backup:
     networks: [data, egress]
+  backup-restore:
+    networks: [data, egress]
