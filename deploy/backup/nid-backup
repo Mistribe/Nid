@@ -1,0 +1,4 @@
+#!/bin/sh
+# Nid's backup service (1F2 design): written in Task 2.
+echo "nid-backup: not written yet" >&2
+exit 1
