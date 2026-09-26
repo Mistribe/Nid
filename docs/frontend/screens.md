@@ -110,7 +110,7 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 - Au repos : le contenu de l'export d'après le manifeste (une ligne par section non vide), et la règle « le fichier contient ce que vous pouvez voir ; les éléments privés de l'autre adulte n'y sont pas ».
 - `nid.data` seul, toutes les sections : pas de choix de sections, qui casserait les références entre personnes, fournisseurs, abonnements et phases.
 - Lecture du manifeste, pages séquentielles (500 entités), progression accessible, annulation ; quitter l'écran arrête l'export.
-- À la fin, relecture du manifeste : si `revision` a changé (ou si une page répond `409 export.revision_changed`), **rien n'est téléchargé** et l'interface propose de relancer. Un fichier téléchargé correspond donc toujours à un seul état des données.
+- À la fin, relecture du manifeste : si `revision` a changé (ou si une page répond `409 export.revision_changed`), **rien n'est téléchargé** et l'interface propose de relancer. Un fichier téléchargé correspond donc à un seul état des données, sauf si une modification est faite puis annulée à l'identique pendant l'export : la révision finale est alors celle du début. Pour fermer ce cas, il faudra que chaque page porte la révision (évolution du serveur, reportée).
 - Téléchargement par un `Blob`, fichier `nid-AAAA-MM-JJ.nid.json` : l'export d'un foyer pèse quelques centaines de Ko, l'API d'écriture de fichiers du navigateur (Chromium seulement) n'apporte rien.
 - **Plus tard** : un CSV par section (archive ZIP), avec la neutralisation des formules de `../import-format.md` §10.
 

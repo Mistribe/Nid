@@ -8,6 +8,7 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   document.body.append(link);
   link.click();
   link.remove();
-  // After the click is handled: a browser may read the URL once the event is over.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  // Long after the click: some Safari and Firefox versions cancel a download whose URL goes on the next tick. A few
+  // hundred kilobytes held 40 s longer cost nothing.
+  setTimeout(() => URL.revokeObjectURL(url), 40_000);
 }

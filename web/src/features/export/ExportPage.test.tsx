@@ -135,6 +135,37 @@ describe('Export', () => {
     expect(await screen.findByText('Export terminé : 5 éléments.')).toBeInTheDocument();
   });
 
+  // Final review: each step removes the button just pressed; focus goes to the next step's control, not to <body>.
+  it('moves the focus to the control of each new step', async () => {
+    const fake = fakeExportServer(pages());
+    const gate = hold();
+    fake.state.onPage = (section, page) => (section === 'subscriptions' && page === 1 ? gate.held : undefined);
+    server.use(...fake.handlers);
+    const { user } = await renderApp('/export');
+
+    const start = await screen.findByRole('button', { name: 'Exporter' });
+    expect(start).not.toHaveFocus(); // the screen does not take the focus on arrival
+    await user.click(start);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus());
+
+    await user.click(screen.getByRole('button', { name: 'Annuler' }));
+    gate.release();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Exporter' })).toHaveFocus());
+
+    fake.state.onPage = null;
+    await user.click(screen.getByRole('button', { name: 'Exporter' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Exporter de nouveau' })).toHaveFocus());
+
+    fake.state.failWith = { section: 'persons', page: 0, status: 500 };
+    await user.click(screen.getByRole('button', { name: 'Exporter de nouveau' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Réessayer' })).toHaveFocus());
+
+    fake.state.failWith = null;
+    fake.state.onPage = (section) => { if (section === 'purchases') fake.state.revision = `r${Math.random()}`; };
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Relancer' })).toHaveFocus());
+  });
+
   it('exports an empty file when there is nothing to export', async () => {
     server.use(...fakeExportServer({ persons: [[]], subscriptions: [[]] }).handlers);
     const { user } = await renderApp('/export');

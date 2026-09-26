@@ -13,6 +13,7 @@ async function exportFile(page: Page): Promise<Download> {
     downloading.catch(() => {}); // abandoned when the data changed
     await page.getByRole('button', { name: attempt === 0 ? 'Exporter' : 'Relancer' }).click();
     const changed = page.getByText("Vos données ont changé pendant l'export").waitFor({ timeout: 30_000 }).then(() => null);
+    changed.catch(() => {}); // left pending when the download wins, it rejects later on its timeout or at teardown
     const download = await Promise.race([downloading, changed]);
     if (download) return download;
   }

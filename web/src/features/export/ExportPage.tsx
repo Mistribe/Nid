@@ -25,7 +25,14 @@ export function ExportPage() {
   // Leaving the screen stops the export: nothing downloads behind the person's back.
   useEffect(() => () => current.current?.abort(), []);
 
+  // Every step removes the button just pressed: the focus goes to the new step's control (WCAG 2.4.3), never on
+  // arrival, only once the person has acted.
+  const primary = useRef<HTMLButtonElement>(null);
+  const acted = useRef(false);
+  useEffect(() => { if (acted.current) primary.current?.focus(); }, [state.kind]);
+
   const start = async () => {
+    acted.current = true;
     current.current?.abort();
     const controller = new AbortController();
     current.current = controller;
@@ -47,6 +54,7 @@ export function ExportPage() {
   };
 
   const cancel = () => {
+    acted.current = true;
     current.current?.abort();
     setState({ kind: 'rest' });
   };
@@ -63,28 +71,28 @@ export function ExportPage() {
           <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
         </div>
         <p>{t('export.progress', { received: state.received, total: state.total })}</p>
-        <Button variant="outline" onClick={cancel}>{t('export.cancel')}</Button>
+        <Button ref={primary} variant="outline" onClick={cancel}>{t('export.cancel')}</Button>
       </div>
     );
   } else if (state.kind === 'done') {
     body = (
       <div className="space-y-3">
         <p role="status">{t('export.done', { count: state.count })}</p>
-        <Button onClick={() => void start()}>{t('export.again')}</Button>
+        <Button ref={primary} onClick={() => void start()}>{t('export.again')}</Button>
       </div>
     );
   } else if (state.kind === 'changed') {
     body = (
       <div className="space-y-3">
         <p role="alert" className="rounded-md border border-destructive p-3">{t('export.changed')}</p>
-        <Button onClick={() => void start()}>{t('export.restart')}</Button>
+        <Button ref={primary} onClick={() => void start()}>{t('export.restart')}</Button>
       </div>
     );
   } else if (state.kind === 'error') {
     body = (
       <div className="space-y-3">
         <ProblemMessage problem={state.problem} />
-        <Button onClick={() => void start()}>{t('export.retry')}</Button>
+        <Button ref={primary} onClick={() => void start()}>{t('export.retry')}</Button>
       </div>
     );
   } else if (manifest.error) {
@@ -104,7 +112,7 @@ export function ExportPage() {
               ))}
             </ul>
           )}
-        <Button onClick={() => void start()}>{t('export.start')}</Button>
+        <Button ref={primary} onClick={() => void start()}>{t('export.start')}</Button>
       </div>
     );
   }
