@@ -70,11 +70,14 @@ jobs:
         run: |
           docker build -f src/Nid.Host/Dockerfile -t nid-api:local .
           docker build -f web/Dockerfile -t nid-web:local .
+          docker build -t nid-backup:local deploy/backup
+      - name: Unit tests of the backup image
+        run: docker run --rm --entrypoint nid-backup-test nid-backup:local
       # The Docker socket is mounted into Trivy here only, to read the local images; never into the application
       # (security/infrastructure.md §1).
       - name: SBOM (CycloneDX) and scan (fails on CRITICAL)
         run: |
-          for image in nid-api nid-web; do
+          for image in nid-api nid-web nid-backup; do
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/out "$TRIVY" \
               image --quiet --format cyclonedx --output "/out/sbom-$image.cdx.json" "$image:local"
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.trivyignore":/.trivyignore "$TRIVY" \
@@ -86,6 +89,11 @@ jobs:
           path: sbom-*.cdx.json
       - name: Smoke test of the reference compose
         run: deploy/smoke.sh
+      - name: Backup and restore test
+        run: deploy/backup-smoke.sh
       - name: Compose logs
         if: failure()
-        run: docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color | tail -300
+        run: |
+          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml -f deploy/local/compose.backup-test.yaml \
+            logs --no-color | tail -300
+          docker compose -p nid-restore-test logs --no-color | tail -100 || true

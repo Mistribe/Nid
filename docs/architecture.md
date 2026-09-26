@@ -310,12 +310,12 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 | `authelia` | OIDC | oui |
 | `nid-worker-*` | Workers d'ingestion | à la carte |
 | `ollama` | LLM local | optionnel (avec les workers d'extraction) |
-| `backup` | restic chiffré | oui |
+| `backup` | restic chiffré ; dépôt local `deploy/backups/`, dépôt distant optionnel (1F2) | oui |
 
 - Configuration par variables d'environnement et secrets Docker (fichiers). Aucun secret dans l'image ni dans le dépôt.
 - Images multi-architecture (amd64/arm64), utilisateur non-root, système de fichiers en lecture seule sauf volumes, healthchecks.
 - **Migrations** EF Core par module, appliquées au démarrage de `nid-api` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
-- Volumes : `pgdata`, `authelia`, `dataprotection-keys` (clés Data Protection de `nid-api`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2).
+- Volumes : `pgdata`, `authelia`, `dataprotection-keys` (clés Data Protection de `nid-api`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/`, la configuration d'Authelia et `deploy/.env`.
 - Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et configuration d'Authelia), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
 - Mises à jour : tags d'image épinglés, procédure documentée (sauvegarde → pull → up). Pas de mise à jour automatique.
 
@@ -355,7 +355,8 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 - **restic**, chiffré, règle 3-2-1 : cible locale + cible distante au choix de l'hébergeur (S3, SFTP, autre disque).
 - Contenu : dump Postgres (`pg_dump` cohérent, pas de copie à chaud du répertoire de données) + volume `documents` + clés Data Protection + configuration Authelia. **Sans les clés Data Protection, les jetons bancaires chiffrés sont perdus.**
 - **Test de restauration** documenté et scripté (restauration dans un compose jetable).
-- Alerte email si la sauvegarde échoue ou dépasse N jours.
+- Alerte email si la sauvegarde échoue ou dépasse N jours. **Pas encore** : elle attend un canal d'envoi ; en attendant, le service `backup` devient `unhealthy` (1F2).
+- Livré en 1F2 (`superpowers/specs/2026-09-26-backup-design.md`) : service `backup` (chaque nuit à 03:30, rétention 7 quotidiennes, 4 hebdomadaires, 12 mensuelles, `restic check` le dimanche), un instantané par sauvegarde avec un manifeste (lignes par table, migrations, clés), dépôt local `deploy/backups/`, dépôt distant par la surcouche `compose.backup-remote.yaml`, y compris en ajout seulement ; `deploy/restore.sh`, réel (refuse une installation qui a des données) ou `--verify` dans un projet jetable. Le mot de passe restic reste hors de la sauvegarde.
 - **Export complet** JSON/CSV à la demande, format documenté et versionné, pour ne jamais dépendre de l'application. **Assemblé par le navigateur** à partir de pages fournies par le serveur (manifeste, pages de 500 entités, `import-format.md` §10), sans fichier construit côté serveur. Respecte la visibilité : chacun exporte ce qu'il voit.
 - **Import** : le même format que l'export JSON, spécifié dans `import-format.md`. Session en lots avec staging, validation complète par le serveur, écriture en une transaction, idempotence ; **orchestrée par le navigateur, sans tâche de fond**. Sert à la reprise initiale des données existantes et au transfert entre instances.
 

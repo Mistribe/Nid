@@ -74,8 +74,8 @@
 
 | ID | Risque | Gravité | Mesures | Étape | Résiduel |
 |---|---|---|---|---|---|
-| INF-1 | Perte des sauvegardes ou des clés | Élevée | Restauration testée, clés séparées, copie distante | 1 | Faible |
-| INF-2 | Sauvegarde volée | Élevée | Chiffrement restic, mot de passe hors volume | 1 | Faible |
+| INF-1 | Perte des sauvegardes ou des clés | Élevée | Restauration testée, clés séparées, copie distante ; **en place (1F2)** : `restore.sh --verify`, restauration complète en CI, dépôt distant optionnel | 1 | Faible |
+| INF-2 | Sauvegarde volée | Élevée | Chiffrement restic, mot de passe hors volume ; **en place (1F2)** : `deploy/backup-secrets/`, jamais dans un instantané | 1 | Faible |
 | INF-3 | Chaîne d'approvisionnement | Élevée | Verrouillage, empreintes, SBOM, analyse, revue de dépendance | 1 | Moyen |
 | INF-4 | Dépendance peu adoptée (Synapse) | Moyenne | Version épinglée, code relu, fork possible | 1 | Moyen |
 | INF-5 | Conteneur trop privilégié, évasion | Moyenne | Durcissement, aucun `docker.sock` | 1 | Faible |

@@ -23,10 +23,10 @@
 | `edge` | Proxy de l'hébergeur, `nid-web`, Authelia (le navigateur doit l'atteindre) | Non (`internal: true`) ; le proxy garde ses propres réseaux |
 | `app` | `nid-web`, `nid-api` (sous-réseau fixe, seule source d'en-têtes `X-Forwarded-*` acceptés par `nid-api`) | Non (`internal: true`) |
 | `data` | `nid-api`, Postgres | Non (`internal: true`) |
-| `egress` | `nid-api` seul | **Oui** : le seul chemin vers Internet |
+| `egress` | `nid-api` ; `backup` seulement avec la surcouche `compose.backup-remote.yaml` (dépôt distant, 1F2) | **Oui** : le seul chemin vers Internet |
 | `workers` | `nid-api` (API interne et passerelle LLM), workers, Ollama | **Non** |
 
-- **`nid-api` est le seul composant qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3).
+- **`nid-api` est le seul composant applicatif qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3). Le service `backup` ne sort que si l'hébergeur ajoute la surcouche du dépôt distant, et seulement vers ce dépôt (1F2).
 - Postgres, Ollama, Authelia et l'API interne **ne publient aucun port**.
 - Ollama n'a **pas d'authentification native** : le réseau `workers` tient lieu d'authentification.
 
@@ -52,8 +52,10 @@ Voir aussi `../architecture.md` §11.
 | Copie distante | En **ajout seulement** quand la cible le permet (verrouillage d'objets) |
 | Contenu | Base, documents, **clés Data Protection**, configuration Authelia |
 | Sensibilité | La sauvegarde est **aussi sensible que la production** : elle contient tout, dont les clés qui déchiffrent les secrets |
-| Test de restauration | Scripté, **au moins chaque trimestre**, dans un compose jetable |
-| Alerte | Échec ou ancienneté de la dernière sauvegarde → email |
+| Test de restauration | Scripté, **au moins chaque trimestre**, dans un compose jetable : `deploy/restore.sh --verify`. En CI, une restauration complète après sinistre simulé, session comprise (1F2) |
+| Droits du service `backup` | Root avec la seule capacité `DAC_READ_SEARCH` (lire des fichiers de quatre propriétaires), sources en lecture seule, réseau `data` seul ; la restauration (`backup-restore`) a `CHOWN`, `DAC_OVERRIDE`, `FOWNER` et ne tourne qu'à la demande |
+| Dépôt distant en ajout seulement | Pris en charge : `NID_BACKUP_REMOTE_FORGET=false`, l'élagage se fait ailleurs |
+| Alerte | Échec ou ancienneté de la dernière sauvegarde → email ; **en attendant un canal d'envoi**, le healthcheck de `backup` (1F2) |
 
 ## 5. Chaîne d'approvisionnement
 

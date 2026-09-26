@@ -1,8 +1,8 @@
 # Déployer Nid
 
 Ce dossier contient le **compose de référence** de Nid : la seule forme livrée (`../docs/architecture.md` §10). Il lance
-quatre services : `postgres`, `authelia` (le fournisseur d'identité), `nid-api` (l'API) et `nid-web` (l'interface, qui
-relaie aussi l'API sur la même origine).
+cinq services : `postgres`, `authelia` (le fournisseur d'identité), `nid-api` (l'API), `nid-web` (l'interface, qui
+relaie aussi l'API sur la même origine) et `backup` (la sauvegarde chiffrée, §6).
 
 ## 1. Prérequis
 
@@ -37,7 +37,9 @@ génère :
 
 - tous les secrets, dans `deploy/secrets/` : un fichier par secret, dans un dossier fermé (`0700`), jamais versionné ;
 - la configuration d'Authelia (`deploy/authelia/configuration.yml`, `users.yml`) ;
-- le fichier `deploy/.env`.
+- le fichier `deploy/.env` ;
+- le mot de passe de la sauvegarde, `deploy/backup-secrets/restic_password`, et le dossier `deploy/backups/`. Le script
+  affiche ce mot de passe une fois : **notez-le hors de cette machine** (§6).
 
 Vous pouvez le relancer : **il ne remplace jamais un secret existant**. Il réécrit seulement la configuration qui
 découle de vos réponses.
@@ -134,14 +136,114 @@ Playwright) ; ce script est jetable, ne le lancez pas sur une installation réel
 
 ## 5. Mettre à jour
 
-1. **Sauvegardez** (la sauvegarde automatique arrive avec 1F2).
+1. **Sauvegardez** : `docker compose -f deploy/compose.yaml exec backup nid-backup backup-now`.
 2. `git pull`.
-3. `docker compose -f deploy/compose.yaml up -d --build`.
+3. Pour une installation antérieure à la sauvegarde (1F1) : relancez une fois `deploy/setup.sh`, qui crée le mot de
+   passe de la sauvegarde sans toucher aux autres secrets.
+4. `docker compose -f deploy/compose.yaml up -d --build`.
 
 Les migrations de la base s'appliquent au démarrage de `nid-api`. Les images de base sont épinglées par empreinte ; une
 mise à jour de Nid les fait évoluer.
 
-## 6. Secrets et rotation
+## 6. Sauvegarder et restaurer
+
+### Ce qui est sauvegardé
+
+Chaque nuit à 03:30 (réglable : `NID_BACKUP_AT` et `TZ` dans `deploy/.env`), le service `backup` fait **un instantané
+restic chiffré** qui contient tout ce qu'il faut pour repartir :
+
+- la base (`pg_dump`), la base d'Authelia (copie à chaud), les clés Data Protection et les icônes des fournisseurs ;
+- `deploy/secrets/`, la configuration d'Authelia (`configuration.yml`, `users.yml`) et `deploy/.env` ;
+- un manifeste : nombre de lignes par table, migrations de la base, nombre de clés.
+
+Le dépôt local est `deploy/backups/` (réglable : `NID_BACKUP_DIR`). C'est un dossier de l'hôte et non un volume Docker :
+un `docker compose down -v` ne l'emporte pas. Ses fichiers appartiennent à root ; lisez-les ou copiez-les avec `sudo`.
+
+Rétention : 7 quotidiennes, 4 hebdomadaires, 12 mensuelles (`NID_BACKUP_KEEP`). Le dépôt est vérifié chaque dimanche
+(`restic check`).
+
+### Le mot de passe de la sauvegarde
+
+`deploy/backup-secrets/restic_password` **n'est pas dans la sauvegarde** : c'est lui qui l'ouvre. Sans lui, la
+sauvegarde est illisible, y compris pour vous. Gardez-en une copie hors de cette machine (gestionnaire de mots de passe,
+papier). Ne supprimez jamais ce fichier ; pour le changer, ajoutez une clé (`restic key add`) puis retirez l'ancienne
+(`restic key remove`) sur chaque dépôt, voir la documentation de restic.
+
+### Sauvegarder maintenant
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup backup-now
+```
+
+Une sauvegarde lancée pendant celle de la nuit attend qu'elle se termine.
+
+### Surveiller
+
+`backup` devient `unhealthy` si la dernière sauvegarde a échoué, si la dernière réussite date de plus de 26 h
+(`NID_BACKUP_MAX_AGE`) ou si le dépôt distant n'a pas reçu la dernière. La commande suivante dit pourquoi :
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup status
+```
+
+Nid n'envoie pas encore d'alerte par email. Surveillez cet état depuis l'hôte, par exemple dans un cron ou dans votre
+outil de supervision :
+
+```bash
+[ "$(docker inspect --format '{{.State.Health.Status}}' nid-backup-1)" = healthy ] || echo "Sauvegarde de Nid en échec"
+```
+
+### Ajouter un dépôt distant
+
+Pour la règle 3-2-1, ajoutez une copie hors du domicile. Dans `deploy/backup-secrets/` :
+
+| Fichier | Contenu |
+|---|---|
+| `remote_repository` | L'URL restic du dépôt, par exemple `s3:https://s3.example.org/nid-sauvegarde` ou `rest:https://utilisateur:motdepasse@sauvegarde.example.org/nid` (un `rest-server`) |
+| `remote_password` | Facultatif : le mot de passe du dépôt distant. Sans lui, celui du dépôt local |
+| `remote_credentials` | Pour S3 : un fichier au format AWS (`[default]`, `aws_access_key_id = …`, `aws_secret_access_key = …`) |
+
+Puis ajoutez la surcouche `-f deploy/compose.backup-remote.yaml` à **toutes** vos commandes compose : elle seule
+ouvre à `backup` un accès sortant. Sans elle, le dépôt distant est injoignable et `backup` le signale.
+
+```bash
+docker compose -f deploy/compose.yaml -f deploy/compose.backup-remote.yaml up -d
+```
+
+Chaque nouvel instantané est recopié (`restic copy`), puis la même rétention s'applique au dépôt distant. **Dépôt en
+ajout seulement** (`rest-server --append-only`, verrouillage d'objets S3) : mettez `NID_BACKUP_REMOTE_FORGET=false`
+dans `deploy/.env`. Rien n'y est alors jamais supprimé par Nid ; élaguez-le depuis une autre machine, avec des
+identifiants qui ont le droit de supprimer.
+
+### Essayer une restauration, chaque trimestre
+
+```bash
+deploy/restore.sh --verify                  # depuis le dépôt local
+deploy/restore.sh --verify --from remote    # depuis le dépôt distant
+```
+
+Le script restaure le dernier instantané (ou `--snapshot <id>`) dans un projet jetable, `nid-restore-test`, sans port
+publié ni accès sortant. Il vérifie que chaque table a autant de lignes que dans la sauvegarde, que `nid-api` est prêt,
+qu'Authelia lit sa base et que les clés Data Protection ont été reprises. Puis il supprime tout. Il ne touche pas votre
+installation. `--compose-file <chemin absolu>` ajoute un fichier compose à la restauration, par exemple un
+`extra_hosts` pour joindre le dépôt distant (comme §1 pour `nid-api`).
+
+### Après un sinistre
+
+Sur une machine neuve, avec les prérequis du §1 :
+
+1. `git clone` du dépôt de Nid, à la même version ou plus récente que la sauvegarde.
+2. Remettez `deploy/backup-secrets/restic_password` (et les fichiers du dépôt distant) ; pour le dépôt local,
+   remettez aussi `deploy/backups/`.
+3. `deploy/restore.sh` (ou `deploy/restore.sh --from remote`). Il remet `deploy/secrets/`, la configuration, les
+   volumes et la base, démarre la pile et fait les mêmes vérifications que `--verify`.
+4. Branchez le proxy (§3).
+
+Le script refuse une installation qui contient déjà des données. `--force` la remplace entièrement, après que vous
+avez tapé `RESTAURER`. Si la sauvegarde vient d'une version de Nid plus récente que le code, il s'arrête : faites
+d'abord `git pull`.
+
+## 7. Secrets et rotation
 
 | Fichier | Rôle | Changer |
 |---|---|---|
@@ -149,21 +251,22 @@ mise à jour de Nid les fait évoluer.
 | `oidc_client_secret` | Secret du client `nid` chez Authelia | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `authelia` et `nid-api`. |
 | `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid-api`. Les pages ouvertes devront être rechargées. |
 | `authelia_session`, `authelia_storage`, `authelia_jwt`, `authelia_hmac`, `authelia_jwks` | Secrets d'Authelia | Voir la documentation d'Authelia. **Changer `authelia_storage` rend sa base illisible.** |
+| `backup-secrets/restic_password` | Ouvre la sauvegarde ; hors de la sauvegarde | Jamais en supprimant le fichier : `restic key add` puis `restic key remove` (§6). |
+| `backup-secrets/remote_repository`, `remote_password`, `remote_credentials` | Dépôt distant | Changez le fichier, puis `backup-now`. |
 
 Les clés Data Protection de Nid sont dans le volume `dataprotection-keys`. **Les perdre déconnecte tout le monde**, et
-rendra illisibles les secrets que Nid chiffrera plus tard. Elles font partie de la sauvegarde.
+rendra illisibles les secrets que Nid chiffrera plus tard. Elles font partie de la sauvegarde (§6).
 
-## 7. Frontière de confiance
+## 8. Frontière de confiance
 
 La confidentialité des éléments privés vaut **entre les deux adultes, pas contre l'hébergeur**. Qui a accès à la base,
 aux sauvegardes, aux journaux, à ce dossier `deploy/` ou au shell de l'hôte voit tout
 (`../docs/identity-and-access/administration-and-audit.md` §1). Protéger le disque et les sauvegardes est votre
 responsabilité.
 
-## 8. Ce qui arrive
+## 9. Ce qui arrive
 
-- **Sauvegarde et restauration testée** (1F2) : restic, dump de la base, volumes `authelia`, `dataprotection-keys` et
-  `assets`.
+- **Alerte par email** si la sauvegarde échoue ou vieillit.
 - **Journal d'audit** (1F3).
 - **Commande de secours `nid admin`** (1F4), par exemple pour rendre un adulte admin si plus aucun admin n'est
   joignable.
