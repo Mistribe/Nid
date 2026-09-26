@@ -1,5 +1,5 @@
 import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
-import { useId } from 'react';
+import { Fragment, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { formatLocalDate } from '@/components/LocalDate';
@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Field } from '../edits/Field';
 import { durationText } from '../format';
 import { ProviderPicker } from '../ProviderPicker';
-import type { WizardValues } from './schema';
+import { ISO_DATE } from '../edits/amount';
+import { addDuration } from './offers';
+import type { Unit, WizardValues } from './schema';
 
 type Person = components['schemas']['PersonDto'];
 type Form = UseFormReturn<WizardValues>;
@@ -76,14 +78,17 @@ export function CommonStep({ form, persons }: { form: Form; persons: Person[] })
   );
 }
 
-export function OfferStep({ form, persons }: { form: Form; persons: Person[] }) {
+/** The 1E2a phase fields: the recurring offer, and the phase that follows another offer (without its own start there). */
+export function RecurringOffer({ form, persons, withStart = true }: { form: Form; persons: Person[]; withStart?: boolean }) {
   const { t } = useTranslation();
   const e = form.formState.errors;
   const sameCovers = form.watch('sameCovers');
   const payerType = form.watch('payerType');
   return (
     <div className="space-y-4">
-      <Field label={t('wizard.starts')} error={e.startsOn?.message}>{(c) => <input type="date" {...c} {...form.register('startsOn')} className={input} />}</Field>
+      {withStart ? (
+        <Field label={t('wizard.starts')} error={e.startsOn?.message}>{(c) => <input type="date" {...c} {...form.register('startsOn')} className={input} />}</Field>
+      ) : null}
       <div className="flex gap-3">
         <Field label={t('wizard.amount')} error={e.amount?.message}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}</Field>
         <Field label={t('wizard.currency')} error={e.currency?.message}>{(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}</Field>
@@ -124,12 +129,53 @@ export function OfferStep({ form, persons }: { form: Form; persons: Person[] }) 
   );
 }
 
+type Values = WizardValues;
+const valid = (date: string) => ISO_DATE.test(date);
+const plus = (date: string, count: string, unit: Unit) => (/^[1-9]\d*$/.test(count) ? addDuration(date, Number(count), unit) : date);
+
+/** 1E2b1 design §4.1 step 4: when the first charge falls, by offer; nothing when no phase follows the offer. */
+export function firstCharge(v: Values): string | null {
+  if (v.offer === 'recurring') return v.startsOn;
+  if (v.offer === 'trial' && v.trialVariant === 'launch') return v.offerDate;
+  if (!v.then || !valid(v.offerDate)) return null;
+  if (v.offer === 'prepaid') return plus(plus(v.offerDate, v.paidCount, v.paidUnit), v.bonusCount, v.bonusUnit);
+  return plus(v.offerDate, v.durationCount, v.durationUnit);
+}
+
 export function SummaryStep({ form, persons }: { form: Form; persons: Person[] }) {
   const { t } = useTranslation();
   const v = form.getValues();
   const name = (id: string) => persons.find((p) => p.id === id)?.displayName ?? id;
   const id = useId();
-  const unit = (u: string) => UNITS.find((x) => x === u) ?? 'month';
+  const date = (d: string) => (valid(d) ? formatLocalDate(d) : d);
+  const money = (amount: string) => `${amount} ${v.currency.toUpperCase()}`;
+  const duration = (count: string, unit: Unit) => durationText(t, { count: Number(count), unit });
+  const phase = (amount: string, start: string) =>
+    t('wizard.summary_phase', { price: money(amount), period: duration(v.everyCount, v.everyUnit), date: date(start) });
+
+  const launch = v.offer === 'trial' && v.trialVariant === 'launch';
+  const phases = v.offer === 'recurring' ? [phase(v.amount, v.startsOn)]
+    : launch ? [phase(v.launchAmount, v.offerDate), phase(v.amount, v.nextStartsOn)]
+      : v.then ? [phase(v.amount, v.startsOn)] : [];
+  const purchase = (() => {
+    switch (v.offer) {
+      case 'prepaid': {
+        const paid = duration(v.paidCount, v.paidUnit);
+        const span = v.bonusCount.trim() === '' ? paid : t('wizard.summary_durations', { paid, bonus: duration(v.bonusCount, v.bonusUnit) });
+        return `${v.offerLabel} · ${money(v.offerAmount)} · ${span}`;
+      }
+      case 'trial':
+        return launch ? null : `${t('wizard.offer.trial_label')} · ${duration(v.durationCount, v.durationUnit)}`;
+      case 'gift':
+        return `${v.offerLabel} · ${money(v.giftReceived ? '0' : v.offerAmount)} · ${duration(v.durationCount, v.durationUnit)}`;
+      case 'bundle':
+        return `${v.offerLabel} · ${money(v.offerAmount)} · ${duration(v.durationCount, v.durationUnit)}`;
+      case 'recurring':
+        return null;
+    }
+  })();
+  const first = firstCharge(v);
+  const offerName = v.offer === 'trial' ? `${t('wizard.offer.trial')} · ${t(`wizard.offer.trial_${v.trialVariant}`)}` : t(`wizard.offer.${v.offer}`);
   return (
     <section aria-labelledby={id} className="space-y-2">
       <h2 id={id} className="text-lg font-semibold">{t('wizard.step_summary')}</h2>
@@ -138,10 +184,13 @@ export function SummaryStep({ form, persons }: { form: Form; persons: Person[] }
         <dt>{t('wizard.summary_provider')}</dt><dd>{v.provider?.name ?? t('wizard.none')}</dd>
         <dt>{t('wizard.visibility')}</dt><dd>{t(`wizard.${v.visibility}`)}</dd>
         <dt>{t('wizard.owners')}</dt><dd>{v.owners.map((o) => `${name(o.personId)} (${o.share} %)`).join(', ')}</dd>
-        <dt>{t('wizard.starts')}</dt><dd>{/^\d{4}-\d{2}-\d{2}$/.test(v.startsOn) ? formatLocalDate(v.startsOn) : v.startsOn}</dd>
-        <dt>{t('wizard.summary_price')}</dt><dd>{`${v.amount} ${v.currency.toUpperCase()}`}</dd>
-        <dt>{t('wizard.summary_period')}</dt><dd>{durationText(t, { count: Number(v.everyCount), unit: unit(v.everyUnit) })}</dd>
-        <dt>{t('wizard.payer')}</dt><dd>{v.payerType === 'person' ? name(v.payerPerson) : t('wizard.payer_household')}</dd>
+        <dt>{t('wizard.summary_offer')}</dt><dd>{offerName}</dd>
+        {purchase === null ? null : <><dt>{t('wizard.summary_purchase')}</dt><dd>{purchase}</dd></>}
+        {phases.map((p, i) => <Fragment key={i}><dt>{t('wizard.summary_price')}</dt><dd>{p}</dd></Fragment>)}
+        {phases.length > 0
+          ? <><dt>{t('wizard.payer')}</dt><dd>{v.payerType === 'person' ? name(v.payerPerson) : t('wizard.payer_household')}</dd></>
+          : null}
+        {first === null ? null : <><dt>{t('wizard.summary_first_charge')}</dt><dd>{date(first)}</dd></>}
       </dl>
     </section>
   );

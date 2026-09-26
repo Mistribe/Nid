@@ -12,21 +12,45 @@ import { Button } from '@/components/ui/button';
 import { invalidateSubscriptions, LIST, PERSONS } from './api';
 import { useSubmitErrors } from './edits/useSubmitErrors';
 import { fieldErrorsOf } from './fieldErrors';
-import { stepOfPath, type StepName } from './wizard/offers';
+import { stepOfPath, stepsFor, type Offer, type StepName } from './wizard/offers';
+import { Bundle } from './wizard/offers/Bundle';
+import type { Form, Person } from './wizard/offers/fields';
+import { Gift } from './wizard/offers/Gift';
+import { Prepaid } from './wizard/offers/Prepaid';
+import { leaveTrial, Trial } from './wizard/offers/Trial';
 import { fieldOf, toCreateBody, wizardSchema, type WizardValues } from './wizard/schema';
-import { CommonStep, OfferStep, SummaryStep } from './wizard/steps';
+import { CommonStep, RecurringOffer, SummaryStep } from './wizard/steps';
+import { ThenStep } from './wizard/ThenStep';
+import { TypeStep } from './wizard/TypeStep';
 
-// Task 3 (1E2b1) only wires the recurring offer through `offers.ts`; the wizard still shows the three 1E2a
-// steps and never lets the offer change. Task 4 rewrites this component around `stepsFor`/`StepName`; until
-// then, the step a server path names is mapped back onto these three fixed indices.
-const STEP_OF: Partial<Record<StepName, number>> = { common: 0, offer: 1, summary: 2 };
+type Fields = Path<WizardValues>[];
+const PURCHASE: Fields = ['offerDate', 'offerLabel', 'offerAmount', 'offerPayerType', 'offerPayerPerson'];
+const PHASE: Fields = ['amount', 'currency', 'everyCount', 'everyUnit', 'sameCovers', 'coversCount', 'coversUnit', 'maxCycles', 'payerType', 'payerPerson'];
 
-const STEP_FIELDS: Path<WizardValues>[][] = [
-  ['provider', 'displayName', 'visibility', 'owners', 'users', 'note'],
-  ['startsOn', 'amount', 'currency', 'everyCount', 'everyUnit', 'sameCovers', 'coversCount', 'coversUnit', 'maxCycles', 'payerType', 'payerPerson'],
-];
+/** The fields the offer step checks before going on, by offer (1E2b1 design §4.1). */
+function offerFields(offer: Offer, trialVariant: WizardValues['trialVariant']): Fields {
+  switch (offer) {
+    case 'recurring': return ['startsOn', ...PHASE];
+    case 'prepaid': return [...PURCHASE, 'paidCount', 'paidUnit', 'bonusCount', 'bonusUnit'];
+    case 'trial': return trialVariant === 'free'
+      ? ['trialVariant', 'offerDate', 'durationCount', 'durationUnit']
+      : ['trialVariant', 'offerDate', 'launchAmount', 'everyCount', 'everyUnit', 'launchCycles'];
+    case 'gift': return ['offerDate', 'offerLabel', 'giftReceived', 'offerAmount', 'offerPayerType', 'offerPayerPerson', 'durationCount', 'durationUnit'];
+    case 'bundle': return [...PURCHASE, 'allocated', 'durationCount', 'durationUnit', 'others'];
+  }
+}
 
-/** 1E2a design §5: the recurring offer in three steps, sent as one request at the end. */
+const stepFields = (name: StepName, offer: Offer, trialVariant: WizardValues['trialVariant']): Fields => {
+  switch (name) {
+    case 'type': return ['offer'];
+    case 'common': return ['provider', 'displayName', 'visibility', 'owners', 'users', 'note'];
+    case 'offer': return offerFields(offer, trialVariant);
+    case 'then': return ['then', 'startsOn', 'nextStartsOn', ...PHASE];
+    case 'summary': return [];
+  }
+};
+
+/** 1E2a design §5, 1E2b1 design §4.1: the offer type, the subscription, the offer, what follows it, sent as one request at the end. */
 export function NewSubscription() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -45,8 +69,8 @@ export function NewSubscription() {
       startsOn: '', amount: '', currency: 'EUR', everyCount: '1', everyUnit: 'month', sameCovers: true, coversCount: '1', coversUnit: 'month',
       maxCycles: '', payerType: 'household', payerPerson: '',
       offer: 'recurring', trialVariant: 'free', offerDate: '', offerLabel: '', offerAmount: '', offerPayerType: 'household', offerPayerPerson: '',
-      paidCount: '', paidUnit: 'month', bonusCount: '', bonusUnit: 'month', durationCount: '', durationUnit: 'month', giftReceived: true,
-      allocated: '', launchAmount: '', launchCycles: '', nextStartsOn: '', others: [], then: false,
+      paidCount: '12', paidUnit: 'month', bonusCount: '', bonusUnit: 'month', durationCount: '1', durationUnit: 'month', giftReceived: true,
+      allocated: '0', launchAmount: '', launchCycles: '', nextStartsOn: '', others: [], then: false,
     },
   });
   const errors = useSubmitErrors(form.setError, (path) => fieldOf(path, form.getValues()));
@@ -58,11 +82,12 @@ export function NewSubscription() {
     },
     onError: (error) => {
       const { offer, trialVariant } = form.getValues();
-      const steps = fieldErrorsOf(error)
+      const owned = fieldErrorsOf(error)
         .map((f) => stepOfPath(offer, trialVariant, f.path))
-        .map((s) => (s ? STEP_OF[s] : undefined))
-        .filter((s): s is number => s !== undefined);
-      if (steps.length > 0) setStep(Math.min(...steps));
+        .filter((s): s is StepName => s !== undefined)
+        .map((s) => stepsFor(offer).indexOf(s))
+        .filter((i) => i >= 0);
+      if (owned.length > 0) setStep(Math.min(...owned));
       setPendingErrors(error);
     },
   });
@@ -74,16 +99,26 @@ export function NewSubscription() {
     setPendingErrors(null);
   }, [pendingErrors, step, errors]);
 
+  const offer = form.watch('offer');
+  const trialVariant = form.watch('trialVariant');
+  const steps = stepsFor(offer);
+  const name = steps[step] ?? 'summary';
+  const last = step === steps.length - 1;
   const next = async () => {
-    if (await form.trigger(STEP_FIELDS[step])) setStep(step + 1);
+    if (!(await form.trigger(stepFields(name, offer, trialVariant)))) return;
+    if (name === 'offer' && offer === 'trial') leaveTrial(form, t('wizard.offer.trial_label'));
+    setStep(step + 1);
   };
-  const titles = [t('wizard.step_common'), t('wizard.step_offer'), t('wizard.step_summary')];
+  const titles: Record<StepName, string> = {
+    type: t('wizard.offer.legend'), common: t('wizard.step_common'), offer: t('wizard.step_offer'),
+    then: t('wizard.then.title'), summary: t('wizard.step_summary'),
+  };
 
   return (
     <div className="max-w-2xl space-y-4">
       <Link to="/subscriptions" className="text-sm underline">{t('subscription.back')}</Link>
       <h1 className="text-2xl font-semibold">{t('wizard.title')}</h1>
-      <p aria-live="polite" className="text-sm text-muted-foreground">{t('wizard.step_progress', { n: step + 1 })} · {titles[step]}</p>
+      <p aria-live="polite" className="text-sm text-muted-foreground">{t('wizard.step_progress', { n: step + 1, total: steps.length })} · {titles[name]}</p>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       {people.error ? <ProblemMessage problem={present(toProblem(people.error))} /> : null}
       {/* The owner and payer selects are born with their options: a select registered before them would show its
@@ -91,15 +126,17 @@ export function NewSubscription() {
       {!people.data ? <div aria-busy="true" aria-label={t('wizard.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /> : (
       <form noValidate onSubmit={(e) => {
         e.preventDefault();
-        if (step < 2) void next();
+        if (!last) void next();
         else void form.handleSubmit((values) => create.mutate({ body: toCreateBody(values) }))(e);
       }} className="space-y-4">
-        {step === 0 ? <CommonStep form={form} persons={persons} /> : null}
-        {step === 1 ? <OfferStep form={form} persons={persons} /> : null}
-        {step === 2 ? <SummaryStep form={form} persons={persons} /> : null}
+        {name === 'type' ? <TypeStep form={form} /> : null}
+        {name === 'common' ? <CommonStep form={form} persons={persons} /> : null}
+        {name === 'offer' ? <OfferForm form={form} persons={persons} offer={offer} /> : null}
+        {name === 'then' ? <ThenStep form={form} persons={persons} /> : null}
+        {name === 'summary' ? <SummaryStep form={form} persons={persons} /> : null}
         <div className="flex gap-2">
           {step > 0 ? <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>{t('wizard.back')}</Button> : null}
-          {step < 2
+          {!last
             ? <Button type="submit">{t('wizard.next')}</Button>
             : <Button type="submit" disabled={create.isPending}>{t('wizard.submit')}</Button>}
         </div>
@@ -107,4 +144,14 @@ export function NewSubscription() {
       )}
     </div>
   );
+}
+
+function OfferForm({ form, persons, offer }: { form: Form; persons: Person[]; offer: Offer }) {
+  switch (offer) {
+    case 'recurring': return <RecurringOffer form={form} persons={persons} />;
+    case 'prepaid': return <Prepaid form={form} persons={persons} />;
+    case 'trial': return <Trial form={form} />;
+    case 'gift': return <Gift form={form} persons={persons} />;
+    case 'bundle': return <Bundle form={form} persons={persons} />;
+  }
 }

@@ -21,6 +21,8 @@ function serve(create: Parameters<typeof http.post>[1]) {
 async function start() {
   const utils = await renderApp('/subscriptions/new');
   await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+  expect(await screen.findByRole('radio', { name: /Récurrent/ })).toBeChecked();
+  await utils.user.click(screen.getByRole('button', { name: 'Continuer' }));
   await screen.findByRole('group', { name: 'Propriétaires' }); // the steps wait for the household's persons
   return utils;
 }
@@ -57,6 +59,7 @@ describe('Abonnements › ajout', () => {
     const bob = { ...aliceSession, person: { ...aliceSession.person, id: BOB, name: 'Bob Dev' } };
     const { user } = await renderApp('/subscriptions/new', { session: bob });
     await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+    await user.click(await screen.findByRole('button', { name: 'Continuer' }));
 
     const owners = await screen.findByRole('group', { name: 'Propriétaires' });
     expect(await within(owners).findByDisplayValue('Bob Dev')).toBeInTheDocument();

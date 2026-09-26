@@ -1,0 +1,46 @@
+import { useEffect, useId } from 'react';
+import { useTranslation } from 'react-i18next';
+import { DateField, type Form, type Person } from './offers/fields';
+import { thenMode } from './offers';
+import { RecurringOffer } from './steps';
+
+/** 1E2b1 design §4.1 "Et ensuite ?": the phase that follows the offer; required after a launch price. */
+export function ThenStep({ form, persons }: { form: Form; persons: Person[] }) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const mode = thenMode({ offer: form.watch('offer'), trialVariant: form.watch('trialVariant') });
+  const on = form.watch('then');
+
+  useEffect(() => {
+    if (form.getValues('startsOn') === '') form.setValue('startsOn', form.getValues('offerDate'));
+  }, [form]);
+
+  if (mode === 'required') {
+    return (
+      <section aria-labelledby={titleId} className="space-y-4">
+        <h2 id={titleId} className="text-lg font-semibold">{t('wizard.then.required_title')}</h2>
+        <DateField form={form} name="nextStartsOn" label={t('wizard.then.next_start')} />
+        <RecurringOffer form={form} persons={persons} withStart={false} />
+      </section>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <fieldset className="space-y-1">
+        <legend className="text-sm">{t('wizard.then.title')}</legend>
+        {([false, true] as const).map((value) => (
+          <label key={String(value)} className="flex items-center gap-2">
+            <input type="radio" name="then" checked={on === value} onChange={() => form.setValue('then', value)} />
+            {t(value ? 'wizard.then.recurring' : 'wizard.then.none')}
+          </label>
+        ))}
+      </fieldset>
+      {on ? (
+        <>
+          <DateField form={form} name="startsOn" label={t('wizard.offer.start')} hint={t('wizard.then.hint')} />
+          <RecurringOffer form={form} persons={persons} withStart={false} />
+        </>
+      ) : null}
+    </div>
+  );
+}
