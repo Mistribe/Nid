@@ -305,6 +305,7 @@ public sealed class NidApp : IAsyncDisposable
     public async Task<PurchaseId> SeedPurchaseGrantingToAsync(params ItemId[] grantTo)
     {
         await using var scope = factory.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System; // audited rows need an actor (1F3a U4)
         var store = scope.ServiceProvider.GetRequiredService<ISubscriptionStore>();
 
         var purchase = new Purchase(

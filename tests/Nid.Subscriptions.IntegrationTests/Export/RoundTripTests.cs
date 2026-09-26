@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.IntegrationTests.Import;
 using Nid.TestSupport;
@@ -22,7 +23,10 @@ public class RoundTripTests(PostgresFixture fixture)
     {
         app.Catalog.Serve(CatalogFixtures.RealLabels(), CatalogFixtures.RealProviders());
         await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System; // the catalog job runs as the system (1F3a U4)
             Assert.True((await scope.ServiceProvider.GetRequiredService<CatalogSync>().RunAsync(default)).TryGetValue(out _));
+        }
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         (await core.Persons.SingleAsync(p => p.Id == app.AdultA.Value)).DisplayName = "Adulte 1";
         (await core.Persons.SingleAsync(p => p.Id == app.AdultB.Value)).DisplayName = "Adulte 2";

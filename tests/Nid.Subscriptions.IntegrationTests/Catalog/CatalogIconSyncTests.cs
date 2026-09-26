@@ -26,6 +26,7 @@ public class CatalogIconSyncTests(PostgresFixture fixture)
     private static async Task<Result<CatalogSyncRun>> RunAsync(NidApp app, CancellationToken ct = default)
     {
         await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System; // the catalog job runs as the system (1F3a U4)
         return await scope.ServiceProvider.GetRequiredService<CatalogSync>().RunAsync(ct);
     }
 

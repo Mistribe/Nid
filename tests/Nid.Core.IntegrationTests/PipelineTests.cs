@@ -4,6 +4,7 @@ using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Host;
 using Nid.Platform;
+using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
@@ -32,13 +33,13 @@ public class PipelineTests(PostgresFixture postgres)
         await using var scope = provider.CreateAsyncScope();
 
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<CreateDependentCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
     }
 

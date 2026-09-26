@@ -12,6 +12,10 @@ public static class PipelineOrder
 {
     public const uint Trace = 10;
     public const uint Actor = 20;
+
+    /// <summary>Names the request for the audit log and records the security events commands declare (1F3a).</summary>
+    public const uint Audit = 22;
+
     public const uint Admin = 25;
     public const uint Scope = 30;
     public const uint ItemAccess = 40;

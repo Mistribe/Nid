@@ -1,0 +1,82 @@
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Infrastructure.Persistence;
+using Nid.Platform.Infrastructure.Audit;
+using Nid.Platform.Infrastructure.Persistence;
+using Nid.Subscriptions.Infrastructure.Persistence;
+using Nid.TestSupport;
+
+namespace Nid.Subscriptions.IntegrationTests.Audit;
+
+/// <summary>1F3a spec §9 test 3: no write path is left out of the log without a decision recorded here.</summary>
+[Collection("postgres")]
+public partial class AuditCompletenessTests(PostgresFixture fixture)
+{
+    [Fact]
+    public async Task Every_mapped_entity_is_audited_or_excluded()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var maps = scope.ServiceProvider.GetServices<IAuditMap>().ToList();
+        var known = maps.SelectMany(m => m.Audited.Keys.Concat(m.Excluded)).ToHashSet();
+
+        DbContext[] contexts =
+        [
+            scope.ServiceProvider.GetRequiredService<CoreDbContext>(),
+            scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>(),
+            scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
+        ];
+        var unknown = contexts.SelectMany(c => c.Model.GetEntityTypes()).Select(t => t.ClrType).Distinct()
+            .Where(t => !known.Contains(t)).ToList();
+
+        Assert.True(unknown.Count == 0, "Neither audited nor excluded (spec §4.4):\n  " + string.Join("\n  ", unknown.Select(t => t.FullName)));
+    }
+
+    [Fact]
+    public void No_module_context_exposes_the_log()
+    {
+        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext) })
+            Assert.DoesNotContain(context.GetProperties(), p => p.PropertyType == typeof(DbSet<AuditEntryRow>));
+    }
+
+    /// <summary>
+    /// Spec U17: a bulk statement never reaches the interceptor. These are the ones that exist, each on an excluded
+    /// table, a lock, or an audited column covered otherwise. A new one fails here until it is decided.
+    /// </summary>
+    private static readonly Dictionary<string, int> AllowedBulkStatements = new()
+    {
+        ["src/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
+        ["src/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
+        ["src/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock
+        ["src/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 2,    // advisory lock; session_epoch (session_revoked)
+        ["src/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
+        ["src/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
+        ["src/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
+    };
+
+    [GeneratedRegex(@"\.Execute(SqlRaw|SqlInterpolated|Sql|Update|Delete)Async\(")]
+    private static partial Regex BulkStatement();
+
+    [Fact]
+    public void Bulk_statements_appear_only_where_decided()
+    {
+        var root = RepositoryRoot();
+        var found = Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}")
+                && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+            .Select(f => (File: Path.GetRelativePath(root, f).Replace('\\', '/'), Count: BulkStatement().Matches(File.ReadAllText(f)).Count))
+            .Where(x => x.Count > 0)
+            .ToDictionary(x => x.File, x => x.Count);
+
+        Assert.Equal(AllowedBulkStatements.OrderBy(p => p.Key), found.OrderBy(p => p.Key));
+    }
+
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Nid.slnx")))
+            directory = directory.Parent;
+        return directory?.FullName ?? throw new InvalidOperationException("Nid.slnx not found above the test binaries.");
+    }
+}

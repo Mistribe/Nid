@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -15,6 +16,7 @@ public class CatalogSyncTests(PostgresFixture fixture)
     private static async Task<Result<CatalogSyncRun>> SyncAsync(NidApp app, CancellationToken ct = default)
     {
         await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System; // the catalog job runs as the system (1F3a U4)
         return await scope.ServiceProvider.GetRequiredService<CatalogSync>().RunAsync(ct);
     }
 

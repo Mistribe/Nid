@@ -14,6 +14,7 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Export;
 using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Assets;
+using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
 using Nid.Subscriptions.Application.Catalog;
@@ -48,11 +49,18 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<SharedConnection>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+        // Audit (1F3a): each context saves its own log lines in its own transaction (spec §4.2).
+        services.AddScoped<Nid.Platform.Audit.AuditRequest>();
+        services.AddScoped<AuditInterceptor>();
+        services.AddSingleton<IAuditMap, CoreAuditMap>();
+        services.AddSingleton<IAuditMap, SubscriptionsAuditMap>();
+        services.AddSingleton<IAuditMap, PlatformAuditMap>();
+
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
             npgsql.UseNodaTime();
             npgsql.MigrationsHistoryTable("__ef_migrations_history", CoreDbContext.Schema);
-        }));
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<CoreDbContext>>();
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
@@ -90,7 +98,7 @@ public static class NidServiceCollectionExtensions
         {
             npgsql.UseNodaTime();
             npgsql.MigrationsHistoryTable("__ef_migrations_history", SubscriptionsDbContext.Schema);
-        }));
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
 
@@ -117,7 +125,7 @@ public static class NidServiceCollectionExtensions
         {
             npgsql.UseNodaTime();
             npgsql.MigrationsHistoryTable("__ef_migrations_history", PlatformDbContext.Schema);
-        }));
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<PlatformDbContext>>();
         services.AddScoped<IImportStaging, ImportStagingStore>();
         services.AddSingleton(new ImportOptions());
