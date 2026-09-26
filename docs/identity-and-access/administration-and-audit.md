@@ -41,7 +41,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 | **Tâches planifiées** | Jobs Quartz : dernière et prochaine exécution, état | `GET /admin/jobs` |
 | **Système** | Version, démarrage, santé (base, fournisseur d'identité), taille de la base | `GET /admin/system` |
 | **Catalogue** (1C2b) | Dernière synchronisation (état, heure, version synchronisée, comptes et rapport par catégorie), version épinglée, historique des 10 dernières, synchronisation à la demande confirmée ; le rapport est filtré pour son lecteur (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6) | `GET /api/v1/subscriptions/catalog/runs`, `POST /api/v1/subscriptions/catalog/sync` |
-| **Journal de sécurité** (livré en 1F3a) | Événements techniques globaux (`login_refused`, `access_violation`, les événements de la zone admin, §4.1 ; `admin_command` à l'étape 1F4), identifiants seulement | `GET /api/v1/admin/security-journal` |
+| **Journal de sécurité** (livré en 1F3a) | Événements techniques globaux (`login_refused`, `access_violation`, les événements de la zone admin, §4.1 ; `admin_command` et `subject_rebound` depuis 1F4), identifiants seulement | `GET /api/v1/admin/security-journal` |
 | **Plus tard** | IA : fournisseurs, clés, budget (étape 4), identifiants des workers (étape 4) | |
 
 - **Aucun libellé, aucun montant, aucun compteur d'éléments** : un total d'éléments révélerait que l'autre adulte en a de privés.
@@ -50,7 +50,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 ## 3. Commandes d'administration (CLI)
 
-La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé) et pour les identifiants de worker. Elle s'exécute dans le conteneur `nid-api` par l'hébergeur : `nid admin <commande>`. Livrée en 1F (aucune commande n'existe encore dans le code).
+La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé) et pour les identifiants de worker. Elle s'exécute dans le conteneur `nid-api` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `grant-admin`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject` et `grant-admin`. `revoke-tokens` et les commandes de workers attendent l'étape 4.
 
 | Commande | Usage |
 |---|---|
@@ -84,12 +84,13 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 |---|---|
 | `login`, `logout` | Ouverture et fin de session — livré en 1F3a |
 | `login_refused` | `sub` inconnu et aucun adulte en attente avec cet email (`not_registered`) — livré en 1F3a |
-| `session_revoked` | « Déconnecter partout », par soi-même ou par un admin — livré en 1F3a ; par commande d'administration à l'étape 1F4 |
+| `session_revoked` | « Déconnecter partout », par soi-même ou par un admin — livré en 1F3a ; par `nid admin revoke-sessions` depuis 1F4 |
+| `subject_rebound` | `nid admin rebind-subject` : un adulte rattaché à un nouveau `sub` (donnée `had_subject`) — 1F4 |
 | `token_created`, `token_revoked`, `token_expired` | Cycle de vie des jetons — étape 4 |
 | `token_auth_failed` | Échec d'authentification par jeton (fréquence limitée) — étape 4 |
 | `access_denied` | `403` ou `404` sur un élément — livré en 1F3a |
 | `access_violation` | La garde de sortie a bloqué une réponse (`authorization.md` §7) — livré en 1F3a |
-| `admin_command` | Commande d'administration — attend l'étape 1F4 |
+| `admin_command` | Chaque exécution d'une commande `nid admin`, réussie ou refusée : commande, résultat, personne visée, paramètres sans secret — 1F4 |
 | `person_preregistered`, `person_preregistration_cancelled` | Un admin ajoute ou retire un adulte en attente — livré en 1F3a |
 | `admin_granted`, `admin_revoked` | Promotion ou rétrogradation — livré en 1F3a |
 | `household_settings_changed` | Plafond d'adultes ou devise de référence modifiés — livré en 1F3a |
@@ -98,7 +99,7 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 
 - Les entrées liées à un **élément** suivent les règles d'accès de cet élément (`Readers`) : une entrée n'est visible d'un lecteur que si **tous ses éléments** (`item_ids`) le sont.
 - Les événements de sécurité d'une **personne** ne sont visibles que d'elle.
-- Le **journal de sécurité de la zone admin** (livré en 1F3a) montre aux admins les événements techniques sans lien avec une personne ou un élément (`login_refused`, `access_violation`, et les événements de la zone admin elle-même ; `admin_command` à l'étape 1F4), avec des identifiants seulement. Il ne montre pas les connexions ni les jetons d'un autre adulte.
+- Le **journal de sécurité de la zone admin** (livré en 1F3a) montre aux admins les événements techniques sans lien avec une personne ou un élément (`login_refused`, `access_violation`, et les événements de la zone admin elle-même ; `admin_command` et `subject_rebound` depuis 1F4), avec des identifiants seulement. Il ne montre pas les connexions ni les jetons d'un autre adulte.
 - **Aucune vue d'événement de sécurité ne porte d'identifiant d'élément** : `access_violation` ne montre que le nom de la requête, `access_denied` que le type d'accès ; ses identifiants d'élément (`item_ids`) restent dans la table, pour l'hébergeur seul, et n'apparaissent dans **aucune** vue — ni celle de la personne concernée, ni le journal de sécurité de la zone admin.
 - Dans la table (pas dans une vue), `access_violation` fait exception sur un point seulement : sa ligne porte des identifiants d'élément, pas seulement un libellé. L'alerte email « critique » aux deux adultes attend un canal de notification (§6).
 - L'audit des écritures et les événements de sécurité sont conservés indéfiniment : aucun job de purge (le volume est minuscule pour deux personnes).

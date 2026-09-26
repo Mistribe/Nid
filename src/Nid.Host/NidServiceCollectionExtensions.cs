@@ -44,6 +44,9 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton(_ =>
         {
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+            // Password authentication only: without this, Npgsql probes GSS encryption and the chiseled image, which has no
+            // Kerberos library, prints "Cannot load library libgssapi_krb5.so.2" (in `nid admin`'s output too).
+            dataSourceBuilder.ConnectionStringBuilder.GssEncryptionMode = GssEncryptionMode.Disable;
             dataSourceBuilder.UseNodaTime();
             return dataSourceBuilder.Build();
         });

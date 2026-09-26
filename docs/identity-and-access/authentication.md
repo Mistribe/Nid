@@ -65,7 +65,7 @@ Une API non authentifiée répond `401` **sans redirection HTML** : le SPA relan
 
 - **Plafond** : `household_settings.max_adults` (2 par défaut, réglable dans la zone admin). Il s'applique **au pré-enregistrement** : les adultes en attente comptent, et le plafond ne peut pas descendre sous le nombre d'adultes. Une connexion ne le rencontre donc plus.
 - **Confiance** : qui administre Authelia peut donner à un compte l'email d'un adulte en attente. C'est l'hébergeur, déjà dans la frontière de confiance (`administration-and-audit.md` §1).
-- **Récupération** : la `person` est retrouvée par `oidc_subject`. Si le `sub` change (Authelia réinstallé, utilisateur recréé), le nouvel `sub` serait refusé. La commande d'administration `rebind-subject` (`administration-and-audit.md` §3) rattache la personne existante au nouvel `sub`. Sans elle, l'accès serait perdu.
+- **Récupération** : la `person` est retrouvée par `oidc_subject`. Si le `sub` change (Authelia réinstallé, utilisateur recréé), le nouvel `sub` serait refusé. La commande d'administration `rebind-subject` (`administration-and-audit.md` §3) rattache la personne existante au nouvel `sub` et ferme ses sessions dans la même écriture (1F4). Sans elle, l'accès serait perdu.
 - **Un seul rôle, technique** : `admin`, porté par `person.is_admin` et géré dans Nid, pas par un claim de groupe. Il ne donne aucun droit sur les éléments (`authorization.md` §1). Qui peut atteindre Nid se règle toujours dans Authelia ; qui peut entrer dans le foyer, dans Nid.
 
 ## 6. Limites d'Authelia à assumer

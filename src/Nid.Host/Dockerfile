@@ -11,6 +11,9 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
  && dotnet publish src/Nid.Host/Nid.Host.csproj -c Release -r "$RID" --self-contained false -o /app \
       -p:OpenApiGenerateDocumentsOnBuild=false \
  && test -f /app/libSkiaSharp.so
+# 1F4: `nid admin …` in the container; the chiseled image has no shell to make this link. Next to the app host: it
+# looks for Nid.Host.dll beside the path it was called by, not beside the file a link points to.
+RUN ln -s Nid.Host /app/nid
 
 # The folders the named volumes start from: a fresh volume copies their owner and mode (1F1 design §2.1). They are
 # copied whole, as /volumes/var/lib/nid, so each folder keeps its own mode (a COPY of a folder's contents would not).
@@ -23,7 +26,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:6385dc0eae
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=build /volumes/ /
-ENV ASPNETCORE_HTTP_PORTS=8080 \
+ENV PATH="/app:${PATH}" \
+    ASPNETCORE_HTTP_PORTS=8080 \
     Assets__Root=/var/lib/nid/assets \
     DataProtection__KeysPath=/var/lib/nid/keys
 USER 1654

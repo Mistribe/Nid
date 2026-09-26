@@ -261,16 +261,41 @@ d'abord `git pull`.
 Les clés Data Protection de Nid sont dans le volume `dataprotection-keys`. **Les perdre déconnecte tout le monde**, et
 rendra illisibles les secrets que Nid chiffrera plus tard. Elles font partie de la sauvegarde (§6).
 
-## 8. Frontière de confiance
+## 8. Commandes de secours
+
+La zone admin couvre l'administration courante. `nid admin` sert quand elle ne suffit plus : plus aucun admin ne peut se
+connecter, ou Authelia a été réinstallé et l'identité (`sub`) d'un adulte a changé. Les commandes passent par les mêmes
+règles que l'interface, et chacune est enregistrée : les admins la voient dans Administration › Journal de sécurité,
+avec l'origine « Ligne de commande ».
+
+```bash
+docker compose -f deploy/compose.yaml exec nid-api nid admin list-persons
+docker compose -f deploy/compose.yaml exec nid-api nid admin grant-admin --person alice@example.org
+docker compose -f deploy/compose.yaml exec nid-api nid admin revoke-sessions --person alice@example.org
+docker compose -f deploy/compose.yaml exec nid-api nid admin rebind-subject --person alice@example.org --sub <nouveau sub>
+```
+
+- `--person` accepte un identifiant (voir `list-persons`), un email (la casse ne compte pas) ou un nom affiché exact.
+  Si plusieurs personnes correspondent, la commande refuse et les liste : relancez avec l'identifiant.
+- `grant-admin` et `rebind-subject` demandent de taper `oui` ; `--yes` s'en passe, par exemple dans un script. Sans
+  terminal (`exec -T`) et sans `--yes`, elles refusent sans rien changer.
+- `rebind-subject` ferme aussi les sessions de l'adulte. Le nouveau `sub` se lit dans Authelia (l'identifiant de
+  l'utilisateur, visible par exemple dans `deploy/authelia/users.yml` ou dans les journaux d'Authelia à sa connexion
+  refusée).
+- **Si l'API ne démarre pas**, lancez la commande dans un conteneur à part, sans `nid` (le point d'entrée de l'image
+  est déjà l'hôte) : `docker compose -f deploy/compose.yaml run --rm nid-api admin list-persons`.
+- La CLI n'applique jamais les migrations : si la base n'est pas à jour, elle le dit ; démarrez d'abord `nid-api`.
+- `nid admin --help` liste les commandes.
+
+## 9. Frontière de confiance
 
 La confidentialité des éléments privés vaut **entre les deux adultes, pas contre l'hébergeur**. Qui a accès à la base,
 aux sauvegardes, aux journaux, à ce dossier `deploy/` ou au shell de l'hôte voit tout
 (`../docs/identity-and-access/administration-and-audit.md` §1). Protéger le disque et les sauvegardes est votre
 responsabilité.
 
-## 9. Ce qui arrive
+## 10. Ce qui arrive
 
 - **Alerte par email** si la sauvegarde échoue ou vieillit.
-- **Journal d'audit** (1F3).
-- **Commande de secours `nid admin`** (1F4), par exemple pour rendre un adulte admin si plus aucun admin n'est
-  joignable.
+- **Jetons d'accès et workers** (étape 4), avec leurs commandes `revoke-tokens`, `create-worker`, `rotate-worker`,
+  `revoke-worker`.

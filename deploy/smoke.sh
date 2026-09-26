@@ -22,6 +22,13 @@ echo "ok: every service is up and healthy"
   from (values ('Alice Dev', 'alice@example.test', true), ('Bob Dev', 'bob@example.test', false)) as v(name, email, admin)
   where not exists (select 1 from core.person p where lower(p.email) = v.email);"
 
+# 1F4: the recovery CLI runs inside the chiseled image through its `nid` link.
+persons=$("${COMPOSE[@]}" exec -T nid-api nid admin list-persons)
+grep -q "alice@example.test" <<<"$persons" && grep -q "bob@example.test" <<<"$persons" \
+  || { echo "FAIL: nid admin list-persons: $persons" >&2; exit 1; }
+"${COMPOSE[@]}" exec -T nid-api nid admin grant-admin --person bob@example.test --yes
+echo "ok: nid admin runs in the image (list-persons, grant-admin)"
+
 curl -skf "$URL/auth/session" | grep -q '"authenticated":false'
 echo "ok: the session route answers"
 
