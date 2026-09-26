@@ -38,7 +38,10 @@ export function PurchaseForm({ detail }: { detail: Detail }) {
   const currency = detail.phases.at(-1)?.price.currency ?? 'EUR';
   const empty = { label: '', date: '', kind: 'prepaid_term' as const, amount: '', currency, count: '1', unit: 'month' as const };
   const form = useForm({ resolver: zodResolver(schema), defaultValues: empty });
-  const errors = useSubmitErrors(form.setError, {});
+  const errors = useSubmitErrors(form.setError, {
+    date: 'date', label: 'label', kind: 'kind', 'price.amount': 'amount', 'price.currency': 'currency', price: 'amount',
+    'grants[0].duration.count': 'count', 'grants[0].duration.unit': 'unit', 'grants[0].duration': 'count',
+  });
   const add = $api.useMutation('post', PURCHASES, {
     onSuccess: () => { setSaved(true); errors.clear(); form.reset(empty); void invalidateSubscriptions(queryClient); },
     onError: (error) => { setSaved(false); errors.onError(error); },
@@ -53,7 +56,7 @@ export function PurchaseForm({ detail }: { detail: Detail }) {
         date: v.date, label: v.label, kind: v.kind,
         price: { amount: toWireAmount(v.amount), currency: v.currency },
         payer: { type: gift ? 'external' : 'household', personId: null },
-        grants: [{ subscriptionId: detail.id, duration: { count: Number(v.count), unit: v.unit }, source: gift ? 'gift' : 'paid', startsOn: null }],
+        grants: [{ duration: { count: Number(v.count), unit: v.unit }, source: gift ? 'gift' : 'paid', startsOn: null }],
         allocatedAmount: null, note: null,
       },
     });

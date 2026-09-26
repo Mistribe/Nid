@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -49,5 +49,26 @@ describe('Abonnements › détail', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Cet élément est introuvable.');
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('shows a purchase refusal on its field, with no generic alert', async () => {
+    serveDetail(detail());
+    server.use(http.post('*/api/v1/subscriptions/:id/purchases', () => HttpResponse.json({
+      status: 422, code: 'request.invalid', title: 'A count is positive.',
+      errors: [{ path: 'grants[0].duration.count', code: 'request.count', message: 'A count is positive.' }],
+    }, { status: 422 })));
+    const { user } = await renderApp(`/subscriptions/${SUB}`);
+    await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+
+    const form = screen.getByRole('form', { name: 'Ajouter un achat' });
+    await user.type(within(form).getByLabelText('Libellé'), 'Carte cadeau');
+    await user.type(within(form).getByLabelText('Date'), '2025-12-01');
+    await user.type(within(form).getByLabelText('Montant'), '0');
+    await user.click(within(form).getByRole('button', { name: 'Ajouter un achat' }));
+
+    const count = within(form).getByLabelText('Durée couverte');
+    await waitFor(() => expect(count).toHaveAttribute('aria-invalid', 'true'));
+    expect(count).toHaveAccessibleDescription('Saisissez un nombre entier positif.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

@@ -237,6 +237,8 @@ Past charges derived from phases are assumed to have happened as described. Futu
 | Refund or pro-rata credit | `Purchase { kind: refund or adjustment, price negative, grants: [] }` |
 | Family plan shared by several users | Core ownership = both adults at 50/50, `service_users` = members, `payer` on each phase/purchase |
 
+L'assistant d'ajout (1E2b1) produit ces cas : prépayé, essai gratuit, prix de lancement (deux phases), carte cadeau, bundle.
+
 ### Out of scope: money credit cards
 
 A store credit card worth an amount (e.g. "25 € Apple / Battle.net balance") does **not** grant time. It is a balance that pays for future charges. It should be modeled as a payment method or wallet balance, not as a grant, so charges keep their normal price and the cost is recorded when the credit was bought. Not covered by this model yet.

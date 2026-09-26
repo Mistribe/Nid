@@ -141,7 +141,7 @@ describe('Abonnements › modifications', () => {
     await waitFor(() => expect(sent).toEqual([{
       date: '2025-12-01', label: 'Carte cadeau', kind: 'gift', price: { amount: '0', currency: 'EUR' },
       payer: { type: 'external', personId: null },
-      grants: [{ subscriptionId: SUB, duration: { count: 2, unit: 'month' }, source: 'gift', startsOn: null }],
+      grants: [{ duration: { count: 2, unit: 'month' }, source: 'gift', startsOn: null }],
       allocatedAmount: null, note: null,
     }]));
   });
