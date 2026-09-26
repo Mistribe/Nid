@@ -29,7 +29,9 @@ describe('Sécurité', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('signs me out everywhere after a confirmation, then reloads', async () => {
+  // A reload would go through login, which the identity provider's own session answers at once: the adult would be
+  // signed straight back in. Like signing out, it lands on the signed-out page (1F3a spec §7, security.spec.ts).
+  it('signs me out everywhere after a confirmation, then lands on the signed-out page', async () => {
     let revoked = false;
     server.use(
       http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
@@ -40,7 +42,9 @@ describe('Sécurité', () => {
     await user.click(await screen.findByRole('button', { name: 'Déconnecter partout' }));
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    await expect.poll(() => location.reload.mock.calls.length).toBe(1);
+    await expect.poll(() => location.assign.mock.calls.length).toBe(1);
+    expect(location.assign).toHaveBeenCalledWith('/signed-out');
+    expect(location.reload).not.toHaveBeenCalled();
     expect(revoked).toBe(true);
   });
 });

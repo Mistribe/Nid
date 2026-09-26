@@ -11,10 +11,11 @@ import { eventLabel, viaLabel } from './eventLabel';
 export function SecurityPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const { reload } = useSession();
+  const { leave } = useSession();
   const events = $api.useQuery('get', '/api/v1/platform/audit/me/security', { params: { query: { limit: 20 } } });
-  // The session this page runs in ends too: a full reload lands on the signed-out page.
-  const revoke = $api.useMutation('post', '/api/v1/core/me/revoke-sessions', { onSuccess: () => reload() });
+  // The session this page runs in ends too. Straight to the signed-out page: a reload would go through login, and the
+  // identity provider's own session would sign the adult back in at once.
+  const revoke = $api.useMutation('post', '/api/v1/core/me/revoke-sessions', { onSuccess: () => leave() });
 
   return (
     <div className="space-y-8">

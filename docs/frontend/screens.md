@@ -28,7 +28,7 @@
 | **Documents** | Dépôt de PDF avec **choix Local ou Cloud**, aperçu de ce qui sera envoyé et coût estimé (`../ingestion/llm-providers.md` §6 et §8) ; état du job d'extraction (seule vraie tâche de fond, suivie par interrogation périodique) |
 | **Import** | Voir §7 |
 | **Export** | Voir §8. Entrée à part, offerte à tout adulte connecté (module `core`), même là où l'import est désactivé (1E4) |
-| **Sécurité** | Mes derniers événements, Déconnecter partout (1F3a) ; jetons à l'étape 4 (`../identity-and-access/administration-and-audit.md` §5) |
+| **Sécurité** | Mes derniers événements, Déconnecter partout (1F3a), qui mène à la page « Vous êtes déconnecté » comme la déconnexion simple, jamais par la connexion que le fournisseur d'identité rouvrirait aussitôt ; jetons à l'étape 4 (`../identity-and-access/administration-and-audit.md` §5) |
 | **Réglages** | Voir §9 |
 | **Administration** | Voir §12 ; admins seulement |
 

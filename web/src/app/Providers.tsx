@@ -15,6 +15,8 @@ type SessionState = {
   signOut: () => Promise<void>;
   /** A full reload of the app, for the rare write whose effect the running app cannot reflect on its own (a self-demotion leaves capabilities stale). */
   reload: () => void;
+  /** Leaves for the signed-out page: never through login, which the identity provider would answer by signing in again. */
+  leave: () => void;
 };
 
 const SessionContext = createContext<SessionState | null>(null);
@@ -41,6 +43,10 @@ export function Providers(props: {
       location.assign(SIGNED_OUT_PATH);
     },
     reload: () => location.reload(),
+    leave: () => {
+      queryClient.clear();
+      location.assign(SIGNED_OUT_PATH);
+    },
   }), [session, capabilities, api, queryClient, location]);
 
   return (
