@@ -67,7 +67,7 @@ describe('runExport', () => {
     const pages = household();
     const fake = fakeExportServer(pages);
     fake.state.onPage = (section, page) => {
-      if (section === 'subscriptions' && page === 0) { pages.subscriptions[2].push(sub(4)); fake.state.revision = 'r2'; }
+      if (section === 'subscriptions' && page === 0) { pages.subscriptions.at(-1)?.push(sub(4)); fake.state.revision = 'r2'; }
     };
     server.use(...fake.handlers);
     const progress: ExportProgress[] = [];
