@@ -99,8 +99,8 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 - Les entrées liées à un **élément** suivent les règles d'accès de cet élément (`Readers`) : une entrée n'est visible d'un lecteur que si **tous ses éléments** (`item_ids`) le sont.
 - Les événements de sécurité d'une **personne** ne sont visibles que d'elle.
 - Le **journal de sécurité de la zone admin** (livré en 1F3a) montre aux admins les événements techniques sans lien avec une personne ou un élément (`login_refused`, `access_violation`, et les événements de la zone admin elle-même ; `admin_command` à l'étape 1F4), avec des identifiants seulement. Il ne montre pas les connexions ni les jetons d'un autre adulte.
-- **Aucune vue d'événement de sécurité ne porte d'identifiant d'élément** : `access_violation` ne montre que le nom de la requête, `access_denied` que le type d'accès ; les identifiants d'élément restent dans la table, pour l'hébergeur seul.
-- `access_violation` fait exception sur un point seulement : il contient des identifiants, pas de libellé. L'alerte email « critique » aux deux adultes attend un canal de notification (§6).
+- **Aucune vue d'événement de sécurité ne porte d'identifiant d'élément** : `access_violation` ne montre que le nom de la requête, `access_denied` que le type d'accès ; ses identifiants d'élément (`item_ids`) restent dans la table, pour l'hébergeur seul, et n'apparaissent dans **aucune** vue — ni celle de la personne concernée, ni le journal de sécurité de la zone admin.
+- Dans la table (pas dans une vue), `access_violation` fait exception sur un point seulement : sa ligne porte des identifiants d'élément, pas seulement un libellé. L'alerte email « critique » aux deux adultes attend un canal de notification (§6).
 - L'audit des écritures et les événements de sécurité sont conservés indéfiniment : aucun job de purge (le volume est minuscule pour deux personnes).
 
 ## 5. Page « Sécurité »
