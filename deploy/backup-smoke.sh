@@ -8,6 +8,8 @@ COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml -f local/compose.b
 REMOTE=("${COMPOSE[@]}" -f compose.backup-remote.yaml)
 RR='restic --no-cache --repository-file /run/backup-secrets/remote_repository --password-file /run/backup-secrets/restic_password'
 R='restic --no-cache --repo /repo --password-file /run/backup-secrets/restic_password'
+URL=https://nid.localtest.me
+playwright() { NID_URL=$URL NID_SMOKE=1 pnpm --dir ../web exec playwright test "$@"; }
 fail() { echo "FAIL: $*" >&2; exit 1; }
 backup() { "${COMPOSE[@]}" exec -T backup nid-backup "$@"; }
 in_backup() { "${COMPOSE[@]}" exec -T backup sh -c "$1"; }
@@ -90,3 +92,27 @@ grep -qi "mot de passe" /tmp/nid-verify.log || fail "no clear message for a wron
 [ -z "$(docker volume ls -q --filter name=nid-restore-test)" ] || fail "throwaway volumes are still there"
 [ -z "$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'nid-restore.*' 2>/dev/null)" ] || fail "the temporary folder is still there"
 echo "ok: a failed --verify says why and leaves nothing behind"
+
+# The guard: the running installation holds data.
+if ./restore.sh </dev/null 2>/tmp/nid-guard.log; then fail "restore.sh replaced a running installation"; fi
+grep -q -- "--force" /tmp/nid-guard.log || fail "the guard does not say how to go on"
+echo "ok: restore.sh refuses an installation that holds data"
+
+# The simulated disaster: a session and a backup, then nothing left but backup-secrets/ and backups/.
+playwright e2e/backup.smoke.ts --grep "before"
+backup backup-now
+"${REMOTE[@]}" down -v --remove-orphans
+rm -rf secrets .env authelia/configuration.yml authelia/users.yml
+./restore.sh
+"${COMPOSE[@]}" up -d --wait --wait-timeout 180
+playwright e2e/backup.smoke.ts --grep "after"
+echo "ok: after a disaster, a backup restores into a new stack with its sessions and data"
+
+# Review Focus 3: owners and modes, and deploy/ still the host user's.
+[ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c '%u %a' /k)" = "1654 700" ] || fail "keys folder"
+[ "$(docker run --rm -v nid_authelia:/a busybox:1.37 stat -c '%u' /a/db.sqlite3)" = "8000" ] || fail "Authelia base"
+[ "$(stat -c '%a' secrets 2>/dev/null || stat -f '%Lp' secrets)" = "700" ] || fail "deploy/secrets/ mode"
+[ -O secrets/csrf_key ] && [ -O .env ] || fail "deploy/ files not owned by the host user"
+./setup.sh --nid-host nid.localtest.me --auth-host auth.localtest.me | tee /tmp/nid-setup.log
+if grep -q "créé" /tmp/nid-setup.log; then fail "setup.sh created a secret on a restored deploy/"; fi
+echo "ok: restored owners and modes; setup.sh reruns on the restored deploy/ without creating anything"

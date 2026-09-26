@@ -25,7 +25,8 @@ case $FROM in local | remote) ;; *) die "--from attend local ou remote" ;; esac
 [ "$FROM" = local ] || [ -s backup-secrets/remote_repository ] ||
   die "deploy/backup-secrets/remote_repository manque : l'URL du dépôt distant."
 
-from_env() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -1; }
+# Missing on a new machine until the restore puts it back: not an error (pipefail would make it one).
+from_env() { if [ -f .env ]; then sed -n "s/^$1=//p" .env | tail -1; fi; }
 NID_BACKUP_DIR=${NID_BACKUP_DIR:-$(from_env NID_BACKUP_DIR)}
 NID_BACKUP_DIR=${NID_BACKUP_DIR:-backups}
 case $NID_BACKUP_DIR in /*) ;; *) NID_BACKUP_DIR=$DEPLOY/$NID_BACKUP_DIR ;; esac
@@ -61,7 +62,15 @@ c() {
 }
 tool() { c run --rm --no-deps -T backup-restore "$@"; }
 
-if [ "$VERIFY" = 1 ]; then
+if [ "$VERIFY" = 0 ]; then
+  if docker volume inspect nid_pgdata >/dev/null 2>&1 || [ -n "$(ls -A secrets 2>/dev/null)" ]; then
+    [ "$FORCE" = 1 ] || die "Cette installation contient déjà des données (volume nid_pgdata ou deploy/secrets/).
+Pour tout remplacer par la sauvegarde : deploy/restore.sh --force. Pour l'essayer sans risque : deploy/restore.sh --verify."
+    read -r -p "Tout remplacer par la sauvegarde ? Tapez RESTAURER : " answer
+    [ "$answer" = RESTAURER ] || die "Abandon : rien n'a été modifié."
+    c down -v --remove-orphans
+  fi
+else
   # Whatever happens, the throwaway project and its copy of the secrets go.
   cleanup() { c down -v --remove-orphans >/dev/null 2>&1 || true; rm -rf "$WORK"; }
   trap cleanup EXIT
