@@ -54,6 +54,17 @@ secret authelia_hmac hex
 secret authelia_jwks "openssl genrsa 2048 2>/dev/null"
 secret nid_connection_string "printf 'Host=postgres;Database=nid;Username=nid;Password=%s' \"\$(cat secrets/postgres_password)\""
 
+# The backup's own password stays outside deploy/secrets/, which the backup holds (1F2 design §3).
+mkdir -p backup-secrets backups
+chmod 700 backup-secrets
+if [ ! -s backup-secrets/restic_password ]; then
+  hex > backup-secrets/restic_password
+  chmod 600 backup-secrets/restic_password
+  echo "créé : backup-secrets/restic_password"
+  echo "Mot de passe de la sauvegarde : $(cat backup-secrets/restic_password)"
+  echo "Notez-le hors de cette machine : sans lui, la sauvegarde est illisible."
+fi
+
 client_hash=$(authelia crypto hash generate pbkdf2 --variant sha512 --password "$(cat secrets/oidc_client_secret)" | sed 's/^Digest: //')
 sed -e "s|@NID_HOST@|$NID_HOST|g" -e "s|@AUTH_HOST@|$AUTH_HOST|g" -e "s|@COOKIE_DOMAIN@|$COOKIE_DOMAIN|g" \
     -e "s|@CLIENT_SECRET_HASH@|$client_hash|g" authelia/configuration.template.yml > authelia/configuration.yml

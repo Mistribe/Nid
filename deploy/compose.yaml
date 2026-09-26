@@ -96,6 +96,48 @@ services:
     depends_on: { nid-api: { condition: service_started } }
     deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
 
+  # Nightly restic backup (1F2 design §3). Root with one capability: it reads files of four owners (keys and assets
+  # 1654, Authelia 8000, deploy/secrets/ the host user), all mounted read-only. No way out without
+  # compose.backup-remote.yaml.
+  backup:
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [DAC_READ_SEARCH]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    init: true
+    build: { context: ./backup }
+    image: ${NID_BACKUP_IMAGE:-nid-backup:local}
+    environment:
+      # Empty means the entry point's default (1F2 design §3).
+      NID_BACKUP_AT: ${NID_BACKUP_AT:-}
+      NID_BACKUP_KEEP: ${NID_BACKUP_KEEP:-}
+      NID_BACKUP_MAX_AGE: ${NID_BACKUP_MAX_AGE:-}
+      NID_BACKUP_REMOTE_FORGET: ${NID_BACKUP_REMOTE_FORGET:-}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - dataprotection-keys:/source/volumes/dataprotection-keys:ro
+      - assets:/source/volumes/assets:ro
+      # Outside /source: only its hot copy enters the snapshot.
+      - authelia:/authelia:ro
+      - ./secrets:/source/deploy/secrets:ro
+      - ./authelia/configuration.yml:/source/deploy/authelia/configuration.yml:ro
+      - ./authelia/users.yml:/source/deploy/authelia/users.yml:ro
+      - ./.env:/source/deploy/.env:ro
+      # Never under /source: what opens the backup stays out of it.
+      - ./backup-secrets:/run/backup-secrets:ro
+      - ${NID_BACKUP_DIR:-./backups}:/repo
+    tmpfs: ["/tmp:size=${NID_BACKUP_TMP_SIZE:-1g}"]
+    networks: [data]
+    healthcheck:
+      test: [CMD, /usr/local/bin/nid-backup, status]
+      interval: 5m
+      timeout: 30s
+      start_period: 2m
+      start_interval: 5s
+    depends_on: { postgres: { condition: service_healthy } }
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512m } } }
+
 # Only nid-api goes out to the Internet (security/infrastructure.md §2): every other network is internal. The hoster's
 # proxy joins `edge` and keeps its own networks for the outside.
 networks:

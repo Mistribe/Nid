@@ -1,4 +1,159 @@
 #!/bin/sh
-# Nid's backup service (1F2 design): written in Task 2.
-echo "nid-backup: not written yet" >&2
-exit 1
+# Nid's backup service (1F2 design §3 to §6). Commands: schedule (default), backup-now, status.
+set -eu
+. /usr/local/lib/nid-backup/lib.sh
+
+REPO=/repo
+SECRETS=/run/backup-secrets
+STAGE=/tmp/stage
+STATE_DIR=/tmp/state
+STATE=$STATE_DIR/status.json
+SELF=/usr/local/bin/nid-backup
+export RESTIC_CACHE_DIR=/tmp/restic-cache
+NID_BACKUP_AT=${NID_BACKUP_AT:-03:30}
+NID_BACKUP_KEEP=${NID_BACKUP_KEEP:---keep-daily 7 --keep-weekly 4 --keep-monthly 12}
+NID_BACKUP_MAX_AGE=${NID_BACKUP_MAX_AGE:-26}
+NID_BACKUP_REMOTE_FORGET=${NID_BACKUP_REMOTE_FORGET:-true}
+
+log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) nid-backup: $*" >&2; }
+die() { log "$*"; exit 1; }
+
+local_restic() { restic --repo "$REPO" --password-file "$SECRETS/restic_password" "$@"; }
+remote_configured() { [ -s "$SECRETS/remote_repository" ]; }
+remote_restic() {
+  password=$SECRETS/restic_password
+  if [ -s "$SECRETS/remote_password" ]; then password=$SECRETS/remote_password; fi
+  if [ -s "$SECRETS/remote_credentials" ]; then export AWS_SHARED_CREDENTIALS_FILE="$SECRETS/remote_credentials"; fi
+  restic --repository-file "$SECRETS/remote_repository" --password-file "$password" "$@"
+}
+# The repository a restore reads: NID_RESTORE_FROM=local (default) or remote.
+source_restic() { if [ "${NID_RESTORE_FROM:-local}" = remote ]; then remote_restic "$@"; else local_restic "$@"; fi; }
+
+# ensure_repository local|remote: creates the repository only when restic says it does not exist (exit 10); a
+# repository it cannot open for another reason, such as a wrong password, is an error, never a new empty repository.
+ensure_repository() {
+  rc=0; "$1_restic" cat config >/dev/null 2>&1 || rc=$?
+  case $rc in
+    0) ;;
+    10) log "création du dépôt $1"; "$1_restic" init >/dev/null ;;
+    *) log "dépôt $1 illisible (restic : code $rc)"; return 1 ;;
+  esac
+}
+
+pgpass() { # password file: PGPASSFILE for nid@postgres/nid
+  printf 'postgres:5432:nid:nid:%s\n' "$(cat "$1")" > /tmp/pgpass
+  chmod 600 /tmp/pgpass
+  export PGPASSFILE=/tmp/pgpass
+}
+
+write_status() { # result, remote result, snapshot, success epoch or empty
+  mkdir -p "$STATE_DIR"
+  jq -n --arg result "$1" --arg remote "$2" --arg snapshot "$3" --argjson success "${4:-null}" \
+    '{last_result: $result, remote_result: $remote, last_snapshot: $snapshot, last_success_at: $success}' > "$STATE.new"
+  mv "$STATE.new" "$STATE"
+}
+previous() { jq -r "$1 // empty" "$STATE" 2>/dev/null || true; }
+
+# At start: the last success comes from the repository, so a restart does not reset the age.
+rebuild_status() {
+  latest=$(local_restic snapshots --host nid --tag nid --latest 1 --json 2>/dev/null || echo '[]')
+  time=$(echo "$latest" | jq -r 'sort_by(.time) | last | .time // empty')
+  if [ -n "$time" ]; then
+    write_status none none "$(echo "$latest" | jq -r 'sort_by(.time) | last | .short_id')" "$(iso_to_epoch "$time")"
+  else
+    write_status none none "" ""
+  fi
+}
+
+# One backup (1F2 design §4), in its own process so that `set -e` holds: a caller's `||` would disable it here.
+run_once() {
+  started=$(date +%s)
+  mkdir -p "$STATE_DIR"
+  step() { echo "$1" > "$STATE_DIR/step"; }
+  step repository; ensure_repository local
+  rm -rf "$STAGE"; mkdir -p "$STAGE"
+
+  step database
+  pgpass /source/deploy/secrets/postgres_password
+  pg_dump --host=postgres --username=nid --dbname=nid --format=custom --file="$STAGE/database.pgdump"
+  postgres=$(( $(psql --host=postgres --username=nid --dbname=nid -Atc 'show server_version_num') / 10000 ))
+
+  step authelia
+  sqlite3 "file:/authelia/db.sqlite3?mode=ro" ".backup '$STAGE/authelia.sqlite3'"
+
+  step manifest
+  pg_restore --data-only --file=- "$STAGE/database.pgdump" > /tmp/data.sql
+  count_rows < /tmp/data.sql | counts_json > /tmp/counts.json
+  dump_migrations < /tmp/data.sql | jq -Rn '[inputs | select(length > 0)]' > /tmp/migrations.json
+  rm -f /tmp/data.sql
+  keys=$(find /source/volumes/dataprotection-keys -name 'key-*.xml' | wc -l)
+  jq -n --slurpfile rows /tmp/counts.json --slurpfile migrations /tmp/migrations.json --argjson keys "$keys" \
+    --argjson postgres "$postgres" --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg restic "$(restic version | cut -d ' ' -f 2)" '
+    {format: 1, created_at: $created, postgres_major: $postgres, restic_version: $restic,
+     parts: ["database", "authelia", "dataprotection-keys", "assets", "deploy"],
+     migrations: $migrations[0], row_counts: $rows[0], dataprotection_keys: $keys}' > "$STAGE/manifest.json"
+
+  step snapshot
+  local_restic backup --host nid --tag nid --json "$STAGE" /source > /tmp/backup.json
+  summary=$(jq -c 'select(.message_type == "summary")' /tmp/backup.json)
+  snapshot=$(echo "$summary" | jq -r '.snapshot_id' | cut -c 1-8)
+
+  step forget
+  # shellcheck disable=SC2086 # NID_BACKUP_KEEP is a list of options
+  local_restic forget --host nid --tag nid --prune $NID_BACKUP_KEEP >/dev/null
+  if [ "$(date +%u)" = 7 ]; then step check; local_restic check >/dev/null; fi
+
+  step remote
+  remote=none
+
+  write_status ok "$remote" "$snapshot" "$(date +%s)"
+  rm -rf "$STAGE" /tmp/pgpass
+  log "sauvegarde réussie : instantané $snapshot, $(echo "$summary" | jq -r '.data_added') octets ajoutés," \
+    "$(( $(date +%s) - started )) s, dépôt distant : $remote"
+}
+
+# One run under the lock: a manual run waits for the nightly one instead of failing.
+backup_now() {
+  mkdir -p "$STATE_DIR"
+  (
+    flock 9
+    rc=0; "$SELF" run-once || rc=$?
+    if [ "$rc" -ne 0 ]; then
+      failed=$(cat "$STATE_DIR/step" 2>/dev/null || echo inconnue)
+      remote=$(previous .remote_result)
+      write_status "$failed" "${remote:-none}" "$(previous .last_snapshot)" "$(previous .last_success_at)"
+      rm -rf "$STAGE" /tmp/pgpass
+      log "échec de la sauvegarde à l'étape : $failed"
+    fi
+    exit "$rc"
+  ) 9> /tmp/nid-backup.lock
+}
+
+status() {
+  [ -s "$STATE" ] || { echo "état absent : le service démarre"; exit 1; }
+  remote=no; if remote_configured; then remote=yes; fi
+  health_check "$STATE" "$(date +%s)" "$NID_BACKUP_MAX_AGE" "$remote" "$(cat "$STATE_DIR/started_at")"
+}
+
+schedule() {
+  valid_time "$NID_BACKUP_AT" || die "NID_BACKUP_AT invalide : $NID_BACKUP_AT (attendu HH:MM, de 00:00 à 23:59)"
+  [ -s "$SECRETS/restic_password" ] || die "restic_password manque dans deploy/backup-secrets/ : relancez deploy/setup.sh"
+  mkdir -p "$STATE_DIR"
+  date +%s > "$STATE_DIR/started_at"
+  rebuild_status
+  while :; do
+    wait=$(seconds_until "$NID_BACKUP_AT" "$(date +%s)")
+    log "prochaine sauvegarde dans $wait s ($NID_BACKUP_AT, fuseau ${TZ:-UTC})"
+    sleep "$wait"
+    backup_now || true
+  done
+}
+
+case ${1:-schedule} in
+  schedule) schedule ;;
+  backup-now) backup_now ;;
+  run-once) run_once ;;
+  status) status ;;
+  *) die "commande inconnue : $1" ;;
+esac

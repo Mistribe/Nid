@@ -23,3 +23,5 @@ deploy/secrets/
 deploy/.env
 deploy/authelia/configuration.yml
 deploy/authelia/users.yml
+deploy/backup-secrets/
+deploy/backups/
