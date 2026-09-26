@@ -14,7 +14,8 @@ export default defineConfig(
       globals: globals.browser,
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['*.js', 'eslint-rules/*.js', 'vite.config.ts', 'playwright.config.ts', 'e2e/*.ts'],
+          // e2e/ has its own tsconfig.json: its files would soon pass the default project's limit of 8.
+          allowDefaultProject: ['*.js', 'eslint-rules/*.js', 'vite.config.ts', 'playwright.config.ts'],
           defaultProject: './tsconfig.node.json',
         },
         tsconfigRootDir: import.meta.dirname,

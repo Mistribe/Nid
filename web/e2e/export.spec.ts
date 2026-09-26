@@ -31,13 +31,13 @@ test('alice exports what she sees, and the import assistant reads the file back'
   const announced = Number(/\d+/.exec((await done.textContent())!)![0]);
 
   expect(download.suggestedFilename()).toMatch(/^nid-\d{4}-\d{2}-\d{2}\.nid\.json$/);
-  const text = await readFile((await download.path())!, 'utf8');
+  const text = await readFile(await download.path(), 'utf8');
   const file = JSON.parse(text) as Record<string, unknown>;
   expect(file.format).toBe('nid.data');
   expect(file.version).toBe(1);
   expect(Object.keys(file).slice(0, 3)).toEqual(['format', 'version', 'exported_at']);
   // The file holds what the screen counted: one state of the data, whatever the parallel journeys wrote since.
-  const sections = Object.entries(file).filter(([, value]) => Array.isArray(value)) as Array<[string, unknown[]]>;
+  const sections = Object.entries(file).filter((entry): entry is [string, unknown[]] => Array.isArray(entry[1]));
   expect(sections.map(([name]) => name)).toContain('subscriptions');
   expect(sections.reduce((sum, [, list]) => sum + list.length, 0)).toBe(announced);
 
