@@ -13,4 +13,6 @@ public static class PersonCodes
     public const string NotAnAdult = "core.not_an_adult";
     public const string CapBelowCount = "core.cap_below_count";
     public const string UnknownCurrency = "core.unknown_currency";
+    public const string SubjectTaken = "core.subject_taken";
+    public const string SubjectInvalid = "core.subject_invalid";
 }

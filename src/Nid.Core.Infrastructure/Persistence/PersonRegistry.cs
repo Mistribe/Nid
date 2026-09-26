@@ -222,6 +222,43 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         return Result.Success(ToInfo(row));
     }
 
+    public async Task<Result<RebindOutcome>> RebindSubjectAsync(PersonId id, string subject, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(subject) || subject.Length > 255)
+            return Result.Failure<RebindOutcome>(new Failure(PersonCodes.SubjectInvalid, "A subject is 1 to 255 characters."));
+
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure<RebindOutcome>(new NotFoundFailure("person", id.ToString()));
+        if (row.Kind != "adult")
+            return Result.Failure<RebindOutcome>(new Failure(PersonCodes.NotAnAdult, "Only an adult signs in."));
+        if (row.OidcSubject == subject)
+            return Result.Success(new RebindOutcome(ToInfo(row), row.OidcSubject, false));
+
+        var holder = await db.Persons.AsNoTracking().Where(p => p.OidcSubject == subject && p.Id != id.Value).Select(p => p.Id).FirstOrDefaultAsync(ct);
+        if (holder != Guid.Empty)
+            return Result.Failure<RebindOutcome>(Taken(holder));
+
+        var previous = row.OidcSubject;
+        row.OidcSubject = subject;
+        row.SessionEpoch += 1;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException e) when (e.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        {
+            // Review Focus 2: a sign-in took the subject between the check and the write; the unique index decides.
+            db.ChangeTracker.Clear();
+            var winner = await db.Persons.AsNoTracking().Where(p => p.OidcSubject == subject).Select(p => p.Id).FirstAsync(ct);
+            return Result.Failure<RebindOutcome>(Taken(winner));
+        }
+        return Result.Success(new RebindOutcome(ToInfo(row), previous, true));
+    }
+
+    private static Failure Taken(Guid holder) => new(PersonCodes.SubjectTaken, "Another person holds this subject.",
+        new Dictionary<string, object?> { ["person"] = holder.ToString() });
+
     private static PersonInfo ToInfo(PersonRow row) => new(
         new PersonId(row.Id),
         row.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent,

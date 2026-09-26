@@ -22,6 +22,9 @@ public sealed record PersonInfo(
     PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch,
     bool IsAdmin = false, bool IsPending = false);
 
+/// <summary>1F4 design §3: what a rebinding did; <c>Changed</c> is false when the adult already had that subject.</summary>
+public sealed record RebindOutcome(PersonInfo Person, string? PreviousSubject, bool Changed);
+
 public enum AccessKind
 {
     Read,
@@ -59,6 +62,12 @@ public interface IPersonRegistry
 
     /// <summary>Promotes or demotes an adult; at least one admin who has signed in always remains (<see cref="PersonCodes.LastAdmin"/>).</summary>
     Task<Result<PersonInfo>> SetAdminAsync(PersonId id, bool isAdmin, CancellationToken ct);
+
+    /// <summary>
+    /// Binds an adult to a new OIDC subject and ends their sessions in the same write (1F4 design §3). A subject held by
+    /// another person is <see cref="PersonCodes.SubjectTaken"/>, with that person's id in the metadata's <c>person</c>.
+    /// </summary>
+    Task<Result<RebindOutcome>> RebindSubjectAsync(PersonId id, string subject, CancellationToken ct);
 
     /// <summary>"Sign out everywhere": increments the adult's session epoch, so every cookie they hold is refused.</summary>
     Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct);

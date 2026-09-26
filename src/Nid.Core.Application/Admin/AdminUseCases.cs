@@ -111,3 +111,35 @@ public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
         => (await settings.UpdateAsync(new HouseholdSettingsChange(command.MaxAdults, command.ReferenceCurrency), ct))
             .Map(HouseholdSettingsView.From);
 }
+
+/// <summary>A person as `nid admin list-persons` shows it (1F4 design §3): whether a subject is bound, never its value.</summary>
+public sealed record PersonView(Guid Id, string Kind, string DisplayName, string? Email, string Status, bool IsAdmin, bool HasSubject)
+{
+    public static PersonView From(PersonInfo person) => new(
+        person.Id.Value, person.Kind == PersonKind.Adult ? "adult" : "dependent", person.DisplayName, person.Email,
+        person.IsPending ? "pending" : "active", person.IsAdmin, person.Kind == PersonKind.Adult && !person.IsPending);
+}
+
+public sealed record ListAllPersonsQuery : IQuery<IReadOnlyList<PersonView>>, IAdminOnly;
+
+public sealed record RebindSubjectCommand(PersonId Person, string Subject) : ICommand<RebindOutcome>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent? EventFor(object response) => response is RebindOutcome { Changed: true } outcome
+        ? new SecurityEvent(SecurityEventNames.SubjectRebound, Person, [],
+            new Dictionary<string, string> { ["had_subject"] = outcome.PreviousSubject is null ? "false" : "true" })
+        : null;
+}
+
+[RequestHandler<ListAllPersonsQuery, IReadOnlyList<PersonView>>]
+public sealed class ListAllPersonsHandler(IPersonRegistry persons) : IRequestHandler<ListAllPersonsQuery, IReadOnlyList<PersonView>>
+{
+    public async ValueTask<Result<IReadOnlyList<PersonView>>> HandleAsync(ListAllPersonsQuery query, CancellationToken ct = default)
+        => Result.Success<IReadOnlyList<PersonView>>((await persons.ListAsync(ct)).Select(PersonView.From).ToList());
+}
+
+[RequestHandler<RebindSubjectCommand, RebindOutcome>]
+public sealed class RebindSubjectHandler(IPersonRegistry persons) : IRequestHandler<RebindSubjectCommand, RebindOutcome>
+{
+    public async ValueTask<Result<RebindOutcome>> HandleAsync(RebindSubjectCommand command, CancellationToken ct = default)
+        => await persons.RebindSubjectAsync(command.Person, command.Subject, ct);
+}
