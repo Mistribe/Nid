@@ -51,7 +51,12 @@ public sealed class PostgresFixture : IAsyncLifetime
             await command.ExecuteNonQueryAsync();
         }
 
-        return new Npgsql.NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name }.ToString();
+        // One pool per test database, kept by every context that names this string (EF builds its own data source for it):
+        // idle connections close after 2 s, or hundreds of finished tests exhaust the server (1F4, 606 tests).
+        return new Npgsql.NpgsqlConnectionStringBuilder(container.GetConnectionString())
+        {
+            Database = name, ConnectionIdleLifetime = 2, ConnectionPruningInterval = 1,
+        }.ToString();
     }
 
     public static CoreDbContext NewCoreContext(string connectionString)
