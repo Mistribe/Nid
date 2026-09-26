@@ -1,4 +1,3 @@
-using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
@@ -67,9 +66,15 @@ public static class SubscriptionEndpoints
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
-        api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct))
-                .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created))
+        api.MapPost("/{id:guid}/purchases", async (Guid id, PurchaseInput body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader, "");
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AddPurchaseCommand(new ItemId(id), draft), ct))
+                        .ToHttp(purchase => new IdResponse(purchase.Value), StatusCodes.Status201Created);
+            })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapDelete("/{id:guid}/purchases/{purchaseId:guid}", async (Guid id, Guid purchaseId, IInvoker invoker, CancellationToken ct)
@@ -221,33 +226,54 @@ public static class SubscriptionEndpoints
         }
     }
 
-    public sealed record GrantBody(Guid SubscriptionId, DurationBody Duration, string Source, string? StartsOn)
-    {
-        public Grant ToGrant() => new(
-            new ItemId(SubscriptionId), Duration.ToDuration(),
-            Enum.TryParse<CoverageSource>(Source, ignoreCase: true, out var source)
-                ? source
-                : throw new BadHttpRequestException("A grant source of paid, bonus, included, trial or gift is required."),
-            OptionalDate(StartsOn));
-    }
+    public sealed record GrantInput(Guid? SubscriptionId, DurationBody? Duration, string? Source, string? StartsOn);
 
-    public sealed record PurchaseBody(
-        string Date, string Label, MoneyBody Price, PayerBody Payer, string Kind,
-        IReadOnlyList<GrantBody> Grants, string? AllocatedAmount, string? Note)
+    /// <summary>A purchase as the creation and the purchase route read it: every refusal located (1E2b1 design §3).</summary>
+    public sealed record PurchaseInput(
+        string? Date, string? Label, MoneyBody? Price, PayerBody? Payer, string? Kind,
+        IReadOnlyList<GrantInput>? Grants, string? AllocatedAmount, string? Note)
     {
-        public AddPurchaseCommand ToCommand(ItemId id) => new(id, new Purchase(
-            PurchaseId.New(),
-            RequireDate(Date), Label, Price.ToMoney(), Payer.ToPayer(),
-            Kind == "prepaid_term" ? PurchaseKind.PrepaidTerm
-                : Enum.TryParse<PurchaseKind>(Kind, ignoreCase: true, out var kind) ? kind
-                : throw new BadHttpRequestException("A purchase kind of prepaid_term, bundle, gift, adjustment or refund is required."),
-            Grants.Select(g => g.ToGrant()).ToList(),
-            OptionalAmount(AllocatedAmount)));
-    }
+        private static readonly Dictionary<string, PurchaseKind> Kinds = new(StringComparer.Ordinal)
+        {
+            ["prepaid_term"] = PurchaseKind.PrepaidTerm, ["bundle"] = PurchaseKind.Bundle, ["gift"] = PurchaseKind.Gift,
+            ["adjustment"] = PurchaseKind.Adjustment, ["refund"] = PurchaseKind.Refund,
+        };
+        private static readonly Dictionary<string, CoverageSource> Sources = new(StringComparer.Ordinal)
+        {
+            ["paid"] = CoverageSource.Paid, ["bonus"] = CoverageSource.Bonus, ["included"] = CoverageSource.Included,
+            ["trial"] = CoverageSource.Trial, ["gift"] = CoverageSource.Gift,
+        };
 
-    private static decimal? OptionalAmount(string? value)
-        => value is null ? null
-            : decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount)
-                ? amount
-                : throw new BadHttpRequestException($"'{value}' is not a decimal string.");
+        private static string At(string prefix, string field) => prefix == "" ? field : $"{prefix}.{field}";
+
+        internal PurchaseDraft? Read(FieldReader reader, string prefix)
+        {
+            var date = reader.Date(Date, At(prefix, "date"));
+            var label = reader.Text(Label, At(prefix, "label"));
+            var price = reader.Money(Price, At(prefix, "price"));
+            var payer = reader.Payer(Payer, At(prefix, "payer"));
+            PurchaseKind? kind = Kind is not null && Kinds.TryGetValue(Kind, out var k) ? k : null;
+            if (kind is null)
+                reader.Add(At(prefix, "kind"), "request.kind", "A purchase kind is prepaid_term, bundle, gift, adjustment or refund.");
+            var allocated = reader.Decimal(AllocatedAmount, At(prefix, "allocatedAmount"));
+
+            var grants = new List<GrantDraft>();
+            var list = Grants ?? [];
+            for (var j = 0; j < list.Count; j++)
+            {
+                var path = At(prefix, $"grants[{j}]");
+                var duration = reader.Duration(list[j].Duration, path + ".duration");
+                CoverageSource? source = list[j].Source is { } s && Sources.TryGetValue(s, out var found) ? found : null;
+                if (source is null)
+                    reader.Add(path + ".source", "request.source", "A grant source is paid, bonus, included, trial or gift.");
+                var startsOn = reader.Date(list[j].StartsOn, path + ".startsOn", required: false);
+                if (duration is { } d && source is { } src)
+                    grants.Add(new GrantDraft(list[j].SubscriptionId is { } id ? new ItemId(id) : null, d, src, startsOn));
+            }
+
+            return reader.Ok
+                ? new PurchaseDraft(date!.Value, label!, price!.Value, payer!, kind!.Value, grants, allocated, Note)
+                : null;
+        }
+    }
 }

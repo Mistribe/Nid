@@ -1102,7 +1102,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PurchaseBody"
+                "$ref": "#/components/schemas/PurchaseInput"
               }
             }
           },
@@ -4888,23 +4888,31 @@
           }
         }
       },
-      "GrantBody": {
-        "required": [
-          "subscriptionId",
-          "duration",
-          "source"
-        ],
+      "GrantInput": {
         "type": "object",
         "properties": {
           "subscriptionId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "duration": {
-            "$ref": "#/components/schemas/DurationBody"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DurationBody"
+              }
+            ]
           },
           "source": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "startsOn": {
             "type": [
@@ -5805,36 +5813,54 @@
           }
         }
       },
-      "PurchaseBody": {
-        "required": [
-          "date",
-          "label",
-          "price",
-          "payer",
-          "kind",
-          "grants"
-        ],
+      "PurchaseInput": {
         "type": "object",
         "properties": {
           "date": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "label": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "price": {
-            "$ref": "#/components/schemas/MoneyBody"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
+            ]
           },
           "payer": {
-            "$ref": "#/components/schemas/PayerBody"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayerBody"
+              }
+            ]
           },
           "kind": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "grants": {
-            "type": "array",
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
-              "$ref": "#/components/schemas/GrantBody"
+              "$ref": "#/components/schemas/GrantInput"
             }
           },
           "allocatedAmount": {

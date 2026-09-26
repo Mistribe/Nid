@@ -312,9 +312,12 @@ public class LeakBenchTests(PostgresFixture fixture)
 
                 if (!data.ExpectedWritable(otherName, actor))
                 {
-                    Assert.True(failure is NotFoundFailure,
-                        $"{where}: the actor may write the target but not the second item, so the whole "
-                        + $"request must be refused as 'not found' — but the pipeline answered {Describe(failure)}");
+                    // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
+                    // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
+                    // exist at all, so the ruling here is indistinguishability, checked against that case.
+                    var missing = await entry.BuildNamingAnother!(data, target, new ItemId(Guid.NewGuid()));
+                    var (_, missingFailure) = await app.InvokeAsync(actor, missing);
+                    Assert.Equal(Signature(missingFailure), Signature(failure));
                     continue;
                 }
 
@@ -584,6 +587,19 @@ public class LeakBenchTests(PostgresFixture fixture)
 
     private static string Describe(Failure? failure)
         => failure is null ? "success" : $"{failure.GetType().Name}({failure.Code})";
+
+    /// <summary>
+    /// What a failure means to a caller, ignoring which item or row it happened to name: a fixed identifier
+    /// baked into a typed failure (a purchase id freshly seeded for each check, say) would otherwise make two
+    /// occurrences of the exact same refusal compare unequal.
+    /// </summary>
+    private static string Signature(Failure? failure) => failure switch
+    {
+        null => "success",
+        _ when FieldErrors.Of(failure) is { } fields
+            => $"{failure.Code}:{string.Join(",", fields.Select(e => $"{e.Path}={e.Code}"))}",
+        _ => failure.Code,
+    };
 
     /// <summary>
     /// Whether a type carries <see cref="ItemId"/> anywhere a caller can reach.

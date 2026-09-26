@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
 
@@ -119,8 +121,10 @@ public class MalformedInputTests(PostgresFixture fixture)
         Assert.DoesNotContain("householdCashCost", body, StringComparison.OrdinalIgnoreCase);
     }
 
+    // 1E2b1 design §3.2: the purchase route now reads its body by field, so a malformed grant date is a
+    // located 422 (PurchaseRouteTests covers the general shape); this only pins the field itself.
     [Fact]
-    public async Task A_malformed_grant_date_is_still_a_bad_request()
+    public async Task A_malformed_grant_date_is_refused_at_its_path()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
@@ -140,6 +144,8 @@ public class MalformedInputTests(PostgresFixture fixture)
             },
         });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        Assert.Equal("grants[0].startsOn", Assert.Single(errors.EnumerateArray()).GetProperty("path").GetString());
     }
 }

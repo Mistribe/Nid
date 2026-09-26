@@ -1085,7 +1085,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PurchaseBody"];
+                    "application/json": components["schemas"]["PurchaseInput"];
                 };
             };
             responses: {
@@ -4257,11 +4257,11 @@ export interface components {
             failureCode?: null | string;
             rejected: components["schemas"]["FxRejectionView"][];
         };
-        GrantBody: {
+        GrantInput: {
             /** Format: uuid */
-            subscriptionId: string;
-            duration: components["schemas"]["DurationBody"];
-            source: string;
+            subscriptionId?: null | string;
+            duration?: null | components["schemas"]["DurationBody"];
+            source?: null | string;
             startsOn?: null | string;
         };
         GrantView: {
@@ -4483,13 +4483,13 @@ export interface components {
             archived: boolean;
             iconUrl?: null | string;
         };
-        PurchaseBody: {
-            date: string;
-            label: string;
-            price: components["schemas"]["MoneyBody"];
-            payer: components["schemas"]["PayerBody"];
-            kind: string;
-            grants: components["schemas"]["GrantBody"][];
+        PurchaseInput: {
+            date?: null | string;
+            label?: null | string;
+            price?: null | components["schemas"]["MoneyBody"];
+            payer?: null | components["schemas"]["PayerBody"];
+            kind?: null | string;
+            grants?: null | components["schemas"]["GrantInput"][];
             allocatedAmount?: null | string;
             note?: null | string;
         };

@@ -27,7 +27,10 @@ public class GrantAccessTests(PostgresFixture fixture)
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{mine.Value}/purchases",
             GiftPurchase(secret, months: 36));
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        // 1E2b1 design §3.2: refused like a missing subscription, at the grant that names it.
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        Assert.Equal("subscriptions.not_found", errors[0].GetProperty("code").GetString());
 
         // And nothing was written on the way out: B's subscription still renews.
         var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{secret.Value}");
@@ -44,7 +47,10 @@ public class GrantAccessTests(PostgresFixture fixture)
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{mine.Value}/purchases",
             GiftPurchase(theirs, months: 36));
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        // 1E2b1 design §3.2: refused like a missing subscription, at the grant that names it.
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        Assert.Equal("subscriptions.not_found", errors[0].GetProperty("code").GetString());
 
         var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{theirs.Value}");
         Assert.Empty(detail.Coverage);

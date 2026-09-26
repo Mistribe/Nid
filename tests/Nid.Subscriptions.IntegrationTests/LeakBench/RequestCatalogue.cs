@@ -168,20 +168,19 @@ public static class RequestCatalogue
         new(typeof(ClosePhaseCommand), true,
             (_, item) => new ClosePhaseCommand(item, BillingPhaseId.New(), new LocalDate(2025, 6, 1))),
         new(typeof(AddPurchaseCommand), true,
-            (_, item) => new AddPurchaseCommand(item, new Purchase(
-                PurchaseId.New(), new LocalDate(2025, 1, 1), "bench", Money.Create(1m, Currency.Eur).Ok(),
+            (_, item) => new AddPurchaseCommand(item, new PurchaseDraft(
+                new LocalDate(2025, 1, 1), "bench", Money.Create(1m, Currency.Eur).Ok(),
                 new Payer(PayerType.Household, null), PurchaseKind.PrepaidTerm,
-                [new Grant(item, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null)], null)))
+                [new GrantDraft(null, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null)], null, null)))
         {
             // Grants are what makes one purchase touch two subscriptions: the route's, and any other.
-            BuildNamingAnother = (_, target, other) => Task.FromResult<object>(new AddPurchaseCommand(target, new Purchase(
-                PurchaseId.New(), new LocalDate(2025, 1, 1), "bench-two", Money.Create(1m, Currency.Eur).Ok(),
+            BuildNamingAnother = (_, target, other) => Task.FromResult<object>(new AddPurchaseCommand(target, new PurchaseDraft(
+                new LocalDate(2025, 1, 1), "bench-two", Money.Create(1m, Currency.Eur).Ok(),
                 new Payer(PayerType.Household, null), PurchaseKind.PrepaidTerm,
                 [
-                    new Grant(target, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null),
-                    new Grant(other, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null),
-                ],
-                null))),
+                    new GrantDraft(null, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null),
+                    new GrantDraft(other, Duration.Create(1, DurationUnit.Month).Ok(), CoverageSource.Paid, null),
+                ], null, null))),
         },
         new(typeof(DeletePurchaseCommand), true,
             (_, item) => new DeletePurchaseCommand(item, PurchaseId.New()))

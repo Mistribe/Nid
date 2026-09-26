@@ -45,7 +45,7 @@ public sealed record ClosePhaseCommand(ItemId ItemId, BillingPhaseId PhaseId, Lo
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record AddPurchaseCommand(ItemId ItemId, Purchase Purchase) : ICommand<PurchaseId>, IItemScoped
+public sealed record AddPurchaseCommand(ItemId ItemId, PurchaseDraft Purchase) : ICommand<PurchaseId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -142,14 +142,15 @@ public sealed class AddPurchaseHandler(ISubscriptionStore store, IAccessPolicy p
 {
     public async ValueTask<Result<PurchaseId>> HandleAsync(AddPurchaseCommand command, CancellationToken ct = default)
     {
-        // The route's item is the only one ItemAccessBehavior saw; the body may name any other.
-        var guard = await ItemWriteGuard.EnsureWritableAsync(
-            policy, actor.Current!, command.Purchase.Grants.Select(g => g.SubscriptionId),
-            item => new NotFoundFailure("item", item.ToString()), ct);
-        if (guard.TryGetFailure(out var refused))
-            return Result.Failure<PurchaseId>(refused!);
+        // The route's item is the only one ItemAccessBehavior saw; the grants may name any other (1E2b1 design §3.2).
+        if (await GrantTargets.RefusedAsync(policy, actor.Current!, command.Purchase, command.ItemId, "", ct) is { } refused)
+            return Result.Failure<PurchaseId>(refused);
 
-        return await store.AddPurchaseAsync(command.Purchase, RowOrigin.None, ct);
+        var purchase = command.Purchase.ToPurchase(command.ItemId);
+        if (PurchaseRules.Check(command.ItemId, purchase, "") is { } broken)
+            return Result.Failure<PurchaseId>(broken);
+
+        return await store.AddPurchaseAsync(purchase, new RowOrigin(Note: command.Purchase.Note), ct);
     }
 }
 

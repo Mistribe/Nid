@@ -83,5 +83,22 @@ internal sealed class FieldReader
         return null;
     }
 
+    public string? Text(string? value, string path)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) return value.Trim();
+        Add(path, "request.required", "This field is required.");
+        return null;
+    }
+
+    public decimal? Decimal(string? value, string path)
+    {
+        if (value is null) return null;
+        if (decimal.TryParse(value, System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out var amount))
+            return amount;
+        Add(path, "request.amount", "An amount is a decimal string such as \"12.99\".");
+        return null;
+    }
+
     public IResult Problem() => Result.Failure<bool>(FieldErrors.Shape(errors)).ToHttp(_ => new { });
 }
