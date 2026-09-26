@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { percentToBp, STEP_PATHS, toCreateBody, wizardSchema, type WizardValues } from './schema';
+import { percentToBp, toCreateBody, wizardSchema, type WizardValues } from './schema';
 
 const ALICE = '01926b9e-0000-7000-8000-00000000000a';
 const BOB = '01926b9e-0000-7000-8000-00000000000b';
 const t = ((key: string) => key) as unknown as Parameters<typeof wizardSchema>[0];
 
 const values = (over: Partial<WizardValues> = {}): WizardValues => ({
+  offer: 'recurring', trialVariant: 'free',
   provider: null, displayName: 'Netflix', visibility: 'shared', owners: [{ personId: ALICE, share: '100' }], users: [], note: '',
-  startsOn: '2025-01-01', amount: '9,99', currency: 'EUR', everyCount: '1', everyUnit: 'month',
-  sameCovers: true, coversCount: '1', coversUnit: 'month', maxCycles: '', payerType: 'household', payerPerson: '', ...over,
+  startsOn: '2025-01-01', amount: '9,99', currency: 'EUR', everyCount: '1', everyUnit: 'month', sameCovers: true,
+  coversCount: '1', coversUnit: 'month', maxCycles: '', payerType: 'household', payerPerson: '',
+  offerDate: '2025-01-01', offerLabel: 'Offre', offerAmount: '0', offerPayerType: 'household', offerPayerPerson: '',
+  paidCount: '12', paidUnit: 'month', bonusCount: '', bonusUnit: 'month', durationCount: '1', durationUnit: 'month',
+  giftReceived: true, allocated: '0', launchAmount: '0,99', launchCycles: '3', nextStartsOn: '2025-04-01', others: [], then: false,
+  ...over,
 });
 
 describe('percentToBp', () => {
@@ -26,6 +31,7 @@ describe('toCreateBody', () => {
         startsOn: '2025-01-01', endsOn: null, price: { amount: '9.99', currency: 'EUR' }, every: { count: 1, unit: 'month' },
         covers: null, maxCycles: null, payer: { type: 'household', personId: null },
       }],
+      purchases: [],
     }));
 
   it('sends a covered period, a cycle limit and a paying person when given', () => {
@@ -47,11 +53,4 @@ describe('wizardSchema', () => {
   });
 
   it('accepts a valid recurring offer', () => expect(wizardSchema(t).safeParse(values()).success).toBe(true));
-});
-
-describe('STEP_PATHS', () => {
-  it('puts the provider on the first step and the phase on the second', () => {
-    expect(STEP_PATHS[0]).toContain('providerKey');
-    expect(STEP_PATHS[1]).toEqual(['phases']);
-  });
 });

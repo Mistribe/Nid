@@ -1,7 +1,9 @@
 import type { TFunction } from 'i18next';
+import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from '../edits/amount';
+import { AMOUNT, CURRENCY, ISO_DATE } from '../edits/amount';
+import { offerBody, offerFieldOf, thenMode } from './offers';
 
 const UNITS = ['day', 'week', 'month', 'year'] as const;
 export type Unit = (typeof UNITS)[number];
@@ -17,7 +19,7 @@ export function percentToBp(text: string): number | null {
   return bp <= 10000 ? bp : null;
 }
 
-const count = (t: TFunction) => z.string().regex(/^[1-9]\d*$/, t('edit.invalid_count'));
+const POSITIVE_COUNT = /^[1-9]\d*$/;
 
 export function wizardSchema(t: TFunction) {
   return z.object({
@@ -27,27 +29,100 @@ export function wizardSchema(t: TFunction) {
     owners: z.array(z.object({ personId: z.string().min(1, t('edit.required')), share: z.string() })).min(1, t('edit.required')),
     users: z.array(z.string()),
     note: z.string(),
-    startsOn: z.string().regex(ISO_DATE, t('edit.invalid_date')),
-    amount: z.string().trim().regex(AMOUNT, t('edit.invalid_amount')),
+    startsOn: z.string(),
+    amount: z.string(),
     currency: z.string().trim().toUpperCase().regex(CURRENCY, t('edit.invalid_currency')),
-    everyCount: count(t),
+    everyCount: z.string(),
     everyUnit: z.enum(UNITS),
     sameCovers: z.boolean(),
     coversCount: z.string(),
     coversUnit: z.enum(UNITS),
-    maxCycles: z.string().regex(/^([1-9]\d*)?$/, t('edit.invalid_count')),
+    maxCycles: z.string(),
     payerType: z.enum(['household', 'person']),
     payerPerson: z.string(),
+    offer: z.enum(['recurring', 'prepaid', 'trial', 'gift', 'bundle']),
+    trialVariant: z.enum(['free', 'launch']),
+    offerDate: z.string(),
+    offerLabel: z.string(),
+    offerAmount: z.string(),
+    offerPayerType: z.enum(['household', 'person', 'external']),
+    offerPayerPerson: z.string(),
+    paidCount: z.string(),
+    paidUnit: z.enum(UNITS),
+    bonusCount: z.string(),
+    bonusUnit: z.enum(UNITS),
+    durationCount: z.string(),
+    durationUnit: z.enum(UNITS),
+    giftReceived: z.boolean(),
+    allocated: z.string(),
+    launchAmount: z.string(),
+    launchCycles: z.string(),
+    nextStartsOn: z.string(),
+    others: z.array(z.object({ subscriptionId: z.string(), count: z.string(), unit: z.enum(UNITS) })),
+    then: z.boolean(),
   }).superRefine((v, ctx) => {
     const shares = v.owners.map((o) => percentToBp(o.share));
     if (shares.some((bp) => bp === null) || shares.reduce<number>((sum, bp) => sum + (bp ?? 0), 0) !== 10000)
       ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_share_sum') });
     if (v.visibility === 'private' && v.owners.length !== 1)
       ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_private_single_owner') });
-    if (!v.sameCovers && !/^[1-9]\d*$/.test(v.coversCount))
+    if (!v.sameCovers && !POSITIVE_COUNT.test(v.coversCount))
       ctx.addIssue({ code: 'custom', path: ['coversCount'], message: t('edit.invalid_count') });
     if (v.payerType === 'person' && v.payerPerson === '')
       ctx.addIssue({ code: 'custom', path: ['payerPerson'], message: t('edit.required') });
+
+    // The 1E2a phase fields: checked only when a phase is actually sent (the recurring offer always sends
+    // one, others only when "then" asks for the following phase, or the launch price requires it).
+    if (v.offer === 'recurring' || v.then || thenMode(v) === 'required') {
+      if (!ISO_DATE.test(v.startsOn)) ctx.addIssue({ code: 'custom', path: ['startsOn'], message: t('edit.invalid_date') });
+      if (!AMOUNT.test(v.amount.trim())) ctx.addIssue({ code: 'custom', path: ['amount'], message: t('edit.invalid_amount') });
+      if (!POSITIVE_COUNT.test(v.everyCount)) ctx.addIssue({ code: 'custom', path: ['everyCount'], message: t('edit.invalid_count') });
+      if (!/^([1-9]\d*)?$/.test(v.maxCycles)) ctx.addIssue({ code: 'custom', path: ['maxCycles'], message: t('edit.invalid_count') });
+    }
+
+    switch (v.offer) {
+      case 'prepaid':
+        if (!ISO_DATE.test(v.offerDate)) ctx.addIssue({ code: 'custom', path: ['offerDate'], message: t('edit.invalid_date') });
+        if (v.offerLabel.trim() === '') ctx.addIssue({ code: 'custom', path: ['offerLabel'], message: t('edit.required') });
+        if (!AMOUNT.test(v.offerAmount.trim())) ctx.addIssue({ code: 'custom', path: ['offerAmount'], message: t('edit.invalid_amount') });
+        if (!POSITIVE_COUNT.test(v.paidCount)) ctx.addIssue({ code: 'custom', path: ['paidCount'], message: t('edit.invalid_count') });
+        if (v.bonusCount.trim() !== '' && !POSITIVE_COUNT.test(v.bonusCount))
+          ctx.addIssue({ code: 'custom', path: ['bonusCount'], message: t('edit.invalid_count') });
+        break;
+      case 'trial':
+        if (!ISO_DATE.test(v.offerDate)) ctx.addIssue({ code: 'custom', path: ['offerDate'], message: t('edit.invalid_date') });
+        if (v.trialVariant === 'free') {
+          if (!POSITIVE_COUNT.test(v.durationCount)) ctx.addIssue({ code: 'custom', path: ['durationCount'], message: t('edit.invalid_count') });
+        } else {
+          if (!AMOUNT.test(v.launchAmount.trim())) ctx.addIssue({ code: 'custom', path: ['launchAmount'], message: t('edit.invalid_amount') });
+          if (!POSITIVE_COUNT.test(v.launchCycles)) ctx.addIssue({ code: 'custom', path: ['launchCycles'], message: t('edit.invalid_count') });
+          if (!ISO_DATE.test(v.nextStartsOn) || v.nextStartsOn <= v.offerDate)
+            ctx.addIssue({ code: 'custom', path: ['nextStartsOn'], message: t('edit.invalid_date') });
+        }
+        break;
+      case 'gift':
+        if (!ISO_DATE.test(v.offerDate)) ctx.addIssue({ code: 'custom', path: ['offerDate'], message: t('edit.invalid_date') });
+        if (v.offerLabel.trim() === '') ctx.addIssue({ code: 'custom', path: ['offerLabel'], message: t('edit.required') });
+        if (!POSITIVE_COUNT.test(v.durationCount)) ctx.addIssue({ code: 'custom', path: ['durationCount'], message: t('edit.invalid_count') });
+        if (!v.giftReceived && !AMOUNT.test(v.offerAmount.trim()))
+          ctx.addIssue({ code: 'custom', path: ['offerAmount'], message: t('edit.invalid_amount') });
+        break;
+      case 'bundle':
+        if (!ISO_DATE.test(v.offerDate)) ctx.addIssue({ code: 'custom', path: ['offerDate'], message: t('edit.invalid_date') });
+        if (v.offerLabel.trim() === '') ctx.addIssue({ code: 'custom', path: ['offerLabel'], message: t('edit.required') });
+        if (!AMOUNT.test(v.offerAmount.trim())) ctx.addIssue({ code: 'custom', path: ['offerAmount'], message: t('edit.invalid_amount') });
+        if (!AMOUNT.test(v.allocated.trim())) ctx.addIssue({ code: 'custom', path: ['allocated'], message: t('edit.invalid_amount') });
+        if (!POSITIVE_COUNT.test(v.durationCount)) ctx.addIssue({ code: 'custom', path: ['durationCount'], message: t('edit.invalid_count') });
+        v.others.forEach((o, i) => {
+          if (o.subscriptionId.trim() === '') ctx.addIssue({ code: 'custom', path: ['others', i, 'subscriptionId'], message: t('edit.required') });
+          if (!POSITIVE_COUNT.test(o.count)) ctx.addIssue({ code: 'custom', path: ['others', i, 'count'], message: t('edit.invalid_count') });
+        });
+        break;
+      case 'recurring':
+        break;
+    }
+    if (v.offerPayerType === 'person' && v.offerPayerPerson === '')
+      ctx.addIssue({ code: 'custom', path: ['offerPayerPerson'], message: t('edit.required') });
   });
 }
 
@@ -55,7 +130,7 @@ export type WizardValues = z.infer<ReturnType<typeof wizardSchema>>;
 
 type CreateBody = components['schemas']['CreateSubscriptionBody'];
 
-/** The form as the single creation request of 1E2a design §2.2. */
+/** The form as the single creation request of 1E2b1 design §4.2: the common fields, then the chosen offer's phases and purchases. */
 export function toCreateBody(v: WizardValues): CreateBody {
   return {
     displayName: v.displayName.trim(),
@@ -65,34 +140,14 @@ export function toCreateBody(v: WizardValues): CreateBody {
     autoRenew: true,
     users: v.users,
     note: v.note.trim() === '' ? null : v.note,
-    phases: [{
-      startsOn: v.startsOn,
-      endsOn: null,
-      price: { amount: toWireAmount(v.amount), currency: v.currency.trim().toUpperCase() },
-      every: { count: Number(v.everyCount), unit: v.everyUnit },
-      covers: v.sameCovers ? null : { count: Number(v.coversCount), unit: v.coversUnit },
-      maxCycles: v.maxCycles === '' ? null : Number(v.maxCycles),
-      payer: v.payerType === 'person' ? { type: 'person', personId: v.payerPerson } : { type: 'household', personId: null },
-    }],
+    ...offerBody(v),
   };
 }
 
-/** Which step owns which server path: a refusal brings the user back to the step where it can be fixed. */
-export const STEP_PATHS: Record<number, string[]> = {
-  0: ['displayName', 'visibility', 'owners', 'providerKey', 'users', 'note'],
-  1: ['phases'],
-};
-
-/** A server path as the form field it concerns; the rest shows above the form. */
-export function fieldOf(path: string): keyof WizardValues | `owners.${number}.share` | undefined {
+/** A server path as the form field it concerns, common fields first, then by offer (Review Focus 4). */
+export const fieldOf = (path: string, v: Pick<WizardValues, 'offer' | 'trialVariant'>): Path<WizardValues> | undefined => {
   const share = /^owners\[(\d+)\]\.shareBp$/.exec(path);
-  if (share) return `owners.${Number(share[1])}.share`;
-  const fields: Record<string, keyof WizardValues> = {
-    displayName: 'displayName', visibility: 'visibility', owners: 'owners', providerKey: 'provider', users: 'users', note: 'note',
-    'phases[0].startsOn': 'startsOn', 'phases[0].endsOn': 'startsOn', 'phases[0].price': 'amount', 'phases[0].price.amount': 'amount',
-    'phases[0].price.currency': 'currency', 'phases[0].every': 'everyCount', 'phases[0].every.count': 'everyCount', 'phases[0].every.unit': 'everyUnit',
-    'phases[0].covers': 'coversCount', 'phases[0].covers.count': 'coversCount', 'phases[0].covers.unit': 'coversUnit', 'phases[0].maxCycles': 'maxCycles',
-    'phases[0].payer': 'payerType', 'phases[0].payer.type': 'payerType', 'phases[0].payer.personId': 'payerPerson',
-  };
-  return fields[path];
-}
+  if (share) return `owners.${Number(share[1])}.share` as const;
+  const common = { displayName: 'displayName', visibility: 'visibility', owners: 'owners', providerKey: 'provider', users: 'users', note: 'note' } as const;
+  return common[path as keyof typeof common] ?? offerFieldOf(path, v);
+};

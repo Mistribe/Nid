@@ -11,9 +11,15 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { invalidateSubscriptions, LIST, PERSONS } from './api';
 import { useSubmitErrors } from './edits/useSubmitErrors';
-import { fieldErrorsOf, stepOf } from './fieldErrors';
-import { fieldOf, STEP_PATHS, toCreateBody, wizardSchema, type WizardValues } from './wizard/schema';
+import { fieldErrorsOf } from './fieldErrors';
+import { stepOfPath, type StepName } from './wizard/offers';
+import { fieldOf, toCreateBody, wizardSchema, type WizardValues } from './wizard/schema';
 import { CommonStep, OfferStep, SummaryStep } from './wizard/steps';
+
+// Task 3 (1E2b1) only wires the recurring offer through `offers.ts`; the wizard still shows the three 1E2a
+// steps and never lets the offer change. Task 4 rewrites this component around `stepsFor`/`StepName`; until
+// then, the step a server path names is mapped back onto these three fixed indices.
+const STEP_OF: Partial<Record<StepName, number>> = { common: 0, offer: 1, summary: 2 };
 
 const STEP_FIELDS: Path<WizardValues>[][] = [
   ['provider', 'displayName', 'visibility', 'owners', 'users', 'note'],
@@ -38,9 +44,12 @@ export function NewSubscription() {
       provider: null, displayName: '', visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }], users: [], note: '',
       startsOn: '', amount: '', currency: 'EUR', everyCount: '1', everyUnit: 'month', sameCovers: true, coversCount: '1', coversUnit: 'month',
       maxCycles: '', payerType: 'household', payerPerson: '',
+      offer: 'recurring', trialVariant: 'free', offerDate: '', offerLabel: '', offerAmount: '', offerPayerType: 'household', offerPayerPerson: '',
+      paidCount: '', paidUnit: 'month', bonusCount: '', bonusUnit: 'month', durationCount: '', durationUnit: 'month', giftReceived: true,
+      allocated: '', launchAmount: '', launchCycles: '', nextStartsOn: '', others: [], then: false,
     },
   });
-  const errors = useSubmitErrors(form.setError, (path) => fieldOf(path));
+  const errors = useSubmitErrors(form.setError, (path) => fieldOf(path, form.getValues()));
   const [pendingErrors, setPendingErrors] = useState<unknown>(null);
   const create = $api.useMutation('post', LIST, {
     onSuccess: (created) => {
@@ -48,7 +57,11 @@ export function NewSubscription() {
       void navigate({ to: '/subscriptions/$id', params: { id: created.id } });
     },
     onError: (error) => {
-      const steps = fieldErrorsOf(error).map((f) => stepOf(f.path, STEP_PATHS)).filter((s): s is number => s !== undefined);
+      const { offer, trialVariant } = form.getValues();
+      const steps = fieldErrorsOf(error)
+        .map((f) => stepOfPath(offer, trialVariant, f.path))
+        .map((s) => (s ? STEP_OF[s] : undefined))
+        .filter((s): s is number => s !== undefined);
       if (steps.length > 0) setStep(Math.min(...steps));
       setPendingErrors(error);
     },

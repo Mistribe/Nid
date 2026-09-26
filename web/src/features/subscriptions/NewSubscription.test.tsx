@@ -113,6 +113,7 @@ describe('Abonnements › ajout', () => {
         startsOn: '2025-01-01', endsOn: null, price: { amount: '13.49', currency: 'EUR' }, every: { count: 1, unit: 'month' },
         covers: null, maxCycles: null, payer: { type: 'household', personId: null },
       }],
+      purchases: [],
     }]);
   });
 
