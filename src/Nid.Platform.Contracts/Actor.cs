@@ -15,6 +15,22 @@ public enum ActorOrigin
     Mcp,
     Job,
     Import,
+    AdminCli,
+}
+
+public static class ActorOriginWire
+{
+    /// <summary>The value `via` is written with (1F3a spec §3; 1F4 design §2.2).</summary>
+    public static string ToWire(this ActorOrigin origin) => origin switch
+    {
+        ActorOrigin.Ui => "ui",
+        ActorOrigin.Api => "api",
+        ActorOrigin.Mcp => "mcp",
+        ActorOrigin.Job => "job",
+        ActorOrigin.Import => "import",
+        ActorOrigin.AdminCli => "admin-cli",
+        _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
+    };
 }
 
 public static class ScopeNames
@@ -39,6 +55,9 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
         => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes) { IsAdmin = isAdmin };
 
     public static Actor System { get; } = new(ActorKind.System, null, ActorOrigin.Job, AllScopes) { IsAdmin = true };
+
+    /// <summary>`nid admin` (1F4 design §2.2): the system, run by the hoster from the container.</summary>
+    public static Actor Cli { get; } = new(ActorKind.System, null, ActorOrigin.AdminCli, AllScopes) { IsAdmin = true };
 
     /// <summary><c>write:direct</c> includes <c>write</c>, which includes <c>read</c>.</summary>
     public bool Has(string scope) => scope switch

@@ -537,6 +537,8 @@
     "admin_revoked": "Rôle admin retiré",
     "session_revoked": "Sessions fermées",
     "household_settings_changed": "Réglages du foyer modifiés",
+    "admin_command": "Commande de secours",
+    "subject_rebound": "Identité rattachée",
     "unknown": "Événement {{name}}"
   },
   "security": {
@@ -551,7 +553,8 @@
       "api": "API",
       "job": "Tâche planifiée",
       "import": "Import",
-      "mcp": "Assistant (MCP)"
+      "mcp": "Assistant (MCP)",
+      "admin-cli": "Ligne de commande"
     },
     "sessions_title": "Mes sessions",
     "revoke": "Déconnecter partout",

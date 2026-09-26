@@ -24,7 +24,7 @@ describe('Sécurité', () => {
     expect(login).toHaveTextContent('Navigateur');
     const granted = screen.getByRole('row', { name: /Rôle admin accordé/ });
     expect(granted).toBeInTheDocument();
-    expect(granted).toHaveTextContent('admin-cli'); // an origin with no French label shows as sent
+    expect(granted).toHaveTextContent('Ligne de commande'); // 1F4: the recovery CLI's origin, named in French
     expect(screen.getByText(/ne ferme pas votre session auprès du fournisseur d'identité/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });

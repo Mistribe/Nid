@@ -46,7 +46,7 @@ internal static class AuditDiff
             Action = action,
             ActorKind = actor.Kind == ActorKind.Person ? "person" : "system",
             PersonId = actor.PersonId?.Value,
-            Via = actor.Via.ToString().ToLowerInvariant(),
+            Via = actor.Via.ToWire(),
             Scopes = actor.Scopes.Order(StringComparer.Ordinal).ToArray(),
             RequestId = Activity.Current?.TraceId.ToString(),
             Request = request,

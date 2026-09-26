@@ -37,7 +37,7 @@ public sealed partial class SecurityEventWriter(
             command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Name });
             command.Parameters.Add(new NpgsqlParameter { Value = actor.Kind == ActorKind.Person ? "person" : "system" });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)actor.PersonId?.Value ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
-            command.Parameters.Add(new NpgsqlParameter { Value = actor.Via.ToString().ToLowerInvariant() });
+            command.Parameters.Add(new NpgsqlParameter { Value = actor.Via.ToWire() });
             command.Parameters.Add(new NpgsqlParameter { Value = actor.Scopes.Order(StringComparer.Ordinal).ToArray() });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)Activity.Current?.TraceId.ToString() ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Text });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)request.Name ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Text });
