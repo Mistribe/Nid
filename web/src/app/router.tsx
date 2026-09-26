@@ -12,8 +12,10 @@ import { CatalogPage } from '@/features/admin/CatalogPage';
 import { FxPage } from '@/features/admin/FxPage';
 import { HouseholdPage } from '@/features/admin/HouseholdPage';
 import { JobsPage } from '@/features/admin/JobsPage';
+import { SecurityJournalPage } from '@/features/admin/SecurityJournalPage';
 import { SystemPage } from '@/features/admin/SystemPage';
 import { UsersPage } from '@/features/admin/UsersPage';
+import { SecurityPage } from '@/features/security/SecurityPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
 import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
 import { ForbiddenPage } from './ForbiddenPage';
@@ -111,6 +113,8 @@ const settingsRoute = createRoute({
 
 const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/appearance', component: AppearancePage });
 
+const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: SecurityPage });
+
 const forbiddenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forbidden', component: ForbiddenPage });
 
 /** The admin area is routed for admins only; the server refuses anyway (authorization.md §6). */
@@ -133,11 +137,12 @@ const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admi
 const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: CatalogPage });
 const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: JobsPage });
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
+const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: SecurityJournalPage });
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
-  forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
-  adminSystemRoute,
+  securityRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
+  adminSystemRoute, adminSecurityRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

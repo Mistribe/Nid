@@ -10,6 +10,7 @@ const SECTIONS = [
   { to: '/admin/catalog', label: 'admin.nav.catalog' },
   { to: '/admin/jobs', label: 'admin.nav.jobs' },
   { to: '/admin/system', label: 'admin.nav.system' },
+  { to: '/admin/security', label: 'admin.nav.security' },
 ] as const;
 
 /** Every admin screen: the section links, the title, the content. */

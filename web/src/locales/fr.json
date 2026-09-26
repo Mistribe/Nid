@@ -21,7 +21,8 @@
     "import": "Import",
     "export": "Export",
     "settings": "Réglages",
-    "admin": "Administration"
+    "admin": "Administration",
+    "security": "Sécurité"
   },
   "export": {
     "title": "Export",
@@ -361,7 +362,7 @@
   },
   "admin": {
     "loading": "Chargement",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "security": "Journal de sécurité" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -510,6 +511,44 @@
       "unknown": "inconnue",
       "healthy": "disponible",
       "unhealthy": "injoignable"
+    },
+    "security": {
+      "title": "Journal de sécurité",
+      "filter": "Événement",
+      "all": "Tous",
+      "when": "Date",
+      "event": "Événement",
+      "subject": "Personne visée",
+      "actor": "Auteur",
+      "details": "Identifiants",
+      "system": "système",
+      "empty": "Aucun événement dans le journal."
     }
+  },
+  "audit_event": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "login_refused": "Connexion refusée",
+    "access_denied": "Accès refusé",
+    "access_violation": "Réponse retenue (violation d'accès)",
+    "person_preregistered": "Adulte ajouté",
+    "person_preregistration_cancelled": "Invitation annulée",
+    "admin_granted": "Rôle admin accordé",
+    "admin_revoked": "Rôle admin retiré",
+    "session_revoked": "Sessions fermées",
+    "household_settings_changed": "Réglages du foyer modifiés",
+    "unknown": "Événement {{name}}"
+  },
+  "security": {
+    "title": "Sécurité",
+    "events_title": "Mes derniers événements",
+    "empty": "Aucun événement pour l'instant.",
+    "when": "Date",
+    "event": "Événement",
+    "via": "Origine",
+    "sessions_title": "Mes sessions",
+    "revoke": "Déconnecter partout",
+    "revoke_confirm": "Toutes vos sessions seront fermées, celle-ci comprise : vous devrez vous reconnecter.",
+    "sso_reminder": "Se déconnecter de Nid ne ferme pas votre session auprès du fournisseur d'identité : fermez-la depuis son portail sur un appareil partagé."
   }
 }
