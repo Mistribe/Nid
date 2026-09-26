@@ -19,8 +19,34 @@
     "home": "Revenir à l'accueil",
     "subscriptions": "Abonnements",
     "import": "Import",
+    "export": "Export",
     "settings": "Réglages",
     "admin": "Administration"
+  },
+  "export": {
+    "title": "Export",
+    "rule": "Le fichier contient ce que vous pouvez voir. Les éléments privés de l'autre adulte n'y sont pas.",
+    "loading": "Lecture de ce qui sera exporté…",
+    "contents": "Contenu de l'export",
+    "section_count": "{{name}} : {{count}}",
+    "empty": "Rien à exporter pour l'instant : le fichier sera vide.",
+    "start": "Exporter",
+    "progress_label": "Progression de l'export",
+    "progress": "Reçus : {{received}} sur {{total}}",
+    "cancel": "Annuler",
+    "done_one": "Export terminé : {{count}} élément.",
+    "done_other": "Export terminé : {{count}} éléments.",
+    "again": "Exporter de nouveau",
+    "changed": "Vos données ont changé pendant l'export : rien n'a été téléchargé.",
+    "restart": "Relancer",
+    "retry": "Réessayer",
+    "sections": {
+      "persons": "Personnes",
+      "providers": "Fournisseurs",
+      "subscriptions": "Abonnements",
+      "billing_phases": "Phases de facturation",
+      "purchases": "Achats"
+    }
   },
   "shell": { "sign_out": "Se déconnecter" },
   "signed_out": {

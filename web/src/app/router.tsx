@@ -97,6 +97,14 @@ const importSessionRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/import/ImportSession'), 'ImportSession'),
 });
 
+// Loaded on demand: the export and its assembly stay out of the initial bundle. Every adult may export (1E4 design §1).
+const exportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/export',
+  beforeLoad: requireModule('core'),
+  component: lazyRouteComponent(() => import('@/features/export/ExportPage'), 'ExportPage'),
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute, path: '/settings', beforeLoad: () => { redirect({ to: '/settings/appearance', throw: true }); },
 });
@@ -127,7 +135,7 @@ const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ad
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), settingsRoute, appearanceRoute,
+  indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute,
 ]);

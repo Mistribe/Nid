@@ -11,7 +11,12 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Abonnements', 'Import', 'Réglages']);
+    expect(links).toEqual(['Abonnements', 'Import', 'Export', 'Réglages']);
+  });
+
+  it('offers Export even where import is disabled', async () => {
+    await renderApp('/subscriptions', { capabilities: { modules: ['core', 'subscriptions'], admin: false } });
+    expect(within(sidebar()).getByRole('link', { name: 'Export' })).toBeInTheDocument();
   });
 
   it('hides a module the server does not enable, and its route sends you home', async () => {

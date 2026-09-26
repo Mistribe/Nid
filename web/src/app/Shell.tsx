@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router';
-import { Repeat, ShieldCheck, Settings, Upload } from 'lucide-react';
+import { Download, Repeat, ShieldCheck, Settings, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { useSession } from './Providers';
 const NAV = [
   { module: 'subscriptions', admin: false, to: '/subscriptions', icon: Repeat, label: 'nav.subscriptions' },
   { module: 'import', admin: false, to: '/import', icon: Upload, label: 'nav.import' },
+  { module: 'core', admin: false, to: '/export', icon: Download, label: 'nav.export' },
   { module: null, admin: false, to: '/settings/appearance', icon: Settings, label: 'nav.settings' },
   { module: null, admin: true, to: '/admin/users', icon: ShieldCheck, label: 'nav.admin' },
 ] as const;
