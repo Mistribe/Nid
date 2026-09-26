@@ -14,11 +14,17 @@ public sealed partial class SecurityEventWriter(
     NpgsqlDataSource dataSource, IActorAccessor actors, AuditRequest request, IClock clock, ILogger<SecurityEventWriter> logger)
     : ISecurityEvents
 {
-    public Task RecordAsync(SecurityEvent securityEvent, CancellationToken ct)
+    public Task<bool> RecordAsync(SecurityEvent securityEvent, CancellationToken ct)
         => RecordAsync(securityEvent, actors.Current ?? Actor.System, ct);
 
-    public async Task RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct)
+    /// <summary>
+    /// <paramref name="ct"/> is accepted for the interface's shape only and never reaches the insert (spec U10):
+    /// a request whose client disconnected must not lose the security event that disconnection caused. The
+    /// insert instead runs on its own 5-second bound, so a genuinely stuck connection cannot hang forever.
+    /// </summary>
+    public async Task<bool> RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct)
     {
+        using var bound = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try
         {
             await using var command = dataSource.CreateCommand("""
@@ -38,11 +44,13 @@ public sealed partial class SecurityEventWriter(
             command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Items.Select(i => i.Value).ToArray() });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)securityEvent.Subject?.Value ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
             command.Parameters.Add(new NpgsqlParameter { Value = JsonSerializer.Serialize(securityEvent.Data), NpgsqlDbType = NpgsqlDbType.Jsonb });
-            await command.ExecuteNonQueryAsync(ct);
+            await command.ExecuteNonQueryAsync(bound.Token);
+            return true;
         }
         catch (Exception e)
         {
             LogNotRecorded(securityEvent.Name, e);
+            return false;
         }
     }
 

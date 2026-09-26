@@ -48,6 +48,69 @@ public class SecurityEventTests(PostgresFixture fixture)
         Assert.Single(await EventsAsync(app, "access_denied"));
     }
 
+    /// <summary>Important #1: an aborted request's cancellation must not lose the event it caused (spec U10).</summary>
+    [Fact]
+    public async Task An_access_denied_is_recorded_even_if_the_caller_s_token_is_already_cancelled()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        bool recorded;
+        await using (var scope = app.Services.CreateAsyncScope())
+            recorded = await scope.ServiceProvider.GetRequiredService<ISecurityEvents>().RecordAsync(
+                new SecurityEvent(SecurityEventNames.AccessDenied, app.AdultB, [], new Dictionary<string, string> { ["access"] = "read" }),
+                Actor.Browser(app.AdultB),
+                cts.Token);
+
+        Assert.True(recorded);
+        Assert.Single(await EventsAsync(app, "access_denied"));
+    }
+
+    /// <summary>Important #1: a write that fails must give its throttle slot back, or the whole minute goes dark.</summary>
+    [Fact]
+    public async Task A_refusal_lost_to_a_failed_write_does_not_block_the_next_one_in_the_same_minute()
+    {
+        // A fresh scope per request builds a fresh ISecurityEvents, so "the first write fails" must be
+        // tracked outside any one scope: a singleton gate shared by every request this host serves.
+        var gate = new FlakyGate();
+        await using var app = await NidApp.StartAsync(fixture, services =>
+        {
+            services.AddSingleton(gate);
+            services.AddScoped<ISecurityEvents>(sp => new FlakyOnceSecurityEvents(new SecurityEventWriter(
+                sp.GetRequiredService<Npgsql.NpgsqlDataSource>(), sp.GetRequiredService<IActorAccessor>(),
+                sp.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), NodaTime.SystemClock.Instance,
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SecurityEventWriter>>()), gate));
+        });
+        var hidden = await app.NewSubscriptionAsync("hidden", app.AdultA, Visibility.Private);
+
+        // Same actor, same item, same (fixed) clock minute: the first refusal's write fails and must not
+        // consume the minute's only slot, or the second refusal below would be silently dropped too.
+        await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/subscriptions/{hidden.Value}");
+        await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/subscriptions/{hidden.Value}");
+
+        Assert.Single(await EventsAsync(app, "access_denied"));
+    }
+
+    private sealed class FlakyGate
+    {
+        public int Calls;
+    }
+
+    private sealed class FlakyOnceSecurityEvents(ISecurityEvents inner, FlakyGate gate) : ISecurityEvents
+    {
+        public async Task<bool> RecordAsync(SecurityEvent securityEvent, CancellationToken ct)
+        {
+            // The first write is lost outright (as if the connection had failed) and never reaches inner.
+            if (Interlocked.Increment(ref gate.Calls) == 1)
+                return false;
+            return await inner.RecordAsync(securityEvent, ct);
+        }
+
+        public Task<bool> RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct)
+            => inner.RecordAsync(securityEvent, actor, ct);
+    }
+
     [Fact]
     public async Task An_access_violation_is_recorded_and_still_logged()
     {
@@ -87,6 +150,17 @@ public class SecurityEventTests(PostgresFixture fixture)
         var settings = Assert.Single(await EventsAsync(app, "household_settings_changed"));
         Assert.Equal("max_adults", JsonDocument.Parse(settings.Data).RootElement.GetProperty("fields").GetString());
         Assert.All(await AllSecurityAsync(app), e => Assert.DoesNotContain("carol@example.test", e.Data));
+    }
+
+    /// <summary>Minor #4: a `PATCH` naming neither field changed nothing, so it is not worth an event.</summary>
+    [Fact]
+    public async Task A_household_patch_naming_no_field_records_no_event()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { })).EnsureSuccessStatusCode();
+
+        Assert.Empty(await EventsAsync(app, "household_settings_changed"));
     }
 
     [Fact]

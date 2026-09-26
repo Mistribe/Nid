@@ -45,8 +45,12 @@ public static class SecurityEventViews
 
     public static SecurityEventView From(AuditRecord r)
     {
-        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(r.Data) ?? [];
-        var details = Shown.GetValueOrDefault(r.Action, []).Where(data.ContainsKey).ToDictionary(k => k, k => data[k]);
+        // Minor #7: `data` is written with string values only today, but the view must not 500 the journal if
+        // some future event's field is not a string — that value is simply left out, not surfaced garbled.
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(r.Data) ?? [];
+        var details = Shown.GetValueOrDefault(r.Action, [])
+            .Where(k => data.TryGetValue(k, out var v) && v.ValueKind == JsonValueKind.String)
+            .ToDictionary(k => k, k => data[k].GetString()!);
         return new SecurityEventView(r.Seq, r.At.ToDateTimeOffset(), r.Action, new AuditActorView(r.ActorKind, r.PersonId, r.Via), r.SubjectPersonId, details);
     }
 

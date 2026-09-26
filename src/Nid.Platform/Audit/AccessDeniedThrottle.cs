@@ -17,4 +17,10 @@ public sealed class AccessDeniedThrottle(IClock clock)
         var previous = lastMinute.GetOrAdd((actor, item), -1);
         return previous != minute && lastMinute.TryUpdate((actor, item), minute, previous);
     }
+
+    /// <summary>
+    /// A refusal that <see cref="ShouldRecord"/> allowed through was not actually written: give its slot back,
+    /// so the next refusal in the same minute is not silently swallowed by a write that never happened.
+    /// </summary>
+    public void Forget(Guid actor, Guid item) => lastMinute.TryRemove((actor, item), out _);
 }

@@ -142,10 +142,15 @@ public sealed class ItemAccessBehavior<TRequest, TResponse>(
 
     private async Task DeniedAsync(PersonId person, ItemId? item, string access, CancellationToken ct)
     {
-        if (!throttle.ShouldRecord(person.Value, item?.Value ?? Guid.Empty))
+        var key = item?.Value ?? Guid.Empty;
+        if (!throttle.ShouldRecord(person.Value, key))
             return;
-        await events.RecordAsync(new SecurityEvent(
+        var recorded = await events.RecordAsync(new SecurityEvent(
             SecurityEventNames.AccessDenied, person, item is { } id ? [id] : [],
             new Dictionary<string, string> { ["access"] = access }), ct);
+        // The minute's slot was spent on a refusal that never made it to the table: give it back, so the next
+        // refusal in the same minute is not silently swallowed too (Important #1).
+        if (!recorded)
+            throttle.Forget(person.Value, key);
     }
 }

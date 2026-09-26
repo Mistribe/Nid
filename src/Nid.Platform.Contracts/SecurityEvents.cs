@@ -33,19 +33,25 @@ public sealed record SecurityEvent(string Name, PersonId? Subject, IReadOnlyList
 
 /// <summary>
 /// Written on its own connection, outside the request's transaction, so it survives the failure that caused it
-/// (spec U10); a failure to write is logged and never fails the caller (U11).
+/// (spec U10); a failure to write is logged and never fails the caller (U11). The <c>bool</c> tells the caller
+/// whether the row actually landed, so a caller keeping its own state (<see cref="Nid.Platform.Audit.AccessDeniedThrottle"/>)
+/// can undo it on a failed write.
 /// </summary>
 public interface ISecurityEvents
 {
     /// <summary>As the current actor.</summary>
-    Task RecordAsync(SecurityEvent securityEvent, CancellationToken ct);
+    Task<bool> RecordAsync(SecurityEvent securityEvent, CancellationToken ct);
 
     /// <summary>As <paramref name="actor"/>, for entry points off the pipeline (the OIDC callback, sign-out).</summary>
-    Task RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct);
+    Task<bool> RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct);
 }
 
-/// <summary>A command whose success is a security event (spec U13); <c>AuditBehavior</c> records it after success only.</summary>
+/// <summary>
+/// A command whose success is a security event (spec U13); <c>AuditBehavior</c> records it after success only.
+/// A null return (Minor #4) means this particular success is not worth an event — e.g. a household-settings
+/// update that named no field.
+/// </summary>
 public interface IRecordsSecurityEvent
 {
-    SecurityEvent EventFor(object response);
+    SecurityEvent? EventFor(object response);
 }

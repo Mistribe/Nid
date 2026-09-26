@@ -23,8 +23,9 @@ public sealed class AuditBehavior<TRequest, TResponse>(AuditRequest audit, ISecu
     {
         audit.Name ??= typeof(TRequest).Name;
         var result = await next(request, cancellationToken);
-        if (request is IRecordsSecurityEvent declared && result.TryGetValue(out var response))
-            await events.RecordAsync(declared.EventFor(response), cancellationToken);
+        if (request is IRecordsSecurityEvent declared && result.TryGetValue(out var response)
+            && declared.EventFor(response) is { } securityEvent)
+            await events.RecordAsync(securityEvent, cancellationToken);
         return result;
     }
 }

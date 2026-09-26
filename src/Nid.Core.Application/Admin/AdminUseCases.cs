@@ -47,11 +47,13 @@ public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, 
 public sealed record UpdateHouseholdSettingsCommand(int? MaxAdults, string? ReferenceCurrency)
     : ICommand<HouseholdSettingsView>, IAdminOnly, IRecordsSecurityEvent
 {
-    public SecurityEvent EventFor(object response)
+    public SecurityEvent? EventFor(object response)
     {
         var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency" };
-        return new SecurityEvent(SecurityEventNames.HouseholdSettingsChanged, null, [],
-            new Dictionary<string, string> { ["fields"] = string.Join(",", fields.OfType<string>()) });
+        var joined = string.Join(",", fields.OfType<string>());
+        // Neither field was given (Minor #4): nothing changed, so nothing is worth an event.
+        return joined.Length == 0 ? null : new SecurityEvent(SecurityEventNames.HouseholdSettingsChanged, null, [],
+            new Dictionary<string, string> { ["fields"] = joined });
     }
 }
 
