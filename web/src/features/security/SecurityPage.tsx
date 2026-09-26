@@ -5,7 +5,7 @@ import { useSession } from '@/app/Providers';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { formatInstant } from '@/features/admin/format';
-import { eventLabel } from './eventLabel';
+import { eventLabel, viaLabel } from './eventLabel';
 
 /** screens.md "Sécurité" (administration-and-audit.md §5): my events and signing out everywhere. Tokens: stage 4. */
 export function SecurityPage() {
@@ -45,7 +45,7 @@ export function SecurityPage() {
                 <tr key={entry.seq} className="border-b">
                   <td className="py-2 pr-4">{formatInstant(entry.at)}</td>
                   <td className="py-2 pr-4">{eventLabel(t, entry.event)}</td>
-                  <td className="py-2 font-mono">{entry.actor.via}</td>
+                  <td className="py-2">{viaLabel(t, entry.actor.via)}</td>
                 </tr>
               ))}
             </tbody>

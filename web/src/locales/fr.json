@@ -546,6 +546,13 @@
     "when": "Date",
     "event": "Événement",
     "via": "Origine",
+    "via_label": {
+      "ui": "Navigateur",
+      "api": "API",
+      "job": "Tâche planifiée",
+      "import": "Import",
+      "mcp": "Assistant (MCP)"
+    },
     "sessions_title": "Mes sessions",
     "revoke": "Déconnecter partout",
     "revoke_confirm": "Toutes vos sessions seront fermées, celle-ci comprise : vous devrez vous reconnecter.",

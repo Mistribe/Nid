@@ -9,7 +9,7 @@ import { server } from '@/test/server';
 const events = {
   entries: [
     { seq: 2, at: '2026-09-26T08:00:00+00:00', event: 'login', actor: { kind: 'person', personId: 'a', via: 'ui' }, subjectPersonId: 'a', details: {} },
-    { seq: 1, at: '2026-09-25T08:00:00+00:00', event: 'admin_granted', actor: { kind: 'person', personId: 'b', via: 'ui' }, subjectPersonId: 'a', details: {} },
+    { seq: 1, at: '2026-09-25T08:00:00+00:00', event: 'admin_granted', actor: { kind: 'person', personId: 'b', via: 'admin-cli' }, subjectPersonId: 'a', details: {} },
   ],
   next: null,
 };
@@ -21,7 +21,10 @@ describe('Sécurité', () => {
 
     const login = await screen.findByRole('row', { name: /Connexion/ });
     expect(login).toHaveTextContent(formatInstant('2026-09-26T08:00:00+00:00'));
-    expect(screen.getByRole('row', { name: /Rôle admin accordé/ })).toBeInTheDocument();
+    expect(login).toHaveTextContent('Navigateur');
+    const granted = screen.getByRole('row', { name: /Rôle admin accordé/ });
+    expect(granted).toBeInTheDocument();
+    expect(granted).toHaveTextContent('admin-cli'); // an origin with no French label shows as sent
     expect(screen.getByText(/ne ferme pas votre session auprès du fournisseur d'identité/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
