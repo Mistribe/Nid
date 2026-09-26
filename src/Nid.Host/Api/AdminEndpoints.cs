@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
 using Nid.Platform.Admin;
+using Nid.Platform.Audit;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Api;
@@ -62,6 +63,10 @@ public static class AdminEndpoints
         api.MapGet("/system", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetSystemStatusQuery(), ct)).ToHttp(status => status))
             .Returns<SystemStatusView>();
+
+        api.MapGet("/security-journal", async (string? @event, long? before, int? limit, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SecurityJournalQuery(@event, before, limit), ct)).ToHttp(p => p))
+            .Returns<SecurityEventPage>();
 
         return routes;
     }

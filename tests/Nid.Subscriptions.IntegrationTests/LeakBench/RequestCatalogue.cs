@@ -6,6 +6,7 @@ using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Platform;
 using Nid.Platform.Admin;
+using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
 using Nid.Platform.Export;
 using Nid.Platform.Import;
@@ -135,6 +136,9 @@ public static class RequestCatalogue
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null)),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
         new(typeof(GetSystemStatusQuery), false, (_, _) => new GetSystemStatusQuery()),
+        new(typeof(ItemHistoryQuery), true, (_, item) => new ItemHistoryQuery(item, null, null)),
+        new(typeof(MySecurityEventsQuery), false, (_, _) => new MySecurityEventsQuery(null, null)),
+        new(typeof(SecurityJournalQuery), false, (_, _) => new SecurityJournalQuery(null, null, null)),
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),
