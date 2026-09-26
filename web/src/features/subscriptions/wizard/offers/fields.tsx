@@ -22,11 +22,25 @@ export function DateField({ form, name, label, hint }: Props) {
   );
 }
 
-export function AmountField({ form, name, label, hint }: Props) {
-  return (
+/**
+ * An amount; with `withCurrency`, followed by the subscription's one currency (the same `currency` the phases use),
+ * so an offer without a following phase is not silently recorded in the default one.
+ */
+export function AmountField({ form, name, label, hint, withCurrency = false }: Props & { withCurrency?: boolean }) {
+  const { t } = useTranslation();
+  const amount = (
     <Field label={label} hint={hint} error={errorOf(form, name)}>
       {(c) => <input inputMode="decimal" {...c} {...form.register(name)} className={`w-32 ${input}`} />}
     </Field>
+  );
+  if (!withCurrency) return amount;
+  return (
+    <div className="flex gap-3">
+      {amount}
+      <Field label={t('wizard.currency')} error={errorOf(form, 'currency')}>
+        {(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}
+      </Field>
+    </div>
   );
 }
 

@@ -37,7 +37,7 @@ export function Trial({ form }: { form: Form }) {
         <DurationFields form={form} count="durationCount" unit="durationUnit" label={t('wizard.offer.trial_duration')} />
       ) : (
         <>
-          <AmountField form={form} name="launchAmount" label={t('wizard.offer.launch_price')} />
+          <AmountField form={form} name="launchAmount" label={t('wizard.offer.launch_price')} withCurrency />
           <DurationFields form={form} count="everyCount" unit="everyUnit" label={t('wizard.every')} />
           <Field label={t('wizard.offer.launch_cycles')} error={cyclesError}>
             {(c) => <input inputMode="numeric" {...c} {...form.register('launchCycles')} className={`w-20 ${input}`} />}

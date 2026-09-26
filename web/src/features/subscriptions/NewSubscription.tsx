@@ -24,7 +24,7 @@ import { ThenStep } from './wizard/ThenStep';
 import { TypeStep } from './wizard/TypeStep';
 
 type Fields = Path<WizardValues>[];
-const PURCHASE: Fields = ['offerDate', 'offerLabel', 'offerAmount', 'offerPayerType', 'offerPayerPerson'];
+const PURCHASE: Fields = ['offerDate', 'offerLabel', 'offerAmount', 'currency', 'offerPayerType', 'offerPayerPerson'];
 const PHASE: Fields = ['amount', 'currency', 'everyCount', 'everyUnit', 'sameCovers', 'coversCount', 'coversUnit', 'maxCycles', 'payerType', 'payerPerson'];
 
 /** The fields the offer step checks before going on, by offer (1E2b1 design §4.1). */
@@ -34,8 +34,8 @@ function offerFields(offer: Offer, trialVariant: WizardValues['trialVariant']): 
     case 'prepaid': return [...PURCHASE, 'paidCount', 'paidUnit', 'bonusCount', 'bonusUnit'];
     case 'trial': return trialVariant === 'free'
       ? ['trialVariant', 'offerDate', 'durationCount', 'durationUnit']
-      : ['trialVariant', 'offerDate', 'launchAmount', 'everyCount', 'everyUnit', 'launchCycles'];
-    case 'gift': return ['offerDate', 'offerLabel', 'giftReceived', 'offerAmount', 'offerPayerType', 'offerPayerPerson', 'durationCount', 'durationUnit'];
+      : ['trialVariant', 'offerDate', 'launchAmount', 'currency', 'everyCount', 'everyUnit', 'launchCycles'];
+    case 'gift': return ['offerDate', 'offerLabel', 'giftReceived', 'offerAmount', 'currency', 'offerPayerType', 'offerPayerPerson', 'durationCount', 'durationUnit'];
     case 'bundle': return [...PURCHASE, 'allocated', 'durationCount', 'durationUnit', 'others'];
   }
 }

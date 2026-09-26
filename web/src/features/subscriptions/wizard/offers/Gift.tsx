@@ -21,7 +21,7 @@ export function Gift({ form, persons }: { form: Form; persons: Person[] }) {
       <DurationFields form={form} count="durationCount" unit="durationUnit" label={t('wizard.offer.duration')} />
       {received ? null : (
         <>
-          <AmountField form={form} name="offerAmount" label={t('wizard.offer.price')} />
+          <AmountField form={form} name="offerAmount" label={t('wizard.offer.price')} withCurrency />
           <PayerFields form={form} persons={persons} />
         </>
       )}

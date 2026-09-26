@@ -37,6 +37,15 @@ async function begin(offer: RegExp) {
 const next = (user: Awaited<ReturnType<typeof begin>>['user']) => user.click(screen.getByRole('button', { name: 'Continuer' }));
 
 describe('Abonnements › ajout › offres', () => {
+  it('offers every type with its example, clean for assistive technology', async () => {
+    serve();
+    const { container } = await renderApp('/subscriptions/new');
+    const types = await screen.findByRole('group', { name: "Type d'offre" });
+    expect(within(types).getAllByRole('radio')).toHaveLength(5);
+    expect(within(types).getByRole('radio', { name: /Récurrent/ })).toBeChecked();
+    await expectNoAxeViolations(container);
+  });
+
   it('records a prepaid term with free months, followed by a phase', async () => {
     const fake = serve();
     const { user, container } = await begin(/Prépayé/);
@@ -62,14 +71,16 @@ describe('Abonnements › ajout › offres', () => {
 
   it('records a launch price with its normal price, the next start computed', async () => {
     const fake = serve();
-    const { user } = await begin(/Essai ou offre de lancement/);
+    const { user, container } = await begin(/Essai ou offre de lancement/);
     await user.click(screen.getByRole('radio', { name: 'Prix de lancement' }));
     await user.type(screen.getByLabelText('Début'), '2025-01-31');
     await user.type(screen.getByLabelText('Prix réduit'), '0,99');
     await user.type(screen.getByLabelText('Nombre de cycles'), '1');
+    await expectNoAxeViolations(container);
     await next(user);
     expect(screen.getByLabelText('Début du prix normal')).toHaveValue('2025-02-28');
     await user.type(screen.getByLabelText('Montant'), '9,99');
+    await expectNoAxeViolations(container);
     await next(user);
     await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
 
@@ -88,6 +99,39 @@ describe('Abonnements › ajout › offres', () => {
 
     await screen.findByText(/introuvable/i);
     expect(fake.bodies[0]).toMatchObject({ phases: [], purchases: [{ kind: 'gift', payer: { type: 'external' }, price: { amount: '0' } }] });
+  });
+
+  it('records a bought gift card in the currency typed next to its price', async () => {
+    const fake = serve();
+    const { user, container } = await begin(/Carte cadeau/);
+    await user.type(screen.getByLabelText('Date'), '2025-01-01');
+    await expectNoAxeViolations(container); // received
+    await user.click(screen.getByRole('radio', { name: 'Achetée' }));
+    await user.type(screen.getByLabelText('Prix'), '30');
+    await user.clear(screen.getByLabelText('Devise'));
+    await user.type(screen.getByLabelText('Devise'), 'usd');
+    await expectNoAxeViolations(container); // bought
+    await next(user);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+
+    await screen.findByText(/introuvable/i);
+    expect(fake.bodies[0]).toMatchObject({ phases: [], purchases: [{ kind: 'gift', price: { amount: '30', currency: 'USD' } }] });
+  });
+
+  it('records a free trial, its steps clean for assistive technology', async () => {
+    const fake = serve();
+    const { user, container } = await begin(/Essai ou offre de lancement/);
+    await user.type(screen.getByLabelText('Début'), '2025-01-01');
+    await expectNoAxeViolations(container);
+    await next(user);
+    await user.click(screen.getByRole('radio', { name: "Rien pour l'instant" }));
+    await expectNoAxeViolations(container);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+
+    await screen.findByText(/introuvable/i);
+    expect(fake.bodies[0]).toMatchObject({ phases: [], purchases: [{ label: 'Essai', grants: [{ source: 'trial', startsOn: '2025-01-01' }] }] });
   });
 
   // Review Focus 4: a refused second other row brings the user back to the offer step, on that row.

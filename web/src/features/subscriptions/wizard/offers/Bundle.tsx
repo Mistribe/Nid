@@ -40,7 +40,7 @@ export function Bundle({ form, persons }: { form: Form; persons: Person[] }) {
     <div className="space-y-4">
       <DateField form={form} name="offerDate" label={t('wizard.offer.purchase_date')} />
       <LabelField form={form} initial={t('wizard.offer.bundle')} />
-      <AmountField form={form} name="offerAmount" label={t('wizard.offer.total_price')} />
+      <AmountField form={form} name="offerAmount" label={t('wizard.offer.total_price')} withCurrency />
       <PayerFields form={form} persons={persons} />
       <AmountField form={form} name="allocated" label={t('wizard.offer.allocated')} hint={t('wizard.offer.allocated_hint')} />
       <DurationFields form={form} count="durationCount" unit="durationUnit" label={t('wizard.offer.included_here')} />
