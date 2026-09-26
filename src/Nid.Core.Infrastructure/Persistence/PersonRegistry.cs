@@ -224,7 +224,9 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
     public async Task<Result<RebindOutcome>> RebindSubjectAsync(PersonId id, string subject, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(subject) || subject.Length > 255)
+        // A pasted subject keeps no surrounding space: it would never match a sign-in (final review).
+        subject = subject.Trim();
+        if (subject.Length == 0 || subject.Length > 255)
             return Result.Failure<RebindOutcome>(new Failure(PersonCodes.SubjectInvalid, "A subject is 1 to 255 characters."));
 
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);

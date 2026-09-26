@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Host.Admin;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.IntegrationTests.Audit;
@@ -194,6 +195,99 @@ public class AdminCliTests(PostgresFixture fixture)
         var run = await CliAsync(app, args: args);
         Assert.Equal(2, run.Exit);
         Assert.Contains("nid admin", run.Error);
+    }
+
+    private static async Task<int> CommandsLogged(NidApp app) => (await SecurityEventTests.EventsAsync(app, SecurityEventNames.AdminCommand)).Count;
+
+    // Final review: one admin_command per run, and every row names the request that did the work.
+    [Fact]
+    public async Task A_run_records_one_admin_command_and_names_the_command_that_wrote()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        await CliAsync(app, args: ["grant-admin", "--person", app.AdultB.Value.ToString(), "--yes"]);
+
+        Assert.Equal(1, await CommandsLogged(app));
+        Assert.Equal("SetAdminCommand", Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.AdminGranted)).Request);
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var write = await platform.AuditLog.Where(r => r.Category == "write" && r.Via == "admin-cli").ToListAsync();
+        Assert.NotEmpty(write);
+        Assert.All(write, r => Assert.Equal("SetAdminCommand", r.Request));
+    }
+
+    [Fact]
+    public async Task A_usage_error_records_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CliAsync(app, args: ["grant-admin"]);
+        Assert.Equal(0, await CommandsLogged(app));
+    }
+
+    [Fact]
+    public async Task A_subject_another_person_holds_leaves_the_adult_unchanged_and_is_recorded()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, subjectB, _) = await PersonAsync(app, app.AdultB);
+        var before = await PersonAsync(app, app.AdultA);
+
+        await CliAsync(app, args: ["rebind-subject", "--person", app.AdultA.Value.ToString(), "--sub", subjectB!, "--yes"]);
+
+        Assert.Equal(before, await PersonAsync(app, app.AdultA));
+        var logged = await LastCommandAsync(app);
+        Assert.Equal(("refused", "core.subject_taken"), (logged["outcome"], logged["code"]));
+    }
+
+    // Final review (re-graded): a pasted sub keeps no surrounding space, or it would never match a sign-in.
+    [Fact]
+    public async Task A_pasted_subject_is_trimmed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CliAsync(app, args: ["rebind-subject", "--person", app.AdultA.Value.ToString(), "--sub", "  pasted-sub \n", "--yes"]);
+        Assert.Equal("pasted-sub", (await PersonAsync(app, app.AdultA)).Subject);
+    }
+
+    // Final review (re-graded): every refusal reads in French.
+    [Fact]
+    public async Task Revoking_a_dependents_sessions_is_refused_in_french()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var run = await CliAsync(app, args: ["revoke-sessions", "--person", app.Dependent.Value.ToString()]);
+        Assert.Equal(1, run.Exit);
+        Assert.Contains("Seul un adulte a des sessions", run.Error);
+    }
+
+    // Final review: an unexpected failure (the base gone, a broken table) exits 1 in French, without a stack trace.
+    [Fact]
+    public async Task An_unexpected_failure_exits_one_in_french_without_a_stack_trace()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        _ = app.Services;
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            await core.Database.ExecuteSqlRawAsync("alter table core.person rename to person_gone");
+
+        var run = await CliAsync(app, args: ["list-persons"]);
+
+        Assert.Equal(1, run.Exit);
+        Assert.Contains("Erreur inattendue", run.Error);
+        Assert.DoesNotContain("   at ", run.Error);
+    }
+
+    // Final review: a run whose trace could not be written says so.
+    [Fact]
+    public async Task A_run_whose_admin_command_could_not_be_written_says_so()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddScoped<ISecurityEvents, LosingSecurityEvents>());
+
+        var run = await CliAsync(app, args: ["revoke-sessions", "--person", app.AdultB.Value.ToString()]);
+
+        Assert.Equal(0, run.Exit);
+        Assert.Contains("n'a pas pu être enregistrée au journal", run.Error);
+    }
+
+    private sealed class LosingSecurityEvents : ISecurityEvents
+    {
+        public Task<bool> RecordAsync(SecurityEvent securityEvent, CancellationToken ct) => Task.FromResult(false);
+        public Task<bool> RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct) => Task.FromResult(false);
     }
 
     [Fact]

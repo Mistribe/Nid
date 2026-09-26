@@ -36,21 +36,34 @@ public static class AdminCli
 
         await using var scope = services.CreateAsyncScope();
         var provider = scope.ServiceProvider;
-        if (await PendingMigrationsAsync(provider, ct))
+        Session? run = null;
+        try
         {
-            await console.Error.WriteLineAsync("La base n'est pas à jour : démarrez d'abord nid-api, qui applique les migrations.");
+            if (await PendingMigrationsAsync(provider, ct))
+            {
+                await console.Error.WriteLineAsync("La base n'est pas à jour : démarrez d'abord nid-api, qui applique les migrations.");
+                return 1;
+            }
+            provider.GetRequiredService<IActorAccessor>().Current = Actor.Cli;
+            run = new Session(parsed, console, provider.GetRequiredService<IInvoker>(), provider.GetRequiredService<ISecurityEvents>(),
+                provider.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), ct);
+            return parsed.Command switch
+            {
+                "list-persons" => await run.ListAsync(),
+                "grant-admin" => await run.GrantAdminAsync(),
+                "revoke-sessions" => await run.RevokeSessionsAsync(),
+                "rebind-subject" => await run.RebindAsync(),
+                _ => 2,
+            };
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Final review: the base unreachable (the "API does not start" case) or any other failure keeps the 0/1/2
+            // contract and speaks French; the type is enough to search the logs, the message may carry details.
+            await console.Error.WriteLineAsync($"Erreur inattendue ({e.GetType().Name}) : la commande n'a pas abouti. Vérifiez que la base est joignable.");
+            if (run is not null) await run.RecordErrorAsync();
             return 1;
         }
-        provider.GetRequiredService<IActorAccessor>().Current = Actor.Cli;
-        var run = new Session(parsed, console, provider.GetRequiredService<IInvoker>(), provider.GetRequiredService<ISecurityEvents>(), ct);
-        return parsed.Command switch
-        {
-            "list-persons" => await run.ListAsync(),
-            "grant-admin" => await run.GrantAdminAsync(),
-            "revoke-sessions" => await run.RevokeSessionsAsync(),
-            "rebind-subject" => await run.RebindAsync(),
-            _ => 2,
-        };
     }
 
     private static async Task<bool> PendingMigrationsAsync(IServiceProvider provider, CancellationToken ct)
@@ -67,9 +80,28 @@ public static class AdminCli
         return false;
     }
 
-    private sealed class Session(ParsedArgs args, CliConsole console, IInvoker invoker, ISecurityEvents events, CancellationToken ct)
+    private sealed class Session(
+        ParsedArgs args, CliConsole console, IInvoker invoker, ISecurityEvents events, Nid.Platform.Audit.AuditRequest audit, CancellationToken ct)
     {
         private string Command => args.Command!;
+        private bool recorded;
+
+        /// <summary>
+        /// Every request of the run shares one scope: the audit's request name is reset before each, or every row would
+        /// name the first one (the lookup of --person) instead of the command that wrote (final review).
+        /// </summary>
+        private Task<Result<T>> SendAsync<T>(IRequest<T> request) where T : notnull
+        {
+            audit.Name = null;
+            return invoker.InvokeAsync(request, ct).AsTask();
+        }
+
+        public async Task RecordErrorAsync()
+        {
+            if (recorded) return;
+            try { await RecordAsync("refused", "admin_cli.error", null); }
+            catch (Exception) { /* the failure itself may be the base: nothing more to do than what stderr said */ }
+        }
 
         public async Task<int> ListAsync()
         {
@@ -106,7 +138,7 @@ public static class AdminCli
             var subject = args.Options["sub"];
             if (!await ConfirmAsync($"Rattacher {Describe(person)} au sub {subject} ; ses sessions seront fermées.", person, subject)) return 1;
 
-            var result = await invoker.InvokeAsync<RebindOutcome>(new RebindSubjectCommand(new PersonId(person.Id), subject), ct);
+            var result = await SendAsync(new RebindSubjectCommand(new PersonId(person.Id), subject));
             if (result.TryGetFailure(out var failure))
                 return await RefuseAsync(failure!, person, subject);
             result.TryGetValue(out var outcome);
@@ -123,7 +155,7 @@ public static class AdminCli
 
         private async Task<int> InvokeAsync<T>(object command, PersonView person, Func<T, string> done) where T : notnull
         {
-            var result = await invoker.InvokeAsync<T>((IRequest<T>)command, ct);
+            var result = await SendAsync((IRequest<T>)command);
             if (result.TryGetFailure(out var failure))
                 return await RefuseAsync(failure!, person, null);
             result.TryGetValue(out var value);
@@ -150,13 +182,16 @@ public static class AdminCli
                 case PersonCodes.SubjectInvalid: return "Un sub fait de 1 à 255 caractères.";
                 case PersonCodes.NotAnAdult: return "Seul un adulte peut recevoir ce rôle ou ce rattachement.";
                 case PersonCodes.LastAdmin: return "Au moins un admin qui s'est déjà connecté doit rester.";
-                default: return failure.Message;
+                default:
+                    return failure is NotFoundFailure
+                        ? "Personne introuvable, ou sans session. Seul un adulte a des sessions."
+                        : $"Refusé ({failure.Code}).";
             }
         }
 
         private async Task<IReadOnlyList<PersonView>> PersonsAsync()
         {
-            var result = await invoker.InvokeAsync<IReadOnlyList<PersonView>>(new ListAllPersonsQuery(), ct);
+            var result = await SendAsync(new ListAllPersonsQuery());
             return result.TryGetValue(out var persons) ? persons! : [];
         }
 
@@ -200,15 +235,17 @@ public static class AdminCli
             return false;
         }
 
-        private Task RecordAsync(string outcome, string? code, PersonView? person, string? subject = null, string? previous = null)
+        private async Task RecordAsync(string outcome, string? code, PersonView? person, string? subject = null, string? previous = null)
         {
+            recorded = true;
             var data = new Dictionary<string, string> { ["command"] = Command, ["outcome"] = outcome };
             if (code is not null) data["code"] = code;
             if (person is not null) data["person"] = person.Id.ToString();
             if (subject is not null) data["sub"] = subject;
             if (previous is not null) data["previous_sub"] = previous;
-            return events.RecordAsync(new SecurityEvent(SecurityEventNames.AdminCommand,
-                person is null ? null : new PersonId(person.Id), [], data), ct);
+            if (!await events.RecordAsync(new SecurityEvent(SecurityEventNames.AdminCommand,
+                    person is null ? null : new PersonId(person.Id), [], data), ct))
+                await console.Error.WriteLineAsync("Attention : la commande n'a pas pu être enregistrée au journal.");
         }
 
         private static string Describe(PersonView p) => p.Email is null ? $"{p.DisplayName} ({p.Id})" : $"{p.DisplayName} ({p.Email}, {p.Id})";

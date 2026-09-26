@@ -71,8 +71,13 @@ var app = builder.Build();
 
 // 1F4: `nid admin …` runs one use case and stops; it never migrates and never serves.
 if (adminMode)
-    return await AdminCli.RunAsync(app.Services, args[1..],
+{
+    var exit = await AdminCli.RunAsync(app.Services, args[1..],
         new CliConsole(Console.In, Console.Out, Console.Error, !Console.IsInputRedirected));
+    // The console logger writes on a background queue: disposing the host flushes it before the process ends.
+    await app.DisposeAsync();
+    return exit;
+}
 
 // EF Core takes a database lock while migrating, so several instances starting together are safe.
 // Health:SkipMigrations is for the readiness test only (HostingTests): it starts a host whose database is unreachable.

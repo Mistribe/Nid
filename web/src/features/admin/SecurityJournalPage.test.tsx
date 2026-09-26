@@ -32,6 +32,26 @@ describe('Administration › Journal de sécurité', () => {
     await expectNoAxeViolations(container);
   });
 
+  // 1F4 design §4: what the hoster did through `nid admin` reads in French.
+  it('names what the recovery command line did', async () => {
+    server.use(
+      http.get('*/api/v1/admin/users', () => HttpResponse.json(adults)),
+      http.get('*/api/v1/admin/security-journal', () => HttpResponse.json({
+        entries: [
+          { seq: 5, at: '2026-09-26T09:00:00+00:00', event: 'admin_command', actor: { kind: 'system', personId: null, via: 'admin-cli' }, subjectPersonId: 'b', details: { command: 'grant-admin', outcome: 'ok' } },
+          { seq: 4, at: '2026-09-26T08:30:00+00:00', event: 'subject_rebound', actor: { kind: 'system', personId: null, via: 'admin-cli' }, subjectPersonId: 'a', details: { had_subject: 'true' } },
+        ],
+        next: null,
+      })),
+    );
+    await renderApp('/admin/security', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('row', { name: /Commande de secours/ })).toHaveTextContent('Bob');
+    expect(screen.getByRole('row', { name: /Identité rattachée/ })).toHaveTextContent('Alice');
+    expect(screen.getByRole('option', { name: 'Commande de secours' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Identité rattachée' })).toBeInTheDocument();
+  });
+
   it('filters by event', async () => {
     const asked: Array<string | null> = [];
     server.use(

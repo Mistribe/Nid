@@ -11,7 +11,7 @@ import { formatInstant } from './format';
 /** The events the journal can hold (spec §5.1), in the order of the filter. */
 const JOURNAL_EVENTS = [
   'login_refused', 'access_violation', 'person_preregistered', 'person_preregistration_cancelled',
-  'admin_granted', 'admin_revoked', 'session_revoked', 'household_settings_changed',
+  'admin_granted', 'admin_revoked', 'session_revoked', 'household_settings_changed', 'admin_command', 'subject_rebound',
 ] as const;
 
 /** screens.md §12, Journal de sécurité: identifiers only, adults by name. */
