@@ -124,10 +124,18 @@ public class WriteAuditTests(PostgresFixture fixture)
     public async Task A_journal_write_needs_no_actor()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await using var scope = app.Services.CreateAsyncScope();
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            // The run journal is excluded (spec §11.2): startup work like CatalogStartupSync's touches it with no
+            // actor. TryStartAsync saves through the change tracker, so the interceptor sees a save of excluded rows
+            // only, and must let it through rather than ask for an actor.
+            var run = await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().TryStartAsync("journal-probe", default);
+            Assert.NotNull(run);
+        }
 
-        // CatalogStartupSync does exactly this at startup, with no actor (spec §11.2).
-        await scope.ServiceProvider.GetRequiredService<ICatalogRunLog>().CloseAbandonedAsync(default);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Equal("journal-probe", (await subs.CatalogSyncRuns.SingleAsync()).Commit);
+        Assert.Empty(await WritesAsync(app, "subscriptions.catalog_sync_run"));
     }
 
     [Fact]
