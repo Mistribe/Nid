@@ -48,7 +48,7 @@ public class ReplaceFlagTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.OK, (await client.CommitRawAsync(app.AdultA, session.Id)).StatusCode);
     }
 
-    [Fact(Skip = "until Task 4: subscriptions honour replace")]
+    [Fact]
     public async Task A_session_validated_with_replace_then_committed_without_it_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -61,7 +61,7 @@ public class ReplaceFlagTests(PostgresFixture fixture)
         foreach (var (section, entities) in changed)
             Assert.True((await client.PutAsync(app.AdultA, session.Id, section, 0, entities)).Accepted);
         var validated = await client.ValidateAsync(app.AdultA, session.Id, replace: true);
-        Assert.Equal("validated", validated.State); // needs Task 4 for subscriptions; until then this line fails — see Step 2
+        Assert.Equal("validated", validated.State);
 
         var refused = await client.CommitRawAsync(app.AdultA, session.Id, replace: false);
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);

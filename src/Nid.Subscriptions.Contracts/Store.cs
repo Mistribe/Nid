@@ -51,6 +51,10 @@ public sealed record SubscriptionEdit(
     bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
     string? ProviderKey = null, bool ClearProviderKey = false);
 
+/// <summary>1F3b: what an import's replacement sets on a subscription it created before; the rest of the row stays.</summary>
+public sealed record SubscriptionReplacement(
+    string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note, LocalDate? CancelledAt, ImportRef Import);
+
 /// <summary>
 /// Rows in, engine input out. The store never computes: coverage and charges are the engine's job, and
 /// nothing derived is persisted.
@@ -63,6 +67,9 @@ public interface ISubscriptionStore
     Task<IReadOnlyList<SubscriptionInput>> LoadManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
     Task<Result> CreateAsync(ItemId id, NewSubscription subscription, CancellationToken ct);
+
+    /// <summary>1F3b: an import's replacement of a subscription it created before. The row is updated in place.</summary>
+    Task<Result> ReplaceAsync(ItemId id, SubscriptionReplacement replacement, CancellationToken ct);
 
     Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct);
 

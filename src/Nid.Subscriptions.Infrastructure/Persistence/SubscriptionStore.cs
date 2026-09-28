@@ -67,6 +67,27 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success();
     }
 
+    public async Task<Result> ReplaceAsync(ItemId id, SubscriptionReplacement replacement, CancellationToken ct)
+    {
+        var row = await db.Subscriptions.Include(s => s.Users).FirstOrDefaultAsync(s => s.ItemId == id.Value, ct);
+        if (row is null)
+            return NotFound(id);
+
+        row.ProviderKey = replacement.ProviderKey;
+        row.AutoRenew = replacement.AutoRenew;
+        row.Note = replacement.Note;
+        row.CancelledAt = replacement.CancelledAt;
+        row.ImportHash = replacement.Import.Hash;
+        var wanted = replacement.Users.Select(u => u.Value).ToHashSet();
+        foreach (var user in row.Users.Where(u => !wanted.Contains(u.PersonId)).ToList())
+            row.Users.Remove(user);
+        foreach (var person in wanted.Where(p => row.Users.All(u => u.PersonId != p)))
+            row.Users.Add(new SubscriptionUserRow { ItemId = id.Value, PersonId = person });
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     public async Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct)
     {
         var row = await db.Subscriptions.FirstOrDefaultAsync(s => s.ItemId == id.Value, ct);

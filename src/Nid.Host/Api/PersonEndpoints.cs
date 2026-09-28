@@ -121,6 +121,9 @@ public static class ResultHttp
             _ when failure.Code == ExportCodes.RevisionChanged => StatusCodes.Status409Conflict,
             _ when failure.Code == ExportCodes.BadCursor => StatusCodes.Status400BadRequest,
             _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
+            _ when failure.Code == ImportCodes.NotCommitted
+                   && failure.Metadata?.TryGetValue(ImportCodes.StaleValidationKey, out var stale) == true
+                   && stale is true => StatusCodes.Status409Conflict,
             _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,
             _ when failure.Code == FieldErrors.ShapeCode => StatusCodes.Status422UnprocessableEntity,
             _ => StatusCodes.Status422UnprocessableEntity,

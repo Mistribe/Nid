@@ -61,6 +61,14 @@ public static class ImportCodes
     public const string NotCommitted = "import.not_committed";
     public const string ApplyFailed = "import.apply_failed";
 
+    /// <summary>
+    /// Metadata key on a <see cref="NotCommitted"/> failure: present (and <c>true</c>) only when the commit's own
+    /// revalidation, not an apply failure or a crash, is why nothing was written — the world moved under this
+    /// commit (a conflict, a replace flag that no longer matches what was validated). The host answers 409 for
+    /// this one, 422 otherwise, without changing the code every caller already checks (§8, §9).
+    /// </summary>
+    public const string StaleValidationKey = "stale_validation";
+
     /// <summary>Answered with 409: the request is well formed but the session's state forbids it.</summary>
     public static IReadOnlySet<string> Conflicts { get; } = new HashSet<string> { SessionActive, State, SlotTaken };
 

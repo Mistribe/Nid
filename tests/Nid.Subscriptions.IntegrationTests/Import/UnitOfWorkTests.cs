@@ -138,6 +138,7 @@ public class UnitOfWorkTests(PostgresFixture fixture)
 
         public Task<SubscriptionInput?> LoadAsync(ItemId id, CancellationToken ct) => inner.LoadAsync(id, ct);
         public Task<IReadOnlyList<SubscriptionInput>> LoadManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct) => inner.LoadManyAsync(ids, ct);
+        public Task<Result> ReplaceAsync(ItemId id, SubscriptionReplacement replacement, CancellationToken ct) => inner.ReplaceAsync(id, replacement, ct);
         public Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct) => inner.EditAsync(id, edit, ct);
         public Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct) => inner.AddPhaseAsync(id, phase, origin, ct);
         public Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, NodaTime.LocalDate endsOn, int? maxCycles, CancellationToken ct) => inner.ClosePhaseAsync(id, phase, endsOn, maxCycles, ct);

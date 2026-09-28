@@ -32,6 +32,8 @@ public sealed class SubscriptionsImportSection(
     private readonly List<(StagedEntity Entity, SubscriptionRecord Record)> newSubscriptions = [];
     private readonly List<(StagedEntity Entity, BillingPhaseRecord Record)> newPhases = [];
     private readonly List<(StagedEntity Entity, PurchaseRecord Record)> newPurchases = [];
+    private readonly List<(StagedEntity Entity, SubscriptionRecord Record, ItemId Id)> replacedSubscriptions = [];
+    private readonly HashSet<string> replacedIds = new(StringComparer.Ordinal); // file ids of replaced subscriptions
     private IReadOnlyDictionary<string, SectionCounts> counts = new Dictionary<string, SectionCounts>();
 
     public string Module => "subscriptions";
@@ -85,6 +87,8 @@ public sealed class SubscriptionsImportSection(
         newSubscriptions.Clear();
         newPhases.Clear();
         newPurchases.Clear();
+        replacedSubscriptions.Clear();
+        replacedIds.Clear();
         var issues = new List<ImportIssue>();
 
         // Before subscriptions: their provider_key may name an entry of this section (design §5 "Import").
@@ -142,17 +146,44 @@ public sealed class SubscriptionsImportSection(
             {
                 // Nothing is created, so the creation rule does not apply. The row is one the actor can see
                 // (ResolveAsync). What the file adds to it is checked for write access below.
+                id = new ItemId(known.Id);
                 if (known.Hash != entity.Hash)
                 {
-                    issues.Add(Conflict(path, record.Id));
-                    tally[Subscriptions] += new SectionCounts(0, 0, 1);
-                    failed.Add(record.Id);
-                    continue;
-                }
+                    if (!context.Replace)
+                    {
+                        issues.Add(Conflict(path, record.Id));
+                        tally[Subscriptions] += new SectionCounts(0, 0, 1);
+                        failed.Add(record.Id);
+                        continue;
+                    }
 
-                id = new ItemId(known.Id);
-                existing.Add(record.Id);
-                tally[Subscriptions] += new SectionCounts(0, 1, 0);
+                    // 1F3b spec §3.2: replacing is a write, on the item as it is now.
+                    if (!await CanWriteAsync(context.Actor, id, ct))
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, "This replaces a subscription you cannot change.", path));
+                        failed.Add(record.Id);
+                        continue;
+                    }
+
+                    if (record.ProviderKey is { } replacedKey && !providerImport.Resolves(replacedKey, linkable))
+                    {
+                        if (!providerImport.Failed(replacedKey))
+                            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference,
+                                $"'{replacedKey}' is neither in providers nor a provider you can link.", path + ".provider_key"));
+                        failed.Add(record.Id);
+                        continue;
+                    }
+
+                    replacedSubscriptions.Add((entity, record, id));
+                    replacedIds.Add(record.Id);
+                    existing.Add(record.Id);
+                    tally[Subscriptions] += new SectionCounts(0, 0, 0, 1);
+                }
+                else
+                {
+                    existing.Add(record.Id);
+                    tally[Subscriptions] += new SectionCounts(0, 1, 0);
+                }
             }
             else
             {
@@ -380,6 +411,24 @@ public sealed class SubscriptionsImportSection(
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
                 providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
+            if (stored.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
+        }
+
+        foreach (var (entity, record, id) in replacedSubscriptions)
+        {
+            var path = NidDataJson.Path(Subscriptions, entity.Index);
+            if (!RecordParsing.TrySubscription(record, path, r => context.Persons.GetValueOrDefault(r), issues, out var parsed))
+                return Drift(issues);
+
+            var item = await items.ReplaceAsync(id, record.Name, parsed.Visibility,
+                parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
+            if (item.TryGetFailure(out var itemFailure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(itemFailure!);
+
+            var stored = await store.ReplaceAsync(id, new SubscriptionReplacement(
+                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt,
+                new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
