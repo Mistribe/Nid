@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -111,9 +112,58 @@ public class ReplaceRowsTests(PostgresFixture fixture)
         var writes = await platform.AuditLog.Where(r => r.Category == "write" && r.Seq > lastSeq).ToListAsync();
         var update = Assert.Single(writes, r => r.Action == "update" && r.Entity == "subscriptions.purchase");
         Assert.Contains(OldLabel, update.Data);
+        Assert.Equal([spotify], update.ItemIds);
         Assert.Single(writes, r => r.Action == "delete" && r.Entity == "subscriptions.coverage_grant");
         Assert.Single(writes, r => r.Action == "insert" && r.Entity == "subscriptions.coverage_grant");
         Assert.All(writes, r => Assert.Equal("import", r.Via));
+
+        // Spec §3.3/§6: the old value stays in the item's history.
+        var history = await ItemHistoryAsync(app, spotify);
+        Assert.Contains(history, e => e.Action == "update" && e.Entity == "subscriptions.purchase" && e.Body.Contains(OldLabel));
+    }
+
+    /// <summary>A purchase whose grant moves from one subscription to another is in the history of both.</summary>
+    [Fact]
+    public async Task A_replaced_purchase_whose_grants_move_is_in_the_history_of_the_old_and_the_new_subscription()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, GoldenFile.Sections());
+        Guid spotify;
+        Guid wow;
+        await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+        {
+            spotify = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
+            wow = (await before.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-wow")).ItemId;
+        }
+        await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+
+        // pu-gift's only grant ("count":3 is unique to it) moves from sub-spotify to sub-wow, and its label changes.
+        var moved = GoldenFile.With("purchases", GoldenFile.Purchases
+            .Replace(OldLabel, NewLabel)
+            .Replace("{\"subscription_id\":\"sub-spotify\",\"duration\":{\"count\":3,", "{\"subscription_id\":\"sub-wow\",\"duration\":{\"count\":3,"));
+        var committed = await CommitAsync(client, app, moved, replace: true);
+
+        Assert.Equal(1, committed.Report!.Sections["purchases"].Replaced);
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var update = await platform.AuditLog.SingleAsync(r => r.Seq > lastSeq && r.Action == "update" && r.Entity == "subscriptions.purchase");
+        Assert.Equal(new[] { spotify, wow }.Order(), update.ItemIds.Order());
+        foreach (var item in new[] { spotify, wow })
+        {
+            var history = await ItemHistoryAsync(app, item);
+            Assert.Contains(history, e => e.Action == "update" && e.Entity == "subscriptions.purchase" && e.Body.Contains(OldLabel));
+        }
+    }
+
+    private static async Task<IReadOnlyList<(string Action, string Entity, string Body)>> ItemHistoryAsync(NidApp app, Guid item)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/platform/audit/items/{item}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var page = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return page.RootElement.GetProperty("entries").EnumerateArray()
+            .Select(e => (e.GetProperty("action").GetString()!, e.GetProperty("entity").GetString()!, e.GetRawText()))
+            .ToList();
     }
 
     /// <summary>

@@ -61,6 +61,12 @@ public sealed class PurchaseRow
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
     public List<GrantRow> Grants { get; set; } = [];
+
+    /// <summary>
+    /// Not stored: the items of the grants a replacement removed in an earlier save, so the purchase's own update
+    /// line is also under them (1F3b spec §3.3, §6: the old value stays in the history of every item it fed).
+    /// </summary>
+    public IReadOnlyCollection<Guid> ReplacedGrantItems { get; set; } = [];
 }
 
 /// <summary>

@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
@@ -171,5 +172,115 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture)
         var committed = await CommitAsync(client, app, handedOver, replace: true);
 
         Assert.Equal(1, committed.Report!.Sections["subscriptions"].Replaced);
+    }
+    /// <summary>A shared subscription both adults own and write, imported by A (adult-1).</summary>
+    private const string CoOwned = """[{"id":"sub-shared","name":"Shared","ownership":[{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}],"auto_renew":true}]""";
+
+    private static async Task<SessionResponse> StageAsync(ImportClient client, NidApp app, PersonId actor, string subscriptions)
+    {
+        var session = await client.StartAsync(actor, Adults(app));
+        Assert.True((await client.PutAsync(actor, session.Id, "persons", 0, GoldenFile.Persons)).Accepted);
+        Assert.True((await client.PutAsync(actor, session.Id, "subscriptions", 0, subscriptions)).Accepted);
+        return session;
+    }
+
+    private static async Task<int> WritesAsync(NidApp app)
+    {
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        return await platform.AuditLog.CountAsync(r => r.Category == "write");
+    }
+
+    /// <summary>User ruling 2026-09-28: a replacement does not take an item away from another adult (spec §3.2).</summary>
+    [Fact]
+    public async Task A_replacement_that_drops_another_adult_owner_is_not_permitted_and_writes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = CoOwned });
+        var writesBefore = await WritesAsync(app);
+
+        // B, a co-owner who writes it, re-imports it with B alone as owner: A would lose it.
+        var session = await StageAsync(client, app, app.AdultB,
+            CoOwned.Replace("""{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}""", """{"person":"adult-2","share_bp":10000}"""));
+        var validated = await client.ValidateAsync(app.AdultB, session.Id, replace: true);
+
+        Assert.Equal("invalid", validated.State);
+        var issue = Assert.Single(validated.Report!.Issues, i => i.Severity == "error");
+        Assert.Equal((ImportCodes.NotPermitted, "subscriptions[0].ownership"), (issue.Code, issue.Path));
+        Assert.Equal(0, validated.Report.Sections["subscriptions"].Replaced);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultB, session.Id, replace: true)).StatusCode);
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        var item = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Shared");
+        Assert.Equal(2, item.Owners.Count);
+        Assert.Equal(writesBefore, await WritesAsync(app));
+    }
+
+    [Fact]
+    public async Task A_replacement_that_keeps_the_other_adult_as_owner_may_change_the_shares()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = CoOwned });
+
+        var session = await StageAsync(client, app, app.AdultB,
+            CoOwned.Replace("""{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}""",
+                """{"person":"adult-1","share_bp":3000},{"person":"adult-2","share_bp":7000}"""));
+        var validated = await client.ValidateAsync(app.AdultB, session.Id, replace: true);
+        Assert.True(validated.State == "validated", string.Join("; ", validated.Report!.Issues.Select(i => $"{i.Code} at {i.Path}")));
+        Assert.True((await client.CommitRawAsync(app.AdultB, session.Id, replace: true)).IsSuccessStatusCode);
+
+        Assert.Equal(1, (await client.GetAsync(app.AdultB, session.Id)).Report!.Sections["subscriptions"].Replaced);
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        var item = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Shared");
+        Assert.Equal(3000, item.Owners.Single(o => o.PersonId == app.AdultA.Value).ShareBp);
+    }
+
+    [Fact]
+    public async Task A_replacement_that_makes_a_shared_item_private_away_from_another_adult_is_not_permitted()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        const string shared = """[{"id":"sub-a","name":"A's","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]""";
+        await CommitAsync(client, app, new Dictionary<string, string> { ["persons"] = GoldenFile.Persons, ["subscriptions"] = shared });
+        var writesBefore = await WritesAsync(app);
+
+        // A, its only owner, makes it private: B reads it today and would not any more.
+        var session = await StageAsync(client, app, app.AdultA, shared.Replace("\"name\":\"A's\",", "\"name\":\"A's\",\"visibility\":\"private\","));
+        var validated = await client.ValidateAsync(app.AdultA, session.Id, replace: true);
+
+        Assert.Equal("invalid", validated.State);
+        var issue = Assert.Single(validated.Report!.Issues, i => i.Severity == "error");
+        Assert.Equal((ImportCodes.NotPermitted, "subscriptions[0].visibility"), (issue.Code, issue.Path));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, session.Id, replace: true)).StatusCode);
+        Assert.Equal(writesBefore, await WritesAsync(app));
+    }
+    [Fact]
+    public async Task A_replacement_reconciles_the_service_users_and_the_history_records_each_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, GoldenFile.Sections());
+        await using var platformBefore = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var lastSeq = await platformBefore.AuditLog.MaxAsync(r => r.Seq);
+
+        // sub-spotify, the only subscription with service_users: adult-2 in, adult-1 out.
+        var swapped = GoldenFile.With("subscriptions", GoldenFile.Subscriptions.Replace(
+            "\"service_users\":[\"adult-1\"]", "\"service_users\":[\"adult-2\"]"));
+        var committed = await CommitAsync(client, app, swapped, replace: true);
+
+        Assert.Equal(1, committed.Report!.Sections["subscriptions"].Replaced);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var spotify = await subs.Subscriptions.AsNoTracking().Include(s => s.Users).SingleAsync(s => s.ImportRef == "sub-spotify");
+        Assert.Equal([app.AdultB.Value], spotify.Users.Select(u => u.PersonId).ToList());
+
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var users = await platform.AuditLog
+            .Where(r => r.Seq > lastSeq && r.Category == "write" && r.Entity == "subscriptions.subscription_user")
+            .ToListAsync();
+        Assert.Equal(["delete", "insert"], users.Select(r => r.Action).Order().ToList());
+        Assert.Contains(app.AdultA.Value.ToString(), users.Single(r => r.Action == "delete").Data);
+        Assert.Contains(app.AdultB.Value.ToString(), users.Single(r => r.Action == "insert").Data);
+        Assert.All(users, r => Assert.Equal("import", r.Via));
+        Assert.All(users, r => Assert.Equal([spotify.ItemId], r.ItemIds));
     }
 }

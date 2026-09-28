@@ -116,6 +116,25 @@ public class AccessRulesTests
     }
 
     private static IReadOnlyList<Owner> SplitBetweenAdults(int aliceBp) => [Adult(Alice, aliceBp), Adult(Bob, 10_000 - aliceBp)];
+
+    [Fact]
+    public void A_replacement_drops_another_adult_owner_but_not_the_actor_nor_a_dependent()
+    {
+        IReadOnlyList<Owner> both = [Adult(Alice, 5_000), Adult(Bob, 5_000)];
+        Assert.True(AccessRules.DropsAnotherAdultOwner(Bob, both, [Adult(Bob, 10_000)]));
+        Assert.False(AccessRules.DropsAnotherAdultOwner(Alice, both, [Adult(Bob, 10_000)]));
+        Assert.False(AccessRules.DropsAnotherAdultOwner(Bob, both, [Adult(Alice, 3_000), Adult(Bob, 7_000)]));
+        Assert.False(AccessRules.DropsAnotherAdultOwner(Alice, [Adult(Alice, 5_000), Child(5_000)], [Adult(Alice, 10_000)]));
+    }
+
+    [Fact]
+    public void Making_a_shared_item_private_takes_read_away_from_the_other_adult()
+    {
+        IReadOnlyList<Owner> alice = [Adult(Alice, 10_000)];
+        Assert.True(AccessRules.TakesReadAway(Alice, Visibility.Shared, alice, Visibility.Private, alice, Adults));
+        Assert.False(AccessRules.TakesReadAway(Alice, Visibility.Private, alice, Visibility.Shared, alice, Adults));
+        Assert.False(AccessRules.TakesReadAway(Alice, Visibility.Shared, alice, Visibility.Private, [Adult(Bob, 10_000)], Adults));
+    }
 }
 
 public class OwnershipRulesTests

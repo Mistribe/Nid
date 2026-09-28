@@ -230,6 +230,16 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         if (row is null)
             return Result.Failure(new NotFoundFailure("purchase", purchase.Id.ToString()));
 
+        // Grants have no identity of their own beyond (purchase, index): the list is replaced, and the history
+        // records each grant row deleted and inserted (1F3b spec §3.3). Two saves: the key (purchase, index) is
+        // deleted and inserted again, which one save would order as a clash. Both are inside the commit's transaction.
+        // The first save deletes the old grants only; the second writes the purchase's new values with the new
+        // grants, and its update line names the old grants' items as well as the new ones' (SubscriptionsAuditMap).
+        var replacedItems = row.Grants.Select(g => g.SubscriptionItemId).Distinct().ToList();
+        db.Grants.RemoveRange(row.Grants);
+        row.Grants.Clear();
+        await db.SaveChangesAsync(ct);
+
         row.Date = purchase.Date;
         row.Label = purchase.Label;
         row.PriceAmount = purchase.Price.Amount;
@@ -240,12 +250,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         row.AllocatedAmount = purchase.AllocatedAmount;
         row.Note = origin.Note;
         row.ImportHash = origin.Import?.Hash;
-        // Grants have no identity of their own beyond (purchase, index): the list is replaced, and the history
-        // records each grant row deleted and inserted (1F3b spec §3.3). Two saves: the key (purchase, index) is
-        // deleted and inserted again, which one save would order as a clash. Both are inside the commit's transaction.
-        db.Grants.RemoveRange(row.Grants);
-        row.Grants.Clear();
-        await db.SaveChangesAsync(ct);
+        row.ReplacedGrantItems = replacedItems;
         row.Grants.AddRange(purchase.Grants.Select((g, index) => new GrantRow
         {
             PurchaseId = purchase.Id.Value,
@@ -257,6 +262,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             StartsOn = g.StartsOn,
         }));
         await db.SaveChangesAsync(ct);
+        row.ReplacedGrantItems = [];
         return Result.Success();
     }
 

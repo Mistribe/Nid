@@ -83,7 +83,8 @@ public class ImportAuditEntryTests(PostgresFixture fixture)
         var validated = await client.RunAsync(app.AdultA, Adults(app), GoldenFile.Sections());
         Assert.True((await client.CommitRawAsync(app.AdultA, validated.Id)).IsSuccessStatusCode);
 
-        var journal = await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal"); // AdultA is admin
-        Assert.DoesNotContain("import_session", journal);
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/admin/security-journal"); // AdultA is admin
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode); // an error body would not contain it either
+        Assert.DoesNotContain("import_session", await response.Content.ReadAsStringAsync());
     }
 }

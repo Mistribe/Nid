@@ -20,6 +20,26 @@ public static class AccessRules
         => owners.Count > 0
            && (owners.Any(o => o.PersonId == actor) || owners.All(o => o.Kind == PersonKind.Dependent));
 
+    /// <summary>
+    /// 1F3b (user ruling 2026-09-28): a replacement does not take an item away from another adult. True when
+    /// <paramref name="after"/> no longer names an adult owner of <paramref name="before"/> other than the actor
+    /// (the actor may give up their own ownership).
+    /// </summary>
+    public static bool DropsAnotherAdultOwner(PersonId actor, IReadOnlyList<Owner> before, IReadOnlyList<Owner> after)
+        => before.Any(o => o.Kind == PersonKind.Adult && o.PersonId != actor && after.All(a => a.PersonId != o.PersonId));
+
+    /// <summary>
+    /// 1F3b (user ruling 2026-09-28): true when an adult other than the actor reads the item as it is and would not
+    /// read it as <paramref name="afterVisibility"/> and <paramref name="after"/> make it (by <see cref="Readers"/>).
+    /// </summary>
+    public static bool TakesReadAway(
+        PersonId actor, Visibility beforeVisibility, IReadOnlyList<Owner> before,
+        Visibility afterVisibility, IReadOnlyList<Owner> after, IReadOnlyCollection<PersonId> adults)
+    {
+        var still = Readers(afterVisibility, after, adults);
+        return Readers(beforeVisibility, before, adults).Any(p => p != actor && adults.Contains(p) && !still.Contains(p));
+    }
+
     public static IReadOnlySet<PersonId> Writers(
         Visibility visibility, IReadOnlyList<Owner> owners, IReadOnlyCollection<PersonId> adults)
     {

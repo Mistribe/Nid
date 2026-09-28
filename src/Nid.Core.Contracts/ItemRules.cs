@@ -14,4 +14,11 @@ public interface IItemRules
 
     /// <summary><c>authorization.md</c> §5: the actor is an owner, or every owner is a dependent.</summary>
     bool CanCreate(PersonId actor, IReadOnlyList<Owner> owners);
+
+    /// <summary>1F3b: a replacement drops an adult owner other than the actor.</summary>
+    bool DropsAnotherAdultOwner(PersonId actor, IReadOnlyList<Owner> before, IReadOnlyList<Owner> after);
+
+    /// <summary>1F3b: a replacement leaves an adult other than the actor who reads the item today unable to read it.</summary>
+    bool TakesReadAway(PersonId actor, Visibility beforeVisibility, IReadOnlyList<Owner> before,
+        Visibility afterVisibility, IReadOnlyList<Owner> after, IReadOnlyCollection<PersonId> adults);
 }

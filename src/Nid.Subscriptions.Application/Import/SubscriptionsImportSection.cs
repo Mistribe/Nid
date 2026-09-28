@@ -18,7 +18,8 @@ namespace Nid.Subscriptions.Application.Import;
 /// </summary>
 public sealed class SubscriptionsImportSection(
     IItemRegistry items, ISubscriptionStore store, IAccessPolicy policy, IItemRules rules, IFxRates fx, IHouseholdSettings household,
-    IProviderStore providers, ProviderAccess providerAccess, ProviderKeys providerKeys, IVisibleItems visible)
+    IProviderStore providers, ProviderAccess providerAccess, ProviderKeys providerKeys, IVisibleItems visible,
+    IPersonRegistry persons)
     : IImportSection
 {
     public const string Subscriptions = "subscriptions";
@@ -106,6 +107,7 @@ public sealed class SubscriptionsImportSection(
         var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);
         var knownPurchases = await store.FindImportedAsync(ImportedTable.Purchase, purchaseRecords.Select(p => p.Record.Id).ToList(), ct);
         var readable = new Dictionary<ItemId, bool>(); // one policy check per item, however many rows touch it
+        IReadOnlyList<PersonId>? adults = null; // read once, by the first replaced subscription
 
         var linkable = await providerImport.LinkableAsync(
             context, subscriptionRecords.Select(s => s.Record.ProviderKey).OfType<string>().ToList(), ct);
@@ -165,6 +167,26 @@ public sealed class SubscriptionsImportSection(
                     if (!await CanWriteAsync(context.Actor, id, ct))
                     {
                         issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, "This replaces a subscription you cannot change.", path));
+                        failed.Add(record.Id);
+                        continue;
+                    }
+
+                    // User ruling 2026-09-28 (spec §3.2): a replacement does not take the item away from another adult.
+                    var current = await items.FindAsync(id, ct);
+                    if (current is not null && rules.DropsAnotherAdultOwner(context.Actor, current.Owners, parsed.Owners))
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
+                            "This replacement removes another adult from the owners.", path + ".ownership"));
+                        failed.Add(record.Id);
+                        continue;
+                    }
+
+                    adults ??= await persons.AdultIdsAsync(ct);
+                    if (current is not null && rules.TakesReadAway(
+                            context.Actor, current.Visibility, current.Owners, parsed.Visibility, parsed.Owners, adults))
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
+                            "This replacement hides the subscription from another adult who sees it today.", path + ".visibility"));
                         failed.Add(record.Id);
                         continue;
                     }

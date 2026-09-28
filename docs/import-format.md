@@ -201,7 +201,7 @@ Règles : devise identique à celle de l'élément ; au plus une valorisation co
   - même `id`, contenu différent → `conflict`, **rien n'est écrasé** ;
   - option `replace` : le contenu de l'entité est mis à jour, l'ancienne valeur restant dans l'audit.
 - Une entité importée par l'importeur et qu'il ne voit plus (ses droits ont changé) est refusée (`import.not_permitted`) plutôt que dupliquée.
-- **(1F3b)** `replace` vaut pour tout l'import : chaque entité en conflit est remplacée, avec le droit d'écriture sur l'élément ; le rapport la compte en `replaced`. Un fournisseur personnalisé archivé reste en conflit.
+- **(1F3b)** `replace` vaut pour tout l'import : chaque entité en conflit est remplacée, avec le droit d'écriture sur l'élément ; le rapport la compte en `replaced`. Un fournisseur personnalisé archivé reste en conflit. Un remplacement ne retire pas un élément à l'autre adulte : il ne peut ni retirer des propriétaires un adulte autre que la personne qui importe (`import.not_permitted` sur `ownership`), ni rendre privé un élément qu'un autre adulte voit aujourd'hui (`import.not_permitted` sur `visibility`).
 
 ## 9. Provenance, audit et rapport
 
@@ -209,7 +209,7 @@ Règles : devise identique à celle de l'élément ; au plus une valorisation co
 - **Audit** : une entrée par import, avec l'identifiant de session, l'empreinte du contenu reçu (SHA-256 des empreintes de lots), la version du format et les compteurs.
 - **(1F3b)** Une entrée `platform.audit_log` par import **commité** (aucune pour un commit refusé), catégorie `import`, action `commit`, entité `import_session` (clé = l'identifiant de session), acteur la personne qui importe, `via = import`, sans `item_ids`. Elle porte l'identifiant de session, l'empreinte du contenu (`content_hash`, ci-dessous), le format, la version, `replace` et les compteurs par section (`created`, `unchanged`, `replaced`). Aucune valeur du fichier n'y entre. `content_hash` est le SHA-256 des empreintes de lots, dans l'ordre du `commit` (sections de l'ordre du §11.4, puis indice de lot), chacune en hexadécimal minuscule, jointes par `\n`, sans retour à la ligne final. Cette entrée n'est lue que par l'importeur, sur la page de son import ; ni le journal de sécurité de la zone admin ni l'historique d'un élément ne la montrent.
 - Le navigateur peut **conserver le fichier d'origine** : case « conserver le fichier », qui l'envoie séparément comme `document` (`core-data-model.md` §6) rattaché aux éléments créés. Le serveur ne reçoit plus le fichier d'office.
-- **Rapport** (à l'écran et téléchargeable) : par section, nombre d'entités `created`, `unchanged`, `conflict`, plus la liste des avertissements et des erreurs avec leur chemin (`purchases[12].grants[0]`, indice global dans la section).
+- **Rapport** (à l'écran et téléchargeable) : par section, nombre d'entités `created`, `unchanged`, `conflict` et, avec `replace`, `replaced`, plus la liste des avertissements et des erreurs avec leur chemin (`purchases[12].grants[0]`, indice global dans la section).
 
 ## 10. Export
 

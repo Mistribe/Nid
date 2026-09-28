@@ -81,6 +81,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.PriceCurrency).HasColumnType("char(3)");
             e.HasMany(x => x.Grants).WithOne().HasForeignKey(x => x.PurchaseId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.ReplacedGrantItems);
             e.HasIndex(x => x.Date);
             MapImport(e);
         });
