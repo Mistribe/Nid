@@ -53,7 +53,7 @@ Voir aussi `../architecture.md` §11.
 | Contenu | Base, documents, **clés Data Protection**, configuration Authelia |
 | Sensibilité | La sauvegarde est **aussi sensible que la production** : elle contient tout, dont les clés qui déchiffrent les secrets |
 | Test de restauration | Scripté, **au moins chaque trimestre**, dans un compose jetable : `deploy/restore.sh --verify`. En CI, une restauration complète après sinistre simulé, session comprise (1F2) |
-| Droits du service `backup` | Root avec la seule capacité `DAC_READ_SEARCH` (lire des fichiers de quatre propriétaires), sources en lecture seule, réseau `data` seul ; la restauration (`backup-restore`) a `CHOWN`, `DAC_OVERRIDE`, `FOWNER` et ne tourne qu'à la demande |
+| Droits du service `backup` | Root avec `DAC_READ_SEARCH` (lire des fichiers de quatre propriétaires), `DAC_OVERRIDE` et `CHOWN` (écrire le dépôt local, dossier de l'utilisateur hôte, puis le lui rendre), sources et système de fichiers racine en lecture seule, donc ces deux capacités n'atteignent que `/repo` et `/tmp`, réseau `data` seul ; la restauration (`backup-restore`) a `CHOWN`, `DAC_OVERRIDE`, `FOWNER` et ne tourne qu'à la demande |
 | Dépôt distant en ajout seulement | Pris en charge : `NID_BACKUP_REMOTE_FORGET=false`, l'élagage se fait ailleurs |
 | Alerte | Échec ou ancienneté de la dernière sauvegarde → email ; **en attendant un canal d'envoi**, le healthcheck de `backup` (1F2) |
 

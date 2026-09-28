@@ -27,6 +27,9 @@ echo "ok: pg_dump and the server share their major version ($server)"
 
 backup backup-now
 backup status >/dev/null || fail "unhealthy after a good run: $(backup status)"
+# On Linux the folder is the host user's and the service root without DAC_OVERRIDE could not write it (CI, 1F2).
+[ -z "$(find backups ! -user "$(id -u)" -print -quit)" ] || fail "the local repository holds files the host user does not own"
+echo "ok: the local repository stays the host user's"
 [ "$(snapshots)" -ge 1 ] || fail "no snapshot"
 in_backup "$R dump latest /tmp/stage/manifest.json | jq -e '
   .format == 1 and .row_counts[\"core.person\"] >= 2 and (.migrations | length) > 0 and .dataprotection_keys >= 1'" \
