@@ -210,4 +210,27 @@ describe('ProviderPicker', () => {
     expect(queries.at(-1)).toBe('spo');
     await waitFor(() => expect(sent).toEqual([{ providerKey: 'spotify', clearCancelledAt: false, clearProviderKey: false }]));
   });
+
+  it('creates a custom provider from the settings form and links it', async () => {
+    const sent: unknown[] = [];
+    serve(detail(), [
+      http.get('*/api/v1/subscriptions/providers', () => HttpResponse.json([])),
+      http.get('*/api/v1/subscriptions/labels', () => HttpResponse.json([{ key: 'other', name: 'Other', color: '#9E9E9E' }])),
+      http.post('*/api/v1/subscriptions/providers', () => HttpResponse.json({ key: 'ma-box-x1y2z3', name: 'Ma box', origin: 'custom',
+        labels: [{ key: 'other', name: 'Other', color: '#9E9E9E' }], website: null, archived: false, iconUrl: null }, { status: 201 })),
+      http.patch('*/api/v1/subscriptions/:id', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json({ id: SUB }); }),
+    ]);
+    const { user } = await open();
+
+    await user.type(screen.getByLabelText('Fournisseur'), 'Ma box');
+    await user.click(await screen.findByRole('button', { name: 'Créer « Ma box »' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nouveau fournisseur' });
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Other' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Créer' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(sent).toEqual([]); // creating the provider does not save the settings
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await waitFor(() => expect(sent).toEqual([{ providerKey: 'ma-box-x1y2z3', clearCancelledAt: false, clearProviderKey: false }]));
+  });
 });

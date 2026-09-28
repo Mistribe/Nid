@@ -166,6 +166,7 @@
     "provider_clear": "Retirer le fournisseur",
     "provider_none": "Aucun fournisseur trouvé.",
     "provider_chosen": "Fournisseur choisi : {{name}}",
+    "provider_create": "Créer « {{name}} »",
     "save_settings": "Enregistrer les réglages",
     "saved": "Modification enregistrée.",
     "reload": "Recharger",
@@ -196,6 +197,21 @@
       "month": "mois",
       "year": "années"
     }
+  },
+  "provider_new": {
+    "title": "Nouveau fournisseur",
+    "name": "Nom",
+    "name_required": "Donnez un nom au fournisseur.",
+    "name_too_long": "{{max}} caractères au plus.",
+    "labels": "Libellés",
+    "labels_required": "Choisissez au moins un libellé.",
+    "labels_loading": "Chargement des libellés",
+    "website": "Site web",
+    "website_hint": "Facultatif.",
+    "website_invalid": "Une adresse commençant par http:// ou https://.",
+    "website_too_long": "{{max}} caractères au plus.",
+    "cancel": "Annuler",
+    "create": "Créer"
   },
   "wizard": {
     "title": "Ajouter un abonnement",
