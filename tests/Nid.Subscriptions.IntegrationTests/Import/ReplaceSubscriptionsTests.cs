@@ -22,8 +22,17 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture)
         return await client.GetAsync(app.AdultA, session.Id);
     }
 
+    /// <summary>
+    /// The golden sub-spotify record renamed, with its auto_renew and note also changed (a rename alone would
+    /// not prove the store carries the rest of a replacement's fields): matched together with the trailing
+    /// "service_users" field so only sub-spotify changes.
+    /// </summary>
     private static IReadOnlyDictionary<string, string> Renamed()
-        => GoldenFile.With("subscriptions", GoldenFile.Subscriptions.Replace("Spotify Premium Duo", "Spotify Family"));
+        => GoldenFile.With("subscriptions", GoldenFile.Subscriptions
+            .Replace("Spotify Premium Duo", "Spotify Family")
+            .Replace(
+                "\"service_users\":[\"adult-1\"],\"auto_renew\":true",
+                "\"service_users\":[\"adult-1\"],\"auto_renew\":false,\"note\":\"Upgraded to family plan\""));
 
     /// <summary>
     /// The fixture of <c>SubscriptionsImportTests.An_adult_cannot_add_to_an_imported_subscription_the_other_adult_writes_alone</c>:
@@ -54,6 +63,14 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var client = new ImportClient(app);
         await CommitAsync(client, app, GoldenFile.Sections());
+        Guid idBefore;
+        string? providerKeyBefore;
+        await using (var subsBefore = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+        {
+            var before = await subsBefore.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify");
+            idBefore = before.ItemId;
+            providerKeyBefore = before.ProviderKey;
+        }
 
         var committed = await CommitAsync(client, app, Renamed(), replace: true);
 
@@ -62,10 +79,23 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture)
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         Assert.True(await core.Items.AnyAsync(i => i.DisplayName == "Spotify Family"));
         Assert.False(await core.Items.AnyAsync(i => i.DisplayName == "Spotify Premium Duo"));
+
+        // The row is the same one, updated in place, taking the file's new auto_renew/note; its provider (a
+        // generated key, not "spotify" itself — ProvidersImportTests) carries over unchanged.
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var after = await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify");
+        Assert.Equal(idBefore, after.ItemId);
+        Assert.False(after.AutoRenew);
+        Assert.Equal("Upgraded to family plan", after.Note);
+        Assert.Equal(providerKeyBefore, after.ProviderKey);
+
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         var rename = await platform.AuditLog.SingleAsync(r => r.Category == "write" && r.Action == "update" && r.Entity == "core.item");
         Assert.Contains("Spotify Premium Duo", rename.Data);
         Assert.Equal("import", rename.Via);
+        var subscriptionWrite = await platform.AuditLog.SingleAsync(
+            r => r.Category == "write" && r.Action == "update" && r.Entity == "subscriptions.subscription");
+        Assert.Equal("import", subscriptionWrite.Via);
     }
 
     [Fact]
@@ -103,6 +133,9 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var client = new ImportClient(app);
         await CommitAsync(client, app, GoldenFile.Sections());
+        await using var before = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var writesBefore = await before.AuditLog.CountAsync(r => r.Category == "write");
+
         // the golden subscriptions' ownership, with shares that no longer sum to 10 000
         var broken = GoldenFile.With("subscriptions", GoldenFile.Subscriptions.Replace("10000", "4000"));
         var session = await client.StartAsync(app.AdultA, Adults(app));
@@ -114,6 +147,13 @@ public class ReplaceSubscriptionsTests(PostgresFixture fixture)
         Assert.Equal("invalid", validated.State);
         Assert.Contains(validated.Report!.Issues, i => i.Path.StartsWith("subscriptions[0].ownership", StringComparison.Ordinal));
         Assert.Equal(HttpStatusCode.Conflict, (await client.CommitRawAsync(app.AdultA, session.Id, replace: true)).StatusCode);
+
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        var spotify = await core.Items.AsNoTracking().Include(i => i.Owners).SingleAsync(i => i.DisplayName == "Spotify Premium Duo");
+        var owner = Assert.Single(spotify.Owners);
+        Assert.Equal((app.AdultA.Value, 10000), (owner.PersonId, owner.ShareBp));
+        await using var after = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        Assert.Equal(writesBefore, await after.AuditLog.CountAsync(r => r.Category == "write"));
     }
 
     [Fact]

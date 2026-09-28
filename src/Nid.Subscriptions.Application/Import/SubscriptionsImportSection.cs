@@ -165,11 +165,8 @@ public sealed class SubscriptionsImportSection(
                         continue;
                     }
 
-                    if (record.ProviderKey is { } replacedKey && !providerImport.Resolves(replacedKey, linkable))
+                    if (ProviderKeyUnresolved(record.ProviderKey, linkable, issues, path))
                     {
-                        if (!providerImport.Failed(replacedKey))
-                            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference,
-                                $"'{replacedKey}' is neither in providers nor a provider you can link.", path + ".provider_key"));
                         failed.Add(record.Id);
                         continue;
                     }
@@ -195,11 +192,8 @@ public sealed class SubscriptionsImportSection(
                     continue;
                 }
 
-                if (record.ProviderKey is { } providerKey && !providerImport.Resolves(providerKey, linkable))
+                if (ProviderKeyUnresolved(record.ProviderKey, linkable, issues, path))
                 {
-                    if (!providerImport.Failed(providerKey))
-                        issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference,
-                            $"'{providerKey}' is neither in providers nor a provider you can link.", path + ".provider_key"));
                     failed.Add(record.Id);
                     continue;
                 }
@@ -605,6 +599,21 @@ public sealed class SubscriptionsImportSection(
 
     private static ImportIssue NotWritable(string path)
         => ImportIssue.Error(ImportCodes.NotPermitted, "This adds to a subscription you cannot change.", path);
+
+    /// <summary>
+    /// True when <paramref name="providerKey"/> resolves neither to a provider nor to one the actor can link
+    /// (a creation and a replacement both refuse on this). Adds the issue itself, unless the batch already
+    /// failed to resolve this same key (<see cref="ProvidersImport.Failed"/>), so it is not reported twice.
+    /// </summary>
+    private bool ProviderKeyUnresolved(string? providerKey, IReadOnlySet<string> linkable, List<ImportIssue> issues, string path)
+    {
+        if (providerKey is null || providerImport.Resolves(providerKey, linkable))
+            return false;
+        if (!providerImport.Failed(providerKey))
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference,
+                $"'{providerKey}' is neither in providers nor a provider you can link.", path + ".provider_key"));
+        return true;
+    }
 
     /// <summary>What validated a moment ago no longer parses: refuse rather than write half of it.</summary>
     private static Result<IReadOnlyDictionary<string, SectionCounts>> Drift(List<ImportIssue> issues)
