@@ -58,19 +58,58 @@ describe('Abonnements › nouveau fournisseur', () => {
       return HttpResponse.json({ key: 'ma-box-x1y2z3', name: 'Ma box', origin: 'custom', labels: [LABELS[1]], website: null,
         archived: false, iconUrl: null }, { status: 201 });
     }, subscriptions);
-    const { user, dialog, container } = await openDialog();
+    const utils = await renderApp('/subscriptions/new');
+    await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+    await screen.findByRole('radio', { name: /Récurrent/ }); // the step waits for the household's persons before it shows
+    await utils.user.click(screen.getByRole('button', { name: 'Continuer' }));
+    await screen.findByRole('group', { name: 'Propriétaires' });
+    // The wizard's own Nom, filled before the dialog opens: it is the one field the common step still needs, so a
+    // bubbled submit from the dialog would otherwise silently fail the wizard's own validation and advance nothing,
+    // proving nothing about the dialog's stopPropagation.
+    await utils.user.type(screen.getByLabelText('Nom'), 'Ma box mensuelle');
+    await utils.user.type(screen.getByLabelText('Fournisseur'), 'Ma box');
+    await utils.user.click(await screen.findByRole('button', { name: 'Créer « Ma box »' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nouveau fournisseur' });
 
     expect(within(dialog).getByLabelText('Nom')).toHaveValue('Ma box');
-    await expectNoAxeViolations(container);
-    await user.click(within(dialog).getByRole('checkbox', { name: 'Internet' }));
-    await user.type(within(dialog).getByLabelText('Site web'), 'https://ma-box.example');
-    await user.click(within(dialog).getByRole('button', { name: 'Créer' }));
+    await expectNoAxeViolations(utils.container);
+    await utils.user.click(within(dialog).getByRole('checkbox', { name: 'Internet' }));
+    await utils.user.type(within(dialog).getByLabelText('Site web'), 'https://ma-box.example');
+    await utils.user.click(within(dialog).getByRole('button', { name: 'Créer' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent).toEqual([{ name: 'Ma box', website: 'https://ma-box.example', pricingPage: null, labelKeys: ['internet'] }]);
     expect(screen.getByText('Fournisseur choisi : Ma box')).toBeInTheDocument();
     expect(screen.getByLabelText('Fournisseur')).toHaveFocus();
     expect(subscriptions).toEqual([]);
+    // The wizard itself never submitted or advanced: still the common step, not the offer step.
+    expect(screen.getByLabelText('Fournisseur')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Début')).not.toBeInTheDocument();
+  });
+
+  it('does not choose the provider if Annuler closes the dialog while the creation is still pending', async () => {
+    let resolveCreate!: () => void;
+    const pending = new Promise<void>((resolve) => { resolveCreate = resolve; });
+    let responded = false;
+    serve(async ({ request }) => {
+      await request.json();
+      await pending;
+      responded = true;
+      return HttpResponse.json({ key: 'ma-box-x1y2z3', name: 'Ma box', origin: 'custom', labels: [LABELS[1]], website: null,
+        archived: false, iconUrl: null }, { status: 201 });
+    });
+    const { user, dialog } = await openDialog();
+
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Internet' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Créer' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    resolveCreate();
+    await waitFor(() => expect(responded).toBe(true)); // let the (now unmounted) dialog's request land
+
+    expect(screen.queryByText(/Fournisseur choisi/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Fournisseur')).toHaveFocus();
   });
 
   it('refuses a blank name, no label and a website without scheme under their fields, and sends nothing', async () => {

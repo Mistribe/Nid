@@ -19,6 +19,7 @@ window.scrollTo = () => {};
 // jsdom has no modal dialog: open and close are enough for the tests; focus trapping and Escape are the browser's.
 HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.open = true; };
 HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+  if (!this.open) return;
   this.open = false;
   this.dispatchEvent(new Event('close'));
 };

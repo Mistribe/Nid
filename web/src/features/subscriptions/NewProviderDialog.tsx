@@ -39,7 +39,6 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
   const queryClient = useQueryClient();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  const labelsId = useId();
   const labelsErrorId = useId();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const labels = $api.useQuery('get', LABELS);
@@ -65,17 +64,22 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
     then();
   };
 
+  // The query invalidation stays hook-level (harmless once unmounted); choosing the provider and closing the dialog go
+  // through the mutate-level callbacks instead, which react-query drops once this component (the mutation's only
+  // observer) has unmounted — unlike the hook-level ones, they never fire after Annuler or Escape closed the dialog.
   const create = $api.useMutation('post', PROVIDERS, {
-    onSuccess: (provider) => {
-      void queryClient.invalidateQueries({ queryKey: ['get', PROVIDERS] });
-      finish(() => onCreated({ key: provider.key, name: provider.name }));
-    },
-    onError: (error) => setProblem(present(toProblem(error))),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['get', PROVIDERS] }); },
   });
 
   const submit = form.handleSubmit((values) => {
     setProblem(null);
-    create.mutate({ body: { name: values.name, website: values.website === '' ? null : values.website, pricingPage: null, labelKeys: values.labelKeys } });
+    create.mutate(
+      { body: { name: values.name, website: values.website === '' ? null : values.website, pricingPage: null, labelKeys: values.labelKeys } },
+      {
+        onSuccess: (provider) => finish(() => onCreated({ key: provider.key, name: provider.name })),
+        onError: (error) => setProblem(present(toProblem(error))),
+      },
+    );
   });
 
   const labelsError = form.formState.errors.labelKeys?.message;
@@ -92,7 +96,7 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
           {(c) => <input {...c} {...form.register('name')} className="w-full rounded-md border px-3 py-2" />}
         </Field>
         <fieldset aria-describedby={labelsError ? labelsErrorId : undefined} className="space-y-1">
-          <legend id={labelsId} className="text-sm">{t('provider_new.labels')}</legend>
+          <legend className="text-sm">{t('provider_new.labels')}</legend>
           {labels.error ? <ProblemMessage problem={present(toProblem(labels.error))} /> : null}
           {!labels.data && !labels.error ? (
             <div aria-busy="true" className="h-10 animate-pulse rounded-md bg-muted"><span className="sr-only">{t('provider_new.labels_loading')}</span></div>
