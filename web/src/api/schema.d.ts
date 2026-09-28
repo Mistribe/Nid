@@ -1602,7 +1602,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["ImportRunBody"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -1693,7 +1697,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["ImportRunBody"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -4312,6 +4320,9 @@ export interface components {
             };
             issues: components["schemas"]["ImportIssue"][];
         };
+        ImportRunBody: {
+            replace?: null | boolean;
+        };
         ImportSessionView: {
             /** Format: uuid */
             id: string;
@@ -4514,6 +4525,11 @@ export interface components {
             unchanged: number;
             /** Format: int32 */
             conflict: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            replaced: number;
         };
         SecurityEventPage: {
             entries: components["schemas"]["SecurityEventView"][];

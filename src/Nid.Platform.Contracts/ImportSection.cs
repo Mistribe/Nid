@@ -25,7 +25,7 @@ public sealed record ResolvedPerson(PersonId Id, PersonKind Kind);
 /// sections read both. During <c>validate</c> the ids of what does not exist yet are planned, never written;
 /// <c>ApplyAsync</c> replaces them with the real ones.
 /// </summary>
-public sealed class ImportContext(PersonId actor, IReadOnlyDictionary<string, PersonId> adultMap, LocalDate today)
+public sealed class ImportContext(PersonId actor, IReadOnlyDictionary<string, PersonId> adultMap, LocalDate today, bool replace = false)
 {
     public PersonId Actor { get; } = actor;
 
@@ -37,6 +37,9 @@ public sealed class ImportContext(PersonId actor, IReadOnlyDictionary<string, Pe
     public Dictionary<string, ResolvedPerson> Persons { get; } = new(StringComparer.Ordinal);
 
     public Dictionary<(string Section, string Id), ItemId> Items { get; } = [];
+
+    /// <summary>1F3b: an entity imported before with other content is replaced rather than a conflict.</summary>
+    public bool Replace { get; } = replace;
 }
 
 public sealed record SectionOutcome(IReadOnlyList<ImportIssue> Issues, IReadOnlyDictionary<string, SectionCounts> Counts);

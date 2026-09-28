@@ -4,7 +4,7 @@ import { downloadReport, reportFile } from './report';
 
 describe('reportFile', () => {
   it('is the session and its report as indented JSON, named after the session', () => {
-    const report = { state: 'committed', sections: { subscriptions: { created: 1, unchanged: 0, conflict: 0 } }, issues: [] };
+    const report = { state: 'committed', sections: { subscriptions: { created: 1, unchanged: 0, conflict: 0, replaced: 0 } }, issues: [] };
     const file = reportFile(session({ state: 'committed', report }));
     expect(file.name).toBe('nid-import-0192aaaa-0000-7000-8000-000000000001.json');
     expect(JSON.parse(file.content)).toEqual({

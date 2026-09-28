@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Nid.Core.Contracts;
 using Nid.Platform.Import;
 using UnambitiousFx.Synapse.Abstractions;
@@ -29,12 +30,16 @@ public static class ImportEndpoints
             => (await invoker.InvokeAsync(new CancelImportCommand(id), ct)).ToHttp(v => v))
             .Returns<ImportSessionView>();
 
-        api.MapPost("/{id:guid}/validate", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ValidateImportCommand(id), ct)).ToHttp(v => v))
+        api.MapPost("/{id:guid}/validate", async (
+                Guid id, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ImportRunBody? body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ValidateImportCommand(id, body?.Replace ?? false), ct)).ToHttp(v => v))
+            .Accepts<ImportRunBody>("application/json")
             .Returns<ImportSessionView>();
 
-        api.MapPost("/{id:guid}/commit", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CommitImportCommand(id), ct)).ToHttp(v => v))
+        api.MapPost("/{id:guid}/commit", async (
+                Guid id, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ImportRunBody? body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CommitImportCommand(id, body?.Replace ?? false), ct)).ToHttp(v => v))
+            .Accepts<ImportRunBody>("application/json")
             .Returns<ImportSessionView>();
 
         // The body is read by hand: its size and depth are bounded before anything parses it (§11.5).
@@ -55,6 +60,9 @@ public static class ImportEndpoints
         public StartImportCommand ToCommand() => new(
             Format, Version, (Adults ?? new Dictionary<string, Guid>()).ToDictionary(a => a.Key, a => new PersonId(a.Value)));
     }
+
+    /// <summary>1F3b: <c>{ "replace": true }</c> on validate and commit; no body, or <c>false</c>, is today's behaviour.</summary>
+    public sealed record ImportRunBody(bool? Replace);
 
     internal sealed record BatchBody(string Hash, JsonElement Entities)
     {

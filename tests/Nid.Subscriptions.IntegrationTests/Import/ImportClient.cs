@@ -7,7 +7,7 @@ using Nid.Platform.Canonical;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 public sealed record IssueResponse(string Severity, string Code, string Message, string Path);
-public sealed record CountsResponse(int Created, int Unchanged, int Conflict);
+public sealed record CountsResponse(int Created, int Unchanged, int Conflict, int Replaced = 0);
 public sealed record ReportResponse(string State, Dictionary<string, CountsResponse> Sections, List<IssueResponse> Issues);
 public sealed record SessionResponse(Guid Id, string State, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt, ReportResponse? Report);
 public sealed record BatchResponse(string Section, int Index, int Count, bool Accepted, List<IssueResponse> Issues);
@@ -44,18 +44,18 @@ public sealed class ImportClient(NidApp app)
         return (await response.Content.ReadFromJsonAsync<BatchResponse>(Json))!;
     }
 
-    public async Task<HttpResponseMessage> ValidateRawAsync(PersonId actor, Guid session)
-        => await app.RawAsync(actor, HttpMethod.Post, $"{Root}/{session}/validate");
+    public async Task<HttpResponseMessage> ValidateRawAsync(PersonId actor, Guid session, bool replace = false)
+        => await app.RawAsync(actor, HttpMethod.Post, $"{Root}/{session}/validate", replace ? new { replace = true } : null);
 
-    public async Task<SessionResponse> ValidateAsync(PersonId actor, Guid session)
+    public async Task<SessionResponse> ValidateAsync(PersonId actor, Guid session, bool replace = false)
     {
-        var response = await ValidateRawAsync(actor, session);
+        var response = await ValidateRawAsync(actor, session, replace);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<SessionResponse>(Json))!;
     }
 
-    public async Task<HttpResponseMessage> CommitRawAsync(PersonId actor, Guid session)
-        => await app.RawAsync(actor, HttpMethod.Post, $"{Root}/{session}/commit");
+    public async Task<HttpResponseMessage> CommitRawAsync(PersonId actor, Guid session, bool replace = false)
+        => await app.RawAsync(actor, HttpMethod.Post, $"{Root}/{session}/commit", replace ? new { replace = true } : null);
 
     public async Task<HttpResponseMessage> CancelRawAsync(PersonId actor, Guid session)
         => await app.RawAsync(actor, HttpMethod.Delete, $"{Root}/{session}");

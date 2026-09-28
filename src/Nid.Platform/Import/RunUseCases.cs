@@ -6,9 +6,9 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform.Import;
 
-public sealed record ValidateImportCommand(Guid SessionId) : ICommand<ImportSessionView>, IDirectWrite;
+public sealed record ValidateImportCommand(Guid SessionId, bool Replace = false) : ICommand<ImportSessionView>, IDirectWrite;
 
-public sealed record CommitImportCommand(Guid SessionId) : ICommand<ImportSessionView>, IDirectWrite;
+public sealed record CommitImportCommand(Guid SessionId, bool Replace = false) : ICommand<ImportSessionView>, IDirectWrite;
 
 /// <summary>60 s by default (§11.5): past it, everything is abandoned and the import is too large to run at once.</summary>
 internal static class Bounded
@@ -48,7 +48,7 @@ public sealed class ValidateImportHandler(
                 $"This import is {ImportStates.Name(session.State)}: there is nothing left to validate.", null));
 
         var validated = await Bounded.RunAsync(options.OperationTimeout, ct,
-            async token => Result.Success(await runner.ValidateAsync(session, token)));
+            async token => Result.Success(await runner.ValidateAsync(session, command.Replace, token)));
         if (!validated.TryGetValue(out var report))
             return Result.Failure<ImportSessionView>(validated.TryGetFailure(out var failure) ? failure! : new Failure("ERROR", "Unknown failure.", null));
 
@@ -83,7 +83,19 @@ public sealed class CommitImportHandler(ImportRunner runner, IImportStaging stag
             return Result.Failure<ImportSessionView>(new Failure(ImportCodes.State,
                 $"This import is {ImportStates.Name(session.State)}: there is nothing left to commit.", null));
 
-        var committed = await Bounded.RunAsync(options.OperationTimeout, ct, token => runner.CommitAsync(session, token));
+        // 1F3b spec §4.3: what the commit writes is written "through import", by the importer.
+        var browser = accessor.Current!;
+        accessor.Current = browser with { Via = ActorOrigin.Import };
+        Result<ImportReport> committed;
+        try
+        {
+            committed = await Bounded.RunAsync(options.OperationTimeout, ct, token => runner.CommitAsync(session, command.Replace, token));
+        }
+        finally
+        {
+            accessor.Current = browser;
+        }
+
         if (!committed.TryGetValue(out var report))
             return Result.Failure<ImportSessionView>(committed.TryGetFailure(out var failure) ? failure! : new Failure("ERROR", "Unknown failure.", null));
 

@@ -1644,6 +1644,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ImportRunBody"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -1734,6 +1750,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ImportRunBody"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -5098,6 +5130,17 @@
           }
         }
       },
+      "ImportRunBody": {
+        "type": "object",
+        "properties": {
+          "replace": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
       "ImportSessionView": {
         "required": [
           "id",
@@ -5941,7 +5984,8 @@
         "required": [
           "created",
           "unchanged",
-          "conflict"
+          "conflict",
+          "replaced"
         ],
         "type": "object",
         "properties": {
@@ -5956,6 +6000,11 @@
           "conflict": {
             "type": "integer",
             "format": "int32"
+          },
+          "replaced": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },

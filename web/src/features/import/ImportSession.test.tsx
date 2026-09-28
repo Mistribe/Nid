@@ -266,7 +266,7 @@ describe('Import › sending', () => {
 });
 
 describe('Import › report, confirmation and commit', () => {
-  const counts = (created: number, unchanged = 0, conflict = 0) => ({ created, unchanged, conflict });
+  const counts = (created: number, unchanged = 0, conflict = 0) => ({ created, unchanged, conflict, replaced: 0 });
 
   it('goes from the file to the final report', async () => {
     const fake = fakeImportServer();

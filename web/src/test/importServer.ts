@@ -129,7 +129,7 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
 function createdOf(received: ReceivedBatch[]): Report {
   const sections: Report['sections'] = {};
   for (const batch of received) {
-    const counts = sections[batch.section] ?? { created: 0, unchanged: 0, conflict: 0 };
+    const counts = sections[batch.section] ?? { created: 0, unchanged: 0, conflict: 0, replaced: 0 };
     counts.created += batch.count;
     sections[batch.section] = counts;
   }

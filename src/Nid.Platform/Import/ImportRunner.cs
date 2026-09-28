@@ -20,10 +20,10 @@ public sealed class ImportRunner(
 
     private readonly IReadOnlyList<IImportSection> ordered = sections.OrderBy(s => s.Order).ThenBy(s => s.Module, StringComparer.Ordinal).ToList();
 
-    public async Task<ImportReport> ValidateAsync(ImportSession session, CancellationToken ct)
-        => (await RunValidationAsync(session, ct)).Report;
+    public async Task<ImportReport> ValidateAsync(ImportSession session, bool replace, CancellationToken ct)
+        => (await RunValidationAsync(session, replace, ct)).Report;
 
-    public async Task<Result<ImportReport>> CommitAsync(ImportSession session, CancellationToken ct)
+    public async Task<Result<ImportReport>> CommitAsync(ImportSession session, bool replace, CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
         ImportReport refused;
@@ -42,7 +42,7 @@ public sealed class ImportRunner(
                 return Result.Failure<ImportReport>(new Failure(ImportCodes.State, "Only a validated import can be committed.", null));
 
             // The state may have changed since validate: everything is checked again, on this transaction.
-            var (report, context, staged) = await RunValidationAsync(session, ct);
+            var (report, context, staged) = await RunValidationAsync(session, replace, ct);
             computed = report;
             if (report.State != Validated)
                 refused = report;
@@ -93,10 +93,11 @@ public sealed class ImportRunner(
         return Result.Failure<ImportReport>(new Failure(ImportCodes.NotCommitted, "Nothing was written: the session's report says why.", null));
     }
 
-    private async Task<(ImportReport Report, ImportContext Context, IStagedBatches Staged)> RunValidationAsync(ImportSession session, CancellationToken ct)
+    private async Task<(ImportReport Report, ImportContext Context, IStagedBatches Staged)> RunValidationAsync(
+        ImportSession session, bool replace, CancellationToken ct)
     {
         var batches = await staging.BatchesAsync(session.Id, ct);
-        var context = new ImportContext(session.Person, session.Adults, clock.GetCurrentInstant().InUtc().Date);
+        var context = new ImportContext(session.Person, session.Adults, clock.GetCurrentInstant().InUtc().Date, replace);
         var staged = Staged.From(batches, options.MaxEntitiesPerBatch);
 
         var issues = CheckLayout(batches).ToList();

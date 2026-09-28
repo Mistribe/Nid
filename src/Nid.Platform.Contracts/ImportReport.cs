@@ -20,12 +20,13 @@ public sealed record ImportIssue(IssueSeverity Severity, string Code, string Mes
     public static ImportIssue Warning(string code, string message, string path) => new(IssueSeverity.Warning, code, message, path);
 }
 
-public sealed record SectionCounts(int Created, int Unchanged, int Conflict)
+/// <summary>Per section (import-format.md §9): <c>replaced</c> only with <c>replace</c> (1F3b), <c>conflict</c> only without.</summary>
+public sealed record SectionCounts(int Created, int Unchanged, int Conflict, int Replaced = 0)
 {
     public static SectionCounts Zero { get; } = new(0, 0, 0);
 
     public static SectionCounts operator +(SectionCounts a, SectionCounts b)
-        => new(a.Created + b.Created, a.Unchanged + b.Unchanged, a.Conflict + b.Conflict);
+        => new(a.Created + b.Created, a.Unchanged + b.Unchanged, a.Conflict + b.Conflict, a.Replaced + b.Replaced);
 }
 
 /// <summary>What <c>validate</c> and <c>commit</c> answer, and what the session keeps (§9).</summary>
