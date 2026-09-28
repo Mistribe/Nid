@@ -12,7 +12,7 @@ Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (av
 | Étape | Contenu (voir `Project.md` §10) | Conception | Plan d'exécution | Statut |
 |---|---|---|---|---|
 | **0. Conception** | Architecture, modèles de données, sécurité, frontend, format d'import, spikes | Terminée | sans objet | **terminé** (2026-09-19) |
-| **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **en cours** (1A, 1B, 1C1, 1C2a, 1C2b, 1C2c, 1D1, 1D2, 1D3, 1E1, 1E2a, 1E2b1, 1E2b2, 1E3, 1E4, 1F1, 1F2, 1F4 et 1G terminés) |
+| **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **en cours** (1A, 1B, 1C1, 1C2a, 1C2b, 1C2c, 1D1, 1D2, 1D3, 1E1, 1E2a, 1E2b1, 1E2b2, 1E3, 1E4, 1F1, 1F2, 1F3a, 1F3b, 1F4 et 1G terminés) |
 | **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | à écrire | à faire |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, échéancier, valeur nette | Terminée | à écrire | à faire |
 | **4. Automatisation IA** | Serveur MCP, extraction de documents, file de validation | Terminée | à écrire | à faire |
