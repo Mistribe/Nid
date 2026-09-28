@@ -21,6 +21,7 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
     private readonly Dictionary<string, string?> resolved = new(StringComparer.Ordinal); // file key → stored key; null: created at commit
     private readonly HashSet<string> failed = new(StringComparer.Ordinal);                 // entries already reported
     private readonly List<(StagedEntity Entity, ProviderRecord Record)> planned = [];
+    private readonly List<(StagedEntity Entity, ProviderRecord Record, string StoredKey)> replacements = [];
 
     public static IReadOnlyList<ImportIssue> ValidateBatch(JsonElement entities, int firstIndex)
     {
@@ -41,6 +42,7 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
         resolved.Clear();
         failed.Clear();
         planned.Clear();
+        replacements.Clear();
 
         var labels = (await providers.LabelsAsync(ct)).Select(l => l.Key).ToHashSet(StringComparer.Ordinal);
         var records = new List<(StagedEntity Entity, ProviderRecord Record)>();
@@ -101,11 +103,19 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
 
                 if (mine.Import!.Hash != entity.Hash)
                 {
-                    issues.Add(ImportIssue.Error(ImportCodes.Conflict,
-                        $"'{record.Key}' was imported before with other content; nothing is overwritten (import-format.md §8).",
-                        NidDataJson.Path(Section, entity.Index)));
-                    failed.Add(record.Key);
-                    counts += new SectionCounts(0, 0, 1);
+                    if (!context.Replace)
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.Conflict,
+                            $"'{record.Key}' was imported before with other content; nothing is overwritten (import-format.md §8).",
+                            NidDataJson.Path(Section, entity.Index)));
+                        failed.Add(record.Key);
+                        counts += new SectionCounts(0, 0, 1);
+                        continue;
+                    }
+
+                    resolved[record.Key] = mine.Key;
+                    replacements.Add((entity, record, mine.Key));
+                    counts += new SectionCounts(0, 0, 0, 1);
                     continue;
                 }
 
@@ -146,6 +156,15 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
 
     public async Task<Result> ApplyAsync(ImportContext context, CancellationToken ct)
     {
+        foreach (var (entity, record, key) in replacements)
+        {
+            var name = ProviderRules.Name(record.Name, CatalogLimits.MaxNameLength)!;
+            var replaced = await providers.ReplaceImportedAsync(key, name, ProviderRules.Url(record.Website), ProviderRules.Url(record.PricingPage),
+                record.LabelKeys.Distinct(StringComparer.Ordinal).ToList(), new ImportRef(record.Key, entity.Hash), ct);
+            if (replaced.TryGetFailure(out var failure))
+                return Result.Failure(failure!);
+        }
+
         foreach (var (entity, record) in planned)
         {
             var name = ProviderRules.Name(record.Name, CatalogLimits.MaxNameLength)!;

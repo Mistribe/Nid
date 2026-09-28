@@ -103,6 +103,22 @@ public sealed class ProviderStore(SubscriptionsDbContext db) : IProviderStore
         return Result.Success();
     }
 
+    public async Task<Result> ReplaceImportedAsync(string key, string name, string? website, string? pricingPage,
+        IReadOnlyList<string> labelKeys, ImportRef import, CancellationToken ct)
+    {
+        var row = await db.Providers.SingleOrDefaultAsync(p => p.Key == key, ct);
+        if (row is null || row.Origin != "custom")
+            return Result.Failure(new NotFoundFailure("provider", key));
+
+        row.Name = name;
+        row.Website = website;
+        row.PricingPage = pricingPage;
+        row.LabelKeys = labelKeys.ToList();
+        row.ImportHash = import.Hash;
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<ItemId>>> UsageAsync(IReadOnlyCollection<string> keys, CancellationToken ct)
     {
         var wanted = keys.Distinct(StringComparer.Ordinal).ToList();

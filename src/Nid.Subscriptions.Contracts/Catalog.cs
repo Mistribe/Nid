@@ -286,6 +286,10 @@ public interface IProviderStore
 
     /// <summary>Whether <paramref name="hash"/> is the stored icon of a catalog provider, archived or not (1C2c design §6).</summary>
     Task<bool> IsCatalogIconAsync(string hash, CancellationToken ct);
+
+    /// <summary>1F3b: an import's replacement of a custom provider it created before; key, origin and creator stay.</summary>
+    Task<Result> ReplaceImportedAsync(string key, string name, string? website, string? pricingPage,
+        IReadOnlyList<string> labelKeys, ImportRef import, CancellationToken ct);
 }
 
 /// <summary>A label as the catalog gives it, already checked; <paramref name="Color"/> is CSS <c>#RRGGBB</c>.</summary>
