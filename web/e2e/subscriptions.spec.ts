@@ -56,3 +56,34 @@ test('alice records a free trial followed by a monthly price', async ({ browser 
   // periods table (a historical record) is what shows this first charge, not that paragraph.
   await expect(alice.getByRole('row', { name: /^1 février 2026.*Payé/ })).toBeVisible();
 });
+
+// 1E2b2: the label `other` comes with the migrations, so the journey needs no catalog sync and no other journey's data.
+test('alice creates her own provider from the wizard, then finds the subscription by its label', async ({ page }) => {
+  const stamp = Date.now().toString(36);
+  const provider = `Fournisseur E2E ${stamp}`;
+  const name = `E2E libellé ${stamp}`;
+
+  await signIn(page, 'alice', '/subscriptions/new');
+  await expect(page.getByRole('heading', { level: 1, name: 'Ajouter un abonnement' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByLabel('Nom', { exact: true }).fill(name);
+  await page.getByLabel('Fournisseur', { exact: true }).fill(provider);
+  await page.getByRole('button', { name: `Créer « ${provider} »` }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouveau fournisseur' });
+  await expect(dialog.getByLabel('Nom', { exact: true })).toHaveValue(provider);
+  await dialog.getByRole('checkbox', { name: 'Other' }).check();
+  await dialog.getByRole('button', { name: 'Créer' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText(`Fournisseur choisi : ${provider}`)).toBeVisible();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByLabel('Début', { exact: true }).fill('2025-01-01');
+  await page.getByLabel('Montant', { exact: true }).fill('4,99');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: "Ajouter l'abonnement" }).click();
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+
+  await page.goto('/subscriptions');
+  await page.getByRole('group', { name: 'Libellés' }).getByRole('button', { name: 'Other' }).click();
+  await expect(page).toHaveURL(/[?&]label=other(?:&|$)/);
+  await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+});
