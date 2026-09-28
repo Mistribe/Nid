@@ -116,6 +116,37 @@ public class ReplaceRowsTests(PostgresFixture fixture)
         Assert.All(writes, r => Assert.Equal("import", r.Via));
     }
 
+    /// <summary>
+    /// A replaced purchase may grant to a subscription this same file creates: that one has no item yet, so it is
+    /// not write-checked (the new-purchase rule), only the items that exist are.
+    /// </summary>
+    [Fact]
+    public async Task A_replaced_purchase_can_grant_to_a_subscription_the_same_file_creates()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, GoldenFile.Sections());
+        Guid purchaseId;
+        await using (var before = PostgresFixture.NewSubscriptionsContext(app.ConnectionString))
+            purchaseId = (await before.Purchases.AsNoTracking().SingleAsync(p => p.ImportRef == "pu-gift")).Id;
+
+        var file = GoldenFile.With("subscriptions", Append(GoldenFile.Subscriptions,
+            """[{"id":"sub-deezer","name":"Deezer","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]"""));
+        // pu-gift's only grant ("count":3 is unique to it) followed by a second one on the new subscription.
+        file["purchases"] = GoldenFile.Purchases.Replace(
+            "\"duration\":{\"count\":3,\"unit\":\"month\"},\"source\":\"gift\"}",
+            "\"duration\":{\"count\":3,\"unit\":\"month\"},\"source\":\"gift\"},{\"subscription_id\":\"sub-deezer\",\"duration\":{\"count\":1,\"unit\":\"month\"},\"source\":\"gift\"}");
+        var committed = await CommitAsync(client, app, file, replace: true);
+
+        Assert.Equal(new CountsResponse(1, 3, 0, 0), committed.Report!.Sections["subscriptions"]);
+        Assert.Equal(new CountsResponse(0, 2, 0, 1), committed.Report.Sections["purchases"]);
+        await using var after = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var deezer = (await after.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-deezer")).ItemId;
+        var spotify = (await after.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
+        var purchase = await after.Purchases.AsNoTracking().Include(p => p.Grants).SingleAsync(p => p.Id == purchaseId);
+        Assert.Equal([(0, spotify), (1, deezer)], purchase.Grants.OrderBy(g => g.Index).Select(g => (g.Index, g.SubscriptionItemId)).ToList());
+    }
+
     private const string Subscriptions = """
         [{"id":"sub-shared","name":"Shared","ownership":[{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}],"auto_renew":true},
          {"id":"sub-a","name":"A's","ownership":[{"person":"adult-1","share_bp":10000}],"auto_renew":true}]
@@ -223,6 +254,7 @@ public class ReplaceRowsTests(PostgresFixture fixture)
         Assert.Equal("invalid", validated.State);
         var issue = Assert.Single(validated.Report!.Issues, i => i.Severity == "error");
         Assert.Equal((ImportCodes.InvalidValue, "billing_phases[0].subscription_id"), (issue.Code, issue.Path));
+        Assert.Equal((0, 0), (validated.Report.Sections["billing_phases"].Replaced, validated.Report.Sections["billing_phases"].Conflict));
         await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
         var spotify = (await subs.Subscriptions.AsNoTracking().SingleAsync(s => s.ImportRef == "sub-spotify")).ItemId;
         Assert.Equal(spotify, (await subs.Phases.AsNoTracking().SingleAsync(p => p.ImportRef == "ph-spotify-1")).ItemId);

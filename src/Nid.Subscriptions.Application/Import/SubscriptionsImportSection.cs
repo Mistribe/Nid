@@ -330,11 +330,15 @@ public sealed class SubscriptionsImportSection(
                         continue;
                     }
 
-                    // 1F3b spec §3.2: a write on every item the purchase touches now and every one the file gives it.
+                    // 1F3b spec §3.2: a write on every item the purchase touches now and every existing one the file
+                    // gives it. A subscription this file creates has no item yet, and nothing to check (as for a new purchase).
                     var writable = true;
-                    foreach (var item in known.Items.Concat(targetIds).Distinct())
+                    foreach (var item in known.Items.Concat(targets.Where(existing.Contains).Select(t => runs[t].Id)).Distinct())
                         if (!await CanWriteAsync(context.Actor, item, ct))
+                        {
                             writable = false;
+                            break;
+                        }
                     if (!writable)
                     {
                         issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, "This replaces a purchase on a subscription you cannot change.", path + ".grants"));
