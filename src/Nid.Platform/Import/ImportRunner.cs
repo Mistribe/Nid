@@ -29,11 +29,6 @@ public sealed class ImportRunner(
         var now = clock.GetCurrentInstant();
         ImportReport refused;
         ImportReport? computed = null; // the last report RunValidationAsync produced, so a later exception can still report against it
-        // Set only when the commit's own revalidation found the report no longer valid (not an apply failure or
-        // a crash): the world moved under this commit — e.g. a conflict, or a replace flag that no longer
-        // matches what was validated — so the caller gets a 409, not a 422 (1F3b: ImportCodes.State reuses the
-        // same idea for the session's own state).
-        var staleValidation = false;
 
         try
         {
@@ -51,10 +46,7 @@ public sealed class ImportRunner(
             var (report, context, staged, batches) = await RunValidationAsync(session, replace, ct);
             computed = report;
             if (report.State != Validated)
-            {
                 refused = report;
-                staleValidation = true;
-            }
             else
             {
                 var applied = await ApplyAsync(context, staged, ct);
@@ -105,8 +97,7 @@ public sealed class ImportRunner(
 
         var state = refused.State == Invalid ? ImportState.Invalid : ImportState.Validated;
         await staging.TransitionAsync(session.Id, [ImportState.Validated], state, now, session.ExpiresAt, ImportReportJson.Serialize(refused), ct);
-        return Result.Failure<ImportReport>(new Failure(ImportCodes.NotCommitted, "Nothing was written: the session's report says why.",
-            staleValidation ? new Dictionary<string, object?> { [ImportCodes.StaleValidationKey] = true } : null));
+        return Result.Failure<ImportReport>(new Failure(ImportCodes.NotCommitted, "Nothing was written: the session's report says why.", null));
     }
 
     private async Task<(ImportReport Report, ImportContext Context, IStagedBatches Staged, IReadOnlyList<StoredBatch> Batches)> RunValidationAsync(

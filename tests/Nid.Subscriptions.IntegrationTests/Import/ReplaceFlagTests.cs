@@ -64,7 +64,8 @@ public class ReplaceFlagTests(PostgresFixture fixture)
         Assert.Equal("validated", validated.State);
 
         var refused = await client.CommitRawAsync(app.AdultA, session.Id, replace: false);
-        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal(ImportCodes.NotCommitted, await ImportClient.CodeOf(refused));
         Assert.Equal("invalid", (await client.GetAsync(app.AdultA, session.Id)).State);
     }
 }
