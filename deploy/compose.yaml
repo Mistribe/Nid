@@ -98,13 +98,14 @@ services:
     depends_on: { nid-api: { condition: service_started } }
     deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
 
-  # Nightly restic backup (1F2 design §3). Root with one capability: it reads files of four owners (keys and assets
-  # 1654, Authelia 8000, deploy/secrets/ the host user), all mounted read-only. No way out without
-  # compose.backup-remote.yaml.
+  # Nightly restic backup (1F2 design §3). Root with three capabilities: it reads files of four owners (keys and assets
+  # 1654, Authelia 8000, deploy/secrets/ the host user), all mounted read-only; it writes the local repository, a folder
+  # of the host user, and hands what it wrote back to that user. Every other mount is read-only, the root file system
+  # too, so DAC_OVERRIDE and CHOWN reach only /repo and /tmp. No way out without compose.backup-remote.yaml.
   backup:
     read_only: true
     cap_drop: [ALL]
-    cap_add: [DAC_READ_SEARCH]
+    cap_add: [DAC_READ_SEARCH, DAC_OVERRIDE, CHOWN]
     security_opt: [no-new-privileges:true]
     restart: unless-stopped
     init: true

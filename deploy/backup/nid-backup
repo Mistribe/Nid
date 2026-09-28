@@ -218,12 +218,17 @@ check_keys() {
   echo "$(jq '.dataprotection_keys' /tmp/manifest.json) clé(s) Data Protection de la sauvegarde reprise(s), $found en place"
 }
 
+# The local repository belongs to whoever owns its folder on the host (deploy/backups/, created by setup.sh): what
+# restic wrote as root goes back to that owner, who can then read and copy the backups without sudo.
+give_back_repository() { chown -R "$(stat -c %u:%g "$REPO")" "$REPO"; }
+
 # One run under the lock: a manual run waits for the nightly one instead of failing.
 backup_now() {
   mkdir -p "$STATE_DIR"
   (
     flock 9
     rc=0; "$SELF" run-once || rc=$?
+    give_back_repository || log "le dépôt local n'a pas pu être rendu à son propriétaire"
     if [ "$rc" -ne 0 ]; then
       failed=$(cat "$STATE_DIR/step" 2>/dev/null || echo inconnue)
       remote=$(previous .remote_result)
