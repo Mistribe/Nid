@@ -9,20 +9,31 @@ namespace Nid.Core.Infrastructure.Persistence;
 
 public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
 {
-    public async Task<Result<ItemId>> CreateAsync(NewItem item, CancellationToken ct)
+    /// <summary>
+    /// The owner-kind lookup, the <c>core.owner_unknown</c> failure and <see cref="OwnershipRules.Validate"/> that
+    /// both <see cref="CreateAsync"/> and <see cref="ReplaceAsync"/> need before they touch a row.
+    /// </summary>
+    private async Task<Result<List<Owner>>> ValidateOwnersAsync(Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
     {
-        var personIds = item.Owners.Select(o => o.PersonId.Value).ToList();
+        var personIds = owners.Select(o => o.PersonId.Value).ToList();
         var kinds = await db.Persons.AsNoTracking()
             .Where(p => personIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent, ct);
 
         if (kinds.Count != personIds.Distinct().Count())
-            return Result.Failure<ItemId>(new Failure("core.owner_unknown", "An owner does not exist.", null));
+            return Result.Failure<List<Owner>>(new Failure("core.owner_unknown", "An owner does not exist.", null));
 
-        var owners = item.Owners.Select(o => new Owner(o.PersonId, kinds[o.PersonId.Value], o.ShareBp)).ToList();
-        var validation = OwnershipRules.Validate(item.Visibility, owners);
-        if (validation.TryGetFailure(out var failure))
+        var ownerList = owners.Select(o => new Owner(o.PersonId, kinds[o.PersonId.Value], o.ShareBp)).ToList();
+        var validation = OwnershipRules.Validate(visibility, ownerList);
+        return validation.TryGetFailure(out var failure) ? Result.Failure<List<Owner>>(failure!) : Result.Success(ownerList);
+    }
+
+    public async Task<Result<ItemId>> CreateAsync(NewItem item, CancellationToken ct)
+    {
+        var validated = await ValidateOwnersAsync(item.Visibility, item.Owners, ct);
+        if (validated.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
+        validated.TryGetValue(out var owners);
 
         var id = ItemId.New();
         db.Items.Add(new ItemRow
@@ -34,7 +45,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             Visibility = item.Visibility == Visibility.Private ? "private" : "shared",
             Currency = item.Currency,
             CreatedAt = clock.GetCurrentInstant(),
-            Owners = owners.Select(o => new OwnershipRow { ItemId = id.Value, PersonId = o.PersonId.Value, ShareBp = o.ShareBp }).ToList(),
+            Owners = owners!.Select(o => new OwnershipRow { ItemId = id.Value, PersonId = o.PersonId.Value, ShareBp = o.ShareBp }).ToList(),
         });
         await db.SaveChangesAsync(ct);
         return Result.Success(id);
@@ -42,17 +53,8 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
 
     public async Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
     {
-        var personIds = owners.Select(o => o.PersonId.Value).ToList();
-        var kinds = await db.Persons.AsNoTracking()
-            .Where(p => personIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, p => p.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent, ct);
-
-        if (kinds.Count != personIds.Distinct().Count())
-            return Result.Failure(new Failure("core.owner_unknown", "An owner does not exist.", null));
-
-        var ownerList = owners.Select(o => new Owner(o.PersonId, kinds[o.PersonId.Value], o.ShareBp)).ToList();
-        var validation = OwnershipRules.Validate(visibility, ownerList);
-        if (validation.TryGetFailure(out var failure))
+        var validated = await ValidateOwnersAsync(visibility, owners, ct);
+        if (validated.TryGetFailure(out var failure))
             return Result.Failure(failure!);
 
         var row = await db.Items.Include(i => i.Owners).FirstOrDefaultAsync(i => i.Id == id.Value, ct);
