@@ -201,11 +201,13 @@ Règles : devise identique à celle de l'élément ; au plus une valorisation co
   - même `id`, contenu différent → `conflict`, **rien n'est écrasé** ;
   - option `replace` : le contenu de l'entité est mis à jour, l'ancienne valeur restant dans l'audit.
 - Une entité importée par l'importeur et qu'il ne voit plus (ses droits ont changé) est refusée (`import.not_permitted`) plutôt que dupliquée.
+- **(1F3b)** `replace` vaut pour tout l'import : chaque entité en conflit est remplacée, avec le droit d'écriture sur l'élément ; le rapport la compte en `replaced`. Un fournisseur personnalisé archivé reste en conflit.
 
 ## 9. Provenance, audit et rapport
 
 - Les données importées portent `source = import` et `created_via = import` ; l'auteur est l'adulte qui lance l'import.
 - **Audit** : une entrée par import, avec l'identifiant de session, l'empreinte du contenu reçu (SHA-256 des empreintes de lots), la version du format et les compteurs.
+- **(1F3b)** Une entrée `platform.audit_log` par import **commité** (aucune pour un commit refusé), catégorie `import`, action `commit`, entité `import_session` (clé = l'identifiant de session), acteur la personne qui importe, `via = import`, sans `item_ids`. Elle porte l'identifiant de session, l'empreinte du contenu (`content_hash`, ci-dessous), le format, la version, `replace` et les compteurs par section (`created`, `unchanged`, `replaced`). Aucune valeur du fichier n'y entre. `content_hash` est le SHA-256 des empreintes de lots, dans l'ordre du `commit` (sections de l'ordre du §11.4, puis indice de lot), chacune en hexadécimal minuscule, jointes par `\n`, sans retour à la ligne final. Cette entrée n'est lue que par l'importeur, sur la page de son import ; ni le journal de sécurité de la zone admin ni l'historique d'un élément ne la montrent.
 - Le navigateur peut **conserver le fichier d'origine** : case « conserver le fichier », qui l'envoie séparément comme `document` (`core-data-model.md` §6) rattaché aux éléments créés. Le serveur ne reçoit plus le fichier d'office.
 - **Rapport** (à l'écran et téléchargeable) : par section, nombre d'entités `created`, `unchanged`, `conflict`, plus la liste des avertissements et des erreurs avec leur chemin (`purchases[12].grants[0]`, indice global dans la section).
 
@@ -240,7 +242,7 @@ Le navigateur pilote une **session** ; le serveur valide et stocke les lots en *
 |---|---|
 | `POST /api/v1/platform/imports` | Crée une session pour l'adulte connecté. Une seule session active par personne |
 | `PUT /imports/{id}/batches/{section}/{n}` | Reçoit un lot avec son empreinte, le valide seul, le stocke. Idempotent |
-| `POST /imports/{id}/validate` | Validation **complète** du staging ; renvoie le rapport. Synchrone |
+| `POST /imports/{id}/validate` | Validation **complète** du staging ; renvoie le rapport. Synchrone. Paramètre `replace` (§8), faux par défaut |
 | `POST /imports/{id}/commit` | **Revalide**, puis écrit en une transaction ; renvoie le rapport final. Synchrone. Paramètre `replace` (§8), faux par défaut |
 | `GET /imports/{id}` | État, compteurs, rapport de la dernière validation |
 | `GET /imports` | Sessions récentes de la personne |
@@ -249,6 +251,8 @@ Le navigateur pilote une **session** ; le serveur valide et stocke les lots en *
 Portée requise : `write:direct` (un import écrit directement, `identity-and-access/authorization.md` §3). Une session n'est visible que de la personne qui l'a créée : son identifiant est **aléatoire sur 128 bits** et l'appartenance est vérifiée à **chaque appel** (`404` sinon).
 
 **États** : `open` (réception de lots) → `validated` ou `invalid` → `committed`. Un nouveau lot après `validated` ramène la session à `open`. Sorties : `cancelled`, `expired`.
+
+**(1F3b)** `replace` se donne à `validate` **et** à `commit` : un conflit non résolu rend la session `invalid`, et seule une session `validated` peut être commitée. Le drapeau n'est jamais stocké dans la session : le `commit` revalide avec le sien propre. Une session validée avec `replace` puis commitée sans lui retrouve donc ses conflits, et le `commit` est refusé comme aujourd'hui (`422 import.not_committed`, la session repasse à `invalid`).
 
 ### 11.2 Lots
 
@@ -372,7 +376,7 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
 - **Adultes** : résolus d'abord par la correspondance donnée à la création de la session (`adults: { "<ref>": "<person id>" }`), puis par `email`. Non résolu : erreur `import.adult_unresolved`, dont le message liste les adultes existants.
 - **Idempotence** : chaque ligne importée garde `import_ref` (l'`id` du fichier) et `import_hash`, le SHA-256 RFC 8785 de son enregistrement. Même `id` et même empreinte : `unchanged` ; même `id`, autre empreinte : `conflict`. Une modification faite ensuite dans l'interface ne rend pas conflictuel le réimport du même fichier : le fichier, lui, n'a pas changé.
 - **Un conflit bloque le `commit`** : sans `replace`, « rien n'est écrasé » veut dire que rien ne bouge.
-- **`replace` est reporté à 1F**, avec le journal d'audit dont dépend sa promesse.
+- **`replace` est livré en 1F3b** (§8, §9, §11.1), sur le journal d'audit livré en 1F3a dont sa promesse dépendait.
 - **Nombres dans l'empreinte** : sérialisés comme ECMAScript (RFC 8785 §3.2.2.3). Un montant écrit en nombre JSON est accepté et lu en décimal ; l'empreinte ne sert qu'à identifier.
 - **Lots** : numérotés à partir de 0 sans trou ; tous sauf le dernier d'une section contiennent exactement 500 entités, ce qui rend exact l'indice global `n × 500 + position`. Un lot en erreur n'est pas mis en staging : son emplacement reste libre pour le lot corrigé.
 - **Sections refusées pour l'instant** (`import.section_not_supported`) : seules celles des modules à venir. `providers` n'est plus refusée depuis 1C2b (2026-09-24, voir « Décisions prises en 1C2b » ci-dessous) ; `provider_key` y est désormais vérifié.
@@ -382,7 +386,7 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
 - **Durée de vie appliquée à l'usage** : une session active dont `expires_at` est passé est traitée comme `expired` par chaque appel, même si aucun balayage ne l'a encore marquée : `GET` la montre `expired`, un lot, `validate`, `commit` ou l'annulation répondent `409 import.state`.
 - **Deux codes `400` de forme pour un lot** : `request.malformed` quand le corps ne se lit pas (pas du JSON, plus de 1 Mo, plus de 32 niveaux) ; `import.malformed_entity` quand le corps se lit mais que le lot est refusé en entier (entités qui ne sont pas un tableau, indice négatif, surrogate isolé, caractère U+0000, que `jsonb` ne sait pas stocker). Les bornes et l'empreinte ont leurs propres `400` (`import.too_many_entities`, `import.string_too_long`, `import.hash_mismatch`). Une entité refusée à l'intérieur d'un lot lisible n'est pas un `400` : elle revient dans les `issues` de la réponse, avec `accepted: false`.
 - **Un utilisateur listé deux fois dans `service_users`** est refusé dès la réception (et à la validation) avec `import.duplicate_id` au chemin `subscriptions[i].service_users[j]`.
-- **Pas encore faits** : l'entrée d'audit par import et `replace` (1F3b, sur le journal livré en 1F3a), le schéma JSON publié (1E).
+- **Pas encore fait** : le schéma JSON publié (1E).
 - **Codes** : les erreurs du protocole sont préfixées `import.` ; les règles des modules gardent leurs codes (`core.share_sum`, `subscriptions.phase_overlap`…). `import_too_large` (§11.5) s'écrit `import.too_large`.
 - **Décisions prises en 1C2b (2026-09-24)** (détail et raisons : `superpowers/specs/2026-09-24-provider-catalog-design.md` §5 et §10) : `providers` (§5.2) n'est plus refusée — chaque entrée est résolue, dans l'ordre, contre une entrée déjà importée sous la même référence par cet importeur (`unchanged` ou `conflict`), puis contre une entrée de même référence et même empreinte **visible de l'importeur**, puis sinon créée au `commit` avec une clé générée, en gardant `import_ref`/`import_hash` comme toute autre entité importée ; `provider_key` (§5.3) est désormais vérifié — une entrée `providers` du fichier prime toujours sur une clé existante de même orthographe, sinon une clé existante doit être visible de l'importeur et non archivée, sinon `import.unresolved_reference` au chemin `subscriptions[i].provider_key` (non répété quand l'entrée `providers` de cette clé a déjà échoué) ; la provenance d'un import (« déjà importé sous cette référence ? ») est tenue **par importeur**, index séparé pour chacun, si bien que deux personnes qui importent le même fichier reçoivent chacune leur propre fournisseur et jamais celui de l'autre si elles ne peuvent pas le voir — une clé qui n'existe que par une souscription privée d'un autre adulte répond comme une clé inconnue, au mot près.
 
