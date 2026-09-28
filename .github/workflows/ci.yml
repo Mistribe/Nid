@@ -97,3 +97,10 @@ jobs:
           docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml -f deploy/local/compose.backup-test.yaml \
             logs --no-color | tail -300
           docker compose -p nid-restore-test logs --no-color | tail -100 || true
+      # Playwright's traces and page snapshots of a failed journey: `pnpm exec playwright show-trace <trace.zip>`.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: playwright-results
+          path: web/test-results/
+          if-no-files-found: ignore

@@ -20,10 +20,27 @@ async function exportFile(page: Page): Promise<Download> {
   throw new Error('the data kept changing during three exports');
 }
 
+/**
+ * On a fresh base the export may run before any other journey saved something: an empty file, which the import
+ * assistant refuses ("Le fichier ne contient aucune entité"). The journey brings its own subscription.
+ */
+async function addSubscription(page: Page): Promise<void> {
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string; person: { id: string } };
+  const response = await page.request.post('/api/v1/subscriptions', {
+    headers: { 'X-Nid-Csrf': session.csrf },
+    data: {
+      displayName: `Export E2E ${Date.now().toString(36)}`, visibility: 'shared',
+      owners: [{ personId: session.person.id, shareBp: 10000 }], autoRenew: true,
+    },
+  });
+  expect(response.status()).toBe(201);
+}
+
 // 1E4 design §4: the export is a file Nid reads back. It is given to the import assistant's local check, never sent:
 // re-importing into the instance it came from is not guaranteed (import-format.md §10).
 test('alice exports what she sees, and the import assistant reads the file back', async ({ page }) => {
   await signIn(page, 'alice', '/export');
+  await addSubscription(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Export' })).toBeVisible();
 
   const download = await exportFile(page);
