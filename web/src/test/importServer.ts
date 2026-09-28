@@ -51,6 +51,7 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
   const received: ReceivedBatch[] = [];
   const started: unknown[] = [];
   const calls: string[] = [];
+  const bodies: { validate: unknown[]; commit: unknown[] } = { validate: [], commit: [] };
   let puts = 0;
   let validates = 0;
 
@@ -95,9 +96,10 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
       const issues = options.refuse?.(section, index) ?? [];
       return HttpResponse.json({ section, index, count: body.entities.length, accepted: issues.length === 0, issues });
     }),
-    http.post('*/api/v1/platform/imports/:id/validate', ({ params }) => {
+    http.post('*/api/v1/platform/imports/:id/validate', async ({ params, request }) => {
       validates += 1;
       calls.push('validate');
+      bodies.validate.push(await request.json().catch(() => null));
       const found = sessions.get(String(params.id));
       if (!found) return missing();
       if (validates <= (options.validateStale ?? 0))
@@ -107,8 +109,9 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
       found.report = report;
       return HttpResponse.json(found);
     }),
-    http.post('*/api/v1/platform/imports/:id/commit', ({ params }) => {
+    http.post('*/api/v1/platform/imports/:id/commit', async ({ params, request }) => {
       calls.push('commit');
+      bodies.commit.push(await request.json().catch(() => null));
       const found = sessions.get(String(params.id));
       if (!found) return missing();
       if (options.commitFails) {
@@ -122,7 +125,7 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
     }),
   ];
 
-  return { handlers, received, started, calls, sessions };
+  return { handlers, received, started, calls, sessions, bodies };
 }
 
 /** A clean validation of what was received: every entity created. */

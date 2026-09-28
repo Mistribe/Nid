@@ -266,7 +266,7 @@ describe('Import › sending', () => {
 });
 
 describe('Import › report, confirmation and commit', () => {
-  const counts = (created: number, unchanged = 0, conflict = 0) => ({ created, unchanged, conflict, replaced: 0 });
+  const counts = (created: number, unchanged = 0, conflict = 0, replaced = 0) => ({ created, unchanged, conflict, replaced });
 
   it('goes from the file to the final report', async () => {
     const fake = fakeImportServer();
@@ -299,9 +299,10 @@ describe('Import › report, confirmation and commit', () => {
     expect(await screen.findByRole('heading', { name: 'Import terminé' })).toBeInTheDocument();
   });
 
-  it('blocks the import on a conflict, and « Corriger » cancels it', async () => {
+  it('blocks the import on a conflict alongside another error, and « Corriger » cancels it', async () => {
     const conflict = { severity: 'error' as const, code: 'import.conflict', message: 'sub-spotify was imported with other content.', path: 'subscriptions[0]' };
-    const report = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict] };
+    const other = { severity: 'error' as const, code: 'import.invalid_value', message: 'y', path: 'subscriptions[1].name' };
+    const report = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict, other] };
     const fake = fakeImportServer({ sessions: [session({ state: 'invalid', report })] });
     server.use(...fake.handlers);
     const { user, router } = await renderApp(`/import/${SESSION_ID}`);
@@ -354,5 +355,47 @@ describe('Import › report, confirmation and commit', () => {
     expect(JSON.parse(await blobs[0]!.text())).toMatchObject({ id: SESSION_ID, report });
     await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:report'));
     [createObjectURL, revokeObjectURL, click].forEach((spy) => spy.mockRestore());
+  });
+
+  it('offers to replace when conflicts are the only errors, validates again with replace, then imports with it', async () => {
+    const conflict = { severity: 'error' as const, code: 'import.conflict', message: 'sub-spotify was imported with other content.', path: 'subscriptions[0]' };
+    const invalid = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict] };
+    const replacing = { state: 'validated', sections: { subscriptions: counts(0, 0, 0, 1) }, issues: [] };
+    const fake = fakeImportServer({ sessions: [session({ state: 'invalid', report: invalid })], validation: replacing });
+    server.use(...fake.handlers);
+    const { user, container } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByText('1 élément a déjà été importé avec un autre contenu.')).toBeInTheDocument();
+    const box = screen.getByRole('checkbox', { name: 'Remplacer ces éléments par le contenu du fichier' });
+    await expectNoAxeViolations(container);
+    await user.click(box);
+
+    await waitFor(() => expect(fake.bodies.validate.at(-1)).toEqual({ replace: true }));
+    expect(await screen.findByRole('columnheader', { name: 'Remplacés' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Importer' }));
+    await waitFor(() => expect(fake.bodies.commit.at(-1)).toEqual({ replace: true }));
+  });
+
+  it('offers no replacement when another error is there', async () => {
+    const conflict = { severity: 'error' as const, code: 'import.conflict', message: 'x', path: 'subscriptions[0]' };
+    const other = { severity: 'error' as const, code: 'import.invalid_value', message: 'y', path: 'subscriptions[1].name' };
+    const report = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict, other] };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'invalid', report })] }).handlers);
+    await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByText('subscriptions[1].name')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Remplacer/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the audit entry of a committed import', async () => {
+    const report = { state: 'committed', sections: { subscriptions: counts(0, 0, 0, 1) }, issues: [] };
+    const audit = { committedAt: '2026-09-28T10:00:00Z', contentHash: 'a'.repeat(64), format: 'nid.data', version: 1, replace: true };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'committed', report, audit })] }).handlers);
+    const { container } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByText('aaaaaaaaaaaa…')).toBeInTheDocument();
+    expect(screen.getByText('nid.data, version 1')).toBeInTheDocument();
+    expect(screen.getByText('Remplacement : oui')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 });

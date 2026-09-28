@@ -48,6 +48,7 @@ export function SectionCounts({ report }: { report: Report }) {
           <th scope="col" className="py-2 pr-4">{t('import.section')}</th>
           <th scope="col" className="py-2 pr-4">{t('import.created')}</th>
           <th scope="col" className="py-2 pr-4">{t('import.unchanged')}</th>
+          <th scope="col" className="py-2 pr-4">{t('import.replaced')}</th>
           <th scope="col" className="py-2">{t('import.conflict')}</th>
         </tr>
       </thead>
@@ -57,6 +58,7 @@ export function SectionCounts({ report }: { report: Report }) {
             <th scope="row" className="py-2 pr-4 font-normal">{name}</th>
             <td className="py-2 pr-4">{counts.created}</td>
             <td className="py-2 pr-4">{counts.unchanged}</td>
+            <td className="py-2 pr-4">{counts.replaced}</td>
             <td className="py-2">{counts.conflict}</td>
           </tr>
         ))}

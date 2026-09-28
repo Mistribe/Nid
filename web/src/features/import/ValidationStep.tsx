@@ -25,6 +25,21 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
   const errors = report.issues.some((issue) => issue.severity === 'error');
   const canCommit = session.state === 'validated' && !conflicts && !errors;
 
+  const conflictCount = Object.values(report.sections).reduce((sum, counts) => sum + counts.conflict, 0);
+  const replacedCount = Object.values(report.sections).reduce((sum, counts) => sum + counts.replaced, 0);
+  const onlyConflicts = report.issues.filter((i) => i.severity === 'error').every((i) => i.code === 'import.conflict');
+  const [replace, setReplace] = useState(replacedCount > 0); // a report already validated with replace keeps the box on
+  const offerReplace = (conflictCount > 0 || replace) && onlyConflicts;
+
+  const validate = $api.useMutation('post', '/api/v1/platform/imports/{id}/validate', {
+    onSuccess: onChanged,
+    onError: (error) => { setProblem(present(toProblem(error))); onChanged(); },
+  });
+  const toggleReplace = (next: boolean) => {
+    setReplace(next);
+    validate.mutate({ params: { path: { id: session.id } }, body: { replace: next } });
+  };
+
   const commit = $api.useMutation('post', '/api/v1/platform/imports/{id}/commit', {
     onSuccess: onChanged,
     onError: (error) => {
@@ -41,14 +56,24 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
     <section aria-labelledby="import-report-title" className="space-y-4">
       <h2 id="import-report-title" className="text-lg font-semibold">{t('import.report_title')}</h2>
       {notCommitted ? <p role="alert">{t('import.not_committed')}</p> : null}
-      {!notCommitted && conflicts ? <p role="alert">{t('import.conflicts_block')}</p> : null}
+      {!notCommitted && conflicts && !offerReplace ? <p role="alert">{t('import.conflicts_block')}</p> : null}
       {!notCommitted && !conflicts && session.state === 'invalid' ? <p role="alert">{t('import.invalid')}</p> : null}
+      {offerReplace ? (
+        <div className="space-y-1 rounded-md border p-3">
+          {conflictCount > 0 ? <p role="alert">{t('import.replace_found', { count: conflictCount })}</p> : null}
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={replace} disabled={validate.isPending} onChange={(e) => toggleReplace(e.target.checked)} />
+            {t('import.replace_label')}
+          </label>
+          <p className="text-sm text-muted-foreground">{t('import.replace_note')}</p>
+        </div>
+      ) : null}
       <SectionCounts report={report} />
       <IssueList issues={report.issues} />
       {problem ? <ProblemMessage problem={problem} /> : null}
       <div className="flex flex-wrap gap-2">
         {canCommit ? (
-          <Button onClick={() => commit.mutate({ params: { path: { id: session.id } } })} disabled={commit.isPending}>
+          <Button onClick={() => commit.mutate({ params: { path: { id: session.id } }, body: { replace } })} disabled={commit.isPending}>
             {t('import.commit')}
           </Button>
         ) : null}

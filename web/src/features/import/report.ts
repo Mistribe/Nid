@@ -4,7 +4,11 @@ type Session = components['schemas']['ImportSessionView'];
 
 /** The final report as a file (web design §6.2, step 7): the session and its report, as the server gave them. */
 export function reportFile(session: Session): { name: string; content: string } {
-  const content = JSON.stringify({ id: session.id, state: session.state, createdAt: session.createdAt, report: session.report }, null, 2);
+  const content = JSON.stringify(
+    { id: session.id, state: session.state, createdAt: session.createdAt, report: session.report, audit: session.audit ?? null },
+    null,
+    2,
+  );
   return { name: `nid-import-${session.id}.json`, content: `${content}\n` };
 }
 
