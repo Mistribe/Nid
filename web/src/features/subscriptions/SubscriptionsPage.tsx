@@ -67,7 +67,7 @@ export function SubscriptionsPage() {
           <div className="flex flex-wrap items-center gap-2">
             {offered.map((label) => (
               <button key={label.key} type="button" aria-pressed={active.includes(label.key)} onClick={() => toggle(label.key)}
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm aria-pressed:border-primary aria-pressed:bg-muted">
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm aria-pressed:border-primary aria-pressed:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
                 <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
                 {label.name}
               </button>
