@@ -143,6 +143,8 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         public Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct) => inner.AddPhaseAsync(id, phase, origin, ct);
         public Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, NodaTime.LocalDate endsOn, int? maxCycles, CancellationToken ct) => inner.ClosePhaseAsync(id, phase, endsOn, maxCycles, ct);
         public Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct) => inner.AddPurchaseAsync(purchase, origin, ct);
+        public Task<Result> ReplacePhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct) => inner.ReplacePhaseAsync(id, phase, origin, ct);
+        public Task<Result> ReplacePurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct) => inner.ReplacePurchaseAsync(purchase, origin, ct);
         public Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedRow>>> FindImportedAsync(ImportedTable table, IReadOnlyCollection<string> refs, CancellationToken ct) => inner.FindImportedAsync(table, refs, ct);
         public Task<StoredRows> ReadAllAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct) => inner.ReadAllAsync(ids, ct);
         public Task<IReadOnlyList<ItemId>> GrantedItemsAsync(PurchaseId purchase, CancellationToken ct) => inner.GrantedItemsAsync(purchase, ct);

@@ -86,6 +86,12 @@ public interface ISubscriptionStore
 
     Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct);
 
+    /// <summary>1F3b: an import's replacement of a phase it created before, updated in place (same id).</summary>
+    Task<Result> ReplacePhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct);
+
+    /// <summary>1F3b: an import's replacement of a purchase it created before, updated in place; its grants are reconciled.</summary>
+    Task<Result> ReplacePurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct);
+
     /// <summary>
     /// Every row of <paramref name="table"/> imported under one of <paramref name="refs"/>, by ref, ordered by id,
     /// whoever imported it. The caller decides which of them the importer may see; nothing here filters.

@@ -34,6 +34,8 @@ public sealed class SubscriptionsImportSection(
     private readonly List<(StagedEntity Entity, PurchaseRecord Record)> newPurchases = [];
     private readonly List<(StagedEntity Entity, SubscriptionRecord Record, ItemId Id)> replacedSubscriptions = [];
     private readonly HashSet<string> replacedIds = new(StringComparer.Ordinal); // file ids of replaced subscriptions
+    private readonly List<(StagedEntity Entity, BillingPhaseRecord Record, BillingPhaseId Id)> replacedPhases = [];
+    private readonly List<(StagedEntity Entity, PurchaseRecord Record, PurchaseId Id)> replacedPurchases = [];
     private IReadOnlyDictionary<string, SectionCounts> counts = new Dictionary<string, SectionCounts>();
 
     public string Module => "subscriptions";
@@ -89,6 +91,8 @@ public sealed class SubscriptionsImportSection(
         newPurchases.Clear();
         replacedSubscriptions.Clear();
         replacedIds.Clear();
+        replacedPhases.Clear();
+        replacedPurchases.Clear();
         var issues = new List<ImportIssue>();
 
         // Before subscriptions: their provider_key may name an entry of this section (design §5 "Import").
@@ -243,8 +247,34 @@ public sealed class SubscriptionsImportSection(
             {
                 if (known.Hash != entity.Hash)
                 {
-                    issues.Add(Conflict(path, record.Id));
-                    tally[Phases] += new SectionCounts(0, 0, 1);
+                    if (!context.Replace)
+                    {
+                        issues.Add(Conflict(path, record.Id));
+                        tally[Phases] += new SectionCounts(0, 0, 1);
+                        continue;
+                    }
+
+                    // 1F3b spec §3.3: a phase is replaced under its subscription; it never moves to another one.
+                    if (!known.Items.Contains(run.Id))
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.InvalidValue,
+                            $"'{record.Id}' was imported under another subscription; a replaced phase stays under its own.", path + ".subscription_id"));
+                        continue;
+                    }
+
+                    if (!await CanWriteAsync(context.Actor, run.Id, ct))
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, "This replaces a phase of a subscription you cannot change.", path));
+                        continue;
+                    }
+
+                    var replacement = phase with { Id = new BillingPhaseId(known.Id) };
+                    run.Phases.RemoveAll(p => p.Id == replacement.Id); // the stored version leaves the dry run
+                    run.Phases.Add(replacement);
+                    run.Added.Add((replacement, path));
+                    paths[replacement.Id.ToString()] = path;
+                    replacedPhases.Add((entity, record, replacement.Id));
+                    tally[Phases] += new SectionCounts(0, 0, 0, 1);
                     continue;
                 }
                 tally[Phases] += new SectionCounts(0, 1, 0);
@@ -293,8 +323,37 @@ public sealed class SubscriptionsImportSection(
             {
                 if (known.Hash != entity.Hash)
                 {
-                    issues.Add(Conflict(path, record.Id));
-                    tally[Purchases] += new SectionCounts(0, 0, 1);
+                    if (!context.Replace)
+                    {
+                        issues.Add(Conflict(path, record.Id));
+                        tally[Purchases] += new SectionCounts(0, 0, 1);
+                        continue;
+                    }
+
+                    // 1F3b spec §3.2: a write on every item the purchase touches now and every one the file gives it.
+                    var writable = true;
+                    foreach (var item in known.Items.Concat(targetIds).Distinct())
+                        if (!await CanWriteAsync(context.Actor, item, ct))
+                            writable = false;
+                    if (!writable)
+                    {
+                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, "This replaces a purchase on a subscription you cannot change.", path + ".grants"));
+                        continue;
+                    }
+
+                    // The stored version leaves every dry run of this file. An item it granted that the file does
+                    // not hold is not walked again: the purchase only leaves it.
+                    var replacement = purchase with { Id = new PurchaseId(known.Id) };
+                    foreach (var other in runs.Values)
+                        other.Purchases.RemoveAll(p => p.Id == replacement.Id);
+                    paths[replacement.Id.ToString()] = path;
+                    foreach (var target in targets)
+                    {
+                        runs[target].Purchases.Add(replacement);
+                        runs[target].Added.Add((replacement, path));
+                    }
+                    replacedPurchases.Add((entity, record, replacement.Id));
+                    tally[Purchases] += new SectionCounts(0, 0, 0, 1);
                     continue;
                 }
                 tally[Purchases] += new SectionCounts(0, 1, 0);
@@ -424,6 +483,27 @@ public sealed class SubscriptionsImportSection(
                 providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt,
                 new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (stored.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
+        }
+
+        foreach (var (entity, record, phaseId) in replacedPhases)
+        {
+            if (!RecordParsing.TryPhase(record, NidDataJson.Path(Phases, entity.Index), person, issues, out var phase))
+                return Drift(issues);
+            var replaced = await store.ReplacePhaseAsync(context.Items[(Subscriptions, record.SubscriptionId)], phase with { Id = phaseId },
+                new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
+            if (replaced.TryGetFailure(out var failure))
+                return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
+        }
+
+        foreach (var (entity, record, purchaseId) in replacedPurchases)
+        {
+            if (!RecordParsing.TryPurchase(record, NidDataJson.Path(Purchases, entity.Index), person,
+                    fileId => context.Items.TryGetValue((Subscriptions, fileId), out var id) ? id : null, issues, out var purchase))
+                return Drift(issues);
+            var replaced = await store.ReplacePurchaseAsync(purchase with { Id = purchaseId },
+                new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
+            if (replaced.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
 

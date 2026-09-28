@@ -201,6 +201,65 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(purchase.Id);
     }
 
+    public async Task<Result> ReplacePhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct)
+    {
+        var row = await db.Phases.FirstOrDefaultAsync(p => p.Id == phase.Id.Value && p.ItemId == id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("phase", phase.Id.ToString()));
+
+        row.StartsOn = phase.StartsOn;
+        row.EndsOn = phase.EndsOn;
+        row.PriceAmount = phase.Price.Amount;
+        row.PriceCurrency = phase.Price.Currency.Code;
+        row.EveryCount = phase.Every.Count;
+        row.EveryUnit = Name(phase.Every.Unit);
+        row.CoversCount = phase.Covers?.Count;
+        row.CoversUnit = phase.Covers is { } covers ? Name(covers.Unit) : null;
+        row.MaxCycles = phase.MaxCycles;
+        row.PayerType = Name(phase.Payer.Type);
+        row.PayerPersonId = phase.Payer.PersonId?.Value;
+        row.Note = origin.Note;
+        row.ImportHash = origin.Import?.Hash;
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result> ReplacePurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct)
+    {
+        var row = await db.Purchases.Include(p => p.Grants).FirstOrDefaultAsync(p => p.Id == purchase.Id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("purchase", purchase.Id.ToString()));
+
+        row.Date = purchase.Date;
+        row.Label = purchase.Label;
+        row.PriceAmount = purchase.Price.Amount;
+        row.PriceCurrency = purchase.Price.Currency.Code;
+        row.PayerType = Name(purchase.Payer.Type);
+        row.PayerPersonId = purchase.Payer.PersonId?.Value;
+        row.Kind = Name(purchase.Kind);
+        row.AllocatedAmount = purchase.AllocatedAmount;
+        row.Note = origin.Note;
+        row.ImportHash = origin.Import?.Hash;
+        // Grants have no identity of their own beyond (purchase, index): the list is replaced, and the history
+        // records each grant row deleted and inserted (1F3b spec §3.3). Two saves: the key (purchase, index) is
+        // deleted and inserted again, which one save would order as a clash. Both are inside the commit's transaction.
+        db.Grants.RemoveRange(row.Grants);
+        row.Grants.Clear();
+        await db.SaveChangesAsync(ct);
+        row.Grants.AddRange(purchase.Grants.Select((g, index) => new GrantRow
+        {
+            PurchaseId = purchase.Id.Value,
+            Index = index,
+            SubscriptionItemId = g.SubscriptionId.Value,
+            DurationCount = g.Duration.Count,
+            DurationUnit = Name(g.Duration.Unit),
+            Source = Name(g.Source),
+            StartsOn = g.StartsOn,
+        }));
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     public async Task<StoredRows> ReadAllAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
     {
         if (ids.Count == 0)
