@@ -47,6 +47,7 @@ services:
     user: "8000:8000"
     environment:
       X_AUTHELIA_CONFIG_FILTERS: template
+      GOMEMLIMIT: 384MiB # the Go collector frees memory before the container's limit (512m below), not after
       AUTHELIA_SESSION_SECRET_FILE: /run/secrets/authelia_session
       AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/authelia_storage
       AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /run/secrets/authelia_jwt
@@ -63,7 +64,8 @@ services:
       timeout: 3s
       start_period: 30s
     depends_on: { authelia-volume: { condition: service_completed_successfully } }
-    deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
+    # Each password check holds 64 MiB (argon2id, m=65536): at 256m, four adults signing in at once killed it (OOM).
+    deploy: { resources: { limits: { cpus: "0.5", memory: 512m } } }
 
   nid-api:
     <<: *hardened
