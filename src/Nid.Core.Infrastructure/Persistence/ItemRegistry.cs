@@ -40,6 +40,39 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         return Result.Success(id);
     }
 
+    public async Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
+    {
+        var personIds = owners.Select(o => o.PersonId.Value).ToList();
+        var kinds = await db.Persons.AsNoTracking()
+            .Where(p => personIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent, ct);
+
+        if (kinds.Count != personIds.Distinct().Count())
+            return Result.Failure(new Failure("core.owner_unknown", "An owner does not exist.", null));
+
+        var ownerList = owners.Select(o => new Owner(o.PersonId, kinds[o.PersonId.Value], o.ShareBp)).ToList();
+        var validation = OwnershipRules.Validate(visibility, ownerList);
+        if (validation.TryGetFailure(out var failure))
+            return Result.Failure(failure!);
+
+        var row = await db.Items.Include(i => i.Owners).FirstOrDefaultAsync(i => i.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("item", id.ToString()));
+
+        row.DisplayName = displayName;
+        row.Visibility = visibility == Visibility.Private ? "private" : "shared";
+        var wanted = owners.ToDictionary(o => o.PersonId.Value, o => o.ShareBp);
+        foreach (var owner in row.Owners.Where(o => !wanted.ContainsKey(o.PersonId)).ToList())
+            row.Owners.Remove(owner);
+        foreach (var owner in row.Owners)
+            owner.ShareBp = wanted[owner.PersonId];
+        foreach (var (person, share) in wanted.Where(w => row.Owners.All(o => o.PersonId != w.Key)))
+            row.Owners.Add(new OwnershipRow { ItemId = id.Value, PersonId = person, ShareBp = share });
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     public async Task<ItemAccess?> FindAsync(ItemId id, CancellationToken ct)
     {
         var row = await db.Items.AsNoTracking().Include(i => i.Owners).SingleOrDefaultAsync(i => i.Id == id.Value, ct);

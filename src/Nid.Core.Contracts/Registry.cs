@@ -78,6 +78,12 @@ public interface IItemRegistry
     Task<Result<ItemId>> CreateAsync(NewItem item, CancellationToken ct);
 
     Task<ItemAccess?> FindAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>
+    /// 1F3b: an import's replacement of an item it created before. Same rules as a creation (OwnershipRules); the row is
+    /// updated in place, its owners reconciled (removed, changed, added), so the audit keeps the previous values.
+    /// </summary>
+    Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct);
 }
 
 public interface IAccessPolicy
