@@ -29,15 +29,23 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
   const replacedCount = Object.values(report.sections).reduce((sum, counts) => sum + counts.replaced, 0);
   const onlyConflicts = report.issues.filter((i) => i.severity === 'error').every((i) => i.code === 'import.conflict');
   const [replace, setReplace] = useState(replacedCount > 0); // a report already validated with replace keeps the box on
-  const offerReplace = (conflictCount > 0 || replace) && onlyConflicts;
+  // Once checked, the choice stays offered even if a replace validation answers another error (§5): the user must
+  // still be able to see and uncheck it. Otherwise, an initial conflict-only report offers it.
+  const offerReplace = replace || (conflictCount > 0 && onlyConflicts);
 
   const validate = $api.useMutation('post', '/api/v1/platform/imports/{id}/validate', {
-    onSuccess: onChanged,
+    onSuccess: () => {
+      setProblem(null); // a later success clears an earlier failed attempt's message
+      onChanged();
+    },
     onError: (error) => { setProblem(present(toProblem(error))); onChanged(); },
   });
   const toggleReplace = (next: boolean) => {
     setReplace(next);
-    validate.mutate({ params: { path: { id: session.id } }, body: { replace: next } });
+    validate.mutate(
+      { params: { path: { id: session.id } }, body: { replace: next } },
+      { onError: () => setReplace(!next) }, // a failed revalidation never leaves the box in the state it never reached
+    );
   };
 
   const commit = $api.useMutation('post', '/api/v1/platform/imports/{id}/commit', {
@@ -62,7 +70,12 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
         <div className="space-y-1 rounded-md border p-3">
           {conflictCount > 0 ? <p role="alert">{t('import.replace_found', { count: conflictCount })}</p> : null}
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={replace} disabled={validate.isPending} onChange={(e) => toggleReplace(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={replace}
+              aria-disabled={validate.isPending}
+              onChange={(e) => { if (!validate.isPending) toggleReplace(e.target.checked); }}
+            />
             {t('import.replace_label')}
           </label>
           <p className="text-sm text-muted-foreground">{t('import.replace_note')}</p>

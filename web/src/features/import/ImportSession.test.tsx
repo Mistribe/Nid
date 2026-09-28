@@ -398,4 +398,42 @@ describe('Import › report, confirmation and commit', () => {
     expect(screen.getByText('Remplacement : oui')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
+
+  it('reverts the checkbox and shows the problem when a replace validation fails, then clears it on a successful retry', async () => {
+    const conflict = { severity: 'error' as const, code: 'import.conflict', message: 'sub-spotify was imported with other content.', path: 'subscriptions[0]' };
+    const invalid = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict] };
+    const fake = fakeImportServer({ sessions: [session({ state: 'invalid', report: invalid })], validateStale: 1 });
+    server.use(...fake.handlers);
+    const { user } = await renderApp(`/import/${SESSION_ID}`);
+
+    const box = await screen.findByRole('checkbox', { name: 'Remplacer ces éléments par le contenu du fichier' });
+    await user.click(box);
+
+    expect(await screen.findByText('Cet élément a changé entre-temps. Rechargez la page pour voir sa dernière version.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Remplacer ces éléments par le contenu du fichier' })).not.toBeChecked());
+
+    await user.click(screen.getByRole('checkbox', { name: 'Remplacer ces éléments par le contenu du fichier' }));
+    await waitFor(() => expect(fake.bodies.validate).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByText('Cet élément a changé entre-temps. Rechargez la page pour voir sa dernière version.')).not.toBeInTheDocument());
+  });
+
+  it('keeps the checkbox visible and checked, letting it be unchecked, when a replace validation answers another error', async () => {
+    const conflict = { severity: 'error' as const, code: 'import.conflict', message: 'sub-spotify was imported with other content.', path: 'subscriptions[0]' };
+    const invalid = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [conflict] };
+    const notPermitted = { severity: 'error' as const, code: 'import.not_permitted', message: 'Vous ne pouvez pas modifier ceci.', path: 'subscriptions[0]' };
+    const refused = { state: 'invalid', sections: { subscriptions: counts(0, 0, 1) }, issues: [notPermitted] };
+    const fake = fakeImportServer({ sessions: [session({ state: 'invalid', report: invalid })], validation: refused });
+    server.use(...fake.handlers);
+    const { user } = await renderApp(`/import/${SESSION_ID}`);
+
+    const box = await screen.findByRole('checkbox', { name: 'Remplacer ces éléments par le contenu du fichier' });
+    await user.click(box);
+
+    expect(await screen.findByText('Vous ne pouvez pas modifier ceci.')).toBeInTheDocument();
+    const boxAgain = screen.getByRole('checkbox', { name: 'Remplacer ces éléments par le contenu du fichier' });
+    expect(boxAgain).toBeChecked();
+
+    await user.click(boxAgain);
+    await waitFor(() => expect(fake.bodies.validate.at(-1)).toEqual({ replace: false }));
+  });
 });
