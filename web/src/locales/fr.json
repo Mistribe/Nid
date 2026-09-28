@@ -78,6 +78,8 @@
     "status_all": "Tous",
     "status_active": "Actifs",
     "status_ended": "Terminés",
+    "labels": "Libellés",
+    "labels_clear": "Effacer les libellés",
     "cash": "Coût réel du mois",
     "amortized": "Coût amorti du mois",
     "next_charge": "Prochaine échéance : {{date}}",

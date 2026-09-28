@@ -10,8 +10,9 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
+import { Button } from '@/components/ui/button';
 import { LIST, type Summary } from './api';
-import { filterSubscriptions } from './filter';
+import { filterSubscriptions, labelParam, labelsInUse, labelsOf } from './filter';
 import { todayIso } from './today';
 
 /** 1E2a design §3: scope (the shell's switch) goes to the server, name and status filter the answer in the browser. */
@@ -23,11 +24,17 @@ export function SubscriptionsPage() {
   const searchId = useId();
   const statusId = useId();
   const totalsId = useId();
+  const labelsId = useId();
   const scope = search.scope === 'me' ? 'me' : 'household';
   const answer = $api.useQuery('get', LIST, { params: { query: { scope } } });
 
   const setSearch = (change: SubscriptionsSearch) =>
     void navigate({ to: '.', search: (prev: RootSearch & SubscriptionsSearch) => ({ ...prev, ...change }), replace: true });
+
+  const offered = labelsInUse(answer.data?.items ?? []);
+  const active = labelsOf(search.label).filter((key) => offered.some((label) => label.key === key));
+  const toggle = (key: string) =>
+    setSearch({ label: labelParam(active.includes(key) ? active.filter((k) => k !== key) : [...active, key]) });
 
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -54,6 +61,23 @@ export function SubscriptionsPage() {
           <option value="ended">{t('subscriptions.status_ended')}</option>
         </select>
       </div>
+      {offered.length > 0 ? (
+        <div role="group" aria-labelledby={labelsId} className="space-y-1">
+          <span id={labelsId} className="block text-sm">{t('subscriptions.labels')}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {offered.map((label) => (
+              <button key={label.key} type="button" aria-pressed={active.includes(label.key)} onClick={() => toggle(label.key)}
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm aria-pressed:border-primary aria-pressed:bg-muted">
+                <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
+                {label.name}
+              </button>
+            ))}
+            {active.length > 0 ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setSearch({ label: undefined })}>{t('subscriptions.labels_clear')}</Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -78,7 +102,7 @@ export function SubscriptionsPage() {
       </>
     );
 
-  const shown = filterSubscriptions(data.items, search, todayIso());
+  const shown = filterSubscriptions(data.items, { ...search, labels: active }, todayIso());
   return (
     <div className="space-y-4">
       {header}

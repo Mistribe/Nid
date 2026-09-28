@@ -28,8 +28,8 @@ export type RouterContext = { capabilities: Capabilities };
 /** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
 export type RootSearch = { scope?: 'me' };
 
-/** The list's own filters, in the URL beside the root scope (1E2a design §3). */
-export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string };
+/** The list's own filters, in the URL beside the root scope (1E2a design §3; labels comma-joined, 1E2b2 design §3.3). */
+export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string; label?: string };
 
 export function homePath(capabilities: Capabilities): '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('subscriptions')) return '/subscriptions';
@@ -60,6 +60,7 @@ const subscriptionsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): SubscriptionsSearch => ({
     ...(search.status === 'active' || search.status === 'ended' ? { status: search.status } : {}),
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+    ...(typeof search.label === 'string' && search.label !== '' ? { label: search.label } : {}),
   }),
   component: SubscriptionsPage,
 });

@@ -108,4 +108,49 @@ describe('Abonnements › liste', () => {
     // A 5xx is retried twice with backoff before the error shows (createQueryClient).
     expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent('Une erreur inattendue');
   });
+
+  const labelled = list([
+    summary({ displayName: 'Netflix', provider: { key: 'netflix', name: 'Netflix', origin: 'catalog', iconUrl: null,
+      labels: [{ key: 'streaming-video', name: 'Video', color: '#E50914' }] } }),
+    summary({ id: '0192f0aa-0000-7000-8000-000000000002', displayName: 'Proton VPN', provider: { key: 'proton', name: 'Proton',
+      origin: 'catalog', iconUrl: null, labels: [{ key: 'vpn', name: 'VPN', color: '#6D4AFF' }] } }),
+    summary({ id: '0192f0aa-0000-7000-8000-000000000003', displayName: 'Sans fournisseur' }),
+  ]);
+
+  it('filters by the labels turned on, writes them into the address, and clears them', async () => {
+    serve(labelled);
+    const { user, router, container } = await renderApp('/subscriptions');
+    const group = await screen.findByRole('group', { name: 'Libellés' });
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Video', 'VPN']);
+
+    await user.click(within(group).getByRole('button', { name: 'VPN' }));
+    expect(within(group).getByRole('button', { name: 'VPN' })).toHaveAttribute('aria-pressed', 'true');
+    expect((await rows()).map((r) => within(r).getByRole('link').textContent)).toEqual([expect.stringContaining('Proton VPN')]);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ label: 'vpn' }));
+
+    await user.click(within(group).getByRole('button', { name: 'Video' }));
+    expect(await rows()).toHaveLength(2);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ label: 'vpn,streaming-video' }));
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('button', { name: 'Effacer les libellés' }));
+    expect(await rows()).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Effacer les libellés' })).not.toBeInTheDocument();
+  });
+
+  it('reads the labels from the address and ignores an unknown or repeated one', async () => {
+    serve(labelled);
+    await renderApp('/subscriptions?label=vpn,vpn,nope');
+    const group = await screen.findByRole('group', { name: 'Libellés' });
+    expect(within(group).getByRole('button', { name: 'VPN' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(group).queryByRole('button', { name: 'nope' })).not.toBeInTheDocument();
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it('shows no label group when no provider carries a label', async () => {
+    serve(two);
+    await renderApp('/subscriptions');
+    await rows();
+    expect(screen.queryByRole('group', { name: 'Libellés' })).not.toBeInTheDocument();
+  });
 });
