@@ -4307,6 +4307,15 @@ export interface components {
             /** Format: uuid */
             id: string;
         };
+        ImportAuditView: {
+            /** Format: date-time */
+            committedAt: string;
+            contentHash: string;
+            format: string;
+            /** Format: int32 */
+            version: number;
+            replace: boolean;
+        };
         ImportIssue: {
             severity: components["schemas"]["IssueSeverity"];
             code: string;
@@ -4332,6 +4341,7 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
             report?: null | components["schemas"]["ImportReport"];
+            audit?: null | components["schemas"]["ImportAuditView"];
         };
         /** @enum {unknown} */
         IssueSeverity: "error" | "warning";

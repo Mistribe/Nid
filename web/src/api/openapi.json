@@ -5082,6 +5082,35 @@
           }
         }
       },
+      "ImportAuditView": {
+        "required": [
+          "committedAt",
+          "contentHash",
+          "format",
+          "version",
+          "replace"
+        ],
+        "type": "object",
+        "properties": {
+          "committedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "replace": {
+            "type": "boolean"
+          }
+        }
+      },
       "ImportIssue": {
         "required": [
           "severity",
@@ -5172,6 +5201,16 @@
               },
               {
                 "$ref": "#/components/schemas/ImportReport"
+              }
+            ]
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ImportAuditView"
               }
             ]
           }

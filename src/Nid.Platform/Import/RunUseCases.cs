@@ -68,7 +68,8 @@ public sealed class ValidateImportHandler(
 }
 
 [RequestHandler<CommitImportCommand, ImportSessionView>]
-public sealed class CommitImportHandler(ImportRunner runner, IImportStaging staging, IActorAccessor accessor, IClock clock, ImportOptions options)
+public sealed class CommitImportHandler(
+    ImportRunner runner, IImportStaging staging, IActorAccessor accessor, IClock clock, ImportOptions options, IImportAudit audit)
     : IRequestHandler<CommitImportCommand, ImportSessionView>
 {
     public async ValueTask<Result<ImportSessionView>> HandleAsync(CommitImportCommand command, CancellationToken ct = default)
@@ -99,6 +100,8 @@ public sealed class CommitImportHandler(ImportRunner runner, IImportStaging stag
         if (!committed.TryGetValue(out var report))
             return Result.Failure<ImportSessionView>(committed.TryGetFailure(out var failure) ? failure! : new Failure("ERROR", "Unknown failure.", null));
 
-        return Result.Success(ImportSessionView.From(session with { State = ImportState.Committed, ReportJson = ImportReportJson.Serialize(report) }));
+        return Result.Success(ImportSessionView.From(
+            session with { State = ImportState.Committed, ReportJson = ImportReportJson.Serialize(report) },
+            await audit.FindAsync(session.Id, ct)));
     }
 }

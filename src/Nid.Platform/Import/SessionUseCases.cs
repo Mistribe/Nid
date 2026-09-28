@@ -43,7 +43,7 @@ public sealed class StartImportHandler(IImportStaging staging, IActorAccessor ac
         if (!ImportActor.Require(accessor).TryGetValue(out var person))
             return Result.Failure<ImportSessionView>(new UnauthorizedFailure("An import is run by a person.", null));
 
-        if (command.Format != "nid.data" || command.Version != 1)
+        if (command.Format != NidDataFormat.Name || command.Version != NidDataFormat.Version)
             return Result.Failure<ImportSessionView>(new Failure(ImportCodes.UnsupportedFormat,
                 $"'{command.Format}' version {command.Version} is not supported: send nid.data version 1.", null));
 
@@ -59,7 +59,8 @@ public sealed class StartImportHandler(IImportStaging staging, IActorAccessor ac
 }
 
 [RequestHandler<GetImportQuery, ImportSessionView>]
-public sealed class GetImportHandler(IImportStaging staging, IActorAccessor accessor, IClock clock) : IRequestHandler<GetImportQuery, ImportSessionView>
+public sealed class GetImportHandler(IImportStaging staging, IActorAccessor accessor, IClock clock, IImportAudit audit)
+    : IRequestHandler<GetImportQuery, ImportSessionView>
 {
     public async ValueTask<Result<ImportSessionView>> HandleAsync(GetImportQuery query, CancellationToken ct = default)
     {
@@ -67,9 +68,11 @@ public sealed class GetImportHandler(IImportStaging staging, IActorAccessor acce
             return Result.Failure<ImportSessionView>(new UnauthorizedFailure("An import is run by a person.", null));
 
         var session = await ImportActor.FindAsync(staging, clock, query.SessionId, person, ct);
-        return session is null
-            ? Result.Failure<ImportSessionView>(ImportActor.NotFound(query.SessionId))
-            : Result.Success(ImportSessionView.From(session));
+        if (session is null)
+            return Result.Failure<ImportSessionView>(ImportActor.NotFound(query.SessionId));
+
+        var entry = session.State == ImportState.Committed ? await audit.FindAsync(session.Id, ct) : null;
+        return Result.Success(ImportSessionView.From(session, entry));
     }
 }
 
@@ -84,7 +87,7 @@ public sealed class ListImportsHandler(IImportStaging staging, IActorAccessor ac
 
         await staging.ExpireAsync(clock.GetCurrentInstant(), ct);
         var sessions = await staging.ListOwnedAsync(person, options.ListLimit, ct);
-        return Result.Success<IReadOnlyList<ImportSessionView>>(sessions.Select(ImportSessionView.From).ToList());
+        return Result.Success<IReadOnlyList<ImportSessionView>>(sessions.Select(s => ImportSessionView.From(s)).ToList());
     }
 }
 

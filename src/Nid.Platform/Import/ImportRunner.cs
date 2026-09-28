@@ -12,7 +12,8 @@ namespace Nid.Platform.Import;
 /// (<c>import-format.md</c> §11.4). It knows sections by name only.
 /// </summary>
 public sealed class ImportRunner(
-    IEnumerable<IImportSection> sections, IImportStaging staging, IUnitOfWork unitOfWork, IClock clock, ImportOptions options)
+    IEnumerable<IImportSection> sections, IImportStaging staging, IUnitOfWork unitOfWork, IClock clock, ImportOptions options,
+    IImportAudit audit)
 {
     public const string Validated = "validated";
     public const string Invalid = "invalid";
@@ -42,7 +43,7 @@ public sealed class ImportRunner(
                 return Result.Failure<ImportReport>(new Failure(ImportCodes.State, "Only a validated import can be committed.", null));
 
             // The state may have changed since validate: everything is checked again, on this transaction.
-            var (report, context, staged) = await RunValidationAsync(session, replace, ct);
+            var (report, context, staged, batches) = await RunValidationAsync(session, replace, ct);
             computed = report;
             if (report.State != Validated)
                 refused = report;
@@ -52,6 +53,12 @@ public sealed class ImportRunner(
                 if (applied.TryGetValue(out var counts))
                 {
                     var final = report with { State = Committed, Sections = counts };
+                    var order = ordered.SelectMany(s => s.Sections).Select((name, index) => (name, index))
+                        .ToDictionary(p => p.name, p => p.index, StringComparer.Ordinal);
+                    var hash = ContentHash.Of(batches
+                        .OrderBy(b => order.GetValueOrDefault(b.Section, int.MaxValue)).ThenBy(b => b.Index)
+                        .Select(b => b.Hash));
+                    await audit.RecordAsync(new ImportCommitRecord(session.Id, session.Person, hash, context.Replace, counts), ct);
                     await staging.ClearBatchesAsync(session.Id, ct);
                     await staging.TransitionAsync(session.Id, [ImportState.Committed], ImportState.Committed,
                         now, session.ExpiresAt, ImportReportJson.Serialize(final), ct);
@@ -93,7 +100,7 @@ public sealed class ImportRunner(
         return Result.Failure<ImportReport>(new Failure(ImportCodes.NotCommitted, "Nothing was written: the session's report says why.", null));
     }
 
-    private async Task<(ImportReport Report, ImportContext Context, IStagedBatches Staged)> RunValidationAsync(
+    private async Task<(ImportReport Report, ImportContext Context, IStagedBatches Staged, IReadOnlyList<StoredBatch> Batches)> RunValidationAsync(
         ImportSession session, bool replace, CancellationToken ct)
     {
         var batches = await staging.BatchesAsync(session.Id, ct);
@@ -114,7 +121,7 @@ public sealed class ImportRunner(
             }
 
         var state = issues.Any(i => i.Severity == IssueSeverity.Error) ? Invalid : Validated;
-        return (new ImportReport(state, counts, issues), context, staged);
+        return (new ImportReport(state, counts, issues), context, staged, batches);
     }
 
     private async Task<Result<IReadOnlyDictionary<string, SectionCounts>>> ApplyAsync(ImportContext context, IStagedBatches staged, CancellationToken ct)

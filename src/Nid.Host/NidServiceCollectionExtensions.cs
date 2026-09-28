@@ -76,6 +76,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IAccessViolations, AuditedAccessViolations>();
         services.AddScoped<ISecurityEvents, SecurityEventWriter>();
         services.AddScoped<IAuditLog, AuditLogReader>();
+        services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
         services.AddSingleton(new EnabledModules(["core", "subscriptions", "import"]));

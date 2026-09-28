@@ -9,7 +9,8 @@ namespace Nid.Subscriptions.IntegrationTests.Import;
 public sealed record IssueResponse(string Severity, string Code, string Message, string Path);
 public sealed record CountsResponse(int Created, int Unchanged, int Conflict, int Replaced = 0);
 public sealed record ReportResponse(string State, Dictionary<string, CountsResponse> Sections, List<IssueResponse> Issues);
-public sealed record SessionResponse(Guid Id, string State, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt, ReportResponse? Report);
+public sealed record AuditResponse(DateTimeOffset CommittedAt, string ContentHash, string Format, int Version, bool Replace);
+public sealed record SessionResponse(Guid Id, string State, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt, ReportResponse? Report, AuditResponse? Audit = null);
 public sealed record BatchResponse(string Section, int Index, int Count, bool Accepted, List<IssueResponse> Issues);
 
 /// <summary>Drives the import protocol through the real HTTP API, the way the browser and scripts do (§11.8).</summary>
@@ -17,7 +18,15 @@ public sealed class ImportClient(NidApp app)
 {
     public const string Root = "/api/v1/platform/imports";
 
+    /// <summary>The commit order the runner applies sections in (§11.4): <c>persons</c>, then the subscriptions
+    /// module's <c>providers</c>, <c>subscriptions</c>, <c>billing_phases</c>, <c>purchases</c>.</summary>
+    private static readonly IReadOnlyList<string> CommitOrder =
+        ["persons", "providers", "subscriptions", "billing_phases", "purchases"];
+
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    /// <summary>Every batch hash this client has sent, by session then section then batch index.</summary>
+    private readonly Dictionary<Guid, Dictionary<string, SortedDictionary<int, string>>> sentHashes = [];
 
     public async Task<HttpResponseMessage> StartRawAsync(PersonId actor, object? adults = null, string format = "nid.data", int version = 1)
         => await app.RawAsync(actor, HttpMethod.Post, Root, new { format, version, adults = adults ?? new { } });
@@ -33,7 +42,13 @@ public sealed class ImportClient(NidApp app)
     public async Task<HttpResponseMessage> PutRawAsync(PersonId actor, Guid session, string section, int index, string entitiesJson, string? hash = null)
     {
         using var entities = JsonDocument.Parse(entitiesJson);
-        var body = $$"""{"hash":"{{hash ?? Rfc8785.Hash(entities.RootElement)}}","entities":{{entitiesJson}}}""";
+        var sent = hash ?? Rfc8785.Hash(entities.RootElement);
+        var body = $$"""{"hash":"{{sent}}","entities":{{entitiesJson}}}""";
+        if (!sentHashes.TryGetValue(session, out var bySection))
+            sentHashes[session] = bySection = new Dictionary<string, SortedDictionary<int, string>>(StringComparer.Ordinal);
+        if (!bySection.TryGetValue(section, out var byIndex))
+            bySection[section] = byIndex = [];
+        byIndex[index] = sent;
         return await app.RawTextAsync(actor, HttpMethod.Put, $"{Root}/{session}/batches/{section}/{index}", body);
     }
 
@@ -62,6 +77,21 @@ public sealed class ImportClient(NidApp app)
 
     public async Task<SessionResponse> GetAsync(PersonId actor, Guid session)
         => await app.GetAsync<SessionResponse>(actor, $"{Root}/{session}");
+
+    /// <summary>
+    /// The hashes this client sent for <paramref name="session"/>, in the commit order the runner applies sections
+    /// (§11.4): the sections that were actually sent, batch index ascending within each.
+    /// </summary>
+    public Task<IReadOnlyList<string>> BatchHashesInCommitOrderAsync(PersonId actor, Guid session)
+    {
+        var bySection = sentHashes.TryGetValue(session, out var found) ? found : [];
+        var order = CommitOrder.Select((name, index) => (name, index)).ToDictionary(p => p.name, p => p.index, StringComparer.Ordinal);
+        IReadOnlyList<string> hashes = bySection
+            .OrderBy(p => order.GetValueOrDefault(p.Key, int.MaxValue))
+            .SelectMany(p => p.Value.OrderBy(e => e.Key).Select(e => e.Value))
+            .ToList();
+        return Task.FromResult(hashes);
+    }
 
     /// <summary>Starts a session, sends each section as batch 0, and validates. Each batch must be accepted.</summary>
     public async Task<SessionResponse> RunAsync(PersonId actor, object adults, IReadOnlyDictionary<string, string> sections)
