@@ -275,6 +275,26 @@ public sealed class NidApp : IAsyncDisposable
     }
 
     /// <summary>
+    /// An envelope owned by <paramref name="owners"/>, through the real API — the envelope counterpart of
+    /// <see cref="NewOwnedSubscriptionAsync"/>, created by an adult owner, or by A when only the dependent owns it.
+    /// </summary>
+    public async Task<ItemId> NewEnvelopeAsync(
+        string name, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
+    {
+        var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == AdultA || p == AdultB, AdultA);
+
+        var response = await RawAsync(creator, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = name, kind = "savings", currency = "EUR",
+            visibility = visibility == Visibility.Private ? "private" : "shared",
+            owners = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
     /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
     /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the
     /// way <c>ActorFilter</c> establishes it. Returns the failure the pipeline produced, or <c>null</c> on

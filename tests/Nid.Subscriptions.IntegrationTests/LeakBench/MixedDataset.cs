@@ -37,10 +37,12 @@ public sealed class MixedDataset
 
     private readonly Dictionary<ItemId, string> names;
 
-    private MixedDataset(NidApp app, IReadOnlyDictionary<string, ItemId> items)
+    private MixedDataset(NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes)
     {
-        (App, Items) = (app, items);
+        (App, Items, Envelopes) = (app, items, envelopes);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
+        foreach (var (name, envelope) in envelopes)
+            names[envelope] = name + " (envelope)";
     }
 
     public NidApp App { get; }
@@ -48,19 +50,35 @@ public sealed class MixedDataset
     /// <summary>Keyed by the names of access-tests.md §2: S-A, S-B, J-AB, P-A, P-B, D, M-AD.</summary>
     public IReadOnlyDictionary<string, ItemId> Items { get; }
 
+    /// <summary>
+    /// The envelope twin of each row (2B1a): same §2 name, label, owners and visibility, so the table expects of
+    /// it exactly what it expects of the row's subscription. The Investments requests run against these.
+    /// </summary>
+    public IReadOnlyDictionary<string, ItemId> Envelopes { get; }
+
     public ItemId this[string name] => Items[name];
+
+    /// <summary>
+    /// The rows a request is run against: the envelope twins for a request of <c>Nid.Investments.Application</c>
+    /// (a subscription is not an envelope, so it would only ever be refused on its own merits), the
+    /// subscriptions for every other one.
+    /// </summary>
+    public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
+        => requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes : Items;
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
     {
         var app = await NidApp.StartAsync(fixture);
 
         var items = new Dictionary<string, ItemId>();
+        var envelopes = new Dictionary<string, ItemId>();
         foreach (var row in Rows)
         {
             var owners = row.Owners
                 .Select(o => (Person: PersonOf(app, o), ShareBp: 10_000 / row.Owners.Length))
                 .ToArray();
             items[row.Name] = await app.NewOwnedSubscriptionAsync(row.Label, row.Visibility, owners);
+            envelopes[row.Name] = await app.NewEnvelopeAsync(row.Label, row.Visibility, owners);
         }
 
         // Each private item gets a custom provider named after its label, through the real requests: a provider list
@@ -75,7 +93,7 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {name}'s provider failed: {notLinked.Code}");
         }
 
-        return new MixedDataset(app, items);
+        return new MixedDataset(app, items, envelopes);
     }
 
     /// <summary>The §2 name of an item, for a failure message that says which row went wrong.</summary>
@@ -85,9 +103,14 @@ public sealed class MixedDataset
     public string NameOf(PersonId person)
         => person == App.AdultA ? "A" : person == App.AdultB ? "B" : person == App.Dependent ? "D" : person.ToString();
 
-    /// <summary>The items each adult may read, read off the table of access-tests.md §2.</summary>
+    /// <summary>
+    /// The items each adult may read, read off the table of access-tests.md §2: a row's subscription and its
+    /// envelope twin alike.
+    /// </summary>
     public IReadOnlySet<ItemId> ExpectedReadable(PersonId actor)
-        => Rows.Where(r => r.Readers.Contains(NameOf(actor))).Select(r => Items[r.Name]).ToHashSet();
+        => Rows.Where(r => r.Readers.Contains(NameOf(actor)))
+            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name] })
+            .ToHashSet();
 
     /// <summary>Whether access-tests.md §2 says this actor may change this item.</summary>
     public bool ExpectedWritable(string name, PersonId actor)
@@ -98,10 +121,11 @@ public sealed class MixedDataset
     /// <see cref="VisibilityScope.Me"/> — the actor's own ones (<c>Visibility.cs</c>). Asserting equality
     /// rather than containment catches an item that leaks AND one that wrongly disappears.
     /// </summary>
-    public IReadOnlySet<ItemId> ExpectedVisible(PersonId actor, VisibilityScope scope)
+    /// <paramref name="of"/> is <see cref="Items"/> or <see cref="Envelopes"/>: which of a row's twins to list.
+    public IReadOnlySet<ItemId> ExpectedVisible(PersonId actor, VisibilityScope scope, IReadOnlyDictionary<string, ItemId>? of = null)
         => Rows.Where(r => r.Visibility == Visibility.Shared
                            || (scope == VisibilityScope.Me && r.Owners.Contains(NameOf(actor))))
-            .Select(r => Items[r.Name])
+            .Select(r => (of ?? Items)[r.Name])
             .ToHashSet();
 
     /// <summary>The label of the private item of the adult who is not <paramref name="actor"/>.</summary>

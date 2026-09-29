@@ -7,7 +7,6 @@ using Nid.Core.Contracts;
 using Nid.Core.Application;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Api;
-using Nid.Investments.Application;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
@@ -148,8 +147,20 @@ public class LeakBenchTests(PostgresFixture fixture)
             Assert.Equal(
                 expected.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 list.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+            // The same, exactly, for the envelope twins (2B1a): the table expects of them what it expects of their rows.
+            var envelopes = await app.GetAsync<EnvelopeListResponse>(actor, $"/api/v1/investments/envelopes?scope={scope}");
+            var expectedEnvelopes = data.ExpectedVisible(
+                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Envelopes);
+            Assert.Equal(
+                expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                envelopes.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
         }
     }
+
+    private sealed record EnvelopeListResponse(IReadOnlyList<EnvelopeListRow> Items);
+
+    private sealed record EnvelopeListRow(Guid Id);
 
     [Fact]
     public async Task No_read_leaks_the_label_of_the_other_adults_private_item()
@@ -162,6 +173,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                  {
                      "/api/v1/subscriptions?scope=household",
                      "/api/v1/subscriptions?scope=me",
+                     "/api/v1/investments/envelopes?scope=household",
+                     "/api/v1/investments/envelopes?scope=me",
                      "/api/v1/core/persons",
                  })
         {
@@ -202,7 +215,7 @@ public class LeakBenchTests(PostgresFixture fixture)
         await using var app = data.App;
 
         foreach (var entry in RequestCatalogue.Entries.Where(e => e.IsItemScoped))
-        foreach (var (name, item) in data.Items)
+        foreach (var (name, item) in data.ItemsFor(entry.RequestType))
         foreach (var actor in new[] { app.AdultA, app.AdultB })
         {
             var request = entry.Build(data, item);
@@ -282,8 +295,8 @@ public class LeakBenchTests(PostgresFixture fixture)
         await using var app = data.App;
 
         foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildNamingAnother is not null))
-        foreach (var (targetName, target) in data.Items)
-        foreach (var (otherName, other) in data.Items)
+        foreach (var (targetName, target) in data.ItemsFor(entry.RequestType))
+        foreach (var (otherName, other) in data.ItemsFor(entry.RequestType))
         {
             if (target == other)
                 continue;
@@ -322,13 +335,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                     continue;
                 }
 
-                // The rules never turn this away: it must succeed. The one structural exception is
-                // TransferCommand — MixedDataset's items are Subscriptions rows, not Investments envelopes, so
-                // a transfer between two of them can never actually go through even when access is fine; that
-                // reads as "envelope not found", never as an access refusal, so it is let through here rather
-                // than the assertion below being weakened for every request. Task 7 removes this exception once
-                // the dataset grows envelope twins for the items it already has.
-                Assert.True(failure is null || (entry.RequestType == typeof(TransferCommand) && failure is NotFoundFailure { Resource: "envelope" }),
+                // The rules never turn this away: it must succeed.
+                Assert.True(failure is null,
                     $"{where}: the rules let this actor write both items, yet it was refused — {Describe(failure)}");
             }
         }
@@ -350,18 +358,24 @@ public class LeakBenchTests(PostgresFixture fixture)
             [app.AdultA] = [],
             [app.AdultB] = [],
         };
+        var envelopeBodies = new Dictionary<PersonId, List<string>>
+        {
+            [app.AdultA] = [],
+            [app.AdultB] = [],
+        };
 
         foreach (var entry in RequestCatalogue.Entries)
         {
             // The catalogue is the contract a new request's author fills in: check it builds what it claims
             // before anything downstream relies on it.
-            var sample = entry.Build(data, data["S-A"]);
+            var rows = data.ItemsFor(entry.RequestType);
+            var sample = entry.Build(data, rows["S-A"]);
             Assert.IsType(entry.RequestType, sample);
 
             if (typeof(ICommandMarker).IsAssignableFrom(entry.RequestType))
                 continue;
 
-            List<ItemId> targets = entry.IsItemScoped ? [.. data.Items.Values] : [data["S-A"]];
+            List<ItemId> targets = entry.IsItemScoped ? [.. rows.Values] : [rows["S-A"]];
 
             foreach (var actor in new[] { app.AdultA, app.AdultB })
             foreach (var target in targets)
@@ -384,6 +398,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                 // carry a label the identifier check cannot see. Every read gets this for free.
                 var serialised = JsonSerializer.Serialize(response, ResponseJson);
                 bodies[actor].Add(serialised);
+                if (rows == data.Envelopes)
+                    envelopeBodies[actor].Add(serialised);
 
                 Assert.DoesNotContain(data.ForbiddenLabel(actor), serialised, StringComparison.Ordinal);
             }
@@ -391,8 +407,12 @@ public class LeakBenchTests(PostgresFixture fixture)
 
         // Positive control: without it, a rename or a [JsonIgnore] would empty the scan above and nothing
         // would fail. "shared-a" is a label BOTH adults are entitled to read.
+        // The envelope reads get their own: the subscriptions' bodies alone would satisfy the one above.
         foreach (var actor in new[] { app.AdultA, app.AdultB })
+        {
             Assert.Contains(bodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+            Assert.Contains(envelopeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+        }
     }
 
     [Fact]

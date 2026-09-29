@@ -76,6 +76,8 @@ Règles :
 - **Devise étrangère** : le gain se calcule dans la devise de l'élément ; seuls les totaux sont convertis (`core-data-model.md` §5.5).
 - Avertissement **`missing_opening`** : valorisation non nulle, aucun flux `opening` et aucun versement. Le gain serait égal à la valeur, ce qui est trompeur.
 
+**Livré en 2B1a** (2026-09-29, `superpowers/specs/2026-09-29-investments-server-design.md`) : module `Nid.Investments`, table `investments.envelope`, API `/api/v1/investments` (enveloppes, valeurs, flux, virements internes, clôture et réouverture, performance d'une période). Le gain en % est arrondi par le serveur à 0,1 (demi s'éloignant de zéro). La date de l'`opening` n'est pas imposée : seul l'avertissement `missing_opening` guide. Codes : `investments.unknown_kind`, `investments.unknown_cadence`, `investments.invalid_envelope`, `investments.envelope_closed`, `investments.envelope_open`, `investments.transfer_same_envelope`, `investments.transfer_currency_mismatch`, `investments.invalid_period`. L'import et l'export (§9) viennent en 2B1b.
+
 ## 6. Rendement annualisé (TRI), étape 6
 
 Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant compte du moment des versements.
