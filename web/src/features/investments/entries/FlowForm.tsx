@@ -13,12 +13,13 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '../api';
 import { FLOW_KINDS } from '../format';
-import { flowSchema, placeFieldError, trimAmount } from './entries';
+import { flowSchema, placeFieldError, presentConflict, trimAmount } from './entries';
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS = { occurredOn: 'occurredOn', kind: 'kind', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'occurredOn' | 'amount'> = {
   'core.date_in_future': 'occurredOn', 'core.currency_mismatch': 'amount', 'core.invalid_fact': 'amount',
+  'core.amount_not_positive': 'amount',
 };
 
 /**
@@ -79,6 +80,9 @@ export function FlowForm({ envelope, editing, openingRequest, onDone }: {
       occurredOn: values.occurredOn, kind: values.kind,
       amount: { amount: toWireAmount(values.amount), currency: envelope.currency },
       note: values.note || undefined,
+      // A correction replaces the whole row (PUT): the category and external reference a value or an import gave
+      // it (finding 8) travel unchanged — this form never lets a person set or clear them.
+      ...(editing ? { category: editing.category, externalRef: editing.externalRef } : {}),
     };
     if (editing) update.mutate({ params: { path: { id: envelope.id, flowId: editing.id } }, body });
     else create.mutate({ params: { path: { id: envelope.id } }, body });
@@ -87,20 +91,23 @@ export function FlowForm({ envelope, editing, openingRequest, onDone }: {
   const e = form.formState.errors;
   const pending = editing ? update.isPending : create.isPending;
   const heading = editing ? t('envelope.edit_flow') : t('envelope.new_flow');
+  // A conflict shows its own sentence when known (final findings #5), read from the mutation's own error rather
+  // than `errors.problem` (which only carries the generic text `present()` gives every 409).
+  const problem = errors.problem?.kind === 'conflict' ? presentConflict(t, editing ? update.error : create.error) : errors.problem;
 
   return (
     <form aria-labelledby={headingId} onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3" noValidate>
       <h3 id={headingId} className="font-semibold">{heading}</h3>
-      {errors.problem ? (
+      {problem ? (
         <>
-          <ProblemMessage problem={errors.problem} />
-          {errors.problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
+          <ProblemMessage problem={problem} />
+          {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
         </>
       ) : null}
       {/* Mounted empty so a screen reader is already watching it when the text arrives. */}
       <p role="status" aria-live="polite">{saved ? t('envelope.flow_saved') : ''}</p>
       <Field label={t('envelope.date')} error={e.occurredOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register('occurredOn')} className={input} />}
+        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} className={input} />}
       </Field>
       <Field label={t('envelope.kind')} error={e.kind?.message}>
         {(c) => (

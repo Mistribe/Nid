@@ -37,8 +37,10 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(figures).toContainText('13,6 %');
 
   const bob = await browser.newPage();
-  await signIn(bob, 'bob', '/investments?scope=me');
-  await expect(bob.getByRole('heading', { name: 'Placements' })).toBeVisible();
+  await signIn(bob, 'bob', '/investments');
+  // The household scope lists every envelope alice and bob can each see; waiting for the loaded list or the empty
+  // state (rather than the always-rendered heading) is a positive signal that the query has actually settled.
+  await expect(bob.getByRole('list', { name: 'Liste des enveloppes' }).or(bob.getByRole('heading', { name: 'Aucune enveloppe pour l’instant' }))).toBeVisible();
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(url);
   await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();

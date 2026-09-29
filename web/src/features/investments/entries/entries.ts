@@ -1,13 +1,17 @@
 import type { TFunction } from 'i18next';
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { z } from 'zod';
-import { toProblem } from '@/api/errors';
-import { AMOUNT, ISO_DATE } from '../../subscriptions/edits/amount';
-import { fieldErrorsOf, messageFor } from '../../subscriptions/fieldErrors';
+import { present, toProblem, type Presentation } from '@/api/errors';
+import { ISO_DATE } from '../../subscriptions/edits/amount';
+import { fieldErrorsOf, knownConflictMessage, messageFor } from '../../subscriptions/fieldErrors';
 import { FLOW_KINDS } from '../format';
 
 /** A value may be negative (an overdrawn current account); a flow never is — its kind gives the direction. */
 export const SIGNED_AMOUNT = /^-?\d+([.,]\d{1,4})?$/;
+
+/** A flow amount, and the opening's (finding 3): the server refuses zero (`core.amount_not_positive`), so the
+ * client mirrors that bound rather than let a round trip say it. */
+export const POSITIVE_AMOUNT = /^(?!0+(?:[.,]0+)?$)\d+([.,]\d{1,4})?$/;
 
 export const valueSchema = (t: TFunction) => z.object({
   asOf: z.string().regex(ISO_DATE, t('edit.required')),
@@ -18,7 +22,7 @@ export const valueSchema = (t: TFunction) => z.object({
 export const flowSchema = (t: TFunction) => z.object({
   occurredOn: z.string().regex(ISO_DATE, t('edit.required')),
   kind: z.enum(FLOW_KINDS),
-  amount: z.string().regex(AMOUNT, t('investments_form.positive_amount_format')),
+  amount: z.string().regex(POSITIVE_AMOUNT, t('investments_form.positive_amount_format')),
   note: z.string().max(2000, t('investments_form.note_too_long')),
 });
 
@@ -51,4 +55,18 @@ export function placeFieldError<T extends FieldValues>(
   } else {
     errors.onError(error);
   }
+}
+
+/**
+ * A 409's own sentence when `messageFor` knows the code (final findings #5: `core.fact_retired`,
+ * `core.fact_conflict`, `core.opening_exists`, `investments.envelope_closed`), shown with `Reload`; the generic
+ * conflict text otherwise — never the server's raw sentence page-level. `ValueForm`, `FlowForm` and `RowActions`
+ * read the mutation's own `error` through this rather than `present(toProblem(error))` directly.
+ */
+export function presentConflict(t: TFunction, error: unknown): Presentation {
+  const problem = toProblem(error);
+  const base = present(problem);
+  if (base.kind !== 'conflict') return base;
+  const detail = knownConflictMessage(t, problem.code);
+  return detail ? { ...base, detail } : base;
 }

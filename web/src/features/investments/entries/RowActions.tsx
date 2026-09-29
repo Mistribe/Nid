@@ -1,13 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { present, toProblem } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '../api';
 import { isTransferLeg } from '../format';
+import { presentConflict } from './entries';
 
 type RowActionsProps = {
   envelope: EnvelopeDetail;
@@ -35,10 +35,10 @@ export function RowActions(props: RowActionsProps) {
   const transferLeg = props.kind === 'flow' && isTransferLeg(props.item);
 
   const removeValuation = $api.useMutation('delete', VALUATION, {
-    onSuccess: () => { void invalidateInvestments(queryClient); props.onDeleted(t('envelope.deleted')); },
+    onSuccess: () => { void invalidateInvestments(queryClient); props.onDeleted(t('envelope.value_deleted')); },
   });
   const removeFlow = $api.useMutation('delete', FLOW, {
-    onSuccess: () => { void invalidateInvestments(queryClient); props.onDeleted(t('envelope.deleted')); },
+    onSuccess: () => { void invalidateInvestments(queryClient); props.onDeleted(t('envelope.flow_deleted')); },
   });
   const remove = props.kind === 'value' ? removeValuation : removeFlow;
 
@@ -52,11 +52,13 @@ export function RowActions(props: RowActionsProps) {
     else removeFlow.mutate({ params: { path: { id: props.envelope.id, flowId: props.item.id } } });
   };
 
-  const problem = remove.error ? present(toProblem(remove.error)) : null;
+  const problem = remove.error ? presentConflict(t, remove.error) : null;
 
   return (
     <span className="flex flex-wrap items-center gap-2">
-      {!transferLeg ? <Button type="button" variant="outline" size="sm" onClick={props.onEdit}>{t('envelope.correct')}</Button> : null}
+      {!transferLeg ? (
+        <Button id={`correct-${props.kind}-${props.item.id}`} type="button" variant="outline" size="sm" onClick={props.onEdit}>{t('envelope.correct')}</Button>
+      ) : null}
       <ConfirmAction label={t('envelope.delete')} confirmation={confirmation} pending={remove.isPending} onConfirm={onConfirm} />
       {problem ? (
         <>

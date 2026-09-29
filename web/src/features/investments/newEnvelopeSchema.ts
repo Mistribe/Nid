@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import { checkOwnership, ownershipShape, ownershipToWire, type OwnershipValues } from '@/components/ownership/ownership';
-import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
+import { CURRENCY, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
+import { POSITIVE_AMOUNT, SIGNED_AMOUNT } from './entries/entries';
 import { CADENCES, KINDS } from './format';
 
 export function newEnvelopeSchema(t: TFunction) {
@@ -23,9 +24,12 @@ export function newEnvelopeSchema(t: TFunction) {
   }).superRefine((v, ctx) => {
     checkOwnership(v, ctx, t);
     const date = (on: string, path: string) => { if (!ISO_DATE.test(on)) ctx.addIssue({ code: 'custom', path: [path], message: required }); };
-    const amount = (text: string, path: string) => { if (!AMOUNT.test(text)) ctx.addIssue({ code: 'custom', path: [path], message: t('investments_form.amount_format') }); };
-    if (v.withOpening) { date(v.openingOn, 'openingOn'); amount(v.openingAmount, 'openingAmount'); }
-    if (v.withFirstValue) { date(v.firstValueOn, 'firstValueOn'); amount(v.firstValueAmount, 'firstValueAmount'); }
+    // The opening (a flow) must be positive, like any other flow (finding 3); the first value may be negative (an
+    // overdrawn current account, finding 10) — it stays a value, not a flow.
+    const openingAmount = (text: string, path: string) => { if (!POSITIVE_AMOUNT.test(text)) ctx.addIssue({ code: 'custom', path: [path], message: t('investments_form.positive_amount_format') }); };
+    const valueAmount = (text: string, path: string) => { if (!SIGNED_AMOUNT.test(text)) ctx.addIssue({ code: 'custom', path: [path], message: t('investments_form.amount_format') }); };
+    if (v.withOpening) { date(v.openingOn, 'openingOn'); openingAmount(v.openingAmount, 'openingAmount'); }
+    if (v.withFirstValue) { date(v.firstValueOn, 'firstValueOn'); valueAmount(v.firstValueAmount, 'firstValueAmount'); }
   });
 }
 

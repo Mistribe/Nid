@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { todayIso } from '../../subscriptions/today';
 import type { EnvelopeDetail } from '../api';
 import { detail, eur, PEA } from '../testData';
 
@@ -97,6 +98,35 @@ describe('recording values and flows', () => {
     await within(form).findByRole('status');
     const rows = within(screen.getByRole('table', { name: 'Valeurs de l’enveloppe' })).getAllByRole('row').slice(1);
     expect(rows.filter((r) => r.textContent?.includes('30 septembre 2025'))).toHaveLength(1);
+  });
+
+  it.each(['0', '0,00'])('refuses a zero flow amount (%s)', async (zero) => {
+    const calls: { method: string; path: string; body?: unknown }[] = [];
+    serve(detail(), calls);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const flow = await screen.findByRole('form', { name: 'Nouveau flux' });
+    await user.type(within(flow).getByLabelText('Montant'), zero);
+    await user.click(within(flow).getByRole('button', { name: 'Ajouter le flux' }));
+
+    expect(await within(flow).findByText('Saisissez un montant positif comme 1234,56.')).toBeInTheDocument();
+    expect(calls).toEqual([]);
+  });
+
+  it('gives the date inputs a max of today, so no future date can be picked', async () => {
+    serve(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const value = await screen.findByRole('form', { name: 'Nouvelle valeur' });
+    expect(within(value).getByLabelText('Date')).toHaveAttribute('max', todayIso());
+    const flow = screen.getByRole('form', { name: 'Nouveau flux' });
+    expect(within(flow).getByLabelText('Date')).toHaveAttribute('max', todayIso());
+
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    const row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Corriger' }));
+    const edit = screen.getByRole('form', { name: 'Corriger le flux' });
+    expect(within(edit).getByLabelText('Date')).toHaveAttribute('max', todayIso());
   });
 
   it('accepts a negative value (an overdrawn account) but refuses a negative flow', async () => {
@@ -198,6 +228,75 @@ describe('recording values and flows', () => {
     expect(calls).toEqual([{ method: 'POST', path: 'valuations', body: expect.objectContaining({ amount: { amount: '26000', currency: 'EUR' } }) as unknown }]);
   });
 
+  it('keeps a flow\'s category and external reference when correcting it', async () => {
+    const calls: { method: string; path: string; body?: unknown }[] = [];
+    serve(detail({ flows: [{ id: 'f3', occurredOn: '2025-06-15', kind: 'contribution', amount: eur('50.0000'), category: 'import', externalRef: 'import:42', note: null }] }), calls);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    const row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Corriger' }));
+    const edit = screen.getByRole('form', { name: 'Corriger le flux' });
+    await user.clear(within(edit).getByLabelText('Montant'));
+    await user.type(within(edit).getByLabelText('Montant'), '75');
+    await user.click(within(edit).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(calls).toEqual([
+      { method: 'PUT', path: 'flows/f3', body: expect.objectContaining({ category: 'import', externalRef: 'import:42' }) as unknown },
+    ]));
+  });
+
+  it('returns focus to the row\'s « Corriger » button when a flow correction is cancelled', async () => {
+    serve(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    const row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Corriger' }));
+    const edit = screen.getByRole('form', { name: 'Corriger le flux' });
+    await user.click(within(edit).getByRole('button', { name: 'Annuler' }));
+
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Corriger' })));
+  });
+
+  it('returns focus to the row\'s « Corriger » button when a value correction is cancelled', async () => {
+    serve(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const table = await screen.findByRole('table', { name: 'Valeurs de l’enveloppe' });
+    const row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Corriger' }));
+    const edit = screen.getByRole('form', { name: 'Corriger la valeur' });
+    await user.click(within(edit).getByRole('button', { name: 'Annuler' }));
+
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Corriger' })));
+  });
+
+  it('deletes a value, announcing « Valeur supprimée. » in its own section', async () => {
+    const calls: { method: string; path: string; body?: unknown }[] = [];
+    serve(detail(), calls);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const table = await screen.findByRole('table', { name: 'Valeurs de l’enveloppe' });
+    const heading = await screen.findByRole('heading', { name: 'Valeurs' });
+    const section = heading.closest('section');
+    if (!section) throw new Error('heading is not inside a section');
+    const row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Supprimer' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Valeur supprimée.'));
+    expect(calls).toEqual([{ method: 'DELETE', path: 'valuations/v2' }]);
+  });
+
+  it('hides the versements-antérieurs button once an opening already exists, even while it is reported missing', async () => {
+    serve(detail({ figures: { ...detail().figures, missingOpening: true } }), []);
+    await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByText('Le gain comprend peut-être des versements faits avant le début du suivi.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Saisir les versements antérieurs' })).not.toBeInTheDocument();
+  });
+
   it('deletes a transfer leg after saying the other envelope keeps its own, announcing it and moving focus', async () => {
     const calls: { method: string; path: string; body?: unknown }[] = [];
     serve(detail({ flows: [{ id: 't1', occurredOn: '2025-06-15', kind: 'withdrawal', amount: eur('100.0000'), category: 'transfer', externalRef: 'transfer:x', note: null }] }), calls);
@@ -213,8 +312,8 @@ describe('recording values and flows', () => {
     const heading = await screen.findByRole('heading', { name: 'Flux' });
     const section = heading.closest('section');
     if (!section) throw new Error('heading is not inside a section');
-    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Supprimé.'));
-    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(1));
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Flux supprimé.'));
+    await waitFor(() => expect(within(table).getByText('Aucun flux pour l’instant')).toBeInTheDocument());
     expect(document.activeElement).toBe(heading);
     expect(calls).toEqual([{ method: 'DELETE', path: 'flows/t1' }]);
   });
@@ -231,13 +330,13 @@ describe('recording values and flows', () => {
     const row = within(table).getAllByRole('row').slice(1)[0]!;
     await user.click(within(row).getByRole('button', { name: 'Supprimer' }));
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Supprimé.'));
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Flux supprimé.'));
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2));
 
     // The second deletion's request is held back (MSW mocks respond near-instantly otherwise, so `user.click`'s
     // own microtask flushing would race straight past the emptied status without a test ever observing it): the
-    // status must already read empty before the request even resolves, otherwise an unchanged « Supprimé. » would
-    // never be announced again.
+    // status must already read empty before the request even resolves, otherwise an unchanged « Flux supprimé. »
+    // would never be announced again.
     let resolveDelete!: () => void;
     const pending = new Promise<void>((resolve) => { resolveDelete = resolve; });
     server.use(
@@ -252,7 +351,7 @@ describe('recording values and flows', () => {
     expect(sectionStatus(section)).toBeEmptyDOMElement();
 
     resolveDelete();
-    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Supprimé.'));
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Flux supprimé.'));
   });
 
   it('a failed correction after a successful one leaves the section status empty', async () => {
@@ -325,6 +424,22 @@ describe('recording values and flows', () => {
 
     await waitFor(() => expect(getCalls).toBeGreaterThan(before));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('shows a known conflict\'s own sentence on the flow form, with a way to reload', async () => {
+    serve(detail(), []);
+    server.use(
+      http.post('*/api/v1/investments/envelopes/:id/flows', () =>
+        HttpResponse.json({ status: 409, code: 'core.opening_exists', title: 'The opening is already recorded.' }, { status: 409 })),
+    );
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const flow = await screen.findByRole('form', { name: 'Nouveau flux' });
+    await user.type(within(flow).getByLabelText('Montant'), '10');
+    await user.click(within(flow).getByRole('button', { name: 'Ajouter le flux' }));
+
+    expect(await within(flow).findByText('Les versements antérieurs sont déjà saisis : corrigez-les.')).toBeInTheDocument();
+    expect(within(flow).getByRole('button', { name: /Recharger/ })).toBeInTheDocument();
   });
 
   it('places a pathless core.date_in_future on the value form date field', async () => {

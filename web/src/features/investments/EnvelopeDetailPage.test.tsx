@@ -53,7 +53,7 @@ describe('EnvelopeDetailPage', () => {
     expect(flows[0]).toHaveTextContent('Virement');
   });
 
-  it('gives the other adult a read-only page without any form or action', async () => {
+  it('gives the other adult a read-only page without any form, action or Actions column', async () => {
     serve(detail({ canWrite: false }));
     const { container } = await renderApp(`/investments/${PEA}`);
 
@@ -61,6 +61,16 @@ describe('EnvelopeDetailPage', () => {
     const article = screen.getByRole('article');
     expect(within(article).queryByRole('button')).not.toBeInTheDocument();
     expect(within(article).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(within(article).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows a placeholder row in each table when there are no values or flows yet', async () => {
+    serve(detail({ valuations: [], flows: [] }));
+    const { container } = await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByText('Aucune valeur pour l’instant')).toBeInTheDocument();
+    expect(screen.getByText('Aucun flux pour l’instant')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 

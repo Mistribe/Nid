@@ -12,7 +12,7 @@ import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { invalidateInvestments, VALUATIONS, type EnvelopeDetail, type Valuation } from '../api';
-import { placeFieldError, trimAmount, valueSchema } from './entries';
+import { placeFieldError, presentConflict, trimAmount, valueSchema } from './entries';
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS = { asOf: 'asOf', amount: 'amount', note: 'note' } as const;
@@ -69,21 +69,24 @@ export function ValueForm({ envelope, editing, onDone }: { envelope: EnvelopeDet
   const asOf = form.watch('asOf');
   const replaces = !editing && envelope.valuations.some((v) => v.asOf === asOf);
   const heading = editing ? t('envelope.edit_value') : t('envelope.new_value');
+  // A conflict shows its own sentence when known (final findings #5), read from the mutation's own error rather
+  // than `errors.problem` (which only carries the generic text `present()` gives every 409).
+  const problem = errors.problem?.kind === 'conflict' ? presentConflict(t, save.error) : errors.problem;
 
   return (
     <form aria-labelledby={headingId} onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3" noValidate>
       <h3 id={headingId} className="font-semibold">{heading}</h3>
-      {errors.problem ? (
+      {problem ? (
         <>
-          <ProblemMessage problem={errors.problem} />
-          {errors.problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
+          <ProblemMessage problem={problem} />
+          {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
         </>
       ) : null}
       {/* Mounted empty so a screen reader is already watching it when the text arrives (it is the change, not the
        * element's appearance, that must be announced). */}
       <p role="status" aria-live="polite">{saved ? t('envelope.value_saved') : ''}</p>
       <Field label={t('envelope.date')} hint={replaces ? t('envelope.replaces') : undefined} error={e.asOf?.message}>
-        {(c) => <input type="date" readOnly={!!editing} {...c} {...form.register('asOf')} className={input} />}
+        {(c) => <input type="date" max={todayIso()} readOnly={!!editing} {...c} {...form.register('asOf')} className={input} />}
       </Field>
       <Field label={t('envelope.amount')} error={e.amount?.message}>
         {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}

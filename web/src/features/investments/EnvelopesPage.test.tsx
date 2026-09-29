@@ -45,21 +45,22 @@ describe('EnvelopesPage', () => {
     expect(within(row).getByText('en baisse')).toBeInTheDocument();
   });
 
-  it('never shows an unknown value as zero', async () => {
+  it('never shows an unknown value as zero, and says it only once (not again for the gain)', async () => {
     serve(list([summary({ figures: unknownFigures() })]));
     await renderApp('/investments');
 
     const row = (await rows())[0]!;
-    expect(row).toHaveTextContent('Aucune valeur pour l’instant');
+    expect(within(row).getAllByText('Aucune valeur pour l’instant')).toHaveLength(1);
     expect(row).not.toHaveTextContent('0,00 €');
   });
 
-  it('shows an undefined percent as a dash with an explanation', async () => {
+  it('shows an undefined percent as a dash, with the explanation for a screen reader alone', async () => {
     serve(list([summary({ figures: figures({ netContributions: eur('0.0000'), gain: eur('1000.0000'), gainPct: null, missingOpening: true }) })]));
     await renderApp('/investments');
 
     const row = (await rows())[0]!;
-    expect(within(row).getByLabelText('Pourcentage non calculable : versements nets nuls ou négatifs')).toHaveTextContent('—');
+    expect(row).toHaveTextContent('—');
+    expect(within(row).getByText('Pourcentage non calculable : versements nets nuls ou négatifs')).toBeInTheDocument();
   });
 
   it('flags a stale value with its age', async () => {

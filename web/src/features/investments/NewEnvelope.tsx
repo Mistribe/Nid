@@ -117,7 +117,7 @@ export function NewEnvelope() {
         {withOpening ? (
           <>
             <Field label={t('investments_form.opening_on')} error={e.openingOn?.message}>
-              {(c) => <input type="date" {...c} {...form.register('openingOn')} className={input} />}
+              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('openingOn')} className={input} />}
             </Field>
             <Field label={t('investments_form.opening_amount')} error={e.openingAmount?.message}>
               {(c) => <input inputMode="decimal" {...c} {...form.register('openingAmount')} className={`w-32 ${input}`} />}
@@ -130,7 +130,7 @@ export function NewEnvelope() {
         {withFirstValue ? (
           <>
             <Field label={t('investments_form.first_value_on')} error={e.firstValueOn?.message}>
-              {(c) => <input type="date" {...c} {...form.register('firstValueOn')} className={input} />}
+              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('firstValueOn')} className={input} />}
             </Field>
             <Field label={t('investments_form.first_value_amount')} error={e.firstValueAmount?.message}>
               {(c) => <input inputMode="decimal" {...c} {...form.register('firstValueAmount')} className={`w-32 ${input}`} />}

@@ -97,6 +97,49 @@ describe('NewEnvelope', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 
+  it.each(['0', '0,00'])('refuses a zero opening amount (%s)', async (zero) => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user } = await renderApp('/investments/new');
+
+    await user.type(await screen.findByLabelText('Nom'), 'PEA');
+    await user.click(screen.getByRole('checkbox', { name: 'Versements antérieurs' }));
+    await user.type(screen.getByLabelText('Date des versements antérieurs'), '2024-12-31');
+    await user.type(screen.getByLabelText('Montant des versements antérieurs'), zero);
+    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+
+    expect(await screen.findByText('Saisissez un montant positif comme 1234,56.')).toBeInTheDocument();
+    expect(bodies).toEqual([]);
+  });
+
+  it('accepts a negative first value (an overdrawn current account), unlike the opening', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user } = await renderApp('/investments/new');
+
+    await user.type(await screen.findByLabelText('Nom'), 'Compte courant');
+    await user.selectOptions(screen.getByLabelText('Type'), 'checking');
+    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.type(screen.getByLabelText('Montant de la première valeur'), '-120,50');
+    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(bodies).toEqual([expect.objectContaining({
+      firstValuation: { asOf: todayIso(), amount: { amount: '-120.50', currency: 'EUR' } },
+    })]);
+  });
+
+  it('gives the opening and first-value dates a max of today', async () => {
+    serveCreate([]);
+    const { user } = await renderApp('/investments/new');
+
+    await screen.findByLabelText('Nom');
+    await user.click(screen.getByRole('checkbox', { name: 'Versements antérieurs' }));
+    expect(screen.getByLabelText('Date des versements antérieurs')).toHaveAttribute('max', todayIso());
+    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    expect(screen.getByLabelText('Date de la première valeur')).toHaveAttribute('max', todayIso());
+  });
+
   it('reads a lowercase currency as capitals, for the envelope and its first value', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);

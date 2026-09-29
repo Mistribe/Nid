@@ -20,6 +20,14 @@ export function messageFor(t: TFunction, error: FieldError): string {
   return isKnown(key) ? t(`field_error.${key}`) : error.message;
 }
 
+/** A conflict's own sentence when its code is one `field_error.*` knows (final findings #5); `undefined` otherwise,
+ * so the caller falls back to the generic conflict text rather than show the server's raw sentence. */
+export function knownConflictMessage(t: TFunction, code: string | null | undefined): string | undefined {
+  if (!code) return undefined;
+  const key = keyOf(code);
+  return isKnown(key) ? t(`field_error.${key}`) : undefined;
+}
+
 /** The wizard step that owns a path, so an error on an earlier step brings the user back to it. */
 export function stepOf(path: string, steps: Record<number, string[]>): number | undefined {
   for (const [step, prefixes] of Object.entries(steps))

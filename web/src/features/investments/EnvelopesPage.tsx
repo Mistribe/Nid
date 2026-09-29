@@ -72,7 +72,7 @@ function Row({ item }: { item: EnvelopeSummary }) {
           ? <span className="tabular-nums"><Money value={item.figures.value} tabular />{item.figures.asOf ? <> · <LocalDate value={item.figures.asOf} /></> : null}</span>
           : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
         <StaleBadge days={item.figures.staleDays} />
-        <Gain figures={item.figures} />
+        {item.figures.value ? <Gain figures={item.figures} /> : null}
       </div>
     </li>
   );

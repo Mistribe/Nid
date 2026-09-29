@@ -15,11 +15,11 @@ export function Gain({ figures }: { figures: Figures }) {
   const direction = directionOf(figures.gain.amount);
   const Icon = ICON[direction];
   return (
-    <span className={`inline-flex items-center gap-1 ${TONE[direction]}`}>
-      <Icon aria-hidden="true" className="size-4" />
+    <span className="inline-flex items-center gap-1">
+      <Icon aria-hidden="true" className={`size-4 ${TONE[direction]}`} />
       <span className="tabular-nums">{signed('fr-FR', figures.gain.currency, figures.gain.amount)}</span>
       {figures.gainPct === null || figures.gainPct === undefined
-        ? <span aria-label={t('investments.pct_undefined')}>{t('investments.dash')}</span>
+        ? <><span aria-hidden="true">{t('investments.dash')}</span><span className="sr-only">{t('investments.pct_undefined')}</span></>
         : <span className="tabular-nums">{t('investments.pct', { value: new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(figures.gainPct) })}</span>}
       <span>{t(`investments.direction.${direction}`)}</span>
     </span>
