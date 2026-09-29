@@ -1252,6 +1252,345 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    archived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeList"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateEnvelopeBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/envelopes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EditEnvelopeBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/platform/imports": {
         parameters: {
             query?: never;
@@ -4085,6 +4424,10 @@ export interface components {
             status: string;
             isAdmin: boolean;
         };
+        AmountView: {
+            amount: string;
+            currency: string;
+        };
         AuditActorView: {
             kind: string;
             /** Format: uuid */
@@ -4172,6 +4515,22 @@ export interface components {
         CreateDependentBody: {
             displayName: string;
         };
+        CreateEnvelopeBody: {
+            displayName: string;
+            kind: string;
+            currency: string;
+            visibility?: null | string;
+            owners: components["schemas"]["OwnerBody"][];
+            institution?: null | string;
+            accountHint?: null | string;
+            openedOn?: null | string;
+            valuationCadence?: null | string;
+            /** Format: int32 */
+            staleAfterDays?: null | number;
+            note?: null | string;
+            opening?: null | components["schemas"]["OpeningBody"];
+            firstValuation?: null | components["schemas"]["FirstValuationBody"];
+        };
         CreateProviderBody: {
             name: string;
             website?: null | string;
@@ -4199,6 +4558,22 @@ export interface components {
             count: number;
             unit: string;
         };
+        EditEnvelopeBody: {
+            displayName?: null | string;
+            kind?: null | string;
+            institution?: null | string;
+            clearInstitution: boolean;
+            accountHint?: null | string;
+            clearAccountHint: boolean;
+            openedOn?: null | string;
+            clearOpenedOn: boolean;
+            valuationCadence?: null | string;
+            /** Format: int32 */
+            staleAfterDays?: null | number;
+            clearStaleAfterDays: boolean;
+            note?: null | string;
+            clearNote: boolean;
+        };
         EditSubscriptionBody: {
             autoRenew?: null | boolean;
             cancelledAt?: null | string;
@@ -4207,6 +4582,40 @@ export interface components {
             providerKey?: null | string;
             /** @default false */
             clearProviderKey: boolean;
+        };
+        EnvelopeDetail: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            kind: string;
+            currency: string;
+            visibility: string;
+            closed: boolean;
+            canWrite: boolean;
+            institution?: null | string;
+            accountHint?: null | string;
+            /** Format: date */
+            openedOn?: null | string;
+            valuationCadence: string;
+            /** Format: int32 */
+            staleAfterDays?: null | number;
+            note?: null | string;
+            figures: components["schemas"]["FiguresView"];
+            valuations: components["schemas"]["ValuationView"][];
+            flows: components["schemas"]["FlowView"][];
+        };
+        EnvelopeList: {
+            items: components["schemas"]["EnvelopeSummary"][];
+        };
+        EnvelopeSummary: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            kind: string;
+            currency: string;
+            visibility: string;
+            closed: boolean;
+            figures: components["schemas"]["FiguresView"];
         };
         ExportManifestView: {
             format: string;
@@ -4227,10 +4636,42 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        FiguresView: {
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: date */
+            asOf?: null | string;
+            netContributions?: null | components["schemas"]["AmountView"];
+            gain?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            gainPct?: null | number;
+            fees?: null | components["schemas"]["AmountView"];
+            gainAfterFees?: null | components["schemas"]["AmountView"];
+            income?: null | components["schemas"]["AmountView"];
+            contributionsSince: components["schemas"]["AmountView"];
+            withdrawalsSince: components["schemas"]["AmountView"];
+            missingOpening: boolean;
+            /** Format: int32 */
+            staleDays?: null | number;
+        };
         FindingView: {
             code: string;
             message: string;
             reference?: null | string;
+        };
+        FirstValuationBody: {
+            asOf: string;
+            amount: components["schemas"]["MoneyBody"];
+        };
+        FlowView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            occurredOn: string;
+            kind: string;
+            amount: components["schemas"]["AmountView"];
+            category?: null | string;
+            externalRef?: null | string;
+            note?: null | string;
         };
         FxRateView: {
             /** Format: date */
@@ -4388,6 +4829,10 @@ export interface components {
         MoneyView: {
             amount: string;
             currency: string;
+        };
+        OpeningBody: {
+            occurredOn: string;
+            amount: components["schemas"]["MoneyBody"];
         };
         OwnerBody: {
             /** Format: uuid */
@@ -4659,6 +5104,14 @@ export interface components {
             health: components["schemas"]["SystemHealthView"];
             /** Format: int64 */
             databaseSizeBytes?: null | number;
+        };
+        ValuationView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            asOf: string;
+            amount: components["schemas"]["AmountView"];
+            note?: null | string;
         };
     };
     responses: never;

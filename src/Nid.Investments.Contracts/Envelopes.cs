@@ -37,6 +37,22 @@ public static class EnvelopeWire
         cadence = default;
         return false;
     }
+
+    /// <summary>Flow kinds on the wire (Tasks 4-6): contribution, withdrawal, opening, income, expense.</summary>
+    public static string FlowWire(FlowKind kind) => kind switch
+    {
+        FlowKind.Contribution => "contribution", FlowKind.Withdrawal => "withdrawal", FlowKind.Opening => "opening",
+        FlowKind.Income => "income", FlowKind.Expense => "expense",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+    };
+
+    public static bool TryFlowKind(string? wire, out FlowKind kind)
+    {
+        foreach (var k in Enum.GetValues<FlowKind>())
+            if (FlowWire(k) == wire) { kind = k; return true; }
+        kind = default;
+        return false;
+    }
 }
 
 /// <summary>The module's attributes of an envelope (spec §3.2); name, owners, visibility and currency are the item's.</summary>

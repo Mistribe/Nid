@@ -260,6 +260,20 @@ public sealed class NidApp : IAsyncDisposable
         return new ItemId(created.GetProperty("id").GetGuid());
     }
 
+    /// <summary>Creates the Core item and the envelope through the real API (2B1a).</summary>
+    public async Task<ItemId> NewEnvelopeAsync(string name, PersonId owner, Visibility visibility, string currency = "EUR")
+    {
+        var response = await RawAsync(owner, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = name, kind = "savings", currency,
+            visibility = visibility == Visibility.Private ? "private" : "shared",
+            owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
+        });
+        response.EnsureSuccessStatusCode();
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return new ItemId(json.RootElement.GetProperty("id").GetGuid());
+    }
+
     /// <summary>
     /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
     /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the

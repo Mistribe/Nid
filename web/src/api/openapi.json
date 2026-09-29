@@ -1281,6 +1281,376 @@
         }
       }
     },
+    "/api/v1/investments/envelopes": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEnvelopeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/envelopes/{id}": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditEnvelopeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/imports": {
       "post": {
         "tags": [
@@ -4181,6 +4551,21 @@
           }
         }
       },
+      "AmountView": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
       "AuditActorView": {
         "required": [
           "kind",
@@ -4546,6 +4931,95 @@
           }
         }
       },
+      "CreateEnvelopeBody": {
+        "required": [
+          "displayName",
+          "kind",
+          "currency",
+          "owners"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnerBody"
+            }
+          },
+          "institution": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "openedOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "valuationCadence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "staleAfterDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opening": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpeningBody"
+              }
+            ]
+          },
+          "firstValuation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FirstValuationBody"
+              }
+            ]
+          }
+        }
+      },
       "CreateProviderBody": {
         "required": [
           "name"
@@ -4678,6 +5152,82 @@
           }
         }
       },
+      "EditEnvelopeBody": {
+        "required": [
+          "clearInstitution",
+          "clearAccountHint",
+          "clearOpenedOn",
+          "clearStaleAfterDays",
+          "clearNote"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "institution": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearInstitution": {
+            "type": "boolean"
+          },
+          "accountHint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearAccountHint": {
+            "type": "boolean"
+          },
+          "openedOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearOpenedOn": {
+            "type": "boolean"
+          },
+          "valuationCadence": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "staleAfterDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "clearStaleAfterDays": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearNote": {
+            "type": "boolean"
+          }
+        }
+      },
       "EditSubscriptionBody": {
         "required": [
           "clearCancelledAt",
@@ -4715,6 +5265,146 @@
           "clearProviderKey": {
             "type": "boolean",
             "default": false
+          }
+        }
+      },
+      "EnvelopeDetail": {
+        "required": [
+          "id",
+          "displayName",
+          "kind",
+          "currency",
+          "visibility",
+          "closed",
+          "canWrite",
+          "valuationCadence",
+          "figures",
+          "valuations",
+          "flows"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
+          "institution": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "openedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "valuationCadence": {
+            "type": "string"
+          },
+          "staleAfterDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "figures": {
+            "$ref": "#/components/schemas/FiguresView"
+          },
+          "valuations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValuationView"
+            }
+          },
+          "flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowView"
+            }
+          }
+        }
+      },
+      "EnvelopeList": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeSummary"
+            }
+          }
+        }
+      },
+      "EnvelopeSummary": {
+        "required": [
+          "id",
+          "displayName",
+          "kind",
+          "currency",
+          "visibility",
+          "closed",
+          "figures"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/FiguresView"
           }
         }
       },
@@ -4787,6 +5477,106 @@
           }
         }
       },
+      "FiguresView": {
+        "required": [
+          "contributionsSince",
+          "withdrawalsSince",
+          "missingOpening"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "asOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "netContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "gain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "gainPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "fees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "gainAfterFees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "income": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "contributionsSince": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "withdrawalsSince": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "missingOpening": {
+            "type": "boolean"
+          },
+          "staleDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "FindingView": {
         "required": [
           "code",
@@ -4801,6 +5591,64 @@
             "type": "string"
           },
           "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FirstValuationBody": {
+        "required": [
+          "asOf",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyBody"
+          }
+        }
+      },
+      "FlowView": {
+        "required": [
+          "id",
+          "occurredOn",
+          "kind",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "externalRef": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
             "type": [
               "null",
               "string"
@@ -5397,6 +6245,21 @@
           },
           "currency": {
             "type": "string"
+          }
+        }
+      },
+      "OpeningBody": {
+        "required": [
+          "occurredOn",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "occurredOn": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyBody"
           }
         }
       },
@@ -6596,6 +7459,33 @@
               "integer"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "ValuationView": {
+        "required": [
+          "id",
+          "asOf",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       }

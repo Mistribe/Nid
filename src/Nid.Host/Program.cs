@@ -100,6 +100,7 @@ app.UseAuthorization();
 app.MapAuth();
 app.MapPersonEndpoints();
 app.MapSubscriptionEndpoints();
+app.MapInvestmentEndpoints();
 app.MapImportEndpoints();
 app.MapExportEndpoints();
 app.MapPlatformEndpoints();

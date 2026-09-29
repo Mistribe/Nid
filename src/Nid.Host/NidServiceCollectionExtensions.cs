@@ -126,6 +126,8 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<InvestmentsDbContext>>();
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
+        services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
+        services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.
@@ -166,6 +168,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Platform.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Core.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
         });
         return services;
     }

@@ -4,6 +4,8 @@ using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
+using Nid.Investments.Contracts;
 using Nid.Platform;
 using Nid.Platform.Admin;
 using Nid.Platform.Audit;
@@ -207,6 +209,12 @@ public static class RequestCatalogue
         // output guard (1D2 design §6), and ExportPrivacyTests checks the content.
         new(typeof(ExportManifestQuery), false, (_, _) => new ExportManifestQuery()),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("subscriptions", null, null)),
+
+        new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetEnvelopeQuery), true, (_, item) => new GetEnvelopeQuery(item)),
+        new(typeof(EditEnvelopeCommand), true, (_, item) => new EditEnvelopeCommand(item, null, null, new EnvelopeChange(Note: "bench"), null)),
+        new(typeof(CreateEnvelopeCommand), false, (d, _) => new CreateEnvelopeCommand("bench", "savings", Currency.Eur, Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], null, null, null, null, null, null, null, null)),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

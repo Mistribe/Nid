@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
+using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
@@ -123,6 +124,11 @@ public static class ResultHttp
             _ when ImportCodes.Conflicts.Contains(failure.Code) => StatusCodes.Status409Conflict,
             _ when ImportCodes.BadRequests.Contains(failure.Code) => StatusCodes.Status400BadRequest,
             _ when failure.Code == FieldErrors.ShapeCode => StatusCodes.Status422UnprocessableEntity,
+            _ when failure.Code is CoreFactCodes.FactNotFound => StatusCodes.Status404NotFound,
+            _ when failure.Code is CoreFactCodes.FactRetired or CoreFactCodes.OpeningExists or CoreFactCodes.ExternalRefTaken
+                or CoreFactCodes.FactConflict => StatusCodes.Status409Conflict,
+            _ when failure.Code is InvestmentsCodes.EnvelopeClosed or InvestmentsCodes.EnvelopeOpen => StatusCodes.Status409Conflict,
+            _ when failure.Code == InvestmentsCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 
