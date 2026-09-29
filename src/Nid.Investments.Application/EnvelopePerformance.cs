@@ -50,14 +50,18 @@ public sealed class EnvelopePerformance(
         series.TryGetValue(out var values);
         list.TryGetValue(out var flowList);
         var currency = values!.FirstOrDefault()?.Value.Currency ?? flowList!.FirstOrDefault()?.Amount.Currency;
-        return Result.Success(new Facts(envelope.Envelope, envelope.Item, values!, flowList!, currency ?? await CurrencyAsync(id, ct)));
-    }
-
-    // An envelope with no fact yet: its currency is the item's (the Core refuses an item without one for facts, 2A).
-    private async Task<Currency> CurrencyAsync(ItemId id, CancellationToken ct)
-    {
-        var sum = await flows.SumAsync(id, new HashSet<FlowKind> { FlowKind.Contribution }, Everything, ct);
-        return sum.TryGetValue(out var zero) ? zero.Currency : Currency.Eur;
+        if (currency is null)
+        {
+            // An envelope with no fact yet: its currency is the item's (the Core refuses an item without one
+            // for facts, 2A). Fix round 1, ruling 2: a failed sum propagates as FactsAsync's own failure —
+            // never a silent EUR fallback that would misreport a household in another currency.
+            var sum = await flows.SumAsync(id, new HashSet<FlowKind> { FlowKind.Contribution }, Everything, ct);
+            if (sum.TryGetFailure(out failure))
+                return Result.Failure<Facts>(failure!);
+            sum.TryGetValue(out var zero);
+            currency = zero.Currency;
+        }
+        return Result.Success(new Facts(envelope.Envelope, envelope.Item, values!, flowList!, currency!.Value));
     }
 
     internal sealed record Facts(Envelope Envelope, ItemAccess Item, IReadOnlyList<Valuation> Values, IReadOnlyList<Flow> Flows, Currency Currency);

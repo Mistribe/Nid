@@ -40,6 +40,7 @@ public sealed class CreateEnvelopeHandler(
         var kind = EnvelopeRules.Kind(command.Kind);
         var cadence = EnvelopeRules.Cadence(command.ValuationCadence);
         if (kind.TryGetFailure(out var failure) || cadence.TryGetFailure(out failure)
+            || EnvelopeRules.Name(command.DisplayName).TryGetFailure(out failure)
             || EnvelopeRules.Check(command.Institution, command.AccountHint, command.StaleAfterDays, command.Note).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         kind.TryGetValue(out var k);
@@ -83,6 +84,8 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var envelope);
         if (EnvelopeCheck.RequireOpen(envelope.Item).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        if (command.DisplayName is not null && EnvelopeRules.Name(command.DisplayName).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         EnvelopeKind? kind = null;

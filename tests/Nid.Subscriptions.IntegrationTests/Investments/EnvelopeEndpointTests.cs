@@ -77,6 +77,44 @@ public class EnvelopeEndpointTests(PostgresFixture fixture)
         Assert.Equal(code, (await JsonAsync(refused)).GetProperty("code").GetString());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task An_empty_or_blank_name_is_refused(string name)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", Create(app, name: name));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("investments.invalid_envelope", (await JsonAsync(refused)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_name_over_100_characters_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", Create(app, name: new string('a', 101)));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("investments.invalid_envelope", (await JsonAsync(refused)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Renaming_to_an_empty_name_is_refused_and_leaves_the_name_unchanged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/investments/envelopes/{id.Value}", new { displayName = "" });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("investments.invalid_envelope", (await JsonAsync(refused)).GetProperty("code").GetString());
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/investments/envelopes/{id.Value}"));
+        Assert.Equal("Livret", detail.GetProperty("displayName").GetString());
+    }
+
     [Fact]
     public async Task Editing_changes_the_name_and_the_settings()
     {
@@ -103,6 +141,20 @@ public class EnvelopeEndpointTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/investments/envelopes/{id.Value}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,
             (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"/api/v1/investments/envelopes/{id.Value}", new { note = "x" })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Another_adult_reads_but_may_not_write_a_shared_envelope()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret Partagé", app.AdultA, Visibility.Shared);
+
+        var refused = await app.RawAsync(app.AdultB, HttpMethod.Patch, $"/api/v1/investments/envelopes/{id.Value}",
+            new { displayName = "Hacked" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        var detail = await JsonAsync(await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/investments/envelopes/{id.Value}"));
+        Assert.Equal("Livret Partagé", detail.GetProperty("displayName").GetString());
     }
 
     [Fact]
