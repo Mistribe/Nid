@@ -4,36 +4,35 @@ import { useEffect, useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { toWireAmount } from '../../subscriptions/edits/amount';
 import { Field } from '../../subscriptions/edits/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
-import { fieldErrorsOf, messageFor } from '../../subscriptions/fieldErrors';
 import { todayIso } from '../../subscriptions/today';
 import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '../api';
 import { FLOW_KINDS } from '../format';
-import { flowSchema, trimAmount } from './entries';
+import { flowSchema, placeFieldError, trimAmount } from './entries';
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS = { occurredOn: 'occurredOn', kind: 'kind', amount: 'amount', note: 'note' } as const;
-
-/** A pathless Core refusal (Task 3: these codes carry no `errors[]`) attributed to the one field it can concern. */
-function fallbackField(code: string | null | undefined): 'occurredOn' | 'amount' | undefined {
-  if (code === 'core.date_in_future') return 'occurredOn';
-  if (code === 'core.currency_mismatch' || code === 'core.invalid_fact') return 'amount';
-  return undefined;
-}
+const FALLBACK: Record<string, 'occurredOn' | 'amount'> = {
+  'core.date_in_future': 'occurredOn', 'core.currency_mismatch': 'amount', 'core.invalid_fact': 'amount',
+};
 
 /**
  * The « Ajouter un flux » form at the top of the envelope's page (`editing` absent), or a correction inline on its
  * row (2B2a design §6): a new flow posts `FLOWS`, a correction puts `FLOW`. « Versements antérieurs » (`opening`)
- * is offered only while the envelope has none yet, unless this very form is correcting that one.
+ * is offered only while the envelope has none yet, unless this very form is correcting that one. `openingRequest`
+ * is a counter the page bumps from the missing-opening warning's button: every change (even to the same request
+ * again) sets the kind to `opening` and focuses it, so a second click always jumps back to it even if the person
+ * had since picked something else. The row form closes on save: `onDone` is called with its confirmation message
+ * (announced and focused by the page, since a correction gets a new id and this very component is about to
+ * unmount), or with no message when « Annuler » just abandons the edit.
  */
-export function FlowForm({ envelope, editing, initialKind, onDone }: {
-  envelope: EnvelopeDetail; editing?: Flow; initialKind?: 'opening'; onDone?: () => void;
+export function FlowForm({ envelope, editing, openingRequest, onDone }: {
+  envelope: EnvelopeDetail; editing?: Flow; openingRequest?: number; onDone?: (message?: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -46,43 +45,31 @@ export function FlowForm({ envelope, editing, initialKind, onDone }: {
     resolver: zodResolver(flowSchema(t)),
     defaultValues: {
       occurredOn: editing?.occurredOn ?? todayIso(),
-      kind: (editing?.kind as (typeof FLOW_KINDS)[number] | undefined) ?? initialKind ?? 'contribution',
+      kind: (editing?.kind as (typeof FLOW_KINDS)[number] | undefined) ?? 'contribution',
       amount: editing ? trimAmount(editing.amount.amount) : '',
       note: editing?.note ?? '',
     },
   });
   useEffect(() => {
-    if (initialKind && !editing) { form.setValue('kind', initialKind); form.setFocus('kind'); }
-    // Reacts only to the page setting `initialKind` from the missing-opening warning; `form` and `editing` are stable here.
+    if (openingRequest !== undefined && !editing) { form.setValue('kind', 'opening'); form.setFocus('kind'); }
+    // Reacts only to the page bumping `openingRequest`; `form` and `editing` are stable here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialKind]);
+  }, [openingRequest]);
 
   const errors = useSubmitErrors(form.setError, PATHS);
-  const onFail = (error: unknown) => {
-    setSaved(false);
-    const known = fieldErrorsOf(error);
-    const field = known.length === 0 ? fallbackField(toProblem(error).code) : undefined;
-    if (field) {
-      const problem = toProblem(error);
-      form.setError(field, { type: 'server', message: messageFor(t, { path: field, code: problem.code ?? '', message: problem.title ?? '' }) });
-      errors.clear();
-    } else {
-      errors.onError(error);
-    }
-  };
+  const onFail = (error: unknown) => { setSaved(false); placeFieldError(error, t, form.setError, errors, FALLBACK); };
   const create = $api.useMutation('post', FLOWS, {
     onSuccess: () => {
       setSaved(true);
       errors.clear();
       void invalidateInvestments(queryClient);
-      form.reset({ occurredOn: todayIso(), kind: initialKind ?? 'contribution', amount: '', note: '' });
+      // Back to « Versement » (spec's default), whatever kind was just added — including a just-saved opening.
+      form.reset({ occurredOn: todayIso(), kind: 'contribution', amount: '', note: '' });
     },
     onError: onFail,
   });
-  // A correction stays open on its « Corrigé » status; the person dismisses it with « Annuler » (onDone), rather
-  // than the row silently snapping shut the instant the status would have appeared.
   const update = $api.useMutation('put', FLOW, {
-    onSuccess: () => { setSaved(true); errors.clear(); void invalidateInvestments(queryClient); },
+    onSuccess: () => { errors.clear(); void invalidateInvestments(queryClient); onDone?.(t('envelope.flow_corrected')); },
     onError: onFail,
   });
 
@@ -104,8 +91,14 @@ export function FlowForm({ envelope, editing, initialKind, onDone }: {
   return (
     <form aria-labelledby={headingId} onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3" noValidate>
       <h3 id={headingId} className="font-semibold">{heading}</h3>
-      {errors.problem ? <><ProblemMessage problem={errors.problem} />{errors.problem.kind === 'conflict' ? <Reload /> : null}</> : null}
-      {saved ? <p role="status">{editing ? t('envelope.flow_corrected') : t('envelope.flow_saved')}</p> : null}
+      {errors.problem ? (
+        <>
+          <ProblemMessage problem={errors.problem} />
+          {errors.problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
+        </>
+      ) : null}
+      {/* Mounted empty so a screen reader is already watching it when the text arrives. */}
+      <p role="status" aria-live="polite">{saved ? t('envelope.flow_saved') : ''}</p>
       <Field label={t('envelope.date')} error={e.occurredOn?.message}>
         {(c) => <input type="date" {...c} {...form.register('occurredOn')} className={input} />}
       </Field>

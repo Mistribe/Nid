@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -16,8 +16,12 @@ import { ValueForm } from './entries/ValueForm';
 import { Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 
-/** 2B2a design §6: the envelope's figures, warnings, and its values and flows, newest first — the quick-value/
- * add-flow forms and each row's « Corriger »/« Supprimer » shown only when `canWrite` (Task 5). */
+/**
+ * 2B2a design §6: the envelope's figures, warnings, and its values and flows, newest first — the quick-value/
+ * add-flow forms and each row's « Corriger »/« Supprimer » shown only when `canWrite` (Task 5). A correction gets a
+ * new id and a deletion removes the row entirely, so neither can carry its own confirmation once the refetch
+ * lands: the page announces it in that table's section and moves focus to the section's heading instead.
+ */
 export function EnvelopeDetailPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -26,7 +30,26 @@ export function EnvelopeDetailPage() {
   const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
   const [editingValueId, setEditingValueId] = useState<string | null>(null);
   const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
-  const [flowInitialKind, setFlowInitialKind] = useState<'opening' | undefined>(undefined);
+  // Bumped by the missing-opening button; a counter (not just `'opening'`) so a second click re-applies it even
+  // when the person had since changed the kind back, or the request was already 'opening'.
+  const [openingRequest, setOpeningRequest] = useState<number | undefined>(undefined);
+  const [valuesAnnouncement, setValuesAnnouncement] = useState('');
+  const [flowsAnnouncement, setFlowsAnnouncement] = useState('');
+  const valuesHeadingRef = useRef<HTMLHeadingElement>(null);
+  const flowsHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  const closeValueRow = (message?: string) => {
+    setEditingValueId(null);
+    if (message) setValuesAnnouncement(message);
+    valuesHeadingRef.current?.focus();
+  };
+  const closeFlowRow = (message?: string) => {
+    setEditingFlowId(null);
+    if (message) setFlowsAnnouncement(message);
+    flowsHeadingRef.current?.focus();
+  };
+  const announceValueDeleted = (message: string) => { setValuesAnnouncement(message); valuesHeadingRef.current?.focus(); };
+  const announceFlowDeleted = (message: string) => { setFlowsAnnouncement(message); flowsHeadingRef.current?.focus(); };
 
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
   if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
@@ -100,7 +123,7 @@ export function EnvelopeDetailPage() {
             <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
             {t('envelope.missing_opening')}
             {detail.canWrite ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setFlowInitialKind('opening')}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setOpeningRequest((n) => (n ?? 0) + 1)}>
                 {t('envelope.add_opening')}
               </Button>
             ) : null}
@@ -112,12 +135,12 @@ export function EnvelopeDetailPage() {
         <Section title={t('envelope.enter')}>
           <div className="grid gap-6 md:grid-cols-2">
             <ValueForm envelope={detail} />
-            <FlowForm envelope={detail} initialKind={flowInitialKind} />
+            <FlowForm envelope={detail} openingRequest={openingRequest} />
           </div>
         </Section>
       ) : null}
 
-      <Section title={t('envelope.values')}>
+      <Section title={t('envelope.values')} headingRef={valuesHeadingRef} announcement={valuesAnnouncement}>
         <table className="w-full text-sm" aria-label={t('envelope.values_table')}>
           <thead>
             <tr>
@@ -131,7 +154,7 @@ export function EnvelopeDetailPage() {
             {values.map((v) => editingValueId === v.id ? (
               <tr key={v.id}>
                 <td colSpan={4}>
-                  <ValueForm envelope={detail} editing={v} onDone={() => setEditingValueId(null)} />
+                  <ValueForm envelope={detail} editing={v} onDone={closeValueRow} />
                 </td>
               </tr>
             ) : (
@@ -139,14 +162,16 @@ export function EnvelopeDetailPage() {
                 <td><LocalDate value={v.asOf} /></td>
                 <td><Money value={v.amount} tabular /></td>
                 <td>{v.note}</td>
-                <td>{detail.canWrite ? <RowActions kind="value" envelope={detail} item={v} onEdit={() => setEditingValueId(v.id)} /> : null}</td>
+                <td>{detail.canWrite ? (
+                  <RowActions kind="value" envelope={detail} item={v} onEdit={() => setEditingValueId(v.id)} onDeleted={announceValueDeleted} />
+                ) : null}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </Section>
 
-      <Section title={t('envelope.flows')}>
+      <Section title={t('envelope.flows')} headingRef={flowsHeadingRef} announcement={flowsAnnouncement}>
         <table className="w-full text-sm" aria-label={t('envelope.flows_table')}>
           <thead>
             <tr>
@@ -161,7 +186,7 @@ export function EnvelopeDetailPage() {
             {flows.map((f) => editingFlowId === f.id ? (
               <tr key={f.id}>
                 <td colSpan={5}>
-                  <FlowForm envelope={detail} editing={f} onDone={() => setEditingFlowId(null)} />
+                  <FlowForm envelope={detail} editing={f} onDone={closeFlowRow} />
                 </td>
               </tr>
             ) : (
@@ -170,7 +195,9 @@ export function EnvelopeDetailPage() {
                 <td>{flowKindText(t, f)}</td>
                 <td><Money value={f.amount} tabular /></td>
                 <td>{f.note}</td>
-                <td>{detail.canWrite ? <RowActions kind="flow" envelope={detail} item={f} onEdit={() => setEditingFlowId(f.id)} /> : null}</td>
+                <td>{detail.canWrite ? (
+                  <RowActions kind="flow" envelope={detail} item={f} onEdit={() => setEditingFlowId(f.id)} onDeleted={announceFlowDeleted} />
+                ) : null}</td>
               </tr>
             ))}
           </tbody>
@@ -180,11 +207,14 @@ export function EnvelopeDetailPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, headingRef, announcement, children }: {
+  title: string; headingRef?: RefObject<HTMLHeadingElement | null>; announcement?: string; children: ReactNode;
+}) {
   const id = useId();
   return (
     <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} className="text-lg font-semibold">{title}</h2>
+      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-lg font-semibold">{title}</h2>
+      {announcement !== undefined ? <p role="status" aria-live="polite">{announcement}</p> : null}
       {children}
     </section>
   );
