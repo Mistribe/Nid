@@ -69,6 +69,10 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
+        services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
+        services.AddScoped<FactGate>();
+        services.AddScoped<IValuations, Valuations>();
+        services.AddScoped<IFlows, Flows>();
         services.AddSingleton<IItemRules, ItemRules>();
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();

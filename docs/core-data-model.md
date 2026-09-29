@@ -170,6 +170,8 @@ Colonnes communes à `valuation` et `flow` :
 | `document_id?`, `proposal_id?` | Traçabilité jusqu'à la source |
 | `created_at` | timestamptz UTC |
 
+**Livré en 2A** (2026-09-29, `superpowers/specs/2026-09-29-core-dated-facts-design.md`) : tables `core.valuation` et `core.flow`, contrats `IValuations` et `IFlows`, codes `core.item_without_currency`, `core.currency_mismatch`, `core.date_in_future`, `core.amount_not_positive`, `core.invalid_fact`, `core.fact_not_found`, `core.fact_retired`, `core.opening_exists`, `core.external_ref_taken`, `core.fact_conflict`. `document_id` et `proposal_id` arriveront à l'étape 4 avec leurs tables ; `source` vaut `manual` ou `import`. Une valeur ou un flux est écrit et lu par une personne.
+
 ### 5.2 `valuation` : « cet élément vaut X à telle date »
 
 | Champ | Type | Remarques |
@@ -459,10 +461,11 @@ Les deux lignes restent en base ; seule la seconde est courante.
 - Une seule devise par élément pour valorisations et flux (§5.5) : un compte en deux devises se modélise en deux éléments.
 - Les gains ne sont pas convertis : seuls les totaux le sont.
 - Pas de valorisation future ni de prévision dans Core.
+- « Aujourd'hui » : seules les règles de 2A (`IHouseholdCalendar`) prennent le jour du foyer ; les calculs de l'étape 1 prennent encore la date UTC, si bien qu'un import fait tard le soir peut voir la veille.
 
 ## 13. Questions ouvertes
 
-- Seuil de péremption des valeurs (45 jours proposé). ~~Écart maximal de cours (`fx_rate_missing`).~~ Tranché en 1C2a : 7 jours par défaut, configurable (§8.2).
+- ~~Seuil de péremption des valeurs (45 jours proposé).~~ Tranché en 2A : la péremption appartient à la cadence de chaque module (`investments-data-model.md` §7) ; le Core renvoie seulement l'`as_of`. ~~Écart maximal de cours (`fx_rate_missing`).~~ Tranché en 1C2a : 7 jours par défaut, configurable (§8.2).
 - Liste blanche des types de fichiers et taille maximale.
 - ~~**Historique des taux avant juillet 2025** : les abonnements remontent à 2014 et les placements à 12-24 mois, donc des paiements ou valorisations en devise étrangère peuvent tomber avant la première date disponible (`fx_rate_missing`). Piste : rattrapage plus long côté `SubTracker-Data` si sa source historique le permet ; sinon saisie manuelle.~~ Tranché en 1C2a : la BCE (`eurofxref-hist.zip`) couvre les jours ouvrés depuis 1999, avant SubTracker-Data (§8.4) ; au-delà (paiement le week-end ou jour férié sans cours BCE ni SubTracker), `fx_rate_missing` reste possible et la saisie manuelle couvre le reste.
 - ~~Format et couverture réels (week-ends, devises absentes) à confirmer à l'implémentation (§8.3).~~ Vérifié en réel le 2026-09-24 (1C2a, `spikes.md` §9quater) : format stable, fichiers du week-end présents, aucune devise disparue d'un jour sur l'autre dans la fenêtre vérifiée.
