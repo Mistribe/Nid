@@ -15,6 +15,7 @@ import { JobsPage } from '@/features/admin/JobsPage';
 import { SecurityJournalPage } from '@/features/admin/SecurityJournalPage';
 import { SystemPage } from '@/features/admin/SystemPage';
 import { UsersPage } from '@/features/admin/UsersPage';
+import { EnvelopesPage } from '@/features/investments/EnvelopesPage';
 import { SecurityPage } from '@/features/security/SecurityPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
 import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
@@ -63,6 +64,28 @@ const subscriptionsRoute = createRoute({
     ...(typeof search.label === 'string' && search.label !== '' ? { label: search.label } : {}),
   }),
   component: SubscriptionsPage,
+});
+
+const investmentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/investments',
+  beforeLoad: requireModule('investments'),
+  component: EnvelopesPage,
+});
+
+// Loaded on demand: the wizard and its form libraries stay out of the initial bundle, as for subscriptions.
+const investmentNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/investments/new',
+  beforeLoad: requireModule('investments'),
+  component: lazyRouteComponent(() => import('@/features/investments/NewEnvelope'), 'NewEnvelope'),
+});
+
+const investmentDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/investments/$id',
+  beforeLoad: requireModule('investments'),
+  component: lazyRouteComponent(() => import('@/features/investments/EnvelopeDetailPage'), 'EnvelopeDetailPage'),
 });
 
 // Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
@@ -141,7 +164,8 @@ const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: SecurityJournalPage });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
+  indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
+  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,
 ]);

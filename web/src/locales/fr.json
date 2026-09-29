@@ -18,6 +18,7 @@
     "tabs": "Onglets",
     "home": "Revenir à l'accueil",
     "subscriptions": "Abonnements",
+    "investments": "Placements",
     "import": "Import",
     "export": "Export",
     "settings": "Réglages",
@@ -629,6 +630,25 @@
     "admin_command": "Commande de secours",
     "subject_rebound": "Identité rattachée",
     "unknown": "Événement {{name}}"
+  },
+  "investments": {
+    "title": "Placements",
+    "list": "Liste des enveloppes",
+    "loading": "Chargement des enveloppes",
+    "before_tax": "Gains avant fiscalité.",
+    "add": "Ajouter une enveloppe",
+    "empty_title": "Aucune enveloppe pour l’instant",
+    "empty_body": "Ajoutez un livret, un PEA ou une assurance-vie pour suivre sa valeur et ce qu’elle rapporte.",
+    "no_value": "Aucune valeur pour l’instant",
+    "dash": "—",
+    "pct": "{{value}} %",
+    "pct_undefined": "Pourcentage non calculable : versements nets nuls ou négatifs",
+    "stale_one": "Valeur de plus de {{count}} jour",
+    "stale_other": "Valeur de plus de {{count}} jours",
+    "direction": { "up": "en hausse", "down": "en baisse", "flat": "stable" },
+    "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "brokerage": "Compte-titres", "other": "Autre" },
+    "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "manual": "À la demande" },
+    "flow_kind": { "contribution": "Versement", "withdrawal": "Retrait", "expense": "Frais", "income": "Revenu", "opening": "Versements antérieurs", "transfer": "Virement" }
   },
   "security": {
     "title": "Sécurité",

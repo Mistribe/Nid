@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router';
-import { Download, KeyRound, Repeat, ShieldCheck, Settings, Upload } from 'lucide-react';
+import { Download, KeyRound, PiggyBank, Repeat, ShieldCheck, Settings, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { useSession } from './Providers';
 
 const NAV = [
   { module: 'subscriptions', admin: false, to: '/subscriptions', icon: Repeat, label: 'nav.subscriptions' },
+  { module: 'investments', admin: false, to: '/investments', icon: PiggyBank, label: 'nav.investments' },
   { module: 'import', admin: false, to: '/import', icon: Upload, label: 'nav.import' },
   { module: 'core', admin: false, to: '/export', icon: Download, label: 'nav.export' },
   { module: null, admin: false, to: '/security', icon: KeyRound, label: 'nav.security' },

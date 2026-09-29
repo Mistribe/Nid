@@ -11,6 +11,7 @@ export const handlers = [
     items: [], householdCashCost: [], householdAmortizedCost: [], householdCashCostConverted: null,
     householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], findings: [],
   })),
+  http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
 ];
 
 export const server = setupServer(...handlers);
