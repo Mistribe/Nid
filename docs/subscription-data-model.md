@@ -190,6 +190,8 @@ Catalog `icon` values are third-party URLs (a logo aggregator, Wikimedia). Displ
 
 ### Plan suggestions
 
+**Not built; deferred to stage 6 (2026-09-29).** At the pinned commit only Netflix has plans (USD, no date, no region, plus `options` this model cannot hold). The rules below stand for when the catalog carries dated plans in euros.
+
 - `recurrency` maps to a duration: `monthly` → `{1, month}`, `yearly` → `{1, year}`, `weekly` → `{1, week}`, `daily` → `{1, day}`.
 - Catalog prices have no date and no region. They only prefill the "add subscription" form, marked as indicative. A `BillingPhase` is created only from what the user validates.
 
