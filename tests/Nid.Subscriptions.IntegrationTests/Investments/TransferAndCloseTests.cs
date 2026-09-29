@@ -70,7 +70,10 @@ public class TransferAndCloseTests(PostgresFixture fixture)
         var toHidden = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
             new { from = mine.Value, to = hidden.Value, occurredOn = "2025-06-15", amount = Eur("10.00") });
 
-        Assert.Equal(HttpStatusCode.Forbidden, toShared.StatusCode);
+        // Controller ruling, fix round 1: the destination is never disclosed — forbidden (readable, not
+        // writable) and hidden (not readable) answer the same "not found", exactly as a purchase's grant
+        // target (ItemWriteGuard.EnsureWritableAsync).
+        Assert.Equal(HttpStatusCode.NotFound, toShared.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, toHidden.StatusCode);
         Assert.Equal(0, await FlowCountAsync(app));
     }

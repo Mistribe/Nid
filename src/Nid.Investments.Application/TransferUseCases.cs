@@ -8,7 +8,13 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Investments.Application;
 
-/// <summary>2B1a spec §5: <see cref="ItemId"/> is the source; the pipeline checks it, the handler checks <see cref="To"/>.</summary>
+/// <summary>
+/// 2B1a spec §5: <see cref="ItemId"/> is the source; the pipeline checks it, the handler checks <see cref="To"/>.
+/// Fix round 1 (controller ruling): the destination is a second item the actor names in the payload, not the
+/// route's own — like a purchase's grant target (<c>ItemWriteGuard.EnsureWritableAsync</c>,
+/// <c>Nid.Subscriptions.Application/WriteUseCases.cs</c>), its refusal is always "not found", whether it is
+/// forbidden (readable, not writable) or hidden (not readable): never a 403 that would disclose it.
+/// </summary>
 public sealed record TransferCommand(ItemId ItemId, ItemId To, LocalDate OccurredOn, Money Amount, string? Note) : ICommand<Guid>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -39,11 +45,13 @@ public sealed class TransferHandler(
         if (command.To == command.ItemId)
             return Fail(InvestmentsCodes.TransferSameEnvelope, "A transfer goes from one envelope to another.");
 
-        // The destination: the same answers as if it were the route's own item (404 unreadable, 403 read-only).
+        // The destination: never disclosed if the actor may not write it — the same "not found", forbidden
+        // or hidden alike, that ItemWriteGuard.EnsureWritableAsync gives a purchase's grant target.
         var access = await policy.CheckAsync(actor.Current!.PersonId!.Value, command.To, AccessKind.Write, ct);
-        if (access.TryGetFailure(out var failure))
-            return Result.Failure<Guid>(failure!);
+        if (access.TryGetFailure(out _))
+            return Result.Failure<Guid>(new NotFoundFailure("envelope", command.To.ToString()));
 
+        Failure? failure = null;
         foreach (var id in new[] { command.ItemId, command.To })
             if ((await OpenEnvelope.RequireAsync(envelopes, items, id, ct)).TryGetFailure(out failure))
                 return Result.Failure<Guid>(failure!);

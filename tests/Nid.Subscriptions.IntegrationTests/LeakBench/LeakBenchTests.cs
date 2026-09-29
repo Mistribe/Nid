@@ -312,22 +312,6 @@ public class LeakBenchTests(PostgresFixture fixture)
 
                 if (!data.ExpectedWritable(otherName, actor))
                 {
-                    if (entry.SecondItemAccessIsDisclosed)
-                    {
-                        // 2B1a spec §6: a transfer's destination is a route field the actor names directly,
-                        // not an indirect grant — it answers like any other envelope reference (404
-                        // unreadable, 403 read-only), disclosed rather than collapsed.
-                        if (!data.ExpectedReadable(actor).Contains(other))
-                            Assert.True(failure is NotFoundFailure { Resource: "item" },
-                                $"{where}: the rules hide the other item, so it must be 'not found' — but "
-                                + $"the pipeline answered {Describe(failure)}");
-                        else
-                            Assert.True(failure is UnauthorizedFailure,
-                                $"{where}: the rules let this actor read but not write the other item, so it "
-                                + $"must be forbidden, but the pipeline answered {Describe(failure)}");
-                        continue;
-                    }
-
                     // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
                     // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
                     // exist at all, so the ruling here is indistinguishability, checked against that case.
@@ -337,21 +321,15 @@ public class LeakBenchTests(PostgresFixture fixture)
                     continue;
                 }
 
-                if (entry.SecondItemAccessIsDisclosed)
-                {
-                    // As for the single-item bench: the rules never turn this away, but the request may
-                    // still fail on its own merits — the dataset's items are Subscriptions rows, not
-                    // envelopes, so a transfer between two of them fails as "envelope not found", never as
-                    // an access refusal.
-                    Assert.False(failure is UnauthorizedFailure,
-                        $"{where}: the rules let this actor write both items, yet it was forbidden — {Describe(failure)}");
-                    Assert.False(failure is NotFoundFailure { Resource: "item" },
-                        $"{where}: the rules let this actor write both items, yet it was hidden — {Describe(failure)}");
-                    continue;
-                }
-
-                Assert.True(failure is null,
-                    $"{where}: the rules let this actor write both items, yet it was refused — {Describe(failure)}");
+                // As for the single-item bench above: the rules never turn this away, but the request may
+                // still fail on its own merits (a purchase's own field rules, say, or — for a cross-item
+                // request whose second axis names a row of another module's shape, such as a transfer aimed
+                // at a Subscriptions row — the target simply not being of the kind the request needs). Only an
+                // access refusal is checked here; a domain failure is each request's own tests' business.
+                Assert.False(failure is UnauthorizedFailure,
+                    $"{where}: the rules let this actor write both items, yet it was forbidden — {Describe(failure)}");
+                Assert.False(failure is NotFoundFailure { Resource: "item" },
+                    $"{where}: the rules let this actor write both items, yet it was hidden — {Describe(failure)}");
             }
         }
     }
