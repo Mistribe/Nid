@@ -15,6 +15,8 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<OwnershipRow> Ownerships => Set<OwnershipRow>();
     public DbSet<FxRateRow> FxRates => Set<FxRateRow>();
     public DbSet<FxSyncRunRow> FxSyncRuns => Set<FxSyncRunRow>();
+    public DbSet<ValuationRow> Valuations => Set<ValuationRow>();
+    public DbSet<FlowRow> Flows => Set<FlowRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -101,6 +103,51 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             // admits only one. This is what turns a second POST /sync into a 409 (design §6.3).
             e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'running'");
             e.HasIndex(x => x.StartedAt);
+        });
+
+        const string createdVia = "created_via in ('ui','api','mcp','job','import','admin-cli')";
+
+        modelBuilder.Entity<ValuationRow>(e =>
+        {
+            e.ToTable("valuation", t =>
+            {
+                t.HasCheckConstraint("ck_valuation_source", "source in ('manual','import')");
+                t.HasCheckConstraint("ck_valuation_created_via", createdVia);
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasColumnType("char(3)");
+            e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<ValuationRow>().WithMany().HasForeignKey(x => x.SupersedesId).OnDelete(DeleteBehavior.Restrict);
+            // At most one current value per item and date; it also serves "the last value on or before d".
+            e.HasIndex(x => new { x.ItemId, x.AsOf }).IsUnique().HasFilter("retired_at is null");
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<FlowRow>(e =>
+        {
+            e.ToTable("flow", t =>
+            {
+                t.HasCheckConstraint("ck_flow_amount_positive", "amount > 0");
+                t.HasCheckConstraint("ck_flow_kind", "kind in ('contribution','withdrawal','opening','income','expense')");
+                t.HasCheckConstraint("ck_flow_source", "source in ('manual','import')");
+                t.HasCheckConstraint("ck_flow_created_via", createdVia);
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Currency).HasColumnType("char(3)");
+            e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<FlowRow>().WithMany().HasForeignKey(x => x.SupersedesId).OnDelete(DeleteBehavior.Restrict);
+            // At most one current opening per item (core-data-model.md §5.3).
+            e.HasIndex(x => x.ItemId).IsUnique().HasFilter("kind = 'opening' and retired_at is null");
+            // An external reference makes a re-import without duplicates (import-format.md §5.6).
+            e.HasIndex(x => new { x.ItemId, x.ExternalRef }).IsUnique().HasFilter("external_ref is not null and retired_at is null");
+            e.HasIndex(x => new { x.ItemId, x.OccurredOn }).HasFilter("retired_at is null");
+            MapXmin(e.Property(x => x.Version));
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

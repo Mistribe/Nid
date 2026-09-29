@@ -24,6 +24,113 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FlowRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_person_id");
+
+                    b.Property<string>("CreatedVia")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_via");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("ExternalRef")
+                        .HasColumnType("text")
+                        .HasColumnName("external_ref");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<LocalDate>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<Instant?>("RetiredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retired_at");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<Guid?>("SupersedesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supersedes_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_flow");
+
+                    b.HasIndex("CreatedByPersonId")
+                        .HasDatabaseName("ix_flow_created_by_person_id");
+
+                    b.HasIndex("ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_flow_item_id")
+                        .HasFilter("kind = 'opening' and retired_at is null");
+
+                    b.HasIndex("SupersedesId")
+                        .HasDatabaseName("ix_flow_supersedes_id");
+
+                    b.HasIndex("ItemId", "ExternalRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_flow_item_id_external_ref")
+                        .HasFilter("external_ref is not null and retired_at is null");
+
+                    b.HasIndex("ItemId", "OccurredOn")
+                        .HasDatabaseName("ix_flow_item_id_occurred_on")
+                        .HasFilter("retired_at is null");
+
+                    b.ToTable("flow", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_flow_amount_positive", "amount > 0");
+
+                            t.HasCheckConstraint("ck_flow_created_via", "created_via in ('ui','api','mcp','job','import','admin-cli')");
+
+                            t.HasCheckConstraint("ck_flow_kind", "kind in ('contribution','withdrawal','opening','income','expense')");
+
+                            t.HasCheckConstraint("ck_flow_source", "source in ('manual','import')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FxRateRow", b =>
                 {
                     b.Property<LocalDate>("OnDate")
@@ -321,6 +428,87 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<LocalDate>("AsOf")
+                        .HasColumnType("date")
+                        .HasColumnName("as_of");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_person_id");
+
+                    b.Property<string>("CreatedVia")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_via");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<Instant?>("RetiredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retired_at");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<Guid?>("SupersedesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supersedes_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_valuation");
+
+                    b.HasIndex("CreatedByPersonId")
+                        .HasDatabaseName("ix_valuation_created_by_person_id");
+
+                    b.HasIndex("SupersedesId")
+                        .HasDatabaseName("ix_valuation_supersedes_id");
+
+                    b.HasIndex("ItemId", "AsOf")
+                        .IsUnique()
+                        .HasDatabaseName("ix_valuation_item_id_as_of")
+                        .HasFilter("retired_at is null");
+
+                    b.ToTable("valuation", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_valuation_created_via", "created_via in ('ui','api','mcp','job','import','admin-cli')");
+
+                            t.HasCheckConstraint("ck_valuation_source", "source in ('manual','import')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Platform.Infrastructure.Audit.AuditEntryRow", b =>
                 {
                     b.Property<long>("Seq")
@@ -368,8 +556,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.PrimitiveCollection<Guid[]>("ItemIds")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid[]")
-                        .HasColumnName("item_ids");
+                        .HasColumnName("item_ids")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<Guid?>("PersonId")
                         .HasColumnType("uuid")
@@ -420,6 +610,29 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.FlowRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_flow_person_created_by_person_id");
+
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_flow_item_item_id");
+
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.FlowRow", null)
+                        .WithMany()
+                        .HasForeignKey("SupersedesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_flow_flow_supersedes_id");
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.OwnershipRow", b =>
                 {
                     b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
@@ -435,6 +648,29 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_ownership_person_person_id");
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_valuation_person_created_by_person_id");
+
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_valuation_item_item_id");
+
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.ValuationRow", null)
+                        .WithMany()
+                        .HasForeignKey("SupersedesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_valuation_valuation_supersedes_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ItemRow", b =>

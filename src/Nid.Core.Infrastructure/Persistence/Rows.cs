@@ -69,3 +69,42 @@ public sealed class FxSyncRunRow
     public string? FailureMessage { get; set; }
     public string Rejected { get; set; } = "[]";
 }
+
+/// <summary>2A spec §3.1. Never deleted; only <see cref="RetiredAt"/> is ever updated.</summary>
+public sealed class ValuationRow
+{
+    public Guid Id { get; set; }
+    public Guid ItemId { get; set; }
+    public LocalDate AsOf { get; set; }
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "";
+    public string? Note { get; set; }
+    public string Source { get; set; } = "";
+    public string CreatedVia { get; set; } = "";
+    public Guid CreatedByPersonId { get; set; }
+    public Instant CreatedAt { get; set; }
+    public Guid? SupersedesId { get; set; }
+    public Instant? RetiredAt { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>2A spec §3.2. Never deleted; only <see cref="RetiredAt"/> is ever updated.</summary>
+public sealed class FlowRow
+{
+    public Guid Id { get; set; }
+    public Guid ItemId { get; set; }
+    public LocalDate OccurredOn { get; set; }
+    public string Kind { get; set; } = "";
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "";
+    public string? Category { get; set; }
+    public string? ExternalRef { get; set; }
+    public string? Note { get; set; }
+    public string Source { get; set; } = "";
+    public string CreatedVia { get; set; } = "";
+    public Guid CreatedByPersonId { get; set; }
+    public Instant CreatedAt { get; set; }
+    public Guid? SupersedesId { get; set; }
+    public Instant? RetiredAt { get; set; }
+    public uint Version { get; set; }
+}
