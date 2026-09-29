@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
@@ -33,6 +34,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             await core.Database.MigrateAsync();
         await using (var subs = NewSubscriptionsContext(connectionString))
             await subs.Database.MigrateAsync();
+        await using (var investments = NewInvestmentsContext(connectionString))
+            await investments.Database.MigrateAsync();
         await using (var platform = NewPlatformContext(connectionString))
             await platform.Database.MigrateAsync();
 
@@ -64,6 +67,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static SubscriptionsDbContext NewSubscriptionsContext(string connectionString)
         => new(new DbContextOptionsBuilder<SubscriptionsDbContext>().Configure(connectionString).Options);
+
+    public static InvestmentsDbContext NewInvestmentsContext(string connectionString)
+        => new(new DbContextOptionsBuilder<InvestmentsDbContext>().Configure(connectionString).Options);
 
     public static PlatformDbContext NewPlatformContext(string connectionString)
         => new(new DbContextOptionsBuilder<PlatformDbContext>().Configure(connectionString).Options);

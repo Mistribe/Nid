@@ -8,6 +8,8 @@ using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Admin;
 using Nid.Host.Jobs;
+using Nid.Investments.Contracts;
+using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Admin;
 using Nid.Platform.Audit;
@@ -58,6 +60,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<AuditInterceptor>();
         services.AddSingleton<IAuditMap, CoreAuditMap>();
         services.AddSingleton<IAuditMap, SubscriptionsAuditMap>();
+        services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -83,7 +86,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -115,6 +118,14 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+
+        services.AddDbContext<InvestmentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", InvestmentsDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<InvestmentsDbContext>>();
+        services.AddScoped<IEnvelopeStore, EnvelopeStore>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.

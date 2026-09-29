@@ -11,6 +11,7 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <ProjectReference Include="..\..\src\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

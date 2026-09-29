@@ -7,6 +7,7 @@ using Nid.Host.Admin;
 using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Host.Jobs;
+using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
@@ -86,6 +87,7 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
 

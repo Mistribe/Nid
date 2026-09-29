@@ -22,6 +22,8 @@
     <ProjectReference Include="..\Nid.Core.Infrastructure\Nid.Core.Infrastructure.csproj" />
     <ProjectReference Include="..\Nid.Subscriptions.Application\Nid.Subscriptions.Application.csproj" />
     <ProjectReference Include="..\Nid.Subscriptions.Infrastructure\Nid.Subscriptions.Infrastructure.csproj" />
+    <ProjectReference Include="..\Nid.Investments.Application\Nid.Investments.Application.csproj" />
+    <ProjectReference Include="..\Nid.Investments.Infrastructure\Nid.Investments.Infrastructure.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

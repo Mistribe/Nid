@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -25,6 +26,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture)
         [
             scope.ServiceProvider.GetRequiredService<CoreDbContext>(),
             scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>(),
+            scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>(),
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
         ];
         var unknown = contexts.SelectMany(c => c.Model.GetEntityTypes()).Select(t => t.ClrType).Distinct()
@@ -36,7 +38,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture)
     [Fact]
     public void No_module_context_exposes_the_log()
     {
-        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext) })
+        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext) })
             Assert.DoesNotContain(context.GetProperties(), p => p.PropertyType == typeof(DbSet<AuditEntryRow>));
     }
 
