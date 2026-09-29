@@ -330,7 +330,19 @@
     "subscriptions_unknown_provider": "Ce fournisseur n'existe pas ou ne peut pas être choisi.",
     "core_share_sum": "Les parts des propriétaires doivent faire 100 % au total.",
     "core_private_single_owner": "Un abonnement privé n'a qu'un seul propriétaire.",
-    "subscriptions_not_found": "Cet abonnement est introuvable."
+    "subscriptions_not_found": "Cet abonnement est introuvable.",
+    "core_date_in_future": "Cette date est dans le futur.",
+    "core_currency_mismatch": "Ce montant n’est pas dans la devise de l’enveloppe.",
+    "core_amount_not_positive": "Le montant doit être positif.",
+    "core_invalid_fact": "Cette saisie n’est pas valide.",
+    "core_opening_exists": "Les versements antérieurs sont déjà saisis : corrigez-les.",
+    "core_external_ref_taken": "Cette référence est déjà utilisée pour cette enveloppe.",
+    "core_fact_retired": "Cette ligne a déjà été corrigée ou supprimée.",
+    "core_fact_conflict": "Quelqu’un a modifié cette enveloppe en même temps : rechargez la page.",
+    "investments_invalid_envelope": "Cette valeur n’est pas acceptée.",
+    "investments_unknown_kind": "Choisissez un type d’enveloppe.",
+    "investments_unknown_cadence": "Choisissez une fréquence.",
+    "investments_envelope_closed": "Cette enveloppe est clôturée."
   },
   "settings": {
     "appearance": {
@@ -649,6 +661,28 @@
     "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "brokerage": "Compte-titres", "other": "Autre" },
     "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "manual": "À la demande" },
     "flow_kind": { "contribution": "Versement", "withdrawal": "Retrait", "expense": "Frais", "income": "Revenu", "opening": "Versements antérieurs", "transfer": "Virement" }
+  },
+  "investments_form": {
+    "title": "Nouvelle enveloppe",
+    "name": "Nom",
+    "kind": "Type",
+    "currency": "Devise",
+    "institution": "Établissement",
+    "account_hint": "4 derniers caractères du compte",
+    "account_hint_help": "Pour le reconnaître : jamais le numéro complet.",
+    "cadence": "Mise à jour de la valeur",
+    "with_opening": "Versements antérieurs",
+    "with_opening_help": "Ce que vous aviez déjà versé avant de suivre l’enveloppe ici.",
+    "opening_on": "Date des versements antérieurs",
+    "opening_amount": "Montant des versements antérieurs",
+    "with_first_value": "Première valeur",
+    "first_value_on": "Date de la première valeur",
+    "first_value_amount": "Montant de la première valeur",
+    "submit": "Créer l’enveloppe",
+    "name_too_long": "100 caractères au plus.",
+    "institution_too_long": "100 caractères au plus.",
+    "account_hint_too_long": "4 caractères au plus : jamais le numéro complet.",
+    "amount_format": "Saisissez un montant comme 1234,56."
   },
   "security": {
     "title": "Sécurité",
