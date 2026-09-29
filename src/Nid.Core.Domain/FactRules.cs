@@ -31,8 +31,11 @@ public static partial class FactRules
             flow.Category is { } category && !Category().IsMatch(category)
                 ? Invalid("category", $"A category is a lowercase slug of at most {CategoryMax} characters.")
                 : Result.Success(),
-            flow.ExternalRef is { } reference && (reference.Length is 0 or > ExternalRefMax || reference.Any(char.IsControl))
-                ? Invalid("external_ref", $"An external reference has 1 to {ExternalRefMax} characters and no control character.")
+            // Refused, never trimmed: "A1" and "A1 " can never be two references, and what is stored is what was sent.
+            flow.ExternalRef is { } reference && (reference.Length is 0 or > ExternalRefMax || reference.Any(char.IsControl)
+                || char.IsWhiteSpace(reference[0]) || char.IsWhiteSpace(reference[^1]))
+                ? Invalid("external_ref",
+                    $"An external reference has 1 to {ExternalRefMax} characters, no control character, and no space at either end.")
                 : Result.Success(),
             Note(flow.Note));
     }

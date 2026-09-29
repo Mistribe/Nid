@@ -76,6 +76,22 @@ public class FactRulesTests
             Assert.Equal((CoreFactCodes.InvalidFact, "external_ref"), Failure(result));
     }
 
+    [Theory]
+    [InlineData(" ", false)]
+    [InlineData("   ", false)]
+    [InlineData("A1 ", false)]
+    [InlineData(" A1", false)]
+    [InlineData("\u00a0A1", false)]
+    [InlineData("A 1", true)]
+    public void An_external_reference_is_refused_with_edge_whitespace_never_trimmed(string externalRef, bool valid)
+    {
+        var result = FactRules.CheckFlow(Flow(externalRef: externalRef));
+        if (valid)
+            Assert.True(result.IsSuccess);
+        else
+            Assert.Equal((CoreFactCodes.InvalidFact, "external_ref"), Failure(result));
+    }
+
     [Fact]
     public void An_external_reference_has_at_most_200_characters()
     {
