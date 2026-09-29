@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -8,18 +8,25 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
 import { ENVELOPE } from './api';
+import { FlowForm } from './entries/FlowForm';
+import { RowActions } from './entries/RowActions';
+import { ValueForm } from './entries/ValueForm';
 import { Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 
-/** 2B2a design §6: the envelope's figures, warnings, and its values and flows, newest first, read-only for now
- * (Task 5 adds the quick-value/add-flow forms and the rows' « Corriger »/« Supprimer » actions). */
+/** 2B2a design §6: the envelope's figures, warnings, and its values and flows, newest first — the quick-value/
+ * add-flow forms and each row's « Corriger »/« Supprimer » shown only when `canWrite` (Task 5). */
 export function EnvelopeDetailPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { id } = useParams({ from: '/investments/$id' });
   const answer = $api.useQuery('get', ENVELOPE, { params: { path: { id } } });
   const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
+  const [editingValueId, setEditingValueId] = useState<string | null>(null);
+  const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
+  const [flowInitialKind, setFlowInitialKind] = useState<'opening' | undefined>(undefined);
 
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
   if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
@@ -89,14 +96,26 @@ export function EnvelopeDetailPage() {
           })}</p>
         ) : null}
         {figures.missingOpening ? (
-          <p role="note" className="flex items-center gap-2">
+          <p role="note" className="flex flex-wrap items-center gap-2">
             <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
             {t('envelope.missing_opening')}
+            {detail.canWrite ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setFlowInitialKind('opening')}>
+                {t('envelope.add_opening')}
+              </Button>
+            ) : null}
           </p>
         ) : null}
       </Section>
 
-      {/* Task 5 fills this with the quick-value/add-flow forms, when detail.canWrite. */}
+      {detail.canWrite ? (
+        <Section title={t('envelope.enter')}>
+          <div className="grid gap-6 md:grid-cols-2">
+            <ValueForm envelope={detail} />
+            <FlowForm envelope={detail} initialKind={flowInitialKind} />
+          </div>
+        </Section>
+      ) : null}
 
       <Section title={t('envelope.values')}>
         <table className="w-full text-sm" aria-label={t('envelope.values_table')}>
@@ -109,12 +128,18 @@ export function EnvelopeDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {values.map((v) => (
+            {values.map((v) => editingValueId === v.id ? (
+              <tr key={v.id}>
+                <td colSpan={4}>
+                  <ValueForm envelope={detail} editing={v} onDone={() => setEditingValueId(null)} />
+                </td>
+              </tr>
+            ) : (
               <tr key={v.id}>
                 <td><LocalDate value={v.asOf} /></td>
                 <td><Money value={v.amount} tabular /></td>
                 <td>{v.note}</td>
-                <td />
+                <td>{detail.canWrite ? <RowActions kind="value" envelope={detail} item={v} onEdit={() => setEditingValueId(v.id)} /> : null}</td>
               </tr>
             ))}
           </tbody>
@@ -133,13 +158,19 @@ export function EnvelopeDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {flows.map((f) => (
+            {flows.map((f) => editingFlowId === f.id ? (
+              <tr key={f.id}>
+                <td colSpan={5}>
+                  <FlowForm envelope={detail} editing={f} onDone={() => setEditingFlowId(null)} />
+                </td>
+              </tr>
+            ) : (
               <tr key={f.id}>
                 <td><LocalDate value={f.occurredOn} /></td>
                 <td>{flowKindText(t, f)}</td>
                 <td><Money value={f.amount} tabular /></td>
                 <td>{f.note}</td>
-                <td />
+                <td>{detail.canWrite ? <RowActions kind="flow" envelope={detail} item={f} onEdit={() => setEditingFlowId(f.id)} /> : null}</td>
               </tr>
             ))}
           </tbody>

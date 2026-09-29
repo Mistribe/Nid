@@ -682,7 +682,9 @@
     "name_too_long": "100 caractères au plus.",
     "institution_too_long": "100 caractères au plus.",
     "account_hint_too_long": "4 caractères au plus : jamais le numéro complet.",
-    "amount_format": "Saisissez un montant comme 1234,56."
+    "amount_format": "Saisissez un montant comme 1234,56.",
+    "positive_amount_format": "Saisissez un montant positif comme 1234,56.",
+    "note_too_long": "2000 caractères au plus."
   },
   "envelope": {
     "back": "Retour aux placements",
@@ -706,7 +708,27 @@
     "amount": "Montant",
     "kind": "Nature",
     "note": "Note",
-    "actions": "Actions"
+    "actions": "Actions",
+    "enter": "Saisir",
+    "new_value": "Nouvelle valeur",
+    "edit_value": "Corriger la valeur",
+    "replaces": "Une valeur existe déjà à cette date : elle sera remplacée.",
+    "save_value": "Enregistrer la valeur",
+    "value_saved": "Valeur enregistrée.",
+    "new_flow": "Nouveau flux",
+    "edit_flow": "Corriger le flux",
+    "add_flow": "Ajouter le flux",
+    "flow_saved": "Flux ajouté.",
+    "flow_corrected": "Flux corrigé.",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "correct": "Corriger",
+    "delete": "Supprimer",
+    "delete_value": "Cette valeur sera supprimée ; la précédente redevient la dernière.",
+    "delete_flow": "Ce flux sera supprimé.",
+    "delete_transfer_leg": "Seule cette jambe du virement sera supprimée : l’autre enveloppe garde la sienne.",
+    "deleted": "Supprimé.",
+    "add_opening": "Saisir les versements antérieurs"
   },
   "security": {
     "title": "Sécurité",
