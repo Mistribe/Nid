@@ -57,6 +57,24 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new VoidFlowCommand(new ItemId(id), flowId), ct)).ToHttp(f => new IdResponse(f)))
             .Returns<IdResponse>();
 
+        api.MapPost("/transfers", async (TransferBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new TransferCommand(new ItemId(body.From), new ItemId(body.To), RequireDate(body.OccurredOn), RequireMoney(body.Amount), body.Note), ct))
+                .ToHttp(t => new IdResponse(t), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPost("/envelopes/{id:guid}/close", async (Guid id, CloseBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CloseEnvelopeCommand(new ItemId(id), RequireDate(body.ClosedOn), body.FinalWithdrawal?.ToMoney()), ct))
+                .ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        api.MapPost("/envelopes/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ReopenEnvelopeCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        api.MapGet("/envelopes/{id:guid}/performance", async (Guid id, string from, string to, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPeriodPerformanceQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
+            .Returns<PeriodView>();
+
         return routes;
     }
 
@@ -121,4 +139,10 @@ public static class InvestmentEndpoints
     {
         public FlowDraft ToDraft() => new(RequireDate(OccurredOn), Kind, RequireMoney(Amount), Category, ExternalRef, Note);
     }
+
+    // MoneyBody? (not the brief's non-nullable MoneyBody): a missing "amount" member binds to null regardless
+    // of the declared type (Task 4 controller ruling) — RequireMoney turns that null into a located 400.
+    public sealed record TransferBody(Guid From, Guid To, string OccurredOn, MoneyBody? Amount, string? Note);
+
+    public sealed record CloseBody(string ClosedOn, MoneyBody? FinalWithdrawal);
 }

@@ -44,6 +44,15 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
     /// request carrying a <c>ProviderKey</c>, which <c>LeakBenchTests</c> checks by reflection.
     /// </summary>
     public Func<MixedDataset, PersonId, ItemId, string, object>? BuildLinkingProvider { get; init; }
+
+    /// <summary>
+    /// The default second axis is a purchase's indirect grant (1E2b1 design §3.2): the actor never named
+    /// that item themselves, so an unwritable one is folded into the same "not found" signature as one that
+    /// does not exist at all. A request whose second item is instead a route field the actor names directly
+    /// — 2B1a spec §6, a transfer's destination — answers exactly like any other envelope reference (404
+    /// unreadable, 403 read-only, disclosed rather than collapsed); such an entry sets this true.
+    /// </summary>
+    public bool SecondItemAccessIsDisclosed { get; init; }
 }
 
 /// <summary>
@@ -223,6 +232,19 @@ public static class RequestCatalogue
         new(typeof(RecordFlowCommand), true, (_, item) => new RecordFlowCommand(item, new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
         new(typeof(CorrectFlowCommand), true, (_, item) => new CorrectFlowCommand(item, Guid.NewGuid(), new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
         new(typeof(VoidFlowCommand), true, (_, item) => new VoidFlowCommand(item, Guid.NewGuid())),
+
+        new(typeof(TransferCommand), true, (_, item) => new TransferCommand(item, item, new LocalDate(2025, 1, 1), Money.Create(1m, Currency.Eur).Ok(), null))
+        {
+            // A transfer names two envelopes: the route's source, and its destination. The base Build names
+            // the source twice — it is refused on its own merits (investments.transfer_same_envelope) before
+            // the destination's access is even checked, so it never manufactures a bogus item-not-found.
+            BuildNamingAnother = (_, target, other) => Task.FromResult<object>(
+                new TransferCommand(target, other, new LocalDate(2025, 1, 1), Money.Create(1m, Currency.Eur).Ok(), null)),
+            SecondItemAccessIsDisclosed = true,
+        },
+        new(typeof(CloseEnvelopeCommand), true, (_, item) => new CloseEnvelopeCommand(item, new LocalDate(2025, 1, 1), null)),
+        new(typeof(ReopenEnvelopeCommand), true, (_, item) => new ReopenEnvelopeCommand(item)),
+        new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

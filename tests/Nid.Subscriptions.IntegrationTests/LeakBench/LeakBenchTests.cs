@@ -312,12 +312,41 @@ public class LeakBenchTests(PostgresFixture fixture)
 
                 if (!data.ExpectedWritable(otherName, actor))
                 {
+                    if (entry.SecondItemAccessIsDisclosed)
+                    {
+                        // 2B1a spec §6: a transfer's destination is a route field the actor names directly,
+                        // not an indirect grant — it answers like any other envelope reference (404
+                        // unreadable, 403 read-only), disclosed rather than collapsed.
+                        if (!data.ExpectedReadable(actor).Contains(other))
+                            Assert.True(failure is NotFoundFailure { Resource: "item" },
+                                $"{where}: the rules hide the other item, so it must be 'not found' — but "
+                                + $"the pipeline answered {Describe(failure)}");
+                        else
+                            Assert.True(failure is UnauthorizedFailure,
+                                $"{where}: the rules let this actor read but not write the other item, so it "
+                                + $"must be forbidden, but the pipeline answered {Describe(failure)}");
+                        continue;
+                    }
+
                     // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
                     // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
                     // exist at all, so the ruling here is indistinguishability, checked against that case.
                     var missing = await entry.BuildNamingAnother!(data, target, new ItemId(Guid.NewGuid()));
                     var (_, missingFailure) = await app.InvokeAsync(actor, missing);
                     Assert.Equal(Signature(missingFailure), Signature(failure));
+                    continue;
+                }
+
+                if (entry.SecondItemAccessIsDisclosed)
+                {
+                    // As for the single-item bench: the rules never turn this away, but the request may
+                    // still fail on its own merits — the dataset's items are Subscriptions rows, not
+                    // envelopes, so a transfer between two of them fails as "envelope not found", never as
+                    // an access refusal.
+                    Assert.False(failure is UnauthorizedFailure,
+                        $"{where}: the rules let this actor write both items, yet it was forbidden — {Describe(failure)}");
+                    Assert.False(failure is NotFoundFailure { Resource: "item" },
+                        $"{where}: the rules let this actor write both items, yet it was hidden — {Describe(failure)}");
                     continue;
                 }
 
