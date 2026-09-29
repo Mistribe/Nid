@@ -29,9 +29,12 @@ public class FactSchemaTests(PostgresFixture postgres)
             "select indexdef from pg_indexes where schemaname = 'core' and tablename in ('valuation','flow') and indexname not like 'pk_%' and indexdef like 'CREATE UNIQUE%' order by indexdef");
 
         Assert.Equal(3, indexes.Count);
-        Assert.Contains(indexes, d => d.Contains("valuation") && d.Contains("(item_id, as_of)") && d.Contains("retired_at IS NULL"));
-        Assert.Contains(indexes, d => d.Contains("flow") && d.Contains("(item_id)") && d.Contains("'opening'") && d.Contains("retired_at IS NULL"));
-        Assert.Contains(indexes, d => d.Contains("flow") && d.Contains("(item_id, external_ref)") && d.Contains("external_ref IS NOT NULL") && d.Contains("retired_at IS NULL"));
+        Assert.Contains(indexes, d => d.StartsWith("CREATE UNIQUE INDEX ux_valuation_current ON core.valuation")
+            && d.Contains("(item_id, as_of)") && d.Contains("retired_at IS NULL"));
+        Assert.Contains(indexes, d => d.StartsWith("CREATE UNIQUE INDEX ux_flow_opening_current ON core.flow")
+            && d.Contains("(item_id)") && d.Contains("'opening'") && d.Contains("retired_at IS NULL"));
+        Assert.Contains(indexes, d => d.StartsWith("CREATE UNIQUE INDEX ux_flow_external_ref_current ON core.flow")
+            && d.Contains("(item_id, external_ref)") && d.Contains("external_ref IS NOT NULL") && d.Contains("retired_at IS NULL"));
     }
 
     [Fact]

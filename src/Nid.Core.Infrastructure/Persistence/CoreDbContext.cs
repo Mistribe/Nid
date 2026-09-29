@@ -122,7 +122,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<ValuationRow>().WithMany().HasForeignKey(x => x.SupersedesId).OnDelete(DeleteBehavior.Restrict);
             // At most one current value per item and date; it also serves "the last value on or before d".
-            e.HasIndex(x => new { x.ItemId, x.AsOf }).IsUnique().HasFilter("retired_at is null");
+            e.HasIndex(x => new { x.ItemId, x.AsOf }).IsUnique().HasFilter("retired_at is null").HasDatabaseName("ux_valuation_current");
             MapXmin(e.Property(x => x.Version));
         });
 
@@ -143,9 +143,10 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<FlowRow>().WithMany().HasForeignKey(x => x.SupersedesId).OnDelete(DeleteBehavior.Restrict);
             // At most one current opening per item (core-data-model.md §5.3).
-            e.HasIndex(x => x.ItemId).IsUnique().HasFilter("kind = 'opening' and retired_at is null");
+            e.HasIndex(x => x.ItemId).IsUnique().HasFilter("kind = 'opening' and retired_at is null").HasDatabaseName("ux_flow_opening_current");
             // An external reference makes a re-import without duplicates (import-format.md §5.6).
-            e.HasIndex(x => new { x.ItemId, x.ExternalRef }).IsUnique().HasFilter("external_ref is not null and retired_at is null");
+            e.HasIndex(x => new { x.ItemId, x.ExternalRef }).IsUnique().HasFilter("external_ref is not null and retired_at is null")
+                .HasDatabaseName("ux_flow_external_ref_current");
             e.HasIndex(x => new { x.ItemId, x.OccurredOn }).HasFilter("retired_at is null");
             MapXmin(e.Property(x => x.Version));
         });
@@ -173,7 +174,8 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             var table = entity.GetTableName()!;
             entity.FindPrimaryKey()?.SetName($"pk_{table}");
 
-            foreach (var index in entity.GetIndexes())
+            // An index named in the model (HasDatabaseName) keeps its name: the partial unique ones are named for what they guard.
+            foreach (var index in entity.GetIndexes().Where(i => i.FindAnnotation(RelationalAnnotationNames.Name) is null))
                 index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
 
             foreach (var foreignKey in entity.GetForeignKeys())

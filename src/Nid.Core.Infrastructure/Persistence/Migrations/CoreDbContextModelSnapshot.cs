@@ -104,7 +104,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ItemId")
                         .IsUnique()
-                        .HasDatabaseName("ix_flow_item_id")
+                        .HasDatabaseName("ux_flow_opening_current")
                         .HasFilter("kind = 'opening' and retired_at is null");
 
                     b.HasIndex("SupersedesId")
@@ -112,7 +112,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ItemId", "ExternalRef")
                         .IsUnique()
-                        .HasDatabaseName("ix_flow_item_id_external_ref")
+                        .HasDatabaseName("ux_flow_external_ref_current")
                         .HasFilter("external_ref is not null and retired_at is null");
 
                     b.HasIndex("ItemId", "OccurredOn")
@@ -498,7 +498,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ItemId", "AsOf")
                         .IsUnique()
-                        .HasDatabaseName("ix_valuation_item_id_as_of")
+                        .HasDatabaseName("ux_valuation_current")
                         .HasFilter("retired_at is null");
 
                     b.ToTable("valuation", "core", t =>

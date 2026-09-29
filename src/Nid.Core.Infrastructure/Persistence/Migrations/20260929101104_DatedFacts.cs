@@ -118,22 +118,6 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                 column: "created_by_person_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_flow_item_id",
-                schema: "core",
-                table: "flow",
-                column: "item_id",
-                unique: true,
-                filter: "kind = 'opening' and retired_at is null");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_flow_item_id_external_ref",
-                schema: "core",
-                table: "flow",
-                columns: new[] { "item_id", "external_ref" },
-                unique: true,
-                filter: "external_ref is not null and retired_at is null");
-
-            migrationBuilder.CreateIndex(
                 name: "ix_flow_item_id_occurred_on",
                 schema: "core",
                 table: "flow",
@@ -147,24 +131,40 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                 column: "supersedes_id");
 
             migrationBuilder.CreateIndex(
+                name: "ux_flow_external_ref_current",
+                schema: "core",
+                table: "flow",
+                columns: new[] { "item_id", "external_ref" },
+                unique: true,
+                filter: "external_ref is not null and retired_at is null");
+
+            migrationBuilder.CreateIndex(
+                name: "ux_flow_opening_current",
+                schema: "core",
+                table: "flow",
+                column: "item_id",
+                unique: true,
+                filter: "kind = 'opening' and retired_at is null");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_valuation_created_by_person_id",
                 schema: "core",
                 table: "valuation",
                 column: "created_by_person_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_valuation_item_id_as_of",
+                name: "ix_valuation_supersedes_id",
+                schema: "core",
+                table: "valuation",
+                column: "supersedes_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ux_valuation_current",
                 schema: "core",
                 table: "valuation",
                 columns: new[] { "item_id", "as_of" },
                 unique: true,
                 filter: "retired_at is null");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_valuation_supersedes_id",
-                schema: "core",
-                table: "valuation",
-                column: "supersedes_id");
         }
 
         /// <inheritdoc />
