@@ -9,7 +9,7 @@ export function newEnvelopeSchema(t: TFunction) {
   return z.object({
     displayName: z.string().trim().min(1, required).max(100, t('investments_form.name_too_long')),
     kind: z.enum(KINDS),
-    currency: z.string().regex(CURRENCY, t('field_error.request_currency')),
+    currency: z.string().trim().toUpperCase().regex(CURRENCY, t('field_error.request_currency')),
     institution: z.string().max(100, t('investments_form.institution_too_long')),
     accountHint: z.string().max(4, t('investments_form.account_hint_too_long')),
     valuationCadence: z.enum(CADENCES),

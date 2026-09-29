@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { persons } from '../subscriptions/testData';
+import { todayIso } from '../subscriptions/today';
 import { detail, PEA } from './testData';
 
 function serveCreate(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: PEA }, { status: 201 })) {
@@ -94,6 +95,24 @@ describe('NewEnvelope', () => {
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('reads a lowercase currency as capitals, for the envelope and its first value', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user } = await renderApp('/investments/new');
+
+    await user.type(await screen.findByLabelText('Nom'), 'PEA');
+    await user.clear(screen.getByLabelText('Devise'));
+    await user.type(screen.getByLabelText('Devise'), 'eur');
+    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
+    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(bodies).toEqual([expect.objectContaining({
+      currency: 'EUR', firstValuation: { asOf: todayIso(), amount: { amount: '10', currency: 'EUR' } },
+    })]);
   });
 
   // Task 3 brief: a pathless code (the Core fact codes carry no path, 2A) is placed on the one date/amount
