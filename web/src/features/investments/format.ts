@@ -18,3 +18,10 @@ export function directionOf(amount: string): Direction {
 }
 
 export const isTransferLeg = (flow: { category?: string | null }) => flow.category === 'transfer';
+
+/** A transfer leg reads as « Virement »; a flow kind the server added later reads as its raw name, as kindText. */
+export function flowKindText(t: TFunction, flow: { kind: string; category?: string | null }): string {
+  if (isTransferLeg(flow)) return t('investments.flow_kind.transfer');
+  const known = FLOW_KINDS.find((k) => k === flow.kind);
+  return known ? t(`investments.flow_kind.${known}`) : flow.kind;
+}
