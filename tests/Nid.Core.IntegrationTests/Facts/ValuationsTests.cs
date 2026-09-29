@@ -160,6 +160,21 @@ public class ValuationsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task An_evening_in_Paris_is_already_the_next_day()
+    {
+        // 23:30 UTC on 30 June is 01:30 on 1 July in Europe/Paris: the household's today is the 1st.
+        await using var w = await FactWorld.NewAsync(postgres, Instant.FromUtc(2025, 6, 30, 23, 30));
+        var item = await w.ItemAsync(w.Alice);
+        var utcDay = new LocalDate(2025, 6, 30);
+
+        Assert.True((await w.Valuations.RecordAsync(Value(item, utcDay.PlusDays(1), 1m), default)).IsSuccess);
+        Assert.Equal(CoreFactCodes.DateInFuture, Code(await w.Valuations.RecordAsync(Value(item, utcDay.PlusDays(2), 1m), default)));
+        Assert.True((await w.Flows.RecordAsync(
+            new NewFlow(item, utcDay.PlusDays(1), FlowKind.Contribution, FactWorld.Eur(1m), null, null, null), default)).IsSuccess);
+        Assert.Equal(1, await RowsAsync(w));
+    }
+
+    [Fact]
     public async Task An_amount_beyond_numeric_19_4_is_invalid_not_a_crash()
     {
         await using var w = await FactWorld.NewAsync(postgres);

@@ -7,7 +7,8 @@ using NodaTime;
 namespace Nid.Core.IntegrationTests.Facts;
 
 /// <summary>
-/// Alice and Bob, a clock at <see cref="Now"/> (2025-06-30 in Paris), and stores acting as <see cref="Act"/> says.
+/// Alice and Bob, a clock at <see cref="Now"/> (2025-06-30 in Paris) unless <see cref="NewAsync"/> is given another
+/// instant, and stores acting as <see cref="Act"/> says.
 /// <see cref="ForSameDatabase"/> opens a second world on the same database, for the race tests.
 /// </summary>
 internal sealed class FactWorld : IAsyncDisposable
@@ -22,13 +23,16 @@ internal sealed class FactWorld : IAsyncDisposable
 
     private readonly ActorAccessor actors = new();
 
-    private FactWorld(string connectionString, PersonId alice, PersonId bob)
+    private readonly Instant now;
+
+    private FactWorld(string connectionString, PersonId alice, PersonId bob, Instant now)
     {
+        this.now = now;
         ConnectionString = connectionString;
         Db = PostgresFixture.NewCoreContext(connectionString);
         Alice = alice;
         Bob = bob;
-        var clock = new FixedClock(Now);
+        var clock = new FixedClock(now);
         var persons = new PersonRegistry(Db, clock);
         Items = new ItemRegistry(Db, clock);
         var gate = new FactGate(Db, new AccessPolicy(Items, persons), actors, new HouseholdCalendar(Db, clock));
@@ -45,7 +49,7 @@ internal sealed class FactWorld : IAsyncDisposable
     public Valuations Valuations { get; }
     public Flows Flows { get; }
 
-    public static async Task<FactWorld> NewAsync(PostgresFixture postgres)
+    public static async Task<FactWorld> NewAsync(PostgresFixture postgres, Instant? now = null)
     {
         var connectionString = await postgres.NewConnectionStringAsync();
         await using var db = PostgresFixture.NewCoreContext(connectionString);
@@ -53,10 +57,10 @@ internal sealed class FactWorld : IAsyncDisposable
         Assert.True((await persons.ProvisionAdultAsync("sub-a", "Alice", null, default)).TryGetValue(out var alice));
         Assert.True((await persons.PreRegisterAdultAsync("Bob", "bob@example.test", default)).IsSuccess);
         Assert.True((await persons.ProvisionAdultAsync("sub-b", "Bob", "bob@example.test", default)).TryGetValue(out var bob));
-        return new FactWorld(connectionString, alice.Id, bob.Id);
+        return new FactWorld(connectionString, alice.Id, bob.Id, now ?? Now);
     }
 
-    public FactWorld ForSameDatabase() => new(ConnectionString, Alice, Bob);
+    public FactWorld ForSameDatabase() => new(ConnectionString, Alice, Bob, now);
 
     public void Act(PersonId person) => actors.Current = Actor.Browser(person);
 
