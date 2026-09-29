@@ -1,9 +1,9 @@
-import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
+import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Fragment, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { formatLocalDate } from '@/components/LocalDate';
-import { Button } from '@/components/ui/button';
+import { OwnershipFields } from '@/components/ownership/OwnershipFields';
 import { Field } from '../edits/Field';
 import { durationText } from '../format';
 import { ProviderPicker } from '../ProviderPicker';
@@ -18,10 +18,7 @@ const input = 'rounded-md border px-3 py-2';
 
 export function CommonStep({ form, persons }: { form: Form; persons: Person[] }) {
   const { t } = useTranslation();
-  const owners = useFieldArray({ control: form.control, name: 'owners' });
   const e = form.formState.errors;
-  const ownersError = e.owners?.message ?? e.owners?.root?.message;
-  const visibilityId = useId();
   return (
     <div className="space-y-4">
       <Controller control={form.control} name="provider" render={({ field, fieldState }) => (
@@ -31,42 +28,7 @@ export function CommonStep({ form, persons }: { form: Form; persons: Person[] })
         }} />
       )} />
       <Field label={t('wizard.name')} error={e.displayName?.message}>{(c) => <input {...c} {...form.register('displayName')} className={`w-full ${input}`} />}</Field>
-      <fieldset aria-describedby={visibilityId} className="space-y-1">
-        <legend className="text-sm">{t('wizard.visibility')}</legend>
-        {(['shared', 'private'] as const).map((v) => (
-          <label key={v} className="flex items-center gap-2">
-            <input type="radio" value={v} {...form.register('visibility')} />
-            {t(`wizard.${v}`)}
-          </label>
-        ))}
-        <p id={visibilityId} className="text-sm text-muted-foreground">
-          {form.watch('visibility') === 'private' ? t('wizard.private_effect') : t('wizard.shared_effect')}
-        </p>
-      </fieldset>
-      <fieldset className="space-y-2">
-        <legend className="text-sm">{t('wizard.owners')}</legend>
-        {owners.fields.map((row, i) => (
-          <div key={row.id} className="flex flex-wrap items-end gap-2">
-            <Field label={t('wizard.owner')} error={e.owners?.[i]?.personId?.message}>
-              {(c) => (
-                <select {...c} {...form.register(`owners.${i}.personId`)} className={input}>
-                  {persons.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                </select>
-              )}
-            </Field>
-            <Field label={t('wizard.share')} error={e.owners?.[i]?.share?.message}>
-              {(c) => <input inputMode="decimal" {...c} {...form.register(`owners.${i}.share`)} className={`w-24 ${input}`} />}
-            </Field>
-            {owners.fields.length > 1 ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => owners.remove(i)}>{t('wizard.remove_owner')}</Button>
-            ) : null}
-          </div>
-        ))}
-        {ownersError ? <p role="alert" className="text-sm text-destructive">{ownersError}</p> : null}
-        <Button type="button" variant="outline" size="sm" onClick={() => owners.append({ personId: persons[0]?.id ?? '', share: '' })}>
-          {t('wizard.add_owner')}
-        </Button>
-      </fieldset>
+      <OwnershipFields form={form} persons={persons} />
       <fieldset className="space-y-1">
         <legend className="text-sm">{t('wizard.users')}</legend>
         {persons.map((p) => (

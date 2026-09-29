@@ -2,22 +2,15 @@ import type { TFunction } from 'i18next';
 import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
+import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
 import { AMOUNT, CURRENCY, ISO_DATE } from '../edits/amount';
 import { offerBody, offerFieldOf, thenMode } from './offers';
 
 const UNITS = ['day', 'week', 'month', 'year'] as const;
 export type Unit = (typeof UNITS)[number];
 
-/**
- * A share typed in percent as basis points, by reading the text (`33.33` → 3333): no floating point touches it.
- * At most two decimals and at most 100 %; anything else is null.
- */
-export function percentToBp(text: string): number | null {
-  const match = /^(\d{1,3})(?:[.,](\d{1,2}))?$/.exec(text.trim());
-  if (!match) return null;
-  const bp = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
-  return bp <= 10000 ? bp : null;
-}
+/** Re-exported for callers (and tests) that used to import it from here, before it moved to the shared ownership module. */
+export { percentToBp } from '@/components/ownership/ownership';
 
 const POSITIVE_COUNT = /^[1-9]\d*$/;
 
@@ -25,8 +18,7 @@ export function wizardSchema(t: TFunction) {
   return z.object({
     provider: z.object({ key: z.string(), name: z.string() }).nullable(),
     displayName: z.string().trim().min(1, t('edit.required')),
-    visibility: z.enum(['shared', 'private']),
-    owners: z.array(z.object({ personId: z.string().min(1, t('edit.required')), share: z.string() })).min(1, t('edit.required')),
+    ...ownershipShape(t),
     users: z.array(z.string()),
     note: z.string(),
     startsOn: z.string(),
@@ -61,11 +53,7 @@ export function wizardSchema(t: TFunction) {
     others: z.array(z.object({ subscriptionId: z.string(), count: z.string(), unit: z.enum(UNITS) })),
     then: z.boolean(),
   }).superRefine((v, ctx) => {
-    const shares = v.owners.map((o) => percentToBp(o.share));
-    if (shares.some((bp) => bp === null) || shares.reduce<number>((sum, bp) => sum + (bp ?? 0), 0) !== 10000)
-      ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_share_sum') });
-    if (v.visibility === 'private' && v.owners.length !== 1)
-      ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.core_private_single_owner') });
+    checkOwnership(v, ctx, t);
     // The 1E2a phase fields: checked only when a phase is actually sent (the recurring offer always sends
     // one, others only when "then" asks for the following phase, or the launch price requires it), so a
     // hidden field left over from an earlier choice never blocks the wizard (final review, finding 1). The
@@ -141,8 +129,7 @@ type CreateBody = components['schemas']['CreateSubscriptionBody'];
 export function toCreateBody(v: WizardValues): CreateBody {
   return {
     displayName: v.displayName.trim(),
-    visibility: v.visibility,
-    owners: v.owners.map((o) => ({ personId: o.personId, shareBp: percentToBp(o.share) ?? 0 })),
+    ...ownershipToWire(v),
     providerKey: v.provider?.key ?? null,
     autoRenew: true,
     users: v.users,
@@ -153,8 +140,8 @@ export function toCreateBody(v: WizardValues): CreateBody {
 
 /** A server path as the form field it concerns, common fields first, then by offer (Review Focus 4). */
 export const fieldOf = (path: string, v: Pick<WizardValues, 'offer' | 'trialVariant'>): Path<WizardValues> | undefined => {
-  const share = /^owners\[(\d+)\]\.shareBp$/.exec(path);
-  if (share) return `owners.${Number(share[1])}.share` as const;
-  const common = { displayName: 'displayName', visibility: 'visibility', owners: 'owners', providerKey: 'provider', users: 'users', note: 'note' } as const;
+  const owned = ownershipPath(path);
+  if (owned) return owned;
+  const common = { displayName: 'displayName', providerKey: 'provider', users: 'users', note: 'note' } as const;
   return common[path as keyof typeof common] ?? offerFieldOf(path, v);
 };
