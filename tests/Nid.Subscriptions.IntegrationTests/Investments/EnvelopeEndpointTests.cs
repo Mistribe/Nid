@@ -101,6 +101,33 @@ public class EnvelopeEndpointTests(PostgresFixture fixture)
         Assert.Equal("investments.invalid_envelope", (await JsonAsync(refused)).GetProperty("code").GetString());
     }
 
+    /// <summary>
+    /// Fix round 2: System.Text.Json binds a missing or explicit-null JSON field to a real <c>null</c> even for
+    /// a non-nullable <c>string</c> record parameter (no required-parameter enforcement is configured) — a
+    /// crash waiting to happen wherever a rule calls a member on that string without checking. This covers both
+    /// shapes for <c>displayName</c> (omitted key, and <c>null</c> value) and the omitted shape for <c>kind</c>
+    /// (which already handled null through <c>EnvelopeWire.TryKind</c>, so it is here as a confirming case, not
+    /// a fix).
+    /// </summary>
+    [Theory]
+    [InlineData("displayName", true, "investments.invalid_envelope")]
+    [InlineData("displayName", false, "investments.invalid_envelope")]
+    [InlineData("kind", true, "investments.unknown_kind")]
+    public async Task A_missing_or_null_required_field_is_refused_not_crashed(string field, bool omit, string code)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = JsonSerializer.SerializeToElement(Create(app));
+        var patched = JsonSerializer.Deserialize<Dictionary<string, object?>>(body.GetRawText())!;
+        if (omit) patched.Remove(field); else patched[field] = null;
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", patched);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal(code, (await JsonAsync(refused)).GetProperty("code").GetString());
+        await using var investments = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
+        Assert.Equal(0, await investments.Envelopes.CountAsync());
+    }
+
     [Fact]
     public async Task Renaming_to_an_empty_name_is_refused_and_leaves_the_name_unchanged()
     {

@@ -14,9 +14,12 @@ internal static class EnvelopeRules
     /// <summary>
     /// Fix round 1, ruling 1: 1 to 100 characters after trimming, not only whitespace. The name is stored
     /// exactly as sent — this only decides whether it is accepted, and never trims what gets written.
+    /// Fix round 2: the JSON body's <c>displayName</c> is bound with no required-parameter enforcement, so an
+    /// omitted or explicit-null value reaches here as a real <c>null</c> — treated as an empty name (422), not
+    /// a <see cref="NullReferenceException"/> (500).
     /// </summary>
-    public static Result Name(string name)
-        => name.Trim().Length is < 1 or > NameMax
+    public static Result Name(string? name)
+        => name is null || name.Trim().Length is < 1 or > NameMax
             ? Invalid("displayName", $"A name is 1 to {NameMax} characters, and not only whitespace.")
             : Result.Success();
 
