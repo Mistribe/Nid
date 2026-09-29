@@ -35,8 +35,40 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
+        api.MapPost("/envelopes/{id:guid}/valuations", async (Guid id, ValuationBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new RecordValuationCommand(new ItemId(id), RequireDate(body.AsOf), RequireMoney(body.Amount), body.Note), ct))
+                .ToHttp(v => new IdResponse(v), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapDelete("/envelopes/{id:guid}/valuations/{valuationId:guid}", async (Guid id, Guid valuationId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidValuationCommand(new ItemId(id), valuationId), ct)).ToHttp(v => new IdResponse(v)))
+            .Returns<IdResponse>();
+
+        api.MapPost("/envelopes/{id:guid}/flows", async (Guid id, FlowBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new RecordFlowCommand(new ItemId(id), body.ToDraft()), ct))
+                .ToHttp(f => new IdResponse(f), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/envelopes/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, FlowBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CorrectFlowCommand(new ItemId(id), flowId, body.ToDraft()), ct)).ToHttp(f => new IdResponse(f)))
+            .Returns<IdResponse>();
+
+        api.MapDelete("/envelopes/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidFlowCommand(new ItemId(id), flowId), ct)).ToHttp(f => new IdResponse(f)))
+            .Returns<IdResponse>();
+
         return routes;
     }
+
+    /// <summary>
+    /// Controller ruling (Task 4, carried): System.Text.Json binds a missing or null body member to a real
+    /// null even for a non-nullable type, so a body's <see cref="MoneyBody"/> field must be read through this
+    /// rather than <c>.ToMoney()</c> directly — a null instance answers 400, never a <see cref="NullReferenceException"/>.
+    /// </summary>
+    private static Money RequireMoney(MoneyBody? body)
+        => body is null
+            ? throw new BadHttpRequestException("An amount is required.")
+            : body.ToMoney();
 
     public sealed record OpeningBody(string OccurredOn, MoneyBody Amount);
 
@@ -78,5 +110,15 @@ public static class InvestmentEndpoints
             Institution: Institution, ClearInstitution: ClearInstitution, AccountHint: AccountHint, ClearAccountHint: ClearAccountHint,
             OpenedOn: OptionalDate(OpenedOn), ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
             ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote), ValuationCadence);
+    }
+
+    // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member
+    // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney is what turns
+    // that null into a located 400 instead of a NullReferenceException.
+    public sealed record ValuationBody(string AsOf, MoneyBody? Amount, string? Note);
+
+    public sealed record FlowBody(string OccurredOn, string Kind, MoneyBody? Amount, string? Category, string? ExternalRef, string? Note)
+    {
+        public FlowDraft ToDraft() => new(RequireDate(OccurredOn), Kind, RequireMoney(Amount), Category, ExternalRef, Note);
     }
 }

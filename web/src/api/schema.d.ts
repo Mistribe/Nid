@@ -1591,6 +1591,460 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/investments/envelopes/{id}/valuations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ValuationBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/envelopes/{id}/valuations/{valuationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    valuationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/envelopes/{id}/flows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FlowBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/envelopes/{id}/flows/{flowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    flowId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FlowBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    flowId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/imports": {
         parameters: {
             query?: never;
@@ -4662,6 +5116,14 @@ export interface components {
             asOf: string;
             amount: components["schemas"]["MoneyBody"];
         };
+        FlowBody: {
+            occurredOn: string;
+            kind: string;
+            amount?: null | components["schemas"]["MoneyBody"];
+            category?: null | string;
+            externalRef?: null | string;
+            note?: null | string;
+        };
         FlowView: {
             /** Format: uuid */
             id: string;
@@ -5104,6 +5566,11 @@ export interface components {
             health: components["schemas"]["SystemHealthView"];
             /** Format: int64 */
             databaseSizeBytes?: null | number;
+        };
+        ValuationBody: {
+            asOf: string;
+            amount?: null | components["schemas"]["MoneyBody"];
+            note?: null | string;
         };
         ValuationView: {
             /** Format: uuid */

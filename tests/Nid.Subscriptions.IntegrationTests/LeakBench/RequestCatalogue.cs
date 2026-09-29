@@ -215,6 +215,14 @@ public static class RequestCatalogue
         new(typeof(EditEnvelopeCommand), true, (_, item) => new EditEnvelopeCommand(item, null, null, new EnvelopeChange(Note: "bench"), null)),
         new(typeof(CreateEnvelopeCommand), false, (d, _) => new CreateEnvelopeCommand("bench", "savings", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], null, null, null, null, null, null, null, null)),
+
+        // A fact id is looked up by (id, item_id) in the Core (2A), so a fact id alone can never reach another
+        // item: no BuildNamingAnother (CarriesItemIds only matches ItemId itself; a Guid fact id does not).
+        new(typeof(RecordValuationCommand), true, (_, item) => new RecordValuationCommand(item, new LocalDate(2025, 1, 1), Money.Create(1m, Currency.Eur).Ok(), null)),
+        new(typeof(VoidValuationCommand), true, (_, item) => new VoidValuationCommand(item, Guid.NewGuid())),
+        new(typeof(RecordFlowCommand), true, (_, item) => new RecordFlowCommand(item, new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(CorrectFlowCommand), true, (_, item) => new CorrectFlowCommand(item, Guid.NewGuid(), new FlowDraft(new LocalDate(2025, 1, 1), "contribution", Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(VoidFlowCommand), true, (_, item) => new VoidFlowCommand(item, Guid.NewGuid())),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
