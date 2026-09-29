@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Npgsql;
@@ -39,32 +40,73 @@ public sealed class FactGate(CoreDbContext db, IAccessPolicy policy, IActorAcces
     }
 
     /// <summary>
-    /// Runs <paramref name="work"/> in the caller's transaction, or in one of its own. A unique violation or a lost
-    /// concurrency check is <see cref="CoreFactCodes.FactConflict"/>: the rows it left tracked are detached, and a
-    /// transaction of its own is rolled back. The caller's transaction is then unusable, as the contracts say.
+    /// Runs <paramref name="work"/> in the caller's transaction, under a savepoint, or in a transaction of its own. A
+    /// unique violation or a lost concurrency check is <see cref="CoreFactCodes.FactConflict"/>. On any other outcome
+    /// than success — a failure result, a conflict, an exception — everything <paramref name="work"/> saved is undone
+    /// (back to the savepoint, or its own transaction rolled back) and the fact rows it left tracked are detached, so
+    /// nothing of it stays in the caller's transaction or reaches the caller's next save. On success the rows stay
+    /// tracked, as saved.
     /// </summary>
+    /// <remarks>
+    /// The savepoint is what makes a supersede atomic inside a unit of work: EF Core only rolls a failed save back to
+    /// its own savepoint, which would keep the retirement saved just before, and its audit line, in the caller's
+    /// still-usable transaction.
+    /// </remarks>
     public async Task<Result<T>> WriteAsync<T>(Func<Task<Result<T>>> work, CancellationToken ct) where T : notnull
     {
-        await using var own = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
+        var outer = db.Database.CurrentTransaction;
+        await using var own = outer is null ? await db.Database.BeginTransactionAsync(ct) : null;
+        if (outer is not null)
+            await outer.CreateSavepointAsync(Savepoint, ct);
+
+        Result<T> result;
         try
         {
-            var result = await work();
-            if (own is not null && result.IsSuccess)
-                await own.CommitAsync(ct);
-            else
-                Detach();
-            return result;
+            result = await work();
+            if (result.IsSuccess)
+            {
+                if (own is not null)
+                    await own.CommitAsync(ct);
+                else
+                    await outer!.ReleaseSavepointAsync(Savepoint, ct);
+                return result;
+            }
         }
         catch (DbUpdateException e) when (e is DbUpdateConcurrencyException
             || e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            Detach();
-            return Result.Failure<T>(new Failure(CoreFactCodes.FactConflict, "Someone else changed this item's facts at the same time; try again.", null));
+            result = Result.Failure<T>(new Failure(CoreFactCodes.FactConflict, "Someone else changed this item's facts at the same time; try again.", null));
+        }
+        catch
+        {
+            await UndoAsync(outer, unwinding: true);
+            throw;
+        }
+
+        await UndoAsync(outer, unwinding: false);
+        return result;
+    }
+
+    private const string Savepoint = "fact";
+
+    /// <summary>A transaction of its own is rolled back by its disposal; the caller's goes back to the savepoint.</summary>
+    private async Task UndoAsync(IDbContextTransaction? outer, bool unwinding)
+    {
+        Detach();
+        if (outer is null)
+            return;
+        try
+        {
+            await outer.RollbackToSavepointAsync(Savepoint, CancellationToken.None);
+        }
+        catch when (unwinding)
+        {
+            // The exception already unwinding is the one the caller must see; a broken connection fails both.
         }
     }
 
     /// <summary>Forgets every fact row the context tracks, so a refused write leaves nothing for the next save.</summary>
-    public void Detach()
+    private void Detach()
     {
         foreach (var entry in db.ChangeTracker.Entries().Where(e => e.Entity is ValuationRow or FlowRow).ToList())
             entry.State = EntityState.Detached;

@@ -37,8 +37,12 @@ public sealed record Flow(
 
 /// <summary>
 /// 2A spec §4. Every call is made as the ambient actor, who must be a person: writes need write access to the item,
-/// reads read access. A write joins the caller's unit of work when one is open; a failed write inside one leaves the
-/// transaction unusable, so the caller returns the failure without committing.
+/// reads read access. A write joins the caller's unit of work when one is open, or runs in a transaction of its own.
+/// A refused or failed write — a failure result or an exception — leaves nothing of itself in the caller's transaction
+/// or change tracker: whatever it had saved is rolled back to a savepoint taken before it; committing the caller's own
+/// work afterwards is the caller's choice. A write saves the Core context: any other Core change the caller left
+/// pending is flushed with it and, if the write then fails, rolled back with it though the tracker takes it as saved;
+/// so a caller saves its own Core changes before a fact write.
 /// </summary>
 public interface IValuations
 {
@@ -54,7 +58,11 @@ public interface IValuations
     Task<Result<IReadOnlyList<Valuation>>> SeriesAsync(ItemId item, DateRange range, CancellationToken ct);
 }
 
-/// <summary>2A spec §4. Same actor and transaction rules as <see cref="IValuations"/>.</summary>
+/// <summary>
+/// 2A spec §4. Same actor, transaction and change-tracker rules as <see cref="IValuations"/>: a refused or failed
+/// write leaves nothing in the caller's transaction or tracker (a failed supersede keeps the old flow current), and a
+/// write saves the Core context.
+/// </summary>
 public interface IFlows
 {
     Task<Result<Flow>> RecordAsync(NewFlow flow, CancellationToken ct);
