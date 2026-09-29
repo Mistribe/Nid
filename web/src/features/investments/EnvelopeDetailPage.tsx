@@ -38,18 +38,25 @@ export function EnvelopeDetailPage() {
   const valuesHeadingRef = useRef<HTMLHeadingElement>(null);
   const flowsHeadingRef = useRef<HTMLHeadingElement>(null);
 
+  // Cleared the instant an action on that section starts (opening a row's correction, confirming a deletion) and
+  // set again only on success: an unchanged string never re-triggers the polite live region, so going through
+  // empty in between is what makes two successive « Supprimé. » (or a repeat « Flux corrigé. ») each announce, and
+  // what keeps a failed correction from reading a previous row's success.
+  const clearValues = () => setValuesAnnouncement('');
+  const clearFlows = () => setFlowsAnnouncement('');
+  const announceValues = (message: string) => { setValuesAnnouncement(message); valuesHeadingRef.current?.focus(); };
+  const announceFlows = (message: string) => { setFlowsAnnouncement(message); flowsHeadingRef.current?.focus(); };
+
+  const startValueEdit = (id: string) => { clearValues(); setEditingValueId(id); };
+  const startFlowEdit = (id: string) => { clearFlows(); setEditingFlowId(id); };
   const closeValueRow = (message?: string) => {
     setEditingValueId(null);
-    if (message) setValuesAnnouncement(message);
-    valuesHeadingRef.current?.focus();
+    if (message) announceValues(message); else valuesHeadingRef.current?.focus();
   };
   const closeFlowRow = (message?: string) => {
     setEditingFlowId(null);
-    if (message) setFlowsAnnouncement(message);
-    flowsHeadingRef.current?.focus();
+    if (message) announceFlows(message); else flowsHeadingRef.current?.focus();
   };
-  const announceValueDeleted = (message: string) => { setValuesAnnouncement(message); valuesHeadingRef.current?.focus(); };
-  const announceFlowDeleted = (message: string) => { setFlowsAnnouncement(message); flowsHeadingRef.current?.focus(); };
 
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
   if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
@@ -163,7 +170,7 @@ export function EnvelopeDetailPage() {
                 <td><Money value={v.amount} tabular /></td>
                 <td>{v.note}</td>
                 <td>{detail.canWrite ? (
-                  <RowActions kind="value" envelope={detail} item={v} onEdit={() => setEditingValueId(v.id)} onDeleted={announceValueDeleted} />
+                  <RowActions kind="value" envelope={detail} item={v} onEdit={() => startValueEdit(v.id)} onDeleteStarted={clearValues} onDeleted={announceValues} />
                 ) : null}</td>
               </tr>
             ))}
@@ -196,7 +203,7 @@ export function EnvelopeDetailPage() {
                 <td><Money value={f.amount} tabular /></td>
                 <td>{f.note}</td>
                 <td>{detail.canWrite ? (
-                  <RowActions kind="flow" envelope={detail} item={f} onEdit={() => setEditingFlowId(f.id)} onDeleted={announceFlowDeleted} />
+                  <RowActions kind="flow" envelope={detail} item={f} onEdit={() => startFlowEdit(f.id)} onDeleteStarted={clearFlows} onDeleted={announceFlows} />
                 ) : null}</td>
               </tr>
             ))}

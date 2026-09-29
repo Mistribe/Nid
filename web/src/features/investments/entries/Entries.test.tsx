@@ -8,6 +8,17 @@ import type { EnvelopeDetail } from '../api';
 import { detail, eur, PEA } from '../testData';
 
 /**
+ * The section's own live region — a direct child of `<section>`, right after its heading — as opposed to a row
+ * correction's own status paragraph, which lives inside the very same section (in its table) while a row is being
+ * corrected: `within(section).getByRole('status')` would then find both and fail on the ambiguity.
+ */
+function sectionStatus(section: HTMLElement): HTMLElement {
+  const el = section.querySelector(':scope > p[role="status"]');
+  if (!el) throw new Error('section has no status live region');
+  return el as HTMLElement;
+}
+
+/**
  * Mocks the server's real behaviour, not just an id echo: a value on an already-known date replaces that row (a
  * new id), a flow correction supersedes the old one (a new id, the server's `SupersedeAsync`), and a deletion
  * removes the row — so a test can assert on the table and the section's live region after the refetch, the way the
@@ -159,9 +170,9 @@ describe('recording values and flows', () => {
     const heading = await screen.findByRole('heading', { name: 'Flux' });
     const section = heading.closest('section');
     if (!section) throw new Error('heading is not inside a section');
-    expect(await within(section).findByRole('status')).toHaveTextContent('Flux corrigé.');
-    expect(document.activeElement).toBe(heading);
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Flux corrigé.'));
     await within(table).findByText('2 500,00 €');
+    expect(document.activeElement).toBe(heading);
     expect(calls).toEqual([{ method: 'PUT', path: 'flows/f2', body: expect.objectContaining({ amount: { amount: '2500', currency: 'EUR' } }) as unknown }]);
   });
 
@@ -181,9 +192,9 @@ describe('recording values and flows', () => {
     const heading = await screen.findByRole('heading', { name: 'Valeurs' });
     const section = heading.closest('section');
     if (!section) throw new Error('heading is not inside a section');
-    expect(await within(section).findByRole('status')).toHaveTextContent('Valeur enregistrée.');
-    expect(document.activeElement).toBe(heading);
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Valeur enregistrée.'));
     await within(table).findByText('26 000,00 €');
+    expect(document.activeElement).toBe(heading);
     expect(calls).toEqual([{ method: 'POST', path: 'valuations', body: expect.objectContaining({ amount: { amount: '26000', currency: 'EUR' } }) as unknown }]);
   });
 
@@ -202,10 +213,82 @@ describe('recording values and flows', () => {
     const heading = await screen.findByRole('heading', { name: 'Flux' });
     const section = heading.closest('section');
     if (!section) throw new Error('heading is not inside a section');
-    expect(await within(section).findByRole('status')).toHaveTextContent('Supprimé.');
-    expect(document.activeElement).toBe(heading);
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Supprimé.'));
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(1));
+    expect(document.activeElement).toBe(heading);
     expect(calls).toEqual([{ method: 'DELETE', path: 'flows/t1' }]);
+  });
+
+  it('announces each deletion in the Flux section again, even when the message repeats', async () => {
+    serve(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    const heading = await screen.findByRole('heading', { name: 'Flux' });
+    const section = heading.closest('section');
+    if (!section) throw new Error('heading is not inside a section');
+
+    const row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Supprimer' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Supprimé.'));
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2));
+
+    // The second deletion's request is held back (MSW mocks respond near-instantly otherwise, so `user.click`'s
+    // own microtask flushing would race straight past the emptied status without a test ever observing it): the
+    // status must already read empty before the request even resolves, otherwise an unchanged « Supprimé. » would
+    // never be announced again.
+    let resolveDelete!: () => void;
+    const pending = new Promise<void>((resolve) => { resolveDelete = resolve; });
+    server.use(
+      http.delete('*/api/v1/investments/envelopes/:id/flows/:flowId', async ({ params }) => {
+        await pending;
+        return HttpResponse.json({ id: String(params.flowId) });
+      }),
+    );
+    const secondRow = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(secondRow).getByRole('button', { name: 'Supprimer' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    expect(sectionStatus(section)).toBeEmptyDOMElement();
+
+    resolveDelete();
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Supprimé.'));
+  });
+
+  it('a failed correction after a successful one leaves the section status empty', async () => {
+    serve(detail(), []);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    const heading = await screen.findByRole('heading', { name: 'Flux' });
+    const section = heading.closest('section');
+    if (!section) throw new Error('heading is not inside a section');
+
+    // A successful correction first, so the section has something to say.
+    let row = within(table).getAllByRole('row').slice(1)[0]!;
+    await user.click(within(row).getByRole('button', { name: 'Corriger' }));
+    let edit = screen.getByRole('form', { name: 'Corriger le flux' });
+    await user.clear(within(edit).getByLabelText('Montant'));
+    await user.type(within(edit).getByLabelText('Montant'), '2500');
+    await user.click(within(edit).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sectionStatus(section)).toHaveTextContent('Flux corrigé.'));
+    await within(table).findByText('2 500,00 €');
+
+    // Opening a correction on another row clears the section; a failed correction never re-sets it.
+    server.use(
+      http.put('*/api/v1/investments/envelopes/:id/flows/:flowId', () =>
+        HttpResponse.json({ status: 409, code: 'core.fact_conflict', title: 'Someone changed this meanwhile.' }, { status: 409 })),
+    );
+    row = within(table).getAllByRole('row').slice(1)[1]!;
+    await user.click(within(row).getByRole('button', { name: 'Corriger' }));
+    expect(sectionStatus(section)).toBeEmptyDOMElement();
+    edit = screen.getByRole('form', { name: 'Corriger le flux' });
+    await user.clear(within(edit).getByLabelText('Montant'));
+    await user.type(within(edit).getByLabelText('Montant'), '999');
+    await user.click(within(edit).getByRole('button', { name: 'Enregistrer' }));
+
+    await within(edit).findByRole('button', { name: /Recharger/ });
+    expect(sectionStatus(section)).toBeEmptyDOMElement();
   });
 
   it('shows a conflict with a way to reload', async () => {
