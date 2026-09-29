@@ -57,6 +57,58 @@ public class TransferAndCloseTests(PostgresFixture fixture)
         Assert.Equal(0, await FlowCountAsync(app));
     }
 
+    /// <summary>
+    /// Minor 1: the mismatch is answered from comparing the two envelopes' currencies directly, whichever
+    /// currency the amount itself carries — not only when the amount happens to be in the source's own
+    /// currency (the only shape the second leg's write used to catch).
+    /// </summary>
+    [Fact]
+    public async Task A_transfer_whose_amount_is_in_the_destinations_currency_is_still_a_currency_mismatch()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var from = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var to = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD");
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = from.Value, to = to.Value, occurredOn = "2025-06-15", amount = new { amount = "10.00", currency = "USD" } });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("investments.transfer_currency_mismatch", (await JsonAsync(refused)).GetProperty("code").GetString());
+        Assert.Equal(0, await FlowCountAsync(app));
+    }
+
+    /// <summary>access-tests.md §4 / 2B1a spec §8: a transfer only moves value between the two envelopes.</summary>
+    [Fact]
+    public async Task A_transfer_leaves_the_household_total_unchanged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var pea = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var livretUrl = $"/api/v1/investments/envelopes/{livret.Value}";
+        var peaUrl = $"/api/v1/investments/envelopes/{pea.Value}";
+
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{livretUrl}/flows", new { occurredOn = "2025-01-01", kind = "opening", amount = Eur("1000.00") });
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{livretUrl}/valuations", new { asOf = "2025-01-01", amount = Eur("1000.00") });
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{peaUrl}/flows", new { occurredOn = "2025-01-01", kind = "opening", amount = Eur("500.00") });
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{peaUrl}/valuations", new { asOf = "2025-01-01", amount = Eur("500.00") });
+
+        static async Task<decimal> NetContributionsAsync(NidApp app, string url)
+            => decimal.Parse((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url)))
+                .GetProperty("figures").GetProperty("netContributions").GetProperty("amount").GetString()!,
+                System.Globalization.CultureInfo.InvariantCulture);
+
+        var before = await NetContributionsAsync(app, livretUrl) + await NetContributionsAsync(app, peaUrl);
+
+        Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = livret.Value, to = pea.Value, occurredOn = "2025-06-15", amount = Eur("200.00") })).StatusCode);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{livretUrl}/valuations", new { asOf = "2025-07-01", amount = Eur("800.00") });
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{peaUrl}/valuations", new { asOf = "2025-07-01", amount = Eur("700.00") });
+
+        var after = await NetContributionsAsync(app, livretUrl) + await NetContributionsAsync(app, peaUrl);
+
+        Assert.Equal(before, after);
+    }
+
     [Fact]
     public async Task A_transfer_from_or_to_a_closed_envelope_is_refused_and_writes_nothing()
     {
@@ -116,6 +168,68 @@ public class TransferAndCloseTests(PostgresFixture fixture)
         Assert.False(detail.GetProperty("closed").GetBoolean());
         Assert.Empty(detail.GetProperty("valuations").EnumerateArray());
         Assert.Equal(1, await FlowCountAsync(app)); // only the opening flow: no withdrawal was written
+    }
+
+    /// <summary>
+    /// Important 1: a back-dated close must not leave a closed envelope showing a later valuation's value
+    /// (or a later flow's contribution) as if nothing had happened. Same day as the latest fact is allowed.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_close_dated_before_the_envelopes_latest_fact_is_refused_and_the_envelope_stays_open(bool laterIsAValuation)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-01-01", amount = Eur("10000.00") });
+        if (laterIsAValuation)
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-06-01", amount = Eur("12000.00") });
+        else
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2025-06-01", kind = "contribution", amount = Eur("500.00") });
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close", new { closedOn = "2025-03-01" });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("investments.invalid_envelope", (await JsonAsync(refused)).GetProperty("code").GetString());
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url));
+        Assert.False(detail.GetProperty("closed").GetBoolean());
+    }
+
+    /// <summary>Important 1: closing on the very day of the latest value is still allowed.</summary>
+    [Fact]
+    public async Task A_close_dated_the_same_day_as_the_latest_value_is_accepted()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-01-01", amount = Eur("10000.00") });
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-06-01", amount = Eur("12000.00") });
+
+        var closed = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close", new { closedOn = "2025-06-01" });
+
+        Assert.Equal(HttpStatusCode.OK, closed.StatusCode);
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url));
+        Assert.True(detail.GetProperty("closed").GetBoolean());
+        Assert.Equal("0.0000", detail.GetProperty("figures").GetProperty("value").GetProperty("amount").GetString());
+    }
+
+    /// <summary>Minor 2: a closed envelope never reports staleness, however far past the cadence's threshold.</summary>
+    [Fact]
+    public async Task A_closed_envelope_reports_no_staleness_however_stale_it_would_otherwise_be()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2025-01-01", kind = "opening", amount = Eur("500.00") });
+
+        // NidApp's clock is fixed at 2025-10-15: monthly cadence (the default) is stale past 45 days, and this
+        // envelope closes 75 days before that — a live envelope would show a stale value.
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close", new { closedOn = "2025-08-01" })).StatusCode);
+
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url));
+        Assert.True(detail.GetProperty("closed").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, detail.GetProperty("figures").GetProperty("staleDays").ValueKind);
     }
 
     [Fact]

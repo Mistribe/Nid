@@ -56,6 +56,22 @@ public sealed class TransferHandler(
             if ((await OpenEnvelope.RequireAsync(envelopes, items, id, ct)).TryGetFailure(out failure))
                 return Result.Failure<Guid>(failure!);
 
+        // Minor 1: the two envelopes' currencies, compared directly — before any write, and whichever
+        // currency the amount itself is in. A read-only sum (no kind matches) still answers in the item's
+        // currency (Flows.SumAsync), so this costs no write. Once the envelopes agree, a mismatched amount
+        // is the Core's own core.currency_mismatch, raised naturally by the write below.
+        var noKinds = new HashSet<FlowKind>();
+        var sourceSum = await flows.SumAsync(command.ItemId, noKinds, EnvelopeCheck.Everything, ct);
+        if (sourceSum.TryGetFailure(out failure))
+            return Result.Failure<Guid>(failure!);
+        var destSum = await flows.SumAsync(command.To, noKinds, EnvelopeCheck.Everything, ct);
+        if (destSum.TryGetFailure(out failure))
+            return Result.Failure<Guid>(failure!);
+        sourceSum.TryGetValue(out var sourceZero);
+        destSum.TryGetValue(out var destZero);
+        if (sourceZero!.Currency != destZero!.Currency)
+            return Fail(InvestmentsCodes.TransferCurrencyMismatch, "Both envelopes of a transfer are in the same currency.");
+
         var transfer = Guid.CreateVersion7();
         var reference = $"transfer:{transfer}";
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -64,9 +80,7 @@ public sealed class TransferHandler(
             return Result.Failure<Guid>(failure!);
         var contribution = await flows.RecordAsync(new NewFlow(command.To, command.OccurredOn, FlowKind.Contribution, command.Amount, "transfer", reference, command.Note), ct);
         if (contribution.TryGetFailure(out failure))
-            return Result.Failure<Guid>(failure!.Code == CoreFactCodes.CurrencyMismatch
-                ? new Failure(InvestmentsCodes.TransferCurrencyMismatch, "Both envelopes of a transfer are in the same currency.", null)
-                : failure);
+            return Result.Failure<Guid>(failure!);
         await transaction.CommitAsync(ct);
         return Result.Success(transfer);
     }
@@ -87,6 +101,24 @@ public sealed class CloseEnvelopeHandler(
         loaded.TryGetValue(out var envelope);
         if (EnvelopeCheck.RequireOpen(envelope.Item).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
+
+        // Important 1: a close cannot predate the envelope's latest current fact — otherwise the closed
+        // envelope's value at "today" would still pick up a later valuation or flow, showing a non-zero
+        // value and a gain for something that is supposed to be closed. Same day is allowed.
+        var series = await valuations.SeriesAsync(command.ItemId, EnvelopeCheck.Everything, ct);
+        if (series.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        var flowList = await flows.ListAsync(command.ItemId, EnvelopeCheck.Everything, null, ct);
+        if (flowList.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        series.TryGetValue(out var allValues);
+        flowList.TryGetValue(out var allFlows);
+        var latestValue = allValues!.Count == 0 ? (LocalDate?)null : allValues.Max(v => v.AsOf);
+        var latestFlow = allFlows!.Count == 0 ? (LocalDate?)null : allFlows.Max(f => f.OccurredOn);
+        if ((latestValue is { } lv && command.ClosedOn < lv) || (latestFlow is { } lf && command.ClosedOn < lf))
+            return Result.Failure<ItemId>(new Failure(InvestmentsCodes.InvalidEnvelope,
+                "A close cannot predate this envelope's latest value or flow.",
+                new Dictionary<string, object?> { ["field"] = "closedOn" }));
 
         var zero = await flows.SumAsync(command.ItemId, new HashSet<FlowKind>(), DateRange.Create(command.ClosedOn, command.ClosedOn.PlusDays(1)).TryGetValue(out var day) ? day : throw new InvalidOperationException(), ct);
         if (!zero.TryGetValue(out var nothing))

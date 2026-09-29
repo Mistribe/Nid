@@ -11,8 +11,6 @@ public sealed class EnvelopePerformance(
     IEnvelopeStore envelopes, IItemRegistry items, IValuations valuations, IFlows flows, IHouseholdCalendar calendar)
     : IEnvelopePerformance
 {
-    private static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r) ? r : throw new InvalidOperationException();
-
     public async Task<Result<EnvelopeFigures>> GetAsync(ItemId envelope, LocalDate? on, CancellationToken ct)
     {
         var facts = await FactsAsync(envelope, ct);
@@ -20,7 +18,10 @@ public sealed class EnvelopePerformance(
             return Result.Failure<EnvelopeFigures>(failure!);
         facts.TryGetValue(out var f);
         var d = on ?? await calendar.TodayAsync(ct);
-        return Result.Success(EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, d));
+        var figures = EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, d);
+        // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure and unaware of "closed";
+        // this is where "closed" is known.
+        return Result.Success(f.Item.ArchivedAt is not null ? figures with { StaleDays = null } : figures);
     }
 
     public async Task<Result<PeriodPerformance>> PeriodAsync(ItemId envelope, LocalDate from, LocalDate to, CancellationToken ct)
@@ -41,10 +42,10 @@ public sealed class EnvelopePerformance(
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Facts>(failure!);
         loaded.TryGetValue(out var envelope);
-        var series = await valuations.SeriesAsync(id, Everything, ct);
+        var series = await valuations.SeriesAsync(id, EnvelopeCheck.Everything, ct);
         if (series.TryGetFailure(out failure))
             return Result.Failure<Facts>(failure!);
-        var list = await flows.ListAsync(id, Everything, null, ct);
+        var list = await flows.ListAsync(id, EnvelopeCheck.Everything, null, ct);
         if (list.TryGetFailure(out failure))
             return Result.Failure<Facts>(failure!);
         series.TryGetValue(out var values);
@@ -55,7 +56,7 @@ public sealed class EnvelopePerformance(
             // An envelope with no fact yet: its currency is the item's (the Core refuses an item without one
             // for facts, 2A). Fix round 1, ruling 2: a failed sum propagates as FactsAsync's own failure —
             // never a silent EUR fallback that would misreport a household in another currency.
-            var sum = await flows.SumAsync(id, new HashSet<FlowKind> { FlowKind.Contribution }, Everything, ct);
+            var sum = await flows.SumAsync(id, new HashSet<FlowKind> { FlowKind.Contribution }, EnvelopeCheck.Everything, ct);
             if (sum.TryGetFailure(out failure))
                 return Result.Failure<Facts>(failure!);
             sum.TryGetValue(out var zero);

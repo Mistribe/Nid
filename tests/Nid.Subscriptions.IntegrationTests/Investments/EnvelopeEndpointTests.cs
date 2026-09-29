@@ -210,4 +210,46 @@ public class EnvelopeEndpointTests(PostgresFixture fixture)
         Assert.Equal(2, me.GetProperty("items").GetArrayLength());
         Assert.Equal(JsonValueKind.Null, me.GetProperty("items")[0].GetProperty("figures").GetProperty("value").ValueKind);
     }
+
+    /// <summary>
+    /// Minor 3: envelopes sharing a name still list in one deterministic order, tied on their id — not on
+    /// whatever order the store happens to return. An edit to the first-created one (its name unchanged)
+    /// forces a Postgres update, which can relocate its row away from its creation position: exactly the
+    /// case a sort by name alone would leave to chance.
+    /// </summary>
+    [Fact]
+    public async Task Envelopes_with_the_same_name_list_in_a_stable_order()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var ids = new List<Guid>();
+        for (var i = 0; i < 5; i++)
+            ids.Add((await app.NewEnvelopeAsync("Doublon", app.AdultA, Visibility.Shared)).Value);
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/investments/envelopes/{ids[0]}", new { valuationCadence = "quarterly" }))
+            .EnsureSuccessStatusCode();
+        var expected = ids.Order().ToList();
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/investments/envelopes"));
+
+        var order = list.GetProperty("items").EnumerateArray().Select(e => e.GetProperty("id").GetGuid()).ToList();
+        Assert.Equal(expected, order);
+    }
+
+    /// <summary>
+    /// Minor 5: the archived path stays inside the same reach as every other list — adult A's closed
+    /// envelopes never include adult B's closed private one, while B's own archived list does.
+    /// </summary>
+    [Fact]
+    public async Task A_closed_private_envelope_never_appears_in_another_adults_archived_list()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var hidden = await app.NewEnvelopeAsync("Secret de B", app.AdultB, Visibility.Private);
+        (await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/investments/envelopes/{hidden.Value}/close", new { closedOn = "2025-06-01" }))
+            .EnsureSuccessStatusCode();
+
+        var forA = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/investments/envelopes?scope=me&archived=true"));
+        var forB = await JsonAsync(await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/investments/envelopes?scope=me&archived=true"));
+
+        Assert.DoesNotContain(forA.GetProperty("items").EnumerateArray(), e => e.GetProperty("id").GetGuid() == hidden.Value);
+        Assert.Contains(forB.GetProperty("items").EnumerateArray(), e => e.GetProperty("id").GetGuid() == hidden.Value);
+    }
 }

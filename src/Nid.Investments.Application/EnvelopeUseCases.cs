@@ -138,6 +138,9 @@ public sealed class GetEnvelopeHandler(
         facts.TryGetValue(out var f);
         var today = await calendar.TodayAsync(ct);
         var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+        // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
+        if (f.Item.ArchivedAt is not null)
+            figures = figures with { StaleDays = null };
         var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
         var e = f.Envelope;
 
@@ -171,10 +174,17 @@ public sealed class ListEnvelopesHandler(
             if (!facts.TryGetValue(out var f) || (!query.IncludeClosed && f!.Item.ArchivedAt is not null))
                 continue;
             var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+            // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
+            if (f.Item.ArchivedAt is not null)
+                figures = figures with { StaleDays = null };
             summaries.Add(new EnvelopeSummary(envelope.ItemId, f.Item.DisplayName, EnvelopeWire.Of(envelope.Kind), f.Currency.Code,
                 f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, FiguresView.From(figures)));
         }
 
-        return Result.Success(new EnvelopeList(summaries.OrderBy(s => s.DisplayName, StringComparer.Create(new System.Globalization.CultureInfo("fr-FR"), true)).ToList()));
+        // Minor 3: a stable order — the name alone ties on a duplicate, or across cultures/collations.
+        return Result.Success(new EnvelopeList(summaries
+            .OrderBy(s => s.DisplayName, StringComparer.Create(new System.Globalization.CultureInfo("fr-FR"), true))
+            .ThenBy(s => s.Id.Value)
+            .ToList()));
     }
 }

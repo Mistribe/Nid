@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -7,6 +8,9 @@ namespace Nid.Investments.Application;
 
 internal static class EnvelopeCheck
 {
+    /// <summary>Every current fact, whenever dated: the range <see cref="EnvelopePerformance"/> and the close/transfer checks read over.</summary>
+    public static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r) ? r : throw new InvalidOperationException();
+
     /// <summary>The envelope and its item; an item that is not an envelope answers as a missing envelope.</summary>
     public static async Task<Result<(Envelope Envelope, ItemAccess Item)>> LoadAsync(
         IEnvelopeStore envelopes, IItemRegistry items, ItemId id, CancellationToken ct)
