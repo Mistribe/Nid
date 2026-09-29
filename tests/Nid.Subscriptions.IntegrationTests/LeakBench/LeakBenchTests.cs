@@ -508,10 +508,13 @@ public class LeakBenchTests(PostgresFixture fixture)
     /// <summary>Truthful where the guard looks (Me), generous where the handler looks (Household).</summary>
     private sealed class GenerousInTheHouseholdScope(CoreDbContext db) : IVisibleItems
     {
-        public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        Task<IReadOnlySet<ItemId>> IVisibleItems.ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+            => ForAsync(actor, scope, includeArchived: false, ct);
+
+        public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
         {
             if (scope != VisibilityScope.Household)
-                return await new VisibleItems(db).ForAsync(actor, scope, ct);
+                return await new VisibleItems(db).ForAsync(actor, scope, includeArchived, ct);
 
             var everything = await db.Items.AsNoTracking().Select(i => i.Id).ToListAsync(ct);
             return everything.Select(id => new ItemId(id)).ToHashSet();

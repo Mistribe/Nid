@@ -206,9 +206,12 @@ public class SecurityEventTests(PostgresFixture fixture)
     /// </summary>
     private sealed class EmptyForMeVisibleItems(CoreDbContext db) : IVisibleItems
     {
-        public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        Task<IReadOnlySet<ItemId>> IVisibleItems.ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+            => ForAsync(actor, scope, includeArchived: false, ct);
+
+        public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
             => scope == VisibilityScope.Me
                 ? new HashSet<ItemId>()
-                : await new VisibleItems(db).ForAsync(actor, scope, ct);
+                : await new VisibleItems(db).ForAsync(actor, scope, includeArchived, ct);
     }
 }

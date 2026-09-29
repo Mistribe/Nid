@@ -16,7 +16,16 @@ public enum VisibilityScope
 /// </summary>
 public interface IVisibleItems
 {
-    Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct);
+    /// <summary>Active items only: shared items, plus — in the <c>Me</c> scope — the private items the actor owns.</summary>
+    Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        => ForAsync(actor, scope, includeArchived: false, ct);
+
+    /// <summary>
+    /// Returns the actor's visible items, optionally including archived ones.
+    /// Archived items stay readable by whoever could read them; <c>includeArchived: true</c> is for checks
+    /// of what may be exposed (output guard, item history) and for lists that ask for closed items.
+    /// </summary>
+    Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct);
 }
 
 /// <summary>

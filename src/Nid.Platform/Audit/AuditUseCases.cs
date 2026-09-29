@@ -68,7 +68,7 @@ public sealed class ItemHistoryHandler(IAuditLog log, IVisibleItems visible, IAc
             return Result.Failure<ItemHistoryPage>(new UnauthorizedFailure("An item's history is read by a person.", null));
 
         var limit = AuditPaging.Limit(query.Limit);
-        var records = await log.ItemHistoryAsync(query.ItemId, await visible.ForAsync(me, VisibilityScope.Me, ct), query.Before, limit, ct);
+        var records = await log.ItemHistoryAsync(query.ItemId, await visible.ForAsync(me, VisibilityScope.Me, includeArchived: true, ct), query.Before, limit, ct);
         return Result.Success(new ItemHistoryPage(records.Select(ToEntry).ToList(), AuditPaging.Next(records, limit)));
     }
 

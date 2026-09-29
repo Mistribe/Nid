@@ -20,7 +20,10 @@ public class OutputGuardTests
 
     private sealed class FixedVisibleItems(params ItemId[] visible) : IVisibleItems
     {
-        public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        Task<IReadOnlySet<ItemId>> IVisibleItems.ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+            => ForAsync(actor, scope, includeArchived: false, ct);
+
+        public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
             => Task.FromResult<IReadOnlySet<ItemId>>(visible.ToHashSet());
     }
 
@@ -36,7 +39,10 @@ public class OutputGuardTests
 
     private sealed class ThrowingVisibleItems : IVisibleItems
     {
-        public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        Task<IReadOnlySet<ItemId>> IVisibleItems.ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+            => ForAsync(actor, scope, includeArchived: false, ct);
+
+        public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
             => throw new InvalidOperationException("the database is unreachable");
     }
 

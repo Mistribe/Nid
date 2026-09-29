@@ -9,10 +9,19 @@ namespace Nid.Core.Infrastructure.Persistence;
 /// </summary>
 public sealed class VisibleItems(CoreDbContext db) : IVisibleItems
 {
-    public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+    public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        => ForAsync(actor, scope, includeArchived: false, ct);
+
+    Task<IReadOnlySet<ItemId>> IVisibleItems.ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
+        => ForAsync(actor, scope, includeArchived: false, ct);
+
+    public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
     {
         var shared = VisibilityName(Visibility.Shared);
-        var query = db.Items.AsNoTracking().Where(i => i.ArchivedAt == null);
+        var query = db.Items.AsNoTracking();
+
+        if (!includeArchived)
+            query = query.Where(i => i.ArchivedAt == null);
 
         query = scope == VisibilityScope.Household
             ? query.Where(i => i.Visibility == shared)

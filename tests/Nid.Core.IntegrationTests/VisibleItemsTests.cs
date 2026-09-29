@@ -98,4 +98,44 @@ public class VisibleItemsTests(PostgresFixture fixture)
 
         Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default));
     }
+
+    [Fact]
+    public async Task An_archived_shared_item_is_absent_from_active_sets_and_present_with_includeArchived()
+    {
+        await using var db = await fixture.NewDatabaseAsync();
+        var (a, _, shared, _, _, _) = await SeedAsync(db);
+        var item = await db.Items.SingleAsync(i => i.Id == shared);
+        item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
+        await db.SaveChangesAsync();
+
+        // Absent from active sets
+        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, default));
+        Assert.DoesNotContain(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default));
+
+        // Present with includeArchived: true
+        Assert.Contains(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, includeArchived: true, default));
+        Assert.Contains(new ItemId(shared), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, includeArchived: true, default));
+    }
+
+    [Fact]
+    public async Task An_archived_private_item_is_visible_only_to_its_owner_with_includeArchived()
+    {
+        await using var db = await fixture.NewDatabaseAsync();
+        var (a, b, _, privateA, _, _) = await SeedAsync(db);
+        var item = await db.Items.SingleAsync(i => i.Id == privateA);
+        item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
+        await db.SaveChangesAsync();
+
+        // Owner A: not visible without includeArchived, visible with it in Me scope (never in Household)
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Household, includeArchived: true, default));
+        Assert.Contains(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(a), VisibilityScope.Me, includeArchived: true, default));
+
+        // Other adult B: never visible in any combination
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, includeArchived: true, default));
+        Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, includeArchived: true, default));
+    }
 }

@@ -78,7 +78,7 @@ public sealed class OutputGuardBehavior<TRequest, TResponse>(
         IReadOnlySet<ItemId> allowed;
         try
         {
-            allowed = await visible.ForAsync(actor, VisibilityScope.Me, cancellationToken);
+            allowed = await visible.ForAsync(actor, VisibilityScope.Me, includeArchived: true, cancellationToken);
         }
         catch (Exception)
         {
