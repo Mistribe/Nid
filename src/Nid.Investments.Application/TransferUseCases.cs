@@ -10,10 +10,10 @@ namespace Nid.Investments.Application;
 
 /// <summary>
 /// 2B1a spec §5: <see cref="ItemId"/> is the source; the pipeline checks it, the handler checks <see cref="To"/>.
-/// Fix round 1 (controller ruling): the destination is a second item the actor names in the payload, not the
-/// route's own — like a purchase's grant target (<c>ItemWriteGuard.EnsureWritableAsync</c>,
-/// <c>Nid.Subscriptions.Application/WriteUseCases.cs</c>), its refusal is always "not found", whether it is
-/// forbidden (readable, not writable) or hidden (not readable): never a 403 that would disclose it.
+/// The destination is a second item the actor names in the payload, not the route's own — like a purchase's
+/// grant target (<c>ItemWriteGuard.EnsureWritableAsync</c>, <c>Nid.Subscriptions.Application/WriteUseCases.cs</c>),
+/// its refusal is always "not found", whether it is forbidden (readable, not writable) or hidden (not
+/// readable): never a 403 that would disclose it.
 /// </summary>
 public sealed record TransferCommand(ItemId ItemId, ItemId To, LocalDate OccurredOn, Money Amount, string? Note) : ICommand<Guid>, IItemScoped
 {

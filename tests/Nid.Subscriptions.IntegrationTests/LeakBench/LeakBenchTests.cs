@@ -7,6 +7,7 @@ using Nid.Core.Contracts;
 using Nid.Core.Application;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Api;
+using Nid.Investments.Application;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
@@ -321,15 +322,14 @@ public class LeakBenchTests(PostgresFixture fixture)
                     continue;
                 }
 
-                // As for the single-item bench above: the rules never turn this away, but the request may
-                // still fail on its own merits (a purchase's own field rules, say, or — for a cross-item
-                // request whose second axis names a row of another module's shape, such as a transfer aimed
-                // at a Subscriptions row — the target simply not being of the kind the request needs). Only an
-                // access refusal is checked here; a domain failure is each request's own tests' business.
-                Assert.False(failure is UnauthorizedFailure,
-                    $"{where}: the rules let this actor write both items, yet it was forbidden — {Describe(failure)}");
-                Assert.False(failure is NotFoundFailure { Resource: "item" },
-                    $"{where}: the rules let this actor write both items, yet it was hidden — {Describe(failure)}");
+                // The rules never turn this away: it must succeed. The one structural exception is
+                // TransferCommand — MixedDataset's items are Subscriptions rows, not Investments envelopes, so
+                // a transfer between two of them can never actually go through even when access is fine; that
+                // reads as "envelope not found", never as an access refusal, so it is let through here rather
+                // than the assertion below being weakened for every request. Task 7 removes this exception once
+                // the dataset grows envelope twins for the items it already has.
+                Assert.True(failure is null || (entry.RequestType == typeof(TransferCommand) && failure is NotFoundFailure { Resource: "envelope" }),
+                    $"{where}: the rules let this actor write both items, yet it was refused — {Describe(failure)}");
             }
         }
     }

@@ -140,8 +140,9 @@ public static class InvestmentEndpoints
         public FlowDraft ToDraft() => new(RequireDate(OccurredOn), Kind, RequireMoney(Amount), Category, ExternalRef, Note);
     }
 
-    // MoneyBody? (not the brief's non-nullable MoneyBody): a missing "amount" member binds to null regardless
-    // of the declared type (Task 4 controller ruling) — RequireMoney turns that null into a located 400.
+    // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member
+    // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney turns that null
+    // into a located 400 instead of a NullReferenceException.
     public sealed record TransferBody(Guid From, Guid To, string OccurredOn, MoneyBody? Amount, string? Note);
 
     public sealed record CloseBody(string ClosedOn, MoneyBody? FinalWithdrawal);

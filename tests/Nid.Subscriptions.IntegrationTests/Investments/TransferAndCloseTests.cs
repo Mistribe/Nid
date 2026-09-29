@@ -58,6 +58,27 @@ public class TransferAndCloseTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_transfer_from_or_to_a_closed_envelope_is_refused_and_writes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var open = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var closed = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post,
+            $"/api/v1/investments/envelopes/{closed.Value}/close", new { closedOn = "2025-06-01" })).StatusCode);
+
+        var fromClosed = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = closed.Value, to = open.Value, occurredOn = "2025-06-15", amount = Eur("10.00") });
+        var toClosed = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = open.Value, to = closed.Value, occurredOn = "2025-06-15", amount = Eur("10.00") });
+
+        Assert.Equal(HttpStatusCode.Conflict, fromClosed.StatusCode);
+        Assert.Equal("investments.envelope_closed", (await JsonAsync(fromClosed)).GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, toClosed.StatusCode);
+        Assert.Equal("investments.envelope_closed", (await JsonAsync(toClosed)).GetProperty("code").GetString());
+        Assert.Equal(0, await FlowCountAsync(app));
+    }
+
+    [Fact]
     public async Task A_transfer_to_an_envelope_the_actor_cannot_write_is_refused_and_writes_nothing()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -70,12 +91,31 @@ public class TransferAndCloseTests(PostgresFixture fixture)
         var toHidden = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
             new { from = mine.Value, to = hidden.Value, occurredOn = "2025-06-15", amount = Eur("10.00") });
 
-        // Controller ruling, fix round 1: the destination is never disclosed — forbidden (readable, not
-        // writable) and hidden (not readable) answer the same "not found", exactly as a purchase's grant
-        // target (ItemWriteGuard.EnsureWritableAsync).
+        // The destination is never disclosed — forbidden (readable, not writable) and hidden (not readable)
+        // answer the same "not found", exactly as a purchase's grant target (ItemWriteGuard.EnsureWritableAsync).
         Assert.Equal(HttpStatusCode.NotFound, toShared.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, toHidden.StatusCode);
         Assert.Equal(0, await FlowCountAsync(app));
+    }
+
+    [Fact]
+    public async Task Closing_with_a_final_withdrawal_in_the_wrong_currency_is_refused_and_writes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2025-01-01", kind = "opening", amount = Eur("500.00") });
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close",
+            new { closedOn = "2025-09-30", finalWithdrawal = new { amount = "10.00", currency = "USD" } });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("core.currency_mismatch", (await JsonAsync(refused)).GetProperty("code").GetString());
+
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url));
+        Assert.False(detail.GetProperty("closed").GetBoolean());
+        Assert.Empty(detail.GetProperty("valuations").EnumerateArray());
+        Assert.Equal(1, await FlowCountAsync(app)); // only the opening flow: no withdrawal was written
     }
 
     [Fact]
@@ -104,7 +144,9 @@ public class TransferAndCloseTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/reopen")).StatusCode);
         Assert.Equal(HttpStatusCode.Created,
             (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-10-01", amount = Eur("1.00") })).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/reopen")).StatusCode);
+        var reopenedAgain = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/reopen");
+        Assert.Equal(HttpStatusCode.Conflict, reopenedAgain.StatusCode);
+        Assert.Equal("investments.envelope_open", (await JsonAsync(reopenedAgain)).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -122,6 +164,7 @@ public class TransferAndCloseTests(PostgresFixture fixture)
 
         var reversed = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/performance?from=2025-09-30&to=2024-12-31");
         Assert.Equal(HttpStatusCode.BadRequest, reversed.StatusCode);
+        Assert.Equal("investments.invalid_period", (await JsonAsync(reversed)).GetProperty("code").GetString());
     }
 
     // Controller ruling carried from Task 4: System.Text.Json binds a missing or null body member to a real
@@ -161,12 +204,16 @@ public class TransferAndCloseTests(PostgresFixture fixture)
     public async Task A_transfer_with_a_missing_from_or_to_is_not_found_and_writes_nothing()
     {
         await using var app = await NidApp.StartAsync(fixture);
+        var from = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
         var to = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
 
-        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+        var missingFrom = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
             new { to = to.Value, occurredOn = "2025-06-15", amount = Eur("10.00") });
+        var missingTo = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/transfers",
+            new { from = from.Value, occurredOn = "2025-06-15", amount = Eur("10.00") });
 
-        Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, missingFrom.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, missingTo.StatusCode);
         Assert.Equal(0, await FlowCountAsync(app));
     }
 
