@@ -1,3 +1,4 @@
+using NodaTime;
 using UnambitiousFx.Functional;
 
 namespace Nid.Core.Contracts;
@@ -12,7 +13,11 @@ public sealed record NewItem(
     string? Currency,
     IReadOnlyList<OwnerShare> Owners);
 
-public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibility, IReadOnlyList<Owner> Owners);
+public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibility, IReadOnlyList<Owner> Owners)
+{
+    /// <summary>2B1a: set when the item is archived (a closed envelope); null while it is active.</summary>
+    public Instant? ArchivedAt { get; init; }
+}
 
 /// <summary>
 /// <paramref name="IsPending"/>: an adult an admin pre-registered who has not signed in yet (no OIDC subject).
@@ -84,6 +89,12 @@ public interface IItemRegistry
     /// updated in place, its owners reconciled (removed, changed, added), so the audit keeps the previous values.
     /// </summary>
     Task<Result> ReplaceAsync(ItemId id, string displayName, Visibility visibility, IReadOnlyList<OwnerShare> owners, CancellationToken ct);
+
+    /// <summary>2B1a: archives the item (a closed envelope). Checks no access: the caller has.</summary>
+    Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct);
+
+    /// <summary>2B1a: clears the archive (an envelope reopened).</summary>
+    Task<Result> UnarchiveAsync(ItemId id, CancellationToken ct);
 }
 
 public interface IAccessPolicy

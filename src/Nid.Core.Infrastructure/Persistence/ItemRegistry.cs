@@ -89,6 +89,24 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             id,
             row.DisplayName,
             row.Visibility == "private" ? Visibility.Private : Visibility.Shared,
-            row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList());
+            row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList())
+        {
+            ArchivedAt = row.ArchivedAt
+        };
+    }
+
+    public Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct) => SetArchivedAsync(id, at, ct);
+
+    public Task<Result> UnarchiveAsync(ItemId id, CancellationToken ct) => SetArchivedAsync(id, null, ct);
+
+    private async Task<Result> SetArchivedAsync(ItemId id, Instant? at, CancellationToken ct)
+    {
+        var row = await db.Items.SingleOrDefaultAsync(i => i.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure(new NotFoundFailure("item", id.ToString()));
+
+        row.ArchivedAt = at;
+        await db.SaveChangesAsync(ct); // a tracked update: the write audit records archived_at
+        return Result.Success();
     }
 }
