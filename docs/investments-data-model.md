@@ -78,6 +78,7 @@ Règles :
 
 **Livré en 2B1a** (2026-09-29, `superpowers/specs/2026-09-29-investments-server-design.md`) : module `Nid.Investments`, table `investments.envelope`, API `/api/v1/investments` (enveloppes, valeurs, flux, virements internes, clôture et réouverture, performance d'une période). Le gain en % est arrondi par le serveur à 0,1 (demi s'éloignant de zéro). La date de l'`opening` n'est pas imposée : seul l'avertissement `missing_opening` guide. Codes : `investments.unknown_kind`, `investments.unknown_cadence`, `investments.invalid_envelope`, `investments.envelope_closed`, `investments.envelope_open`, `investments.transfer_same_envelope`, `investments.transfer_currency_mismatch`, `investments.invalid_period`. L'import et l'export (§9) viennent en 2B1b.
 
+**Ajouté en 2B2b** (2026-09-30) : la route `GET /api/v1/investments/envelopes/{id}/series` (courbe : valeur et versements nets dans le temps) et le champ `canWrite` dans chaque élément de la liste des enveloppes.
 ## 6. Rendement annualisé (TRI), étape 6
 
 Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant compte du moment des versements.

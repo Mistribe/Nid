@@ -36,6 +36,46 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(figures).toContainText('3 000,00 €');
   await expect(figures).toContainText('13,6 %');
 
+  // 2B2b: a shared Livret, a transfer into it, the period performance, then closing and reopening the Livret.
+  const livret = `Livret ${Date.now()}`;
+  await alice.goto('/investments/new');
+  await alice.getByLabel('Nom').fill(livret);
+  await alice.getByLabel('Type').selectOption('savings');
+  await alice.getByRole('radio', { name: /Partagé/ }).check();
+  await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
+  await expect(alice.getByRole('heading', { name: livret, level: 1 })).toBeVisible();
+  const livretUrl = alice.url();
+
+  await alice.goto(url);
+  await alice.getByRole('button', { name: 'Virer vers une autre enveloppe' }).click();
+  const transfer = alice.getByRole('dialog', { name: 'Virement' });
+  await transfer.getByLabel('Vers').selectOption({ label: livret });
+  await transfer.getByLabel('Montant').fill('500');
+  await transfer.getByRole('button', { name: 'Virer', exact: true }).click();
+  await expect(alice.getByRole('region', { name: 'Flux', exact: true }).getByRole('status')).toHaveText('Virement enregistré.');
+
+  const period = alice.getByRole('region', { name: 'Performance d’une période' });
+  await expect(period.getByRole('radio', { name: 'Depuis le début de l’année' })).toBeChecked();
+  await expect(period.getByText('Versements nets de la période')).toBeVisible();
+  await expect(period.getByText('Performance', { exact: true })).toBeVisible();
+
+  await alice.goto(livretUrl);
+  await alice.getByRole('button', { name: 'Clôturer l’enveloppe' }).click();
+  const closing = alice.getByRole('dialog', { name: 'Clôturer l’enveloppe' });
+  await closing.getByRole('button', { name: 'Clôturer', exact: true }).click();
+  await expect(alice.getByRole('status').filter({ hasText: 'Enveloppe clôturée.' })).toBeVisible();
+
+  await alice.goto('/investments');
+  const list = alice.getByRole('list', { name: 'Liste des enveloppes' });
+  await expect(list).toBeVisible();
+  await expect(list.getByText(livret)).toHaveCount(0);
+  await alice.getByRole('checkbox', { name: 'Afficher les clôturées' }).check();
+  const closedRow = list.getByRole('listitem').filter({ hasText: livret });
+  await expect(closedRow).toContainText('Clôturée');
+  await closedRow.getByRole('link', { name: livret }).click();
+  await alice.getByRole('button', { name: 'Rouvrir' }).click();
+  await expect(alice.getByRole('status').filter({ hasText: 'Enveloppe rouverte.' })).toBeVisible();
+
   const bob = await browser.newPage();
   await signIn(bob, 'bob', '/investments');
   // The household scope lists every envelope alice and bob can each see; waiting for the loaded list or the empty
