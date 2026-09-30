@@ -11,6 +11,7 @@ public sealed class ExportContext(PersonId reader, IReadOnlyDictionary<PersonId,
 {
     private readonly HashSet<PersonId> referenced = [];
     private readonly HashSet<ItemId> exposed = [];
+    private readonly Dictionary<ItemId, string> itemFileIds = [];
 
     public PersonId Reader { get; } = reader;
 
@@ -27,6 +28,11 @@ public sealed class ExportContext(PersonId reader, IReadOnlyDictionary<PersonId,
     public void Expose(ItemId item) => exposed.Add(item);
 
     public IReadOnlyCollection<ItemId> Exposed => exposed;
+
+    /// <summary>2B1b: an item section names the file id it gave an item, for the fact sections that run after it.</summary>
+    public void NameItem(ItemId item, string fileId) => itemFileIds[item] = fileId;
+
+    public IReadOnlyDictionary<ItemId, string> ItemFileIds => itemFileIds;
 }
 
 public static class ExportCodes

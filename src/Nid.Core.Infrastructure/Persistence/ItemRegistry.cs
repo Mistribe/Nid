@@ -91,7 +91,8 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             row.Visibility == "private" ? Visibility.Private : Visibility.Shared,
             row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList())
         {
-            ArchivedAt = row.ArchivedAt
+            ArchivedAt = row.ArchivedAt,
+            Currency = row.Currency?.Trim()
         };
     }
 

@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
 
@@ -9,6 +10,7 @@ public class ExportKeysTests
     private static readonly PersonId Reader = new(Guid.CreateVersion7());
     private static readonly PersonId Other = new(Guid.CreateVersion7());
     private static ImportRef Ref(string r, PersonId? by) => new(r, new string('a', 64), by);
+    private static KeyedRow Keyed(Guid id, string? r, PersonId? by) => new(id, r, by);
 
     [Fact]
     public void A_unique_import_ref_is_kept_and_a_row_without_one_gets_a_derived_key()
@@ -16,7 +18,7 @@ public class ExportKeysTests
         var imported = Guid.CreateVersion7();
         var typed = Guid.Parse("0192f0aa-0000-7000-8000-000000000001");
 
-        var ids = FileIds.Assign("sub", [new KeyedRow(imported, Ref("sub-spotify", Reader)), new KeyedRow(typed, null)], Reader);
+        var ids = FileIds.Assign("sub", [Keyed(imported, "sub-spotify", Reader), Keyed(typed, null, null)], Reader);
 
         Assert.Equal("sub-spotify", ids[imported]);
         Assert.Equal("sub-0192f0aa-0000-7000-8000-000000000001", ids[typed]);
@@ -28,7 +30,7 @@ public class ExportKeysTests
         var mine = Guid.CreateVersion7();
         var theirs = Guid.CreateVersion7();
 
-        var ids = FileIds.Assign("sub", [new KeyedRow(theirs, Ref("sub-p", Other)), new KeyedRow(mine, Ref("sub-p", Reader))], Reader);
+        var ids = FileIds.Assign("sub", [Keyed(theirs, "sub-p", Other), Keyed(mine, "sub-p", Reader)], Reader);
 
         Assert.Equal("sub-p", ids[mine]);
         Assert.Equal($"sub-{theirs:D}", ids[theirs]);
@@ -40,7 +42,7 @@ public class ExportKeysTests
         var a = Guid.CreateVersion7();
         var b = Guid.CreateVersion7();
 
-        var ids = FileIds.Assign("ph", [new KeyedRow(a, Ref("ph-1", Other)), new KeyedRow(b, Ref("ph-1", null))], Reader);
+        var ids = FileIds.Assign("ph", [Keyed(a, "ph-1", Other), Keyed(b, "ph-1", null)], Reader);
 
         Assert.Equal([$"ph-{a:D}", $"ph-{b:D}"], new[] { ids[a], ids[b] });
     }
@@ -51,7 +53,7 @@ public class ExportKeysTests
         var typed = Guid.CreateVersion7();
         var squatter = Guid.CreateVersion7();
 
-        var ids = FileIds.Assign("sub", [new KeyedRow(typed, null), new KeyedRow(squatter, Ref($"sub-{typed:D}", Reader))], Reader);
+        var ids = FileIds.Assign("sub", [Keyed(typed, null, null), Keyed(squatter, $"sub-{typed:D}", Reader)], Reader);
 
         Assert.Equal($"sub-{typed:D}", ids[typed]);
         Assert.Equal($"sub-{squatter:D}", ids[squatter]);

@@ -33,18 +33,28 @@ public class ExportModelTests
     private static PersonInfo Dependent(string name) => new(new PersonId(Guid.CreateVersion7()), PersonKind.Dependent, name, null, 0);
 
     [Fact]
-    public async Task Sections_are_called_from_the_highest_order_and_laid_out_in_file_order()
+    public async Task Item_sections_run_before_fact_sections_and_persons_last_while_the_file_keeps_its_order()
     {
         var calls = new List<string>();
         var core = new FakeSection("core", 0, ["persons"], _ => new Dictionary<string, IReadOnlyList<JsonElement>> { ["persons"] = [Json("""{"ref":"x"}""")] }, calls);
         var subs = new FakeSection("subscriptions", 10, ["providers", "subscriptions"],
             _ => new Dictionary<string, IReadOnlyList<JsonElement>> { ["subscriptions"] = [Json("""{"id":"s"}""")], ["providers"] = [] }, calls);
+        var item = new ItemId(Guid.CreateVersion7());
+        var envelopes = new FakeSection("investments", 20, ["envelopes"], ctx =>
+        {
+            ctx.NameItem(item, "env-a");
+            return new Dictionary<string, IReadOnlyList<JsonElement>> { ["envelopes"] = [Json("""{"id":"env-a"}""")] };
+        }, calls);
+        var facts = new FakeSection("facts", 90, ["valuations"], ctx =>
+        {
+            Assert.Equal("env-a", ctx.ItemFileIds[item]); // the item section ran first
+            return new Dictionary<string, IReadOnlyList<JsonElement>> { ["valuations"] = [] };
+        }, calls);
 
-        var model = await ExportModel.BuildAsync(Reader, [], [core, subs], default);
+        var model = await ExportModel.BuildAsync(Reader, [], [facts, core, envelopes, subs], default);
 
-        Assert.Equal(["subscriptions", "core", "subscriptions", "core"], calls); // a probe pass, then the real one
-        Assert.Equal(["persons", "providers", "subscriptions"], model.Sections.Select(s => s.Name));
-        Assert.Single(model.Sections.Single(s => s.Name == "persons").Entities);
+        Assert.Equal(["subscriptions", "investments", "facts", "core", "subscriptions", "investments", "facts", "core"], calls);
+        Assert.Equal(["persons", "providers", "subscriptions", "envelopes", "valuations"], model.Sections.Select(s => s.Name));
     }
 
     [Fact]

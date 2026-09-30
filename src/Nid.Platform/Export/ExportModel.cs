@@ -37,12 +37,15 @@ public sealed record ExportModel(IReadOnlyList<ExportSection> Sections, string R
         return new ExportModel(ordered, Fingerprint(ordered), context.Exposed.ToList());
     }
 
-    /// <summary>Descending order: item sections mark the persons they name before persons (order 0) reads them (§2).</summary>
+    /// <summary>
+    /// 2B1b: ascending order, so a fact section (order 90) finds the file id of every item an item section (10, 20…)
+    /// exported; persons (order 0) last, since it reads whom the others referenced (§2).
+    /// </summary>
     private static async Task<Dictionary<string, IReadOnlyList<JsonElement>>> ExportAllAsync(
         IReadOnlyList<IImportSection> modules, ExportContext context, CancellationToken ct)
     {
         var exported = new Dictionary<string, IReadOnlyList<JsonElement>>(StringComparer.Ordinal);
-        foreach (var section in modules.OrderByDescending(s => s.Order).ThenBy(s => s.Module, StringComparer.Ordinal))
+        foreach (var section in modules.OrderBy(s => s.Order == 0 ? 1 : 0).ThenBy(s => s.Order).ThenBy(s => s.Module, StringComparer.Ordinal))
         {
             foreach (var (name, entities) in await section.ExportAsync(context, ct))
             {

@@ -1,18 +1,10 @@
 using System.Text.Json.Serialization;
+using Nid.Core.Contracts;
 
 namespace Nid.Subscriptions.Contracts;
 
 // The entities of import-format.md §5.3 to §5.5, exactly as the file spells them. Dates, units and kinds stay
 // strings here: the section parses them, so each refusal names the member it concerns.
-
-public sealed record MoneyRecord
-{
-    /// <summary>A string or a JSON number, read as decimal either way — never as a double (§2); written as a string by the export.</summary>
-    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
-    public required decimal Amount { get; init; }
-
-    public required string Currency { get; init; }
-}
 
 public sealed record DurationRecord
 {
@@ -24,12 +16,6 @@ public sealed record PayerRecord
 {
     public required string Type { get; init; }
     public string? Person { get; init; }
-}
-
-public sealed record ShareRecord
-{
-    public required string Person { get; init; }
-    public required int ShareBp { get; init; }
 }
 
 public sealed record SubscriptionRecord

@@ -29,11 +29,11 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
         foreach (var id in exportedIds)
             context.Expose(id);
 
-        var subscriptionIds = FileIds.Assign("sub", exported.Select(s => new KeyedRow(s.Id.Value, s.Import)).ToList(), context.Reader);
+        var subscriptionIds = FileIds.Assign("sub", exported.Select(s => new KeyedRow(s.Id.Value, s.Import?.Ref, s.Import?.ImportedBy)).ToList(), context.Reader);
         var phases = rows.Phases.Where(p => exportedIds.Contains(p.SubscriptionId)).ToList();
-        var phaseIds = FileIds.Assign("ph", phases.Select(p => new KeyedRow(p.Phase.Id.Value, p.Import)).ToList(), context.Reader);
+        var phaseIds = FileIds.Assign("ph", phases.Select(p => new KeyedRow(p.Phase.Id.Value, p.Import?.Ref, p.Import?.ImportedBy)).ToList(), context.Reader);
         var purchases = rows.Purchases.Where(p => p.Purchase.Grants.Any(g => exportedIds.Contains(g.SubscriptionId))).ToList();
-        var purchaseIds = FileIds.Assign("pu", purchases.Select(p => new KeyedRow(p.Purchase.Id.Value, p.Import)).ToList(), context.Reader);
+        var purchaseIds = FileIds.Assign("pu", purchases.Select(p => new KeyedRow(p.Purchase.Id.Value, p.Import?.Ref, p.Import?.ImportedBy)).ToList(), context.Reader);
 
         var (providerKeys, listed) = await ProvidersAsync(exported, context, ct);
 

@@ -40,6 +40,18 @@ public sealed class ImportContext(PersonId actor, IReadOnlyDictionary<string, Pe
 
     /// <summary>1F3b: an entity imported before with other content is replaced rather than a conflict.</summary>
     public bool Replace { get; } = replace;
+
+    /// <summary>
+    /// 2B1b: the currency of every item a section resolved (created, unchanged or replaced), null when the item has none,
+    /// for the fact sections; a planned item's is the file's.
+    /// </summary>
+    public Dictionary<ItemId, Currency?> ItemCurrencies { get; } = [];
+
+    /// <summary>2B1b: the planned ids of items this import creates: they have no stored facts and are writable by construction.</summary>
+    public HashSet<ItemId> NewItems { get; } = [];
+
+    /// <summary>2B1b: entities a section refused, so a later section skips what depends on them instead of reporting it again.</summary>
+    public HashSet<(string Section, string Id)> FailedItems { get; } = [];
 }
 
 public sealed record SectionOutcome(IReadOnlyList<ImportIssue> Issues, IReadOnlyDictionary<string, SectionCounts> Counts);

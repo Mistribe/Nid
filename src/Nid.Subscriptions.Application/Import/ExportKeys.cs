@@ -5,34 +5,6 @@ using Nid.Subscriptions.Contracts;
 
 namespace Nid.Subscriptions.Application.Import;
 
-public sealed record KeyedRow(Guid Id, ImportRef? Import);
-
-/// <summary>
-/// 1D2 design §5.1: a row's file id is its <c>import_ref</c> when no other exported row of its section has the same
-/// one; on a collision the reader's own row keeps it. Every other row gets <c>&lt;prefix&gt;-&lt;uuid&gt;</c>, and a
-/// ref that equals some row's derived key gives way to it, so ids are always unique.
-/// </summary>
-public static class FileIds
-{
-    public static IReadOnlyDictionary<Guid, string> Assign(string prefix, IReadOnlyList<KeyedRow> rows, PersonId reader)
-    {
-        string Derived(Guid id) => $"{prefix}-{id:D}";
-        var derived = rows.Select(r => Derived(r.Id)).ToHashSet(StringComparer.Ordinal);
-        var ids = new Dictionary<Guid, string>();
-        foreach (var group in rows.Where(r => r.Import is not null).GroupBy(r => r.Import!.Ref, StringComparer.Ordinal))
-        {
-            var keeper = group.Count() == 1
-                ? group.Single()
-                : group.Count(r => r.Import!.ImportedBy == reader) == 1 ? group.Single(r => r.Import!.ImportedBy == reader) : null;
-            if (keeper is not null && !derived.Contains(group.Key))
-                ids[keeper.Id] = group.Key;
-        }
-        foreach (var row in rows.Where(r => !ids.ContainsKey(r.Id)))
-            ids[row.Id] = Derived(row.Id);
-        return ids;
-    }
-}
-
 public sealed record KeyedProvider(string StoredKey, string Name, ImportRef? Import, PersonId? CreatedBy);
 
 /// <summary>
