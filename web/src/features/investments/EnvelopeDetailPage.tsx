@@ -15,6 +15,7 @@ import { PeriodPerformance } from './period/PeriodPerformance';
 import { FlowForm } from './entries/FlowForm';
 import { RowActions } from './entries/RowActions';
 import { ValueForm } from './entries/ValueForm';
+import { TransferDialog } from './transfer/TransferDialog';
 import { Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 
@@ -39,6 +40,9 @@ export function EnvelopeDetailPage() {
   const [flowsAnnouncement, setFlowsAnnouncement] = useState('');
   const valuesHeadingRef = useRef<HTMLHeadingElement>(null);
   const flowsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const transferWasOpen = useRef(false);
+  const transferButtonRef = useRef<HTMLButtonElement>(null);
   // The row whose « Corriger » button should regain focus once « Annuler » closes its edit form (finding 13): that
   // button still exists (the row just reverts), unlike after a save, which removes or replaces the row.
   const [focusValueId, setFocusValueId] = useState<string | null>(null);
@@ -52,6 +56,18 @@ export function EnvelopeDetailPage() {
   const clearFlows = () => setFlowsAnnouncement('');
   const announceValues = (message: string) => { setValuesAnnouncement(message); valuesHeadingRef.current?.focus(); };
   const announceFlows = (message: string) => { setFlowsAnnouncement(message); flowsHeadingRef.current?.focus(); };
+
+  // Opening clears the Flux announcement like the other actions; the dialog's success is announced there, and the
+  // focus goes back to the button whichever way the dialog closed (its own `close` already ran by then).
+  const openTransfer = () => { clearFlows(); setTransferOpen(true); };
+  const closeTransfer = (message?: string) => {
+    setTransferOpen(false);
+    if (message) setFlowsAnnouncement(message);
+  };
+  useEffect(() => {
+    if (transferOpen) transferWasOpen.current = true;
+    else if (transferWasOpen.current) { transferWasOpen.current = false; transferButtonRef.current?.focus(); }
+  }, [transferOpen]);
 
   const startValueEdit = (id: string) => { clearValues(); setEditingValueId(id); };
   const startFlowEdit = (id: string) => { clearFlows(); setEditingFlowId(id); };
@@ -175,6 +191,12 @@ export function EnvelopeDetailPage() {
             <ValueForm envelope={detail} />
             <FlowForm envelope={detail} openingRequest={openingRequest} />
           </div>
+          {detail.closed ? null : (
+            <Button ref={transferButtonRef} type="button" variant="outline" onClick={openTransfer}>
+              {t('envelope.transfer.open')}
+            </Button>
+          )}
+          {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
         </Section>
       ) : null}
 

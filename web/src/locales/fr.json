@@ -756,7 +756,18 @@
     "delete_transfer_leg": "Seule cette jambe du virement sera supprimée : l’autre enveloppe garde la sienne.",
     "value_deleted": "Valeur supprimée.",
     "flow_deleted": "Flux supprimé.",
-    "add_opening": "Saisir les versements antérieurs"
+    "add_opening": "Saisir les versements antérieurs",
+    "transfer": {
+      "open": "Virer vers une autre enveloppe",
+      "title": "Virement",
+      "loading": "Chargement des enveloppes",
+      "to": "Vers",
+      "submit": "Virer",
+      "close": "Fermer",
+      "saved": "Virement enregistré.",
+      "none": "Aucune autre enveloppe en {{currency}} que vous pouvez modifier.",
+      "unavailable": "Cette enveloppe n’est plus disponible."
+    }
   },
   "security": {
     "title": "Sécurité",
