@@ -11,6 +11,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ENVELOPE } from './api';
 import { ValueChart } from './chart/ValueChart';
+import { PeriodPerformance } from './period/PeriodPerformance';
 import { FlowForm } from './entries/FlowForm';
 import { RowActions } from './entries/RowActions';
 import { ValueForm } from './entries/ValueForm';
@@ -162,6 +163,10 @@ export function EnvelopeDetailPage() {
 
       <Section title={t('envelope.evolution')}>
         <ValueChart envelopeId={detail.id} currency={detail.currency} />
+      </Section>
+
+      <Section title={t('envelope.period.title')}>
+        <PeriodPerformance envelopeId={detail.id} />
       </Section>
 
       {detail.canWrite ? (

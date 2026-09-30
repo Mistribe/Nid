@@ -8,6 +8,20 @@ const TONE = { up: 'text-status-good', down: 'text-status-critical', flat: 'text
 const signed = (locale: string, currency: string, amount: string) =>
   new Intl.NumberFormat(locale, { style: 'currency', currency, signDisplay: 'exceptZero' }).format(amount as `${number}`);
 
+/** An amount with its direction as icon and word, colour only on the icon (never alone, never on text). */
+export function Direction({ amount }: { amount: { amount: string; currency: string } }) {
+  const { t } = useTranslation();
+  const direction = directionOf(amount.amount);
+  const Icon = ICON[direction];
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon aria-hidden="true" className={`size-4 ${TONE[direction]}`} />
+      <span className="tabular-nums">{signed('fr-FR', amount.currency, amount.amount)}</span>
+      <span>{t(`investments.direction.${direction}`)}</span>
+    </span>
+  );
+}
+
 /** The gain in euros and percent; unknown figures are said, never shown as zero (spec §4). */
 export function Gain({ figures }: { figures: Figures }) {
   const { t } = useTranslation();
