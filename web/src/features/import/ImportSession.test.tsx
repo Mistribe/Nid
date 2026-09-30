@@ -289,6 +289,26 @@ describe('Import › report, confirmation and commit', () => {
     await expectNoAxeViolations(container);
   });
 
+  it.each([
+    ['created envelopes', { envelopes: counts(2) }, true],
+    ['replaced envelopes', { envelopes: counts(0, 0, 0, 1) }, true],
+    ['envelopes neither created nor replaced', { envelopes: counts(0, 3) }, false],
+    ['no envelopes section', { subscriptions: counts(1) }, false],
+  ])('links to the investments after an import with %s only when some were made', async (_name, sections, linked) => {
+    const report = { state: 'committed', sections, issues: [] };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'committed', report })] }).handlers);
+    const { container } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByRole('heading', { name: 'Import terminé' })).toBeInTheDocument();
+    if (linked) {
+      expect(screen.getByRole('link', { name: 'Voir les placements' })).toHaveAttribute('href', '/investments');
+    } else {
+      expect(screen.queryByRole('link', { name: 'Voir les placements' })).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole('link', { name: 'Voir les abonnements' })).toHaveAttribute('href', '/subscriptions');
+    await expectNoAxeViolations(container);
+  });
+
   it('opens a validated import without the file, and imports it', async () => {
     const report = { state: 'validated', sections: { persons: counts(2), subscriptions: counts(1) }, issues: [] };
     const fake = fakeImportServer({ sessions: [session({ state: 'validated', report })] });

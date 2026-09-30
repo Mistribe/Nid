@@ -12,6 +12,8 @@ type Session = components['schemas']['ImportSessionView'];
 export function FinalReport({ session, onNew }: { session: Session; onNew: () => void }) {
   const { t } = useTranslation();
   const report = session.report ?? { state: session.state, sections: {}, issues: [] };
+  const envelopes = report.sections.envelopes;
+  const madeEnvelopes = envelopes != null && envelopes.created + (envelopes.replaced ?? 0) > 0;
   return (
     <section aria-labelledby="import-done-title" className="space-y-4">
       <h2 id="import-done-title" className="text-lg font-semibold">{t('import.done_title')}</h2>
@@ -35,6 +37,11 @@ export function FinalReport({ session, onNew }: { session: Session; onNew: () =>
         <Button asChild variant="outline">
           <Link to="/subscriptions">{t('import.see_subscriptions')}</Link>
         </Button>
+        {madeEnvelopes ? (
+          <Button asChild variant="outline">
+            <Link to="/investments">{t('import.see_investments')}</Link>
+          </Button>
+        ) : null}
         <Button variant="ghost" onClick={onNew}>{t('import.new')}</Button>
       </div>
     </section>

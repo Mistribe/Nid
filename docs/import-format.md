@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Seules les sections du module Abonnements sont définies ; les autres modules ajouteront les leurs.
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1) et Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30) sont définies ; les autres modules ajouteront les leurs.
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -139,7 +139,7 @@ Le sens de chaque entité, l'algorithme de couverture et le calcul des coûts so
 
 ### 5.6 `valuations` et `flows` (Core)
 
-Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` référence l'`id` de fichier d'une entité qui crée un élément.
+Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` nomme exactement une entité d'une section qui crée des éléments (`envelopes` aujourd'hui) ; une référence vers une autre section, ou vers rien, est une erreur.
 
 **`valuations`**
 
@@ -166,6 +166,11 @@ Sections communes à tous les modules qui suivent une valeur (`envelopes`, `prop
 
 Règles : devise identique à celle de l'élément ; au plus une valorisation courante par élément et par date ; au plus un flux `opening` courant par élément (`core-data-model.md` §5). La provenance est `source = import`.
 
+- **Seuls les faits courants sont exportés** : un fait remplacé ou annulé n'apparaît pas dans le fichier.
+- **Correction par `replace`** : avec `replace`, un fait dont l'`id` est déjà connu mais dont le contenu diffère corrige l'ancien par `supersedes_id` (l'ancien n'est plus courant, il reste dans l'historique).
+- **Collision avec un fait saisi à la main** : un fait du fichier qui tombe sur la même date (valorisation) ou le même `external_ref` (flux) qu'un fait courant sans `import_ref` correspondant est un `conflict`; il ne remplace pas un fait saisi à la main.
+- **Clôture** : la table `envelopes` porte `closed_on` (`investments-data-model.md` §9) ; une enveloppe clôturée est exportée et réimportée clôturée.
+
 ## 6. Résolution des personnes
 
 - Chaque `adult` du fichier doit être **associé à un compte existant** lors de l'import (par `email`, ou par une correspondance fournie à l'import). Un import ne crée jamais d'adulte : un adulte naît à sa première connexion (`core-data-model.md` §4.4). Un `adult` non résolu est une erreur.
@@ -178,6 +183,7 @@ Règles : devise identique à celle de l'élément ; au plus une valorisation co
 
 - version ou format non supporté, section ou champ inconnu ;
 - `id` ou `ref` dupliqué dans une section ;
+- fait en double dans un même fichier : deux valorisations du même élément à la même date, un second flux `opening`, ou deux flux de même `external_ref` (`import.duplicate_fact`) ;
 - référence non résolue (personne, abonnement, fournisseur) ;
 - somme des `share_bp` différente de 10 000, ou élément `private` avec plusieurs propriétaires ;
 - phases d'un même abonnement qui se chevauchent, ou `ends_on` ≤ `starts_on` ;
@@ -389,6 +395,15 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
 - **Pas encore fait** : le schéma JSON publié (1E).
 - **Codes** : les erreurs du protocole sont préfixées `import.` ; les règles des modules gardent leurs codes (`core.share_sum`, `subscriptions.phase_overlap`…). `import_too_large` (§11.5) s'écrit `import.too_large`.
 - **Décisions prises en 1C2b (2026-09-24)** (détail et raisons : `superpowers/specs/2026-09-24-provider-catalog-design.md` §5 et §10) : `providers` (§5.2) n'est plus refusée — chaque entrée est résolue, dans l'ordre, contre une entrée déjà importée sous la même référence par cet importeur (`unchanged` ou `conflict`), puis contre une entrée de même référence et même empreinte **visible de l'importeur**, puis sinon créée au `commit` avec une clé générée, en gardant `import_ref`/`import_hash` comme toute autre entité importée ; `provider_key` (§5.3) est désormais vérifié — une entrée `providers` du fichier prime toujours sur une clé existante de même orthographe, sinon une clé existante doit être visible de l'importeur et non archivée, sinon `import.unresolved_reference` au chemin `subscriptions[i].provider_key` (non répété quand l'entrée `providers` de cette clé a déjà échoué) ; la provenance d'un import (« déjà importé sous cette référence ? ») est tenue **par importeur**, index séparé pour chacun, si bien que deux personnes qui importent le même fichier reçoivent chacune leur propre fournisseur et jamais celui de l'autre si elles ne peuvent pas le voir — une clé qui n'existe que par une souscription privée d'un autre adulte répond comme une clé inconnue, au mot près.
+- **Décisions prises en 2B1b (2026-09-30)** (détail et raisons : `superpowers/specs/2026-09-30-investments-import-export-design.md`) :
+  - **Le Core possède `valuations` et `flows`** : le module Placements n'apporte que `envelopes` ; les deux sections de faits sont importées et exportées par le Core (`Nid.Platform.Contracts.ImportSectionKit` pour les aides communes, `ImportResolver` pour la résolution des références).
+  - **Ordre des appels d'export** : les sections qui créent des éléments d'abord, puis les sections de faits, `persons` en dernier (elle ne garde que les personnes référencées par ce qui précède).
+  - **« Aujourd'hui »** vient du calendrier du foyer, pas de l'horloge du serveur (date non future d'une valorisation, date de clôture).
+  - **Un fait annulé libère sa référence** : un réimport le recrée.
+  - **Devise d'un fait** : un écart avec la devise de l'élément est signalé au chemin `.amount.currency`.
+  - **Clôture par `replace`** : une enveloppe existante dont le fichier pose `closed_on` est vérifiée contre ses valeurs et flux courants stockés autant que contre ceux du fichier (la règle de la clôture de l'API). Un fait stocké que le fichier remplace par une date plus ancienne compte encore : un fichier qui recule le dernier fait et clôt à la fois doit être scindé en deux imports.
+  - **Une correction ne retire qu'un fait** : une correction dont la nouvelle date ou la nouvelle clé rencontre un autre fait courant est refusée, même avec `replace` ; deux faits qui échangent leurs dates dans un même fichier sont refusés de la même façon.
+  - **La clôture est tracée** dans l'audit de l'enveloppe (`closed_on`).
 
 ## 13. Questions ouvertes
 

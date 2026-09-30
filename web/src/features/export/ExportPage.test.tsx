@@ -39,10 +39,19 @@ describe('Export', () => {
 
   // Review Focus 3: a future module's section keeps its own name.
   it('shows a section it has no label for under its own name', async () => {
-    server.use(...fakeExportServer({ ...pages(), envelopes: [[{ id: 'e1' }]] }).handlers);
+    server.use(...fakeExportServer({ ...pages(), mortgages: [[{ id: 'm1' }]] }).handlers);
     await renderApp('/export');
 
-    expect(await screen.findByText('envelopes : 1')).toBeInTheDocument();
+    expect(await screen.findByText('mortgages : 1')).toBeInTheDocument();
+  });
+
+  it('labels the investments sections', async () => {
+    server.use(...fakeExportServer({ ...pages(), envelopes: [[{ id: 'e1' }]], valuations: [[{ id: 'v1' }, { id: 'v2' }]], flows: [[{ id: 'f1' }]] }).handlers);
+    await renderApp('/export');
+
+    const contents = await screen.findByRole('list', { name: "Contenu de l'export" });
+    const items = within(contents).getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(expect.arrayContaining(['Enveloppes : 1', 'Valeurs : 2', 'Flux : 1']));
   });
 
   it('exports, downloads one file, and says how many elements it holds', async () => {

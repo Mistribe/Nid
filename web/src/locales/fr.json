@@ -47,7 +47,10 @@
       "providers": "Fournisseurs",
       "subscriptions": "Abonnements",
       "billing_phases": "Phases de facturation",
-      "purchases": "Achats"
+      "purchases": "Achats",
+      "envelopes": "Enveloppes",
+      "valuations": "Valeurs",
+      "flows": "Flux"
     }
   },
   "shell": { "sign_out": "Se déconnecter" },
@@ -462,7 +465,8 @@
     "commit": "Importer",
     "done_title": "Import terminé",
     "download": "Télécharger le rapport",
-    "see_subscriptions": "Voir les abonnements"
+    "see_subscriptions": "Voir les abonnements",
+    "see_investments": "Voir les placements"
   },
   "admin": {
     "loading": "Chargement",
