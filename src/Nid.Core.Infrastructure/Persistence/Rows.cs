@@ -84,6 +84,9 @@ public sealed class ValuationRow
     public Guid CreatedByPersonId { get; set; }
     public Instant CreatedAt { get; set; }
     public Guid? SupersedesId { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public Instant? RetiredAt { get; set; }
     public uint Version { get; set; }
 }
@@ -105,6 +108,9 @@ public sealed class FlowRow
     public Guid CreatedByPersonId { get; set; }
     public Instant CreatedAt { get; set; }
     public Guid? SupersedesId { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public Instant? RetiredAt { get; set; }
     public uint Version { get; set; }
 }

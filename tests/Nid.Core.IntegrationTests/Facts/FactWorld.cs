@@ -38,6 +38,7 @@ internal sealed class FactWorld : IAsyncDisposable
         var gate = new FactGate(Db, new AccessPolicy(Items, persons), actors, new HouseholdCalendar(Db, clock));
         Valuations = new Valuations(Db, gate, clock);
         Flows = new Flows(Db, gate, clock);
+        FactImports = new FactImports(Db);
         Act(alice);
     }
 
@@ -48,6 +49,7 @@ internal sealed class FactWorld : IAsyncDisposable
     public ItemRegistry Items { get; }
     public Valuations Valuations { get; }
     public Flows Flows { get; }
+    public FactImports FactImports { get; }
 
     public static async Task<FactWorld> NewAsync(PostgresFixture postgres, Instant? now = null)
     {

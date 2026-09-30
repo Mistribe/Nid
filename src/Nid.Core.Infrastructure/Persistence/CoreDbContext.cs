@@ -113,6 +113,9 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             {
                 t.HasCheckConstraint("ck_valuation_source", "source in ('manual','import')");
                 t.HasCheckConstraint("ck_valuation_created_via", createdVia);
+                // 2B1b: an imported fact keeps its file id per importer (import-format.md §8); a correction retires the old row and
+                // the new one takes the reference over, hence the filter on current rows.
+                t.HasCheckConstraint("ck_valuation_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -121,6 +124,10 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<ValuationRow>().WithMany().HasForeignKey(x => x.SupersedesId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.ImportedBy).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique()
+                .HasFilter("import_ref is not null and retired_at is null").HasDatabaseName("ux_valuation_import_ref");
             // At most one current value per item and date; it also serves "the last value on or before d".
             e.HasIndex(x => new { x.ItemId, x.AsOf }).IsUnique().HasFilter("retired_at is null").HasDatabaseName("ux_valuation_current");
             MapXmin(e.Property(x => x.Version));
@@ -134,6 +141,9 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
                 t.HasCheckConstraint("ck_flow_kind", "kind in ('contribution','withdrawal','opening','income','expense')");
                 t.HasCheckConstraint("ck_flow_source", "source in ('manual','import')");
                 t.HasCheckConstraint("ck_flow_created_via", createdVia);
+                // 2B1b: an imported fact keeps its file id per importer (import-format.md §8); a correction retires the old row and
+                // the new one takes the reference over, hence the filter on current rows.
+                t.HasCheckConstraint("ck_flow_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -142,6 +152,10 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<FlowRow>().WithMany().HasForeignKey(x => x.SupersedesId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.ImportedBy).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique()
+                .HasFilter("import_ref is not null and retired_at is null").HasDatabaseName("ux_flow_import_ref");
             // At most one current opening per item (core-data-model.md §5.3).
             e.HasIndex(x => x.ItemId).IsUnique().HasFilter("kind = 'opening' and retired_at is null").HasDatabaseName("ux_flow_opening_current");
             // An external reference makes a re-import without duplicates (import-format.md §5.6).

@@ -60,6 +60,18 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("external_ref");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
@@ -110,6 +122,11 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.HasIndex("SupersedesId")
                         .HasDatabaseName("ix_flow_supersedes_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ux_flow_import_ref")
+                        .HasFilter("import_ref is not null and retired_at is null");
+
                     b.HasIndex("ItemId", "ExternalRef")
                         .IsUnique()
                         .HasDatabaseName("ux_flow_external_ref_current")
@@ -124,6 +141,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_flow_amount_positive", "amount > 0");
 
                             t.HasCheckConstraint("ck_flow_created_via", "created_via in ('ui','api','mcp','job','import','admin-cli')");
+
+                            t.HasCheckConstraint("ck_flow_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_flow_kind", "kind in ('contribution','withdrawal','opening','income','expense')");
 
@@ -460,6 +479,18 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(3)")
                         .HasColumnName("currency");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
@@ -496,6 +527,11 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.HasIndex("SupersedesId")
                         .HasDatabaseName("ix_valuation_supersedes_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ux_valuation_import_ref")
+                        .HasFilter("import_ref is not null and retired_at is null");
+
                     b.HasIndex("ItemId", "AsOf")
                         .IsUnique()
                         .HasDatabaseName("ux_valuation_current")
@@ -504,6 +540,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.ToTable("valuation", "core", t =>
                         {
                             t.HasCheckConstraint("ck_valuation_created_via", "created_via in ('ui','api','mcp','job','import','admin-cli')");
+
+                            t.HasCheckConstraint("ck_valuation_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_valuation_source", "source in ('manual','import')");
                         });
@@ -619,6 +657,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_flow_person_created_by_person_id");
 
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("ImportedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_flow_person_imported_by");
+
                     b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
                         .WithMany()
                         .HasForeignKey("ItemId")
@@ -658,6 +702,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_valuation_person_created_by_person_id");
+
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("ImportedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_valuation_person_imported_by");
 
                     b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
                         .WithMany()

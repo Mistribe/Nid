@@ -109,6 +109,9 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
             CreatedByPersonId = w.Person.Value,
             CreatedAt = now,
             SupersedesId = old?.Id,
+            ImportRef = flow.Import?.Ref,
+            ImportHash = flow.Import?.Hash,
+            ImportedBy = flow.Import?.ImportedBy.Value,
         };
         db.Flows.Add(row);
         await db.SaveChangesAsync(ct);
@@ -159,7 +162,7 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
         _ => throw new InvalidOperationException($"Unknown stored flow kind '{wire}'."),
     };
 
-    private static Flow ToFlow(FlowRow row)
+    internal static Flow ToFlow(FlowRow row)
     {
         if (!Currency.TryCreate(row.Currency.Trim(), out var currency) || !Money.Create(row.Amount, currency).TryGetValue(out var amount))
             throw new InvalidOperationException("A stored flow has an invalid amount or currency.");

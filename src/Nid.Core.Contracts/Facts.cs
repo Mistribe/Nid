@@ -20,7 +20,10 @@ public enum FactSource
     Import,
 }
 
-public sealed record NewValuation(ItemId Item, LocalDate AsOf, Money Value, string? Note, FactSource Source = FactSource.Manual);
+/// <summary>2B1b: where an imported fact or envelope came from — its file id, the RFC 8785 hash of its record, its importer.</summary>
+public sealed record ImportMark(string Ref, string Hash, PersonId ImportedBy);
+
+public sealed record NewValuation(ItemId Item, LocalDate AsOf, Money Value, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null);
 
 public sealed record Valuation(Guid Id, ItemId Item, LocalDate AsOf, Money Value, string? Note);
 
@@ -29,7 +32,7 @@ public sealed record LatestValuation(Valuation? Value);
 
 public sealed record NewFlow(
     ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,
-    string? Category, string? ExternalRef, string? Note, FactSource Source = FactSource.Manual);
+    string? Category, string? ExternalRef, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null);
 
 public sealed record Flow(
     Guid Id, ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,
@@ -48,6 +51,9 @@ public interface IValuations
 {
     /// <summary>Creates the value of a date, or replaces the current one of that date (the old row retired, the new one superseding it).</summary>
     Task<Result<Valuation>> RecordAsync(NewValuation valuation, CancellationToken ct);
+
+    /// <summary>2B1b: retires the current value <paramref name="id"/> and records <paramref name="replacement"/>, on the same item, superseding it.</summary>
+    Task<Result<Valuation>> SupersedeAsync(ItemId item, Guid id, NewValuation replacement, CancellationToken ct);
 
     Task<Result> VoidAsync(ItemId item, Guid id, CancellationToken ct);
 
@@ -98,4 +104,23 @@ public static class CoreFactCodes
     public const string OpeningExists = "core.opening_exists";
     public const string ExternalRefTaken = "core.external_ref_taken";
     public const string FactConflict = "core.fact_conflict";
+}
+
+public enum FactTable { Valuation, Flow }
+
+public sealed record ImportedFact(Guid Id, ItemId Item, string Hash, PersonId ImportedBy);
+
+public sealed record StoredValuation(Valuation Valuation, ImportMark? Import);
+
+public sealed record StoredFlow(Flow Flow, ImportMark? Import);
+
+/// <summary>
+/// 2B1b: the reads of the import and the export, which check access themselves (the import through its resolver and
+/// the access policy, the export through the reader's visible items): no ambient actor is needed. Current rows only.
+/// </summary>
+public interface IFactImports
+{
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedFact>>> FindImportedAsync(FactTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
+    Task<IReadOnlyList<StoredValuation>> ValuationsOfAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+    Task<IReadOnlyList<StoredFlow>> FlowsOfAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
 }

@@ -76,6 +76,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<FactGate>();
         services.AddScoped<IValuations, Valuations>();
         services.AddScoped<IFlows, Flows>();
+        services.AddScoped<IFactImports, FactImports>();
         services.AddSingleton<IItemRules, ItemRules>();
         services.AddScoped<IVisibleItems, VisibleItems>();
         services.AddScoped<IActorAccessor, ActorAccessor>();

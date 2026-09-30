@@ -28,24 +28,55 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
             await db.SaveChangesAsync(ct); // retired first: the insert below would break ux on (item_id, as_of)
         }
 
-        var row = new ValuationRow
-        {
-            Id = Guid.CreateVersion7(),
-            ItemId = valuation.Item.Value,
-            AsOf = valuation.AsOf,
-            Amount = valuation.Value.Amount,
-            Currency = w!.Currency.Code,
-            Note = valuation.Note,
-            Source = valuation.Source == FactSource.Import ? "import" : "manual",
-            CreatedVia = w.Via,
-            CreatedByPersonId = w.Person.Value,
-            CreatedAt = now,
-            SupersedesId = current?.Id,
-        };
+        var row = NewRow(valuation, w!, now, current?.Id);
         db.Valuations.Add(row);
         await db.SaveChangesAsync(ct);
         return Result.Success(ToValuation(row));
     }, ct);
+
+    public Task<Result<Valuation>> SupersedeAsync(ItemId item, Guid id, NewValuation replacement, CancellationToken ct) => gate.WriteAsync(async () =>
+    {
+        if (replacement.Item != item)
+            return Result.Failure<Valuation>(new Failure(CoreFactCodes.InvalidFact, "A correction stays on its item.", null));
+        var writer = await gate.ForWriteAsync(item, ct);
+        if (!writer.TryGetValue(out var w))
+            return Result.Failure<Valuation>(FailureOf(writer));
+        var checks = await gate.CheckAsync(w!, replacement.Value, replacement.AsOf, ct);
+        if (checks.TryGetFailure(out var failure) || FactRules.CheckValuation(replacement).TryGetFailure(out failure))
+            return Result.Failure<Valuation>(failure!);
+
+        var old = await db.Valuations.SingleOrDefaultAsync(r => r.Id == id && r.ItemId == item.Value, ct);
+        if (old is null)
+            return Result.Failure<Valuation>(new Failure(CoreFactCodes.FactNotFound, "This item has no such value.", null));
+        if (old.RetiredAt is not null)
+            return Result.Failure<Valuation>(new Failure(CoreFactCodes.FactRetired, "This value was already corrected or voided.", null));
+
+        var now = clock.GetCurrentInstant();
+        old.RetiredAt = now;
+        await db.SaveChangesAsync(ct); // retired first: the replacement may keep its date or its import ref
+        var row = NewRow(replacement, w!, now, old.Id);
+        db.Valuations.Add(row);
+        await db.SaveChangesAsync(ct); // another current value on the new date breaks ux_valuation_current: FactConflict
+        return Result.Success(ToValuation(row));
+    }, ct);
+
+    private static ValuationRow NewRow(NewValuation v, FactWriter w, Instant now, Guid? supersedes) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        ItemId = v.Item.Value,
+        AsOf = v.AsOf,
+        Amount = v.Value.Amount,
+        Currency = w.Currency.Code,
+        Note = v.Note,
+        Source = v.Source == FactSource.Import ? "import" : "manual",
+        CreatedVia = w.Via,
+        CreatedByPersonId = w.Person.Value,
+        CreatedAt = now,
+        SupersedesId = supersedes,
+        ImportRef = v.Import?.Ref,
+        ImportHash = v.Import?.Hash,
+        ImportedBy = v.Import?.ImportedBy.Value,
+    };
 
     public async Task<Result> VoidAsync(ItemId item, Guid id, CancellationToken ct)
     {
@@ -95,7 +126,7 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
         return Result.Success<IReadOnlyList<Valuation>>(rows.Select(ToValuation).ToList());
     }
 
-    private static Valuation ToValuation(ValuationRow row)
+    internal static Valuation ToValuation(ValuationRow row)
     {
         if (!Currency.TryCreate(row.Currency.Trim(), out var currency) || !Money.Create(row.Amount, currency).TryGetValue(out var value))
             throw new InvalidOperationException("A stored value has an invalid amount or currency.");
