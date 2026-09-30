@@ -19,7 +19,7 @@ public static class ImportSections
     /// <summary>Sections of <c>import-format.md</c> §3 whose module does not exist yet, or not in this form.</summary>
     public static IReadOnlySet<string> NotYetSupported { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        "envelopes", "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases",
+        "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases",
         "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "income_sources", "income_phases",
         "valuations", "flows", "documents",
     };

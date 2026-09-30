@@ -18,10 +18,11 @@ public sealed class ImportClient(NidApp app)
 {
     public const string Root = "/api/v1/platform/imports";
 
-    /// <summary>The commit order the runner applies sections in (§11.4): <c>persons</c>, then the subscriptions
-    /// module's <c>providers</c>, <c>subscriptions</c>, <c>billing_phases</c>, <c>purchases</c>.</summary>
+    /// <summary>The commit order the runner applies sections in (§11.4: Order, then module, then each module's sections):
+    /// <c>persons</c>, the subscriptions module's <c>providers</c>, <c>subscriptions</c>, <c>billing_phases</c>,
+    /// <c>purchases</c>, then <c>envelopes</c>, then the Core's <c>valuations</c> and <c>flows</c>.</summary>
     private static readonly IReadOnlyList<string> CommitOrder =
-        ["persons", "providers", "subscriptions", "billing_phases", "purchases"];
+        ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "valuations", "flows"];
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

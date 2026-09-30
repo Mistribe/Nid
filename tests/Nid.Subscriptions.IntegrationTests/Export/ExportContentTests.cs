@@ -98,4 +98,39 @@ public class ExportContentTests(PostgresFixture fixture)
         Assert.StartsWith("sub-", ids["A's"]);
         Assert.NotEqual("sub-p", ids["A's"]);
     }
+
+    [Fact]
+    public async Task Envelopes_are_exported_as_file_records_closed_ones_included()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CommitAsync(app, app.AdultA, EnvelopesImportTests.File());
+        var made = await app.NewEnvelopeAsync("Zeta", app.AdultA, Core.Contracts.Visibility.Shared);
+
+        var export = await new ExportClient(app).ExportAllAsync(app.AdultA);
+
+        var envelopes = export["envelopes"];
+        Assert.Equal(["Livret A", "PEA", "Zeta"], envelopes.Select(e => Text(e, "name")));
+        Assert.Equal(["env-livret", "env-pea", $"env-{made.Value:D}"], envelopes.Select(e => Text(e, "id")));
+        var livret = envelopes[0];
+        Assert.Equal("savings", Text(livret, "kind"));
+        Assert.Equal("EUR", Text(livret, "currency"));
+        Assert.Equal("monthly", Text(livret, "valuation_cadence"));
+        Assert.Equal("shared", Text(livret, "visibility"));
+        Assert.Equal("2025-07-31", Text(livret, "closed_on"));
+        Assert.Equal(["adult-1", "adult-2"], livret.GetProperty("ownership").EnumerateArray().Select(o => Text(o, "person")).Order());
+        Assert.Equal([5000, 5000], livret.GetProperty("ownership").EnumerateArray().Select(o => o.GetProperty("share_bp").GetInt32()));
+        var pea = envelopes[1];
+        Assert.Equal("private", Text(pea, "visibility"));
+        Assert.Equal("Banque", Text(pea, "institution"));
+        Assert.Equal("1234", Text(pea, "account_hint"));
+        Assert.Equal("2019-03-01", Text(pea, "opened_on"));
+        Assert.Equal(JsonValueKind.Null, pea.GetProperty("closed_on").ValueKind);
+        Assert.Equal(2, export["persons"].Count);
+
+        var ofB = await new ExportClient(app).ExportAllAsync(app.AdultB);
+
+        Assert.Equal(["Livret A", "Zeta"], ofB["envelopes"].Select(e => Text(e, "name")));
+        Assert.DoesNotContain("env-pea", JsonSerializer.Serialize(ofB));
+        Assert.DoesNotContain("Banque", JsonSerializer.Serialize(ofB));
+    }
 }

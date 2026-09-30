@@ -97,7 +97,7 @@ public class BatchTests(PostgresFixture fixture)
         var session = await client.StartAsync(app.AdultA);
 
         var unknown = await client.PutRawAsync(app.AdultA, session.Id, "gadgets", 0, "[]");
-        var later = await client.PutRawAsync(app.AdultA, session.Id, "envelopes", 0, "[]");
+        var later = await client.PutRawAsync(app.AdultA, session.Id, "properties", 0, "[]");
 
         // A named section the server does not know or does not support yet is a well-formed request the
         // server refuses: 422, not 400 (see ImportCodes.BadRequests).

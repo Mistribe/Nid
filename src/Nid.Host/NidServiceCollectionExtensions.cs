@@ -8,6 +8,7 @@ using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Admin;
 using Nid.Host.Jobs;
+using Nid.Investments.Application.Import;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
@@ -161,6 +162,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ExportBuilder>();
         services.AddScoped<IImportSection, PersonsImportSection>();
         services.AddScoped<IImportSection, SubscriptionsImportSection>();
+        services.AddScoped<IImportSection, EnvelopesImportSection>();
 
         services.AddLogging();
         services.AddSynapse(cfg =>
