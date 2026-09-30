@@ -50,10 +50,7 @@ public sealed class SubscriptionsImportSection(
 
         var issues = new List<ImportIssue>();
         var anyone = (string _) => (PersonId?)new PersonId(Guid.Empty);
-        // Every file ref stands for someone, one distinct stand-in per ref, so a ref repeated is still seen.
-        var standIns = new Dictionary<string, ResolvedPerson>(StringComparer.Ordinal);
-        ResolvedPerson StandIn(string fileRef)
-            => standIns.TryGetValue(fileRef, out var standIn) ? standIn : standIns[fileRef] = new ResolvedPerson(PersonId.New(), PersonKind.Adult);
+        var standIn = ImportSectionKit.StandIns(); // every file ref stands for someone, one distinct stand-in per ref
         var position = 0;
         foreach (var entity in entities.EnumerateArray())
         {
@@ -62,19 +59,19 @@ public sealed class SubscriptionsImportSection(
             {
                 case Subscriptions:
                     if (NidDataJson.TryRead<SubscriptionRecord>(entity, path, issues, out var subscription)
-                        && RecordParsing.TryId(subscription.Id, path, issues)
+                        && ImportSectionKit.TryId(subscription.Id, path, issues)
                         && RecordParsing.TryElements(subscription, path, issues))
-                        RecordParsing.TrySubscription(subscription, path, StandIn, issues, out _);
+                        RecordParsing.TrySubscription(subscription, path, standIn, issues, out _);
                     break;
                 case Phases:
                     if (NidDataJson.TryRead<BillingPhaseRecord>(entity, path, issues, out var phaseRecord)
-                        && RecordParsing.TryId(phaseRecord.Id, path, issues)
+                        && ImportSectionKit.TryId(phaseRecord.Id, path, issues)
                         && RecordParsing.TryPhase(phaseRecord, path, anyone, issues, out var phase))
                         EngineRules(new SubscriptionInput(Header(Placeholder), [phase], []), phase.StartsOn, path, issues);
                     break;
                 case Purchases:
                     if (NidDataJson.TryRead<PurchaseRecord>(entity, path, issues, out var purchaseRecord)
-                        && RecordParsing.TryId(purchaseRecord.Id, path, issues)
+                        && ImportSectionKit.TryId(purchaseRecord.Id, path, issues)
                         && RecordParsing.TryElements(purchaseRecord, path, issues)
                         && RecordParsing.TryPurchase(purchaseRecord, path, anyone, _ => Placeholder, issues, out var purchase))
                         EngineRules(new SubscriptionInput(Header(Placeholder), [], [purchase]), purchase.Date, path, issues);
@@ -99,9 +96,9 @@ public sealed class SubscriptionsImportSection(
         // Before subscriptions: their provider_key may name an entry of this section (design §5 "Import").
         var providerCounts = await providerImport.ValidateAllAsync(context, staged, issues, ct);
 
-        var subscriptionRecords = ReadAll<SubscriptionRecord>(staged, Subscriptions, r => r.Id, issues);
-        var phaseRecords = ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues);
-        var purchaseRecords = ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues);
+        var subscriptionRecords = ImportSectionKit.ReadAll<SubscriptionRecord>(staged, Subscriptions, r => r.Id, issues, RecordParsing.TryElements);
+        var phaseRecords = ImportSectionKit.ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues, RecordParsing.TryElements);
+        var purchaseRecords = ImportSectionKit.ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues, RecordParsing.TryElements);
 
         var knownSubscriptions = await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct);
         var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);
@@ -479,13 +476,13 @@ public sealed class SubscriptionsImportSection(
         {
             var path = NidDataJson.Path(Subscriptions, entity.Index);
             if (!RecordParsing.TrySubscription(record, path, r => context.Persons.GetValueOrDefault(r), issues, out var parsed))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
 
             var created = await items.CreateAsync(new NewItem(
                 "subscriptions", "subscription", record.Name, parsed.Visibility, null,
                 parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList()), ct);
             if (!created.TryGetValue(out var id))
-                return FailureOf(created);
+                return ImportSectionKit.FailureOf(created);
 
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
@@ -498,7 +495,7 @@ public sealed class SubscriptionsImportSection(
         {
             var path = NidDataJson.Path(Subscriptions, entity.Index);
             if (!RecordParsing.TrySubscription(record, path, r => context.Persons.GetValueOrDefault(r), issues, out var parsed))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
 
             var item = await items.ReplaceAsync(id, record.Name, parsed.Visibility,
                 parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
@@ -515,7 +512,7 @@ public sealed class SubscriptionsImportSection(
         foreach (var (entity, record, phaseId) in replacedPhases)
         {
             if (!RecordParsing.TryPhase(record, NidDataJson.Path(Phases, entity.Index), person, issues, out var phase))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
             var replaced = await store.ReplacePhaseAsync(context.Items[(Subscriptions, record.SubscriptionId)], phase with { Id = phaseId },
                 new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (replaced.TryGetFailure(out var failure))
@@ -526,7 +523,7 @@ public sealed class SubscriptionsImportSection(
         {
             if (!RecordParsing.TryPurchase(record, NidDataJson.Path(Purchases, entity.Index), person,
                     fileId => context.Items.TryGetValue((Subscriptions, fileId), out var id) ? id : null, issues, out var purchase))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
             var replaced = await store.ReplacePurchaseAsync(purchase with { Id = purchaseId },
                 new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (replaced.TryGetFailure(out var failure))
@@ -536,7 +533,7 @@ public sealed class SubscriptionsImportSection(
         foreach (var (entity, record) in newPhases)
         {
             if (!RecordParsing.TryPhase(record, NidDataJson.Path(Phases, entity.Index), person, issues, out var phase))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
             var added = await store.AddPhaseAsync(context.Items[(Subscriptions, record.SubscriptionId)], phase,
                 new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (added.TryGetFailure(out var failure))
@@ -547,7 +544,7 @@ public sealed class SubscriptionsImportSection(
         {
             if (!RecordParsing.TryPurchase(record, NidDataJson.Path(Purchases, entity.Index), person,
                     fileId => context.Items.TryGetValue((Subscriptions, fileId), out var id) ? id : null, issues, out var purchase))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
             var added = await store.AddPurchaseAsync(purchase, new RowOrigin(record.Note, new ImportRef(record.Id, entity.Hash, context.Actor)), ct);
             if (added.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
@@ -598,27 +595,6 @@ public sealed class SubscriptionsImportSection(
     private static Func<string, PersonId?> Persons(ImportContext context)
         => reference => context.Persons.TryGetValue(reference, out var resolved) ? resolved.Id : null;
 
-    private static List<(StagedEntity Entity, T Record)> ReadAll<T>(IStagedBatches staged, string section, Func<T, string> id, List<ImportIssue> issues)
-        where T : class
-    {
-        var records = new List<(StagedEntity, T)>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entity in staged.Section(section))
-        {
-            var path = NidDataJson.Path(section, entity.Index);
-            if (!NidDataJson.TryRead<T>(entity.Value, path, issues, out var record) || !RecordParsing.TryId(id(record), path, issues)
-                || !RecordParsing.TryElements(record, path, issues))
-                continue;
-            if (!seen.Add(id(record)))
-            {
-                issues.Add(ImportIssue.Error(ImportCodes.DuplicateId, $"'{id(record)}' appears twice in {section}.", path + ".id"));
-                continue;
-            }
-            records.Add((entity, record));
-        }
-        return records;
-    }
-
     /// <summary>The engine's hard rules on one entity, checked alone: its reference is the entity itself.</summary>
     private static void EngineRules(SubscriptionInput input, LocalDate day, string path, List<ImportIssue> issues)
     {
@@ -668,15 +644,8 @@ public sealed class SubscriptionsImportSection(
         var candidates = rows.Select(r => new ImportCandidate(r.Id, r.Hash, r.ImportedBy, r.Items)).ToList();
         var byId = rows.GroupBy(r => r.Id).ToDictionary(g => g.Key, g => g.First());
 
-        async Task<bool> SeesAsync(ItemId item)
-        {
-            if (!readable.TryGetValue(item, out var canRead))
-                readable[item] = canRead = await CanAccessAsync(actor, item, AccessKind.Read, ct);
-            return canRead;
-        }
-
         var resolution = await ImportResolver.ResolveAsync(
-            actor, candidates, SeesAsync, belongs is null ? null : c => belongs(byId[c.Id]));
+            actor, candidates, ImportSectionKit.Readable(policy, actor, readable, ct), belongs is null ? null : c => belongs(byId[c.Id]));
         return new Resolution(resolution.Row is { } row ? byId[row.Id] : null, resolution.OwnHidden);
     }
 
@@ -684,10 +653,7 @@ public sealed class SubscriptionsImportSection(
         => ImportIssue.Error(ImportCodes.NotPermitted, $"'{id}' was imported before as an item you cannot see.", path);
 
     private Task<bool> CanWriteAsync(PersonId actor, ItemId item, CancellationToken ct)
-        => CanAccessAsync(actor, item, AccessKind.Write, ct);
-
-    private async Task<bool> CanAccessAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct)
-        => !(await policy.CheckAsync(actor, item, kind, ct)).TryGetFailure(out _);
+        => ImportSectionKit.CanAsync(policy, actor, item, AccessKind.Write, ct);
 
     private static ImportIssue Conflict(string path, string id)
         => ImportIssue.Error(ImportCodes.Conflict,
@@ -710,15 +676,6 @@ public sealed class SubscriptionsImportSection(
                 $"'{providerKey}' is neither in providers nor a provider you can link.", path + ".provider_key"));
         return true;
     }
-
-    /// <summary>What validated a moment ago no longer parses: refuse rather than write half of it.</summary>
-    private static Result<IReadOnlyDictionary<string, SectionCounts>> Drift(List<ImportIssue> issues)
-        => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(new Failure(ImportCodes.ApplyFailed,
-            $"The staging changed between validation and writing: {string.Join("; ", issues.Select(i => $"{i.Code} at {i.Path}"))}", null));
-
-    private static Result<IReadOnlyDictionary<string, SectionCounts>> FailureOf<T>(Result<T> result) where T : notnull
-        => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(
-            result.TryGetFailure(out var failure) ? failure! : new Failure(ImportCodes.ApplyFailed, "A write failed.", null));
 
     private static CostPiece Piece(Charge charge) => new(charge.Date, charge.Price.Currency, charge.Price.Amount, charge.IsProjected);
 }

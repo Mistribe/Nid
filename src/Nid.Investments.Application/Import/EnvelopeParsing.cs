@@ -25,30 +25,6 @@ internal static class EnvelopeParsing
         ["staleAfterDays"] = "stale_after_days", ["note"] = "note",
     };
 
-    public static bool TryId(string id, string path, List<ImportIssue> issues)
-    {
-        if (NidDataJson.IsFileId(id))
-            return true;
-        issues.Add(ImportIssue.Error(ImportCodes.InvalidId, "An id is lowercase letters, digits and dashes.", path + ".id"));
-        return false;
-    }
-
-    /// <summary>
-    /// System.Text.Json's nullable annotations stop at a collection's elements: <c>"ownership":[null]</c> reads as a
-    /// list holding null. Refused here, as a malformed entity at the element, before anything reads it.
-    /// </summary>
-    public static bool NoNullOwners(EnvelopeRecord record, string path, List<ImportIssue> issues)
-    {
-        var ok = true;
-        for (var j = 0; j < record.Ownership.Count; j++)
-            if (record.Ownership[j] is null)
-            {
-                issues.Add(ImportIssue.Error(ImportCodes.MalformedEntity, "A list holds no null element.", $"{path}.ownership[{j}]"));
-                ok = false;
-            }
-        return ok;
-    }
-
     /// <summary>
     /// Local rules (2B1b spec §4), the API's own: <see cref="EnvelopeRules"/> gives the codes; its API field names become
     /// the file's. <paramref name="today"/> is null on receipt (a batch alone does not ask the calendar) and at apply

@@ -200,9 +200,7 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
             ok = Refuse(issues, ImportCodes.InvalidValue, "A pricing page is an http or https address of at most 2 048 characters.", path + ".pricing_page");
         if (record.LabelKeys.Count == 0)
             ok = Refuse(issues, ImportCodes.InvalidValue, "A provider has at least one label.", path + ".label_keys");
-        for (var j = 0; j < record.LabelKeys.Count; j++)
-            if (record.LabelKeys[j] is null) // nullable annotations stop at a collection's elements (RecordParsing.TryElements)
-                ok = Refuse(issues, ImportCodes.MalformedEntity, "A list holds no null element.", $"{path}.label_keys[{j}]");
+        ok &= ImportSectionKit.NoNulls(record.LabelKeys, path + ".label_keys", issues);
         return ok;
     }
 

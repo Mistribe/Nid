@@ -33,36 +33,14 @@ internal static class RecordParsing
         ["trial"] = CoverageSource.Trial, ["gift"] = CoverageSource.Gift,
     };
 
-    public static bool TryId(string id, string path, List<ImportIssue> issues)
-    {
-        if (NidDataJson.IsFileId(id))
-            return true;
-        issues.Add(ImportIssue.Error(ImportCodes.InvalidId, "An id is lowercase letters, digits and dashes.", path + ".id"));
-        return false;
-    }
-
-    /// <summary>
-    /// System.Text.Json's nullable annotations stop at a collection's elements: <c>"grants":[null]</c> reads as
-    /// a list holding null. Refused here, as a malformed entity at the element, before anything reads it.
-    /// </summary>
+    /// <summary>The lists of a record hold no null element (<see cref="ImportSectionKit.NoNulls"/>).</summary>
     public static bool TryElements(object record, string path, List<ImportIssue> issues) => record switch
     {
-        SubscriptionRecord s => NoNulls(s.Ownership, path + ".ownership", issues) & NoNulls(s.ServiceUsers, path + ".service_users", issues),
-        PurchaseRecord p => NoNulls(p.Grants, path + ".grants", issues),
+        SubscriptionRecord s => ImportSectionKit.NoNulls(s.Ownership, path + ".ownership", issues)
+                                & ImportSectionKit.NoNulls(s.ServiceUsers, path + ".service_users", issues),
+        PurchaseRecord p => ImportSectionKit.NoNulls(p.Grants, path + ".grants", issues),
         _ => true,
     };
-
-    private static bool NoNulls(IReadOnlyList<object?> elements, string path, List<ImportIssue> issues)
-    {
-        var ok = true;
-        for (var j = 0; j < elements.Count; j++)
-            if (elements[j] is null)
-            {
-                issues.Add(ImportIssue.Error(ImportCodes.MalformedEntity, "A list holds no null element.", $"{path}[{j}]"));
-                ok = false;
-            }
-        return ok;
-    }
 
     public static bool TrySubscription(
         SubscriptionRecord r, string path, Func<string, ResolvedPerson?> person, List<ImportIssue> issues, out ParsedSubscription parsed)

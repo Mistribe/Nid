@@ -5,7 +5,6 @@ using Nid.Platform.Contracts;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
-using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Investments.Application.Import;
 
@@ -17,7 +16,7 @@ namespace Nid.Investments.Application.Import;
 /// </summary>
 public sealed class EnvelopesImportSection(
     IItemRegistry items, IEnvelopeStore envelopes, IAccessPolicy policy, IItemRules rules, IHouseholdCalendar calendar,
-    IVisibleItems visible, IPersonRegistry persons, IClock clock) : IImportSection
+    IVisibleItems visible, IPersonRegistry persons, IFactImports facts, IClock clock) : IImportSection
 {
     public const string Section = "envelopes";
 
@@ -35,18 +34,15 @@ public sealed class EnvelopesImportSection(
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
     {
         var issues = new List<ImportIssue>();
-        // Every file ref stands for someone, one distinct stand-in per ref, so a ref repeated is still seen.
-        var standIns = new Dictionary<string, ResolvedPerson>(StringComparer.Ordinal);
-        ResolvedPerson StandIn(string fileRef)
-            => standIns.TryGetValue(fileRef, out var standIn) ? standIn : standIns[fileRef] = new ResolvedPerson(PersonId.New(), PersonKind.Adult);
+        var standIn = ImportSectionKit.StandIns();
         var position = 0;
         foreach (var entity in entities.EnumerateArray())
         {
             var path = NidDataJson.Path(Section, firstIndex + position++);
             if (NidDataJson.TryRead<EnvelopeRecord>(entity, path, issues, out var record)
-                && EnvelopeParsing.TryId(record.Id, path, issues)
-                && EnvelopeParsing.NoNullOwners(record, path, issues))
-                EnvelopeParsing.TryEnvelope(record, path, StandIn, today: null, issues, out _);
+                && ImportSectionKit.TryId(record.Id, path, issues)
+                && NoNullOwners(record, path, issues))
+                EnvelopeParsing.TryEnvelope(record, path, standIn, today: null, issues, out _);
         }
         return issues;
     }
@@ -58,7 +54,8 @@ public sealed class EnvelopesImportSection(
         var issues = new List<ImportIssue>();
         var tally = SectionCounts.Zero;
         var today = await calendar.TodayAsync(ct); // the household's, as the fact sections and the API decide it
-        var records = ReadAll(context, staged, issues);
+        var records = ImportSectionKit.ReadAll<EnvelopeRecord>(staged, Section, r => r.Id, issues, NoNullOwners,
+            unread: id => context.FailedItems.Add((Section, id))); // its facts are not reported again
         var known = await envelopes.FindImportedAsync(records.Select(r => r.Record.Id).ToList(), ct);
         var latestFacts = LatestFactDates(staged);
         var readable = new Dictionary<ItemId, bool>(); // one policy check per item
@@ -69,7 +66,7 @@ public sealed class EnvelopesImportSection(
             var path = NidDataJson.Path(Section, entity.Index);
             if (!EnvelopeParsing.TryEnvelope(record, path, r => context.Persons.GetValueOrDefault(r), today, issues, out var parsed)
                 || !Owners(parsed, path, issues)
-                || !ClosesAfterItsFacts(parsed, record, latestFacts, path, issues))
+                || !ClosesAfter(parsed, latestFacts.TryGetValue(record.Id, out var latestInFile) ? latestInFile : null, "in the file", path, issues))
             {
                 context.FailedItems.Add((Section, record.Id));
                 continue;
@@ -79,7 +76,7 @@ public sealed class EnvelopesImportSection(
             var candidates = known.GetValueOrDefault(record.Id)?
                 .Select(k => new ImportCandidate(k.Item.Value, k.Hash, k.ImportedBy, [k.Item])).ToList();
             var resolution = await ImportResolver.ResolveAsync(context.Actor, candidates,
-                item => CanAsync(context.Actor, item, AccessKind.Read, readable, ct));
+                ImportSectionKit.Readable(policy, context.Actor, readable, ct));
             if (resolution.OwnHidden)
             {
                 issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, $"'{record.Id}' was imported before as an envelope you cannot see.", path));
@@ -112,6 +109,14 @@ public sealed class EnvelopesImportSection(
                     if (refusal is not null)
                     {
                         issues.Add(refusal);
+                        context.FailedItems.Add((Section, record.Id));
+                        continue;
+                    }
+
+                    // Controller ruling (fix round 1): as the API's close, not before the envelope's stored current values
+                    // and flows either; one this file replaces still counts.
+                    if (parsed.ClosedOn is not null && !ClosesAfter(parsed, await LatestStoredAsync(id, ct), "stored", path, issues))
+                    {
                         context.FailedItems.Add((Section, record.Id));
                         continue;
                     }
@@ -150,12 +155,12 @@ public sealed class EnvelopesImportSection(
         {
             var path = NidDataJson.Path(Section, entity.Index);
             if (!EnvelopeParsing.TryEnvelope(record, path, r => context.Persons.GetValueOrDefault(r), null, issues, out var parsed))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
 
             var made = await items.CreateAsync(new NewItem("investments", "envelope", record.Name, parsed.Visibility, parsed.Currency.Code,
                 parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList()), ct);
             if (!made.TryGetValue(out var id))
-                return FailureOf(made);
+                return ImportSectionKit.FailureOf(made);
 
             var planned = context.Items[(Section, record.Id)];
             context.NewItems.Remove(planned);
@@ -174,7 +179,7 @@ public sealed class EnvelopesImportSection(
         {
             var path = NidDataJson.Path(Section, entity.Index);
             if (!EnvelopeParsing.TryEnvelope(record, path, r => context.Persons.GetValueOrDefault(r), null, issues, out var parsed))
-                return Drift(issues);
+                return ImportSectionKit.Drift(issues);
 
             var item = await items.ReplaceAsync(id, record.Name, parsed.Visibility,
                 parsed.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ct);
@@ -248,36 +253,6 @@ public sealed class EnvelopesImportSection(
     }
 
     /// <summary>
-    /// The entities that read as records, first occurrence of each id. One that does not read, or repeats an id, is
-    /// reported here; its id, when the file gives one, goes to <see cref="ImportContext.FailedItems"/> so the fact
-    /// sections do not report its facts again.
-    /// </summary>
-    private static List<(StagedEntity Entity, EnvelopeRecord Record)> ReadAll(ImportContext context, IStagedBatches staged, List<ImportIssue> issues)
-    {
-        var records = new List<(StagedEntity, EnvelopeRecord)>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entity in staged.Section(Section))
-        {
-            var path = NidDataJson.Path(Section, entity.Index);
-            if (!NidDataJson.TryRead<EnvelopeRecord>(entity.Value, path, issues, out var record)
-                || !EnvelopeParsing.TryId(record.Id, path, issues) || !EnvelopeParsing.NoNullOwners(record, path, issues))
-            {
-                if (entity.Value.ValueKind == JsonValueKind.Object && entity.Value.TryGetProperty("id", out var raw)
-                    && raw.ValueKind == JsonValueKind.String)
-                    context.FailedItems.Add((Section, raw.GetString()!));
-                continue;
-            }
-            if (!seen.Add(record.Id))
-            {
-                issues.Add(ImportIssue.Error(ImportCodes.DuplicateId, $"'{record.Id}' appears twice in {Section}.", path + ".id"));
-                continue;
-            }
-            records.Add((entity, record));
-        }
-        return records;
-    }
-
-    /// <summary>
     /// File id of an item → the latest date among the staged values and flows naming it, of those whose date parses.
     /// Anything malformed is the fact section's to report.
     /// </summary>
@@ -309,16 +284,30 @@ public sealed class EnvelopesImportSection(
         return false;
     }
 
-    /// <summary>The rule of <c>close</c>: not before the envelope's latest value or flow in the file, the same day accepted.</summary>
-    private static bool ClosesAfterItsFacts(
-        ParsedEnvelope parsed, EnvelopeRecord record, IReadOnlyDictionary<string, LocalDate> latestFacts, string path, List<ImportIssue> issues)
+    /// <summary>
+    /// The rule of <c>close</c>: not before the envelope's latest value or flow (<paramref name="where"/>: in the file, or
+    /// stored), the same day accepted.
+    /// </summary>
+    private static bool ClosesAfter(ParsedEnvelope parsed, LocalDate? latest, string where, string path, List<ImportIssue> issues)
     {
-        if (parsed.ClosedOn is not { } closedOn || !latestFacts.TryGetValue(record.Id, out var latest) || closedOn >= latest)
+        if (parsed.ClosedOn is not { } closedOn || latest is not { } last || closedOn >= last)
             return true;
         issues.Add(ImportIssue.Error(InvestmentsCodes.InvalidEnvelope,
-            $"A close cannot predate this envelope's latest value or flow in the file ({LocalDatePattern.Iso.Format(latest)}).", path + ".closed_on"));
+            $"A close cannot predate this envelope's latest value or flow {where} ({LocalDatePattern.Iso.Format(last)}).", path + ".closed_on"));
         return false;
     }
+
+    /// <summary>The latest date among the envelope's current values and flows, null when it has none.</summary>
+    private async Task<LocalDate?> LatestStoredAsync(ItemId id, CancellationToken ct)
+    {
+        var dates = (await facts.ValuationsOfAsync([id], ct)).Select(v => v.Valuation.AsOf)
+            .Concat((await facts.FlowsOfAsync([id], ct)).Select(f => f.Flow.OccurredOn)).ToList();
+        return dates.Count == 0 ? null : dates.Max();
+    }
+
+    /// <summary>The ownership list holds no null element (<see cref="ImportSectionKit.NoNulls"/>).</summary>
+    private static bool NoNullOwners(EnvelopeRecord record, string path, List<ImportIssue> issues)
+        => ImportSectionKit.NoNulls(record.Ownership, path + ".ownership", issues);
 
     /// <summary>
     /// 1F3b spec §3.2 and 2B1b spec §4: replacing is a write, on the item as it is now, that never takes it from another
@@ -328,7 +317,7 @@ public sealed class EnvelopesImportSection(
         PersonId actor, ItemId id, ItemAccess current, ParsedEnvelope parsed, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
     {
-        if ((await policy.CheckAsync(actor, id, AccessKind.Write, ct)).TryGetFailure(out _))
+        if (!await ImportSectionKit.CanAsync(policy, actor, id, AccessKind.Write, ct))
             return ImportIssue.Error(ImportCodes.NotPermitted, "This replaces an envelope you cannot change.", path);
         if (rules.DropsAnotherAdultOwner(actor, current.Owners, parsed.Owners))
             return ImportIssue.Error(ImportCodes.NotPermitted, "This replacement removes another adult from the owners.", path + ".ownership");
@@ -341,22 +330,6 @@ public sealed class EnvelopesImportSection(
         return null;
     }
 
-    private async Task<bool> CanAsync(PersonId actor, ItemId item, AccessKind kind, Dictionary<ItemId, bool> cache, CancellationToken ct)
-    {
-        if (!cache.TryGetValue(item, out var can))
-            cache[item] = can = !(await policy.CheckAsync(actor, item, kind, ct)).TryGetFailure(out _);
-        return can;
-    }
-
     private static Envelope ToEnvelope(ItemId id, EnvelopeRecord record, ParsedEnvelope parsed)
         => new(id, parsed.Kind, record.Institution, record.AccountHint, parsed.OpenedOn, parsed.Cadence, record.StaleAfterDays, record.Note, parsed.ClosedOn);
-
-    /// <summary>What validated a moment ago no longer parses: refuse rather than write half of it.</summary>
-    private static Result<IReadOnlyDictionary<string, SectionCounts>> Drift(List<ImportIssue> issues)
-        => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(new Failure(ImportCodes.ApplyFailed,
-            $"The staging changed between validation and writing: {string.Join("; ", issues.Select(i => $"{i.Code} at {i.Path}"))}", null));
-
-    private static Result<IReadOnlyDictionary<string, SectionCounts>> FailureOf<T>(Result<T> result) where T : notnull
-        => Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(
-            result.TryGetFailure(out var failure) ? failure! : new Failure(ImportCodes.ApplyFailed, "A write failed.", null));
 }

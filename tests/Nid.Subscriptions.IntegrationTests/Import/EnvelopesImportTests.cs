@@ -155,6 +155,34 @@ public class EnvelopesImportTests(PostgresFixture fixture)
         Assert.True((await JsonAsync(app, app.AdultA, $"/api/v1/investments/envelopes/{pea}")).GetProperty("closed").GetBoolean());
     }
 
+    /// <summary>Controller ruling (fix round 1): a replacement closes no earlier than the envelope's stored facts, as <c>close</c>.</summary>
+    [Fact]
+    public async Task A_replacement_closes_after_the_stored_values_and_flows()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, File());
+        var pea = await IdOf(app, "PEA");
+        var entered = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{pea}/valuations",
+            new { asOf = "2025-09-30", amount = new { amount = "1500.00", currency = "EUR" } });
+        Assert.True(entered.IsSuccessStatusCode, await entered.Content.ReadAsStringAsync());
+        static Dictionary<string, string> ClosedOn(string date)
+            => File(Envelopes.Replace("\"opened_on\":\"2019-03-01\",", $"\"opened_on\":\"2019-03-01\",\"closed_on\":\"{date}\","));
+
+        var early = await ValidateAsync(client, app, app.AdultA, ClosedOn("2025-09-15"), replace: true);
+
+        Assert.Equal("invalid", early.State);
+        var issue = Assert.Single(early.Report!.Issues, i => i.Severity == "error");
+        Assert.Equal(("investments.invalid_envelope", "envelopes[0].closed_on"), (issue.Code, issue.Path));
+        await client.CancelRawAsync(app.AdultA, early.Id);
+
+        var sameDay = await CommitAsync(client, app, app.AdultA, ClosedOn("2025-09-30"), replace: true);
+
+        Assert.Equal(new CountsResponse(0, 1, 0, 1), sameDay.Report!.Sections["envelopes"]);
+        Assert.Equal(new LocalDate(2025, 9, 30), (await StoredAsync(app, pea)).ClosedOn);
+        Assert.True((await JsonAsync(app, app.AdultA, $"/api/v1/investments/envelopes/{pea}")).GetProperty("closed").GetBoolean());
+    }
+
     [Fact]
     public async Task Replace_does_not_change_the_currency()
     {
@@ -219,7 +247,9 @@ public class EnvelopesImportTests(PostgresFixture fixture)
             Env("e4", ",\"stale_after_days\":0"),
             Env("e5", currency: "EURO"),
             Env("e6", ",\"opened_on\":\"2025-02-30\""),
-            Env("e7", ",\"colour\":\"blue\"")) + "]";
+            Env("e7", ",\"colour\":\"blue\""),
+            Env("e8", $",\"institution\":\"{new string('b', 101)}\""),
+            Env("e9", $",\"note\":\"{new string('n', 2001)}\"")) + "]";
         var session = await client.StartAsync(app.AdultA, Adults(app));
         var batch = await client.PutAsync(app.AdultA, session.Id, "envelopes", 0, local);
 
@@ -235,6 +265,8 @@ public class EnvelopesImportTests(PostgresFixture fixture)
                 (ImportCodes.InvalidValue, "envelopes[5].currency"),
                 (ImportCodes.InvalidValue, "envelopes[6].opened_on"),
                 (ImportCodes.MalformedEntity, "envelopes[7].colour"),
+                ("investments.invalid_envelope", "envelopes[8].institution"),
+                ("investments.invalid_envelope", "envelopes[9].note"),
             ],
             batch.Issues.Select(i => (i.Code, i.Path)));
 
