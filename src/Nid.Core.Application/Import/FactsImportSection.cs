@@ -212,6 +212,13 @@ public sealed class FactsImportSection(
 
             if (resolution.Row is { } row)
             {
+                // Whatever the hash and the mode: a stored fact never moves to another item, nor is it taken as this file's.
+                if (row.Items[0] != item)
+                {
+                    issues.Add(ImportIssue.Error(ImportCodes.InvalidValue,
+                        "A fact stays on its item: give the fact of the other item an id of its own.", path + ".item"));
+                    continue;
+                }
                 named.Add(row.Id);
                 if (row.Hash == entity.Hash)
                 {
@@ -223,12 +230,6 @@ public sealed class FactsImportSection(
                     issues.Add(ImportIssue.Error(ImportCodes.Conflict,
                         $"'{id}' was imported before with other content; nothing is overwritten (import-format.md §8).", path));
                     tally += new SectionCounts(0, 0, 1);
-                    continue;
-                }
-                if (row.Items[0] != item)
-                {
-                    issues.Add(ImportIssue.Error(ImportCodes.InvalidValue,
-                        "A replaced fact stays on its item: give the fact of the other item an id of its own.", path + ".item"));
                     continue;
                 }
                 if (!await access.WritableAsync(item))

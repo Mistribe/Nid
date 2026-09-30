@@ -22,6 +22,8 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
         var now = clock.GetCurrentInstant();
         var current = await db.Valuations.SingleOrDefaultAsync(
             r => r.ItemId == valuation.Item.Value && r.AsOf == valuation.AsOf && r.RetiredAt == null, ct);
+        if (current is not null && valuation.Import is not null)
+            return Result.Failure<Valuation>(new Failure(CoreFactCodes.FactConflict, "This item already has a value on that date; an import never replaces it.", null));
         if (current is not null)
         {
             current.RetiredAt = now;

@@ -63,6 +63,23 @@ public class FactImportsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task An_import_never_retires_a_current_value_of_the_same_date_but_a_manual_write_does()
+    {
+        await using var w = await FactWorld.NewAsync(postgres);
+        var item = await w.ItemAsync(w.Alice);
+        var date = new LocalDate(2025, 1, 31);
+        var hand = (await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(100m), null), default)).Ok();
+
+        var imported = await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(120m), null, FactSource.Import, new ImportMark("val-1", new string('a', 64), w.Alice)), default);
+
+        Assert.Equal(CoreFactCodes.FactConflict, Code(imported));
+        Assert.Null((await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == hand.Id)).RetiredAt);
+
+        var manual = (await w.Valuations.RecordAsync(new NewValuation(item, date, FactWorld.Eur(130m), null), default)).Ok();
+        Assert.Equal(hand.Id, (await w.Db.Valuations.AsNoTracking().SingleAsync(r => r.Id == manual.Id)).SupersedesId);
+    }
+
+    [Fact]
     public async Task A_flow_carries_its_mark_and_a_superseded_flow_hands_the_ref_to_its_replacement()
     {
         await using var w = await FactWorld.NewAsync(postgres);

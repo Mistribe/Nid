@@ -477,4 +477,39 @@ public class FactsImportTests(PostgresFixture fixture)
         Assert.Equal("invalid", moved.State);
         Assert.Equal([(ImportCodes.InvalidValue, "valuations[0].item")], ErrorsOf(moved));
     }
+
+    /// <summary>Not reachable through the API (an envelope's import ref never changes): pinned by moving a row in SQL.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_stored_fact_found_on_another_item_is_refused_whatever_its_hash(bool replace)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, Facts());
+        var livret = await IdOf(app, "Livret A");
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            await core.Valuations.Where(v => v.ImportRef == "v-pea-2").ExecuteUpdateAsync(u => u.SetProperty(v => v.ItemId, livret));
+
+        var again = await ValidateAsync(client, app, app.AdultA, Facts(), replace: replace);
+
+        Assert.Equal("invalid", again.State);
+        Assert.Equal([(ImportCodes.InvalidValue, "valuations[1].item")], ErrorsOf(again));
+    }
+
+    [Fact]
+    public async Task A_correction_onto_the_date_of_another_current_fact_is_refused_even_with_replace()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, Facts());
+        var pea = await IdOf(app, "PEA");
+        await PostAsync(app, $"/api/v1/investments/envelopes/{pea}/valuations", new { asOf = "2025-10-10", amount = Eur("26000.00") });
+
+        var onto = await ValidateAsync(client, app, app.AdultA,
+            Facts(valuations: Valuations.Replace("\"as_of\":\"2025-09-30\"", "\"as_of\":\"2025-10-10\"")), replace: true);
+
+        Assert.Equal("invalid", onto.State);
+        Assert.Equal([(ImportCodes.Conflict, "valuations[1]")], ErrorsOf(onto));
+    }
 }
