@@ -32,6 +32,9 @@ export type RootSearch = { scope?: 'me' };
 /** The list's own filters, in the URL beside the root scope (1E2a design §3; labels comma-joined, 1E2b2 design §3.3). */
 export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string; label?: string };
 
+/** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
+export type InvestmentsSearch = { closed?: 1 };
+
 export function homePath(capabilities: Capabilities): '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('subscriptions')) return '/subscriptions';
   if (capabilities.modules.includes('import')) return '/import';
@@ -70,6 +73,7 @@ const investmentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/investments',
   beforeLoad: requireModule('investments'),
+  validateSearch: (search: Record<string, unknown>): InvestmentsSearch => (search.closed === 1 || search.closed === '1' ? { closed: 1 } : {}),
   component: EnvelopesPage,
 });
 

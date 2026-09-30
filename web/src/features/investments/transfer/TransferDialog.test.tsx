@@ -138,7 +138,7 @@ describe('TransferDialog', () => {
     expect(within(dialog).getByText('Une des deux enveloppes est clôturée.')).toBeInTheDocument();
   });
 
-  it('moves the focus to the « Saisir » heading when the source closed under the dialog', async () => {
+  it('moves the focus to the closed banner when the source closed under the dialog', async () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], [], problem(409, 'investments.envelope_closed'));
     const { user } = await renderApp(`/investments/${PEA}`);
 
@@ -151,7 +151,8 @@ describe('TransferDialog', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Virer vers une autre enveloppe' })).not.toBeInTheDocument());
     await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Saisir' })).toHaveFocus());
+    // « Saisir » is gone with the write affordances of a closed envelope: the banner is where the focus lands.
+    await waitFor(() => expect(screen.getByRole('note')).toHaveFocus());
   });
 
   it('says in French that both envelopes must differ and share a currency', async () => {

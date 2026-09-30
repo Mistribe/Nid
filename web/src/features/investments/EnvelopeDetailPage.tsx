@@ -15,6 +15,8 @@ import { PeriodPerformance } from './period/PeriodPerformance';
 import { FlowForm } from './entries/FlowForm';
 import { RowActions } from './entries/RowActions';
 import { ValueForm } from './entries/ValueForm';
+import { CloseDialog } from './closing/CloseDialog';
+import { ClosedBanner } from './closing/ClosedBanner';
 import { TransferDialog } from './transfer/TransferDialog';
 import { Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
@@ -48,6 +50,15 @@ export function EnvelopeDetailPage() {
   // button still exists (the row just reverts), unlike after a save, which removes or replaces the row.
   const [focusValueId, setFocusValueId] = useState<string | null>(null);
   const [focusFlowId, setFocusFlowId] = useState<string | null>(null);
+  // Closing and reopening: the page owns the announcement (the banner and the « Saisir » section come and go with
+  // the state), and where the focus lands once the refetch has swapped them — never <body>.
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
+  const [landOn, setLandOn] = useState<'banner' | 'enter' | null>(null);
+  const closeWasOpen = useRef(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const bannerRef = useRef<HTMLParagraphElement>(null);
+  const isClosed = answer.data?.closed;
 
   // Cleared the instant an action on that section starts (opening a row's correction, confirming a deletion) and
   // set again only on success: an unchanged string never re-triggers the polite live region, so going through
@@ -67,8 +78,21 @@ export function EnvelopeDetailPage() {
   };
   useEffect(() => {
     if (transferOpen) transferWasOpen.current = true;
-    else if (transferWasOpen.current) { transferWasOpen.current = false; (transferButtonRef.current ?? enterHeadingRef.current)?.focus(); }
+    else if (transferWasOpen.current) { transferWasOpen.current = false; (transferButtonRef.current ?? enterHeadingRef.current ?? bannerRef.current)?.focus(); }
   }, [transferOpen]);
+
+  const closeClose = (message?: string) => {
+    setCloseOpen(false);
+    if (message) { setStatusAnnouncement(message); setLandOn('banner'); }
+  };
+  useEffect(() => {
+    if (closeOpen) closeWasOpen.current = true;
+    else if (closeWasOpen.current) { closeWasOpen.current = false; if (!landOn) (closeButtonRef.current ?? enterHeadingRef.current ?? bannerRef.current)?.focus(); }
+  }, [closeOpen, landOn]);
+  useEffect(() => {
+    if (landOn === 'banner' && isClosed) { bannerRef.current?.focus(); setLandOn(null); }
+    else if (landOn === 'enter' && isClosed === false) { enterHeadingRef.current?.focus(); setLandOn(null); }
+  }, [landOn, isClosed]);
 
   const startValueEdit = (id: string) => { clearValues(); setEditingValueId(id); };
   const startFlowEdit = (id: string) => { clearFlows(); setEditingFlowId(id); };
@@ -107,8 +131,10 @@ export function EnvelopeDetailPage() {
   // The missing-opening button offers to add « Versements antérieurs »; hidden once one already exists (finding 9),
   // even if the server still reports `missingOpening` (an opening dated after the latest value).
   const hasOpening = detail.flows.some((f) => f.kind === 'opening');
-  const valueCols = detail.canWrite ? 4 : 3;
-  const flowCols = detail.canWrite ? 5 : 4;
+  // Every write affordance: the « Saisir » section, the row actions, the transfer and the close buttons.
+  const writable = detail.canWrite && !detail.closed;
+  const valueCols = writable ? 4 : 3;
+  const flowCols = writable ? 5 : 4;
 
   return (
     <article className="space-y-6">
@@ -119,6 +145,12 @@ export function EnvelopeDetailPage() {
         <AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} />
       </header>
       {detail.canWrite ? null : <p>{t('envelope.read_only')}</p>}
+      <p role="status" aria-live="polite">{statusAnnouncement}</p>
+      {detail.closed ? (
+        <ClosedBanner envelope={detail} bannerRef={bannerRef}
+          onStart={() => setStatusAnnouncement('')}
+          onReopened={(message) => { setStatusAnnouncement(message); setLandOn('enter'); }} />
+      ) : null}
 
       <Section title={t('envelope.figures')}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
@@ -169,7 +201,7 @@ export function EnvelopeDetailPage() {
           <p role="note" className="flex flex-wrap items-center gap-2">
             <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
             {t('envelope.missing_opening')}
-            {detail.canWrite && !hasOpening ? (
+            {writable && !hasOpening ? (
               <Button type="button" variant="outline" size="sm" onClick={() => setOpeningRequest((n) => (n ?? 0) + 1)}>
                 {t('envelope.add_opening')}
               </Button>
@@ -186,20 +218,26 @@ export function EnvelopeDetailPage() {
         <PeriodPerformance envelopeId={detail.id} />
       </Section>
 
-      {detail.canWrite ? (
+      {writable ? (
         <Section title={t('envelope.enter')} headingRef={enterHeadingRef}>
           <div className="grid gap-6 md:grid-cols-2">
             <ValueForm envelope={detail} />
             <FlowForm envelope={detail} openingRequest={openingRequest} />
           </div>
-          {detail.closed ? null : (
+          <div className="flex flex-wrap gap-2">
             <Button ref={transferButtonRef} type="button" variant="outline" onClick={openTransfer}>
               {t('envelope.transfer.open')}
             </Button>
-          )}
-          {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
+            <Button ref={closeButtonRef} type="button" variant="outline" onClick={() => { setStatusAnnouncement(''); setCloseOpen(true); }}>
+              {t('envelope.closing.open')}
+            </Button>
+          </div>
         </Section>
       ) : null}
+
+      {/* Outside the « Saisir » section: a dialog open when the envelope turns out closed must outlive it. */}
+      {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
+      {closeOpen ? <CloseDialog envelope={detail} onClose={() => closeClose()} onDone={closeClose} /> : null}
 
       <Section title={t('envelope.values')} headingRef={valuesHeadingRef} announcement={valuesAnnouncement}>
         <table className="w-full text-sm" aria-label={t('envelope.values_table')}>
@@ -208,7 +246,7 @@ export function EnvelopeDetailPage() {
               <th scope="col" className="text-left">{t('envelope.date')}</th>
               <th scope="col" className="text-left">{t('envelope.amount')}</th>
               <th scope="col" className="text-left">{t('envelope.note')}</th>
-              {detail.canWrite ? <th scope="col" className="text-left">{t('envelope.actions')}</th> : null}
+              {writable ? <th scope="col" className="text-left">{t('envelope.actions')}</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -225,7 +263,7 @@ export function EnvelopeDetailPage() {
                 <td><LocalDate value={v.asOf} /></td>
                 <td><Money value={v.amount} tabular /></td>
                 <td>{v.note}</td>
-                {detail.canWrite ? (
+                {writable ? (
                   <td><RowActions kind="value" envelope={detail} item={v} onEdit={() => startValueEdit(v.id)} onDeleteStarted={clearValues} onDeleted={announceValues} /></td>
                 ) : null}
               </tr>
@@ -242,7 +280,7 @@ export function EnvelopeDetailPage() {
               <th scope="col" className="text-left">{t('envelope.kind')}</th>
               <th scope="col" className="text-left">{t('envelope.amount')}</th>
               <th scope="col" className="text-left">{t('envelope.note')}</th>
-              {detail.canWrite ? <th scope="col" className="text-left">{t('envelope.actions')}</th> : null}
+              {writable ? <th scope="col" className="text-left">{t('envelope.actions')}</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -260,7 +298,7 @@ export function EnvelopeDetailPage() {
                 <td>{flowKindText(t, f)}</td>
                 <td><Money value={f.amount} tabular /></td>
                 <td>{f.note}</td>
-                {detail.canWrite ? (
+                {writable ? (
                   <td><RowActions kind="flow" envelope={detail} item={f} onEdit={() => startFlowEdit(f.id)} onDeleteStarted={clearFlows} onDeleted={announceFlows} /></td>
                 ) : null}
               </tr>

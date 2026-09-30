@@ -1,0 +1,175 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { describe, expect, it } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import { todayIso } from '../../subscriptions/today';
+import { detail, eur, list, PEA, summary } from '../testData';
+
+type Answer = (body: { closedOn: string }) => Response | undefined;
+
+/** Like the real server: a close sets `closed` and adds the 0 value on its date; a reopen clears it. */
+function serve(initial = detail(), bodies: unknown[] = [], answer: Answer = () => undefined, reopenAnswer: () => Response | undefined = () => undefined) {
+  const current = initial;
+  server.use(
+    http.get('*/api/v1/investments/envelopes', () => HttpResponse.json(list([summary()]))),
+    http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(current)),
+    http.get('*/api/v1/investments/envelopes/:id/series', () => HttpResponse.json({ id: PEA, points: [] })),
+    http.get('*/api/v1/investments/envelopes/:id/performance', () => HttpResponse.json({ from: '2025-01-01', to: '2025-10-15' })),
+    http.post('*/api/v1/investments/envelopes/:id/close', async ({ request }) => {
+      const body = await request.json() as { closedOn: string };
+      bodies.push(body);
+      const refused = answer(body);
+      if (refused) return refused;
+      current.closed = true;
+      current.valuations = [...current.valuations, { id: 'zero', asOf: body.closedOn, amount: eur('0.0000'), note: null }];
+      return HttpResponse.json({ id: PEA });
+    }),
+    http.post('*/api/v1/investments/envelopes/:id/reopen', () => {
+      const refused = reopenAnswer();
+      if (refused) return refused;
+      current.closed = false;
+      return HttpResponse.json({ id: PEA });
+    }),
+  );
+}
+
+const problem = (status: number, code: string | null, extra: object = {}) => () =>
+  HttpResponse.json({ status, code, title: 'Problem', ...extra }, { status, headers: { 'Content-Type': 'application/problem+json' } });
+
+const openDialog = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
+  await user.click(await screen.findByRole('button', { name: 'Clôturer l’enveloppe' }));
+  return screen.getByRole('dialog', { name: 'Clôturer l’enveloppe' });
+};
+
+describe('closing an envelope', () => {
+  it('closes at today\'s date without a withdrawal, says the effect, and lands on the banner', async () => {
+    const bodies: unknown[] = [];
+    serve(detail(), bodies);
+    const { user, container } = await renderApp(`/investments/${PEA}`);
+
+    const dialog = await openDialog(user);
+    expect(within(dialog).getByText('Une valeur de 0 sera enregistrée à cette date, et l’enveloppe quittera la liste. Vous pourrez la rouvrir.')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Date de clôture')).toHaveValue(todayIso());
+    await expectNoAxeViolations(document.body);
+    await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
+
+    expect(await screen.findByText('Enveloppe clôturée.')).toHaveAttribute('role', 'status');
+    expect(bodies).toEqual([{ closedOn: todayIso() }]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const banner = await screen.findByRole('note');
+    expect(banner).toHaveTextContent('Enveloppe clôturée');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clôturer l’enveloppe' })).not.toBeInTheDocument());
+    await waitFor(() => expect(banner).toHaveFocus());
+    await expectNoAxeViolations(container);
+  });
+
+  it('sends the final withdrawal in the envelope currency', async () => {
+    const bodies: unknown[] = [];
+    serve(detail(), bodies);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const dialog = await openDialog(user);
+    await user.type(within(dialog).getByLabelText('Dernier retrait'), '510');
+    await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
+
+    await screen.findByText('Enveloppe clôturée.');
+    expect(bodies).toEqual([{ closedOn: todayIso(), finalWithdrawal: { amount: '510', currency: 'EUR' } }]);
+  });
+
+  it('refuses a zero withdrawal before sending', async () => {
+    const bodies: unknown[] = [];
+    serve(detail(), bodies);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const dialog = await openDialog(user);
+    await user.type(within(dialog).getByLabelText('Dernier retrait'), '0');
+    await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
+
+    expect(await within(dialog).findByText('Saisissez un montant positif comme 1234,56.')).toBeInTheDocument();
+    expect(bodies).toEqual([]);
+  });
+
+  it('places a closing before the last value or flow on the closing date', async () => {
+    serve(detail(), [], () => problem(422, 'investments.invalid_envelope', { detail: 'closedOn' })());
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
+
+    expect(await within(dialog).findByLabelText('Date de clôture')).toBeInvalid();
+    expect(within(dialog).getByText('La clôture ne peut pas précéder la dernière valeur ou le dernier flux.')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Problem')).not.toBeInTheDocument();
+    await expectNoAxeViolations(document.body);
+  });
+
+  it('says an envelope already closed, with its reload', async () => {
+    serve(detail(), [], problem(409, 'investments.envelope_closed'));
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
+
+    expect(await within(dialog).findByText('Cette enveloppe est clôturée.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
+  });
+
+  it('hands the focus back to the button when the dialog is cancelled', async () => {
+    serve();
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const button = await screen.findByRole('button', { name: 'Clôturer l’enveloppe' });
+    await user.click(button);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Annuler' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(button).toHaveFocus());
+  });
+});
+
+describe('a closed envelope', () => {
+  it('shows the banner and no write affordance', async () => {
+    serve(detail({ closed: true }));
+    const { container } = await renderApp(`/investments/${PEA}`);
+
+    const article = await screen.findByRole('article');
+    expect(await within(article).findByText('Enveloppe clôturée')).toBeInTheDocument();
+    expect(within(article).getByRole('button', { name: 'Rouvrir' })).toBeInTheDocument();
+    for (const name of ['Nouvelle valeur', 'Nouveau flux', 'Réglages']) expect(within(article).queryByRole('form', { name })).not.toBeInTheDocument();
+    for (const name of ['Corriger', 'Supprimer', 'Virer vers une autre enveloppe', 'Clôturer l’enveloppe', 'Saisir les versements antérieurs'])
+      expect(within(article).queryByRole('button', { name })).not.toBeInTheDocument();
+    expect(within(article).queryByRole('heading', { name: 'Saisir' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('reopens and announces it, the focus going to « Saisir »', async () => {
+    serve(detail({ closed: true }));
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rouvrir' }));
+
+    expect(await screen.findByText('Enveloppe rouverte.')).toHaveAttribute('role', 'status');
+    expect(await screen.findByRole('button', { name: 'Clôturer l’enveloppe' })).toBeInTheDocument();
+    expect(screen.queryByText('Enveloppe clôturée')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Saisir' })).toHaveFocus());
+  });
+
+  it('says an envelope that is not closed when reopening', async () => {
+    serve(detail({ closed: true }), [], () => undefined, problem(409, 'investments.envelope_open'));
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rouvrir' }));
+
+    expect(await screen.findByText('Cette enveloppe n’est pas clôturée.')).toBeInTheDocument();
+    expect(screen.queryByText('Problem')).not.toBeInTheDocument();
+  });
+
+  it('shows the banner without « Rouvrir » to a reader', async () => {
+    serve(detail({ closed: true, canWrite: false }));
+    await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByText('Enveloppe clôturée')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rouvrir' })).not.toBeInTheDocument();
+  });
+});

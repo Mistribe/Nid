@@ -16,6 +16,8 @@ export const SERIES = '/api/v1/investments/envelopes/{id}/series' as const;
 export const PERFORMANCE = '/api/v1/investments/envelopes/{id}/performance' as const;
 export const FLOWS = '/api/v1/investments/envelopes/{id}/flows' as const;
 export const TRANSFERS = '/api/v1/investments/transfers' as const;
+export const CLOSE = '/api/v1/investments/envelopes/{id}/close' as const;
+export const REOPEN = '/api/v1/investments/envelopes/{id}/reopen' as const;
 export const FLOW = '/api/v1/investments/envelopes/{id}/flows/{flowId}' as const;
 
 /** Every write invalidates the list, every detail, every value series and every period, as for subscriptions. */

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -100,5 +100,46 @@ describe('EnvelopesPage', () => {
     serve(list([]));
     await renderApp('/investments');
     expect(screen.getAllByRole('link', { name: 'Placements' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('EnvelopesPage, closed envelopes', () => {
+  it('asks for the closed ones only when the box is checked, and keeps that in the URL', async () => {
+    const seen: string[] = [];
+    serve(list([summary()]), seen);
+    const { user, router } = await renderApp('/investments');
+
+    const box = await screen.findByRole('checkbox', { name: 'Afficher les clôturées' });
+    expect(box).not.toBeChecked();
+    expect(seen).toEqual(['?scope=household']);
+    await user.click(box);
+
+    await waitFor(() => expect(seen).toContain('?scope=household&archived=true'));
+    expect(router.state.location.search).toMatchObject({ closed: 1 });
+    await screen.findByRole('list', { name: 'Liste des enveloppes' });
+    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toHaveFocus();
+    await user.click(screen.getByRole('checkbox', { name: 'Afficher les clôturées' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('closed'));
+  });
+
+  it('marks a closed row in words, and starts checked from the URL', async () => {
+    const seen: string[] = [];
+    serve(list([summary(), summary({ id: 'old', displayName: 'Ancien', closed: true })]), seen);
+    const { container } = await renderApp('/investments?closed=1');
+
+    const items = await rows();
+    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
+    expect(seen).toContain('?scope=household&archived=true');
+    expect(within(items[1]!).getByText('Clôturée')).toBeInTheDocument();
+    expect(within(items[0]!).queryByText('Clôturée')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('keeps the box when only closed envelopes are left', async () => {
+    serve(list([]));
+    await renderApp('/investments?closed=1');
+
+    expect(await screen.findByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
   });
 });

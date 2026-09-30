@@ -342,6 +342,7 @@
     "investments_unknown_kind": "Choisissez un type d’enveloppe.",
     "investments_unknown_cadence": "Choisissez une fréquence.",
     "investments_envelope_closed": "Cette enveloppe est clôturée.",
+    "investments_envelope_open": "Cette enveloppe n’est pas clôturée.",
     "investments_transfer_same_envelope": "Choisissez une autre enveloppe que celle d’origine.",
     "investments_transfer_currency_mismatch": "Les deux enveloppes n’ont pas la même devise."
   },
@@ -650,6 +651,8 @@
     "loading": "Chargement des enveloppes",
     "before_tax": "Gains avant fiscalité.",
     "add": "Ajouter une enveloppe",
+    "show_closed": "Afficher les clôturées",
+    "closed_mark": "Clôturée",
     "empty_title": "Aucune enveloppe pour l’instant",
     "empty_body": "Ajoutez un livret, un PEA ou une assurance-vie pour suivre sa valeur et ce qu’elle rapporte.",
     "no_value": "Aucune valeur pour l’instant",
@@ -770,6 +773,20 @@
       "none": "Aucune autre enveloppe en {{currency}} que vous pouvez modifier.",
       "unavailable": "Cette enveloppe n’est plus disponible.",
       "closed": "Une des deux enveloppes est clôturée."
+    },
+    "closing": {
+      "open": "Clôturer l’enveloppe",
+      "title": "Clôturer l’enveloppe",
+      "date": "Date de clôture",
+      "withdrawal": "Dernier retrait",
+      "withdrawal_help": "Facultatif : ce qui a été retiré à la clôture.",
+      "effect": "Une valeur de 0 sera enregistrée à cette date, et l’enveloppe quittera la liste. Vous pourrez la rouvrir.",
+      "submit": "Clôturer",
+      "closed": "Enveloppe clôturée.",
+      "banner": "Enveloppe clôturée",
+      "reopen": "Rouvrir",
+      "reopened": "Enveloppe rouverte.",
+      "too_early": "La clôture ne peut pas précéder la dernière valeur ou le dernier flux."
     }
   },
   "security": {
