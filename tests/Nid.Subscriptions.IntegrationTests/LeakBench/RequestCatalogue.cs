@@ -209,6 +209,9 @@ public static class RequestCatalogue
         // output guard (1D2 design §6), and ExportPrivacyTests checks the content.
         new(typeof(ExportManifestQuery), false, (_, _) => new ExportManifestQuery()),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("subscriptions", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("envelopes", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
 
         new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
         new(typeof(GetEnvelopeQuery), true, (_, item) => new GetEnvelopeQuery(item)),

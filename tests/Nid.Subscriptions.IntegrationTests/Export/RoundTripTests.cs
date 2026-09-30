@@ -77,6 +77,81 @@ public class RoundTripTests(PostgresFixture fixture)
         }
     }
 
+    private static string WithoutLivretClosing(string entities, string id)
+    {
+        var kept = JsonNode.Parse(entities)!.AsArray().Where(e => e!["id"]!.GetValue<string>() != id).Select(e => e!.DeepClone()).ToArray();
+        return new JsonArray(kept).ToJsonString();
+    }
+
+    private static object Eur(string amount) => new { amount, currency = "EUR" };
+
+    private static async Task<JsonNode> SendAsync(NidApp app, HttpMethod method, string url, object? body = null)
+    {
+        var response = await app.RawAsync(app.AdultA, method, url, body);
+        var text = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, $"{method} {url}: {text}");
+        return JsonNode.Parse(text) ?? new JsonObject();
+    }
+
+    private static async Task<JsonArray> EnvelopeListAsync(NidApp app)
+        => (await SendAsync(app, HttpMethod.Get, "/api/v1/investments/envelopes?scope=me&archived=true"))["items"]!.AsArray();
+
+    /// <summary>What the interface adds on top of an import: a correction, a transfer, a closing, and an envelope with no import reference.</summary>
+    private static async Task AddEnvelopeDataThroughTheApiAsync(NidApp app)
+    {
+        var list = await EnvelopeListAsync(app);
+        string IdOf(string name) => list.Single(e => e!["displayName"]!.GetValue<string>() == name)!["id"]!.GetValue<string>();
+        var pea = IdOf("PEA");
+        var livret = IdOf("Livret A");
+        // Same date as an imported value: a correction, which supersedes it.
+        await SendAsync(app, HttpMethod.Post, $"/api/v1/investments/envelopes/{pea}/valuations", new { asOf = "2025-09-30", amount = Eur("25500.00") });
+        await SendAsync(app, HttpMethod.Post, "/api/v1/investments/transfers", new { from = pea, to = livret, occurredOn = "2025-08-01", amount = Eur("300.00") });
+        await SendAsync(app, HttpMethod.Post, $"/api/v1/investments/envelopes/{livret}/close", new { closedOn = "2025-09-01", finalWithdrawal = Eur("800.00") });
+        await SendAsync(app, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "Crypto", kind = "savings", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            firstValuation = new { asOf = "2025-06-30", amount = Eur("1234.00") },
+        });
+    }
+
+    /// <summary>The envelope reads agree too: list, detail, series and performance, per envelope by name, without any id.</summary>
+    private static async Task<string> InvestmentReadsAsync(NidApp app, PersonId reader)
+    {
+        var list = await EnvelopeListAsync(app);
+        var byName = list.Select(e => (Name: e!["displayName"]!.GetValue<string>(), Id: e["id"]!.GetValue<string>()))
+            .OrderBy(e => e.Name, StringComparer.Ordinal).ToList();
+        var result = new JsonObject();
+        var sorted = list.Select(e => e!.DeepClone()).OrderBy(e => e["displayName"]!.GetValue<string>(), StringComparer.Ordinal).ToArray();
+        result["list"] = new JsonArray(sorted);
+        foreach (var (name, id) in byName)
+        {
+            var url = $"/api/v1/investments/envelopes/{id}";
+            result[name] = new JsonObject
+            {
+                ["detail"] = await SendAsync(app, HttpMethod.Get, url),
+                ["series"] = await SendAsync(app, HttpMethod.Get, $"{url}/series"),
+                ["performance"] = await SendAsync(app, HttpMethod.Get, $"{url}/performance?from=2024-01-01&to=2025-12-31"),
+            };
+        }
+        StripIds(result);
+        return result.ToJsonString();
+    }
+
+    private static void StripIds(JsonNode? node)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var name in new[] { "id", "itemId", "factId", "valuationId", "flowId" })
+                obj.Remove(name);
+            foreach (var (_, child) in obj.ToList())
+                StripIds(child);
+        }
+        else if (node is JsonArray array)
+            foreach (var child in array)
+                StripIds(child);
+    }
+
     private static string Canonical(Dictionary<string, List<JsonElement>> export)
         => JsonSerializer.Serialize(export.OrderBy(s => s.Key, StringComparer.Ordinal).ToDictionary(s => s.Key, s => s.Value));
 
@@ -96,7 +171,11 @@ public class RoundTripTests(PostgresFixture fixture)
                 """,
             ["billing_phases"] = """[{"id":"ph-kid","subscription_id":"sub-kid","starts_on":"2025-01-01","ends_on":null,"price":{"amount":"9.99","currency":"USD"},"every":{"count":1,"unit":"month"},"covers":{"count":2,"unit":"month"},"max_cycles":6,"payer":{"type":"person","person":"adult-2"}}]""",
             ["purchases"] = """[{"id":"pu-mixed","date":"2025-02-01","label":"Mix","kind":"bundle","price":{"amount":"30.00","currency":"EUR"},"payer":{"type":"household"},"allocated_amount":"20.00","grants":[{"subscription_id":"sub-duo","duration":{"count":1,"unit":"month"},"source":"included"},{"subscription_id":"sub-private","duration":{"count":1,"unit":"month"},"source":"included","starts_on":"2025-02-01"}]}]""",
+            ["envelopes"] = EnvelopesImportTests.Envelopes.Replace(",\"closed_on\":\"2025-07-31\"", ""),
+            ["valuations"] = WithoutLivretClosing(FactsImportTests.Valuations, "v-livret-0"),
+            ["flows"] = WithoutLivretClosing(FactsImportTests.Flows, "f-livret-out"),
         });
+        await AddEnvelopeDataThroughTheApiAsync(source);
         // An adopted provider (only a migration makes one) named by a subscription created in the interface.
         await using (var subs = PostgresFixture.NewSubscriptionsContext(source.ConnectionString))
         {
@@ -114,6 +193,13 @@ public class RoundTripTests(PostgresFixture fixture)
 
         Assert.Equal(Canonical(first), Canonical(second));
         Assert.Equal(await ReadsAsync(source, source.AdultA), await ReadsAsync(target, target.AdultA));
+        Assert.Equal(await InvestmentReadsAsync(source, source.AdultA), await InvestmentReadsAsync(target, target.AdultA));
         Assert.Equal(6, first["subscriptions"].Count);
+        Assert.Equal(3, first["envelopes"].Count);
+        // The comparison is not vacuous: the API-made facts are in the reads and in the file.
+        var reads = await InvestmentReadsAsync(target, target.AdultA);
+        Assert.Contains("25500", reads);
+        Assert.Contains("Crypto", reads);
+        Assert.Contains(first["flows"], f => f.GetProperty("external_ref").GetString()?.StartsWith("transfer:") == true);
     }
 }
