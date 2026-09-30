@@ -12,6 +12,7 @@ export const ENVELOPES = '/api/v1/investments/envelopes' as const;
 export const ENVELOPE = '/api/v1/investments/envelopes/{id}' as const;
 export const VALUATIONS = '/api/v1/investments/envelopes/{id}/valuations' as const;
 export const VALUATION = '/api/v1/investments/envelopes/{id}/valuations/{valuationId}' as const;
+export const SERIES = '/api/v1/investments/envelopes/{id}/series' as const;
 export const FLOWS = '/api/v1/investments/envelopes/{id}/flows' as const;
 export const FLOW = '/api/v1/investments/envelopes/{id}/flows/{flowId}' as const;
 

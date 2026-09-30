@@ -24,6 +24,17 @@ HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
   this.dispatchEvent(new Event('close'));
 };
 
+// jsdom has no layout, so Recharts' ResponsiveContainer would measure 0x0 and draw nothing: report a fixed size.
+globalThis.ResizeObserver = class {
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe(target: Element) {
+    const contentRect = { width: 800, height: 256, top: 0, left: 0, right: 800, bottom: 256, x: 0, y: 0, toJSON: () => ({}) };
+    this.callback([{ target, contentRect } as ResizeObserverEntry], this);
+  }
+  unobserve() {}
+  disconnect() {}
+};
+
 // Any request no test expects is a failure, not a silent network call.
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 

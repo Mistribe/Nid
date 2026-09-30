@@ -12,6 +12,8 @@ export const handlers = [
     householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], findings: [],
   })),
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
+  // Every envelope detail also reads its value series; an empty one says « la courbe apparaît à partir de deux valeurs ».
+  http.get('*/api/v1/investments/envelopes/:id/series', ({ params }) => HttpResponse.json({ id: params.id, points: [] })),
 ];
 
 export const server = setupServer(...handlers);

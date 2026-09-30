@@ -10,6 +10,7 @@ import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ENVELOPE } from './api';
+import { ValueChart } from './chart/ValueChart';
 import { FlowForm } from './entries/FlowForm';
 import { RowActions } from './entries/RowActions';
 import { ValueForm } from './entries/ValueForm';
@@ -157,6 +158,10 @@ export function EnvelopeDetailPage() {
             ) : null}
           </p>
         ) : null}
+      </Section>
+
+      <Section title={t('envelope.evolution')}>
+        <ValueChart envelopeId={detail.id} currency={detail.currency} />
       </Section>
 
       {detail.canWrite ? (
