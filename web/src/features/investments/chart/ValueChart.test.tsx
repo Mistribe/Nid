@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -16,6 +16,9 @@ function serve(points: ReturnType<typeof point>[]) {
 }
 
 describe('ValueChart', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); }, 30_000);
+
   it('draws the curve with a legend, and shows the same points as a table', async () => {
     serve([point('2024-12-31', '21000.0000', '20000.0000'), point('2025-09-30', '25000.0000', '22000.0000')]);
     const { user, container } = await renderApp(`/investments/${PEA}`);

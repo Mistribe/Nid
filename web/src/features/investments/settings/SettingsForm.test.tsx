@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -39,6 +39,9 @@ const CLEARS = { clearInstitution: false, clearAccountHint: false, clearOpenedOn
 const openForm = async () => within(await screen.findByRole('form', { name: 'Réglages' }));
 
 describe('an envelope\'s settings', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); }, 30_000);
+
   it('saves a renamed envelope, sending only the name, and announces it', async () => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
@@ -55,6 +58,36 @@ describe('an envelope\'s settings', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'PEA Bourse' })).toBeInTheDocument();
     expect(form.getByLabelText('Nom')).toHaveValue('PEA Bourse');
     await expectNoAxeViolations(container);
+  });
+
+  it('diffs against what the form started from, so a refetched envelope never makes untouched fields go out', async () => {
+    const bodies: Patch[] = [];
+    let reads = 0;
+    serve(detail(), bodies);
+    // A co-owner changes the institution after the form mounted: the second read already shows it.
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id', () => {
+        reads += 1;
+        return HttpResponse.json(reads === 1 ? detail() : { ...detail(), institution: 'Autre banque' });
+      }),
+      http.post('*/api/v1/investments/envelopes/:id/valuations', () => HttpResponse.json({ id: PEA }, { status: 201 })),
+    );
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const form = await openForm();
+    expect(form.getByLabelText('Établissement')).toHaveValue('Banque');
+    // Recording a value invalidates the envelope: it is read again while the form stays mounted.
+    await user.click(screen.getByRole('button', { name: 'Enregistrer la valeur' }));
+    await waitFor(() => { expect(reads).toBeGreaterThan(1); });
+    // The form keeps the values it started from (and any typing), whatever the refetch brought.
+    expect(form.getByLabelText('Établissement')).toHaveValue('Banque');
+
+    await user.clear(form.getByLabelText('Nom'));
+    await user.type(form.getByLabelText('Nom'), 'PEA Bourse');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    expect(await screen.findByText('Réglages enregistrés.')).toBeInTheDocument();
+    expect(bodies).toEqual([{ ...CLEARS, displayName: 'PEA Bourse' }]);
   });
 
   it('clears an emptied optional field and sets a threshold', async () => {

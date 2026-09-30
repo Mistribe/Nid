@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -67,6 +67,9 @@ function serve(current: EnvelopeDetail, calls: { method: string; path: string; b
 }
 
 describe('recording values and flows', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); }, 30_000);
+
   it('records a new value, prefilled with the last one, then with the one just saved', async () => {
     const calls: { method: string; path: string; body?: unknown }[] = [];
     serve(detail(), calls);

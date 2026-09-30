@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -37,6 +37,9 @@ async function begin(offer: RegExp) {
 const next = (user: Awaited<ReturnType<typeof begin>>['user']) => user.click(screen.getByRole('button', { name: 'Continuer' }));
 
 describe('Abonnements › ajout › offres', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('@/features/subscriptions/SubscriptionDetailPage'); }, 30_000);
+
   it('offers every type with its example, clean for assistive technology', async () => {
     serve();
     const { container } = await renderApp('/subscriptions/new');

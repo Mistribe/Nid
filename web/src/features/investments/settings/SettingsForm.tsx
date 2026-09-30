@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
+import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -15,7 +16,7 @@ import { knownConflictMessage } from '../../subscriptions/fieldErrors';
 import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '../api';
 import { placeFieldError, presentConflict } from '../entries/entries';
 import { CADENCES, KINDS } from '../format';
-import { toEditBody, toWireBody, type EditBody } from './settingsBody';
+import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS = {
@@ -44,6 +45,18 @@ function soleChangedField(body: EditBody) {
   return changed.length === 1 ? changed[0] : undefined;
 }
 
+/** The envelope as the form left it after a save: the trimmed values, an emptied optional field back to none. */
+function applied(before: EnvelopeDetail, values: SettingsValues): EnvelopeDetail {
+  const text = (v: string) => (v.trim() === '' ? null : v.trim());
+  const days = values.staleAfterDays.trim();
+  return {
+    ...before, displayName: values.displayName.trim(), kind: values.kind, valuationCadence: values.valuationCadence,
+    institution: text(values.institution), accountHint: text(values.accountHint), note: text(values.note),
+    // A count of days, not an amount.
+    staleAfterDays: days === '' ? null : Number(days),
+  };
+}
+
 /**
  * 2B2b design: an open envelope's settings, sending only what changed. The page owns the status region (`onStart`
  * clears it when a save begins, `onDone` fills it), as for every other action on the detail page.
@@ -61,19 +74,23 @@ export function SettingsForm({ envelope, onStart, onDone }: {
     staleAfterDays: envelope.staleAfterDays == null ? '' : String(envelope.staleAfterDays), note: envelope.note ?? '',
   };
   const form = useForm({ resolver: zodResolver(schema(t)), defaultValues: defaults });
+  // What the form started from (and, after a save, what it saved): a save is diffed against this, never against the
+  // live envelope, which a refetch may have changed under the person's hands. The form itself keeps the person's
+  // values across such a refetch.
+  const baseline = useRef(envelope);
   const errors = useSubmitErrors(form.setError, PATHS);
-  const save = $api.useMutation('patch', ENVELOPE);
+  const save = $api.useMutation('patch', ENVELOPE, { onSuccess: () => invalidateInvestments(queryClient) });
 
   const submit = form.handleSubmit((values) => {
     onStart();
     errors.clear();
-    const body = toEditBody(envelope, values);
+    const body = toEditBody(baseline.current, values);
     if (!body) { onDone(t('envelope.settings.nothing')); return; }
     save.mutate(
       { params: { path: { id: envelope.id } }, body: toWireBody(body) },
       {
         onSuccess: () => {
-          void invalidateInvestments(queryClient);
+          baseline.current = applied(baseline.current, values);
           form.reset({ ...values, displayName: values.displayName.trim() });
           onDone(t('envelope.settings.saved'));
         },

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -46,6 +46,9 @@ const problem = (status: number, code: string | null) => () =>
   HttpResponse.json({ status, code, title: 'Problem' }, { status, headers: { 'Content-Type': 'application/problem+json' } });
 
 describe('TransferDialog', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); }, 30_000);
+
   it('offers only open envelopes one can write, in the same currency, other than the source, and sends the transfer', async () => {
     const bodies: unknown[] = [];
     serve([

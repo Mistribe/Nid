@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -20,6 +20,8 @@ function serve(body: object, seen: string[]) {
 }
 
 describe('PeriodPerformance', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); }, 30_000);
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2025, 8, 30, 12)); });
   afterEach(() => vi.useRealTimers());
 

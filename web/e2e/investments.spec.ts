@@ -58,6 +58,9 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(period.getByRole('radio', { name: 'Depuis le début de l’année' })).toBeChecked();
   await expect(period.getByText('Versements nets de la période')).toBeVisible();
   await expect(period.getByText('Performance', { exact: true })).toBeVisible();
+  // The last value on or before the period's start and end is the one of 30 September 2025, 25 000 €; nothing was contributed.
+  await expect(period).toContainText('25 000,00 € · 30 septembre 2025');
+  await expect(period.getByText('Pas de valeur au début de la période.')).toHaveCount(0);
 
   await alice.goto(livretUrl);
   await alice.getByRole('button', { name: 'Clôturer l’enveloppe' }).click();

@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -10,6 +10,9 @@ import { detail, eur, figures, PEA } from './testData';
 const serve = (body: EnvelopeDetail) => server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(body)));
 
 describe('EnvelopeDetailPage', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('./EnvelopeDetailPage'); }, 30_000);
+
   it('shows the figures, before tax, and the two tables newest first', async () => {
     serve(detail());
     const { container } = await renderApp(`/investments/${PEA}`);

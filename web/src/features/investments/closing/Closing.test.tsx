@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -49,6 +49,9 @@ const openDialog = async (user: Awaited<ReturnType<typeof renderApp>>['user']) =
 };
 
 describe('closing an envelope', () => {
+  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); }, 30_000);
+
   it('closes at today\'s date without a withdrawal, says the effect, and lands on the banner', async () => {
     const bodies: unknown[] = [];
     serve(detail(), bodies);
