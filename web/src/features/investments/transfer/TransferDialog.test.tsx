@@ -152,7 +152,7 @@ describe('TransferDialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
 
     // « Saisir » is gone with the write affordances of a closed envelope: the banner is where the focus lands.
-    await waitFor(() => expect(screen.getByRole('note')).toHaveFocus());
+    await waitFor(() => expect(screen.getByText('Enveloppe clôturée')).toHaveFocus());
   });
 
   it('says in French that both envelopes must differ and share a currency', async () => {

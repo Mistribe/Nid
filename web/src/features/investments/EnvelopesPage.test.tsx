@@ -107,7 +107,7 @@ describe('EnvelopesPage, closed envelopes', () => {
   it('asks for the closed ones only when the box is checked, and keeps that in the URL', async () => {
     const seen: string[] = [];
     serve(list([summary()]), seen);
-    const { user, router } = await renderApp('/investments');
+    const { user, router, container } = await renderApp('/investments');
 
     const box = await screen.findByRole('checkbox', { name: 'Afficher les clôturées' });
     expect(box).not.toBeChecked();
@@ -121,6 +121,7 @@ describe('EnvelopesPage, closed envelopes', () => {
     expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toHaveFocus();
     await user.click(screen.getByRole('checkbox', { name: 'Afficher les clôturées' }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('closed'));
+    await expectNoAxeViolations(container);
   });
 
   it('marks a closed row in words, and starts checked from the URL', async () => {
@@ -136,10 +137,21 @@ describe('EnvelopesPage, closed envelopes', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('keeps the box when only closed envelopes are left', async () => {
+  it('keeps the box when no envelope is left to show', async () => {
     serve(list([]));
     await renderApp('/investments?closed=1');
 
-    expect(await screen.findByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
+    expect(await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
+  });
+
+  it('ignores a closed value other than 1: unchecked, no archived', async () => {
+    const seen: string[] = [];
+    serve(list([summary()]), seen);
+    await renderApp('/investments?closed=yes');
+
+    await rows();
+    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).not.toBeChecked();
+    expect(seen).toEqual(['?scope=household']);
   });
 });

@@ -89,6 +89,14 @@ export function EnvelopeDetailPage() {
     if (closeOpen) closeWasOpen.current = true;
     else if (closeWasOpen.current) { closeWasOpen.current = false; if (!landOn) (closeButtonRef.current ?? enterHeadingRef.current ?? bannerRef.current)?.focus(); }
   }, [closeOpen, landOn]);
+  // A correction open when the envelope turns out closed goes away with its form: the focus it held moves to the banner.
+  useEffect(() => {
+    if (isClosed && (editingValueId || editingFlowId)) {
+      setEditingValueId(null);
+      setEditingFlowId(null);
+      setLandOn('banner');
+    }
+  }, [isClosed, editingValueId, editingFlowId]);
   useEffect(() => {
     if (landOn === 'banner' && isClosed) { bannerRef.current?.focus(); setLandOn(null); }
     else if (landOn === 'enter' && isClosed === false) { enterHeadingRef.current?.focus(); setLandOn(null); }
@@ -252,7 +260,7 @@ export function EnvelopeDetailPage() {
           <tbody>
             {values.length === 0 ? (
               <tr><td colSpan={valueCols} className="text-muted-foreground">{t('envelope.no_values')}</td></tr>
-            ) : values.map((v) => editingValueId === v.id ? (
+            ) : values.map((v) => writable && editingValueId === v.id ? (
               <tr key={v.id}>
                 <td colSpan={valueCols}>
                   <ValueForm envelope={detail} editing={v} onDone={closeValueRow} />
@@ -286,7 +294,7 @@ export function EnvelopeDetailPage() {
           <tbody>
             {flows.length === 0 ? (
               <tr><td colSpan={flowCols} className="text-muted-foreground">{t('envelope.no_flows')}</td></tr>
-            ) : flows.map((f) => editingFlowId === f.id ? (
+            ) : flows.map((f) => writable && editingFlowId === f.id ? (
               <tr key={f.id}>
                 <td colSpan={flowCols}>
                   <FlowForm envelope={detail} editing={f} onDone={closeFlowRow} />
