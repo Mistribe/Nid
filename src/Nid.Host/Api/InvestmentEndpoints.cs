@@ -75,6 +75,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetPeriodPerformanceQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<PeriodView>();
 
+        api.MapGet("/envelopes/{id:guid}/series", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetEnvelopeSeriesQuery(new ItemId(id)), ct)).ToHttp(s => s))
+            .Returns<EnvelopeSeries>();
+
         return routes;
     }
 

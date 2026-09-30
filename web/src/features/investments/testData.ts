@@ -16,7 +16,7 @@ export const unknownFigures = (): Figures => ({
 export const PEA = '0192f0aa-0000-7000-8000-00000000e001';
 
 export const summary = (over: Partial<EnvelopeSummary> = {}): EnvelopeSummary => ({
-  id: PEA, displayName: 'PEA', kind: 'pea', currency: 'EUR', visibility: 'shared', closed: false, figures: figures(), ...over,
+  id: PEA, displayName: 'PEA', kind: 'pea', currency: 'EUR', visibility: 'shared', closed: false, canWrite: true, figures: figures(), ...over,
 });
 
 export const list = (items: EnvelopeSummary[]): EnvelopeList => ({ items });

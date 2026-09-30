@@ -24,7 +24,7 @@ public sealed record FiguresView(
 }
 
 public sealed record EnvelopeSummary(
-    ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, FiguresView Figures);
+    ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite, FiguresView Figures);
 
 public sealed record EnvelopeList(IReadOnlyList<EnvelopeSummary> Items) : IExposesItems
 {
@@ -50,4 +50,11 @@ public sealed record PeriodView(
     // Named Of, not From: a positional property already named From collides with a same-named static method (CS0102).
     public static PeriodView Of(PeriodPerformance p) => new(p.From, p.To, p.StartAsOf, AmountView.From(p.StartValue),
         p.EndAsOf, AmountView.From(p.EndValue), AmountView.From(p.NetContributions), AmountView.From(p.Performance));
+}
+
+public sealed record SeriesPoint(LocalDate AsOf, AmountView Value, AmountView NetContributions);
+
+public sealed record EnvelopeSeries(ItemId Id, IReadOnlyList<SeriesPoint> Points) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [Id];
 }

@@ -19,6 +19,9 @@ public sealed record PeriodPerformance(
     LocalDate From, LocalDate To, LocalDate? StartAsOf, Money? StartValue, LocalDate? EndAsOf, Money? EndValue,
     Money? NetContributions, Money? Performance);
 
+/// <summary>One point of an envelope's value series: a valuation and the net contributions dated on or before it.</summary>
+public sealed record SeriesPointFigures(LocalDate AsOf, Money Value, Money NetContributions);
+
 public interface IEnvelopePerformance
 {
     /// <summary>As the ambient actor; <paramref name="on"/> defaults to the household's today.</summary>

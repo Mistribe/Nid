@@ -176,4 +176,23 @@ public class EnvelopeMathTests
             Assert.Equal(ac.Amount, ab.Amount + bc.Amount);
         }
     }
+
+    [Fact]
+    public void The_series_gives_each_value_with_the_net_contributions_up_to_its_date()
+    {
+        var points = EnvelopeMath.Series(PeaValues, PeaFlows, Currency.Eur);
+
+        Assert.Equal(
+            [(new LocalDate(2024, 12, 31), Eur(21_000m), Eur(20_000m)), (new LocalDate(2025, 12, 31), Eur(25_000m), Eur(22_000m))],
+            points.Select(p => (p.AsOf, p.Value, p.NetContributions)));
+    }
+
+    [Fact]
+    public void The_series_is_ordered_by_date_whatever_the_input_order_and_empty_without_values()
+    {
+        var points = EnvelopeMath.Series([PeaValues[1], PeaValues[0]], PeaFlows, Currency.Eur);
+
+        Assert.Equal([new LocalDate(2024, 12, 31), new LocalDate(2025, 12, 31)], points.Select(p => p.AsOf));
+        Assert.Empty(EnvelopeMath.Series([], PeaFlows, Currency.Eur));
+    }
 }

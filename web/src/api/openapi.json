@@ -2541,6 +2541,96 @@
         }
       }
     },
+    "/api/v1/investments/envelopes/{id}/series": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeSeries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/imports": {
       "post": {
         "tags": [
@@ -6283,6 +6373,25 @@
           }
         }
       },
+      "EnvelopeSeries": {
+        "required": [
+          "id",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            }
+          }
+        }
+      },
       "EnvelopeSummary": {
         "required": [
           "id",
@@ -6291,6 +6400,7 @@
           "currency",
           "visibility",
           "closed",
+          "canWrite",
           "figures"
         ],
         "type": "object",
@@ -6312,6 +6422,9 @@
             "type": "string"
           },
           "closed": {
+            "type": "boolean"
+          },
+          "canWrite": {
             "type": "boolean"
           },
           "figures": {
@@ -7992,6 +8105,26 @@
             "additionalProperties": {
               "type": "string"
             }
+          }
+        }
+      },
+      "SeriesPoint": {
+        "required": [
+          "asOf",
+          "value",
+          "netContributions"
+        ],
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "netContributions": {
+            "$ref": "#/components/schemas/AmountView"
           }
         }
       },

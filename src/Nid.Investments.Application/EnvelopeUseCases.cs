@@ -156,7 +156,7 @@ public sealed class GetEnvelopeHandler(
 
 [RequestHandler<ListEnvelopesQuery, EnvelopeList>]
 public sealed class ListEnvelopesHandler(
-    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IHouseholdCalendar calendar, IActorAccessor actor)
+    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<ListEnvelopesQuery, EnvelopeList>
 {
     public async ValueTask<Result<EnvelopeList>> HandleAsync(ListEnvelopesQuery query, CancellationToken ct = default)
@@ -177,8 +177,9 @@ public sealed class ListEnvelopesHandler(
             // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
             if (f.Item.ArchivedAt is not null)
                 figures = figures with { StaleDays = null };
+            var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, envelope.ItemId, AccessKind.Write, ct)).IsSuccess;
             summaries.Add(new EnvelopeSummary(envelope.ItemId, f.Item.DisplayName, EnvelopeWire.Of(envelope.Kind), f.Currency.Code,
-                f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, FiguresView.From(figures)));
+                f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite, FiguresView.From(figures)));
         }
 
         // Minor 3: a stable order — the name alone ties on a duplicate, or across cultures/collations.
