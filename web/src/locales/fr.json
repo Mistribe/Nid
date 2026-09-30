@@ -787,6 +787,16 @@
       "reopen": "Rouvrir",
       "reopened": "Enveloppe rouverte.",
       "too_early": "La clôture ne peut pas précéder la dernière valeur ou le dernier flux."
+    },
+    "settings": {
+      "title": "Réglages",
+      "stale_after": "Seuil de péremption (jours)",
+      "stale_help": "Vide : selon la cadence.",
+      "stale_range": "Entre 1 et 3650 jours, ou vide pour suivre la cadence.",
+      "note": "Note",
+      "submit": "Enregistrer les réglages",
+      "saved": "Réglages enregistrés.",
+      "nothing": "Rien à enregistrer."
     }
   },
   "security": {

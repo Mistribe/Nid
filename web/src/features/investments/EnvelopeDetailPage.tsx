@@ -17,6 +17,7 @@ import { RowActions } from './entries/RowActions';
 import { ValueForm } from './entries/ValueForm';
 import { CloseDialog } from './closing/CloseDialog';
 import { ClosedBanner } from './closing/ClosedBanner';
+import { SettingsForm } from './settings/SettingsForm';
 import { TransferDialog } from './transfer/TransferDialog';
 import { Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
@@ -54,6 +55,8 @@ export function EnvelopeDetailPage() {
   // the state), and where the focus lands once the refetch has swapped them — never <body>.
   const [closeOpen, setCloseOpen] = useState(false);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
+  // The « Réglages » status region: cleared when a save starts, filled by its outcome (no focus move: the form stays).
+  const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
   const [landOn, setLandOn] = useState<'banner' | 'enter' | null>(null);
   const closeWasOpen = useRef(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -314,6 +317,12 @@ export function EnvelopeDetailPage() {
           </tbody>
         </table>
       </Section>
+
+      {writable ? (
+        <Section title={t('envelope.settings.title')} announcement={settingsAnnouncement}>
+          <SettingsForm envelope={detail} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+        </Section>
+      ) : null}
     </article>
   );
 }
