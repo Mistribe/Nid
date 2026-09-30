@@ -21,9 +21,9 @@ public class EnvelopesImportTests(PostgresFixture fixture)
 
     public static Dictionary<string, string> File(string envelopes = Envelopes) => new() { ["persons"] = GoldenFile.Persons, ["envelopes"] = envelopes };
 
-    private static object Adults(NidApp app) => new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value };
+    internal static object Adults(NidApp app) => new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value };
 
-    private static async Task<SessionResponse> StageAsync(ImportClient client, NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections)
+    internal static async Task<SessionResponse> StageAsync(ImportClient client, NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections)
     {
         var session = await client.StartAsync(actor, Adults(app));
         foreach (var (section, entities) in sections)
@@ -34,11 +34,11 @@ public class EnvelopesImportTests(PostgresFixture fixture)
         return session;
     }
 
-    private static async Task<SessionResponse> ValidateAsync(
+    internal static async Task<SessionResponse> ValidateAsync(
         ImportClient client, NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections, bool replace = false)
         => await client.ValidateAsync(actor, (await StageAsync(client, app, actor, sections)).Id, replace);
 
-    private static async Task<SessionResponse> CommitAsync(
+    internal static async Task<SessionResponse> CommitAsync(
         ImportClient client, NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections, bool replace = false)
     {
         var validated = await ValidateAsync(client, app, actor, sections, replace);
@@ -48,18 +48,18 @@ public class EnvelopesImportTests(PostgresFixture fixture)
         return await client.GetAsync(actor, validated.Id);
     }
 
-    private static async Task<JsonElement> JsonAsync(NidApp app, PersonId reader, string url)
+    internal static async Task<JsonElement> JsonAsync(NidApp app, PersonId reader, string url)
     {
         var response = await app.RawAsync(reader, HttpMethod.Get, url);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
     }
 
-    private static async Task<List<JsonElement>> ListAsync(NidApp app, PersonId reader, bool archived)
+    internal static async Task<List<JsonElement>> ListAsync(NidApp app, PersonId reader, bool archived)
         => (await JsonAsync(app, reader, "/api/v1/investments/envelopes?scope=me" + (archived ? "&archived=true" : "")))
             .GetProperty("items").EnumerateArray().ToList();
 
-    private static async Task<Guid> IdOf(NidApp app, string name)
+    internal static async Task<Guid> IdOf(NidApp app, string name)
         => (await ListAsync(app, app.AdultA, archived: true)).Single(e => e.GetProperty("displayName").GetString() == name).GetProperty("id").GetGuid();
 
     private static async Task<Envelope> StoredAsync(NidApp app, Guid id)
@@ -68,7 +68,7 @@ public class EnvelopesImportTests(PostgresFixture fixture)
         return (await scope.ServiceProvider.GetRequiredService<IEnvelopeStore>().FindAsync(new ItemId(id), default))!;
     }
 
-    private static string Errors(SessionResponse session) => string.Join("; ", session.Report!.Issues.Select(i => $"{i.Code} at {i.Path}"));
+    internal static string Errors(SessionResponse session) => string.Join("; ", session.Report!.Issues.Select(i => $"{i.Code} at {i.Path}"));
 
     [Fact]
     public async Task Envelopes_are_created_with_their_owners_visibility_and_closing()

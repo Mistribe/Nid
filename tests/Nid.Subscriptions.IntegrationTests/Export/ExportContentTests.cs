@@ -133,4 +133,45 @@ public class ExportContentTests(PostgresFixture fixture)
         Assert.DoesNotContain("env-pea", JsonSerializer.Serialize(ofB));
         Assert.DoesNotContain("Banque", JsonSerializer.Serialize(ofB));
     }
+
+    [Fact]
+    public async Task Values_and_flows_are_exported_by_item_date_and_id_with_amounts_as_strings()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CommitAsync(app, app.AdultA, FactsImportTests.Facts());
+
+        var export = await new ExportClient(app).ExportAllAsync(app.AdultA);
+
+        var values = export["valuations"];
+        Assert.Equal(["v-livret-0", "v-pea-1", "v-pea-2"], values.Select(v => Text(v, "id")));
+        Assert.Equal(["env-livret", "env-pea", "env-pea"], values.Select(v => Text(v, "item")));
+        Assert.Equal(["2025-07-31", "2024-12-31", "2025-09-30"], values.Select(v => Text(v, "as_of")));
+        Assert.All(values, v => Assert.Equal(JsonValueKind.String, v.GetProperty("amount").GetProperty("amount").ValueKind));
+        Assert.Equal([0m, 21000m, 25000m], values.Select(v => Amount(v)));
+        Assert.All(values, v => Assert.Equal("EUR", Text(v.GetProperty("amount"), "currency")));
+        Assert.Equal("clôture", Text(values[0], "note"));
+        Assert.Equal(JsonValueKind.Null, values[1].GetProperty("note").ValueKind);
+
+        var flows = export["flows"];
+        Assert.Equal(["f-tr-in", "f-livret-out", "f-pea-open", "f-pea-in", "f-pea-fee", "f-tr-out"], flows.Select(f => Text(f, "id")));
+        Assert.Equal(["contribution", "withdrawal", "opening", "contribution", "expense", "withdrawal"], flows.Select(f => Text(f, "kind")));
+        Assert.Equal([500m, 500m, 20000m, 2000m, 0.1m, 500m], flows.Select(f => Amount(f)));
+        var leg = flows[5];
+        Assert.Equal(("env-pea", "2025-07-01", "transfer", "transfer:t1"), (Text(leg, "item"), Text(leg, "occurred_on"), Text(leg, "category"), Text(leg, "external_ref")));
+        Assert.Equal(JsonValueKind.Null, leg.GetProperty("note").ValueKind);
+        Assert.Equal("fees", Text(flows[4], "category"));
+        Assert.Equal("clôture", Text(flows[1], "note"));
+        var opening = flows[2];
+        Assert.Equal(JsonValueKind.Null, opening.GetProperty("category").ValueKind);
+        Assert.Equal(JsonValueKind.Null, opening.GetProperty("external_ref").ValueKind);
+
+        var ofB = await new ExportClient(app).ExportAllAsync(app.AdultB);
+
+        Assert.Equal(["v-livret-0"], ofB["valuations"].Select(v => Text(v, "id")));
+        Assert.Equal(["f-tr-in", "f-livret-out"], ofB["flows"].Select(f => Text(f, "id")));
+        Assert.DoesNotContain("env-pea", JsonSerializer.Serialize(ofB));
+    }
+
+    private static decimal Amount(JsonElement fact)
+        => decimal.Parse(fact.GetProperty("amount").GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
 }

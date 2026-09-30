@@ -21,7 +21,7 @@ public static class ImportSections
     {
         "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases",
         "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "income_sources", "income_phases",
-        "valuations", "flows", "documents",
+        "documents",
     };
 }
 

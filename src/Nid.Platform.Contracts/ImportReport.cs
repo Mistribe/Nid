@@ -48,6 +48,10 @@ public static class ImportCodes
     public const string InvalidValue = "import.invalid_value";
     public const string InvalidId = "import.invalid_id";
     public const string DuplicateId = "import.duplicate_id";
+
+    /// <summary>2B1b spec §5: a second value of an item on one date, a second opening, or a second flow with one external_ref, in one file.</summary>
+    public const string DuplicateFact = "import.duplicate_fact";
+
     public const string UnresolvedReference = "import.unresolved_reference";
     public const string BatchLayout = "import.batch_layout";
     public const string Conflict = "import.conflict";

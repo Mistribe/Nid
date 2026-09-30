@@ -163,6 +163,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, PersonsImportSection>();
         services.AddScoped<IImportSection, SubscriptionsImportSection>();
         services.AddScoped<IImportSection, EnvelopesImportSection>();
+        services.AddScoped<IImportSection, FactsImportSection>();
 
         services.AddLogging();
         services.AddSynapse(cfg =>

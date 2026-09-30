@@ -15,7 +15,7 @@ public class ExportRouteTests(PostgresFixture fixture)
         var manifest = await new ExportClient(app).ManifestAsync(app.AdultA);
 
         Assert.Equal(("nid.data", 1), (manifest.Format, manifest.Version));
-        Assert.Equal(["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes"], manifest.Sections.Select(s => s.Name));
+        Assert.Equal(["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "valuations", "flows"], manifest.Sections.Select(s => s.Name));
         Assert.Matches("^[0-9a-f]{64}$", manifest.Revision);
     }
 
