@@ -16,10 +16,11 @@ export const SERIES = '/api/v1/investments/envelopes/{id}/series' as const;
 export const FLOWS = '/api/v1/investments/envelopes/{id}/flows' as const;
 export const FLOW = '/api/v1/investments/envelopes/{id}/flows/{flowId}' as const;
 
-/** Every write invalidates the list and every detail, as for subscriptions. */
+/** Every write invalidates the list, every detail and every value series, as for subscriptions. */
 export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPES] }),
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),
+    queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
   ]).then(() => undefined);
 }

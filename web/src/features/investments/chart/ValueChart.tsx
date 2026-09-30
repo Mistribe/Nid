@@ -21,7 +21,7 @@ export function ValueChart({ envelopeId, currency }: { envelopeId: string; curre
   const answer = $api.useQuery('get', SERIES, { params: { path: { id: envelopeId } } });
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return <div aria-busy="true" className="h-64 animate-pulse rounded-md border bg-muted" />;
+  if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 animate-pulse rounded-md border bg-muted" />;
 
   const points = answer.data.points;
   if (points.length < 2) return <p className="text-muted-foreground">{t('envelope.chart_needs_two')}</p>;
@@ -42,7 +42,7 @@ export function ValueChart({ envelopeId, currency }: { envelopeId: string; curre
 
   return (
     <div className="space-y-2">
-      <Button type="button" variant="outline" size="sm" aria-pressed={asTable} onClick={() => setAsTable((v) => !v)}>
+      <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
         {asTable ? t('envelope.show_chart') : t('envelope.show_table')}
       </Button>
       {asTable ? (
@@ -72,7 +72,7 @@ export function ValueChart({ envelopeId, currency }: { envelopeId: string; curre
             <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
             <ChartTooltip content={<ValueTooltip />} />
             <ChartLegend content={<ChartLegendContent />} />
-            <Line dataKey="value" stroke="var(--color-value)" strokeWidth={2} dot isAnimationActive={false} />
+            <Line dataKey="value" stroke="var(--color-value)" strokeWidth={2} dot={{ r: 4, fill: 'var(--background)', strokeWidth: 2 }} isAnimationActive={false} />
             <Line dataKey="net" stroke="var(--color-net)" strokeWidth={2} type="stepAfter" dot={false} isAnimationActive={false} />
           </LineChart>
         </ChartContainer>

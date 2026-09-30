@@ -690,6 +690,7 @@
     "loading": "Chargement de l’enveloppe",
     "figures": "Valeur et gain",
     "evolution": "Évolution",
+    "chart_loading": "Chargement de la courbe",
     "chart_title": "Valeur et versements nets de l’enveloppe",
     "chart_table": "Évolution de l’enveloppe",
     "chart_needs_two": "La courbe apparaît à partir de deux valeurs.",

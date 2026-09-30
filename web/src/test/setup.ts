@@ -24,7 +24,8 @@ HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
   this.dispatchEvent(new Event('close'));
 };
 
-// jsdom has no layout, so Recharts' ResponsiveContainer would measure 0x0 and draw nothing: report a fixed size.
+// jsdom has no layout, so Recharts' ResponsiveContainer would measure 0x0 and draw nothing: report a fixed size
+// (800×256, for every observer, whatever the element).
 globalThis.ResizeObserver = class {
   constructor(private readonly callback: ResizeObserverCallback) {}
   observe(target: Element) {

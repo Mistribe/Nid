@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -23,6 +23,7 @@ describe('ValueChart', () => {
     const section = await screen.findByRole('region', { name: 'Évolution' });
     // The section exists as soon as the detail has loaded; the series arrives a request later.
     await within(section).findByRole('button', { name: 'Afficher en tableau' });
+    expect(within(section).getByRole('application', { name: 'Valeur et versements nets de l’enveloppe' })).toBeInTheDocument();
     expect(within(section).getByText('Valeur')).toBeInTheDocument();
     expect(within(section).getByText('Versements nets')).toBeInTheDocument();
     await user.click(within(section).getByRole('button', { name: 'Afficher en tableau' }));
@@ -37,17 +38,38 @@ describe('ValueChart', () => {
 
   it('says the curve needs two values', async () => {
     serve([point('2025-09-30', '25000.0000', '22000.0000')]);
-    await renderApp(`/investments/${PEA}`);
+    const { container } = await renderApp(`/investments/${PEA}`);
 
     expect(await screen.findByText('La courbe apparaît à partir de deux valeurs.')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 
   it('draws negative and equal values, and lists them exactly', async () => {
     serve([point('2025-07-31', '-120.5000', '0'), point('2025-08-31', '-120.5000', '0')]);
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user, container } = await renderApp(`/investments/${PEA}`);
 
     const section = await screen.findByRole('region', { name: 'Évolution' });
     await user.click(await within(section).findByRole('button', { name: 'Afficher en tableau' }));
     expect(within(section).getAllByText(/-120,50\s€/)).toHaveLength(2);
+    await expectNoAxeViolations(container);
+  });
+
+  it('asks for the series again after a value is recorded', async () => {
+    let seriesCalls = 0;
+    serve([point('2025-07-31', '100.0000', '0'), point('2025-08-31', '120.0000', '0')]);
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id/series', () => {
+        seriesCalls += 1;
+        return HttpResponse.json({ id: PEA, points: [] });
+      }),
+      http.post('*/api/v1/investments/envelopes/:id/valuations', () => HttpResponse.json({ id: 'new-value' }, { status: 201 })),
+    );
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const form = await screen.findByRole('form', { name: 'Nouvelle valeur' });
+    await waitFor(() => expect(seriesCalls).toBe(1));
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
+    await within(form).findByRole('status');
+    await waitFor(() => expect(seriesCalls).toBe(2));
   });
 });
