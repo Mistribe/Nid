@@ -1,8 +1,10 @@
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.LeakBench;
 
@@ -79,6 +81,17 @@ public sealed class MixedDataset
                 .ToArray();
             items[row.Name] = await app.NewOwnedSubscriptionAsync(row.Label, row.Visibility, owners);
             envelopes[row.Name] = await app.NewEnvelopeAsync(row.Label, row.Visibility, owners);
+
+            // One value and one flow per twin, through the real requests: without facts the valuations and flows
+            // export pages are empty for everyone and the output guard would check nothing on them. The label in
+            // the notes lets the textual scan catch a fact exported to the wrong reader.
+            var writer = owners.Select(o => o.Person).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA);
+            var (_, valueRefused) = await app.InvokeAsync(writer, new RecordValuationCommand(
+                envelopes[row.Name], new LocalDate(2025, 3, 31), Money.Create(1000m, Currency.Eur).Ok(), row.Label));
+            var (_, flowRefused) = await app.InvokeAsync(writer, new RecordFlowCommand(
+                envelopes[row.Name], new FlowDraft(new LocalDate(2025, 3, 1), "contribution", Money.Create(900m, Currency.Eur).Ok(), null, null, row.Label)));
+            if (valueRefused is not null || flowRefused is not null)
+                throw new InvalidOperationException($"Seeding {row.Name}'s facts failed: {(valueRefused ?? flowRefused)!.Code}");
         }
 
         // Each private item gets a custom provider named after its label, through the real requests: a provider list

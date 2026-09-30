@@ -200,6 +200,9 @@ public class RoundTripTests(PostgresFixture fixture)
         var reads = await InvestmentReadsAsync(target, target.AdultA);
         Assert.Contains("25500", reads);
         Assert.Contains("Crypto", reads);
+        Assert.Contains(first["envelopes"], e => e.GetProperty("name").GetString() == "Livret A" && e.TryGetProperty("closed_on", out var c) && c.ValueKind == JsonValueKind.String);
+        var livret = JsonNode.Parse(reads)!["Livret A"]!["detail"]!;
+        Assert.True(livret["closed"]!.GetValue<bool>());
         Assert.Contains(first["flows"], f => f.GetProperty("external_ref").GetString()?.StartsWith("transfer:") == true);
     }
 }

@@ -343,6 +343,34 @@ public class LeakBenchTests(PostgresFixture fixture)
     }
 
     /// <summary>
+    /// The fact export pages are not vacuous in the bench: every readable envelope twin exports its value and its flow,
+    /// and the other adult's private twin exports neither.
+    /// </summary>
+    [Fact]
+    public async Task The_fact_export_pages_carry_the_twins_facts_to_their_readers_only()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+        var export = new Nid.Subscriptions.IntegrationTests.Export.ExportClient(app);
+
+        foreach (var (actor, own, other) in new[]
+                 { (app.AdultA, MixedDataset.PrivateLabelA, MixedDataset.PrivateLabelB), (app.AdultB, MixedDataset.PrivateLabelB, MixedDataset.PrivateLabelA) })
+        {
+            var all = await export.ExportAllAsync(actor);
+            var ids = all["envelopes"].ToDictionary(e => e.GetProperty("name").GetString()!, e => e.GetProperty("id").GetString()!);
+            Assert.Equal(6, ids.Count);
+            Assert.Contains(own, ids.Keys);
+            Assert.DoesNotContain(other, ids.Keys);
+            foreach (var section in new[] { "valuations", "flows" })
+            {
+                Assert.Equal(6, all[section].Count);
+                Assert.Equal(ids.Values.Order(StringComparer.Ordinal), all[section].Select(f => f.GetProperty("item").GetString()!).Order(StringComparer.Ordinal));
+                Assert.DoesNotContain(other, JsonSerializer.Serialize(all[section]));
+            }
+        }
+    }
+
+    /// <summary>
     /// access-tests.md §3.2: every read of the catalogue, run as A and as B. No item outside the actor's
     /// set of §2 may appear in what the handler returns.
     /// </summary>
