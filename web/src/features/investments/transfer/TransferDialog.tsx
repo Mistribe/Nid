@@ -19,8 +19,9 @@ import { placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/en
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS = { to: 'to', occurredOn: 'occurredOn', amount: 'amount', note: 'note' } as const;
-const FALLBACK: Record<string, 'occurredOn' | 'amount'> = {
+const FALLBACK: Record<string, 'occurredOn' | 'amount' | 'to'> = {
   'core.date_in_future': 'occurredOn', 'core.amount_not_positive': 'amount', 'core.currency_mismatch': 'amount',
+  'investments.transfer_same_envelope': 'to', 'investments.transfer_currency_mismatch': 'to',
 };
 
 /**
@@ -54,30 +55,39 @@ export function TransferDialog({ source, onClose, onDone }: {
       className="m-auto w-full max-w-md rounded-md border bg-background p-4 text-foreground backdrop:bg-black/50">
       <div className="space-y-3">
         <h2 id={titleId} className="text-lg font-semibold">{t('envelope.transfer.title')}</h2>
-        {envelopes.error ? <ProblemMessage problem={present(toProblem(envelopes.error))} /> : null}
+        {envelopes.error ? (
+          <>
+            <ProblemMessage problem={present(toProblem(envelopes.error))} />
+            <CloseRow onClose={onClose} />
+          </>
+        ) : null}
         {!envelopes.data && !envelopes.error ? (
           <div aria-busy="true" className="h-20 animate-pulse rounded-md bg-muted"><span className="sr-only">{t('envelope.transfer.loading')}</span></div>
         ) : null}
         {envelopes.data && destinations.length === 0 ? (
           <>
             <p>{t('envelope.transfer.none', { currency: source.currency })}</p>
-            <div className="flex justify-end"><Button type="button" variant="outline" onClick={onClose}>{t('envelope.transfer.close')}</Button></div>
+            <CloseRow onClose={onClose} />
           </>
         ) : null}
-        {destinations.length > 0 ? <TransferForm source={source} destinations={destinations} onClose={onClose} onDone={onDone} /> : null}
+        {destinations.length > 0 ? <TransferForm source={source} destinations={destinations} titleId={titleId} onClose={onClose} onDone={onDone} /> : null}
       </div>
     </dialog>,
     document.body,
   );
 }
 
-function TransferForm({ source, destinations, onClose, onDone }: {
-  source: EnvelopeDetail; destinations: EnvelopeSummary[]; onClose: () => void; onDone: (message: string) => void;
+function CloseRow({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  return <div className="flex justify-end"><Button type="button" variant="outline" onClick={onClose}>{t('envelope.transfer.close')}</Button></div>;
+}
+
+function TransferForm({ source, destinations, titleId, onClose, onDone }: {
+  source: EnvelopeDetail; destinations: EnvelopeSummary[]; titleId: string; onClose: () => void; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const headingId = useId();
   const schema = z.object({
     to: z.string().min(1, t('edit.required')),
     occurredOn: z.string().regex(ISO_DATE, t('edit.required')),
@@ -88,6 +98,12 @@ function TransferForm({ source, destinations, onClose, onDone }: {
     resolver: zodResolver(schema),
     defaultValues: { to: destinations[0]?.id ?? '', occurredOn: todayIso(), amount: '', note: '' },
   });
+  // A destination that vanished (404, then the refreshed list) is replaced by the first one left.
+  const first = destinations[0]?.id ?? '';
+  const chosen = form.watch('to');
+  useEffect(() => {
+    if (!destinations.some((d) => d.id === chosen)) form.setValue('to', first);
+  }, [destinations, chosen, first, form]);
   const errors = useSubmitErrors(form.setError, PATHS);
   // Mutate-level callbacks: react-query drops them once this form unmounted, so a closed dialog never announces.
   const transfer = $api.useMutation('post', TRANSFERS, {
@@ -106,18 +122,22 @@ function TransferForm({ source, destinations, onClose, onDone }: {
       },
       {
         onSuccess: () => onDone(t('envelope.transfer.saved')),
-        onError: (error) => placeFieldError(error, t, form.setError, errors, FALLBACK),
+        onError: (error) => {
+          if (toProblem(error).status === 404) void queryClient.invalidateQueries({ queryKey: ['get', ENVELOPES] });
+          placeFieldError(error, t, form.setError, errors, FALLBACK);
+        },
       },
     );
   });
 
   const e = form.formState.errors;
   const unavailable = transfer.error && toProblem(transfer.error).status === 404;
-  const problem = errors.problem?.kind === 'conflict' ? presentConflict(t, transfer.error) : errors.problem;
+  // The server's 409 does not say which side is closed.
+  const problem = errors.problem?.kind === 'conflict'
+    ? { ...presentConflict(t, transfer.error), detail: t('envelope.transfer.closed') } : errors.problem;
 
   return (
-    <form aria-labelledby={headingId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
-      <p id={headingId} className="sr-only">{t('envelope.transfer.title')}</p>
+    <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
       {unavailable ? <p role="alert" className="text-sm text-destructive">{t('envelope.transfer.unavailable')}</p> : null}
       {!unavailable && problem ? (
         <>

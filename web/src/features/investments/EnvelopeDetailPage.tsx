@@ -42,6 +42,7 @@ export function EnvelopeDetailPage() {
   const flowsHeadingRef = useRef<HTMLHeadingElement>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const transferWasOpen = useRef(false);
+  const enterHeadingRef = useRef<HTMLHeadingElement>(null);
   const transferButtonRef = useRef<HTMLButtonElement>(null);
   // The row whose « Corriger » button should regain focus once « Annuler » closes its edit form (finding 13): that
   // button still exists (the row just reverts), unlike after a save, which removes or replaces the row.
@@ -66,7 +67,7 @@ export function EnvelopeDetailPage() {
   };
   useEffect(() => {
     if (transferOpen) transferWasOpen.current = true;
-    else if (transferWasOpen.current) { transferWasOpen.current = false; transferButtonRef.current?.focus(); }
+    else if (transferWasOpen.current) { transferWasOpen.current = false; (transferButtonRef.current ?? enterHeadingRef.current)?.focus(); }
   }, [transferOpen]);
 
   const startValueEdit = (id: string) => { clearValues(); setEditingValueId(id); };
@@ -186,7 +187,7 @@ export function EnvelopeDetailPage() {
       </Section>
 
       {detail.canWrite ? (
-        <Section title={t('envelope.enter')}>
+        <Section title={t('envelope.enter')} headingRef={enterHeadingRef}>
           <div className="grid gap-6 md:grid-cols-2">
             <ValueForm envelope={detail} />
             <FlowForm envelope={detail} openingRequest={openingRequest} />

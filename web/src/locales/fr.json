@@ -341,7 +341,9 @@
     "investments_invalid_envelope": "Cette valeur n’est pas acceptée.",
     "investments_unknown_kind": "Choisissez un type d’enveloppe.",
     "investments_unknown_cadence": "Choisissez une fréquence.",
-    "investments_envelope_closed": "Cette enveloppe est clôturée."
+    "investments_envelope_closed": "Cette enveloppe est clôturée.",
+    "investments_transfer_same_envelope": "Choisissez une autre enveloppe que celle d’origine.",
+    "investments_transfer_currency_mismatch": "Les deux enveloppes n’ont pas la même devise."
   },
   "settings": {
     "appearance": {
@@ -766,7 +768,8 @@
       "close": "Fermer",
       "saved": "Virement enregistré.",
       "none": "Aucune autre enveloppe en {{currency}} que vous pouvez modifier.",
-      "unavailable": "Cette enveloppe n’est plus disponible."
+      "unavailable": "Cette enveloppe n’est plus disponible.",
+      "closed": "Une des deux enveloppes est clôturée."
     }
   },
   "security": {
