@@ -22,8 +22,11 @@ public class EnvelopeAuditTests(PostgresFixture fixture)
         var page = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/platform/audit/items/{id.Value}"));
         var entries = page.GetProperty("entries").EnumerateArray().ToList();
 
-        var envelopeUpdate = Assert.Single(entries, e => e.GetProperty("entity").GetString() == "investments.envelope" && e.GetProperty("action").GetString() == "update");
-        Assert.Equal("a note", envelopeUpdate.GetProperty("after").GetProperty("note").GetString());
+        // 2B1b: the audit records the whole row, so the close's stored closing date is an envelope update of its own.
+        var envelopeUpdates = entries.Where(e => e.GetProperty("entity").GetString() == "investments.envelope" && e.GetProperty("action").GetString() == "update").ToList();
+        Assert.Equal(2, envelopeUpdates.Count);
+        Assert.Single(envelopeUpdates, e => e.GetProperty("after").TryGetProperty("note", out var note) && note.GetString() == "a note");
+        Assert.Single(envelopeUpdates, e => e.GetProperty("after").TryGetProperty("closed_on", out var closedOn) && closedOn.GetString() == "2025-09-30");
 
         var itemUpdate = Assert.Single(entries, e => e.GetProperty("entity").GetString() == "core.item" && e.GetProperty("action").GetString() == "update");
         Assert.NotEqual(JsonValueKind.Null, itemUpdate.GetProperty("after").GetProperty("archived_at").ValueKind);

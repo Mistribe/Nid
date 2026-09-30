@@ -58,7 +58,10 @@ public static class EnvelopeWire
 /// <summary>The module's attributes of an envelope (spec §3.2); name, owners, visibility and currency are the item's.</summary>
 public sealed record Envelope(
     ItemId ItemId, EnvelopeKind Kind, string? Institution, string? AccountHint, LocalDate? OpenedOn,
-    ValuationCadence Cadence, int? StaleAfterDays, string? Note);
+    ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null);
+
+public sealed record ImportedEnvelope(ItemId Item, string Hash, PersonId ImportedBy);
+public sealed record StoredEnvelope(Envelope Envelope, ImportMark? Import);
 
 /// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
 public sealed record EnvelopeChange(
@@ -70,6 +73,17 @@ public sealed record EnvelopeChange(
 public interface IEnvelopeStore
 {
     Task CreateAsync(Envelope envelope, CancellationToken ct);
+
+    Task CreateAsync(Envelope envelope, ImportMark? import, CancellationToken ct);
+
+    /// <summary>2B1b: an import's replacement: every attribute, the closing date and the mark, in place.</summary>
+    Task ReplaceAsync(Envelope envelope, ImportMark import, CancellationToken ct);
+
+    Task SetClosedOnAsync(ItemId item, LocalDate? closedOn, CancellationToken ct);
+
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedEnvelope>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    Task<IReadOnlyList<StoredEnvelope>> ReadAllAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
 
     /// <summary>Null when the item is not an envelope (or does not exist).</summary>
     Task<Envelope?> FindAsync(ItemId item, CancellationToken ct);

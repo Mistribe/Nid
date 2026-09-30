@@ -138,13 +138,14 @@ public sealed class CloseEnvelopeHandler(
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         if (archived.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
+        await envelopes.SetClosedOnAsync(command.ItemId, command.ClosedOn, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<ReopenEnvelopeCommand, ItemId>]
-public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistry items)
+public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistry items, IUnitOfWork unitOfWork)
     : IRequestHandler<ReopenEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReopenEnvelopeCommand command, CancellationToken ct = default)
@@ -155,8 +156,13 @@ public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistr
         loaded.TryGetValue(out var envelope);
         if (envelope.Item.ArchivedAt is null)
             return Result.Failure<ItemId>(new Failure(InvestmentsCodes.EnvelopeOpen, "This envelope is not closed.", null));
+        await using var transaction = await unitOfWork.BeginAsync(ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
-        return reopened.TryGetFailure(out failure) ? Result.Failure<ItemId>(failure!) : Result.Success(command.ItemId);
+        if (reopened.TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
+        await envelopes.SetClosedOnAsync(command.ItemId, null, ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.ItemId);
     }
 }
 

@@ -12,5 +12,9 @@ public sealed class EnvelopeRow
     public string ValuationCadence { get; set; } = "monthly";
     public int? StaleAfterDays { get; set; }
     public string? Note { get; set; }
+    public LocalDate? ClosedOn { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }

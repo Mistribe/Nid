@@ -34,6 +34,22 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("account_hint");
 
+                    b.Property<LocalDate?>("ClosedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("closed_on");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<string>("Institution")
                         .HasColumnType("text")
                         .HasColumnName("institution");
@@ -69,11 +85,18 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                     b.HasKey("ItemId")
                         .HasName("pk_envelope");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_envelope_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("envelope", "investments", t =>
                         {
                             t.HasCheckConstraint("ck_envelope_account_hint", "account_hint is null or char_length(account_hint) between 1 and 4");
 
                             t.HasCheckConstraint("ck_envelope_cadence", "valuation_cadence in ('monthly','quarterly','yearly','manual')");
+
+                            t.HasCheckConstraint("ck_envelope_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other')");
 

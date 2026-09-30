@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
@@ -18,6 +21,26 @@ public class TransferAndCloseTests(PostgresFixture fixture)
     {
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         return await core.Flows.CountAsync(f => f.RetiredAt == null);
+    }
+
+    private static async Task<Envelope> StoredAsync(NidApp app, ItemId id)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        return (await scope.ServiceProvider.GetRequiredService<IEnvelopeStore>().FindAsync(id, default))!;
+    }
+
+    [Fact]
+    public async Task Closing_records_the_closing_date_and_reopening_clears_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-06-30", amount = Eur("100.00") });
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close", new { closedOn = "2025-07-31" })).StatusCode);
+        Assert.Equal(new LocalDate(2025, 7, 31), (await StoredAsync(app, id)).ClosedOn);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/reopen")).StatusCode);
+        Assert.Null((await StoredAsync(app, id)).ClosedOn);
     }
 
     [Fact]
