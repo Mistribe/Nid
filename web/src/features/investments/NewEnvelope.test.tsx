@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -17,6 +17,9 @@ function serveCreate(bodies: unknown[], answer: () => Response = () => HttpRespo
 }
 
 describe('NewEnvelope', () => {
+  // The detail page (with Recharts) is a lazy chunk: loaded cold inside the test it raced findByRole's 1 s.
+  beforeAll(async () => { await import('./EnvelopeDetailPage'); });
+
   it('creates a private PEA with its opening and first value, then shows it', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);

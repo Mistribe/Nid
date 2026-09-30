@@ -25,7 +25,7 @@ export function PeriodPerformance({ envelopeId }: { envelopeId: string }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [applied, setApplied] = useState<{ from: string; to: string } | null>(null);
-  const [reversed, setReversed] = useState(false);
+  const [problem, setProblem] = useState<'reversed' | 'from' | 'to' | null>(null);
 
   const range = preset === 'custom' ? applied : presetRange(preset, today);
   const answer = $api.useQuery(
@@ -36,9 +36,11 @@ export function PeriodPerformance({ envelopeId }: { envelopeId: string }) {
 
   const compute = (ev: FormEvent) => {
     ev.preventDefault();
-    if (!from || !to) return;
-    if (from > to) { setReversed(true); return; }
-    setReversed(false);
+    setApplied(null);
+    if (!from) { setProblem('from'); return; }
+    if (!to) { setProblem('to'); return; }
+    if (from > to) { setProblem('reversed'); return; }
+    setProblem(null);
     setApplied({ from, to });
   };
 
@@ -47,20 +49,20 @@ export function PeriodPerformance({ envelopeId }: { envelopeId: string }) {
   return (
     <div className="space-y-3">
       <fieldset className="flex flex-wrap gap-4">
-        <legend className="sr-only">{t('envelope.period.title')}</legend>
+        <legend className="sr-only">{t('envelope.period.legend')}</legend>
         {PRESETS.map((p) => (
           <label key={p} className="flex items-center gap-2">
-            <input type="radio" name={`period-${envelopeId}`} checked={preset === p} onChange={() => { setPreset(p); setReversed(false); }} />
+            <input type="radio" name={`period-${envelopeId}`} checked={preset === p} onChange={() => { setPreset(p); setProblem(null); }} />
             {t(`envelope.period.${p}`)}
           </label>
         ))}
       </fieldset>
       {preset === 'custom' ? (
         <form aria-label={t('envelope.period.custom')} onSubmit={compute} className="flex flex-wrap items-end gap-3" noValidate>
-          <Field label={t('envelope.period.from')}>
+          <Field label={t('envelope.period.from')} error={problem === 'from' ? t('edit.required') : undefined}>
             {(c) => <input type="date" max={today} {...c} value={from} onChange={(ev) => setFrom(ev.target.value)} className={input} />}
           </Field>
-          <Field label={t('envelope.period.to')} error={reversed ? t('envelope.period.reversed') : undefined}>
+          <Field label={t('envelope.period.to')} error={problem === 'to' ? t('edit.required') : problem === 'reversed' ? t('envelope.period.reversed') : undefined}>
             {(c) => <input type="date" max={today} {...c} value={to} onChange={(ev) => setTo(ev.target.value)} className={input} />}
           </Field>
           <Button type="submit" variant="outline">{t('envelope.period.compute')}</Button>

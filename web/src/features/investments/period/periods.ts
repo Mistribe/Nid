@@ -15,6 +15,6 @@ export function presetRange(preset: Exclude<Preset, 'custom'>, today: string): {
   switch (preset) {
     case 'ytd': return { from: `${today.slice(0, 4)}-01-01`, to: today };
     case 'last12': return { from: withYear(today, year - 1), to: today };
-    case 'previous_year': return { from: `${year - 1}-01-01`, to: `${year - 1}-12-31` };
+    case 'previous_year': return { from: withYear('2000-01-01', year - 1), to: withYear('2000-12-31', year - 1) };
   }
 }

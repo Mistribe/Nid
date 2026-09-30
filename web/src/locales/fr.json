@@ -692,6 +692,7 @@
     "evolution": "Évolution",
     "period": {
       "title": "Performance d’une période",
+      "legend": "Période",
       "loading": "Chargement de la période",
       "ytd": "Depuis le début de l’année",
       "last12": "12 derniers mois",

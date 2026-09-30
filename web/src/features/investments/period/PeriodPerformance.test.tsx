@@ -86,4 +86,53 @@ describe('PeriodPerformance', () => {
     await within(form).findByRole('status');
     await waitFor(() => expect(seen).toHaveLength(2));
   });
+
+  it('requests nothing for a free period until the dates are validated, then shows the result', async () => {
+    const seen: string[] = [];
+    serve(period(), seen);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const section = await screen.findByRole('region', { name: 'Performance d’une période' });
+    await waitFor(() => expect(seen).toHaveLength(1));
+    await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
+    expect(seen).toHaveLength(1);
+    await user.type(within(section).getByLabelText('Du'), '2025-02-01');
+    await user.type(within(section).getByLabelText('Au'), '2025-03-01');
+    expect(seen).toHaveLength(1);
+    await user.click(within(section).getByRole('button', { name: 'Calculer' }));
+    await waitFor(() => expect(seen).toContain('?from=2025-02-01&to=2025-03-01'));
+    expect(await within(section).findByText(/\+2\s000,00\s€/)).toBeInTheDocument();
+  });
+
+  it('says an empty date, and clears that message and the previous result', async () => {
+    const seen: string[] = [];
+    serve(period(), seen);
+    const { user, container } = await renderApp(`/investments/${PEA}`);
+
+    const section = await screen.findByRole('region', { name: 'Performance d’une période' });
+    await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
+    await user.type(within(section).getByLabelText('Au'), '2025-03-01');
+    await user.click(within(section).getByRole('button', { name: 'Calculer' }));
+    expect(await within(section).findByText('Ce champ est obligatoire.')).toBeInTheDocument();
+    expect(within(section).getByLabelText('Du')).toBeInvalid();
+    await expectNoAxeViolations(container);
+    expect(seen.filter((s) => s.includes('2025-03-01'))).toEqual([]);
+  });
+
+  it('drops the reversed-dates message and the old result when a preset is chosen again', async () => {
+    const seen: string[] = [];
+    serve(period(), seen);
+    const { user, container } = await renderApp(`/investments/${PEA}`);
+
+    const section = await screen.findByRole('region', { name: 'Performance d’une période' });
+    await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
+    await user.type(within(section).getByLabelText('Du'), '2025-06-30');
+    await user.type(within(section).getByLabelText('Au'), '2025-01-31');
+    await user.click(within(section).getByRole('button', { name: 'Calculer' }));
+    expect(await within(section).findByText('La date de début doit précéder la date de fin.')).toBeInTheDocument();
+    expect(within(section).queryByText('Valeur de départ')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+    await user.click(within(section).getByRole('radio', { name: '12 derniers mois' }));
+    expect(within(section).queryByText('La date de début doit précéder la date de fin.')).not.toBeInTheDocument();
+  });
 });
