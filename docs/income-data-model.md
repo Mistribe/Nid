@@ -33,6 +33,7 @@ Une **source de revenu** est un `item` du Core : son nom, son titulaire (propri�
 | `kind` | text | `salary`, `self_employment`, `pension`, `unemployment`, `family_allowance`, `social_benefit`, `alimony`, `other` |
 | `payer_label` | text? | Employeur ou organisme, texte libre. **Aucun identifiant personnel** (pas de numéro de sécurité sociale, pas d'adresse) |
 | `note` | text? | |
+| `ended_on` | date? | Date de fin de la source (2C1) : vide tant qu'elle est ouverte ; posée par la clôture, qui archive l'élément ; effacée par la réouverture |
 
 ### 3.2 `income_phase`
 
@@ -130,6 +131,7 @@ Sections de `import-format.md` (les `flows` sont celles du Core, `import-format.
 | `id`, `name` | string | |
 | `kind` | string | Voir §3.1 |
 | `payer_label`, `note` | string? | |
+| `ended_on` | date? | Source terminée (2C1) ; les phases en cours après cette date sont coupées à cette date |
 | `currency` | string | ISO 4217 |
 | `ownership` | `[{ person, share_bp }]` | Le titulaire |
 | `visibility` | string | `shared` (défaut) ou `private` |
@@ -243,6 +245,14 @@ Engagements mensuels de 1 250 € :
 | Répartition par personne | Source à parts différentes |
 | Devise | Revenu dans une autre devise converti au taux de la date |
 | Import | Aller-retour export puis import identique |
+
+**Livré en 2C1** (2026-10-02, `superpowers/specs/2026-10-02-income-server-design.md`) : module `Nid.Income` (schéma `income`, tables `income_source` et `income_phase`), API `/api/v1/income` (§4 de la conception) : sources (liste, détail, création, modification), phases, changement de phase (`phase-changes`), revenu attendu (`expected?from&to`), revenus exceptionnels (`one-offs`), `close` et `reopen` ; quatre opérations propres au module (créer une source avec ses phases, changer de phase, clôturer, rouvrir) ; codes `income.*` (`unknown_kind`, `unknown_cadence`, `invalid_source`, `invalid_phase`, `phase_overlap`, `source_ended`, `source_open`, `no_running_phase`, `invalid_period`, `phase_conflict`) et `core.*` pour les montants, dates et devises. Les phases sont **modifiables** (ce ne sont pas des faits du Core, contrairement aux flux exceptionnels) ; les routes des phases et des revenus exceptionnels sont **imbriquées sous la source** : le contrôle d'accès est celui de l'élément. Décisions prises à l'exécution :
+
+- **Une augmentation garde la fin de la phase remplacée** : une augmentation pendant un CDD ne le prolonge pas ; à l'intérieur d'une phase plafonnée, la nouvelle phase se termine à la fin du plafond.
+- **Une phase avec `max_cycles` et sans `ends_on` se termine après sa dernière occurrence** (sa fin effective) pour l'activité, l'équivalent mensuel, les trous, le chevauchement et la clôture ; `max_cycles` va de 1 à 1200.
+- **L'équivalent mensuel est un décimal en pleine précision**, arrondi à 0,01 sur le fil seulement.
+- **Une correction ou une suppression de phase exige son `version`** : 422 sans lui, 409 `income.phase_conflict` s'il est périmé.
+- **L'import écrit les phases d'une source qui reste terminée** (vérifiées contre `ended_on` et coupées à cette date), à la différence de l'API, pour que l'historique d'une source terminée fasse l'aller-retour ; le revenu exceptionnel s'importe par la section `flows` du Core.
 
 ## 15. Limites
 

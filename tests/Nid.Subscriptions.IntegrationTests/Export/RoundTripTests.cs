@@ -138,18 +138,68 @@ public class RoundTripTests(PostgresFixture fixture)
         return result.ToJsonString();
     }
 
-    private static void StripIds(JsonNode? node)
+    private static void StripIds(JsonNode? node, params string[] also)
     {
         if (node is JsonObject obj)
         {
-            foreach (var name in new[] { "id", "itemId", "factId", "valuationId", "flowId" })
+            foreach (var name in new[] { "id", "itemId", "factId", "valuationId", "flowId" }.Concat(also))
                 obj.Remove(name);
             foreach (var (_, child) in obj.ToList())
-                StripIds(child);
+                StripIds(child, also);
         }
         else if (node is JsonArray array)
             foreach (var child in array)
-                StripIds(child);
+                StripIds(child, also);
+    }
+
+    private const string IncomeSources = """
+        [{"id":"inc-salary","name":"Salaire","kind":"salary","payer_label":"Employeur","currency":"EUR",
+          "ownership":[{"person":"adult-1","share_bp":10000}],"visibility":"shared"}]
+        """;
+
+    private const string IncomePhases = """
+        [{"id":"ip-1","source":"inc-salary","label":"Salaire de base","starts_on":"2024-09-01",
+          "net_amount":{"amount":"2200.00","currency":"EUR"},"every":{"count":1,"unit":"month"}},
+         {"id":"ip-2","source":"inc-salary","label":"Prime annuelle","starts_on":"2024-12-15",
+          "net_amount":{"amount":"1800.00","currency":"EUR"},"every":{"count":1,"unit":"year"}}]
+        """;
+
+    /// <summary>What the interface adds on top of an imported source: a raise, a one-off, and a source with no import reference that is ended.</summary>
+    private static async Task AddIncomeDataThroughTheApiAsync(NidApp app)
+    {
+        const string sources = "/api/v1/income/sources";
+        var list = (await SendAsync(app, HttpMethod.Get, sources + "?scope=me"))["items"]!.AsArray();
+        var salary = list.Single(s => s!["displayName"]!.GetValue<string>() == "Salaire")!["id"]!.GetValue<string>();
+        await SendAsync(app, HttpMethod.Post, $"{sources}/{salary}/phase-changes",
+            new { label = "Salaire de base", effectiveOn = "2025-09-01", netAmount = Eur("2300.00") });
+        await SendAsync(app, HttpMethod.Post, $"{sources}/{salary}/one-offs",
+            new { occurredOn = "2025-03-10", amount = Eur("500.00"), note = "Prime exceptionnelle" });
+        var side = (await SendAsync(app, HttpMethod.Post, sources, new Dictionary<string, object?>
+        {
+            ["displayName"] = "Mission", ["kind"] = "self_employment", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new[] { new { label = "Mission", startsOn = "2025-01-01", endsOn = (string?)null, netAmount = Eur("900.00"), every = new { count = 1, unit = "month" }, maxCycles = (int?)null } },
+        }))["id"]!.GetValue<string>();
+        await SendAsync(app, HttpMethod.Post, $"{sources}/{side}/close", new { endedOn = "2025-09-30" });
+    }
+
+    /// <summary>The income reads agree: list (by name), each detail and its expected income, without any id.</summary>
+    private static async Task<string> IncomeReadsAsync(NidApp app)
+    {
+        var list = (await SendAsync(app, HttpMethod.Get, "/api/v1/income/sources?scope=me&archived=true"))["items"]!.AsArray();
+        var result = new JsonObject();
+        result["list"] = new JsonArray(list.Select(e => e!.DeepClone()).OrderBy(e => e["displayName"]!.GetValue<string>(), StringComparer.Ordinal).ToArray());
+        foreach (var source in list.OrderBy(e => e!["displayName"]!.GetValue<string>(), StringComparer.Ordinal))
+        {
+            var url = $"/api/v1/income/sources/{source!["id"]!.GetValue<string>()}";
+            result[source["displayName"]!.GetValue<string>()] = new JsonObject
+            {
+                ["detail"] = await SendAsync(app, HttpMethod.Get, url),
+                ["expected"] = await SendAsync(app, HttpMethod.Get, $"{url}/expected?from=2025-01-01&to=2025-12-31"),
+            };
+        }
+        StripIds(result, "phaseId", "version"); // a phase's concurrency token is its row's xmin, a transaction id of the instance that wrote it
+        return result.ToJsonString();
     }
 
     private static string Canonical(Dictionary<string, List<JsonElement>> export)
@@ -174,8 +224,11 @@ public class RoundTripTests(PostgresFixture fixture)
             ["envelopes"] = EnvelopesImportTests.Envelopes.Replace(",\"closed_on\":\"2025-07-31\"", ""),
             ["valuations"] = WithoutLivretClosing(FactsImportTests.Valuations, "v-livret-0"),
             ["flows"] = WithoutLivretClosing(FactsImportTests.Flows, "f-livret-out"),
+            ["income_sources"] = IncomeSources,
+            ["income_phases"] = IncomePhases,
         });
         await AddEnvelopeDataThroughTheApiAsync(source);
+        await AddIncomeDataThroughTheApiAsync(source);
         // An adopted provider (only a migration makes one) named by a subscription created in the interface.
         await using (var subs = PostgresFixture.NewSubscriptionsContext(source.ConnectionString))
         {
@@ -194,6 +247,7 @@ public class RoundTripTests(PostgresFixture fixture)
         Assert.Equal(Canonical(first), Canonical(second));
         Assert.Equal(await ReadsAsync(source, source.AdultA), await ReadsAsync(target, target.AdultA));
         Assert.Equal(await InvestmentReadsAsync(source, source.AdultA), await InvestmentReadsAsync(target, target.AdultA));
+        Assert.Equal(await IncomeReadsAsync(source), await IncomeReadsAsync(target));
         Assert.Equal(6, first["subscriptions"].Count);
         Assert.Equal(3, first["envelopes"].Count);
         // The comparison is not vacuous: the API-made facts are in the reads and in the file.
@@ -204,5 +258,13 @@ public class RoundTripTests(PostgresFixture fixture)
         var livret = JsonNode.Parse(reads)!["Livret A"]!["detail"]!;
         Assert.True(livret["closed"]!.GetValue<bool>());
         Assert.Contains(first["flows"], f => f.GetProperty("external_ref").GetString()?.StartsWith("transfer:") == true);
+        // Same for income: the API-made raise, one-off and ended source are in the reads and in the file.
+        var income = await IncomeReadsAsync(target);
+        Assert.Contains("2300", income);
+        Assert.Contains("Prime exceptionnelle", income);
+        Assert.Equal(2, first["income_sources"].Count);
+        Assert.Contains(first["income_sources"], s => s.TryGetProperty("ended_on", out var e) && e.ValueKind == JsonValueKind.String);
+        Assert.Contains(first["income_phases"], p => p.GetProperty("label").GetString() == "Salaire de base" && p.GetProperty("starts_on").GetString() == "2025-09-01");
+        Assert.Contains(first["flows"], f => f.TryGetProperty("category", out var c) && c.GetString() == "one_off");
     }
 }

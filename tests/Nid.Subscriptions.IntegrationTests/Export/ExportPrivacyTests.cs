@@ -113,4 +113,36 @@ public class ExportPrivacyTests(PostgresFixture fixture)
         Assert.Equal(["contribution", "withdrawal"], forB["flows"].Select(f => f.GetProperty("kind").GetString()!).Order(StringComparer.Ordinal));
         Assert.All(forB["flows"], f => Assert.Equal($"transfer:{transferId}", f.GetProperty("external_ref").GetString()));
     }
+
+    [Fact]
+    public async Task The_other_adults_private_income_source_with_its_phase_and_one_off_is_not_exported()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        object Money(string amount) => new { amount, currency = "EUR" };
+        var created = await app.RawAsync(app.AdultB, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
+        {
+            ["displayName"] = "Revenu-secret", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "private",
+            ["owners"] = new[] { new { personId = app.AdultB.Value, shareBp = 10_000 } },
+            ["phases"] = new[] { new { label = "Phase-secrete", startsOn = "2025-01-01", endsOn = (string?)null, netAmount = Money("2000"), every = new { count = 1, unit = "month" }, maxCycles = (int?)null } },
+        });
+        Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync());
+        var id = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var oneOff = await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/income/sources/{id}/one-offs",
+            new { occurredOn = "2025-06-10", amount = Money("500"), note = "Prime-secrete" });
+        Assert.True(oneOff.IsSuccessStatusCode, await oneOff.Content.ReadAsStringAsync());
+        var export = new ExportClient(app);
+
+        var forA = await export.ExportAllAsync(app.AdultA);
+        var forB = await export.ExportAllAsync(app.AdultB);
+
+        Assert.Empty(forA.GetValueOrDefault("income_sources") ?? []);
+        Assert.Empty(forA.GetValueOrDefault("income_phases") ?? []);
+        Assert.Empty(forA.GetValueOrDefault("flows") ?? []);
+        var everything = JsonSerializer.Serialize(forA);
+        foreach (var secret in new[] { "Revenu-secret", "Phase-secrete", "Prime-secrete", id.ToString(), id.ToString("N") })
+            Assert.DoesNotContain(secret, everything);
+        Assert.Single(forB["income_sources"]);
+        Assert.Single(forB["income_phases"]);
+        Assert.Single(forB["flows"]);
+    }
 }

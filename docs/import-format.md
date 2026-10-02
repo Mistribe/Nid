@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1) et Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30) sont définies ; les autres modules ajouteront les leurs.
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30) et Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) sont définies ; les autres modules ajouteront les leurs.
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -404,6 +404,12 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
   - **Clôture par `replace`** : une enveloppe existante dont le fichier pose `closed_on` est vérifiée contre ses valeurs et flux courants stockés autant que contre ceux du fichier (la règle de la clôture de l'API). Un fait stocké que le fichier remplace par une date plus ancienne compte encore : un fichier qui recule le dernier fait et clôt à la fois doit être scindé en deux imports.
   - **Une correction ne retire qu'un fait** : une correction dont la nouvelle date ou la nouvelle clé rencontre un autre fait courant est refusée, même avec `replace` ; deux faits qui échangent leurs dates dans un même fichier sont refusés de la même façon.
   - **La clôture est tracée** dans l'audit de l'enveloppe (`closed_on`).
+- **Décisions prises en 2C1 (2026-10-02)** (détail et raisons : `superpowers/specs/2026-10-02-income-server-design.md` §5) :
+  - **`ended_on`** : une source qui porte `ended_on` est terminée et archivée ; en ajouter ou en retirer un à un réimport (`replace`) termine la source (les phases en cours après cette date sont coupées, comme `close`) ou la rouvre.
+  - **Chevauchement** : vérifié par (source, libellé), contre les phases du fichier et contre les phases déjà stockées de la source (`income.phase_overlap`).
+  - **Phases d'une source qui reste terminée** : contrairement à l'API, l'import les écrit (vérifiées contre `ended_on` et coupées à cette date), pour que l'historique d'une source terminée fasse l'aller-retour.
+  - **Avertissements** : `income.source_without_phase` (une source sans aucune phase) et `income.gap_soon` (une phase active qui s'achève dans les 60 jours sans successeur de même libellé).
+  - **Revenu exceptionnel** : il passe par la section `flows` du Core (`kind: income`, `category: one_off`), sans section propre ; les sources du fichier alimentent le contexte d'import comme les enveloppes.
 
 ## 13. Questions ouvertes
 
