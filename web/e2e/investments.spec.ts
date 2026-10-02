@@ -70,8 +70,10 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
 
   await alice.goto('/investments');
   const list = alice.getByRole('list', { name: 'Liste des enveloppes' });
-  await expect(list).toBeVisible();
-  await expect(list.getByText(livret)).toHaveCount(0);
+  // In the household scope the private PEA is not listed and the Livret is closed: the list may be empty, so wait for
+  // the loaded page (the list or its empty state) before checking the Livret is absent.
+  await expect(list.or(alice.getByRole('heading', { name: 'Aucune enveloppe pour l’instant' }))).toBeVisible();
+  await expect(alice.getByText(livret)).toHaveCount(0);
   await alice.getByRole('checkbox', { name: 'Afficher les clôturées' }).check();
   const closedRow = list.getByRole('listitem').filter({ hasText: livret });
   await expect(closedRow).toContainText('Clôturée');
