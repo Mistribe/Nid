@@ -45,7 +45,7 @@ public sealed record IncomePhaseView(
     internal static IncomePhaseView Of(IncomePhase phase, LocalDate today, Currency currency)
         => new(phase.Id, phase.Label, phase.StartsOn, phase.EndsOn, IncomeMoneyView.From(phase.NetAmount), IncomeDurationView.From(phase.Every),
             phase.GrossAmount is { } gross ? IncomeMoneyView.From(gross) : null, phase.MaxCycles, phase.Note,
-            phase.EndsOn is { } end && end <= today ? "past" : phase.StartsOn > today ? "upcoming" : "running",
+            IncomeMath.EffectiveEnd(phase) is { } end && end <= today ? "past" : phase.StartsOn > today ? "upcoming" : "running",
             IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(phase), currency), phase.Version);
 }
 

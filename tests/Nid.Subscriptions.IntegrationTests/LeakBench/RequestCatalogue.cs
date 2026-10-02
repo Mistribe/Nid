@@ -259,6 +259,15 @@ public static class RequestCatalogue
         new(typeof(ChangeIncomePhaseCommand), true, (_, item) => new ChangeIncomePhaseCommand(item, "Salaire", new LocalDate(2025, 6, 1),
             Money.Create(1m, Currency.Eur).Ok(), null, null, null)),
         new(typeof(GetIncomeExpectedQuery), true, (_, item) => new GetIncomeExpectedQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 12, 31))),
+
+        // A flow id is looked up on the route's source only (IFlows.ListAsync by item), so a flow id alone can never reach another item.
+        new(typeof(RecordIncomeOneOffCommand), true, (_, item) => new RecordIncomeOneOffCommand(item, new LocalDate(2025, 1, 1),
+            Money.Create(1m, Currency.Eur).Ok(), null)),
+        new(typeof(CorrectIncomeOneOffCommand), true, (_, item) => new CorrectIncomeOneOffCommand(item, Guid.NewGuid(), new LocalDate(2025, 1, 1),
+            Money.Create(1m, Currency.Eur).Ok(), null)),
+        new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
+        new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
+        new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

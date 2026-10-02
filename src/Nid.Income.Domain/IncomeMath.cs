@@ -35,7 +35,22 @@ public static class IncomeMath
             _ => throw new ArgumentOutOfRangeException(nameof(phase), "A phase repeats every month(s) or year(s)."),
         };
 
-    public static bool IsActive(IncomePhase phase, LocalDate on) => phase.StartsOn <= on && (phase.EndsOn is not { } end || on < end);
+    /// <summary>
+    /// Exclusive: the earlier of <c>ends_on</c> and the date the next occurrence after the last would fall on
+    /// (<c>starts_on + max_cycles × every</c>); null when neither bounds the phase.
+    /// </summary>
+    public static LocalDate? EffectiveEnd(IncomePhase phase)
+    {
+        LocalDate? capped = phase.MaxCycles is { } max ? phase.Every.AddTo(phase.StartsOn, max) : null;
+        return (phase.EndsOn, capped) switch
+        {
+            ({ } e, { } c) => e < c ? e : c,
+            ({ } e, null) => e,
+            (null, var c) => c,
+        };
+    }
+
+    public static bool IsActive(IncomePhase phase, LocalDate on) => phase.StartsOn <= on && (EffectiveEnd(phase) is not { } end || on < end);
 
     /// <summary>Full-precision sum of the phases active on the date; a Money would refuse more than 4 decimals, so it is rounded only on the wire.</summary>
     public static decimal MonthlyEquivalent(IEnumerable<IncomePhase> phases, LocalDate on)
@@ -67,9 +82,9 @@ public static class IncomeMath
     {
         var list = phases.ToList();
         return list
-            .Where(p => IsActive(p, today) && p.EndsOn is { } end && end <= today.PlusDays(GapWindowDays))
-            .Where(p => !list.Any(q => q.Id != p.Id && q.Label == p.Label && q.StartsOn <= p.EndsOn && (q.EndsOn is not { } qe || qe > p.EndsOn)))
-            .Select(p => new GapWarning(p.Label, p.EndsOn!.Value))
+            .Where(p => IsActive(p, today) && EffectiveEnd(p) is { } end && end <= today.PlusDays(GapWindowDays))
+            .Where(p => !list.Any(q => q.Id != p.Id && q.Label == p.Label && q.StartsOn <= EffectiveEnd(p) && (EffectiveEnd(q) is not { } qe || qe > EffectiveEnd(p))))
+            .Select(p => new GapWarning(p.Label, EffectiveEnd(p)!.Value))
             .OrderBy(g => g.EndsOn).ThenBy(g => g.Label, StringComparer.Ordinal)
             .ToList();
     }

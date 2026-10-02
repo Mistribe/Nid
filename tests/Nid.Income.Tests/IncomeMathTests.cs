@@ -132,4 +132,33 @@ public class IncomeMathTests
         Assert.Equal([(1, 0m), (2, 0m), (3, 100m)], months.Select(m => (m.Month, m.Total.Amount)));
         Assert.Empty(months[1].Occurrences);
     }
+
+    [Fact]
+    public void A_capped_phase_stops_being_active_after_its_last_occurrence() // Task 3 review ruling b
+    {
+        var bonus = P("Prime", D(2023, 1, 15), null, 1800m, Year, max: 2); // occurrences 2023-01-15 and 2024-01-15
+        Assert.Equal(D(2025, 1, 15), IncomeMath.EffectiveEnd(bonus));
+        Assert.True(IncomeMath.IsActive(bonus, D(2025, 1, 14)));
+        Assert.False(IncomeMath.IsActive(bonus, D(2025, 2, 1)));
+        Assert.Equal(0m, IncomeMath.MonthlyEquivalent([bonus], D(2025, 2, 1)));
+        Assert.Equal(150m, IncomeMath.MonthlyEquivalent([bonus], D(2024, 6, 1)));
+    }
+
+    [Fact]
+    public void The_earlier_of_ends_on_and_the_cap_is_the_effective_end()
+    {
+        Assert.Equal(D(2023, 6, 1), IncomeMath.EffectiveEnd(P("x", D(2023, 1, 1), D(2023, 6, 1), 10m, Months(1), max: 12)));
+        Assert.Equal(D(2023, 4, 1), IncomeMath.EffectiveEnd(P("x", D(2023, 1, 1), D(2023, 6, 1), 10m, Months(1), max: 3)));
+        Assert.Null(IncomeMath.EffectiveEnd(P("x", D(2023, 1, 1), null, 10m, Months(1))));
+    }
+
+    [Fact]
+    public void A_capped_phase_ending_within_60_days_with_no_successor_warns()
+    {
+        var capped = P("Prime", D(2025, 1, 1), null, 100m, Months(1), max: 12); // effective end 2026-01-01
+        var warned = Assert.Single(IncomeMath.Gaps([capped], D(2025, 11, 15)));
+        Assert.Equal(("Prime", D(2026, 1, 1)), (warned.Label, warned.EndsOn));
+        Assert.Empty(IncomeMath.Gaps([capped], D(2025, 6, 1)));
+        Assert.Empty(IncomeMath.Gaps([capped, P("Prime", D(2026, 1, 1), null, 120m, Months(1))], D(2025, 11, 15)));
+    }
 }

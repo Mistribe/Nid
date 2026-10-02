@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Income.Application;
 using Nid.Income.Contracts;
+using NodaTime;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 
@@ -56,10 +57,17 @@ public static class IncomeEndpoints
             })
             .Returns<IdResponse>();
 
-        api.MapDelete("/sources/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, uint version, IInvoker invoker, CancellationToken ct) =>
+        api.MapDelete("/sources/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, uint? version, IInvoker invoker, CancellationToken ct) =>
             {
+                // A missing version answers 422 at `version`, as the correction's does: it would otherwise bind to 0.
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with the phase is required.");
+                    return reader.Problem();
+                }
                 // Written explicitly, as a person's removal: ToHttp would still write a JSON body, which a 204 must not carry.
-                var result = await invoker.InvokeAsync(new DeleteIncomePhaseCommand(new ItemId(id), phaseId, version), ct);
+                var result = await invoker.InvokeAsync(new DeleteIncomePhaseCommand(new ItemId(id), phaseId, version.Value), ct);
                 return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
             })
             .ReturnsNoContent();
@@ -78,8 +86,69 @@ public static class IncomeEndpoints
             => (await invoker.InvokeAsync(new GetIncomeExpectedQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(e => e))
             .Returns<IncomeExpected>();
 
+        api.MapPost("/sources/{id:guid}/one-offs", async (Guid id, IncomeOneOffBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToRecord(new ItemId(id), reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(flow => new IdResponse(flow), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/sources/{id:guid}/one-offs/{flowId:guid}", async (Guid id, Guid flowId, IncomeOneOffBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCorrection(new ItemId(id), flowId, reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(flow => new IdResponse(flow));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/sources/{id:guid}/one-offs/{flowId:guid}", async (Guid id, Guid flowId, IInvoker invoker, CancellationToken ct) =>
+            {
+                // As a phase's removal: a 204 carries no body.
+                var result = await invoker.InvokeAsync(new DeleteIncomeOneOffCommand(new ItemId(id), flowId), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapPost("/sources/{id:guid}/close", async (Guid id, CloseIncomeSourceBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var endedOn = reader.Date(body.EndedOn, "endedOn");
+                return endedOn is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CloseIncomeSourceCommand(new ItemId(id), endedOn.Value), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        api.MapPost("/sources/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ReopenIncomeSourceCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
         return routes;
     }
+
+    /// <summary>A one-off income: every member is read through <see cref="FieldReader"/> (a missing one binds to null).</summary>
+    public sealed record IncomeOneOffBody(string? OccurredOn, MoneyBody? Amount, string? Note)
+    {
+        internal RecordIncomeOneOffCommand? ToRecord(ItemId source, FieldReader reader)
+            => Read(reader) is var (on, amount) ? new RecordIncomeOneOffCommand(source, on, amount, Note) : null;
+
+        internal CorrectIncomeOneOffCommand? ToCorrection(ItemId source, Guid flow, FieldReader reader)
+            => Read(reader) is var (on, amount) ? new CorrectIncomeOneOffCommand(source, flow, on, amount, Note) : null;
+
+        private (LocalDate On, Money Amount)? Read(FieldReader reader)
+        {
+            var on = reader.Date(OccurredOn, "occurredOn");
+            var amount = reader.Money(Amount, "amount");
+            return on is { } o && amount is { } a ? (o, a) : null;
+        }
+    }
+
+    public sealed record CloseIncomeSourceBody(string? EndedOn);
 
     /// <summary>
     /// Spec §4: the visibility is required, with no default on the wire (unlike an envelope's). Every member is read
