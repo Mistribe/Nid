@@ -1,0 +1,74 @@
+using Nid.Core.Contracts;
+using Nid.Income.Contracts;
+using NodaTime;
+
+namespace Nid.Income.Domain;
+
+public sealed record Occurrence(Guid PhaseId, string Label, LocalDate On, Money Amount);
+public sealed record ExpectedMonth(int Year, int Month, IReadOnlyList<Occurrence> Occurrences, IReadOnlyList<Flow> OneOffs, Money Total);
+public sealed record GapWarning(string Label, LocalDate EndsOn);
+
+/// <summary>income-data-model.md §4 and spec §3: pure, exact decimals.</summary>
+public static class IncomeMath
+{
+    public const int GapWindowDays = 60;
+
+    /// <summary>starts_on + k × every, from the anchor each time (Duration.AddTo), before ends_on and under max_cycles.</summary>
+    public static IEnumerable<Occurrence> Occurrences(IncomePhase phase, LocalDate from, LocalDate toExclusive)
+    {
+        for (var k = 0; phase.MaxCycles is not { } max || k < max; k++)
+        {
+            var on = phase.Every.AddTo(phase.StartsOn, k);
+            if (phase.EndsOn is { } end && on >= end || on >= toExclusive)
+                yield break;
+            if (on >= from)
+                yield return new Occurrence(phase.Id, phase.Label, on, phase.NetAmount);
+        }
+    }
+
+    public static decimal MonthlyEquivalent(IncomePhase phase)
+        => phase.Every.Unit == DurationUnit.Year
+            ? phase.NetAmount.Amount / (12m * phase.Every.Count)
+            : phase.NetAmount.Amount / phase.Every.Count;
+
+    public static bool IsActive(IncomePhase phase, LocalDate on) => phase.StartsOn <= on && (phase.EndsOn is not { } end || on < end);
+
+    public static Money MonthlyEquivalent(IEnumerable<IncomePhase> phases, LocalDate on, Currency currency)
+    {
+        var sum = phases.Where(p => IsActive(p, on)).Sum(MonthlyEquivalent);
+        return Money.Create(sum, currency).TryGetValue(out var m) ? m : throw new InvalidOperationException("A sum of positive amounts is a valid amount.");
+    }
+
+    public static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+
+    /// <summary>Every calendar month from <paramref name="from"/>'s to <paramref name="to"/>'s, inclusive.</summary>
+    public static IReadOnlyList<ExpectedMonth> Expected(
+        IEnumerable<IncomePhase> phases, IEnumerable<Flow> oneOffs, LocalDate from, LocalDate to, Currency currency)
+    {
+        var end = to.PlusDays(1);
+        var occurrences = phases.SelectMany(p => Occurrences(p, from, end)).ToList();
+        var flows = oneOffs.Where(f => f.OccurredOn >= from && f.OccurredOn < end).ToList();
+        var months = new List<ExpectedMonth>();
+        for (var month = new LocalDate(from.Year, from.Month, 1); month <= to; month = month.PlusMonths(1))
+        {
+            var o = occurrences.Where(x => x.On.Year == month.Year && x.On.Month == month.Month).OrderBy(x => x.On).ThenBy(x => x.Label, StringComparer.Ordinal).ToList();
+            var f = flows.Where(x => x.OccurredOn.Year == month.Year && x.OccurredOn.Month == month.Month).OrderBy(x => x.OccurredOn).ThenBy(x => x.Id).ToList();
+            var total = o.Sum(x => x.Amount.Amount) + f.Sum(x => x.Amount.Amount);
+            months.Add(new ExpectedMonth(month.Year, month.Month, o, f,
+                Money.Create(total, currency).TryGetValue(out var m) ? m : throw new InvalidOperationException()));
+        }
+        return months;
+    }
+
+    /// <summary>income_gap_soon (spec §3): a running phase ending within 60 days that no phase of its label continues.</summary>
+    public static IReadOnlyList<GapWarning> Gaps(IEnumerable<IncomePhase> phases, LocalDate today)
+    {
+        var list = phases.ToList();
+        return list
+            .Where(p => IsActive(p, today) && p.EndsOn is { } end && end <= today.PlusDays(GapWindowDays))
+            .Where(p => !list.Any(q => q.Id != p.Id && q.Label == p.Label && q.StartsOn <= p.EndsOn && (q.EndsOn is not { } qe || qe > p.EndsOn)))
+            .Select(p => new GapWarning(p.Label, p.EndsOn!.Value))
+            .OrderBy(g => g.EndsOn).ThenBy(g => g.Label, StringComparer.Ordinal)
+            .ToList();
+    }
+}
