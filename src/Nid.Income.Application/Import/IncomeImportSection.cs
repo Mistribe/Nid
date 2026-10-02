@@ -277,7 +277,11 @@ public sealed class IncomeImportSection(
         foreach (var source in sourcePlans.ToList())
             if (source.EndedOn is { } endedOn && Ending.Blocks(Resulting(source), endedOn))
             {
-                issues.Add(ImportIssue.Error(IncomeCodes.InvalidSource, Ending.Blocked, source.Path + ".ended_on"));
+                // A source the file leaves as it is stays ended: the member at fault is the phase the file adds.
+                var late = source.Mode == Mode.Unchanged
+                    ? phasePlans.FirstOrDefault(p => p.Source == source && p.Writes && p.Value.StartsOn >= endedOn)
+                    : null;
+                issues.Add(ImportIssue.Error(IncomeCodes.InvalidSource, Ending.Blocked, late is null ? source.Path + ".ended_on" : late.Path + ".starts_on"));
                 context.FailedItems.Add((SourcesSection, source.Record.Id));
                 sourcePlans.Remove(source);
                 phasePlans.RemoveAll(p => p.Source == source);
@@ -481,22 +485,11 @@ public sealed class IncomeImportSection(
     /// 1F3b spec §3.2 and 2C1 spec §5: replacing is a write, on the item as it is now, that never takes it from another
     /// adult, nor changes its currency. The first refusal, or null.
     /// </summary>
-    private async Task<ImportIssue?> ReplaceRefusalAsync(
+    private Task<ImportIssue?> ReplaceRefusalAsync(
         PersonId actor, ItemId id, ItemAccess current, ParsedSource parsed, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
-    {
-        if (!await ImportSectionKit.CanAsync(policy, actor, id, AccessKind.Write, ct))
-            return ImportIssue.Error(ImportCodes.NotPermitted, "This replaces an income source you cannot change.", path);
-        if (rules.DropsAnotherAdultOwner(actor, current.Owners, parsed.Owners))
-            return ImportIssue.Error(ImportCodes.NotPermitted, "This replacement removes another adult from the owners.", path + ".ownership");
-        if (rules.TakesReadAway(actor, current.Visibility, current.Owners, parsed.Visibility, parsed.Owners, await adults()))
-            return ImportIssue.Error(ImportCodes.NotPermitted,
-                "This replacement hides the income source from another adult who sees it today.", path + ".visibility");
-        if (current.Currency != parsed.Currency.Code)
-            return ImportIssue.Error(CoreFactCodes.CurrencyMismatch,
-                $"This income source is in {current.Currency}: a replacement keeps its currency.", path + ".currency");
-        return null;
-    }
+        => ImportSectionKit.ReplaceRefusalAsync(policy, rules, actor, id, current, parsed.Visibility, parsed.Owners,
+            parsed.Currency.Code, "income source", path, adults, ct);
 
     private static SectionCounts Count(Mode mode) => mode switch
     {

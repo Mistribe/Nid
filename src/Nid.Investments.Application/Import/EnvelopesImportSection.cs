@@ -313,22 +313,11 @@ public sealed class EnvelopesImportSection(
     /// 1F3b spec §3.2 and 2B1b spec §4: replacing is a write, on the item as it is now, that never takes it from another
     /// adult, nor changes its currency. The first refusal, or null.
     /// </summary>
-    private async Task<ImportIssue?> ReplaceRefusalAsync(
+    private Task<ImportIssue?> ReplaceRefusalAsync(
         PersonId actor, ItemId id, ItemAccess current, ParsedEnvelope parsed, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
-    {
-        if (!await ImportSectionKit.CanAsync(policy, actor, id, AccessKind.Write, ct))
-            return ImportIssue.Error(ImportCodes.NotPermitted, "This replaces an envelope you cannot change.", path);
-        if (rules.DropsAnotherAdultOwner(actor, current.Owners, parsed.Owners))
-            return ImportIssue.Error(ImportCodes.NotPermitted, "This replacement removes another adult from the owners.", path + ".ownership");
-        if (rules.TakesReadAway(actor, current.Visibility, current.Owners, parsed.Visibility, parsed.Owners, await adults()))
-            return ImportIssue.Error(ImportCodes.NotPermitted,
-                "This replacement hides the envelope from another adult who sees it today.", path + ".visibility");
-        if (current.Currency != parsed.Currency.Code)
-            return ImportIssue.Error(CoreFactCodes.CurrencyMismatch,
-                $"This envelope is in {current.Currency}: a replacement keeps its currency.", path + ".currency");
-        return null;
-    }
+        => ImportSectionKit.ReplaceRefusalAsync(policy, rules, actor, id, current, parsed.Visibility, parsed.Owners,
+            parsed.Currency.Code, "envelope", path, adults, ct);
 
     private static Envelope ToEnvelope(ItemId id, EnvelopeRecord record, ParsedEnvelope parsed)
         => new(id, parsed.Kind, record.Institution, record.AccountHint, parsed.OpenedOn, parsed.Cadence, record.StaleAfterDays, record.Note, parsed.ClosedOn);

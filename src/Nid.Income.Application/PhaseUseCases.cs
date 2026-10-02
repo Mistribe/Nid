@@ -167,6 +167,12 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
         if (command.EffectiveOn <= current.StartsOn)
             return Fail(IncomeCodes.InvalidPhase, "effectiveOn", "A change takes effect after the phase it replaces starts.");
 
+        // Occurrences are starts_on + k x every: a change anywhere else would re-anchor the cadence and count a payment twice (or one too many).
+        var (previous, following) = Neighbours(current, command.EffectiveOn);
+        if (previous != command.EffectiveOn)
+            return Fail(IncomeCodes.InvalidPhase, "effectiveOn",
+                $"A change takes effect on a payment date of the '{label}' phase: the previous is {Show(previous)} and the next is {Show(following)}.");
+
         // The next phase keeps the old one's effective end (a fixed-term contract keeps its end; a capped phase ends where
         // its last occurrence did), never its max_cycles: it is never open-ended when the old one was bounded.
         var next = new IncomePhase(Guid.CreateVersion7(), command.ItemId, current.Label, command.EffectiveOn, IncomeMath.EffectiveEnd(current),
@@ -189,6 +195,22 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
         await transaction.CommitAsync(ct);
         return Result.Success(next.Id);
     }
+
+    /// <summary>The last payment date of <paramref name="phase"/> on or before <paramref name="on"/>, and the first after it (null when none).</summary>
+    private static (LocalDate? Previous, LocalDate? Next) Neighbours(IncomePhase phase, LocalDate on)
+    {
+        LocalDate? previous = null, next = null;
+        try
+        {
+            foreach (var o in IncomeMath.Occurrences(phase, phase.StartsOn, on.PlusDays(1)))
+                previous = o.On;
+            next = IncomeMath.Occurrences(phase, on.PlusDays(1), on.PlusYears(101)).Select(o => (LocalDate?)o.On).FirstOrDefault();
+        }
+        catch (Exception e) when (e is OverflowException or ArgumentOutOfRangeException) { }
+        return (previous, next);
+    }
+
+    private static string Show(LocalDate? date) => date is { } d ? NodaTime.Text.LocalDatePattern.Iso.Format(d) : "none";
 
     private static Result<Guid> Fail(string code, string field, string message)
         => Result.Failure<Guid>(new Failure(code, message, new Dictionary<string, object?> { ["field"] = field }));

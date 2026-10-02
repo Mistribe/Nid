@@ -207,6 +207,97 @@ public class PhaseEndpointTests(PostgresFixture fixture)
         Assert.Equal(before, await StoredAsync(app, id));
     }
 
+    private static async Task<HttpResponseMessage> RaiseAsync(NidApp app, Guid id, string effectiveOn)
+        => await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phase-changes",
+            new { label = "Salaire", effectiveOn, netAmount = new { amount = "2300", currency = "EUR" } });
+
+    private static async Task<List<string>> PaymentsAsync(NidApp app, Guid id, string from, string to)
+    {
+        var expected = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}/{id}/expected?from={from}&to={to}"));
+        return expected.GetProperty("months").EnumerateArray().SelectMany(m => m.GetProperty("occurrences").EnumerateArray())
+            .Select(o => o.GetProperty("on").GetString()!).ToList();
+    }
+
+    [Fact]
+    public async Task A_raise_off_a_payment_date_is_refused_naming_the_neighbouring_payments()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase("Salaire", "2025-01-28", "2000"));
+        var before = await StoredAsync(app, id);
+
+        var refused = await RaiseAsync(app, id, "2025-09-30");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        var body = await JsonAsync(refused);
+        Assert.Equal("income.invalid_phase", body.GetProperty("code").GetString());
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new ChangeIncomePhaseCommand(new ItemId(id), "Salaire", Date("2025-09-30"),
+            Money.Create(2300m, Currency.Eur).Ok(), null, null, null));
+        Assert.Equal("income.invalid_phase", failure?.Code);
+        Assert.Equal("effectiveOn", failure!.Metadata!["field"]);
+        Assert.Contains("2025-09-28", body.ToString());
+        Assert.Contains("2025-10-28", body.ToString());
+        Assert.Equal(before, await StoredAsync(app, id));
+
+        Assert.Equal(HttpStatusCode.Created, (await RaiseAsync(app, id, "2025-09-28")).StatusCode);
+        var september = (await PaymentsAsync(app, id, "2025-09-01", "2025-09-30"));
+        Assert.Equal(["2025-09-28"], september);
+    }
+
+    [Fact]
+    public async Task A_raise_on_a_quarterly_phase_falls_on_a_quarter()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase("Salaire", "2025-01-01", "6000", count: 3));
+
+        Assert.Equal("income.invalid_phase", await CodeAsync(await RaiseAsync(app, id, "2025-02-01")));
+        Assert.Equal(HttpStatusCode.Created, (await RaiseAsync(app, id, "2025-04-01")).StatusCode);
+
+        Assert.Equal(["2025-01-01", "2025-04-01", "2025-07-01", "2025-10-01"], await PaymentsAsync(app, id, "2025-01-01", "2025-12-31"));
+    }
+
+    [Fact]
+    public async Task A_raise_inside_a_capped_phase_on_a_payment_date_keeps_the_total_payments()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, new
+        {
+            label = "Salaire", startsOn = "2025-01-15", maxCycles = 6,
+            netAmount = new { amount = "1500", currency = "EUR" }, every = new { count = 1, unit = "month" },
+        });
+
+        Assert.Equal("income.invalid_phase", await CodeAsync(await RaiseAsync(app, id, "2025-04-01")));
+        Assert.Equal(HttpStatusCode.Created, (await RaiseAsync(app, id, "2025-04-15")).StatusCode);
+
+        var payments = await PaymentsAsync(app, id, "2025-01-01", "2025-12-31");
+        Assert.Equal(6, payments.Count);
+        Assert.Equal("2025-06-15", payments[^1]);
+    }
+
+    [Fact]
+    public async Task A_phase_id_of_another_source_answers_not_found_on_this_sources_route()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await NewSourceAsync(app, Phase("Salaire", "2025-01-01"));
+        var other = await NewSourceAsync(app, Phase("Salaire", "2025-01-01"));
+        var foreign = Assert.Single(await StoredAsync(app, other));
+        var oneOff = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{other}/one-offs",
+            new { occurredOn = "2025-06-10", amount = new { amount = "500", currency = "EUR" }, note = "Prime" }));
+        var correction = new
+        {
+            label = "Salaire", startsOn = "2025-01-01", netAmount = new { amount = "9999", currency = "EUR" },
+            every = new { count = 1, unit = "month" }, version = 1,
+        };
+        var oneOffBody = new { occurredOn = "2025-06-10", amount = new { amount = "700", currency = "EUR" }, note = "x" };
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{mine}/phases/{foreign.Id}", correction)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{mine}/phases/{foreign.Id}?version=1")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{mine}/one-offs/{oneOff}", oneOffBody)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{mine}/one-offs/{oneOff}")).StatusCode);
+
+        Assert.Equal(foreign, Assert.Single(await StoredAsync(app, other)));
+        Assert.Single((await DetailAsync(app, other)).GetProperty("oneOffs").EnumerateArray());
+    }
+
     [Fact]
     public async Task A_raise_inside_a_fixed_term_phase_keeps_its_end_and_never_its_max_cycles()
     {

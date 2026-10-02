@@ -215,6 +215,21 @@ public class IncomeImportTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_phase_added_after_the_end_of_a_source_that_stays_ended_is_reported_at_that_phase()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, IncomeFile(List(Cdd), List(IpCdd), flows: false));
+        var late = IpCdd.Replace("ip-cdd", "ip-late").Replace("\"label\":\"Salaire de base\"", "\"label\":\"Prime\"")
+            .Replace("\"starts_on\":\"2025-01-01\",\"ends_on\":\"2025-06-30\"", "\"starts_on\":\"2025-07-15\"");
+
+        var refused = await ValidateAsync(client, app, app.AdultA, IncomeFile(List(Cdd), List(IpCdd, late), flows: false));
+
+        Assert.Equal([(IncomeCodes.InvalidSource, "income_phases[1].starts_on")], ErrorsOf(refused));
+        await client.CancelRawAsync(app.AdultA, refused.Id);
+    }
+
+    [Fact]
     public async Task A_new_ended_source_has_its_running_phases_cut_as_close_does()
     {
         await using var app = await NidApp.StartAsync(fixture);

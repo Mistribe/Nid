@@ -160,30 +160,14 @@ public sealed class SubscriptionsImportSection(
                         continue;
                     }
 
-                    // 1F3b spec §3.2: replacing is a write, on the item as it is now.
-                    if (!await CanWriteAsync(context.Actor, id, ct))
+                    // 1F3b spec §3.2 and the 2026-09-28 ruling: replacing is a write, on the item as it is now,
+                    // that never takes it from another adult.
+                    var refusal = await ImportSectionKit.ReplaceRefusalAsync(policy, rules, context.Actor, id,
+                        await items.FindAsync(id, ct), parsed.Visibility, parsed.Owners, null, "subscription", path,
+                        async () => adults ??= await persons.AdultIdsAsync(ct), ct);
+                    if (refusal is not null)
                     {
-                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted, "This replaces a subscription you cannot change.", path));
-                        failed.Add(record.Id);
-                        continue;
-                    }
-
-                    // User ruling 2026-09-28 (spec §3.2): a replacement does not take the item away from another adult.
-                    var current = await items.FindAsync(id, ct);
-                    if (current is not null && rules.DropsAnotherAdultOwner(context.Actor, current.Owners, parsed.Owners))
-                    {
-                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
-                            "This replacement removes another adult from the owners.", path + ".ownership"));
-                        failed.Add(record.Id);
-                        continue;
-                    }
-
-                    adults ??= await persons.AdultIdsAsync(ct);
-                    if (current is not null && rules.TakesReadAway(
-                            context.Actor, current.Visibility, current.Owners, parsed.Visibility, parsed.Owners, adults))
-                    {
-                        issues.Add(ImportIssue.Error(ImportCodes.NotPermitted,
-                            "This replacement hides the subscription from another adult who sees it today.", path + ".visibility"));
+                        issues.Add(refusal);
                         failed.Add(record.Id);
                         continue;
                     }

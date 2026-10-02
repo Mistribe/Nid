@@ -215,11 +215,30 @@ public class SourceEndpointTests(PostgresFixture fixture)
         var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}?scope=me"));
         Assert.DoesNotContain(list.GetProperty("items").EnumerateArray(), s => s.GetProperty("id").GetGuid() == hidden.Value);
 
+        // Every route of an income source answers 404 for an item that is not one, whatever its kind.
         foreach (var other in new[] { envelope, subscription })
         {
-            Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}/{other.Value}")).StatusCode);
-            Assert.Equal(HttpStatusCode.NotFound,
-                (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Sources}/{other.Value}", new { note = "x" })).StatusCode);
+            var root = $"{Sources}/{other.Value}";
+            var phase = new { label = "Salaire", startsOn = "2025-01-01", netAmount = new { amount = "100", currency = "EUR" }, every = new { count = 1, unit = "month" } };
+            var correction = new { label = "Salaire", startsOn = "2025-01-01", netAmount = new { amount = "100", currency = "EUR" }, every = new { count = 1, unit = "month" }, version = 1 };
+            var oneOff = new { occurredOn = "2025-06-10", amount = new { amount = "500", currency = "EUR" }, note = "Prime" };
+            var routes = new (HttpMethod Method, string Url, object? Body)[]
+            {
+                (HttpMethod.Get, root, null),
+                (HttpMethod.Patch, root, new { note = "x" }),
+                (HttpMethod.Post, $"{root}/phases", phase),
+                (HttpMethod.Put, $"{root}/phases/{Guid.NewGuid()}", correction),
+                (HttpMethod.Delete, $"{root}/phases/{Guid.NewGuid()}?version=1", null),
+                (HttpMethod.Post, $"{root}/phase-changes", new { label = "Salaire", effectiveOn = "2025-03-01", netAmount = new { amount = "100", currency = "EUR" } }),
+                (HttpMethod.Get, $"{root}/expected?from=2025-01-01&to=2025-12-31", null),
+                (HttpMethod.Post, $"{root}/one-offs", oneOff),
+                (HttpMethod.Put, $"{root}/one-offs/{Guid.NewGuid()}", oneOff),
+                (HttpMethod.Delete, $"{root}/one-offs/{Guid.NewGuid()}", null),
+                (HttpMethod.Post, $"{root}/close", new { endedOn = "2025-09-30" }),
+                (HttpMethod.Post, $"{root}/reopen", null),
+            };
+            foreach (var (method, url, body) in routes)
+                Assert.True(HttpStatusCode.NotFound == (await app.RawAsync(app.AdultA, method, url, body)).StatusCode, $"{method} {url}");
         }
     }
 

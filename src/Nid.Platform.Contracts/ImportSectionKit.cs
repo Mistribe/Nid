@@ -83,6 +83,33 @@ public static class ImportSectionKit
     public static async Task<bool> CanAsync(IAccessPolicy policy, PersonId actor, ItemId item, AccessKind kind, CancellationToken ct)
         => !(await policy.CheckAsync(actor, item, kind, ct)).TryGetFailure(out _);
 
+    /// <summary>
+    /// 1F3b spec §3.2: replacing is a write, on the item as it is now, that never takes it from another adult. The first
+    /// refusal, or null. <paramref name="current"/> null (the item vanished) skips the owner and visibility checks;
+    /// <paramref name="currency"/> null skips the currency check, otherwise a replacement keeps the item's currency.
+    /// <paramref name="noun"/> is the item's name without article ("envelope").
+    /// </summary>
+    public static async Task<ImportIssue?> ReplaceRefusalAsync(
+        IAccessPolicy policy, IItemRules rules, PersonId actor, ItemId id, ItemAccess? current,
+        Visibility visibility, IReadOnlyList<Owner> owners, string? currency, string noun, string path,
+        Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)
+    {
+        if (!await CanAsync(policy, actor, id, AccessKind.Write, ct))
+            return ImportIssue.Error(ImportCodes.NotPermitted,
+                $"This replaces {(noun[0] is 'a' or 'e' or 'i' or 'o' or 'u' ? "an" : "a")} {noun} you cannot change.", path);
+        if (current is null)
+            return null;
+        if (rules.DropsAnotherAdultOwner(actor, current.Owners, owners))
+            return ImportIssue.Error(ImportCodes.NotPermitted, "This replacement removes another adult from the owners.", path + ".ownership");
+        if (rules.TakesReadAway(actor, current.Visibility, current.Owners, visibility, owners, await adults()))
+            return ImportIssue.Error(ImportCodes.NotPermitted,
+                $"This replacement hides the {noun} from another adult who sees it today.", path + ".visibility");
+        if (currency is not null && current.Currency != currency)
+            return ImportIssue.Error(CoreFactCodes.CurrencyMismatch,
+                $"This {noun} is in {current.Currency}: a replacement keeps its currency.", path + ".currency");
+        return null;
+    }
+
     /// <summary>The read check <see cref="ImportResolver"/> takes, with one policy call per item, however many rows touch it.</summary>
     public static Func<ItemId, Task<bool>> Readable(IAccessPolicy policy, PersonId actor, Dictionary<ItemId, bool> cache, CancellationToken ct)
         => async item =>
