@@ -48,6 +48,39 @@ public sealed class SourceStore(IncomeDbContext db) : ISourceStore
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedIncomeSource>>> FindImportedAsync(
+        IReadOnlyCollection<string> refs, CancellationToken ct)
+    {
+        var wanted = refs.Distinct(StringComparer.Ordinal).ToList();
+        var rows = await db.Sources.AsNoTracking().Where(r => r.ImportRef != null && wanted.Contains(r.ImportRef))
+            .Select(r => new { r.ItemId, r.ImportRef, r.ImportHash, r.ImportedBy }).ToListAsync(ct);
+        return rows.GroupBy(r => r.ImportRef!, StringComparer.Ordinal).ToDictionary(
+            g => g.Key,
+            g => (IReadOnlyList<ImportedIncomeSource>)g.Select(r => new ImportedIncomeSource(new ItemId(r.ItemId), r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value))).ToList(),
+            StringComparer.Ordinal);
+    }
+
+    public async Task ReplaceAsync(IncomeSource source, ImportMark import, CancellationToken ct)
+    {
+        var row = await db.Sources.SingleAsync(s => s.ItemId == source.ItemId.Value, ct);
+        row.Kind = IncomeWire.Of(source.Kind);
+        row.PayerLabel = source.PayerLabel;
+        row.Note = source.Note;
+        row.EndedOn = source.EndedOn;
+        Mark(row, import);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<StoredIncomeSource>> ReadAllAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
+    {
+        var ids = items.Select(i => i.Value).ToList();
+        var rows = await db.Sources.AsNoTracking().Where(s => ids.Contains(s.ItemId)).OrderBy(s => s.ItemId).ToListAsync(ct);
+        return rows.Select(r => new StoredIncomeSource(ToSource(r), MarkOf(r.ImportRef, r.ImportHash, r.ImportedBy))).ToList();
+    }
+
+    internal static ImportMark? MarkOf(string? importRef, string? hash, Guid? importedBy)
+        => importRef is null ? null : new ImportMark(importRef, hash!.Trim(), new PersonId(importedBy!.Value));
+
     private static void Mark(SourceRow row, ImportMark? import)
     {
         row.ImportRef = import?.Ref;

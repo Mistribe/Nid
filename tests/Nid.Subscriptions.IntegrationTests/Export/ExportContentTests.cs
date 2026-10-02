@@ -172,6 +172,58 @@ public class ExportContentTests(PostgresFixture fixture)
         Assert.DoesNotContain("env-pea", JsonSerializer.Serialize(ofB));
     }
 
+    [Fact]
+    public async Task Income_sources_and_phases_are_exported_as_file_records_ended_ones_included()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CommitAsync(app, app.AdultA, IncomeImportTests.IncomeFile());
+        var zeta = await app.NewIncomeSourceAsync("Zeta", Core.Contracts.Visibility.Shared, (app.AdultA, 10_000));
+        await app.NewIncomeSourceAsync("Secret de B", Core.Contracts.Visibility.Private, (app.AdultB, 10_000));
+
+        var export = await new ExportClient(app).ExportAllAsync(app.AdultA);
+
+        var sources = export["income_sources"];
+        Assert.Equal(["CDD", "Salaire", "Zeta"], sources.Select(s => Text(s, "name")));
+        Assert.Equal(["inc-cdd", "inc-salary-1", $"inc-{zeta.Value:D}"], sources.Select(s => Text(s, "id")));
+        var cdd = sources[0];
+        Assert.Equal(("salary", "EUR", "shared", "2025-06-30"), (Text(cdd, "kind"), Text(cdd, "currency"), Text(cdd, "visibility"), Text(cdd, "ended_on")));
+        Assert.Equal(["adult-1", "adult-2"], cdd.GetProperty("ownership").EnumerateArray().Select(o => Text(o, "person")));
+        Assert.Equal(JsonValueKind.Null, cdd.GetProperty("payer_label").ValueKind);
+        var salary = sources[1];
+        Assert.Equal("Employeur", Text(salary, "payer_label"));
+        Assert.Equal(JsonValueKind.Null, salary.GetProperty("ended_on").ValueKind);
+
+        var phases = export["income_phases"];
+        var expected = new List<(string Source, string Label, string StartsOn, string Id)>
+        {
+            ("inc-cdd", "Salaire de base", "2025-01-01", "ip-cdd"),
+            ("inc-salary-1", "Prime annuelle", "2024-12-15", "ip-3"),
+            ("inc-salary-1", "Salaire de base", "2024-09-01", "ip-1"),
+            ("inc-salary-1", "Salaire de base", "2025-09-01", "ip-2"),
+        };
+        var zetaPhase = phases.Single(p => Text(p, "source") == $"inc-{zeta.Value:D}");
+        Assert.StartsWith("ip-", Text(zetaPhase, "id"));
+        expected.Add(($"inc-{zeta.Value:D}", "Salaire", "2025-01-01", Text(zetaPhase, "id")));
+        Assert.Equal(
+            expected.OrderBy(p => p.Source, StringComparer.Ordinal).ThenBy(p => p.Label, StringComparer.Ordinal).ThenBy(p => p.StartsOn, StringComparer.Ordinal),
+            phases.Select(p => (Text(p, "source"), Text(p, "label"), Text(p, "starts_on"), Text(p, "id"))));
+        var bonus = phases.Single(p => Text(p, "id") == "ip-3");
+        Assert.Equal((1, "year"), (bonus.GetProperty("every").GetProperty("count").GetInt32(), Text(bonus.GetProperty("every"), "unit")));
+        Assert.Equal(JsonValueKind.String, bonus.GetProperty("net_amount").GetProperty("amount").ValueKind);
+        Assert.Equal(1800m, Amount(bonus.GetProperty("net_amount").GetProperty("amount").GetString()!));
+        Assert.Equal(JsonValueKind.Null, bonus.GetProperty("ends_on").ValueKind);
+        Assert.Equal("2025-09-01", Text(phases.Single(p => Text(p, "id") == "ip-1"), "ends_on"));
+        var oneOff = Assert.Single(export["flows"]);
+        Assert.Equal(("f-bonus", "inc-salary-1", "income", "one_off"), (Text(oneOff, "id"), Text(oneOff, "item"), Text(oneOff, "kind"), Text(oneOff, "category")));
+
+        // The other adult's private source is nowhere in adult-1's export.
+        Assert.DoesNotContain("Secret de B", JsonSerializer.Serialize(export));
+        var ofB = await new ExportClient(app).ExportAllAsync(app.AdultB);
+        Assert.Equal(["CDD", "Salaire", "Secret de B", "Zeta"], ofB["income_sources"].Select(s => Text(s, "name")));
+    }
+
+    private static decimal Amount(string amount) => decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture);
+
     private static decimal Amount(JsonElement fact)
         => decimal.Parse(fact.GetProperty("amount").GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
 }

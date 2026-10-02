@@ -40,15 +40,14 @@ public sealed class CloseIncomeSourceHandler(
         if (command.EndedOn > await calendar.TodayAsync(ct))
             return Fail(CoreFactCodes.DateInFuture, "A source cannot end in the future.");
         var all = await phases.ForSourceAsync(command.ItemId, ct);
-        if (all.Any(p => p.StartsOn >= command.EndedOn))
-            return Fail(IncomeCodes.InvalidSource, "A phase starts on or after that date: delete or correct it before ending the source.");
+        if (Ending.Blocks(all, command.EndedOn))
+            return Fail(IncomeCodes.InvalidSource, Ending.Blocked);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         try
         {
-            // A phase already over by then (its end, or its last occurrence's, on or before the date) needs no cut.
-            foreach (var phase in all.Where(p => IncomeMath.EffectiveEnd(p) is not { } end || end > command.EndedOn))
-                await phases.UpdateAsync(phase with { EndsOn = command.EndedOn }, ct);
+            foreach (var cut in Ending.Cuts(all, command.EndedOn))
+                await phases.UpdateAsync(cut, ct);
         }
         catch (PhaseConflictException)
         {
@@ -64,6 +63,30 @@ public sealed class CloseIncomeSourceHandler(
 
     private static Result<ItemId> Fail(string code, string message)
         => Result.Failure<ItemId>(new Failure(code, message, new Dictionary<string, object?> { ["field"] = "endedOn" }));
+}
+
+/// <summary>
+/// What ending a source on a date does to its phases (spec §4): the rule of <c>close</c>, and of an import's
+/// <c>ended_on</c> (spec §5), so that both end a source the same way.
+/// </summary>
+internal static class Ending
+{
+    public const string Blocked = "A phase starts on or after that date: delete or correct it before ending the source.";
+
+    /// <summary>A phase that starts on or after the end would never run: the ending is refused.</summary>
+    public static bool Blocks(IEnumerable<IncomePhase> phases, LocalDate endedOn) => phases.Any(p => p.StartsOn >= endedOn);
+
+    /// <summary>
+    /// The phase cut on the end when it still runs then; one already over by then (its end, or its last occurrence's,
+    /// on or before the date) is left as it is.
+    /// </summary>
+    public static IncomePhase Cut(IncomePhase phase, LocalDate endedOn) => RunsPast(phase, endedOn) ? phase with { EndsOn = endedOn } : phase;
+
+    /// <summary>The phases the end cuts, cut.</summary>
+    public static IReadOnlyList<IncomePhase> Cuts(IEnumerable<IncomePhase> phases, LocalDate endedOn)
+        => phases.Where(p => RunsPast(p, endedOn)).Select(p => p with { EndsOn = endedOn }).ToList();
+
+    private static bool RunsPast(IncomePhase phase, LocalDate endedOn) => IncomeMath.EffectiveEnd(phase) is not { } end || end > endedOn;
 }
 
 /// <summary>The phases stay as the ending left them (spec §4); adding a phase afterwards is the person's choice.</summary>

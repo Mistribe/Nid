@@ -212,6 +212,8 @@ public static class RequestCatalogue
         new(typeof(ExportManifestQuery), false, (_, _) => new ExportManifestQuery()),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("subscriptions", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("envelopes", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("income_sources", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("income_phases", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
 

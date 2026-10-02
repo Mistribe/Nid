@@ -50,6 +50,36 @@ public sealed class PhaseStore(IncomeDbContext db) : IPhaseStore
         await SaveAsync(id, ct);
     }
 
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedIncomePhase>>> FindImportedAsync(
+        IReadOnlyCollection<string> refs, CancellationToken ct)
+    {
+        var wanted = refs.Distinct(StringComparer.Ordinal).ToList();
+        var rows = await db.Phases.AsNoTracking().Where(r => r.ImportRef != null && wanted.Contains(r.ImportRef))
+            .Select(r => new { r.Id, r.SourceItemId, r.ImportRef, r.ImportHash, r.ImportedBy }).ToListAsync(ct);
+        return rows.GroupBy(r => r.ImportRef!, StringComparer.Ordinal).ToDictionary(
+            g => g.Key,
+            g => (IReadOnlyList<ImportedIncomePhase>)g
+                .Select(r => new ImportedIncomePhase(r.Id, new ItemId(r.SourceItemId), r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value))).ToList(),
+            StringComparer.Ordinal);
+    }
+
+    public async Task ReplaceAsync(IncomePhase phase, ImportMark import, CancellationToken ct)
+    {
+        var row = await TrackedAsync(phase.Source, phase.Id, phase.Version, ct);
+        Fill(row, phase);
+        row.ImportRef = import.Ref;
+        row.ImportHash = import.Hash;
+        row.ImportedBy = import.ImportedBy.Value;
+        await SaveAsync(phase.Id, ct);
+    }
+
+    public async Task<IReadOnlyList<StoredIncomePhase>> ReadAllAsync(IReadOnlyCollection<ItemId> sources, CancellationToken ct)
+    {
+        var ids = sources.Select(s => s.Value).ToList();
+        var rows = await db.Phases.AsNoTracking().Where(p => ids.Contains(p.SourceItemId)).OrderBy(p => p.Id).ToListAsync(ct);
+        return rows.Select(r => new StoredIncomePhase(ToPhase(r), SourceStore.MarkOf(r.ImportRef, r.ImportHash, r.ImportedBy))).ToList();
+    }
+
     private async Task SaveAsync(Guid id, CancellationToken ct)
     {
         try

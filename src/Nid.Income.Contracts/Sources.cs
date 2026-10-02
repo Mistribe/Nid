@@ -39,6 +39,15 @@ public sealed record IncomePhase(
 public sealed record IncomeSourceChange(
     IncomeKind? Kind = null, string? PayerLabel = null, bool ClearPayerLabel = false, string? Note = null, bool ClearNote = false);
 
+/// <summary>A source imported under a file id: its item, the entity's hash, and who imported it.</summary>
+public sealed record ImportedIncomeSource(ItemId Item, string Hash, PersonId ImportedBy);
+
+/// <summary>A phase imported under a file id: its id, its source, the entity's hash, and who imported it.</summary>
+public sealed record ImportedIncomePhase(Guid Id, ItemId Source, string Hash, PersonId ImportedBy);
+
+public sealed record StoredIncomeSource(IncomeSource Source, ImportMark? Import);
+public sealed record StoredIncomePhase(IncomePhase Phase, ImportMark? Import);
+
 public interface ISourceStore
 {
     Task CreateAsync(IncomeSource source, ImportMark? import, CancellationToken ct);
@@ -51,6 +60,15 @@ public interface ISourceStore
     Task UpdateAsync(ItemId item, IncomeSourceChange change, CancellationToken ct);
 
     Task SetEndedOnAsync(ItemId item, LocalDate? endedOn, CancellationToken ct);
+
+    /// <summary>Every importer's sources under these file ids: the import section decides which one the importer may see.</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedIncomeSource>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>Every attribute and the import mark, in place (1F3b replace).</summary>
+    Task ReplaceAsync(IncomeSource source, ImportMark import, CancellationToken ct);
+
+    /// <summary>The items of <paramref name="items"/> that are sources, with their import marks (the export).</summary>
+    Task<IReadOnlyList<StoredIncomeSource>> ReadAllAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
 }
 
 public interface IPhaseStore
@@ -70,6 +88,18 @@ public interface IPhaseStore
 
     /// <summary>Throws <see cref="PhaseConflictException"/> when <paramref name="version"/> is not the stored one.</summary>
     Task DeleteAsync(ItemId source, Guid id, uint version, CancellationToken ct);
+
+    /// <summary>Every importer's phases under these file ids, on any source.</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedIncomePhase>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>
+    /// Every value and the import mark, in place by id on its source (1F3b replace). Throws
+    /// <see cref="PhaseConflictException"/> when the phase changed since it was read on this transaction, or is gone.
+    /// </summary>
+    Task ReplaceAsync(IncomePhase phase, ImportMark import, CancellationToken ct);
+
+    /// <summary>The phases of <paramref name="sources"/>, with their import marks (the export).</summary>
+    Task<IReadOnlyList<StoredIncomePhase>> ReadAllAsync(IReadOnlyCollection<ItemId> sources, CancellationToken ct);
 }
 
 /// <summary>

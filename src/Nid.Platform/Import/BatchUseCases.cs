@@ -20,8 +20,7 @@ public static class ImportSections
     public static IReadOnlySet<string> NotYetSupported { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases",
-        "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "income_sources", "income_phases",
-        "documents",
+        "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "documents",
     };
 }
 
