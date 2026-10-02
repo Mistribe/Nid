@@ -64,8 +64,8 @@ Voir aussi `../architecture.md` §11.
 | **NuGet** | Gestion centralisée des versions, fichiers de verrouillage, restauration verrouillée en CI |
 | **npm** | `npm ci`, fichier de verrouillage, **scripts d'installation désactivés en CI** quand possible |
 | **Python** (workers) | Dépendances avec empreintes (`--require-hashes`), peu de dépendances |
-| **Images** | Épinglées par **empreinte**, bases minimales, analyse (Trivy ou Grype) et **SBOM CycloneDX** en CI ; signature (cosign) optionnelle |
-| **CI** | Jetons à moindre privilège, actions **épinglées par SHA**, protection de branche, aucun secret exposé aux forks |
+| **Images** | Épinglées par **empreinte**, bases minimales, **SBOM CycloneDX** en CI, analysé par Trivy (échec sur CRITICAL), sa liste de composants dans le résumé du job ; signature (cosign) optionnelle |
+| **CI** | Jetons à moindre privilège, actions **épinglées par SHA**, protection de branche, aucun secret exposé aux forks, **aucun stockage d'artefacts** (le SBOM se régénère depuis le commit ; le contexte d'erreur d'un parcours E2E est imprimé dans le journal) |
 | **Modèles** | Épinglés par empreinte, mise à jour manuelle |
 | **Nouvelle dépendance** | **Revue obligatoire** : ancienneté, adoption, mainteneurs, licence, et **existence réelle du paquet**. Les assistants de code peuvent inventer des noms de paquets |
 | **Dépendances peu adoptées** | Synapse (environ 3 000 téléchargements) : version **épinglée**, code relu à l'adoption, usage limité à `Application` et au host, fork possible (MIT) |

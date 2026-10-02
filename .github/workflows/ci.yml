@@ -75,18 +75,23 @@ jobs:
         run: docker run --rm --entrypoint nid-backup-test nid-backup:local
       # The Docker socket is mounted into Trivy here only, to read the local images; never into the application
       # (security/infrastructure.md §1).
-      - name: SBOM (CycloneDX) and scan (fails on CRITICAL)
+      # No artifact storage: the SBOM is what gets scanned, and its component list goes to the job summary. It is
+      # rebuilt identically from the commit when needed.
+      - name: SBOM (CycloneDX) and scan of the SBOM (fails on CRITICAL)
         run: |
           for image in nid-api nid-web nid-backup; do
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/out "$TRIVY" \
               image --quiet --format cyclonedx --output "/out/sbom-$image.cdx.json" "$image:local"
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.trivyignore":/.trivyignore "$TRIVY" \
-              image --quiet --severity CRITICAL --exit-code 1 --ignorefile /.trivyignore "$image:local"
+            docker run --rm -v "$PWD":/out -v "$PWD/.trivyignore":/.trivyignore "$TRIVY" \
+              sbom --quiet --severity CRITICAL --exit-code 1 --ignorefile /.trivyignore "/out/sbom-$image.cdx.json"
+            {
+              echo "<details><summary>$image: $(jq '.components | length' "sbom-$image.cdx.json") components</summary>"
+              echo
+              jq -r '.components[] | "- \(.name) \(.version // "")"' "sbom-$image.cdx.json" | sort -u
+              echo
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
           done
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: sbom
-          path: sbom-*.cdx.json
       - name: Smoke test of the reference compose
         run: deploy/smoke.sh
       - name: Backup and restore test
@@ -97,10 +102,13 @@ jobs:
           docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml -f deploy/local/compose.backup-test.yaml \
             logs --no-color | tail -300
           docker compose -p nid-restore-test logs --no-color | tail -100 || true
-      # Playwright's traces and page snapshots of a failed journey: `pnpm exec playwright show-trace <trace.zip>`.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      # The page snapshot Playwright writes for a failed journey, printed rather than uploaded (no artifact storage);
+      # the full trace comes from replaying the journey locally.
+      - name: Playwright error context
         if: failure()
-        with:
-          name: playwright-results
-          path: web/test-results/
-          if-no-files-found: ignore
+        run: |
+          find web/test-results -name 'error-context.md' 2>/dev/null | while read -r file; do
+            echo "::group::$file"
+            cat "$file"
+            echo "::endgroup::"
+          done
