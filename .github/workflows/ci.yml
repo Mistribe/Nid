@@ -100,8 +100,8 @@ jobs:
         if: failure()
         run: |
           docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml -f deploy/local/compose.backup-test.yaml \
-            logs --no-color | tail -300
-          docker compose -p nid-restore-test logs --no-color | tail -100 || true
+            logs --no-color --timestamps | tail -300
+          docker compose -p nid-restore-test logs --no-color --timestamps | tail -100 || true
       # The page snapshot Playwright writes for a failed journey, printed rather than uploaded (no artifact storage);
       # the full trace comes from replaying the journey locally.
       - name: Playwright error context

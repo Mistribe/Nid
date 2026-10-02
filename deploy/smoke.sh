@@ -8,10 +8,21 @@ PASSWORD='Nid-Dev-User-1!'
 URL=https://nid.localtest.me
 # NID_SMOKE set in front of a call reaches the function, not its children: pass it on explicitly.
 playwright() { NID_URL=$URL NID_SMOKE=${NID_SMOKE:-} pnpm --dir ../web exec playwright test "$@"; }
+# nid-api has no healthcheck (a chiseled image), so `up --wait` can return before it listens: wait for its readiness
+# through nid-web, which proxies /health/ready to it, before a test opens a page.
+api_ready() {
+  for _ in $(seq 60); do
+    "${COMPOSE[@]}" exec -T nid-web wget -q --spider http://127.0.0.1:8080/health/ready 2>/dev/null && return 0
+    sleep 2
+  done
+  echo "FAIL: nid-api not ready after 120 s" >&2
+  exit 1
+}
 
 ./setup.sh --nid-host nid.localtest.me --auth-host auth.localtest.me --user alice --name "Alice Dev" \
   --email alice@example.test --password "$PASSWORD" --extra-user "bob:Bob Dev:bob@example.test"
 "${COMPOSE[@]}" up -d --build --wait --wait-timeout 300
+api_ready
 echo "ok: every service is up and healthy"
 
 # Both adults pre-registered, alice as admin: the first sign-in provisions an adult only when the base has none (1G),
@@ -53,6 +64,7 @@ echo "ok: journeys"
 NID_SMOKE=1 playwright e2e/restart.smoke.ts --grep "before"
 "${COMPOSE[@]}" restart nid-api
 "${COMPOSE[@]}" up -d --wait --wait-timeout 120 nid-web
+api_ready
 NID_SMOKE=1 playwright e2e/restart.smoke.ts --grep "after"
 echo "ok: a session survives a restart of nid-api"
 

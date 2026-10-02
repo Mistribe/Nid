@@ -14,6 +14,15 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 backup() { "${COMPOSE[@]}" exec -T backup nid-backup "$@"; }
 in_backup() { "${COMPOSE[@]}" exec -T backup sh -c "$1"; }
 snapshots() { in_backup "$R snapshots --json | jq length"; }
+# nid-api has no healthcheck (a chiseled image), so `up --wait` can return before it listens: wait for its readiness
+# through nid-web, which proxies /health/ready to it, before a test opens a page.
+api_ready() {
+  for _ in $(seq 60); do
+    "${COMPOSE[@]}" exec -T nid-web wget -q --spider http://127.0.0.1:8080/health/ready 2>/dev/null && return 0
+    sleep 2
+  done
+  fail "nid-api not ready after 120 s"
+}
 
 # A previous run left its remote configured: the first checks are about the local repository alone.
 rm -f backup-secrets/remote_repository
@@ -143,6 +152,7 @@ backup backup-now
 rm -rf secrets .env authelia/configuration.yml authelia/users.yml
 ./restore.sh
 "${COMPOSE[@]}" up -d --wait --wait-timeout 180
+api_ready
 playwright e2e/backup.smoke.ts --grep "after"
 echo "ok: after a disaster, a backup restores into a new stack with its sessions and data"
 
