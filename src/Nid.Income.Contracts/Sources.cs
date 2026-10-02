@@ -65,8 +65,15 @@ public interface IPhaseStore
 
     Task<IncomePhase> AddAsync(IncomePhase phase, ImportMark? import, CancellationToken ct);
 
-    /// <summary>Throws DbUpdateConcurrencyException when <paramref name="phase"/>.Version is not the stored one.</summary>
+    /// <summary>Throws <see cref="PhaseConflictException"/> when <paramref name="phase"/>.Version is not the stored one.</summary>
     Task<IncomePhase> UpdateAsync(IncomePhase phase, CancellationToken ct);
 
+    /// <summary>Throws <see cref="PhaseConflictException"/> when <paramref name="version"/> is not the stored one.</summary>
     Task DeleteAsync(ItemId source, Guid id, uint version, CancellationToken ct);
 }
+
+/// <summary>
+/// A phase changed or removed since the caller read it (its <c>xmin</c> moved): the store's own concurrency failure,
+/// in terms the Application can catch without the persistence library. The handlers answer <c>income.phase_conflict</c>.
+/// </summary>
+public sealed class PhaseConflictException(string message, Exception? inner = null) : Exception(message, inner);

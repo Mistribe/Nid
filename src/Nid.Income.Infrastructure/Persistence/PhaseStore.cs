@@ -40,24 +40,36 @@ public sealed class PhaseStore(IncomeDbContext db) : IPhaseStore
     {
         var row = await TrackedAsync(phase.Source, phase.Id, phase.Version, ct);
         Fill(row, phase);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(phase.Id, ct);
         return ToPhase(row);
     }
 
     public async Task DeleteAsync(ItemId source, Guid id, uint version, CancellationToken ct)
     {
         db.Phases.Remove(await TrackedAsync(source, id, version, ct));
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(id, ct);
+    }
+
+    private async Task SaveAsync(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException e)
+        {
+            throw new PhaseConflictException($"Phase {id} changed since it was read.", e);
+        }
     }
 
     /// <summary>
     /// The row, its concurrency token set to the version the caller read: the save then fails with
-    /// <see cref="DbUpdateConcurrencyException"/> when someone changed it since. A phase removed since is the same conflict.
+    /// <see cref="PhaseConflictException"/> when someone changed it since. A phase removed since is the same conflict.
     /// </summary>
     private async Task<PhaseRow> TrackedAsync(ItemId source, Guid id, uint version, CancellationToken ct)
     {
         var row = await db.Phases.SingleOrDefaultAsync(p => p.Id == id && p.SourceItemId == source.Value, ct)
-                  ?? throw new DbUpdateConcurrencyException($"Phase {id} is no longer on source {source}.");
+                  ?? throw new PhaseConflictException($"Phase {id} is no longer on source {source}.");
         db.Entry(row).Property(r => r.Version).OriginalValue = version;
         return row;
     }

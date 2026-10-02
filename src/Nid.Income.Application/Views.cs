@@ -1,7 +1,9 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Income.Contracts;
 using Nid.Income.Domain;
 using NodaTime;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Income.Application;
 
@@ -24,10 +26,53 @@ public sealed record IncomeSourceList(IReadOnlyList<IncomeSourceSummary> Items) 
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }
 
-/// <summary>A source in full; Task 3 adds its phases, its gap warnings and its one-offs after these members.</summary>
+/// <summary>An entered amount on the wire, exact (<see cref="Money.AmountText"/>): a phase's, a one-off's, a month's total.</summary>
+public sealed record IncomeMoneyView(string Amount, string Currency)
+{
+    public static IncomeMoneyView From(Money m) => new(m.AmountText, m.Currency.Code);
+}
+
+public sealed record IncomeDurationView(int Count, string Unit)
+{
+    public static IncomeDurationView From(Duration d) => new(d.Count, d.Unit.ToString().ToLowerInvariant());
+}
+
+/// <summary>A phase with its <c>status</c> today (<c>past</c>, <c>running</c>, <c>upcoming</c>) and the <c>version</c> a correction sends back.</summary>
+public sealed record IncomePhaseView(
+    Guid Id, string Label, LocalDate StartsOn, LocalDate? EndsOn, IncomeMoneyView NetAmount, IncomeDurationView Every,
+    IncomeMoneyView? GrossAmount, int? MaxCycles, string? Note, string Status, IncomeAmountView MonthlyEquivalent, uint Version)
+{
+    internal static IncomePhaseView Of(IncomePhase phase, LocalDate today, Currency currency)
+        => new(phase.Id, phase.Label, phase.StartsOn, phase.EndsOn, IncomeMoneyView.From(phase.NetAmount), IncomeDurationView.From(phase.Every),
+            phase.GrossAmount is { } gross ? IncomeMoneyView.From(gross) : null, phase.MaxCycles, phase.Note,
+            phase.EndsOn is { } end && end <= today ? "past" : phase.StartsOn > today ? "upcoming" : "running",
+            IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(phase), currency), phase.Version);
+}
+
+public sealed record IncomeGapView(string Label, LocalDate EndsOn);
+
+/// <summary>A one-off income: a Core flow <c>income</c> of category <c>one_off</c> on the source's item.</summary>
+public sealed record IncomeOneOffView(Guid Id, LocalDate OccurredOn, IncomeMoneyView Amount, string? Note)
+{
+    internal static IncomeOneOffView Of(Flow flow) => new(flow.Id, flow.OccurredOn, IncomeMoneyView.From(flow.Amount), flow.Note);
+}
+
+/// <summary>A source in full: its phases, its gap warnings and the one-offs of the last 12 months.</summary>
 public sealed record IncomeSourceDetail(
     ItemId Id, string DisplayName, string Kind, string? PayerLabel, string? Note, string Currency, string Visibility,
-    bool CanWrite, bool Ended, LocalDate? EndedOn, IncomeAmountView MonthlyEquivalent) : IExposesItems
+    bool CanWrite, bool Ended, LocalDate? EndedOn, IncomeAmountView MonthlyEquivalent, IReadOnlyList<IncomePhaseView> Phases,
+    IReadOnlyList<IncomeGapView> GapSoon, IReadOnlyList<IncomeOneOffView> OneOffs) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [Id];
+}
+
+public sealed record IncomeOccurrenceView(Guid PhaseId, string Label, LocalDate On, IncomeMoneyView Amount);
+
+/// <summary>A calendar month of expected income; its total is exact, the sum of the entered amounts.</summary>
+public sealed record IncomeExpectedMonth(
+    int Year, int Month, IReadOnlyList<IncomeOccurrenceView> Occurrences, IReadOnlyList<IncomeOneOffView> OneOffs, IncomeMoneyView Total);
+
+public sealed record IncomeExpected(ItemId Id, LocalDate From, LocalDate To, IReadOnlyList<IncomeExpectedMonth> Months) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }

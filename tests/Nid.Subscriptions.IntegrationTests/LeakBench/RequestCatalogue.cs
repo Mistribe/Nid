@@ -248,6 +248,17 @@ public static class RequestCatalogue
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], null, null,
             [new PhaseDraft("bench", new LocalDate(2025, 1, 1), null, Money.Create(1m, Currency.Eur).Ok(), Duration.Create(1, DurationUnit.Month).Ok(), null, null, null)])),
+
+        // A phase id is looked up on the route's source only (IPhaseStore by source), so a phase id alone can never
+        // reach another item: no BuildNamingAnother, as the envelope's facts.
+        new(typeof(AddIncomePhaseCommand), true, (_, item) => new AddIncomePhaseCommand(item,
+            new PhaseDraft("bench", new LocalDate(2025, 1, 1), null, Money.Create(1m, Currency.Eur).Ok(), Duration.Create(1, DurationUnit.Month).Ok(), null, null, null))),
+        new(typeof(EditIncomePhaseCommand), true, (_, item) => new EditIncomePhaseCommand(item, Guid.NewGuid(),
+            new PhaseDraft("bench", new LocalDate(2025, 1, 1), null, Money.Create(1m, Currency.Eur).Ok(), Duration.Create(1, DurationUnit.Month).Ok(), null, null, null), 1)),
+        new(typeof(DeleteIncomePhaseCommand), true, (_, item) => new DeleteIncomePhaseCommand(item, Guid.NewGuid(), 1)),
+        new(typeof(ChangeIncomePhaseCommand), true, (_, item) => new ChangeIncomePhaseCommand(item, "Salaire", new LocalDate(2025, 6, 1),
+            Money.Create(1m, Currency.Eur).Ok(), null, null, null)),
+        new(typeof(GetIncomeExpectedQuery), true, (_, item) => new GetIncomeExpectedQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 12, 31))),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

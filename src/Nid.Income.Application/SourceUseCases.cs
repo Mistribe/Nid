@@ -117,7 +117,8 @@ public sealed class EditIncomeSourceHandler(IItemRegistry items, ISourceStore so
 
 [RequestHandler<GetIncomeSourceQuery, IncomeSourceDetail>]
 public sealed class GetIncomeSourceHandler(
-    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
+    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IHouseholdCalendar calendar, IAccessPolicy policy,
+    IActorAccessor actor)
     : IRequestHandler<GetIncomeSourceQuery, IncomeSourceDetail>
 {
     public async ValueTask<Result<IncomeSourceDetail>> HandleAsync(GetIncomeSourceQuery query, CancellationToken ct = default)
@@ -132,9 +133,28 @@ public sealed class GetIncomeSourceHandler(
         var currency = SourceCheck.CurrencyOf(item);
         var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
 
+        // The one-offs of the last 12 months: a year before today, inclusive, to today.
+        var lastYear = DateRange.Create(today.PlusYears(-1), today.PlusDays(1)).TryGetValue(out var range) ? range : throw new InvalidOperationException();
+        var oneOffs = await OneOffsAsync(flows, query.ItemId, lastYear, ct);
+        if (oneOffs.TryGetFailure(out failure))
+            return Result.Failure<IncomeSourceDetail>(failure!);
+        oneOffs.TryGetValue(out var recent);
+
         return Result.Success(new IncomeSourceDetail(
             query.ItemId, item.DisplayName, IncomeWire.Of(s.Kind), s.PayerLabel, s.Note, currency.Code, Wire(item.Visibility),
-            canWrite, item.ArchivedAt is not null, s.EndedOn, IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(list, today), currency)));
+            canWrite, item.ArchivedAt is not null, s.EndedOn, IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(list, today), currency),
+            list.Select(p => IncomePhaseView.Of(p, today, currency)).ToList(),
+            IncomeMath.Gaps(list, today).Select(g => new IncomeGapView(g.Label, g.EndsOn)).ToList(),
+            recent!.Select(IncomeOneOffView.Of).ToList()));
+    }
+
+    /// <summary>The source's one-off income in <paramref name="range"/>: its Core flows <c>income</c> of category <c>one_off</c>.</summary>
+    internal static async Task<Result<IReadOnlyList<Flow>>> OneOffsAsync(IFlows flows, ItemId source, DateRange range, CancellationToken ct)
+    {
+        var listed = await flows.ListAsync(source, range, new HashSet<FlowKind> { FlowKind.Income }, ct);
+        if (!listed.TryGetValue(out var all))
+            return listed;
+        return Result.Success<IReadOnlyList<Flow>>(all!.Where(f => f.Category == IncomeWire.OneOffCategory).ToList());
     }
 
     internal static string Wire(Visibility visibility) => visibility == Visibility.Private ? "private" : "shared";

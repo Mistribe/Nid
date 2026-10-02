@@ -35,6 +35,49 @@ public static class IncomeEndpoints
             => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
+        api.MapPost("/sources/{id:guid}/phases", async (Guid id, IncomePhaseBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader, "");
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AddIncomePhaseCommand(new ItemId(id), draft), ct))
+                        .ToHttp(phase => new IdResponse(phase), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/sources/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, IncomePhaseCorrectionBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), phaseId, reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(phase => new IdResponse(phase));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/sources/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, uint version, IInvoker invoker, CancellationToken ct) =>
+            {
+                // Written explicitly, as a person's removal: ToHttp would still write a JSON body, which a 204 must not carry.
+                var result = await invoker.InvokeAsync(new DeleteIncomePhaseCommand(new ItemId(id), phaseId, version), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapPost("/sources/{id:guid}/phase-changes", async (Guid id, IncomePhaseChangeBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(phase => new IdResponse(phase), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapGet("/sources/{id:guid}/expected", async (Guid id, string from, string to, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetIncomeExpectedQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(e => e))
+            .Returns<IncomeExpected>();
+
         return routes;
     }
 
@@ -74,13 +117,50 @@ public static class IncomeEndpoints
     {
         internal PhaseDraft? Read(FieldReader reader, string path)
         {
-            var startsOn = reader.Date(StartsOn, path + ".startsOn");
-            var endsOn = reader.Date(EndsOn, path + ".endsOn", required: false);
-            var net = reader.Money(NetAmount, path + ".netAmount");
-            var every = reader.Duration(Every, path + ".every");
-            var gross = GrossAmount is null ? null : reader.Money(GrossAmount, path + ".grossAmount");
+            var startsOn = reader.Date(StartsOn, At(path, "startsOn"));
+            var endsOn = reader.Date(EndsOn, At(path, "endsOn"), required: false);
+            var net = reader.Money(NetAmount, At(path, "netAmount"));
+            var every = reader.Duration(Every, At(path, "every"));
+            var gross = GrossAmount is null ? null : reader.Money(GrossAmount, At(path, "grossAmount"));
             return startsOn is { } s && net is { } n && every is { } e && (GrossAmount is null || gross is not null)
                 ? new PhaseDraft(Label, s, endsOn, n, e, gross, MaxCycles, Note)
+                : null;
+        }
+
+        // A phase of the source's body sits under phases[i]; the phase routes' body is the phase itself.
+        private static string At(string prefix, string field) => prefix == "" ? field : $"{prefix}.{field}";
+    }
+
+    /// <summary>
+    /// A correction: every field of the phase, plus the <c>version</c> read with it. A missing version answers 422 at
+    /// <c>version</c>: it would otherwise bind to 0 and pass for a conflict.
+    /// </summary>
+    public sealed record IncomePhaseCorrectionBody(
+        string Label, string StartsOn, string? EndsOn, MoneyBody? NetAmount, DurationBody? Every, MoneyBody? GrossAmount,
+        int? MaxCycles, string? Note, uint? Version)
+    {
+        internal EditIncomePhaseCommand? ToCommand(ItemId source, Guid phase, FieldReader reader)
+        {
+            var draft = new IncomePhaseBody(Label, StartsOn, EndsOn, NetAmount, Every, GrossAmount, MaxCycles, Note).Read(reader, "");
+            if (Version is null)
+                reader.Add("version", "request.required", "The version read with the phase is required.");
+            return reader.Ok ? new EditIncomePhaseCommand(source, phase, draft!, Version!.Value) : null;
+        }
+    }
+
+    /// <summary>A change of phase (spec §4): <c>every</c> is the old phase's when omitted.</summary>
+    public sealed record IncomePhaseChangeBody(
+        string? Label, string? EffectiveOn, MoneyBody? NetAmount, DurationBody? Every, MoneyBody? GrossAmount, string? Note)
+    {
+        internal ChangeIncomePhaseCommand? ToCommand(ItemId source, FieldReader reader)
+        {
+            var label = reader.Text(Label, "label");
+            var effectiveOn = reader.Date(EffectiveOn, "effectiveOn");
+            var net = reader.Money(NetAmount, "netAmount");
+            var every = reader.Duration(Every, "every", required: false);
+            var gross = GrossAmount is null ? null : reader.Money(GrossAmount, "grossAmount");
+            return reader.Ok
+                ? new ChangeIncomePhaseCommand(source, label!, effectiveOn!.Value, net!.Value, every, gross, Note)
                 : null;
         }
     }
