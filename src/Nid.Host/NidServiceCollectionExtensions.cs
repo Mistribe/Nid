@@ -8,6 +8,8 @@ using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Admin;
 using Nid.Host.Jobs;
+using Nid.Income.Contracts;
+using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Application.Import;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
@@ -62,6 +64,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, CoreAuditMap>();
         services.AddSingleton<IAuditMap, SubscriptionsAuditMap>();
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
+        services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -88,7 +91,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -130,6 +133,15 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
+
+        services.AddDbContext<IncomeDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", IncomeDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<IncomeDbContext>>();
+        services.AddScoped<ISourceStore, SourceStore>();
+        services.AddScoped<IPhaseStore, PhaseStore>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.
@@ -173,6 +185,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Core.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
         });
         return services;
     }

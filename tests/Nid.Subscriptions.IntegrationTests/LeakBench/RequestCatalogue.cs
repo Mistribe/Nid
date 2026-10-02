@@ -4,6 +4,8 @@ using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
+using Nid.Income.Application;
+using Nid.Income.Contracts;
 using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Platform;
@@ -239,6 +241,13 @@ public static class RequestCatalogue
         new(typeof(ReopenEnvelopeCommand), true, (_, item) => new ReopenEnvelopeCommand(item)),
         new(typeof(GetEnvelopeSeriesQuery), true, (_, item) => new GetEnvelopeSeriesQuery(item)),
         new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
+
+        new(typeof(ListIncomeSourcesQuery), false, (_, _) => new ListIncomeSourcesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
+        new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
+        new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], null, null,
+            [new PhaseDraft("bench", new LocalDate(2025, 1, 1), null, Money.Create(1m, Currency.Eur).Ok(), Duration.Create(1, DurationUnit.Month).Ok(), null, null, null)])),
     ];
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();

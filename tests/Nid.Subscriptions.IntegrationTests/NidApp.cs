@@ -294,6 +294,49 @@ public sealed class NidApp : IAsyncDisposable
         return new ItemId(created.GetProperty("id").GetGuid());
     }
 
+    /// <summary>Creates the Core item and the income source through the real API (2C1), with no phase.</summary>
+    public async Task<ItemId> NewIncomeSourceAsync(
+        string name, PersonId owner, string visibility = "shared", string currency = "EUR", string kind = "salary")
+    {
+        var response = await RawAsync(owner, HttpMethod.Post, "/api/v1/income/sources", new
+        {
+            displayName = name, kind, currency, visibility,
+            owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
+    /// An income source owned by <paramref name="owners"/>, through the real API — the income counterpart of
+    /// <see cref="NewOwnedSubscriptionAsync"/>, created by an adult owner, or by A when only the dependent owns it.
+    /// It has one monthly phase whose note is <paramref name="name"/>, so a textual scan finds a phase read by the wrong adult.
+    /// </summary>
+    public async Task<ItemId> NewIncomeSourceAsync(
+        string name, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
+    {
+        var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == AdultA || p == AdultB, AdultA);
+
+        var response = await RawAsync(creator, HttpMethod.Post, "/api/v1/income/sources", new
+        {
+            displayName = name, kind = "salary", currency = "EUR",
+            visibility = visibility == Visibility.Private ? "private" : "shared",
+            owners = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+            phases = new[]
+            {
+                new
+                {
+                    label = "Salaire", startsOn = "2025-01-01", netAmount = new { amount = "1000", currency = "EUR" },
+                    every = new { count = 1, unit = "month" }, note = name,
+                },
+            },
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
     /// <summary>
     /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
     /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the

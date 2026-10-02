@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
+using Nid.Income.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
@@ -129,6 +130,8 @@ public static class ResultHttp
                 or CoreFactCodes.FactConflict => StatusCodes.Status409Conflict,
             _ when failure.Code is InvestmentsCodes.EnvelopeClosed or InvestmentsCodes.EnvelopeOpen => StatusCodes.Status409Conflict,
             _ when failure.Code == InvestmentsCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
+            _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
+            _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 

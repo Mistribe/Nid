@@ -1,0 +1,52 @@
+using Nid.Core.Contracts;
+using Nid.Income.Contracts;
+using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
+using Duration = Nid.Core.Contracts.Duration;
+
+namespace Nid.Income.Application;
+
+/// <summary>2C1 spec §2 rules of a phase; the API's creation, the phase routes (Task 3) and the import (Task 5) share them.</summary>
+internal static class PhaseRules
+{
+    public const int LabelMax = 60;
+    public const int NoteMax = 2000;
+
+    /// <summary>Spec §2: one phase alone. Fields are the API's (label, startsOn, endsOn, every, grossAmount, maxCycles, note).</summary>
+    public static Result Check(string? label, LocalDate startsOn, LocalDate? endsOn, Money net, Duration every, Money? gross, int? maxCycles, string? note, Currency currency)
+    {
+        if (label is null || label.Trim().Length is < 1 or > LabelMax)
+            return Invalid(IncomeCodes.InvalidPhase, "label", $"A label is 1 to {LabelMax} characters, and not only whitespace.");
+        if (endsOn is { } end && end <= startsOn)
+            return Invalid(IncomeCodes.InvalidPhase, "endsOn", "A phase ends after it starts.");
+        if (!(every.Unit == DurationUnit.Month && every.Count is >= 1 and <= 12 || every.Unit == DurationUnit.Year && every.Count == 1))
+            return Invalid(IncomeCodes.UnknownCadence, "every", "A phase comes every 1 to 12 months, or every year.");
+        if (net.Amount <= 0)
+            return Invalid(CoreFactCodes.AmountNotPositive, "netAmount", "A net amount is more than zero.");
+        if (gross is { Amount: <= 0 })
+            return Invalid(CoreFactCodes.AmountNotPositive, "grossAmount", "A gross amount is more than zero.");
+        if (net.Currency != currency || gross is { } g && g.Currency != currency)
+            return Invalid(CoreFactCodes.CurrencyMismatch, net.Currency != currency ? "netAmount" : "grossAmount", $"This source's amounts are in {currency.Code}.");
+        if (maxCycles is < 1)
+            return Invalid(IncomeCodes.InvalidPhase, "maxCycles", "A phase has at least one occurrence.");
+        if (note is { Length: > NoteMax })
+            return Invalid(IncomeCodes.InvalidPhase, "note", $"A note has at most {NoteMax} characters.");
+        return Result.Success();
+    }
+
+    /// <summary>Spec §2: no two phases of one label overlap; <paramref name="others"/> excludes the phase itself.</summary>
+    public static Result NoOverlap(string label, LocalDate startsOn, LocalDate? endsOn, IEnumerable<IncomePhase> others)
+        => others.Any(o => o.Label == label && o.StartsOn < (endsOn ?? LocalDate.MaxIsoValue) && startsOn < (o.EndsOn ?? LocalDate.MaxIsoValue))
+            ? Invalid(IncomeCodes.PhaseOverlap, "startsOn", $"Another '{label}' phase covers part of this period.")
+            : Result.Success();
+
+    /// <summary>The same failure, its field under <paramref name="prefix"/> (<c>phases[1].startsOn</c>): a phase of a larger body.</summary>
+    public static Failure Under(Failure failure, string prefix)
+        => failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) && field is string name
+            ? new Failure(failure.Code, failure.Message, new Dictionary<string, object?>(metadata) { ["field"] = $"{prefix}.{name}" })
+            : failure;
+
+    private static Result Invalid(string code, string field, string message)
+        => Result.Failure(new Failure(code, message, new Dictionary<string, object?> { ["field"] = field }));
+}

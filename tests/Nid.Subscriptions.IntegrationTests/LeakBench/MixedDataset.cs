@@ -39,12 +39,16 @@ public sealed class MixedDataset
 
     private readonly Dictionary<ItemId, string> names;
 
-    private MixedDataset(NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes)
+    private MixedDataset(
+        NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
+        IReadOnlyDictionary<string, ItemId> incomeSources)
     {
-        (App, Items, Envelopes) = (app, items, envelopes);
+        (App, Items, Envelopes, IncomeSources) = (app, items, envelopes, incomeSources);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
+        foreach (var (name, source) in incomeSources)
+            names[source] = name + " (income)";
     }
 
     public NidApp App { get; }
@@ -58,15 +62,23 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> Envelopes { get; }
 
+    /// <summary>
+    /// The income twin of each row (2C1): same §2 name, label, owners and visibility, one phase. The Income requests run
+    /// against these.
+    /// </summary>
+    public IReadOnlyDictionary<string, ItemId> IncomeSources { get; }
+
     public ItemId this[string name] => Items[name];
 
     /// <summary>
     /// The rows a request is run against: the envelope twins for a request of <c>Nid.Investments.Application</c>
-    /// (a subscription is not an envelope, so it would only ever be refused on its own merits), the
-    /// subscriptions for every other one.
+    /// (a subscription is not an envelope, so it would only ever be refused on its own merits), the income twins for
+    /// one of <c>Nid.Income.Application</c>, the subscriptions for every other one.
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
-        => requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes : Items;
+        => requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
+            : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
+            : Items;
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
     {
@@ -74,6 +86,7 @@ public sealed class MixedDataset
 
         var items = new Dictionary<string, ItemId>();
         var envelopes = new Dictionary<string, ItemId>();
+        var incomeSources = new Dictionary<string, ItemId>();
         foreach (var row in Rows)
         {
             var owners = row.Owners
@@ -81,6 +94,8 @@ public sealed class MixedDataset
                 .ToArray();
             items[row.Name] = await app.NewOwnedSubscriptionAsync(row.Label, row.Visibility, owners);
             envelopes[row.Name] = await app.NewEnvelopeAsync(row.Label, row.Visibility, owners);
+            // Its one phase carries the label in its note, so the textual scan catches a phase read by the wrong adult.
+            incomeSources[row.Name] = await app.NewIncomeSourceAsync(row.Label, row.Visibility, owners);
 
             // One value and one flow per twin, through the real requests: without facts the valuations and flows
             // export pages are empty for everyone and the output guard would check nothing on them. The label in
@@ -106,7 +121,7 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {name}'s provider failed: {notLinked.Code}");
         }
 
-        return new MixedDataset(app, items, envelopes);
+        return new MixedDataset(app, items, envelopes, incomeSources);
     }
 
     /// <summary>The §2 name of an item, for a failure message that says which row went wrong.</summary>
@@ -118,11 +133,11 @@ public sealed class MixedDataset
 
     /// <summary>
     /// The items each adult may read, read off the table of access-tests.md §2: a row's subscription and its
-    /// envelope twin alike.
+    /// envelope and income twins alike.
     /// </summary>
     public IReadOnlySet<ItemId> ExpectedReadable(PersonId actor)
         => Rows.Where(r => r.Readers.Contains(NameOf(actor)))
-            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name] })
+            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name] })
             .ToHashSet();
 
     /// <summary>Whether access-tests.md §2 says this actor may change this item.</summary>
@@ -134,7 +149,7 @@ public sealed class MixedDataset
     /// <see cref="VisibilityScope.Me"/> — the actor's own ones (<c>Visibility.cs</c>). Asserting equality
     /// rather than containment catches an item that leaks AND one that wrongly disappears.
     /// </summary>
-    /// <paramref name="of"/> is <see cref="Items"/> or <see cref="Envelopes"/>: which of a row's twins to list.
+    /// <paramref name="of"/> is <see cref="Items"/>, <see cref="Envelopes"/> or <see cref="IncomeSources"/>: which of a row's twins to list.
     public IReadOnlySet<ItemId> ExpectedVisible(PersonId actor, VisibilityScope scope, IReadOnlyDictionary<string, ItemId>? of = null)
         => Rows.Where(r => r.Visibility == Visibility.Shared
                            || (scope == VisibilityScope.Me && r.Owners.Contains(NameOf(actor))))

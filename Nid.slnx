@@ -6,8 +6,10 @@
     <Project Path="src/Nid.Core.Domain/Nid.Core.Domain.csproj" />
     <Project Path="src/Nid.Core.Infrastructure/Nid.Core.Infrastructure.csproj" />
     <Project Path="src/Nid.Host/Nid.Host.csproj" />
+    <Project Path="src/Nid.Income.Application/Nid.Income.Application.csproj" />
     <Project Path="src/Nid.Income.Contracts/Nid.Income.Contracts.csproj" />
     <Project Path="src/Nid.Income.Domain/Nid.Income.Domain.csproj" />
+    <Project Path="src/Nid.Income.Infrastructure/Nid.Income.Infrastructure.csproj" />
     <Project Path="src/Nid.Investments.Application/Nid.Investments.Application.csproj" />
     <Project Path="src/Nid.Investments.Contracts/Nid.Investments.Contracts.csproj" />
     <Project Path="src/Nid.Investments.Domain/Nid.Investments.Domain.csproj" />

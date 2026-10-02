@@ -149,18 +149,27 @@ public class LeakBenchTests(PostgresFixture fixture)
                 list.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
 
             // The same, exactly, for the envelope twins (2B1a): the table expects of them what it expects of their rows.
-            var envelopes = await app.GetAsync<EnvelopeListResponse>(actor, $"/api/v1/investments/envelopes?scope={scope}");
+            var envelopes = await app.GetAsync<IdListResponse>(actor, $"/api/v1/investments/envelopes?scope={scope}");
             var expectedEnvelopes = data.ExpectedVisible(
                 actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Envelopes);
             Assert.Equal(
                 expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 envelopes.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+            // And for the income twins (2C1).
+            var sources = await app.GetAsync<IdListResponse>(actor, $"/api/v1/income/sources?scope={scope}");
+            var expectedSources = data.ExpectedVisible(
+                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.IncomeSources);
+            Assert.Equal(
+                expectedSources.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                sources.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
         }
     }
 
-    private sealed record EnvelopeListResponse(IReadOnlyList<EnvelopeListRow> Items);
+    /// <summary>Any module's list, read for its ids only.</summary>
+    private sealed record IdListResponse(IReadOnlyList<IdListRow> Items);
 
-    private sealed record EnvelopeListRow(Guid Id);
+    private sealed record IdListRow(Guid Id);
 
     [Fact]
     public async Task No_read_leaks_the_label_of_the_other_adults_private_item()
@@ -175,6 +184,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                      "/api/v1/subscriptions?scope=me",
                      "/api/v1/investments/envelopes?scope=household",
                      "/api/v1/investments/envelopes?scope=me",
+                     "/api/v1/income/sources?scope=household",
+                     "/api/v1/income/sources?scope=me",
                      "/api/v1/core/persons",
                  })
         {
@@ -391,6 +402,11 @@ public class LeakBenchTests(PostgresFixture fixture)
             [app.AdultA] = [],
             [app.AdultB] = [],
         };
+        var incomeBodies = new Dictionary<PersonId, List<string>>
+        {
+            [app.AdultA] = [],
+            [app.AdultB] = [],
+        };
 
         foreach (var entry in RequestCatalogue.Entries)
         {
@@ -428,6 +444,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                 bodies[actor].Add(serialised);
                 if (rows == data.Envelopes)
                     envelopeBodies[actor].Add(serialised);
+                if (rows == data.IncomeSources)
+                    incomeBodies[actor].Add(serialised);
 
                 Assert.DoesNotContain(data.ForbiddenLabel(actor), serialised, StringComparison.Ordinal);
             }
@@ -435,11 +453,12 @@ public class LeakBenchTests(PostgresFixture fixture)
 
         // Positive control: without it, a rename or a [JsonIgnore] would empty the scan above and nothing
         // would fail. "shared-a" is a label BOTH adults are entitled to read.
-        // The envelope reads get their own: the subscriptions' bodies alone would satisfy the one above.
+        // The envelope and income reads get their own: the subscriptions' bodies alone would satisfy the one above.
         foreach (var actor in new[] { app.AdultA, app.AdultB })
         {
             Assert.Contains(bodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(envelopeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+            Assert.Contains(incomeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
         }
     }
 
