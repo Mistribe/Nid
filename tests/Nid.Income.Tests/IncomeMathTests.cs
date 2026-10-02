@@ -28,7 +28,7 @@ public class IncomeMathTests
             P("Salaire de base 2", D(2024, 1, 1), null, 1900m, Months(1)),
             P("Allocations", D(2024, 1, 1), null, 130m, Months(1)),
         };
-        Assert.Equal(4480m, IncomeMath.MonthlyEquivalent(phases, on, Eur).Amount);
+        Assert.Equal(4480m, IncomeMath.MonthlyEquivalent(phases, on));
     }
 
     [Theory]
@@ -73,8 +73,8 @@ public class IncomeMathTests
     {
         var before = P("Salaire", D(2024, 9, 1), D(2025, 9, 1), 2200m, Months(1));
         var after = P("Salaire", D(2025, 9, 1), null, 2300m, Months(1));
-        Assert.Equal(2200m, IncomeMath.MonthlyEquivalent([before, after], D(2025, 8, 31), Eur).Amount);
-        Assert.Equal(2300m, IncomeMath.MonthlyEquivalent([before, after], D(2025, 9, 1), Eur).Amount);
+        Assert.Equal(2200m, IncomeMath.MonthlyEquivalent([before, after], D(2025, 8, 31)));
+        Assert.Equal(2300m, IncomeMath.MonthlyEquivalent([before, after], D(2025, 9, 1)));
     }
 
     [Fact]
@@ -98,5 +98,38 @@ public class IncomeMathTests
         Assert.Empty(IncomeMath.Gaps([far], today));
         var otherLabel = P("Autre", D(2025, 11, 30), null, 1600m, Months(1));
         Assert.Single(IncomeMath.Gaps([ending, otherLabel], today));
+    }
+
+    [Fact]
+    public void The_aggregate_equivalent_keeps_full_precision_for_uneven_quarters()
+    {
+        var phases = new[] { P("T", D(2025, 1, 1), null, 1000m, Months(3)), P("M", D(2025, 1, 1), null, 2000m, Months(1)) };
+        Assert.Equal(2333.33m, IncomeMath.Round(IncomeMath.MonthlyEquivalent(phases, D(2025, 10, 1))));
+    }
+
+    [Theory]
+    [InlineData(DurationUnit.Day)]
+    [InlineData(DurationUnit.Week)]
+    public void A_cadence_other_than_months_or_years_is_refused(DurationUnit unit)
+    {
+        var every = Duration.Create(1, unit).TryGetValue(out var d) ? d : throw new InvalidOperationException();
+        Assert.Throws<ArgumentOutOfRangeException>(() => IncomeMath.MonthlyEquivalent(P("x", D(2025, 1, 1), null, 100m, every)));
+    }
+
+    [Fact]
+    public void A_phase_ending_exactly_60_days_ahead_is_warned()
+    {
+        var today = D(2025, 10, 1);
+        var edge = P("Bord", D(2025, 1, 1), today.PlusDays(IncomeMath.GapWindowDays), 1500m, Months(1));
+        Assert.Single(IncomeMath.Gaps([edge], today));
+    }
+
+    [Fact]
+    public void A_mid_month_start_excludes_the_earlier_occurrence_and_an_empty_month_totals_zero()
+    {
+        var phase = P("Salaire", D(2025, 1, 10), null, 100m, Months(2));
+        var months = IncomeMath.Expected([phase], [], D(2025, 1, 15), D(2025, 3, 31), Eur);
+        Assert.Equal([(1, 0m), (2, 0m), (3, 100m)], months.Select(m => (m.Month, m.Total.Amount)));
+        Assert.Empty(months[1].Occurrences);
     }
 }

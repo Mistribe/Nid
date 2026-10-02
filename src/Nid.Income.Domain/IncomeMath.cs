@@ -26,18 +26,20 @@ public static class IncomeMath
         }
     }
 
+    /// <summary>Full precision; a phase repeats every month(s) or year(s) only.</summary>
     public static decimal MonthlyEquivalent(IncomePhase phase)
-        => phase.Every.Unit == DurationUnit.Year
-            ? phase.NetAmount.Amount / (12m * phase.Every.Count)
-            : phase.NetAmount.Amount / phase.Every.Count;
+        => phase.Every.Unit switch
+        {
+            DurationUnit.Year => phase.NetAmount.Amount / (12m * phase.Every.Count),
+            DurationUnit.Month => phase.NetAmount.Amount / phase.Every.Count,
+            _ => throw new ArgumentOutOfRangeException(nameof(phase), "A phase repeats every month(s) or year(s)."),
+        };
 
     public static bool IsActive(IncomePhase phase, LocalDate on) => phase.StartsOn <= on && (phase.EndsOn is not { } end || on < end);
 
-    public static Money MonthlyEquivalent(IEnumerable<IncomePhase> phases, LocalDate on, Currency currency)
-    {
-        var sum = phases.Where(p => IsActive(p, on)).Sum(MonthlyEquivalent);
-        return Money.Create(sum, currency).TryGetValue(out var m) ? m : throw new InvalidOperationException("A sum of positive amounts is a valid amount.");
-    }
+    /// <summary>Full-precision sum of the phases active on the date; a Money would refuse more than 4 decimals, so it is rounded only on the wire.</summary>
+    public static decimal MonthlyEquivalent(IEnumerable<IncomePhase> phases, LocalDate on)
+        => phases.Where(p => IsActive(p, on)).Sum(MonthlyEquivalent);
 
     public static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
