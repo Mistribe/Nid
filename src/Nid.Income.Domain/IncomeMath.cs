@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Income.Contracts;
 using NodaTime;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Income.Domain;
 
@@ -39,10 +40,18 @@ public static class IncomeMath
     /// Exclusive: the earlier of <c>ends_on</c> and the date the next occurrence after the last would fall on
     /// (<c>starts_on + max_cycles × every</c>); null when neither bounds the phase.
     /// </summary>
-    public static LocalDate? EffectiveEnd(IncomePhase phase)
+    public static LocalDate? EffectiveEnd(IncomePhase phase) => EffectiveEnd(phase.StartsOn, phase.EndsOn, phase.Every, phase.MaxCycles);
+
+    /// <summary>As <see cref="EffectiveEnd(IncomePhase)"/>, for a phase not stored yet. Never throws: a cap whose date overflows bounds nothing.</summary>
+    public static LocalDate? EffectiveEnd(LocalDate startsOn, LocalDate? endsOn, Duration every, int? maxCycles)
     {
-        LocalDate? capped = phase.MaxCycles is { } max ? phase.Every.AddTo(phase.StartsOn, max) : null;
-        return (phase.EndsOn, capped) switch
+        LocalDate? capped = null;
+        if (maxCycles is { } max)
+        {
+            try { capped = every.AddTo(startsOn, max); }
+            catch (Exception e) when (e is OverflowException or ArgumentOutOfRangeException) { }
+        }
+        return (endsOn, capped) switch
         {
             ({ } e, { } c) => e < c ? e : c,
             ({ } e, null) => e,

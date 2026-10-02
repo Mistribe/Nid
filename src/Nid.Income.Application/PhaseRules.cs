@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Income.Contracts;
+using Nid.Income.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -12,6 +13,9 @@ internal static class PhaseRules
 {
     public const int LabelMax = 60;
     public const int NoteMax = 2000;
+
+    /// <summary>100 years of monthly occurrences: far beyond any real contract, and a bound the dates cannot overflow.</summary>
+    public const int MaxCyclesMax = 1200;
 
     /// <summary>Spec §2: one phase alone. Fields are the API's (label, startsOn, endsOn, every, grossAmount, maxCycles, note).</summary>
     public static Result Check(string? label, LocalDate startsOn, LocalDate? endsOn, Money net, Duration every, Money? gross, int? maxCycles, string? note, Currency currency)
@@ -28,18 +32,24 @@ internal static class PhaseRules
             return Invalid(CoreFactCodes.AmountNotPositive, "grossAmount", "A gross amount is more than zero.");
         if (net.Currency != currency || gross is { } g && g.Currency != currency)
             return Invalid(CoreFactCodes.CurrencyMismatch, net.Currency != currency ? "netAmount" : "grossAmount", $"This source's amounts are in {currency.Code}.");
-        if (maxCycles is < 1)
-            return Invalid(IncomeCodes.InvalidPhase, "maxCycles", "A phase has at least one occurrence.");
+        if (maxCycles is < 1 or > MaxCyclesMax)
+            return Invalid(IncomeCodes.InvalidPhase, "maxCycles", $"A phase has 1 to {MaxCyclesMax} occurrences.");
         if (note is { Length: > NoteMax })
             return Invalid(IncomeCodes.InvalidPhase, "note", $"A note has at most {NoteMax} characters.");
         return Result.Success();
     }
 
-    /// <summary>Spec §2: no two phases of one label overlap; <paramref name="others"/> excludes the phase itself.</summary>
-    public static Result NoOverlap(string label, LocalDate startsOn, LocalDate? endsOn, IEnumerable<IncomePhase> others)
-        => others.Any(o => o.Label == label && o.StartsOn < (endsOn ?? LocalDate.MaxIsoValue) && startsOn < (o.EndsOn ?? LocalDate.MaxIsoValue))
+    /// <summary>
+    /// Spec §2: no two phases of one label overlap, each taken up to its effective end (a capped phase stops after its last
+    /// occurrence); <paramref name="others"/> excludes the phase itself.
+    /// </summary>
+    public static Result NoOverlap(string label, LocalDate startsOn, LocalDate? endsOn, Duration every, int? maxCycles, IEnumerable<IncomePhase> others)
+    {
+        var end = IncomeMath.EffectiveEnd(startsOn, endsOn, every, maxCycles) ?? LocalDate.MaxIsoValue;
+        return others.Any(o => o.Label == label && o.StartsOn < end && startsOn < (IncomeMath.EffectiveEnd(o) ?? LocalDate.MaxIsoValue))
             ? Invalid(IncomeCodes.PhaseOverlap, "startsOn", $"Another '{label}' phase covers part of this period.")
             : Result.Success();
+    }
 
     /// <summary>The same failure, its field under <paramref name="prefix"/> (<c>phases[1].startsOn</c>): a phase of a larger body.</summary>
     public static Failure Under(Failure failure, string prefix)

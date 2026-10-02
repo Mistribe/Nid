@@ -341,4 +341,59 @@ public class OneOffAndClosingTests(PostgresFixture fixture)
         Assert.All(hiddenAnswers, a => Assert.Equal(HttpStatusCode.NotFound, a.Item1));
         Assert.Equal(await AnswersAsync(unused), hiddenAnswers);
     }
+
+    [Fact]
+    public async Task A_phase_after_a_finished_capped_phase_of_its_label_is_accepted_and_one_before_its_end_is_not()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // Occurrences 2023-01-15 and 2024-01-15: effective end 2025-01-15.
+        var id = await NewSourceAsync(app, Phase("Prime", "2023-01-15", "1800", unit: "year", maxCycles: 2));
+
+        var early = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", Phase("Prime", "2024-12-31", "1900", unit: "year"));
+        Assert.Equal("income.phase_overlap", await CodeAsync(early));
+        var after = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", Phase("Prime", "2025-01-15", "1900", unit: "year"));
+
+        await CreatedAsync(after);
+        Assert.Equal(2, (await StoredAsync(app, id)).Count);
+        // The same at creation: a source created with both phases.
+        await NewSourceAsync(app, Phase("Prime", "2023-01-15", "1800", unit: "year", maxCycles: 2), Phase("Prime", "2025-01-15", "1900", unit: "year"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1201)]
+    [InlineData(int.MaxValue)]
+    public async Task The_cap_is_bounded_to_1_through_1200(int maxCycles)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", Phase(maxCycles: maxCycles));
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new AddIncomePhaseCommand(new ItemId(id),
+            new PhaseDraft("Salaire", new LocalDate(2025, 1, 1), null, Money.Create(1m, Currency.Eur).Ok(),
+                Nid.Core.Contracts.Duration.Create(1, DurationUnit.Month).Ok(), null, maxCycles, null)));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("income.invalid_phase", await CodeAsync(refused));
+        Assert.Equal("maxCycles", failure!.Metadata!["field"]);
+        Assert.Empty(await StoredAsync(app, id));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", Phase(maxCycles: 1200)));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}/{id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_change_of_phase_inside_a_capped_phase_ends_where_the_cap_did()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // Monthly from 2025-01-01, 12 occurrences: effective end 2026-01-01.
+        var id = await NewSourceAsync(app, Phase("Salaire", amount: "2000", maxCycles: 12));
+
+        var next = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-07-01", netAmount = new { amount = "2100", currency = "EUR" } }));
+
+        var stored = await StoredAsync(app, id);
+        Assert.Equal(new LocalDate(2025, 7, 1), stored.Single(p => p.Id != next).EndsOn);
+        var opened = stored.Single(p => p.Id == next);
+        Assert.Equal((new LocalDate(2025, 7, 1), (LocalDate?)new LocalDate(2026, 1, 1)), (opened.StartsOn, opened.EndsOn));
+    }
 }

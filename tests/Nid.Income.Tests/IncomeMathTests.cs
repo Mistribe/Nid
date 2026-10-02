@@ -161,4 +161,14 @@ public class IncomeMathTests
         Assert.Empty(IncomeMath.Gaps([capped], D(2025, 6, 1)));
         Assert.Empty(IncomeMath.Gaps([capped, P("Prime", D(2026, 1, 1), null, 120m, Months(1))], D(2025, 11, 15)));
     }
+
+    [Theory]
+    [InlineData(int.MaxValue)]
+    [InlineData(1_000_000)]
+    public void A_cap_whose_date_overflows_never_throws_and_bounds_nothing(int max)
+    {
+        var phase = P("x", D(2025, 1, 1), null, 10m, Months(1), max: max);
+        Assert.Null(IncomeMath.EffectiveEnd(phase));
+        Assert.True(IncomeMath.IsActive(phase, D(2030, 1, 1)));
+    }
 }

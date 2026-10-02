@@ -59,7 +59,7 @@ internal static class OpenSource
         => PhaseRules.Check(d.Label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, currency)
             .TryGetFailure(out var failure)
             ? Result.Failure(failure!)
-            : PhaseRules.NoOverlap(d.Label.Trim(), d.StartsOn, d.EndsOn, others);
+            : PhaseRules.NoOverlap(d.Label.Trim(), d.StartsOn, d.EndsOn, d.Every, d.MaxCycles, others);
 
     public static Failure Conflict()
         => new(IncomeCodes.PhaseConflict, "Someone else changed this phase since you read it; read it again.", null);
@@ -167,12 +167,13 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
         if (command.EffectiveOn <= current.StartsOn)
             return Fail(IncomeCodes.InvalidPhase, "effectiveOn", "A change takes effect after the phase it replaces starts.");
 
-        // The next phase keeps the old one's end (a fixed-term contract keeps its end), never its max_cycles.
-        var next = new IncomePhase(Guid.CreateVersion7(), command.ItemId, current.Label, command.EffectiveOn, current.EndsOn,
+        // The next phase keeps the old one's effective end (a fixed-term contract keeps its end; a capped phase ends where
+        // its last occurrence did), never its max_cycles: it is never open-ended when the old one was bounded.
+        var next = new IncomePhase(Guid.CreateVersion7(), command.ItemId, current.Label, command.EffectiveOn, IncomeMath.EffectiveEnd(current),
             command.NetAmount, command.Every ?? current.Every, command.GrossAmount, null, command.Note);
         if (PhaseRules.Check(next.Label, next.StartsOn, next.EndsOn, next.NetAmount, next.Every, next.GrossAmount, next.MaxCycles,
                 next.Note, source.Currency).TryGetFailure(out failure)
-            || PhaseRules.NoOverlap(next.Label, next.StartsOn, next.EndsOn, source.Phases.Where(p => p.Id != current.Id)).TryGetFailure(out failure))
+            || PhaseRules.NoOverlap(next.Label, next.StartsOn, next.EndsOn, next.Every, next.MaxCycles, source.Phases.Where(p => p.Id != current.Id)).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);

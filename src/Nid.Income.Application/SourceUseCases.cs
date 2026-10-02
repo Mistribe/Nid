@@ -53,7 +53,7 @@ public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore 
             if (PhaseRules.Check(d.Label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, command.Currency).TryGetFailure(out failure))
                 return Result.Failure<ItemId>(PhaseRules.Under(failure!, $"phases[{i}]"));
             var label = d.Label.Trim();
-            if (PhaseRules.NoOverlap(label, d.StartsOn, d.EndsOn, accepted).TryGetFailure(out failure))
+            if (PhaseRules.NoOverlap(label, d.StartsOn, d.EndsOn, d.Every, d.MaxCycles, accepted).TryGetFailure(out failure))
                 return Result.Failure<ItemId>(PhaseRules.Under(failure!, $"phases[{i}]"));
             accepted.Add(new IncomePhase(Guid.CreateVersion7(), default, label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every,
                 d.GrossAmount, d.MaxCycles, d.Note));
