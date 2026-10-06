@@ -108,7 +108,7 @@ export function IncomeSourceDetailPage() {
                 <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id)} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} />
               ) : undefined}
               editing={editingPhase && editingPhase.label === g.label
-                ? { id: editingPhase.id, form: <PhaseForm source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} /> }
+                ? { id: editingPhase.id, form: <PhaseForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} /> }
                 : null} />
           ))}
       </Section>

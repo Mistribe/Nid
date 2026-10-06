@@ -39,7 +39,7 @@ function serveStateful(initial: IncomeSourceDetail = detail()) {
       return new HttpResponse(null, { status: 204 });
     }),
   );
-  return { sent, bump: (id: string) => { current = { ...current, phases: current.phases.map((p) => (p.id === id ? { ...p, version: p.version + 1 } : p)) }; } };
+  return { sent, bump: (id: string, netAmount?: string) => { current = { ...current, phases: current.phases.map((p) => (p.id === id ? { ...p, version: p.version + 1, ...(netAmount ? { netAmount: { amount: netAmount, currency: 'EUR' } } : {}) } : p)) }; } };
 }
 
 const phasesRegion = () => screen.getByRole('region', { name: 'Périodes' });
@@ -124,6 +124,23 @@ describe('phase actions', () => {
 
     expect(await within(form).findByText('Cette période a changé entre-temps : rechargez la page.')).toBeInTheDocument();
     expect(within(form).getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
+  });
+
+  it('reloads a refused correction with the server values, not the stale ones', async () => {
+    const { bump } = serveStateful();
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Corriger' }));
+    const form = screen.getByRole('form', { name: 'Corriger la période' });
+    bump('p2', '2000.00');
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    expect(await within(form).findByText('Cette période a changé entre-temps : rechargez la page.')).toBeInTheDocument();
+    await user.click(within(form).getByRole('button', { name: 'Recharger' }));
+
+    const reloaded = await screen.findByRole('form', { name: 'Corriger la période' });
+    await waitFor(() => expect(within(reloaded).getByLabelText('Montant net')).toHaveValue('2000'));
+    expect(screen.queryByText('Cette période a changé entre-temps : rechargez la page.')).not.toBeInTheDocument();
   });
 
   it('shows a deletion refused because the phase changed meanwhile, with « Recharger »', async () => {
