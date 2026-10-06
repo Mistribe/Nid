@@ -15,8 +15,10 @@ const input = 'rounded-md border px-3 py-2';
  * type, not a generic bound by an interface, so the literal `visibility` / `owners` field names below are cast
  * to `Path<T>` / `ArrayPath<T>`: safe because every `T extends OwnershipValues` has those fields, but not
  * something RHF's generics can see on their own.
+ *
+ * The income form asks its own visibility question (2C2a design §5) and passes `withVisibility={false}`.
  */
-export function OwnershipFields<T extends OwnershipValues>({ form, persons }: { form: UseFormReturn<T>; persons: Person[] }) {
+export function OwnershipFields<T extends OwnershipValues>({ form, persons, withVisibility = true }: { form: UseFormReturn<T>; persons: Person[]; withVisibility?: boolean }) {
   const { t } = useTranslation();
   const owners = useFieldArray({ control: form.control, name: 'owners' as ArrayPath<T> });
   // Same reason as above: `errors.owners` / `errors.visibility` exist on every `T extends OwnershipValues`, but
@@ -26,18 +28,20 @@ export function OwnershipFields<T extends OwnershipValues>({ form, persons }: { 
   const visibilityId = useId();
   return (
     <>
-      <fieldset aria-describedby={visibilityId} className="space-y-1">
-        <legend className="text-sm">{t('wizard.visibility')}</legend>
-        {(['shared', 'private'] as const).map((v) => (
-          <label key={v} className="flex items-center gap-2">
-            <input type="radio" value={v} {...form.register('visibility' as Path<T>)} />
-            {t(`wizard.${v}`)}
-          </label>
-        ))}
-        <p id={visibilityId} className="text-sm text-muted-foreground">
-          {form.watch('visibility' as Path<T>) === 'private' ? t('wizard.private_effect') : t('wizard.shared_effect')}
-        </p>
-      </fieldset>
+      {withVisibility ? (
+        <fieldset aria-describedby={visibilityId} className="space-y-1">
+          <legend className="text-sm">{t('wizard.visibility')}</legend>
+          {(['shared', 'private'] as const).map((v) => (
+            <label key={v} className="flex items-center gap-2">
+              <input type="radio" value={v} {...form.register('visibility' as Path<T>)} />
+              {t(`wizard.${v}`)}
+            </label>
+          ))}
+          <p id={visibilityId} className="text-sm text-muted-foreground">
+            {form.watch('visibility' as Path<T>) === 'private' ? t('wizard.private_effect') : t('wizard.shared_effect')}
+          </p>
+        </fieldset>
+      ) : null}
       <fieldset className="space-y-2">
         <legend className="text-sm">{t('wizard.owners')}</legend>
         {owners.fields.map((row, i) => (
