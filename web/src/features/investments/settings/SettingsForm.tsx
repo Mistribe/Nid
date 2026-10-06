@@ -23,7 +23,7 @@ const PATHS = {
   displayName: 'displayName', kind: 'kind', institution: 'institution', accountHint: 'accountHint',
   valuationCadence: 'valuationCadence', staleAfterDays: 'staleAfterDays', note: 'note',
 } as const;
-/** Fields whose value the server can refuse with `investments.invalid_envelope` (it names none: only metadata). */
+/** Fields whose value the server can refuse with `investments.invalid_envelope` (the server names the field; `soleChangedField` is the fallback for a refusal without one). */
 const TEXT_FIELDS = ['displayName', 'institution', 'accountHint', 'staleAfterDays', 'note'] as const;
 
 const schema = (t: TFunction) => z.object({

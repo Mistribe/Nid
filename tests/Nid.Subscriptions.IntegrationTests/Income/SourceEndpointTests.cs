@@ -143,7 +143,12 @@ public class SourceEndpointTests(PostgresFixture fixture)
         var (_, failure) = await app.InvokeAsync(app.AdultA, BreakingCommand(app, rule));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Equal(code, (await JsonAsync(refused)).GetProperty("code").GetString());
+        var problem = await JsonAsync(refused);
+        Assert.Equal(code, problem.GetProperty("code").GetString());
+        // 2C2a spec §6: the field the rule names reaches the client, so a multi-line form places it on its line.
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        Assert.Equal(field, error.GetProperty("path").GetString());
+        Assert.Equal(code, error.GetProperty("code").GetString());
         Assert.Equal(code, failure?.Code);
         Assert.Equal(field, failure!.Metadata!["field"]);
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);

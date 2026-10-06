@@ -1,6 +1,6 @@
 # Feuille de route et état d'avancement
 
-> Dernière mise à jour : 2026-09-29. **Ce fichier est la référence de l'état du projet.** Le contenu et la valeur de chaque étape restent décrits dans `Project.md` §10 ; les plans d'exécution sont dans `superpowers/plans/`.
+> Dernière mise à jour : 2026-10-06. **Ce fichier est la référence de l'état du projet.** Le contenu et la valeur de chaque étape restent décrits dans `Project.md` §10 ; les plans d'exécution sont dans `superpowers/plans/`.
 > Règle : le dernier commit de chaque plan ou sous-plan met à jour ce fichier (statut, date, décisions prises, écarts). Un statut périmé est un défaut.
 
 Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (avec la raison).
@@ -13,7 +13,7 @@ Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (av
 |---|---|---|---|---|
 | **0. Conception** | Architecture, modèles de données, sécurité, frontend, format d'import, spikes | Terminée | sans objet | **terminé** (2026-09-19) |
 | **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **terminé** (2026-09-29 ; les suggestions de plans du catalogue passent à l'étape 6) |
-| **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | `superpowers/plans/2026-09-29-stage-2-overview.md` | **en cours** (2A, 2B1a, 2B1b, 2B2a, 2B2b et 2C1 terminés ; 2C2 à concevoir) |
+| **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | `superpowers/plans/2026-09-29-stage-2-overview.md` | **en cours** (2A, 2B1a, 2B1b, 2B2a, 2B2b, 2C1 et 2C2a terminés ; 2C2b à concevoir) |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, échéancier, valeur nette | Terminée | à écrire | à faire |
 | **4. Automatisation IA** | Serveur MCP, extraction de documents, file de validation | Terminée | à écrire | à faire |
 | **5. Synchronisation bancaire** | Comptes via DSP2, rapprochement avec les abonnements | **À écrire** | à écrire | à faire |
@@ -148,3 +148,4 @@ documentation en français.
 | 2026-09-30 | Sous-plan 2B2b exécuté de bout en bout (7 tâches, `superpowers/plans/2026-09-30-stage-2b2b-investments-operations.md`) : courbe valeur contre versements nets avec sa vue en tableau, virements entre enveloppes, clôture et réouverture, performance d’une période, réglages ; route `series` et `canWrite` côté serveur, 677 tests web, 1260 tests .NET, parcours E2E prolongé (écrit, non exécuté : la pile locale ne répondait pas). |
 | 2026-09-30 | Sous-plan 2B1b exécuté de bout en bout (7 tâches, `superpowers/plans/2026-09-30-stage-2b1b-investments-import-export.md`) : import et export des placements, sections `envelopes` (avec `closed_on`), `valuations` et `flows` (ces deux-là possédées par le Core), aller-retour couvert par le banc anti-fuite, lien « Voir les placements » après un import et libellés des trois sections à l'écran d'export ; décisions consignées dans `import-format.md` §12bis. 683 tests web, 1300 tests .NET, build à 0 avertissement. |
 | 2026-10-02 | Sous-plan 2C1 exécuté de bout en bout (6 tâches, `superpowers/plans/2026-10-02-stage-2c1-income-server.md`) : module Revenus côté serveur (sources, phases mutables avec leur `version`, changement de phase, revenu attendu, revenus exceptionnels par le Core, clôture et réouverture), sections `income_sources` et `income_phases` (avec `ended_on`), aller-retour et confidentialité de l'export étendus aux revenus ; décisions consignées dans `income-data-model.md` et `import-format.md` §12bis. 1375 tests .NET, build à 0 avertissement. |
+| 2026-10-06 | Sous-plan 2C2a exécuté de bout en bout (8 tâches, `superpowers/plans/2026-10-06-stage-2c2a-income-screens.md`) : écrans Revenus (liste, création avec composantes, détail, périodes, réglages) ; le champ d'un refus arrive au client dans `errors[]` (Placements compris). 744 tests web, 1380 tests .NET, parcours E2E. |
