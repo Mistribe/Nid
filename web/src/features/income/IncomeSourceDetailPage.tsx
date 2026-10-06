@@ -15,6 +15,7 @@ import { followingPhase, groupPhases, newPhase, phaseValuesOf, type PhaseValues 
 import { PhaseForm } from './phases/PhaseForm';
 import { PhaseRowActions } from './phases/PhaseRowActions';
 import { PhasesTable } from './phases/PhasesTable';
+import { SettingsForm } from './settings/SettingsForm';
 
 /** 2C2a design §7: a source's figures, gap warnings and phases by label. Phase writes (Task 6). */
 export function IncomeSourceDetailPage() {
@@ -30,6 +31,7 @@ export function IncomeSourceDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -112,6 +114,12 @@ export function IncomeSourceDetailPage() {
                 : null} />
           ))}
       </Section>
+
+      {writable ? (
+        <Section title={t('income_detail.settings.title')} announcement={settingsAnnouncement}>
+          <SettingsForm source={source} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+        </Section>
+      ) : null}
     </article>
   );
 }

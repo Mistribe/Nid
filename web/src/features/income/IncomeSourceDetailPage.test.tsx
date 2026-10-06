@@ -18,10 +18,12 @@ describe('IncomeSourceDetailPage', () => {
     serve(detail());
     const { container } = await renderApp(`/income/${SALARY}`);
 
-    expect(await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Salaire')).toBeInTheDocument();
-    expect(screen.getByText('Employeur')).toBeInTheDocument();
-    expect(screen.getByText('Privé')).toBeInTheDocument();
+    const title = await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+    // The settings form also offers « Salaire » and « Employeur »: the header's own texts are looked up in the header.
+    const header = within(title.parentElement as HTMLElement);
+    expect(header.getByText('Salaire')).toBeInTheDocument();
+    expect(header.getByText('Employeur')).toBeInTheDocument();
+    expect(header.getByText('Privé')).toBeInTheDocument();
     const figures = screen.getByRole('region', { name: 'Montant mensuel' });
     expect(figures).toHaveTextContent('2 450,00 € par mois');
     expect(figures).toHaveTextContent('lissé sur l’année');
