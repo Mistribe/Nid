@@ -135,8 +135,8 @@ describe('an envelope\'s settings', () => {
     expect(bodies).toEqual([]);
   });
 
-  it('places a refused value on the one field that changed', async () => {
-    serve(detail(), [], problem(422, 'investments.invalid_envelope'));
+  it('places a refused value on the field the server names', async () => {
+    serve(detail(), [], problem(422, 'investments.invalid_envelope', { errors: [{ path: 'accountHint', code: 'investments.invalid_envelope', message: 'x' }] }));
     const { user, container } = await renderApp(`/investments/${PEA}`);
 
     const form = await openForm();
@@ -149,6 +149,18 @@ describe('an envelope\'s settings', () => {
     expect(screen.queryByText('Problem')).not.toBeInTheDocument();
     expect(screen.queryByText('Réglages enregistrés.')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('falls back to the one field that changed when the refusal names none', async () => {
+    serve(detail(), [], problem(422, 'investments.invalid_envelope'));
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const form = await openForm();
+    await user.clear(form.getByLabelText('4 derniers caractères du compte'));
+    await user.type(form.getByLabelText('4 derniers caractères du compte'), '99');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    expect(await form.findByLabelText('4 derniers caractères du compte')).toBeInvalid();
   });
 
   it('says a refusal no single field owns in French, page-level', async () => {

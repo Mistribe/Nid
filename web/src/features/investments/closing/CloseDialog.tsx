@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { Field } from '../../subscriptions/edits/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
-import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { CLOSE, invalidateInvestments, type EnvelopeDetail } from '../api';
@@ -64,8 +63,8 @@ export function CloseDialog({ envelope, onClose, onDone }: {
         onSuccess: () => onDone(t('envelope.closing.closed')),
         onError: (error) => {
           const problem = toProblem(error);
-          // The server names `closedOn` in metadata only, not in `errors[]`: the code is the one thing to go by.
-          if (problem.status === 422 && problem.code === 'investments.invalid_envelope' && fieldErrorsOf(error).length === 0) {
+          // The server names `closedOn` too, but a generic « not accepted » would hide the reason: this code on this form means « too early », with or without `errors[]`.
+          if (problem.status === 422 && problem.code === 'investments.invalid_envelope') {
             form.setError('closedOn', { type: 'server', message: t('envelope.closing.too_early') });
             errors.clear();
           } else {
