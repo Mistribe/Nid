@@ -138,6 +138,9 @@ public static class ResultHttp
         var extensions = new Dictionary<string, object?> { ["code"] = failure.Code };
         if (FieldErrors.Of(failure) is { } errors)
             extensions["errors"] = errors.Select(e => new { path = e.Path, code = e.Code, message = e.Message }).ToList();
+        // 2C2a spec §6: a rule that names its field in metadata (Investments', Income's) reaches the client the same way.
+        else if (failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) && field is string path)
+            extensions["errors"] = new[] { new { path, code = failure.Code, message = failure.Message } };
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }

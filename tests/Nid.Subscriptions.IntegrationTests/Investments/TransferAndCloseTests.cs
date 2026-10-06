@@ -214,7 +214,9 @@ public class TransferAndCloseTests(PostgresFixture fixture)
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/close", new { closedOn = "2025-03-01" });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Equal("investments.invalid_envelope", (await JsonAsync(refused)).GetProperty("code").GetString());
+        var problem = await JsonAsync(refused);
+        Assert.Equal("investments.invalid_envelope", problem.GetProperty("code").GetString());
+        Assert.Equal("closedOn", Assert.Single(problem.GetProperty("errors").EnumerateArray()).GetProperty("path").GetString());
         var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, url));
         Assert.False(detail.GetProperty("closed").GetBoolean());
     }
