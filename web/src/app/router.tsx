@@ -15,6 +15,7 @@ import { JobsPage } from '@/features/admin/JobsPage';
 import { SecurityJournalPage } from '@/features/admin/SecurityJournalPage';
 import { SystemPage } from '@/features/admin/SystemPage';
 import { UsersPage } from '@/features/admin/UsersPage';
+import { IncomeSourcesPage } from '@/features/income/IncomeSourcesPage';
 import { EnvelopesPage } from '@/features/investments/EnvelopesPage';
 import { SecurityPage } from '@/features/security/SecurityPage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
@@ -34,6 +35,9 @@ export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string; lab
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
 export type InvestmentsSearch = { closed?: 1 };
+
+/** The income list's own filter: ended sources shown on demand (2C2a design §4); anything but `1` is dropped. */
+export type IncomeSearch = { ended?: 1 };
 
 export function homePath(capabilities: Capabilities): '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('subscriptions')) return '/subscriptions';
@@ -90,6 +94,29 @@ const investmentDetailRoute = createRoute({
   path: '/investments/$id',
   beforeLoad: requireModule('investments'),
   component: lazyRouteComponent(() => import('@/features/investments/EnvelopeDetailPage'), 'EnvelopeDetailPage'),
+});
+
+const incomeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/income',
+  beforeLoad: requireModule('income'),
+  validateSearch: (search: Record<string, unknown>): IncomeSearch => (search.ended === 1 || search.ended === '1' ? { ended: 1 } : {}),
+  component: IncomeSourcesPage,
+});
+
+// Loaded on demand, as the envelope's: the forms and their libraries stay out of the initial bundle.
+const incomeNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/income/new',
+  beforeLoad: requireModule('income'),
+  component: lazyRouteComponent(() => import('@/features/income/NewIncomeSource'), 'NewIncomeSource'),
+});
+
+const incomeDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/income/$id',
+  beforeLoad: requireModule('income'),
+  component: lazyRouteComponent(() => import('@/features/income/IncomeSourceDetailPage'), 'IncomeSourceDetailPage'),
 });
 
 // Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
@@ -169,6 +196,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

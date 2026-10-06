@@ -11,7 +11,7 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Abonnements', 'Placements', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(links).toEqual(['Abonnements', 'Placements', 'Revenus', 'Import', 'Export', 'Sécurité', 'Réglages']);
   });
 
   it('offers Export even where import is disabled', async () => {

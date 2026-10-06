@@ -19,6 +19,7 @@
     "home": "Revenir à l'accueil",
     "subscriptions": "Abonnements",
     "investments": "Placements",
+    "income": "Revenus",
     "import": "Import",
     "export": "Export",
     "settings": "Réglages",
@@ -802,6 +803,30 @@
       "saved": "Réglages enregistrés.",
       "nothing": "Rien à enregistrer."
     }
+  },
+  "income": {
+    "title": "Revenus",
+    "list": "Liste des revenus",
+    "loading": "Chargement des revenus",
+    "smoothed": "Montants mensuels lissés sur l’année.",
+    "add": "Ajouter un revenu",
+    "show_ended": "Afficher les sources terminées",
+    "ended_mark": "Terminée",
+    "empty_title": "Aucun revenu pour l’instant",
+    "empty_body": "Ajoutez un salaire, une pension ou une allocation pour suivre ce qui rentre chaque mois.",
+    "none_running_title": "Aucun revenu en cours",
+    "none_running_body": "Toutes vos sources de revenu sont terminées.",
+    "see_ended": "Voir les sources terminées",
+    "per_month": "{{amount}} par mois",
+    "running_one": "{{count}} composante en cours",
+    "running_other": "{{count}} composantes en cours",
+    "gap_soon": "« {{label}} » se termine bientôt sans période suivante",
+    "kind": {
+      "salary": "Salaire", "self_employment": "Activité indépendante", "pension": "Pension", "unemployment": "Chômage",
+      "family_allowance": "Allocations familiales", "social_benefit": "Aide sociale", "alimony": "Pension alimentaire", "other": "Autre"
+    },
+    "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "months": "Tous les {{count}} mois" },
+    "status": { "running": "En cours", "upcoming": "À venir", "past": "Passée" }
   },
   "security": {
     "title": "Sécurité",
