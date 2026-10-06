@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Archive } from 'lucide-react';
-import { useId, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -8,12 +8,15 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
 import { SOURCE } from './api';
 import { kindText } from './format';
-import { groupPhases } from './phases/phase';
+import { followingPhase, groupPhases, newPhase, phaseValuesOf, type PhaseValues } from './phases/phase';
+import { PhaseForm } from './phases/PhaseForm';
+import { PhaseRowActions } from './phases/PhaseRowActions';
 import { PhasesTable } from './phases/PhasesTable';
 
-/** 2C2a design §7: a source's figures, gap warnings and phases by label. Writes come with Task 6 and Task 7. */
+/** 2C2a design §7: a source's figures, gap warnings and phases by label. Phase writes (Task 6). */
 export function IncomeSourceDetailPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -21,12 +24,36 @@ export function IncomeSourceDetailPage() {
   const answer = $api.useQuery('get', SOURCE, { params: { path: { id } } });
   const back = <Link to="/income" className="text-sm underline">{t('income_detail.back')}</Link>;
 
+  // One open form at a time: adding (keyed, so a second « Renseigner la suite » remounts it with its own prefill) or
+  // correcting a row. The phases section owns the announcement and where the focus lands.
+  const [adding, setAdding] = useState<{ key: number; values: PhaseValues } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+
+  const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
+  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setEditingId(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
+  const closeAdd = (message?: string) => { setAdding(null); if (message) announce(message); else addButtonRef.current?.focus(); };
+  const startEdit = (phaseId: string) => { setAnnouncement(''); setAdding(null); setEditingId(phaseId); };
+  const closeEdit = (message?: string) => { const was = editingId; setEditingId(null); if (message) announce(message); else setFocusId(was); };
+  // « Annuler » brings the focus back to the row's « Corriger », which exists again once the row reverts.
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`correct-phase-${focusId}`)?.focus();
+    setFocusId(null);
+  }, [focusId]);
+
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
   if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
 
   const source = answer.data;
   const running = source.phases.filter((p) => p.status === 'running');
   const groups = groupPhases(source.phases);
+  // Every write affordance: the add button and form, « Renseigner la suite », the row actions, the settings (Task 7).
+  const writable = source.canWrite && !source.ended;
+  const editingPhase = writable ? source.phases.find((p) => p.id === editingId) : undefined;
 
   return (
     <article className="space-y-6">
@@ -62,13 +89,28 @@ export function IncomeSourceDetailPage() {
         <p key={gap.label} role="note" className="flex flex-wrap items-center gap-2">
           <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
           {t('income_detail.gap', { label: gap.label, date: formatLocalDate(gap.endsOn) })}
+          {writable ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => startAdd(followingPhase(gap, source.phases))}>{t('income_detail.fill_next')}</Button>
+          ) : null}
         </p>
       ))}
 
-      <Section title={t('income_detail.phases')}>
+      <Section title={t('income_detail.phases')} headingRef={headingRef} announcement={announcement}>
+        {writable ? (
+          <Button ref={addButtonRef} type="button" variant="outline" onClick={() => startAdd(newPhase())}>{t('income_detail.add_phase')}</Button>
+        ) : null}
+        {writable && adding ? <PhaseForm key={adding.key} source={source} initial={adding.values} onDone={closeAdd} /> : null}
         {groups.length === 0
           ? <p className="text-muted-foreground">{t('income_detail.no_phases')}</p>
-          : groups.map((g) => <PhasesTable key={g.label} label={g.label} phases={g.phases} />)}
+          : groups.map((g) => (
+            <PhasesTable key={g.label} label={g.label} phases={g.phases}
+              actions={writable ? (p) => (
+                <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id)} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} />
+              ) : undefined}
+              editing={editingPhase && editingPhase.label === g.label
+                ? { id: editingPhase.id, form: <PhaseForm source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} /> }
+                : null} />
+          ))}
       </Section>
     </article>
   );
