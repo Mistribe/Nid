@@ -828,6 +828,12 @@
     "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "months": "Tous les {{count}} mois" },
     "status": { "running": "En cours", "upcoming": "À venir", "past": "Passée" }
   },
+  "income_form": {
+    "label_too_long": "60 caractères au plus.",
+    "max_cycles_range": "Entre 1 et 1200 occurrences.",
+    "ends_after_start": "Doit être après la date de début.",
+    "months_range": "Entre 2 et 12 mois."
+  },
   "security": {
     "title": "Sécurité",
     "events_title": "Mes derniers événements",
