@@ -82,6 +82,7 @@ describe('NewIncomeSource', () => {
     await user.click(screen.getByRole('button', { name: 'Retirer la composante 2' }));
     await user.click(screen.getByRole('button', { name: 'Retirer la composante 1' }));
     expect(screen.queryByRole('group', { name: /Composante/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ajouter une composante' })).toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Créer le revenu' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/income/${SALARY}`));

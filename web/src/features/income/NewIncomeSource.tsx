@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -30,6 +30,7 @@ export function NewIncomeSource() {
   const people = $api.useQuery('get', PERSONS);
   const visibilityErrorId = useId();
   const componentsId = useId();
+  const addRef = useRef<HTMLButtonElement>(null);
   const form = useForm<NewIncomeValues>({
     resolver: zodResolver(newIncomeSchema(t)),
     // `visibility` is left out on purpose: neither answer is checked until the person picks one.
@@ -92,10 +93,10 @@ export function NewIncomeSource() {
             <fieldset key={row.id} className="space-y-2 rounded-md border p-3">
               <legend className="px-1 text-sm font-medium">{t('income_form.component_n', { n: i + 1 })}</legend>
               <PhaseFields form={form} prefix={`phases.${i}.`} errors={e.phases?.[i]} />
-              <Button type="button" variant="ghost" size="sm" onClick={() => lines.remove(i)}>{t('income_form.remove_component', { n: i + 1 })}</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { lines.remove(i); addRef.current?.focus(); }}>{t('income_form.remove_component', { n: i + 1 })}</Button>
             </fieldset>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => lines.append(newPhase())}>{t('income_form.add_component')}</Button>
+          <Button ref={addRef} type="button" variant="outline" size="sm" onClick={() => lines.append(newPhase())}>{t('income_form.add_component')}</Button>
         </section>
         <Button type="submit" disabled={create.isPending}>{t('income_form.submit')}</Button>
       </form>

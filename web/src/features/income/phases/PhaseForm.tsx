@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useEffect, useId } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -27,6 +27,8 @@ export function PhaseForm({ source, editing, initial, onDone }: {
   const headingId = useId();
   const form = useForm<PhaseValues>({ resolver: zodResolver(phaseSchema(t)), defaultValues: initial });
   const errors = useSubmitErrors(form.setError, phaseFieldOf);
+  // Opening the form (add, « Renseigner la suite », correct) lands the person in it.
+  useEffect(() => { form.setFocus('label'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const add = $api.useMutation('post', PHASES);
   const correct = $api.useMutation('put', PHASE);
 
@@ -54,7 +56,7 @@ export function PhaseForm({ source, editing, initial, onDone }: {
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
-          {problem.kind === 'conflict' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
+          {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
         </>
       ) : null}
       <PhaseFields form={form} prefix="" errors={form.formState.errors} />

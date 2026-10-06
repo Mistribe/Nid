@@ -156,6 +156,31 @@ describe('phase actions', () => {
     expect(screen.getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
   });
 
+  it('shows a deletion of a phase deleted meanwhile as not found, with « Recharger »', async () => {
+    serveStateful();
+    server.use(http.delete('*/api/v1/income/sources/:id/phases/:phaseId', () => HttpResponse.json({ status: 404, title: 'Not found' }, { status: 404 })));
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Supprimer' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
+  });
+
+  it('puts the focus in the add form on « Libellé » when « Renseigner la suite » opens it', async () => {
+    serveStateful(detail({
+      phases: [phase({ endsOn: '2026-12-31' })],
+      gapSoon: [{ label: 'Salaire de base', endsOn: '2026-12-31' }],
+    }));
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Renseigner la suite' }));
+
+    expect(within(screen.getByRole('form', { name: 'Ajouter une période' })).getByLabelText('Libellé')).toHaveFocus();
+  });
+
   it('opens the add form prefilled from a gap: same label, starting on its end, same cadence and amount', async () => {
     serveStateful(detail({
       phases: [phase({ endsOn: '2026-12-31', every: { count: 3, unit: 'month' }, netAmount: { amount: '900.00', currency: 'EUR' } })],

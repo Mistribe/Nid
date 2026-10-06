@@ -34,7 +34,7 @@ export function PhaseRowActions({ source, phase, onEdit, onDeleteStarted, onDele
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
-          {problem.kind === 'conflict' ? <Reload onReload={() => { remove.reset(); return invalidateIncome(queryClient); }} /> : null}
+          {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => { remove.reset(); return invalidateIncome(queryClient); }} /> : null}
         </>
       ) : null}
     </span>

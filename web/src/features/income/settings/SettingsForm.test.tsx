@@ -72,4 +72,19 @@ describe('income settings', () => {
     expect(await within(settings()).findByText('Ce champ est obligatoire.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
   });
+
+  it('clears the previous « saved » status when a later save is refused client-side', async () => {
+    serve([]);
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+    await user.selectOptions(within(settings()).getByLabelText('Type'), 'pension');
+    await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
+    expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Réglages enregistrés.');
+    await user.clear(within(settings()).getByLabelText('Nom'));
+    await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    expect(await within(settings()).findByText('Ce champ est obligatoire.')).toBeInTheDocument();
+    expect(within(settingsRegion()).getByRole('status')).toBeEmptyDOMElement();
+  });
 });

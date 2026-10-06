@@ -68,7 +68,7 @@ export function SettingsForm({ source, onStart, onDone }: { source: IncomeSource
         onError: (error) => errors.onError(error),
       },
     );
-  });
+  }, onStart); // an invalid submit clears the previous status too
 
   const e = form.formState.errors;
   // Every refusal reads in French: a conflict by its own sentence, a 422 no field owns by its code's.
