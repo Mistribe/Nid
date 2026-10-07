@@ -913,6 +913,25 @@
       "submit": "Enregistrer les réglages",
       "saved": "Réglages enregistrés.",
       "nothing": "Aucune modification à enregistrer."
+    },
+    "expected": {
+      "title": "Revenu attendu",
+      "period": "Période",
+      "next12": "12 prochains mois",
+      "year": "Année en cours",
+      "next_year": "Année prochaine",
+      "loading": "Chargement du revenu attendu",
+      "chart_title": "Revenu attendu chaque mois",
+      "table": "Revenu attendu, mois par mois",
+      "col_month": "Mois",
+      "col_line": "Ligne",
+      "col_date": "Date",
+      "col_amount": "Montant",
+      "total": "Total",
+      "one_off": "Revenu exceptionnel",
+      "one_off_note": "Revenu exceptionnel — {{note}}",
+      "none": "Aucun versement attendu",
+      "empty": "Rien n’est attendu sur cette période."
     }
   },
   "security": {

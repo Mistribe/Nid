@@ -6,16 +6,19 @@ export type IncomeSourceList = components['schemas']['IncomeSourceList'];
 export type IncomeSourceDetail = components['schemas']['IncomeSourceDetail'];
 export type IncomePhase = components['schemas']['IncomePhaseView'];
 export type IncomeGap = components['schemas']['IncomeGapView'];
+export type IncomeExpected = components['schemas']['IncomeExpected'];
 
 export const SOURCES = '/api/v1/income/sources' as const;
 export const SOURCE = '/api/v1/income/sources/{id}' as const;
 export const PHASES = '/api/v1/income/sources/{id}/phases' as const;
+export const EXPECTED = '/api/v1/income/sources/{id}/expected' as const;
 export const PHASE = '/api/v1/income/sources/{id}/phases/{phaseId}' as const;
 
-/** Every write invalidates the list and every detail (2C2a design §7). */
+/** Every write invalidates the list, every detail and every expected income. */
 export function invalidateIncome(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', SOURCES] }),
     queryClient.invalidateQueries({ queryKey: ['get', SOURCE] }),
+    queryClient.invalidateQueries({ queryKey: ['get', EXPECTED] }),
   ]).then(() => undefined);
 }

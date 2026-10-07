@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Archive } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -10,11 +10,13 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { SOURCE } from './api';
+import { ExpectedIncome } from './expected/ExpectedIncome';
 import { kindText } from './format';
 import { followingPhase, groupPhases, newPhase, phaseValuesOf, type PhaseValues } from './phases/phase';
 import { PhaseForm } from './phases/PhaseForm';
 import { PhaseRowActions } from './phases/PhaseRowActions';
 import { PhasesTable } from './phases/PhasesTable';
+import { Section } from './Section';
 import { SettingsForm } from './settings/SettingsForm';
 
 /** 2C2a design §7: a source's figures, gap warnings and phases by label. Phase writes (Task 6). */
@@ -115,24 +117,15 @@ export function IncomeSourceDetailPage() {
           ))}
       </Section>
 
+      <Section title={t('income_detail.expected.title')}>
+        <ExpectedIncome source={source} />
+      </Section>
+
       {writable ? (
         <Section title={t('income_detail.settings.title')} announcement={settingsAnnouncement}>
           <SettingsForm source={source} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
         </Section>
       ) : null}
     </article>
-  );
-}
-
-function Section({ title, headingRef, announcement, children }: {
-  title: string; headingRef?: RefObject<HTMLHeadingElement | null>; announcement?: string; children: ReactNode;
-}) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-lg font-semibold">{title}</h2>
-      {announcement !== undefined ? <p role="status" aria-live="polite">{announcement}</p> : null}
-      {children}
-    </section>
   );
 }

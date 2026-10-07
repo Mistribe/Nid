@@ -13,6 +13,10 @@ export const handlers = [
   })),
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/income/sources', () => HttpResponse.json({ items: [] })),
+  http.get('*/api/v1/income/sources/:id/expected', ({ params, request }) => {
+    const url = new URL(request.url);
+    return HttpResponse.json({ id: params.id, from: url.searchParams.get('from'), to: url.searchParams.get('to'), months: [] });
+  }),
   // Every envelope detail also reads its value series; an empty one says « la courbe apparaît à partir de deux valeurs ».
   http.get('*/api/v1/investments/envelopes/:id/series', ({ params }) => HttpResponse.json({ id: params.id, points: [] })),
   // ... and the performance of the default period; a period with no figures says so rather than showing zeros.
