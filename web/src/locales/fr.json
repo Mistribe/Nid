@@ -356,7 +356,8 @@
     "income_phase_overlap": "Une autre période de ce libellé couvre déjà une partie de ces dates.",
     "income_phase_conflict": "Cette période a changé entre-temps : rechargez la page.",
     "income_source_ended": "Cette source de revenu est terminée.",
-    "income_no_running_phase": "Aucune période de ce libellé ne court à cette date."
+    "income_no_running_phase": "Aucune période de ce libellé ne court à cette date.",
+    "income_source_open": "Cette source n’est pas terminée."
   },
   "settings": {
     "appearance": {
@@ -960,6 +961,17 @@
       "added": "Revenu exceptionnel ajouté.",
       "corrected": "Revenu exceptionnel corrigé.",
       "deleted": "Revenu exceptionnel supprimé."
+    },
+    "ending": {
+      "open": "Terminer cette source",
+      "title": "Terminer la source",
+      "effect": "Les périodes en cours s’arrêteront à cette date ; la source passera dans les sources terminées.",
+      "date": "Date de fin",
+      "submit": "Terminer",
+      "too_early": "Une période commence après cette date : choisissez une date plus tardive ou supprimez cette période.",
+      "done": "Source terminée.",
+      "reopen": "Rouvrir",
+      "reopened": "Source rouverte. Les périodes arrêtées à la fin restent arrêtées : ajoutez la suite si besoin."
     }
   },
   "security": {

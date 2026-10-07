@@ -26,3 +26,5 @@ export function invalidateIncome(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', EXPECTED] }),
   ]).then(() => undefined);
 }
+export const CLOSE_SOURCE = '/api/v1/income/sources/{id}/close' as const;
+export const REOPEN_SOURCE = '/api/v1/income/sources/{id}/reopen' as const;

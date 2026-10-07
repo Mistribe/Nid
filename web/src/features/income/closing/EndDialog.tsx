@@ -1,0 +1,99 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
+import { useApi } from '@/api/ApiProvider';
+import { toProblem } from '@/api/errors';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
+import { placeFieldError, presentConflict } from '../../investments/entries/entries';
+import { ISO_DATE } from '../../subscriptions/edits/amount';
+import { Field } from '../../subscriptions/edits/Field';
+import { Reload } from '../../subscriptions/edits/Reload';
+import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
+import { todayIso } from '../../subscriptions/today';
+import { CLOSE_SOURCE, invalidateIncome, type IncomeSourceDetail } from '../api';
+
+const input = 'rounded-md border px-3 py-2';
+const PATHS = { endedOn: 'endedOn' } as const;
+
+/**
+ * Spec §6: ending a source at a date, in a native modal dialog (the envelope's `CloseDialog` pattern). The page owns
+ * its open state, the focus and the announcement of the success, so a dialog closed by Escape or « Annuler » announces
+ * nothing.
+ */
+export function EndDialog({ source, onClose, onDone }: {
+  source: IncomeSourceDetail; onClose: () => void; onDone: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => { if (dialog?.open) dialog.close(); };
+  }, []);
+
+  const today = todayIso();
+  const schema = z.object({
+    endedOn: z.string().regex(ISO_DATE, t('edit.required')).refine((d) => d <= today, t('field_error.core_date_in_future')),
+  });
+  const form = useForm({ resolver: zodResolver(schema), defaultValues: { endedOn: today } });
+  const errors = useSubmitErrors(form.setError, PATHS);
+  // Mutate-level callbacks: react-query drops them once this form unmounted, so a closed dialog never announces.
+  const end = $api.useMutation('post', CLOSE_SOURCE, { onSuccess: () => { void invalidateIncome(queryClient); } });
+
+  const submit = form.handleSubmit((values) => {
+    errors.clear();
+    end.mutate({ params: { path: { id: source.id } }, body: { endedOn: values.endedOn } }, {
+      onSuccess: () => onDone(t('income_detail.ending.done')),
+      onError: (error) => {
+        const problem = toProblem(error);
+        // On this form `income.invalid_source` means a phase starts after the date: say so, not « not accepted ».
+        if (problem.status === 422 && problem.code === 'income.invalid_source') {
+          form.setError('endedOn', { type: 'server', message: t('income_detail.ending.too_early') });
+          errors.clear();
+        } else {
+          placeFieldError(error, t, form.setError, errors, { 'core.date_in_future': 'endedOn' });
+        }
+      },
+    });
+  });
+
+  const e = form.formState.errors;
+  const problem = errors.problem?.kind === 'conflict' ? presentConflict(t, end.error) : errors.problem;
+
+  return createPortal(
+    <dialog ref={ref} aria-labelledby={titleId}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); onClose(); } }}
+      className="m-auto w-full max-w-md rounded-md border bg-background p-4 text-foreground backdrop:bg-black/50">
+      <div className="space-y-3">
+        <h2 id={titleId} className="text-lg font-semibold">{t('income_detail.ending.title')}</h2>
+        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
+          {problem ? (
+            <>
+              <ProblemMessage problem={problem} />
+              {problem.kind === 'conflict' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
+            </>
+          ) : null}
+          <p>{t('income_detail.ending.effect')}</p>
+          <Field label={t('income_detail.ending.date')} error={e.endedOn?.message}>
+            {(c) => <input type="date" max={today} {...c} {...form.register('endedOn')} className={input} />}
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>{t('income_detail.cancel')}</Button>
+            <Button type="submit" disabled={end.isPending}>{t('income_detail.ending.submit')}</Button>
+          </div>
+        </form>
+      </div>
+    </dialog>,
+    document.body,
+  );
+}

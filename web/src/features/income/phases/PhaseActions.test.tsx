@@ -213,15 +213,15 @@ describe('phase actions', () => {
   });
 
   it.each([
-    ['the other adult', { canWrite: false, visibility: 'shared' }],
-    ['an ended source', { ended: true, endedOn: '2025-06-30' }],
-  ] as const)('gives %s no form, no action and no Actions column', async (_who, over) => {
+    ['the other adult', { canWrite: false, visibility: 'shared' }, []],
+    ['an ended source', { ended: true, endedOn: '2025-06-30' }, ['Rouvrir']],
+  ] as const)('gives %s no form, no phase action and no Actions column', async (_who, over, buttons) => {
     serveStateful(detail({ ...over, gapSoon: [{ label: 'Salaire de base', endsOn: '2026-12-31' }] }));
     const { container } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     const article = screen.getByRole('article');
-    expect(within(article).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(article).queryAllByRole('button').map((b) => b.textContent)).toEqual(buttons);
     expect(within(article).queryByRole('textbox')).not.toBeInTheDocument();
     expect(within(article).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);

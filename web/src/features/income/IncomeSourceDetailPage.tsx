@@ -1,5 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router';
-import { AlertTriangle, Archive } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -10,6 +10,8 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { SOURCE } from './api';
+import { EndDialog } from './closing/EndDialog';
+import { EndedBanner } from './closing/EndedBanner';
 import { ExpectedIncome } from './expected/ExpectedIncome';
 import { kindText } from './format';
 import { followingPhase, groupPhases, newPhase, phaseValuesOf, type PhaseValues } from './phases/phase';
@@ -48,6 +50,33 @@ export function IncomeSourceDetailPage() {
     setEditing(null);
     if (message) announce(message); else if (was) setFocusId(`${was.mode === 'change' ? 'change' : 'correct'}-phase-${was.id}`);
   };
+  // Ending and reopening: the page owns the announcement (the banner comes and goes with the state) and where the focus
+  // lands once the refetch has swapped it — the banner after ending, « Périodes » after reopening; never <body>.
+  const [endOpen, setEndOpen] = useState(false);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
+  const [landOn, setLandOn] = useState<'banner' | 'phases' | null>(null);
+  const bannerRef = useRef<HTMLParagraphElement>(null);
+  const endButtonRef = useRef<HTMLButtonElement>(null);
+  const endWasOpen = useRef(false);
+  const isEnded = answer.data?.ended;
+
+  const closeEnd = (message?: string) => {
+    setEndOpen(false);
+    if (message) { setStatusAnnouncement(message); setLandOn('banner'); }
+  };
+  // Back to « Terminer cette source » when the dialog closes without ending (Escape, « Annuler »).
+  useEffect(() => {
+    if (endOpen) endWasOpen.current = true;
+    else if (endWasOpen.current) { endWasOpen.current = false; if (!landOn) endButtonRef.current?.focus(); }
+  }, [endOpen, landOn]);
+  // A source that turns ended closes every form still open on the page (they would vanish with their focus).
+  useEffect(() => {
+    if (isEnded) { setAdding(null); setEditing(null); }
+  }, [isEnded]);
+  useEffect(() => {
+    if (landOn === 'banner' && isEnded) { bannerRef.current?.focus(); setLandOn(null); }
+    else if (landOn === 'phases' && isEnded === false) { headingRef.current?.focus(); setLandOn(null); }
+  }, [landOn, isEnded]);
   // « Annuler » brings the focus back to the button that opened the form, which exists again once the row reverts.
   useEffect(() => {
     if (!focusId) return;
@@ -75,12 +104,11 @@ export function IncomeSourceDetailPage() {
         <AccessBadge access={source.visibility === 'private' ? 'private' : 'shared'} />
       </header>
       {source.canWrite ? null : <p>{t('income_detail.read_only')}</p>}
+      <p role="status" aria-live="polite">{statusAnnouncement}</p>
       {source.ended ? (
-        <p role="note" className="flex flex-wrap items-center gap-2 rounded-md border p-3">
-          <Archive aria-hidden="true" className="size-4" />
-          <span className="font-medium">{t('income_detail.ended_banner')}</span>
-          {source.endedOn ? <span>{t('income_detail.ended_on', { date: formatLocalDate(source.endedOn) })}</span> : null}
-        </p>
+        <EndedBanner source={source} bannerRef={bannerRef}
+          onStart={() => setStatusAnnouncement('')}
+          onReopened={(message) => { setStatusAnnouncement(message); setLandOn('phases'); }} />
       ) : null}
 
       <Section title={t('income_detail.figures')}>
@@ -138,8 +166,13 @@ export function IncomeSourceDetailPage() {
       {writable ? (
         <Section title={t('income_detail.settings.title')} announcement={settingsAnnouncement}>
           <SettingsForm source={source} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+          <Button ref={endButtonRef} type="button" variant="outline" onClick={() => { setStatusAnnouncement(''); setEndOpen(true); }}>
+            {t('income_detail.ending.open')}
+          </Button>
         </Section>
       ) : null}
+
+      {endOpen ? <EndDialog source={source} onClose={() => closeEnd()} onDone={closeEnd} /> : null}
     </article>
   );
 }
