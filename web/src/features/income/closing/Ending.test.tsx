@@ -45,7 +45,7 @@ describe('ending and reopening a source', () => {
     const dialog = screen.getByRole('dialog', { name: 'Terminer la source' });
     expect(within(dialog).getByText('Les périodes en cours s’arrêteront à cette date ; la source passera dans les sources terminées.')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Date de fin')).toHaveValue(todayIso());
-    await expectNoAxeViolations(container);
+    await expectNoAxeViolations(dialog);
     await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
 
     await waitFor(() => expect(banner()).toHaveFocus());
