@@ -1,0 +1,165 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { beforeAll, describe, expect, it } from 'vitest';
+import type { components } from '@/api/schema';
+import { expectNoAxeViolations } from '@/test/axe';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import { todayIso } from '../../subscriptions/today';
+import type { IncomeSourceDetail } from '../api';
+import { detail, eur, phase, SALARY } from '../testData';
+
+type ChangeBody = components['schemas']['IncomePhaseChangeBody'];
+
+/** Every month between two ISO dates, as numbers (a test helper; the app's own lives in expected/months.ts). */
+function monthsBetween(from: string, to: string) {
+  const out: { year: number; month: number }[] = [];
+  let [y, m] = [Number(from.slice(0, 4)), Number(from.slice(5, 7))];
+  const [endY, endM] = [Number(to.slice(0, 4)), Number(to.slice(5, 7))];
+  while (y < endY || (y === endY && m <= endM)) {
+    out.push({ year: y, month: m });
+    m += 1;
+    if (m === 13) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+function serve(initial: IncomeSourceDetail = detail(), dates: (y: number, m: number) => { phaseId: string; on: string }[] = (y, m) => [
+  { phaseId: 'p1', on: `${y}-${String(m).padStart(2, '0')}-01` },
+  ...(m === 12 ? [{ phaseId: 'p2', on: `${y}-12-15` }] : []),
+]) {
+  let current = initial;
+  const sent: ChangeBody[] = [];
+  server.use(
+    http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(current)),
+    http.get('*/api/v1/income/sources/:id/expected', ({ request, params }) => {
+      const url = new URL(request.url);
+      const from = url.searchParams.get('from')!;
+      const to = url.searchParams.get('to')!;
+      return HttpResponse.json({
+        id: params.id, from, to,
+        months: monthsBetween(from, to).map(({ year, month }) => ({
+          year, month, oneOffs: [], total: eur('0'),
+          occurrences: dates(year, month).map((d) => ({ ...d, label: d.phaseId === 'p1' ? 'Salaire de base' : 'Prime annuelle', amount: eur('2300.00') })),
+        })),
+      });
+    }),
+    http.post('*/api/v1/income/sources/:id/phase-changes', async ({ request }) => {
+      const body = (await request.json()) as ChangeBody;
+      sent.push(body);
+      current = {
+        ...current,
+        phases: [
+          ...current.phases.map((p) => (p.label === body.label && p.status === 'running' ? { ...p, endsOn: body.effectiveOn ?? null } : p)),
+          phase({ id: 'p10', label: body.label!, startsOn: body.effectiveOn!, netAmount: body.netAmount!, every: body.every!, status: 'upcoming' }),
+        ],
+      };
+      return HttpResponse.json({ id: 'p10' }, { status: 201 });
+    }),
+  );
+  return { sent };
+}
+
+const rowsOf = (label: string) => within(screen.getByRole('table', { name: label })).getAllByRole('row').slice(1);
+
+async function openChange(user: Awaited<ReturnType<typeof renderApp>>['user'], label = 'Salaire de base', row = 0) {
+  await screen.findByRole('table', { name: label });
+  await user.click(within(rowsOf(label)[row]!).getByRole('button', { name: 'Changer le montant' }));
+  return screen.findByRole('form', { name: 'Changer le montant' });
+}
+
+describe('changing the amount', () => {
+  beforeAll(async () => { await import('../IncomeSourceDetailPage'); }, 30_000);
+
+  it('offers the phase’s own payment dates, the next one chosen, and changes the amount at the date picked', async () => {
+    const { sent } = serve();
+    const { user, container } = await renderApp(`/income/${SALARY}`);
+
+    const form = await openChange(user);
+    const select = await within(form).findByLabelText<HTMLSelectElement>('Date d’effet');
+    const options = within(select).getAllByRole<HTMLOptionElement>('option');
+    expect(options.length).toBeGreaterThan(1);
+    expect(options.every((o) => o.value.endsWith('-01'))).toBe(true);
+    expect(select.value).toBe(options.map((o) => o.value).find((v) => v >= todayIso()));
+    expect(select).toHaveFocus();
+    expect(within(form).getByLabelText('Montant net')).toHaveValue('2300');
+    expect(within(form).queryByLabelText('Libellé')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+
+    await user.selectOptions(select, options[0]!.value);
+    await user.clear(within(form).getByLabelText('Montant net'));
+    await user.type(within(form).getByLabelText('Montant net'), '2500');
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer le changement' }));
+
+    expect(await within(screen.getByRole('region', { name: 'Périodes' })).findByRole('status')).toHaveTextContent('Montant changé.');
+    expect(sent).toEqual([{ label: 'Salaire de base', effectiveOn: options[0]!.value, netAmount: { amount: '2500', currency: 'EUR' }, every: { count: 1, unit: 'month' } }]);
+    expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus();
+  });
+
+  it('offers « Changer le montant » on running and upcoming phases, never on a past one', async () => {
+    serve();
+    await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('table', { name: 'Salaire de base' });
+    const base = rowsOf('Salaire de base');
+    expect(within(base[0]!).getByRole('button', { name: 'Changer le montant' })).toBeInTheDocument();
+    expect(within(base[1]!).queryByRole('button', { name: 'Changer le montant' })).not.toBeInTheDocument();
+    expect(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Changer le montant' })).toBeInTheDocument();
+  });
+
+  it('says when there is no date to offer, and gives the focus back on « Annuler »', async () => {
+    serve(detail(), () => []);
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    const form = await openChange(user);
+    expect(await within(form).findByText('Aucune date de versement à proposer pour cette période.')).toBeInTheDocument();
+    expect(within(form).queryByLabelText('Date d’effet')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Changer le montant' })).toHaveFocus();
+    await user.click(within(form).getByRole('button', { name: 'Annuler' }));
+
+    await waitFor(() => expect(within(rowsOf('Salaire de base')[0]!).getByRole('button', { name: 'Changer le montant' })).toHaveFocus());
+  });
+
+  it('keeps an open form when a background refetch of the dates fails', async () => {
+    serve();
+    const { user, queryClient } = await renderApp(`/income/${SALARY}`);
+
+    const form = await openChange(user);
+    await within(form).findByLabelText('Date d’effet');
+    await user.clear(within(form).getByLabelText('Montant net'));
+    await user.type(within(form).getByLabelText('Montant net'), '2500');
+    server.use(http.get('*/api/v1/income/sources/:id/expected', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/income/sources/{id}/expected'] });
+
+    // The refetch has failed (the query keeps its data and turns to « error »), and the form is still there as typed.
+    await waitFor(() => expect(queryClient.getQueryCache().findAll({ queryKey: ['get', '/api/v1/income/sources/{id}/expected'] }).some((q) => q.state.status === 'error')).toBe(true));
+    expect(within(screen.getByRole('form', { name: 'Changer le montant' })).getByLabelText('Montant net')).toHaveValue('2500');
+  });
+
+  it('shows a refusal at the effective date under the select', async () => {
+    serve();
+    server.use(http.post('*/api/v1/income/sources/:id/phase-changes', () => HttpResponse.json(
+      { status: 422, code: 'income.invalid_phase', title: 'x', errors: [{ path: 'effectiveOn', code: 'income.invalid_phase', message: 'x' }] }, { status: 422 })));
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    const form = await openChange(user);
+    await within(form).findByLabelText('Date d’effet');
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer le changement' }));
+
+    expect(await within(form).findByText('Ce n’est pas une date de versement de cette période.')).toBeInTheDocument();
+    expect(within(form).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('says above the form when no phase of that label runs any more', async () => {
+    serve();
+    server.use(http.post('*/api/v1/income/sources/:id/phase-changes', () => HttpResponse.json(
+      { status: 422, code: 'income.no_running_phase', title: 'x', errors: [{ path: 'label', code: 'income.no_running_phase', message: 'x' }] }, { status: 422 })));
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    const form = await openChange(user);
+    await within(form).findByLabelText('Date d’effet');
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer le changement' }));
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent('Aucune période de ce libellé ne court à cette date.');
+  });
+});

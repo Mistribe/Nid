@@ -9,7 +9,7 @@ export async function signIn(page: Page, user: 'alice' | 'bob', path = '/'): Pro
   await page.locator('#username-textfield').fill(user);
   await page.locator('#password-textfield').fill(PASSWORD);
   await page.locator('#sign-in-button').click();
-  await page.waitForURL((url) => url.hostname === 'nid.localtest.me' && url.pathname === path);
+  await page.waitForURL((url) => url.hostname === 'nid.localtest.me' && url.pathname + url.search === path);
 }
 
 /** One active import per person: a previous failed run must not block this one. */

@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
-import { AlertTriangle, Archive } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -10,11 +10,17 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { SOURCE } from './api';
+import { EndDialog } from './closing/EndDialog';
+import { EndedBanner } from './closing/EndedBanner';
+import { ExpectedIncome } from './expected/ExpectedIncome';
 import { kindText } from './format';
 import { followingPhase, groupPhases, newPhase, phaseValuesOf, type PhaseValues } from './phases/phase';
+import { PhaseChangeForm } from './phases/PhaseChangeForm';
 import { PhaseForm } from './phases/PhaseForm';
 import { PhaseRowActions } from './phases/PhaseRowActions';
 import { PhasesTable } from './phases/PhasesTable';
+import { OneOffsSection } from './oneoffs/OneOffsSection';
+import { Section } from './Section';
 import { SettingsForm } from './settings/SettingsForm';
 
 /** 2C2a design §7: a source's figures, gap warnings and phases by label. Phase writes (Task 6). */
@@ -28,7 +34,7 @@ export function IncomeSourceDetailPage() {
   // One open form at a time: adding (keyed, so a second « Renseigner la suite » remounts it with its own prefill) or
   // correcting a row. The phases section owns the announcement and where the focus lands.
   const [adding, setAdding] = useState<{ key: number; values: PhaseValues } | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; mode: 'correct' | 'change' } | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
@@ -36,14 +42,45 @@ export function IncomeSourceDetailPage() {
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setEditingId(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
+  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setStatusAnnouncement(''); setEditing(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
   const closeAdd = (message?: string) => { setAdding(null); if (message) announce(message); else addButtonRef.current?.focus(); };
-  const startEdit = (phaseId: string) => { setAnnouncement(''); setAdding(null); setEditingId(phaseId); };
-  const closeEdit = (message?: string) => { const was = editingId; setEditingId(null); if (message) announce(message); else setFocusId(was); };
-  // « Annuler » brings the focus back to the row's « Corriger », which exists again once the row reverts.
+  const startEdit = (phaseId: string, mode: 'correct' | 'change') => { setAnnouncement(''); setStatusAnnouncement(''); setAdding(null); setEditing({ id: phaseId, mode }); };
+  const closeEdit = (message?: string) => {
+    const was = editing;
+    setEditing(null);
+    if (message) announce(message); else if (was) setFocusId(`${was.mode === 'change' ? 'change' : 'correct'}-phase-${was.id}`);
+  };
+  // Ending and reopening: the page owns the announcement (the banner comes and goes with the state) and where the focus
+  // lands once the refetch has swapped it — the banner after ending, « Périodes » after reopening; never <body>.
+  const [endOpen, setEndOpen] = useState(false);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
+  const [landOn, setLandOn] = useState<'banner' | 'phases' | null>(null);
+  const bannerRef = useRef<HTMLParagraphElement>(null);
+  const endButtonRef = useRef<HTMLButtonElement>(null);
+  const endWasOpen = useRef(false);
+  const isEnded = answer.data?.ended;
+
+  const closeEnd = (message?: string) => {
+    setEndOpen(false);
+    if (message) { setStatusAnnouncement(message); setLandOn('banner'); }
+  };
+  // Back to « Terminer cette source » when the dialog closes without ending (Escape, « Annuler »).
+  useEffect(() => {
+    if (endOpen) endWasOpen.current = true;
+    else if (endWasOpen.current) { endWasOpen.current = false; if (!landOn) endButtonRef.current?.focus(); }
+  }, [endOpen, landOn]);
+  // A source that turns ended closes every form still open on the page (they would vanish with their focus).
+  useEffect(() => {
+    if (isEnded) { setAdding(null); setEditing(null); }
+  }, [isEnded]);
+  useEffect(() => {
+    if (landOn === 'banner' && isEnded) { bannerRef.current?.focus(); setLandOn(null); }
+    else if (landOn === 'phases' && isEnded === false) { headingRef.current?.focus(); setLandOn(null); }
+  }, [landOn, isEnded]);
+  // « Annuler » brings the focus back to the button that opened the form, which exists again once the row reverts.
   useEffect(() => {
     if (!focusId) return;
-    document.getElementById(`correct-phase-${focusId}`)?.focus();
+    (document.getElementById(focusId) ?? headingRef.current)?.focus();
     setFocusId(null);
   }, [focusId]);
 
@@ -55,7 +92,7 @@ export function IncomeSourceDetailPage() {
   const groups = groupPhases(source.phases);
   // Every write affordance: the add button and form, « Renseigner la suite », the row actions, the settings (Task 7).
   const writable = source.canWrite && !source.ended;
-  const editingPhase = writable ? source.phases.find((p) => p.id === editingId) : undefined;
+  const editingPhase = writable && editing ? source.phases.find((p) => p.id === editing.id) : undefined;
 
   return (
     <article className="space-y-6">
@@ -67,12 +104,11 @@ export function IncomeSourceDetailPage() {
         <AccessBadge access={source.visibility === 'private' ? 'private' : 'shared'} />
       </header>
       {source.canWrite ? null : <p>{t('income_detail.read_only')}</p>}
+      <p role="status" aria-live="polite">{statusAnnouncement}</p>
       {source.ended ? (
-        <p role="note" className="flex flex-wrap items-center gap-2 rounded-md border p-3">
-          <Archive aria-hidden="true" className="size-4" />
-          <span className="font-medium">{t('income_detail.ended_banner')}</span>
-          {source.endedOn ? <span>{t('income_detail.ended_on', { date: formatLocalDate(source.endedOn) })}</span> : null}
-        </p>
+        <EndedBanner source={source} bannerRef={bannerRef}
+          onStart={() => setStatusAnnouncement('')}
+          onReopened={(message) => { setStatusAnnouncement(message); setLandOn('phases'); }} />
       ) : null}
 
       <Section title={t('income_detail.figures')}>
@@ -107,32 +143,36 @@ export function IncomeSourceDetailPage() {
           : groups.map((g) => (
             <PhasesTable key={g.label} label={g.label} phases={g.phases}
               actions={writable ? (p) => (
-                <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id)} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} />
+                <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id, 'correct')}
+                  onChangeAmount={p.status === 'running' || p.status === 'upcoming' ? () => startEdit(p.id, 'change') : undefined} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} />
               ) : undefined}
-              editing={editingPhase && editingPhase.label === g.label
-                ? { id: editingPhase.id, form: <PhaseForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} /> }
+              editing={editingPhase && editing && editingPhase.label === g.label
+                ? {
+                  id: editingPhase.id,
+                  form: editing.mode === 'change'
+                    ? <PhaseChangeForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} phase={editingPhase} onDone={closeEdit} />
+                    : <PhaseForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} />,
+                }
                 : null} />
           ))}
+      </Section>
+
+      <OneOffsSection source={source} writable={writable} />
+
+      <Section title={t('income_detail.expected.title')}>
+        <ExpectedIncome source={source} />
       </Section>
 
       {writable ? (
         <Section title={t('income_detail.settings.title')} announcement={settingsAnnouncement}>
           <SettingsForm source={source} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+          <Button ref={endButtonRef} type="button" variant="outline" onClick={() => { setStatusAnnouncement(''); setEndOpen(true); }}>
+            {t('income_detail.ending.open')}
+          </Button>
         </Section>
       ) : null}
-    </article>
-  );
-}
 
-function Section({ title, headingRef, announcement, children }: {
-  title: string; headingRef?: RefObject<HTMLHeadingElement | null>; announcement?: string; children: ReactNode;
-}) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-lg font-semibold">{title}</h2>
-      {announcement !== undefined ? <p role="status" aria-live="polite">{announcement}</p> : null}
-      {children}
-    </section>
+      {endOpen ? <EndDialog source={source} onClose={() => closeEnd()} onDone={closeEnd} /> : null}
+    </article>
   );
 }
