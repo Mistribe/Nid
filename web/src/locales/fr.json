@@ -943,6 +943,23 @@
       "not_a_payment": "Ce n’est pas une date de versement de cette période.",
       "submit": "Enregistrer le changement",
       "done": "Montant changé."
+    },
+    "one_offs": {
+      "title": "Revenus exceptionnels",
+      "table": "Revenus exceptionnels des 12 derniers mois",
+      "add": "Ajouter un revenu exceptionnel",
+      "add_title": "Nouveau revenu exceptionnel",
+      "edit_title": "Corriger le revenu exceptionnel",
+      "date": "Date",
+      "date_help": "Une prime à venir se saisit une fois versée.",
+      "amount": "Montant",
+      "note": "Note",
+      "submit": "Ajouter",
+      "empty": "Aucun revenu exceptionnel sur les 12 derniers mois.",
+      "delete_confirm": "Ce revenu exceptionnel sera retiré.",
+      "added": "Revenu exceptionnel ajouté.",
+      "corrected": "Revenu exceptionnel corrigé.",
+      "deleted": "Revenu exceptionnel supprimé."
     }
   },
   "security": {

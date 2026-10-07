@@ -17,6 +17,7 @@ import { PhaseChangeForm } from './phases/PhaseChangeForm';
 import { PhaseForm } from './phases/PhaseForm';
 import { PhaseRowActions } from './phases/PhaseRowActions';
 import { PhasesTable } from './phases/PhasesTable';
+import { OneOffsSection } from './oneoffs/OneOffsSection';
 import { Section } from './Section';
 import { SettingsForm } from './settings/SettingsForm';
 
@@ -127,6 +128,8 @@ export function IncomeSourceDetailPage() {
                 : null} />
           ))}
       </Section>
+
+      <OneOffsSection source={source} writable={writable} />
 
       <Section title={t('income_detail.expected.title')}>
         <ExpectedIncome source={source} />
