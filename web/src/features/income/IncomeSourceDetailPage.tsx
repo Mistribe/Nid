@@ -42,9 +42,9 @@ export function IncomeSourceDetailPage() {
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setEditing(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
+  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setStatusAnnouncement(''); setEditing(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
   const closeAdd = (message?: string) => { setAdding(null); if (message) announce(message); else addButtonRef.current?.focus(); };
-  const startEdit = (phaseId: string, mode: 'correct' | 'change') => { setAnnouncement(''); setAdding(null); setEditing({ id: phaseId, mode }); };
+  const startEdit = (phaseId: string, mode: 'correct' | 'change') => { setAnnouncement(''); setStatusAnnouncement(''); setAdding(null); setEditing({ id: phaseId, mode }); };
   const closeEdit = (message?: string) => {
     const was = editing;
     setEditing(null);
@@ -80,7 +80,7 @@ export function IncomeSourceDetailPage() {
   // « Annuler » brings the focus back to the button that opened the form, which exists again once the row reverts.
   useEffect(() => {
     if (!focusId) return;
-    document.getElementById(focusId)?.focus();
+    (document.getElementById(focusId) ?? headingRef.current)?.focus();
     setFocusId(null);
   }, [focusId]);
 

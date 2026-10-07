@@ -28,9 +28,13 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
   const closeEdit = (message?: string) => { const was = editingId; setEditingId(null); if (message) announce(message); else setFocusId(was); };
   useEffect(() => {
     if (!focusId) return;
-    document.getElementById(`correct-one-off-${focusId}`)?.focus();
+    (document.getElementById(`correct-one-off-${focusId}`) ?? headingRef.current)?.focus();
     setFocusId(null);
   }, [focusId]);
+  // A correction whose row is gone (retired or deleted elsewhere, then « Recharger ») closes with it, onto the heading.
+  useEffect(() => {
+    if (editingId && !source.oneOffs.some((f) => f.id === editingId)) { setEditingId(null); headingRef.current?.focus(); }
+  }, [editingId, source.oneOffs]);
   // A source that turns ended (or read-only) drops its open form, so it does not come back on reopening.
   useEffect(() => {
     if (!writable) { setAdding(false); setEditingId(null); }
@@ -63,7 +67,7 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
               <td><Money value={f.amount} tabular /></td>
               <td>{f.note}</td>
               {writable ? (
-                <td><OneOffRowActions source={source} oneOff={f} onEdit={() => startEdit(f.id)} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} /></td>
+                <td><OneOffRowActions source={source} oneOff={f} onEdit={() => startEdit(f.id)} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} onReloaded={() => headingRef.current?.focus()} /></td>
               ) : null}
             </tr>
           ))}

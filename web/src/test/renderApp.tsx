@@ -24,5 +24,5 @@ export async function renderApp(path: string, options: { capabilities?: Capabili
     </Providers>,
   );
   await router.load();
-  return { ...utils, router, location, user: userEvent.setup() };
+  return { ...utils, router, location, queryClient, user: userEvent.setup() };
 }

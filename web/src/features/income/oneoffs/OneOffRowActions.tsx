@@ -8,9 +8,10 @@ import { presentConflict } from '../../investments/entries/entries';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { invalidateIncome, ONE_OFF, type IncomeOneOff, type IncomeSourceDetail } from '../api';
 
-/** « Corriger » swaps the row for its form; « Supprimer » asks first. The confirmation goes to the section's live region. */
-export function OneOffRowActions({ source, oneOff, onEdit, onDeleteStarted, onDeleted }: {
+/** « Corriger » swaps the row for its form; « Supprimer » asks first. The confirmation goes to the section's live region; after « Recharger » the row may be gone, so the section takes the focus. */
+export function OneOffRowActions({ source, oneOff, onEdit, onDeleteStarted, onDeleted, onReloaded }: {
   source: IncomeSourceDetail; oneOff: IncomeOneOff; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+  onReloaded: () => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -28,7 +29,7 @@ export function OneOffRowActions({ source, oneOff, onEdit, onDeleteStarted, onDe
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
-          {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => { remove.reset(); return invalidateIncome(queryClient); }} /> : null}
+          {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => { remove.reset(); return invalidateIncome(queryClient).then(onReloaded); }} /> : null}
         </>
       ) : null}
     </span>

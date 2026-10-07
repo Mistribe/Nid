@@ -80,7 +80,7 @@ describe('changing the amount', () => {
     const options = within(select).getAllByRole<HTMLOptionElement>('option');
     expect(options.length).toBeGreaterThan(1);
     expect(options.every((o) => o.value.endsWith('-01'))).toBe(true);
-    expect(select.value >= todayIso()).toBe(true);
+    expect(select.value).toBe(options.map((o) => o.value).find((v) => v >= todayIso()));
     expect(select).toHaveFocus();
     expect(within(form).getByLabelText('Montant net')).toHaveValue('2300');
     expect(within(form).queryByLabelText('Libellé')).not.toBeInTheDocument();
@@ -114,9 +114,26 @@ describe('changing the amount', () => {
     const form = await openChange(user);
     expect(await within(form).findByText('Aucune date de versement à proposer pour cette période.')).toBeInTheDocument();
     expect(within(form).queryByLabelText('Date d’effet')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Changer le montant' })).toHaveFocus();
     await user.click(within(form).getByRole('button', { name: 'Annuler' }));
 
     await waitFor(() => expect(within(rowsOf('Salaire de base')[0]!).getByRole('button', { name: 'Changer le montant' })).toHaveFocus());
+  });
+
+  it('keeps an open form when a background refetch of the dates fails', async () => {
+    serve();
+    const { user, queryClient } = await renderApp(`/income/${SALARY}`);
+
+    const form = await openChange(user);
+    await within(form).findByLabelText('Date d’effet');
+    await user.clear(within(form).getByLabelText('Montant net'));
+    await user.type(within(form).getByLabelText('Montant net'), '2500');
+    server.use(http.get('*/api/v1/income/sources/:id/expected', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/income/sources/{id}/expected'] });
+
+    // The refetch has failed (the query keeps its data and turns to « error »), and the form is still there as typed.
+    await waitFor(() => expect(queryClient.getQueryCache().findAll({ queryKey: ['get', '/api/v1/income/sources/{id}/expected'] }).some((q) => q.state.status === 'error')).toBe(true));
+    expect(within(screen.getByRole('form', { name: 'Changer le montant' })).getByLabelText('Montant net')).toHaveValue('2500');
   });
 
   it('shows a refusal at the effective date under the select', async () => {

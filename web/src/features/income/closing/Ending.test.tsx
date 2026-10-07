@@ -95,13 +95,17 @@ describe('ending and reopening a source', () => {
     expect(screen.queryByRole('form', { name: 'Ajouter une période' })).not.toBeInTheDocument();
   });
 
-  it('gives the focus back to « Terminer cette source » when the dialog is cancelled', async () => {
-    serve();
+  it.each([['Annuler'], ['Escape']])('closes on %s without ending, the focus back on « Terminer cette source »', async (how) => {
+    const { bodies } = serve();
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await user.click(await screen.findByRole('button', { name: 'Terminer cette source' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Terminer la source' })).getByRole('button', { name: 'Annuler' }));
+    // The browser focuses the first field of a modal dialog itself; jsdom does not, and Escape reaches the dialog only from inside it.
+    if (how === 'Escape') { await user.click(screen.getByLabelText('Date de fin')); await user.keyboard('{Escape}'); }
+    else await user.click(within(screen.getByRole('dialog', { name: 'Terminer la source' })).getByRole('button', { name: 'Annuler' }));
 
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(bodies).toEqual([]);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Terminer cette source' })).toHaveFocus());
   });
 

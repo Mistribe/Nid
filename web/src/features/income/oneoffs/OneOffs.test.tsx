@@ -158,6 +158,24 @@ describe('one-off income', () => {
 
     expect(await within(form).findByText('Cette ligne a déjà été corrigée ou supprimée.')).toBeInTheDocument();
     expect(within(form).getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
+
+    await user.click(within(form).getByRole('button', { name: 'Recharger' }));
+
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Corriger le revenu exceptionnel' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'Revenus exceptionnels' })).toHaveFocus();
+  });
+
+  it('puts the focus on the section when « Recharger » removes the row of a deletion refused as gone', async () => {
+    const { retire } = serve();
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
+    retire('o1');
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Recharger' }));
+
+    await waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(screen.getByRole('heading', { name: 'Revenus exceptionnels' })).toHaveFocus();
   });
 
   it('gives a reader the list without any action', async () => {

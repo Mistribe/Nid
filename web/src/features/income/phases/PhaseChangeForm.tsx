@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -34,13 +34,18 @@ export function PhaseChangeForm({ source, phase, onDone }: {
   const headingId = useId();
   const answer = $api.useQuery('get', EXPECTED, { params: { path: { id: source.id }, query: paymentWindow(todayIso()) } });
   const dates = answer.data ? paymentDates(answer.data, phase) : [];
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Without a form to land on (loading, error, no date) the heading takes the focus the clicked button left; never when
+  // the form shows, whose own effect focuses its select (children's effects run first).
+  const branch = answer.data ? (dates.length === 0 ? 'none' : 'form') : answer.error ? 'error' : 'loading';
+  useEffect(() => { if (branch !== 'form') headingRef.current?.focus(); }, [branch]);
   const cancel = <Button type="button" variant="ghost" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>;
 
   return (
     <div className="max-w-md space-y-3">
-      <h3 id={headingId} className="font-semibold">{t('income_detail.change.title')}</h3>
-      {answer.error ? <><ProblemMessage problem={present(toProblem(answer.error))} />{cancel}</>
-        : !answer.data ? <div role="status" aria-busy="true" aria-label={t('income_detail.change.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />
+      <h3 id={headingId} ref={headingRef} tabIndex={-1} className="font-semibold">{t('income_detail.change.title')}</h3>
+      {!answer.data ? (answer.error ? <><ProblemMessage problem={present(toProblem(answer.error))} />{cancel}</>
+        : <div role="status" aria-busy="true" aria-label={t('income_detail.change.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />)
           : dates.length === 0 ? (
             <form aria-labelledby={headingId} className="space-y-3" onSubmit={(ev) => ev.preventDefault()}>
               <p>{t('income_detail.change.no_dates')}</p>

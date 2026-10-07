@@ -52,7 +52,8 @@ export function ExpectedIncome({ source }: { source: IncomeSourceDetail }) {
 
 function Body({ data, error }: { data?: IncomeExpected; error: unknown }) {
   const { t } = useTranslation();
-  if (error) return <ProblemMessage problem={present(toProblem(error))} />;
+  // A failed refetch keeps the data: the error shows only when there is nothing to show.
+  if (!data && error) return <ProblemMessage problem={present(toProblem(error))} />;
   if (!data) return <div role="status" aria-busy="true" aria-label={t('income_detail.expected.loading')} className="h-64 animate-pulse rounded-md border bg-muted" />;
   if (data.months.every((m) => m.occurrences.length === 0 && m.oneOffs.length === 0))
     return <p className="text-muted-foreground">{t('income_detail.expected.empty')}</p>;
