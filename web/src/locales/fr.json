@@ -355,7 +355,8 @@
     "income_invalid_phase": "Cette valeur n’est pas acceptée.",
     "income_phase_overlap": "Une autre période de ce libellé couvre déjà une partie de ces dates.",
     "income_phase_conflict": "Cette période a changé entre-temps : rechargez la page.",
-    "income_source_ended": "Cette source de revenu est terminée."
+    "income_source_ended": "Cette source de revenu est terminée.",
+    "income_no_running_phase": "Aucune période de ce libellé ne court à cette date."
   },
   "settings": {
     "appearance": {
@@ -932,6 +933,16 @@
       "one_off_note": "Revenu exceptionnel — {{note}}",
       "none": "Aucun versement attendu",
       "empty": "Rien n’est attendu sur cette période."
+    },
+    "change": {
+      "open": "Changer le montant",
+      "title": "Changer le montant",
+      "effective_on": "Date d’effet",
+      "loading": "Chargement des dates de versement",
+      "no_dates": "Aucune date de versement à proposer pour cette période.",
+      "not_a_payment": "Ce n’est pas une date de versement de cette période.",
+      "submit": "Enregistrer le changement",
+      "done": "Montant changé."
     }
   },
   "security": {

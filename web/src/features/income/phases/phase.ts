@@ -35,6 +35,11 @@ export function checkPhase(v: PhaseValues, ctx: z.RefinementCtx, t: TFunction, a
   // ISO dates compare as strings.
   if (ISO_DATE.test(v.startsOn) && ISO_DATE.test(v.endsOn) && v.endsOn <= v.startsOn)
     ctx.addIssue({ code: 'custom', path: [...at, 'endsOn'], message: t('income_form.ends_after_start') });
+  checkMonths(v, ctx, t, at);
+}
+
+/** « Tous les N mois » needs N between 2 and 12; `at` is the line's path in a larger form. */
+export function checkMonths(v: Pick<PhaseValues, 'cadence' | 'months'>, ctx: z.RefinementCtx, t: TFunction, at: (string | number)[] = []): void {
   if (v.cadence === 'months' && !/^(?:[2-9]|1[0-2])$/.test(v.months.trim()))
     ctx.addIssue({ code: 'custom', path: [...at, 'months'], message: t('income_form.months_range') });
 }
@@ -117,6 +122,39 @@ export function phaseFieldOf(path: string): keyof PhaseValues | undefined {
   const head = path.split('.')[0] ?? '';
   if (head === 'every') return 'cadence';
   return PHASE_FIELDS.find((f) => f === head);
+}
+
+/** Spec §3: the change of amount's fields — the phase's amounts and cadence, and the effective date chosen from a list. */
+export function phaseChangeSchema(t: TFunction) {
+  return phaseShape(t).pick({ netAmount: true, cadence: true, months: true, grossAmount: true, note: true })
+    .extend({ effectiveOn: z.string().regex(ISO_DATE, t('edit.required')) })
+    .superRefine((v, ctx) => checkMonths(v, ctx, t));
+}
+
+export type PhaseChangeValues = z.infer<ReturnType<typeof phaseChangeSchema>>;
+
+/** The phase's current amounts and cadence; the note starts empty (the old one may not apply to the next phase). */
+export function phaseChangeValuesOf(p: IncomePhase, effectiveOn: string): PhaseChangeValues {
+  const v = phaseValuesOf(p);
+  return { effectiveOn, netAmount: v.netAmount, cadence: v.cadence, months: v.months, grossAmount: v.grossAmount, note: '' };
+}
+
+export function toWirePhaseChange(label: string, v: PhaseChangeValues, currency: string): components['schemas']['IncomePhaseChangeBody'] {
+  const money = (text: string) => ({ amount: toWireAmount(text), currency });
+  return {
+    label, effectiveOn: v.effectiveOn, netAmount: money(v.netAmount), every: cadenceToWire(v.cadence, v.months),
+    ...(v.grossAmount.trim() ? { grossAmount: money(v.grossAmount) } : {}),
+    ...(v.note.trim() ? { note: v.note } : {}),
+  };
+}
+
+const CHANGE_FIELDS = ['netAmount', 'cadence', 'grossAmount', 'note'] as const;
+
+/** A server path of a change to the field that owns it; `label` belongs to no field (the refusal shows above the form). */
+export function phaseChangeFieldOf(path: string): keyof PhaseChangeValues | undefined {
+  if (path === 'effectiveOn') return 'effectiveOn';
+  const field = phaseFieldOf(path);
+  return CHANGE_FIELDS.find((f) => f === field);
 }
 
 const RANK: Record<string, number> = { running: 0, upcoming: 1, past: 2 };

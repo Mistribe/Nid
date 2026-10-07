@@ -12,8 +12,8 @@ import { invalidateIncome, PHASE, type IncomePhase, type IncomeSourceDetail } fr
  * A phase's row actions (spec §7): « Corriger » swaps the row for its form; « Supprimer » asks first, then deletes with
  * the version it read. The confirmation goes to the page's live region: the row disappears with the refetch.
  */
-export function PhaseRowActions({ source, phase, onEdit, onDeleteStarted, onDeleted }: {
-  source: IncomeSourceDetail; phase: IncomePhase; onEdit: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
+export function PhaseRowActions({ source, phase, onEdit, onChangeAmount, onDeleteStarted, onDeleted }: {
+  source: IncomeSourceDetail; phase: IncomePhase; onEdit: () => void; onChangeAmount?: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -25,6 +25,9 @@ export function PhaseRowActions({ source, phase, onEdit, onDeleteStarted, onDele
 
   return (
     <span className="flex flex-wrap items-center gap-2">
+      {onChangeAmount ? (
+        <Button id={`change-phase-${phase.id}`} type="button" variant="outline" size="sm" onClick={onChangeAmount}>{t('income_detail.change.open')}</Button>
+      ) : null}
       <Button id={`correct-phase-${phase.id}`} type="button" variant="outline" size="sm" onClick={onEdit}>{t('income_detail.correct')}</Button>
       <ConfirmAction label={t('income_detail.delete')} confirmation={t('income_detail.delete_confirm')} pending={remove.isPending}
         onConfirm={() => {

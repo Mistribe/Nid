@@ -1,3 +1,5 @@
+import type { IncomeExpected } from '../api';
+
 /** A calendar month as numbers: arithmetic on a year and a month index, never on an amount. */
 type Month = { year: number; month: number };
 
@@ -33,4 +35,17 @@ export function paymentWindow(today: string): { from: string; to: string } {
 /** « octobre 2026 » or « oct. 2026 », in UTC like `LocalDate`. */
 export function monthLabel(year: number, month: number, style: 'long' | 'short' = 'long', locale = 'fr-FR'): string {
   return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', month: style, year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/** Spec §3: a phase's payment dates in an expected-income answer, ascending, without its own start (a change cannot fall on it). */
+export function paymentDates(expected: IncomeExpected, phase: { id: string; startsOn: string }): string[] {
+  const dates = expected.months.flatMap((m) => m.occurrences)
+    .filter((o) => o.phaseId === phase.id && o.on !== phase.startsOn)
+    .map((o) => o.on);
+  return [...new Set(dates)].sort();
+}
+
+/** The first date on or after today, the last one otherwise; nothing when there is no date. */
+export function defaultEffectiveDate(dates: string[], today: string): string | undefined {
+  return dates.find((d) => d >= today) ?? dates[dates.length - 1];
 }

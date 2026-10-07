@@ -12,6 +12,7 @@ export const SOURCES = '/api/v1/income/sources' as const;
 export const SOURCE = '/api/v1/income/sources/{id}' as const;
 export const PHASES = '/api/v1/income/sources/{id}/phases' as const;
 export const EXPECTED = '/api/v1/income/sources/{id}/expected' as const;
+export const PHASE_CHANGES = '/api/v1/income/sources/{id}/phase-changes' as const;
 export const PHASE = '/api/v1/income/sources/{id}/phases/{phaseId}' as const;
 
 /** Every write invalidates the list, every detail and every expected income. */

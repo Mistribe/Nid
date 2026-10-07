@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { phase } from '../testData';
 import {
   cadenceFromWire, cadenceToWire, checkPhase, followingPhase, groupPhases, newPhase, overlappingLines, phaseFieldOf,
-  phaseSchema, phaseShape, phaseValuesOf, toWirePhase, type PhaseValues,
+  phaseChangeFieldOf, phaseChangeSchema, phaseSchema, phaseShape, phaseValuesOf, toWirePhase, toWirePhaseChange, type PhaseValues,
 } from './phase';
 
 const t = ((key: string) => key) as unknown as TFunction;
@@ -115,5 +115,30 @@ describe('the table order', () => {
       ['Prime annuelle', ['prime']],
       ['Salaire de base', ['now', 'next', 'past', 'older']],
     ]);
+  });
+});
+
+describe('the change of amount', () => {
+  const change = { effectiveOn: '2026-11-01', netAmount: '2500', cadence: 'monthly' as const, months: '', grossAmount: '', note: '' };
+
+  it('sends the phase’s label, the date chosen and the new amounts', () => {
+    expect(toWirePhaseChange('Salaire de base', { ...change, netAmount: '2500,50', grossAmount: '3200' }, 'EUR')).toEqual({
+      label: 'Salaire de base', effectiveOn: '2026-11-01', netAmount: { amount: '2500.50', currency: 'EUR' },
+      every: { count: 1, unit: 'month' }, grossAmount: { amount: '3200', currency: 'EUR' },
+    });
+  });
+
+  it('asks for a date and N between 2 and 12, as a phase does', () => {
+    const r = phaseChangeSchema(t).safeParse({ ...change, effectiveOn: '' });
+    expect(r.success ? [] : r.error.issues.map((i) => i.path.join('.'))).toEqual(['effectiveOn']);
+    const months = phaseChangeSchema(t).safeParse({ ...change, cadence: 'months', months: '13' });
+    expect(months.success ? [] : months.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)).toEqual(['months: income_form.months_range']);
+  });
+
+  it('maps the server’s paths to the change’s fields; the label belongs to none', () => {
+    expect(phaseChangeFieldOf('effectiveOn')).toBe('effectiveOn');
+    expect(phaseChangeFieldOf('netAmount.amount')).toBe('netAmount');
+    expect(phaseChangeFieldOf('every.count')).toBe('cadence');
+    expect(phaseChangeFieldOf('label')).toBeUndefined();
   });
 });

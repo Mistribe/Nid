@@ -13,6 +13,7 @@ import { SOURCE } from './api';
 import { ExpectedIncome } from './expected/ExpectedIncome';
 import { kindText } from './format';
 import { followingPhase, groupPhases, newPhase, phaseValuesOf, type PhaseValues } from './phases/phase';
+import { PhaseChangeForm } from './phases/PhaseChangeForm';
 import { PhaseForm } from './phases/PhaseForm';
 import { PhaseRowActions } from './phases/PhaseRowActions';
 import { PhasesTable } from './phases/PhasesTable';
@@ -30,7 +31,7 @@ export function IncomeSourceDetailPage() {
   // One open form at a time: adding (keyed, so a second « Renseigner la suite » remounts it with its own prefill) or
   // correcting a row. The phases section owns the announcement and where the focus lands.
   const [adding, setAdding] = useState<{ key: number; values: PhaseValues } | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; mode: 'correct' | 'change' } | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
@@ -38,14 +39,18 @@ export function IncomeSourceDetailPage() {
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setEditingId(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
+  const startAdd = (values: PhaseValues) => { setAnnouncement(''); setEditing(null); setAdding((prev) => ({ key: (prev?.key ?? 0) + 1, values })); };
   const closeAdd = (message?: string) => { setAdding(null); if (message) announce(message); else addButtonRef.current?.focus(); };
-  const startEdit = (phaseId: string) => { setAnnouncement(''); setAdding(null); setEditingId(phaseId); };
-  const closeEdit = (message?: string) => { const was = editingId; setEditingId(null); if (message) announce(message); else setFocusId(was); };
-  // « Annuler » brings the focus back to the row's « Corriger », which exists again once the row reverts.
+  const startEdit = (phaseId: string, mode: 'correct' | 'change') => { setAnnouncement(''); setAdding(null); setEditing({ id: phaseId, mode }); };
+  const closeEdit = (message?: string) => {
+    const was = editing;
+    setEditing(null);
+    if (message) announce(message); else if (was) setFocusId(`${was.mode === 'change' ? 'change' : 'correct'}-phase-${was.id}`);
+  };
+  // « Annuler » brings the focus back to the button that opened the form, which exists again once the row reverts.
   useEffect(() => {
     if (!focusId) return;
-    document.getElementById(`correct-phase-${focusId}`)?.focus();
+    document.getElementById(focusId)?.focus();
     setFocusId(null);
   }, [focusId]);
 
@@ -57,7 +62,7 @@ export function IncomeSourceDetailPage() {
   const groups = groupPhases(source.phases);
   // Every write affordance: the add button and form, « Renseigner la suite », the row actions, the settings (Task 7).
   const writable = source.canWrite && !source.ended;
-  const editingPhase = writable ? source.phases.find((p) => p.id === editingId) : undefined;
+  const editingPhase = writable && editing ? source.phases.find((p) => p.id === editing.id) : undefined;
 
   return (
     <article className="space-y-6">
@@ -109,10 +114,16 @@ export function IncomeSourceDetailPage() {
           : groups.map((g) => (
             <PhasesTable key={g.label} label={g.label} phases={g.phases}
               actions={writable ? (p) => (
-                <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id)} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} />
+                <PhaseRowActions source={source} phase={p} onEdit={() => startEdit(p.id, 'correct')}
+                  onChangeAmount={p.status === 'running' || p.status === 'upcoming' ? () => startEdit(p.id, 'change') : undefined} onDeleteStarted={() => setAnnouncement('')} onDeleted={announce} />
               ) : undefined}
-              editing={editingPhase && editingPhase.label === g.label
-                ? { id: editingPhase.id, form: <PhaseForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} /> }
+              editing={editingPhase && editing && editingPhase.label === g.label
+                ? {
+                  id: editingPhase.id,
+                  form: editing.mode === 'change'
+                    ? <PhaseChangeForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} phase={editingPhase} onDone={closeEdit} />
+                    : <PhaseForm key={`${editingPhase.id}-${editingPhase.version}`} source={source} editing={editingPhase} initial={phaseValuesOf(editingPhase)} onDone={closeEdit} />,
+                }
                 : null} />
           ))}
       </Section>
