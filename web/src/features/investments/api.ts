@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { DASHBOARD } from '../dashboard/api';
 import type { components } from '@/api/schema';
 
 export type EnvelopeSummary = components['schemas']['EnvelopeSummary'];
@@ -24,6 +25,7 @@ export const FLOW = '/api/v1/investments/envelopes/{id}/flows/{flowId}' as const
 export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPES] }),
+    queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
     queryClient.invalidateQueries({ queryKey: ['get', PERFORMANCE] }),

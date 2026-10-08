@@ -1,12 +1,14 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { emptyDashboard } from '@/features/dashboard/testData';
 import { aliceSessionResponse, allCapabilities } from './fixtures';
 
 export const handlers = [
   http.get('*/auth/session', () => HttpResponse.json(aliceSessionResponse)),
   http.get('*/api/v1/platform/capabilities', () => HttpResponse.json(allCapabilities)),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
-  // The home page is the subscriptions list (router.homePath): every test that lands there reads it.
+  http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
+  // The subscriptions list is read by every test that lands on it.
   http.get('*/api/v1/subscriptions', () => HttpResponse.json({
     items: [], householdCashCost: [], householdAmortizedCost: [], householdCashCostConverted: null,
     householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], findings: [],

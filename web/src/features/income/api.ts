@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { DASHBOARD } from '../dashboard/api';
 import type { components } from '@/api/schema';
 
 export type IncomeSourceSummary = components['schemas']['IncomeSourceSummary'];
@@ -22,6 +23,7 @@ export const PHASE = '/api/v1/income/sources/{id}/phases/{phaseId}' as const;
 export function invalidateIncome(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', SOURCES] }),
+    queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', SOURCE] }),
     queryClient.invalidateQueries({ queryKey: ['get', EXPECTED] }),
   ]).then(() => undefined);
