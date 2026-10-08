@@ -45,9 +45,11 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 | À venir | Renouvellements et expirations |
 | À faire | Routine du mois, propositions en attente, valeurs périmées |
 
+**Livré en 2D1** (2026-10-08) : page d'accueil `/dashboard` avec le patrimoine (valeurs les plus récentes, date, valeurs à mettre à jour, enveloppes sans valeur), les engagements (coût mensuel amorti, prélevé ce mois-ci, part des revenus), les revenus et la marge avant dépenses courantes, et l'évolution depuis le 1er janvier hors versements ; une valeur inconnue est dite avec sa raison. La courbe, la répartition, « À venir » et « À faire » viennent en 2D2.
+
 - **Une seule requête** agrégée : `GET /api/v1/dashboard`, calculée par le serveur.
 - Une valeur inconnue s'affiche « inconnue », **jamais 0**.
-- Une valeur périmée (seuil du Core, `../core-data-model.md` §5.2) est signalée par un badge avec le nombre de jours.
+- Une valeur périmée (`../core-data-model.md` §5.2) est signalée : la tuile du patrimoine compte les « N valeurs à mettre à jour », chaque enveloppe ayant son propre seuil (spec 2D1 §7.2).
 - Mobile : une colonne de cartes ; bureau : grille de trois tuiles puis deux colonnes.
 
 ## 4. Abonnements

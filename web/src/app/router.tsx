@@ -8,6 +8,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { useState } from 'react';
+import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { CatalogPage } from '@/features/admin/CatalogPage';
 import { FxPage } from '@/features/admin/FxPage';
 import { HouseholdPage } from '@/features/admin/HouseholdPage';
@@ -42,7 +43,8 @@ export type IncomeSearch = { ended?: 1 };
 /** The income detail's own choice: the expected-income period (2C2b design §5); the default stays out of the URL. */
 export type IncomeDetailSearch = { expected?: 'year' | 'next_year' };
 
-export function homePath(capabilities: Capabilities): '/subscriptions' | '/import' | '/settings/appearance' {
+export function homePath(capabilities: Capabilities): '/dashboard' | '/subscriptions' | '/import' | '/settings/appearance' {
+  if (capabilities.modules.includes('core')) return '/dashboard';
   if (capabilities.modules.includes('subscriptions')) return '/subscriptions';
   if (capabilities.modules.includes('import')) return '/import';
   return '/settings/appearance';
@@ -62,6 +64,13 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: ({ context }) => { redirect({ to: homePath(context.capabilities), throw: true }); },
+});
+
+const dashboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/dashboard',
+  beforeLoad: requireModule('core'),
+  component: DashboardPage,
 });
 
 const subscriptionsRoute = createRoute({
@@ -200,7 +209,7 @@ const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: SecurityJournalPage });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
+  indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
   incomeRoute, incomeNewRoute, incomeDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,

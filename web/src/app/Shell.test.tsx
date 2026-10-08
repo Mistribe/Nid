@@ -11,7 +11,7 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Abonnements', 'Placements', 'Revenus', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(links).toEqual(['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Import', 'Export', 'Sécurité', 'Réglages']);
   });
 
   it('offers Export even where import is disabled', async () => {
@@ -22,12 +22,12 @@ describe('the shell', () => {
   it('hides a module the server does not enable, and its route sends you home', async () => {
     const { router } = await renderApp('/import', { capabilities: { modules: ['core', 'subscriptions'], admin: false } });
     expect(within(sidebar()).queryByRole('link', { name: 'Import' })).not.toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/subscriptions');
+    expect(router.state.location.pathname).toBe('/dashboard');
   });
 
-  it('opens on the first module', async () => {
+  it('opens on the dashboard', async () => {
     const { router } = await renderApp('/');
-    expect(router.state.location.pathname).toBe('/subscriptions');
+    expect(router.state.location.pathname).toBe('/dashboard');
   });
 
   it('keeps Foyer / Moi in the URL across navigation', async () => {

@@ -4003,6 +4003,94 @@
         }
       }
     },
+    "/api/v1/dashboard": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/imports": {
       "post": {
         "tags": [
@@ -7554,6 +7642,142 @@
             "items": {
               "$ref": "#/components/schemas/PurchaseInput"
             }
+          }
+        }
+      },
+      "DashboardFigure": {
+        "required": [
+          "perCurrency"
+        ],
+        "type": "object",
+        "properties": {
+          "perCurrency": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardMoneyView"
+            }
+          },
+          "total": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "missingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DashboardMoneyView": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardView": {
+        "required": [
+          "currency",
+          "netWorth",
+          "envelopes",
+          "envelopesWithoutValue",
+          "staleEnvelopes",
+          "commitments",
+          "cashThisMonth",
+          "subscriptions",
+          "income",
+          "incomeSources",
+          "change",
+          "changeContributions"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "netWorth": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "valuesAsOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "envelopes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "envelopesWithoutValue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "staleEnvelopes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "commitments": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "cashThisMonth": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "subscriptions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "income": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "incomeSources": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "margin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "committedPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "change": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "changeContributions": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "changePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
