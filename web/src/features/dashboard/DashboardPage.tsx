@@ -74,10 +74,10 @@ function Card({ title, to, link, children }: { title: string; to: '/investments'
 }
 
 /** The big figure, or « Inconnu » with its reason (a missing rate names its currency). */
-function Big({ figure, unknown }: { figure: DashboardFigure; unknown: string }) {
+function Big({ figure, unknown, unknownRate = 'dashboard.unknown_rate' }: { figure: DashboardFigure; unknown: string; unknownRate?: 'dashboard.unknown_rate' | 'dashboard.change_unknown_rate' }) {
   const { t } = useTranslation();
   if (figure.total) return <p className="text-3xl font-semibold tabular-nums">{formatMoney(figure.total)}</p>;
-  return <p className="text-lg text-muted-foreground">{figure.missingCurrency ? t('dashboard.unknown_rate', { code: figure.missingCurrency }) : unknown}</p>;
+  return <p className="text-lg text-muted-foreground">{figure.missingCurrency ? t(unknownRate, { code: figure.missingCurrency }) : unknown}</p>;
 }
 
 function NetWorth({ d }: { d: DashboardView }) {
@@ -113,7 +113,7 @@ function Income({ d }: { d: DashboardView }) {
     <Card title={t('dashboard.income')} to="/income" link={t('dashboard.see_income')}>
       <Big figure={d.income} unknown={t('dashboard.income_unknown')} />
       {d.income.total ? <p className="text-sm text-muted-foreground">{t('dashboard.smoothed_per_month')}</p> : null}
-      <p className="text-sm">{d.margin ? t('dashboard.margin', { amount: formatMoney(d.margin) }) : missing ? t('dashboard.margin_unknown_rate', { code: missing }) : t('dashboard.margin_unknown')}</p>
+      <p className="text-sm">{d.margin ? t('dashboard.margin', { amount: formatMoney(d.margin) }) : d.incomeSources > 0 && missing ? t('dashboard.margin_unknown_rate', { code: missing }) : t('dashboard.margin_unknown')}</p>
     </Card>
   );
 }
@@ -129,7 +129,7 @@ function Change({ d }: { d: DashboardView }) {
             {d.changePct != null ? <span className="text-lg tabular-nums">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span> : null}
           </Direction>
         </p>
-      ) : <Big figure={d.change} unknown={t('dashboard.change_unknown')} />}
+      ) : <Big figure={d.change} unknown={t('dashboard.change_unknown')} unknownRate="dashboard.change_unknown_rate" />}
       {d.changeContributions.total ? (
         <p className="text-sm text-muted-foreground">{t('dashboard.of_which_paid_in', { amount: formatMoney(d.changeContributions.total) })}</p>
       ) : null}

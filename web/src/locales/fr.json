@@ -60,6 +60,7 @@
     "see_income": "Voir les revenus",
     "change": "Évolution depuis le 1er janvier",
     "change_unknown": "Inconnue : aucune valeur au 1er janvier",
+    "change_unknown_rate": "Inconnue : taux de change manquant ({{code}})",
     "pct": "{{value}} %",
     "of_which_paid_in": "dont {{amount}} versés"
   },

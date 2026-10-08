@@ -16,7 +16,10 @@ public sealed record NetWorthPart(
 public sealed record CommitmentsPart(
     int Subscriptions, IReadOnlyDictionary<Currency, decimal> Amortized, IReadOnlyDictionary<Currency, decimal> Cash);
 
-/// <summary>2D1 spec §4: the monthly equivalent of the phases running today, per currency.</summary>
+/// <summary>
+/// 2D1 spec §4: the monthly equivalent of the phases running today, per currency. A contribution counting a source in
+/// <c>Sources</c> puts an entry (0 when nothing runs) in that source's currency, so a declared source never reads « aucun revenu déclaré ».
+/// </summary>
 public sealed record IncomePart(int Sources, IReadOnlyDictionary<Currency, decimal> MonthlyEquivalent);
 
 /// <summary>A module holding part of the net worth; the dashboard sums every registered one (stage 3 adds real estate).</summary>

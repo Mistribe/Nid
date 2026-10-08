@@ -90,6 +90,22 @@ describe('DashboardPage', () => {
     expect(await card('Revenus et marge')).toHaveTextContent('Marge inconnue : taux de change manquant (GBP)');
   });
 
+  it('says the margin is unknown without income, even when a commitment misses a rate', async () => {
+    serve(dashboard({ income: figure(null), incomeSources: 0, commitments: figure(null, { missingCurrency: 'GBP' }), margin: null, committedPct: null }));
+    await renderApp('/dashboard');
+
+    const income = await card('Revenus et marge');
+    expect(income).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
+    expect(income).not.toHaveTextContent('taux de change manquant');
+  });
+
+  it('names the missing rate on the change card in the feminine', async () => {
+    serve(dashboard({ change: figure(null, { missingCurrency: 'USD' }), changePct: null }));
+    await renderApp('/dashboard');
+
+    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('Inconnue : taux de change manquant (USD)');
+  });
+
   it('refetches after a write', async () => {
     const seen: string[] = [];
     serve(dashboard(), seen);
@@ -112,7 +128,7 @@ describe('DashboardPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('shows skeletons while loading and a problem on error', async () => {
+  it('shows skeletons while loading', async () => {
     server.use(http.get('*/api/v1/dashboard', async () => { await delay('infinite'); return HttpResponse.json(dashboard()); }));
     await renderApp('/dashboard');
     expect(await screen.findByLabelText('Chargement du tableau de bord')).toHaveAttribute('aria-busy', 'true');

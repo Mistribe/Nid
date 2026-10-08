@@ -80,6 +80,7 @@ public static class DashboardMath
             // Ordered, so the currency a miss names is stable.
             foreach (var (currency, amount) in sums.OrderBy(s => s.Key.Code, StringComparer.Ordinal))
             {
+                if (amount == 0m) continue; // zero converts to zero at any rate
                 if (!rates.TryConvert(amount, currency, reference, today, projected: false, out var converted, out _))
                     return new Sum(sums, null, currency.Code); // the sum that could not convert, even when the miss is the reference quote
                 total += converted;

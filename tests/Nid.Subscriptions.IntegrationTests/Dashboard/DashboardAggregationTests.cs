@@ -30,10 +30,16 @@ public class DashboardAggregationTests(PostgresFixture fixture)
     {
         public Task<Result<IncomePart>> IncomeAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct) => Task.FromResult(Result.Success(part));
     }
-    private sealed class Rates(RateTable table) : IFxRates
+    private sealed class Rates(RateTable table, List<Currency> asked) : IFxRates
     {
-        public Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct) => Task.FromResult(table);
+        public Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct)
+        {
+            asked.AddRange(quotes);
+            return Task.FromResult(table);
+        }
     }
+
+    private readonly List<Currency> quotesAsked = [];
 
     private static RateTable UsdToEur(decimal eurPerUsd)
         => new([new FxRate(Today, Currency.Eur, eurPerUsd, FxRateSource.Ecb)], Today, maxGapDays: 7);
@@ -44,7 +50,7 @@ public class DashboardAggregationTests(PostgresFixture fixture)
             if (worth is not null) services.AddScoped<INetWorthContribution>(_ => new Worth(worth));
             if (commitments is not null) services.AddScoped<ICommitmentsContribution>(_ => new Commitments(commitments));
             if (income is not null) services.AddScoped<IIncomeContribution>(_ => new Income(income));
-            services.AddScoped<IFxRates>(_ => new Rates(rates ?? RateTable.Empty(Today, 7)));
+            services.AddScoped<IFxRates>(_ => new Rates(rates ?? RateTable.Empty(Today, 7), quotesAsked));
         });
 
     private static async Task<JsonElement> ReadAsync(NidApp app, string query = "")
@@ -84,6 +90,7 @@ public class DashboardAggregationTests(PostgresFixture fixture)
         Assert.Equal("1000.00", Total(view.GetProperty("change")));
         Assert.Equal("1000.00", Total(view.GetProperty("changeContributions")));
         Assert.Equal(9.1m, view.GetProperty("changePct").GetDecimal()); // 1000 ÷ (10000 + 1000)
+        Assert.Contains(Currency.Eur, quotesAsked); // the reference's own quote is loaded too
     }
 
     [Fact]
@@ -112,6 +119,17 @@ public class DashboardAggregationTests(PostgresFixture fixture)
         Assert.Equal(JsonValueKind.Null, view.GetProperty("margin").ValueKind);
         Assert.Equal(JsonValueKind.Null, view.GetProperty("committedPct").ValueKind);
         Assert.Equal("30.00", Total(view.GetProperty("commitments")));
+    }
+
+    [Fact]
+    public async Task A_zero_amount_needs_no_rate()
+    {
+        await using var app = await StartAsync(income: new IncomePart(1, Sums((Currency.Usd, 0m))));
+
+        var income = (await ReadAsync(app)).GetProperty("income");
+
+        Assert.Equal("0.00", Total(income));
+        Assert.Equal(JsonValueKind.Null, income.GetProperty("missingCurrency").ValueKind);
     }
 
     [Fact]
