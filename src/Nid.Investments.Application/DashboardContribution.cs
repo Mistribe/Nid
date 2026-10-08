@@ -26,10 +26,14 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
 
         foreach (var envelope in found)
         {
-            // As the envelopes' list: an envelope whose facts cannot be read is left out rather than failing the page.
-            if (!(await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f))
-                continue;
             count++;
+            // Facts that cannot be read: counted as without value (the tile says "N enveloppes sans valeur"),
+            // never skipped, so the total is never silently partial.
+            if (!(await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f))
+            {
+                withoutValue++;
+                continue;
+            }
             var figures = EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             if (figures.Value is not { } value)
             {

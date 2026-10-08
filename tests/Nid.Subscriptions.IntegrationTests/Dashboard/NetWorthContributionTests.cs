@@ -1,7 +1,11 @@
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
@@ -68,5 +72,43 @@ public class NetWorthContributionTests(PostgresFixture fixture)
         await ValueAsync(app, app.AdultA, child, "2025-10-01", "300.00");
 
         Assert.Equal("300.00", Total((await DashboardAsync(app, app.AdultA)).GetProperty("netWorth")));
+    }
+
+    // Forwards to the real IValuations, but its series of a chosen item fails (so that item's facts cannot be read).
+    private class FailingSeries : DispatchProxy
+    {
+        public static IValuations? Inner;
+        public static ItemId? Broken;
+
+        protected override object? Invoke(MethodInfo? method, object?[]? args)
+        {
+            if (method!.Name == nameof(IValuations.SeriesAsync) && (ItemId)args![0]! == Broken)
+                return Task.FromResult(Result.Failure<IReadOnlyList<Valuation>>(new Failure("test.broken", "Series unreadable.", null)));
+            return method.Invoke(Inner, args);
+        }
+    }
+
+    [Fact]
+    public async Task An_envelope_whose_facts_cannot_be_read_counts_as_without_value_never_silently_left_out()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services =>
+        {
+            services.AddScoped<IValuations>(sp =>
+            {
+                var proxy = DispatchProxy.Create<IValuations, FailingSeries>();
+                FailingSeries.Inner = ActivatorUtilities.CreateInstance(sp, typeof(Nid.Core.Infrastructure.Persistence.Valuations)) as IValuations;
+                return proxy;
+            });
+        });
+        var good = await app.NewEnvelopeAsync("Bon", app.AdultA, Visibility.Shared);
+        var broken = await app.NewEnvelopeAsync("Illisible", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, good, "2025-10-01", "500.00");
+        FailingSeries.Broken = broken;
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal(2, view.GetProperty("envelopes").GetInt32());
+        Assert.Equal(1, view.GetProperty("envelopesWithoutValue").GetInt32());
+        Assert.Equal("500.00", Total(view.GetProperty("netWorth")));
     }
 }
