@@ -1,4 +1,5 @@
-import { screen, within } from '@testing-library/react';
+import { invalidateInvestments } from '../investments/api';
+import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -80,6 +81,24 @@ describe('DashboardPage', () => {
     const commitments = await card('Engagements');
     expect(commitments).toHaveTextContent('Aucun coût ce mois-ci');
     expect(commitments).not.toHaveTextContent('Aucun abonnement');
+  });
+
+  it('names the missing rate when the margin is unknown though income is declared', async () => {
+    serve(dashboard({ commitments: figure(null, { missingCurrency: 'GBP' }), margin: null, committedPct: null }));
+    await renderApp('/dashboard');
+
+    expect(await card('Revenus et marge')).toHaveTextContent('Marge inconnue : taux de change manquant (GBP)');
+  });
+
+  it('refetches after a write', async () => {
+    const seen: string[] = [];
+    serve(dashboard(), seen);
+    const { queryClient } = await renderApp('/dashboard');
+    await card('Patrimoine');
+
+    await invalidateInvestments(queryClient);
+
+    await waitFor(() => expect(seen).toHaveLength(2));
   });
 
   it('welcomes a household with nothing yet, with the three ways to start', async () => {

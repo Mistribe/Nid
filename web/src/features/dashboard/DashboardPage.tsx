@@ -1,5 +1,5 @@
 import { Link, useSearch } from '@tanstack/react-router';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -9,14 +9,11 @@ import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { directionOf } from '../investments/format';
+import { Direction } from '../investments/Figures';
 import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
 
-const ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } as const;
 const percent = (value: number, sign = false) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, signDisplay: sign ? 'exceptZero' : 'auto' }).format(value);
-const signed = (money: { amount: string; currency: string }) =>
-  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: money.currency, signDisplay: 'exceptZero' }).format(money.amount as `${number}`);
 
 /** 2D1 design §5: the home page — four figures the server computed for the Foyer / Moi scope. */
 export function DashboardPage() {
@@ -111,11 +108,12 @@ function Commitments({ d }: { d: DashboardView }) {
 
 function Income({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
+  const missing = d.income.missingCurrency ?? d.commitments.missingCurrency;
   return (
     <Card title={t('dashboard.income')} to="/income" link={t('dashboard.see_income')}>
       <Big figure={d.income} unknown={t('dashboard.income_unknown')} />
       {d.income.total ? <p className="text-sm text-muted-foreground">{t('dashboard.smoothed_per_month')}</p> : null}
-      <p className="text-sm">{d.margin ? t('dashboard.margin', { amount: formatMoney(d.margin) }) : t('dashboard.margin_unknown')}</p>
+      <p className="text-sm">{d.margin ? t('dashboard.margin', { amount: formatMoney(d.margin) }) : missing ? t('dashboard.margin_unknown_rate', { code: missing }) : t('dashboard.margin_unknown')}</p>
     </Card>
   );
 }
@@ -123,16 +121,13 @@ function Income({ d }: { d: DashboardView }) {
 function Change({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   const total = d.change.total;
-  const direction = total ? directionOf(total.amount) : null;
-  const Icon = direction ? ICON[direction] : null;
   return (
     <Card title={t('dashboard.change')} to="/investments" link={t('dashboard.see_investments')}>
-      {total && Icon && direction ? (
-        <p className="flex flex-wrap items-center gap-2">
-          <Icon aria-hidden="true" className="size-6" />
-          <span className="text-3xl font-semibold tabular-nums">{signed(total)}</span>
-          {d.changePct != null ? <span className="text-lg tabular-nums">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span> : null}
-          <span className="text-sm">{t(`investments.direction.${direction}`)}</span>
+      {total ? (
+        <p className="text-3xl font-semibold">
+          <Direction amount={total}>
+            {d.changePct != null ? <span className="text-lg tabular-nums">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span> : null}
+          </Direction>
         </p>
       ) : <Big figure={d.change} unknown={t('dashboard.change_unknown')} />}
       {d.changeContributions.total ? (

@@ -55,6 +55,7 @@
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
     "margin": "Marge avant dépenses courantes : {{amount}}",
+    "margin_unknown_rate": "Marge inconnue : taux de change manquant ({{code}})",
     "margin_unknown": "Marge inconnue tant qu’aucun revenu n’est déclaré",
     "see_income": "Voir les revenus",
     "change": "Évolution depuis le 1er janvier",
