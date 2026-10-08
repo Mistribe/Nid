@@ -104,6 +104,7 @@ app.MapPersonEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
+app.MapDashboardEndpoints();
 app.MapImportEndpoints();
 app.MapExportEndpoints();
 app.MapPlatformEndpoints();

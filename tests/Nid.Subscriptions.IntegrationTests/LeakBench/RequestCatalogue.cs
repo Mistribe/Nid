@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using Nid.Core.Application;
 using Nid.Core.Application.Admin;
+using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Income.Application;
@@ -245,6 +246,7 @@ public static class RequestCatalogue
         new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
 
         new(typeof(ListIncomeSourcesQuery), false, (_, _) => new ListIncomeSourcesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
         new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,
