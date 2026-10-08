@@ -3,12 +3,12 @@ import { expect, test, type Download, type Page } from '@playwright/test';
 import { signIn } from './session';
 
 /**
- * The other journeys run in parallel and write (subscriptions.spec adds a subscription): the export may see its data
+ * The other journeys run in parallel and write (subscriptions.spec adds a subscription, dashboard.spec an envelope): the export may see its data
  * change between its first and last read. The screen then downloads nothing and offers to start again, as designed;
- * the test starts again, three times at most.
+ * the test starts again, six times at most.
  */
 async function exportFile(page: Page): Promise<Download> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const downloading = page.waitForEvent('download', { timeout: 30_000 });
     downloading.catch(() => {}); // abandoned when the data changed
     await page.getByRole('button', { name: attempt === 0 ? 'Exporter' : 'Relancer' }).click();
@@ -17,7 +17,7 @@ async function exportFile(page: Page): Promise<Download> {
     const download = await Promise.race([downloading, changed]);
     if (download) return download;
   }
-  throw new Error('the data kept changing during three exports');
+  throw new Error('the data kept changing during six exports');
 }
 
 /**
