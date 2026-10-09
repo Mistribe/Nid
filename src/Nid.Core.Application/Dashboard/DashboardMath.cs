@@ -9,19 +9,45 @@ public sealed record DashboardMoneyView(string Amount, string Currency);
 /// <summary>A figure's per-currency sums and their total in the household currency: null with nothing to sum, or when a rate is missing (then <c>MissingCurrency</c> names it).</summary>
 public sealed record DashboardFigure(IReadOnlyList<DashboardMoneyView> PerCurrency, DashboardMoneyView? Total, string? MissingCurrency);
 
+/// <summary>2D2a spec §4: one envelope of the split; <c>Converted</c> null without a value or with a missing rate (then <c>MissingCurrency</c> names it).</summary>
+public sealed record DashboardEnvelopeView(
+    ItemId Id, string Module, string Name, DashboardMoneyView? Value, DashboardMoneyView? Converted, string? MissingCurrency,
+    LocalDate? AsOf, bool Stale);
+
+/// <summary>2D2a spec §4: an event of « À venir »; the amount in its own currency.</summary>
+public sealed record DashboardEventView(LocalDate On, string Kind, ItemId Id, string Module, string Name, string? Label, DashboardMoneyView? Amount);
+
+/// <summary>2D2a spec §4: a line of « À faire »: <c>stale_value</c> (dated by the last value), <c>no_value</c>, <c>income_gap_soon</c> (dated by the end).</summary>
+public sealed record DashboardTodoView(string Kind, ItemId Id, string Module, string Name, LocalDate? On, string? Label);
+
+/// <summary>2D2a spec §4: a person's pro-rata share. <c>Slot</c> is their colour rank: adults by creation, then dependents.</summary>
+public sealed record DashboardPersonView(Guid Id, string Name, int Slot, DashboardMoneyView Amount, decimal Pct);
+
 public sealed record DashboardView(
     string Currency,
     DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes,
     DashboardFigure Commitments, DashboardFigure CashThisMonth, int Subscriptions,
     DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct,
-    DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct);
+    DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
+    IReadOnlyList<DashboardEnvelopeView> EnvelopeSplit, IReadOnlyList<DashboardPersonView>? People, string? PeopleMissingCurrency,
+    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo)
+    : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id)).Concat(Todo.Select(t => t.Id));
+}
 
 /// <summary>
 /// 2D1 spec §4: sums the modules' parts per currency, converts each sum at today's rate, and derives the margin, the share
 /// committed and the change percent. Exact decimals throughout; rounded only on the wire.
+/// 2D2a: the split by envelope and by person, from the holdings converted at today's rate.
 /// </summary>
 public static class DashboardMath
 {
+    public const int UpcomingDays = 60;
+
+    /// <summary>Names sort in French order, ignoring case, as the envelope list does.</summary>
+    private static readonly StringComparer French = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), ignoreCase: true);
+
     public static IReadOnlySet<Currency> Currencies(
         IEnumerable<NetWorthPart> worth, IEnumerable<CommitmentsPart> commitments, IEnumerable<IncomePart> income)
         => worth.SelectMany(p => p.Values.Keys.Concat(p.StartValues.Keys).Concat(p.NetContributions.Keys).Concat(p.Gains.Keys))
@@ -31,7 +57,7 @@ public static class DashboardMath
 
     public static DashboardView Compose(
         IReadOnlyList<NetWorthPart> worth, IReadOnlyList<CommitmentsPart> commitments, IReadOnlyList<IncomePart> income,
-        Currency reference, RateTable rates, LocalDate today)
+        IReadOnlyList<UpcomingEvent> events, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today)
     {
         Sum Of(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts) => Sum.Of(Merge(parts), reference, rates, today);
 
@@ -51,6 +77,36 @@ public static class DashboardMath
         decimal? share = incomeTotal is { } i2 && i2 > 0m && committed is { } c2 ? Percent(c2 / i2) : null;
         decimal? changePct = gain.Total is { } g && start.Total is { } s && net.Total is { } n && s + n > 0m ? Percent(g / (s + n)) : null;
 
+        var holdings = worth.SelectMany(p => p.Holdings)
+            .Select(h => (Holding: h, Converted: Convert(h.Value, reference, rates, today)))
+            .ToList();
+        var split = holdings
+            .OrderBy(h => h.Holding.Value is null ? 2 : h.Converted.Amount is null ? 1 : 0)
+            .ThenByDescending(h => h.Converted.Amount ?? 0m)
+            .ThenBy(h => h.Holding.Name, French)
+            .Select(h => new DashboardEnvelopeView(
+                h.Holding.Item, h.Holding.Module, h.Holding.Name,
+                h.Holding.Value is { } v ? Money(v.Amount, v.Currency) : null,
+                h.Converted.Amount is { } c ? Money(c, reference) : null,
+                h.Converted.Missing, h.Holding.AsOf, h.Holding.Stale))
+            .ToList();
+        var peopleMissing = holdings.Select(h => h.Converted.Missing).OfType<string>().Order(StringComparer.Ordinal).FirstOrDefault();
+        var people = peopleMissing is null ? People(holdings.Select(h => (h.Holding.Owners, h.Converted.Amount)), persons, reference) : null;
+
+        var upcoming = events.Where(e => e.Kind != UpcomingKinds.IncomeGapSoon)
+            .OrderBy(e => e.On).ThenBy(e => e.Name, French).ThenBy(e => e.Kind, StringComparer.Ordinal)
+            .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
+                e.Amount is { } a ? Money(a.Amount, a.Currency) : null))
+            .ToList();
+        var todo = holdings.Where(h => h.Holding is { Value: not null, Stale: true })
+            .OrderBy(h => h.Holding.AsOf).ThenBy(h => h.Holding.Name, French)
+            .Select(h => new DashboardTodoView("stale_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, h.Holding.AsOf, null))
+            .Concat(holdings.Where(h => h.Holding.Value is null).OrderBy(h => h.Holding.Name, French)
+                .Select(h => new DashboardTodoView("no_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, null, null)))
+            .Concat(events.Where(e => e.Kind == UpcomingKinds.IncomeGapSoon).OrderBy(e => e.On).ThenBy(e => e.Name, French)
+                .Select(e => new DashboardTodoView(UpcomingKinds.IncomeGapSoon, e.Item, e.Module, e.Name, e.On, e.Label)))
+            .ToList();
+
         return new DashboardView(
             reference.Code,
             netWorth.View(reference), worth.Select(p => p.OldestAsOf).Min(), worth.Sum(p => p.Envelopes),
@@ -58,7 +114,38 @@ public static class DashboardMath
             amortized.View(reference), cash.View(reference), commitments.Sum(p => p.Subscriptions),
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,
             margin is { } m ? Money(m, reference) : null, share,
-            gain.View(reference), net.View(reference), changePct);
+            gain.View(reference), net.View(reference), changePct,
+            split, people, peopleMissing, upcoming, todo);
+    }
+
+    /// <summary>One holding at today's rate: zero converts to zero at any rate, as <see cref="Sum.Of"/>.</summary>
+    private static (decimal? Amount, string? Missing) Convert(Money? value, Currency reference, RateTable rates, LocalDate today)
+    {
+        if (value is not { } v) return (null, null);
+        if (v.Amount == 0m) return (0m, null);
+        return rates.TryConvert(v.Amount, v.Currency, reference, today, projected: false, out var converted, out _)
+            ? (converted, null)
+            : (null, v.Currency.Code);
+    }
+
+    /// <summary>Spec decision 2: value × share, pro rata; a person at zero is left out; percent of the persons' total.</summary>
+    private static List<DashboardPersonView> People(
+        IEnumerable<(IReadOnlyList<OwnerShare> Owners, decimal? Amount)> holdings, IReadOnlyList<PersonInfo> persons, Currency reference)
+    {
+        var shares = new Dictionary<PersonId, decimal>();
+        foreach (var (owners, amount) in holdings)
+            if (amount is { } a)
+                foreach (var owner in owners)
+                    shares[owner.PersonId] = shares.GetValueOrDefault(owner.PersonId) + a * owner.ShareBp / 10_000m;
+        var total = shares.Values.Sum();
+        // OrderBy is stable: ListAsync gives creation order, so adults keep theirs, then dependents keep theirs.
+        return persons.OrderBy(p => p.Kind == PersonKind.Adult ? 0 : 1)
+            .Select((p, slot) => (Person: p, Slot: slot, Amount: shares.GetValueOrDefault(p.Id)))
+            .Where(x => x.Amount != 0m)
+            .OrderByDescending(x => x.Amount).ThenBy(x => x.Person.DisplayName, French)
+            .Select(x => new DashboardPersonView(x.Person.Id.Value, x.Person.DisplayName, x.Slot, Money(x.Amount, reference),
+                total > 0m ? Percent(x.Amount / total) : 0m))
+            .ToList();
     }
 
     private static IReadOnlyDictionary<Currency, decimal> Merge(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)

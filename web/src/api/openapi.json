@@ -7645,6 +7645,108 @@
           }
         }
       },
+      "DashboardEnvelopeView": {
+        "required": [
+          "id",
+          "module",
+          "name",
+          "stale"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "converted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "missingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "asOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DashboardEventView": {
+        "required": [
+          "on",
+          "kind",
+          "id",
+          "module",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "DashboardFigure": {
         "required": [
           "perCurrency"
@@ -7690,6 +7792,73 @@
           }
         }
       },
+      "DashboardPersonView": {
+        "required": [
+          "id",
+          "name",
+          "slot",
+          "amount",
+          "pct"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "pct": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DashboardTodoView": {
+        "required": [
+          "kind",
+          "id",
+          "module",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "on": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "DashboardView": {
         "required": [
           "currency",
@@ -7703,7 +7872,10 @@
           "income",
           "incomeSources",
           "change",
-          "changeContributions"
+          "changeContributions",
+          "envelopeSplit",
+          "upcoming",
+          "todo"
         ],
         "type": "object",
         "properties": {
@@ -7778,6 +7950,39 @@
               "number"
             ],
             "format": "double"
+          },
+          "envelopeSplit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardEnvelopeView"
+            }
+          },
+          "people": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DashboardPersonView"
+            }
+          },
+          "peopleMissingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardEventView"
+            }
+          },
+          "todo": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTodoView"
+            }
           }
         }
       },

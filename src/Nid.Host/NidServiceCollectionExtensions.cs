@@ -125,6 +125,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
+        services.AddScoped<IUpcomingEvents, Nid.Subscriptions.Application.SubscriptionsUpcoming>();
 
         services.AddDbContext<InvestmentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -146,6 +147,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISourceStore, SourceStore>();
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
+        services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.

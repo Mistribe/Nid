@@ -28,7 +28,6 @@ export function Shell() {
     <Link
       key={item.to}
       to={item.to}
-      search={(prev) => ({ scope: prev.scope })}
       className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
       activeProps={{ 'aria-current': 'page', className: 'font-semibold' }}
     >

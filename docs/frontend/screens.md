@@ -11,7 +11,7 @@
 - **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import, Export, Sécurité, Réglages, et **Administration** pour un admin.
 - **Administration** n'apparaît (barre latérale sur bureau, barre d'onglets sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
-- **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer.
+- **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer. Le choix Foyer / Moi est conservé par tous les liens internes et par « Retour » (2D2a).
 
 ## 2. Écrans
 
@@ -46,6 +46,8 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 | À faire | Routine du mois, propositions en attente, valeurs périmées |
 
 **Livré en 2D1** (2026-10-08) : page d'accueil `/dashboard` avec le patrimoine (valeurs les plus récentes, date, valeurs à mettre à jour, enveloppes sans valeur), les engagements (coût mensuel amorti, prélevé ce mois-ci, part des revenus), les revenus et la marge avant dépenses courantes, et l'évolution depuis le 1er janvier hors versements ; une valeur inconnue est dite avec sa raison. La courbe, la répartition, « À venir » et « À faire » viennent en 2D2.
+
+**Livré en 2D2a** (2026-10-09) : répartition par enveloppe (barres triées et tableau, enveloppes sans valeur listées à part) et par personne (au prorata des parts, une couleur par personne), « À venir » sur 60 jours (renouvellements des abonnements dont le cycle dépasse un mois, expirations, fins de période de revenus), « À faire » (valeurs à mettre à jour, enveloppes sans valeur, suites de revenus à renseigner). La courbe du patrimoine vient en 2D2b.
 
 - **Une seule requête** agrégée : `GET /api/v1/dashboard`, calculée par le serveur.
 - Une valeur inconnue s'affiche « inconnue », **jamais 0**.

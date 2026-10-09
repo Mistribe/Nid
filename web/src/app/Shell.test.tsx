@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
+import { detail, list, SALARY, summary } from '@/features/income/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -28,6 +29,31 @@ describe('the shell', () => {
   it('opens on the dashboard', async () => {
     const { router } = await renderApp('/');
     expect(router.state.location.pathname).toBe('/dashboard');
+  });
+
+  it('keeps Moi through a link to a detail and through « Retour »', async () => {
+    server.use(
+      http.get('*/api/v1/income/sources', () => HttpResponse.json(list([summary()]))),
+      http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
+    );
+    const { router, user } = await renderApp('/income?scope=me');
+
+    await user.click(await screen.findByRole('link', { name: /Salaire Alice/ }));
+    expect(router.state.location.pathname).toBe(`/income/${SALARY}`);
+    expect(router.state.location.search).toEqual({ scope: 'me' });
+
+    await screen.findByRole('heading', { level: 1, name: 'Salaire Alice' }, { timeout: 5000 });
+    await user.click(await screen.findByRole('link', { name: 'Retour aux revenus' }));
+    expect(router.state.location.pathname).toBe('/income');
+    expect(router.state.location.search).toEqual({ scope: 'me' });
+  });
+
+  it('the selector back to Foyer removes the scope', async () => {
+    const { router, user } = await renderApp('/subscriptions?scope=me');
+    await user.click(screen.getByRole('radio', { name: 'Foyer' }));
+    expect(router.state.location.search).toEqual({});
+    await user.click(within(sidebar()).getByRole('link', { name: 'Import' }));
+    expect(router.state.location.search).toEqual({});
   });
 
   it('keeps Foyer / Moi in the URL across navigation', async () => {

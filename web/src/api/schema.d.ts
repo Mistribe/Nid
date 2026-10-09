@@ -6820,6 +6820,29 @@ export interface components {
             phases?: null | components["schemas"]["PhaseInput"][];
             purchases?: null | components["schemas"]["PurchaseInput"][];
         };
+        DashboardEnvelopeView: {
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            value?: null | components["schemas"]["DashboardMoneyView"];
+            converted?: null | components["schemas"]["DashboardMoneyView"];
+            missingCurrency?: null | string;
+            /** Format: date */
+            asOf?: null | string;
+            stale: boolean;
+        };
+        DashboardEventView: {
+            /** Format: date */
+            on: string;
+            kind: string;
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            label?: null | string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
+        };
         DashboardFigure: {
             perCurrency: components["schemas"]["DashboardMoneyView"][];
             total?: null | components["schemas"]["DashboardMoneyView"];
@@ -6828,6 +6851,26 @@ export interface components {
         DashboardMoneyView: {
             amount: string;
             currency: string;
+        };
+        DashboardPersonView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            slot: number;
+            amount: components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            pct: number;
+        };
+        DashboardTodoView: {
+            kind: string;
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            /** Format: date */
+            on?: null | string;
+            label?: null | string;
         };
         DashboardView: {
             currency: string;
@@ -6854,6 +6897,11 @@ export interface components {
             changeContributions: components["schemas"]["DashboardFigure"];
             /** Format: double */
             changePct?: null | number;
+            envelopeSplit: components["schemas"]["DashboardEnvelopeView"][];
+            people?: null | components["schemas"]["DashboardPersonView"][];
+            peopleMissingCurrency?: null | string;
+            upcoming: components["schemas"]["DashboardEventView"][];
+            todo: components["schemas"]["DashboardTodoView"][];
         };
         DurationBody: {
             /** Format: int32 */

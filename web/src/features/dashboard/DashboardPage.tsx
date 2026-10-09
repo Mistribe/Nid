@@ -1,6 +1,6 @@
 import { Link, useSearch } from '@tanstack/react-router';
 import { Clock } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { lazy, Suspense, useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -10,10 +10,14 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Direction } from '../investments/Figures';
+import { Todo, Upcoming } from './Agenda';
 import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
+import { percent } from './format';
+import { EnvelopeSplit, PeopleSplit } from './Split';
 
-const percent = (value: number, sign = false) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, signDisplay: sign ? 'exceptZero' : 'auto' }).format(value);
+// The home page is in the initial bundle; Recharts is not (spec 2D2a §5).
+const EnvelopeChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.EnvelopeChart })));
+const PeopleChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.PeopleChart })));
 
 /** 2D1 design §5: the home page — four figures the server computed for the Foyer / Moi scope. */
 export function DashboardPage() {
@@ -53,11 +57,23 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
         )} />
     );
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <NetWorth d={data} />
-      <Commitments d={data} />
-      <Income d={data} />
-      <Change d={data} />
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <NetWorth d={data} />
+        <Commitments d={data} />
+        <Income d={data} />
+        <Change d={data} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
+          <EnvelopeSplit d={data} chart={<Suspense fallback={null}><EnvelopeChart rows={data.envelopeSplit} /></Suspense>} />
+          <PeopleSplit d={data} chart={data.people ? <Suspense fallback={null}><PeopleChart people={data.people} /></Suspense> : null} />
+        </div>
+        <div className="space-y-4">
+          <Upcoming d={data} />
+          <Todo d={data} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -68,7 +84,7 @@ function Card({ title, to, link, children }: { title: string; to: '/investments'
     <section aria-labelledby={id} className="flex flex-col gap-2 rounded-md border p-4">
       <h2 id={id} className="text-sm font-medium text-muted-foreground">{title}</h2>
       {children}
-      <Link to={to} search={(prev) => ({ scope: prev.scope })} className="mt-auto text-sm underline">{link}</Link>
+      <Link to={to} className="mt-auto text-sm underline">{link}</Link>
     </section>
   );
 }

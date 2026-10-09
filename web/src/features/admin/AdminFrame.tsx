@@ -23,7 +23,6 @@ export function AdminFrame({ title, children }: { title: string; children: React
           <Link
             key={section.to}
             to={section.to}
-            search={(prev) => ({ scope: prev.scope })}
             className="min-h-11 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
             activeProps={{ 'aria-current': 'page', className: 'font-semibold' }}
           >

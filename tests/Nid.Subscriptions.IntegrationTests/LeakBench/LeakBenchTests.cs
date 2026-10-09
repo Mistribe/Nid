@@ -163,6 +163,17 @@ public class LeakBenchTests(PostgresFixture fixture)
             Assert.Equal(
                 expectedSources.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 sources.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+            // And the dashboard (2D2a): its envelope split lists exactly the visible open envelopes, and every item
+            // named in « À venir » or « À faire » is one this actor may read.
+            var dashboard = System.Text.Json.JsonDocument.Parse(await app.GetRawAsync(actor, $"/api/v1/dashboard?scope={scope}")).RootElement;
+            Assert.Equal(
+                expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                dashboard.GetProperty("envelopeSplit").EnumerateArray()
+                    .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
+            foreach (var section in new[] { "upcoming", "todo" })
+            foreach (var entry in dashboard.GetProperty(section).EnumerateArray())
+                Assert.Contains(new ItemId(entry.GetProperty("id").GetGuid()), data.ExpectedReadable(actor));
         }
     }
 

@@ -1,4 +1,4 @@
-import type { DashboardFigure, DashboardView } from './api';
+import type { DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView } from './api';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -12,6 +12,7 @@ export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => (
   commitments: figure('250.56'), cashThisMonth: figure('120.00'), subscriptions: 3,
   income: figure('2500.00'), incomeSources: 1, margin: eur('2249.45'), committedPct: 10,
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
+  envelopeSplit: [], people: [], peopleMissingCurrency: null, upcoming: [], todo: [],
   ...over,
 });
 
@@ -19,4 +20,23 @@ export const emptyDashboard = dashboard({
   netWorth: figure(null), valuesAsOf: null, envelopes: 0, commitments: figure(null), cashThisMonth: figure(null),
   subscriptions: 0, income: figure(null), incomeSources: 0, margin: null, committedPct: null,
   change: figure(null), changeContributions: figure(null), changePct: null,
+});
+
+export const envelope = (over: Partial<DashboardEnvelope> = {}): DashboardEnvelope => ({
+  id: '00000000-0000-7000-8000-0000000000e1', module: 'investments', name: 'PEA',
+  value: eur('25000.00'), converted: eur('25000.00'), missingCurrency: null, asOf: '2025-09-30', stale: false, ...over,
+});
+
+export const person = (over: Partial<DashboardPerson> = {}): DashboardPerson => ({
+  id: '00000000-0000-7000-8000-0000000000a1', name: 'Alice', slot: 0, amount: eur('12500.00'), pct: 50, ...over,
+});
+
+export const event = (over: Partial<DashboardEvent> = {}): DashboardEvent => ({
+  on: '2025-11-10', kind: 'subscription_renewal', id: '00000000-0000-7000-8000-0000000000c1', module: 'subscriptions',
+  name: 'Amazon Prime', label: null, amount: eur('69.90'), ...over,
+});
+
+export const todoItem = (over: Partial<DashboardTodo> = {}): DashboardTodo => ({
+  kind: 'stale_value', id: '00000000-0000-7000-8000-0000000000e2', module: 'investments', name: 'Livret A',
+  on: '2025-06-03', label: null, ...over,
 });

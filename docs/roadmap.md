@@ -1,6 +1,6 @@
 # Feuille de route et état d'avancement
 
-> Dernière mise à jour : 2026-10-08. **Ce fichier est la référence de l'état du projet.** Le contenu et la valeur de chaque étape restent décrits dans `Project.md` §10 ; les plans d'exécution sont dans `superpowers/plans/`.
+> Dernière mise à jour : 2026-10-09. **Ce fichier est la référence de l'état du projet.** Le contenu et la valeur de chaque étape restent décrits dans `Project.md` §10 ; les plans d'exécution sont dans `superpowers/plans/`.
 > Règle : le dernier commit de chaque plan ou sous-plan met à jour ce fichier (statut, date, décisions prises, écarts). Un statut périmé est un défaut.
 
 Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (avec la raison).
@@ -13,7 +13,7 @@ Statuts : `à faire` · `en cours` · `terminé` (avec la date) · `bloqué` (av
 |---|---|---|---|---|
 | **0. Conception** | Architecture, modèles de données, sécurité, frontend, format d'import, spikes | Terminée | sans objet | **terminé** (2026-09-19) |
 | **1. Noyau + Abonnements** | Propriétaires, montants ; module Abonnements complet ; reprise du fichier existant | Terminée | `superpowers/plans/2026-09-19-stage-1-overview.md` | **terminé** (2026-09-29 ; les suggestions de plans du catalogue passent à l'étape 6) |
-| **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | `superpowers/plans/2026-09-29-stage-2-overview.md` | **en cours** (2A, 2B1a, 2B1b, 2B2a, 2B2b, 2C1, 2C2a, 2C2b et 2D1 terminés ; 2D2 à concevoir) |
+| **2. Placements et Revenus** | Enveloppes, valorisations, versements, sources de revenu, premier tableau de bord | Terminée | `superpowers/plans/2026-09-29-stage-2-overview.md` | **en cours** (2A, 2B1a, 2B1b, 2B2a, 2B2b, 2C1, 2C2a, 2C2b, 2D1 et 2D2a (2026-10-09) terminés ; 2D2b à concevoir) |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, échéancier, valeur nette | Terminée | à écrire | à faire |
 | **4. Automatisation IA** | Serveur MCP, extraction de documents, file de validation | Terminée | à écrire | à faire |
 | **5. Synchronisation bancaire** | Comptes via DSP2, rapprochement avec les abonnements | **À écrire** | à écrire | à faire |
@@ -101,7 +101,7 @@ Repris de `spikes.md` §9. Chaque risque est rattaché à l'étape où il sera v
 |---|---|---|
 | Questions ouvertes de l'architecture | selon l'étape concernée | `architecture.md` §16 |
 | Barre d'onglets mobile : au-delà de six entrées elle déborde (huit pour un adulte depuis « Accueil », ajouté en 2D1) ; menu « Plus » prévu (`frontend/screens.md` §1) | avant 2E | `frontend/screens.md` §1 |
-| Sélecteur Foyer / Moi : il n'est pas conservé par les liens vers une fiche ni par « Retour » | avant 2D2 | `frontend/screens.md` §1 |
+| ~~Sélecteur Foyer / Moi : il n'est pas conservé par les liens vers une fiche ni par « Retour »~~ **levé (2026-10-09, 2D2a)** : `retainSearchParams` sur la route racine | fait | `frontend/screens.md` §1 |
 | Boîtes de dialogue : la mise en place modale (ouverture, Échap, retour du focus) est recopiée dans quatre dialogues (Placements, Abonnements, Revenus) ; à extraire en un composant commun | avant 2E | `web/src/features/investments/closing/CloseDialog.tsx`, `web/src/features/income/closing/EndDialog.tsx` |
 
 **Tranchées le 2026-09-22** : `Valuation`, `Flow`, `Document` et `Proposal` restent hors de l'étape 1 (leurs
@@ -154,3 +154,4 @@ documentation en français.
 | 2026-10-06 | Sous-plan 2C2a exécuté de bout en bout (8 tâches, `superpowers/plans/2026-10-06-stage-2c2a-income-screens.md`) : écrans Revenus (liste, création avec composantes, détail, périodes, réglages) ; le champ d'un refus arrive au client dans `errors[]` (Placements compris). 744 tests web, 1380 tests .NET, parcours E2E. |
 | 2026-10-07 | Sous-plan 2C2b exécuté de bout en bout (5 tâches, `superpowers/plans/2026-10-07-stage-2c2b-income-operations.md`) : revenu attendu, changement de montant, revenus exceptionnels, fin et réouverture d'une source ; aucun changement serveur. 793 tests web, parcours E2E. Les écrans Revenus (2C) sont terminés. |
 | 2026-10-08 | Sous-plan 2D1 exécuté de bout en bout (5 tâches, `superpowers/plans/2026-10-08-stage-2d1-dashboard-figures.md`) : tableau de bord par contributions des modules (patrimoine, engagements, revenus et marge, évolution depuis le 1er janvier), page d'accueil ; les éléments d'un enfant comptent dans le total du foyer. 808 tests web, 1394 tests .NET, parcours E2E. Le parcours `export.spec` vérifie la stabilité des données d’alice pendant que d’autres parcours y écrivent : six essais désormais, une exécution complète peut encore échouer sous forte concurrence. Le parcours E2E ne crée qu’une enveloppe : les montants des quatre tuiles sont fixés par les tests d’intégration. |
+| 2026-10-09 | Sous-plan 2D2a exécuté de bout en bout (6 tâches, `superpowers/plans/2026-10-09-stage-2d2a-dashboard-lists.md`) : répartition par enveloppe et par personne (tableaux et graphiques chargés à la demande), « À venir » sur 60 jours, « À faire », choix Foyer / Moi conservé par tous les liens et par « Retour ». 822 tests web, au moins 1410 tests .NET. Parcours E2E du tableau de bord : 2 réussis, seul ou avec les autres ; dans une exécution complète, `export.spec` a échoué (délai de téléchargement, cf. la concurrence notée en 2D1) et le nouveau parcours une fois, mais ils passent seuls. Décisions prises à l'exécution : les identifiants de personne circulent en uuid nu sur le fil (pas d'objet PersonId) ; une expiration dans la fenêtre est affichée même si une échéance de plus tombe avant elle. Revue finale : une augmentation prenant effet dans la fenêtre n'annonce plus la fin de la période ; un renouvellement annuel suivant une phase mensuelle (ou dû le jour même) est bien listé ; les noms sont triés dans l'ordre français sans tenir compte de la casse ; une répartition par personne vide dit « Aucun montant à répartir. ». |
