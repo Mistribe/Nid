@@ -1,6 +1,6 @@
 import { Link, useSearch } from '@tanstack/react-router';
 import { Clock } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { lazy, Suspense, useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -14,6 +14,10 @@ import { Todo, Upcoming } from './Agenda';
 import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
 import { percent } from './format';
 import { EnvelopeSplit, PeopleSplit } from './Split';
+
+// The home page is in the initial bundle; Recharts is not (spec 2D2a §5).
+const EnvelopeChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.EnvelopeChart })));
+const PeopleChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.PeopleChart })));
 
 /** 2D1 design §5: the home page — four figures the server computed for the Foyer / Moi scope. */
 export function DashboardPage() {
@@ -62,8 +66,8 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-4">
-          <EnvelopeSplit d={data} />
-          <PeopleSplit d={data} />
+          <EnvelopeSplit d={data} chart={<Suspense fallback={null}><EnvelopeChart rows={data.envelopeSplit} /></Suspense>} />
+          <PeopleSplit d={data} chart={data.people ? <Suspense fallback={null}><PeopleChart people={data.people} /></Suspense> : null} />
         </div>
         <div className="space-y-4">
           <Upcoming d={data} />
