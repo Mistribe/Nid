@@ -3,10 +3,12 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { detail, list, SALARY, summary } from '@/features/income/testData';
 import { expectNoAxeViolations } from '@/test/axe';
+import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
 const sidebar = () => screen.getByRole('navigation', { name: 'Navigation principale' });
+const tabs = () => screen.getByRole('navigation', { name: 'Onglets' });
 
 describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
@@ -101,5 +103,38 @@ describe('the shell', () => {
   it('has no accessibility violation', async () => {
     const { container } = await renderApp('/subscriptions');
     await expectNoAxeViolations(container);
+  });
+  it('shows four tabs and Plus on a phone', async () => {
+    await renderApp('/subscriptions');
+    expect(within(tabs()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Plus']);
+  });
+
+  it('the tab bar follows the enabled modules', async () => {
+    await renderApp('/subscriptions', { capabilities: { modules: ['core', 'subscriptions', 'investments'], admin: false } });
+    expect(within(tabs()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Abonnements', 'Placements', 'Plus']);
+  });
+
+  it('lists the other sections on /more, Administration for an admin only', async () => {
+    const { container } = await renderApp('/more');
+    const list = await screen.findByRole('list', { name: 'Autres sections' });
+    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['Import', 'Export', 'Sécurité', 'Réglages']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows Administration on /more for an admin', async () => {
+    await renderApp('/more', { capabilities: adminCapabilities });
+    const list = await screen.findByRole('list', { name: 'Autres sections' });
+    expect(within(list).getByRole('link', { name: 'Administration' })).toBeInTheDocument();
+  });
+
+  it('marks Plus current on a page it gathers', async () => {
+    await renderApp('/import');
+    expect(within(tabs()).getByRole('link', { name: 'Plus' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs()).getByRole('link', { name: 'Accueil' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('keeps every entry in the sidebar and no Plus', async () => {
+    await renderApp('/subscriptions');
+    expect(within(sidebar()).queryByRole('link', { name: 'Plus' })).not.toBeInTheDocument();
   });
 });
