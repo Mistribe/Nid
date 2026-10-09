@@ -68,7 +68,7 @@ function Card({ title, to, link, children }: { title: string; to: '/investments'
     <section aria-labelledby={id} className="flex flex-col gap-2 rounded-md border p-4">
       <h2 id={id} className="text-sm font-medium text-muted-foreground">{title}</h2>
       {children}
-      <Link to={to} search={(prev) => ({ scope: prev.scope })} className="mt-auto text-sm underline">{link}</Link>
+      <Link to={to} className="mt-auto text-sm underline">{link}</Link>
     </section>
   );
 }

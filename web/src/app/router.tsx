@@ -4,6 +4,7 @@ import {
   createRouter,
   lazyRouteComponent,
   redirect,
+  retainSearchParams,
   RouterProvider,
   type RouterHistory,
 } from '@tanstack/react-router';
@@ -56,6 +57,8 @@ const requireModule = (module: string) => ({ context }: { context: RouterContext
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   validateSearch: (search: Record<string, unknown>): RootSearch => (search.scope === 'me' ? { scope: 'me' } : {}),
+  // Foyer / Moi survives every link and « Retour » (spec 2D2a decision 4); the selector writing `scope: undefined` still clears it.
+  search: { middlewares: [retainSearchParams<RootSearch>(['scope'])] },
   component: Shell,
   notFoundComponent: NotFoundPage,
 });
