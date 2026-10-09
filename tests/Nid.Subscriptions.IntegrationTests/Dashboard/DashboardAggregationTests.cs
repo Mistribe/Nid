@@ -69,7 +69,7 @@ public class DashboardAggregationTests(PostgresFixture fixture)
         var usd = Currency.Usd;
         await using var app = await StartAsync(
             new NetWorthPart(2, 1, 1, new LocalDate(2025, 9, 30), Sums((Currency.Eur, 12000m), (usd, 1000m)),
-                Sums((Currency.Eur, 10000m)), Sums((Currency.Eur, 1000m)), Sums((Currency.Eur, 1000m)), []),
+                Sums((Currency.Eur, 10000m)), Sums((Currency.Eur, 1000m)), Sums((Currency.Eur, 1000m)), [], 0),
             new CommitmentsPart(1, Sums((Currency.Eur, 250.555m)), Sums((Currency.Eur, 120m))),
             new IncomePart(1, Sums((Currency.Eur, 2500m))),
             UsdToEur(0.9m));
@@ -97,7 +97,7 @@ public class DashboardAggregationTests(PostgresFixture fixture)
     public async Task A_missing_rate_makes_the_figure_unknown_and_names_the_currency()
     {
         await using var app = await StartAsync(
-            new NetWorthPart(1, 0, 0, Today, Sums((Currency.Usd, 1000m)), None, None, None, []));
+            new NetWorthPart(1, 0, 0, Today, Sums((Currency.Usd, 1000m)), None, None, None, [], 0));
 
         var worth = (await ReadAsync(app)).GetProperty("netWorth");
 
@@ -136,7 +136,7 @@ public class DashboardAggregationTests(PostgresFixture fixture)
     public async Task A_change_base_of_zero_gives_the_gain_without_a_percent()
     {
         await using var app = await StartAsync(
-            new NetWorthPart(1, 0, 0, Today, Sums((Currency.Eur, 50m)), Sums((Currency.Eur, 0m)), Sums((Currency.Eur, 0m)), Sums((Currency.Eur, 50m)), []));
+            new NetWorthPart(1, 0, 0, Today, Sums((Currency.Eur, 50m)), Sums((Currency.Eur, 0m)), Sums((Currency.Eur, 0m)), Sums((Currency.Eur, 50m)), [], 0));
 
         var view = await ReadAsync(app);
 

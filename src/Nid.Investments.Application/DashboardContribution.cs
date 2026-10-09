@@ -23,7 +23,7 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         var nets = new Dictionary<Currency, decimal>();
         var gains = new Dictionary<Currency, decimal>();
         var holdings = new List<Holding>();
-        int count = 0, withoutValue = 0, stale = 0;
+        int count = 0, withoutValue = 0, stale = 0, withoutStart = 0;
         LocalDate? oldest = null;
 
         foreach (var envelope in found)
@@ -53,15 +53,22 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, figures.AsOf, figures.StaleDays is not null, owners));
 
             var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, january1, today);
-            if (period is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
+            // 2D2b decision 3: a start value older than the envelope's own staleness threshold would fold several
+            // years into « the year's gain »; a null threshold (no cadence) sets no limit.
+            var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
+            var recent = period.StartAsOf is { } startAsOf
+                && (limit is not { } days || NodaTime.Period.DaysBetween(startAsOf, january1) <= days);
+            if (recent && period is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {
                 Add(starts, start.Currency, start.Amount);
                 Add(nets, net.Currency, net.Amount);
                 Add(gains, gain.Currency, gain.Amount);
             }
+            else
+                withoutStart++;
         }
 
-        return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings));
+        return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings, withoutStart));
     }
 
     private static void Add(Dictionary<Currency, decimal> sums, Currency currency, decimal amount)

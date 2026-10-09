@@ -30,7 +30,7 @@ public sealed record DashboardView(
     DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct,
     DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
     IReadOnlyList<DashboardEnvelopeView> EnvelopeSplit, IReadOnlyList<DashboardPersonView>? People, string? PeopleMissingCurrency,
-    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo)
+    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id)).Concat(Todo.Select(t => t.Id));
@@ -115,7 +115,7 @@ public static class DashboardMath
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,
             margin is { } m ? Money(m, reference) : null, share,
             gain.View(reference), net.View(reference), changePct,
-            split, people, peopleMissing, upcoming, todo);
+            split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart));
     }
 
     /// <summary>One holding at today's rate: zero converts to zero at any rate, as <see cref="Sum.Of"/>.</summary>

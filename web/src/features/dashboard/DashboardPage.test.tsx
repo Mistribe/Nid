@@ -157,4 +157,10 @@ describe('DashboardPage', () => {
     expect(router.state.location.pathname).toBe('/dashboard');
     expect(screen.getAllByRole('link', { name: 'Accueil' }).length).toBeGreaterThan(0);
   });
+
+  it('says how many envelopes have no recent value at 1 January', async () => {
+    serve(dashboard({ envelopesWithoutStart: 2 }));
+    await renderApp('/dashboard');
+    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('2 enveloppes sans valeur récente au 1er janvier');
+  });
 });

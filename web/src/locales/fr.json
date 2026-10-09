@@ -63,6 +63,8 @@
     "change_unknown_rate": "Inconnue : taux de change manquant ({{code}})",
     "pct": "{{value}} %",
     "of_which_paid_in": "dont {{amount}} versés",
+    "without_start_one": "{{count}} enveloppe sans valeur récente au 1er janvier",
+    "without_start_other": "{{count}} enveloppes sans valeur récente au 1er janvier",
     "split": {
       "by_envelope": "Répartition par enveloppe",
       "by_person": "Répartition par personne",

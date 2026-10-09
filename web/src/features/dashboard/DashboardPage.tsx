@@ -149,6 +149,9 @@ function Change({ d }: { d: DashboardView }) {
       {d.changeContributions.total ? (
         <p className="text-sm text-muted-foreground">{t('dashboard.of_which_paid_in', { amount: formatMoney(d.changeContributions.total) })}</p>
       ) : null}
+      {d.envelopesWithoutStart > 0 ? (
+        <p className="text-sm text-muted-foreground">{t('dashboard.without_start', { count: d.envelopesWithoutStart })}</p>
+      ) : null}
     </Card>
   );
 }

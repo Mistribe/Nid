@@ -6902,6 +6902,8 @@ export interface components {
             peopleMissingCurrency?: null | string;
             upcoming: components["schemas"]["DashboardEventView"][];
             todo: components["schemas"]["DashboardTodoView"][];
+            /** Format: int32 */
+            envelopesWithoutStart: number;
         };
         DurationBody: {
             /** Format: int32 */

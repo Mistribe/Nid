@@ -7875,7 +7875,8 @@
           "changeContributions",
           "envelopeSplit",
           "upcoming",
-          "todo"
+          "todo",
+          "envelopesWithoutStart"
         ],
         "type": "object",
         "properties": {
@@ -7983,6 +7984,10 @@
             "items": {
               "$ref": "#/components/schemas/DashboardTodoView"
             }
+          },
+          "envelopesWithoutStart": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
