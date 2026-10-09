@@ -133,6 +133,16 @@ describe('the shell', () => {
     expect(within(tabs()).getByRole('link', { name: 'Accueil' })).not.toHaveAttribute('aria-current');
   });
 
+  it('marks Plus current below one of its entries', async () => {
+    await renderApp('/admin/fx', { capabilities: adminCapabilities });
+    expect(within(tabs()).getByRole('link', { name: 'Plus' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('marks Plus current on /more', async () => {
+    await renderApp('/more');
+    expect(within(tabs()).getByRole('link', { name: 'Plus' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('keeps every entry in the sidebar and no Plus', async () => {
     await renderApp('/subscriptions');
     expect(within(sidebar()).queryByRole('link', { name: 'Plus' })).not.toBeInTheDocument();
