@@ -31,6 +31,13 @@ public class LoanValidationTests
         { "fees[0].amount", Loans.Golden() with { Fees = [new LoanFee(FeeKind.File, 0m, Loans.Disbursed)] } },
         { "events[0].amount", Loans.Golden() with { Events = [new EarlyRepayment(Loans.First, 0m, RepaymentEffect.ReduceTerm)] } },
         { "events[0].onDate", Loans.Golden() with { Events = [new EarlyRepayment(Loans.Disbursed.PlusDays(-1), 10m, RepaymentEffect.ReduceTerm)] } },
+        { "rounding", Loans.Golden() with { Rounding = (InterestRounding)9 } },
+        { "firstPeriod", Loans.Golden() with { FirstPeriod = (FirstPeriod)9 } },
+        { "phases[0].mode", Loans.Golden() with { Phases = [new LoanPhase(1, (PhaseMode)9, 0.03m, RateType.Fixed)] } },
+        { "phases[0].rateType", Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.03m, (RateType)9)] } },
+        { "insurances[0].mode", Loans.Golden() with { Insurances = [new LoanInsurance((InsuranceMode)9, 10m, 0.01m, Loans.First)] } },
+        { "fees[0].kind", Loans.Golden() with { Fees = [new LoanFee((FeeKind)9, 10m, Loans.Disbursed)] } },
+        { "events[0].effect", Loans.Golden() with { Events = [new EarlyRepayment(Loans.First, 10m, (RepaymentEffect)9)] } },
     };
 
     [Theory]
