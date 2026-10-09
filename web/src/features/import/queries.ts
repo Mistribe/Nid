@@ -13,6 +13,6 @@ export function useRefreshImports(): () => void {
     void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/platform/imports'] });
     void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/platform/imports/{id}'] });
     void queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] });
-  void queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] });
+    void queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] });
   }, [queryClient]);
 }

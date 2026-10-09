@@ -67,6 +67,18 @@ describe('net worth curve', () => {
     expect(within(card).queryByRole('button', { name: 'Afficher la courbe' })).not.toBeInTheDocument();
   });
 
+  it('skips the empty months before the first value in the table', async () => {
+    serveCurve(netWorth([
+      curvePoint({ on: '2025-08-31', value: null, contributions: null }),
+      curvePoint({ on: '2025-09-30', value: null, contributions: null }),
+      curvePoint({ on: '2025-10-15' }),
+    ]));
+    await renderApp('/dashboard');
+    const rows = within(await within(await curve()).findByRole('table', { name: 'Évolution du patrimoine en tableau' })).getAllByRole('row');
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toHaveTextContent('Aujourd’hui');
+  });
+
   it('is not shown without any envelope', async () => {
     server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ envelopes: 0, envelopeSplit: [], people: [] }))));
     await renderApp('/dashboard');

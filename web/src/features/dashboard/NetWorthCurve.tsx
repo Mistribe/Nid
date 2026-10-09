@@ -75,6 +75,8 @@ function Body({ data, error }: { data?: NetWorthHistory; error: unknown }) {
 
 function CurveTable({ points, label }: { points: NetWorthPointView[]; label: (p: NetWorthPointView, i: number) => string }) {
   const { t } = useTranslation();
+  // Skip the months before the household had anything (no value, and no rate missing either).
+  const first = Math.max(0, points.findIndex((p) => p.value || p.missingCurrency));
   return (
     <table className="w-full text-sm" aria-label={t('dashboard.curve.table')}>
       <thead>
@@ -85,7 +87,7 @@ function CurveTable({ points, label }: { points: NetWorthPointView[]; label: (p:
         </tr>
       </thead>
       <tbody>
-        {points.map((p, i) => (
+        {points.map((p, i) => i < first ? null : (
           <tr key={p.on}>
             <th scope="row" className="text-left font-normal">{label(p, i)}</th>
             {p.value && p.contributions ? (
@@ -130,7 +132,7 @@ function CurveChart({ data, label }: { data: NetWorthHistory; label: (p: NetWort
         <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
         <ChartTooltip content={<CurveTooltip />} />
         <ChartLegend content={<ChartLegendContent />} />
-        <Line dataKey="value" stroke="var(--color-value)" strokeWidth={2} connectNulls={false} dot={{ r: 4, fill: 'var(--background)', strokeWidth: 2 }} isAnimationActive={false} />
+        <Line dataKey="value" stroke="var(--color-value)" strokeWidth={2} connectNulls={false} dot={rows.length <= 40 ? { r: 4, fill: 'var(--background)', strokeWidth: 2 } : false} isAnimationActive={false} />
         <Line dataKey="paid" stroke="var(--color-paid)" strokeWidth={2} type="stepAfter" connectNulls={false} dot={false} isAnimationActive={false} />
       </LineChart>
     </ChartContainer>
