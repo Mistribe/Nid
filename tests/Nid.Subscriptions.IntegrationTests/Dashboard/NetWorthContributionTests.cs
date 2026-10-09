@@ -151,4 +151,21 @@ public class NetWorthContributionTests(PostgresFixture fixture)
         Assert.Equal("200.00", Total(view.GetProperty("change")));
         Assert.Equal(0, view.GetProperty("envelopesWithoutStart").GetInt32());
     }
+
+    [Fact]
+    public async Task The_start_age_limit_is_inclusive_at_the_threshold()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var atLimit = await app.NewEnvelopeAsync("A 45 jours", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, atLimit, "2024-11-17", "1000.00"); // exactly 45 days before 1 January 2025
+        await ValueAsync(app, app.AdultA, atLimit, "2025-10-01", "1100.00");
+        var beyond = await app.NewEnvelopeAsync("A 46 jours", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, beyond, "2024-11-16", "500.00"); // 46 days
+        await ValueAsync(app, app.AdultA, beyond, "2025-10-01", "700.00");
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("100.00", Total(view.GetProperty("change")));
+        Assert.Equal(1, view.GetProperty("envelopesWithoutStart").GetInt32());
+    }
 }
