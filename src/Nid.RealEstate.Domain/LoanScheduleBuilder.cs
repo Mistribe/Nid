@@ -87,21 +87,24 @@ public static class LoanScheduleBuilder
             var interest = k == 1 && t.FirstPeriod == FirstPeriod.ProrataActual365
                 ? RoundInterest(balance * rate * Period.DaysBetween(t.DisbursedOn, t.FirstPaymentDate) / 365m, t.Rounding)
                 : RoundInterest(balance * rate / 12m, t.Rounding);
+            // From the contractual last payment on, every mode settles the balance; only an imposed annuity payment stays.
+            var settle = k >= t.TotalPayments && !(mode == PhaseMode.Annuity && overrideActive);
             decimal pay, principal;
             switch (mode)
             {
                 case PhaseMode.DeferredTotal:
-                    (pay, principal) = (0m, 0m);
-                    balance += interest;
+                    (pay, principal) = settle ? (balance + interest, balance) : (0m, 0m);
+                    balance = settle ? 0m : balance + interest;
                     break;
                 case PhaseMode.DeferredPartial:
-                    (pay, principal) = (interest, 0m);
+                    (pay, principal) = settle ? (balance + interest, balance) : (interest, 0m);
+                    if (settle) balance = 0m;
                     break;
                 default:
                     if (overrideActive && payment <= interest)
                         return Refuse(LoanCodes.PaymentBelowInterest, "The imposed payment does not cover the interest: the loan would never end.",
                             $"phases[{phases[current].Index}].paymentOverride");
-                    pay = k >= t.TotalPayments && !overrideActive ? balance + interest : payment;
+                    pay = settle ? balance + interest : payment;
                     pay = Math.Min(pay, balance + interest);
                     principal = pay - interest;
                     balance -= principal;
@@ -142,6 +145,7 @@ public static class LoanScheduleBuilder
 
             rows.Add(new ScheduleRow(k, due, seq, rate, pay, interest, principal, Insurance(t, due, before), balance, early));
         }
+        if (pending.Count > 0) return Refuse(LoanCodes.EventAboveBalance, "An early repayment is dated after the loan is repaid.", $"events[{pending[0].Index}].amount");
         return Result.Success(new LoanSchedule(rows, warnings));
     }
 

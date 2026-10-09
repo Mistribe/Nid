@@ -224,6 +224,53 @@ public class LoanScheduleBuilderTests
     }
 
     [Fact]
+    public void A_deferral_running_to_the_end_settles_the_balance_on_the_last_payment()
+    {
+        foreach (int? n in new int?[] { null, 12 })
+        {
+            var s = Build(Loans.Annuity(100_000m, 0.03m, 12) with { Phases = [new LoanPhase(1, PhaseMode.DeferredPartial, 0.03m, RateType.Fixed, n)] });
+            Assert.Equal(12, s.Rows.Count);
+            Assert.All(s.Rows.Take(11), r => Assert.Equal(250.00m, r.Payment));
+            Assert.Equal((100_250.00m, 0m), (s.Rows[^1].Payment, s.Rows[^1].Balance));
+            Assert.Empty(s.Warnings);
+        }
+        var total = Build(Loans.Annuity(10_000m, 0.06m, 12) with { Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0.06m, RateType.Fixed)] });
+        Assert.Equal(12, total.Rows.Count);
+        Assert.All(total.Rows.Take(11), r => Assert.Equal(0m, r.Payment));
+        Assert.Equal(0m, total.Rows[^1].Balance);
+        Assert.Equal(total.Rows[10].Balance + total.Rows[^1].Interest, total.Rows[^1].Payment);
+    }
+
+    [Fact]
+    public void An_early_repayment_after_the_loan_ends_is_refused()
+    {
+        var golden = Loans.Golden();
+        var late = Loans.Fail(LoanScheduleBuilder.Build(golden with { Events = [new EarlyRepayment(new LocalDate(2044, 3, 15), 100m, RepaymentEffect.ReduceTerm)] }));
+        Assert.Equal((LoanCodes.EventAboveBalance, "events[0].amount"), (late.Code, Loans.FieldOf(late)));
+        var obsolete = Loans.Fail(LoanScheduleBuilder.Build(golden with { Events = [
+            new EarlyRepayment(Loans.First.PlusMonths(59), 10_000m, RepaymentEffect.ReduceTerm),
+            new EarlyRepayment(new LocalDate(2043, 6, 15), 100m, RepaymentEffect.ReduceTerm)] }));
+        Assert.Equal((LoanCodes.EventAboveBalance, "events[1].amount"), (obsolete.Code, Loans.FieldOf(obsolete)));
+    }
+
+    [Fact]
+    public void An_early_repayment_during_a_deferral_follows_its_effect()
+    {
+        LoanSchedule Run(RepaymentEffect e) => Build(Loans.Annuity(12_000m, 0m, 24) with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.DeferredPartial, 0m, RateType.Fixed, 6), new LoanPhase(2, PhaseMode.Annuity, 0m, RateType.Fixed)],
+            Events = [new EarlyRepayment(Loans.First.PlusMonths(2), 1_200m, e)],
+        });
+        var term = Run(RepaymentEffect.ReduceTerm);
+        Assert.Equal(666.67m, term.Rows[6].Payment);
+        Assert.True(term.Rows.Count < 24);
+        Assert.Equal(0m, term.Rows[^1].Balance);
+        var payment = Run(RepaymentEffect.ReducePayment);
+        Assert.Equal(600.00m, payment.Rows[6].Payment);
+        Assert.Equal(24, payment.Rows.Count);
+    }
+
+    [Fact]
     public void Validation_refusals_come_through_the_builder()
         => Assert.Equal(LoanCodes.InvalidLoan, Loans.Fail(LoanScheduleBuilder.Build(Loans.Golden() with { Principal = -1m })).Code);
 }
