@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Nid.RealEstate.Domain\Nid.RealEstate.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\vectors\loans\vectors.json" Link="vectors\loans\vectors.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\vectors\loans\vectors.json')" />
+  </ItemGroup>
+</Project>

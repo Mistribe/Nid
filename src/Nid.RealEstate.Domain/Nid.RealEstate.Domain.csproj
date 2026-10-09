@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
+  </ItemGroup>
+</Project>
