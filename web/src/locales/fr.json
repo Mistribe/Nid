@@ -77,7 +77,7 @@
       "without_value": "Sans valeur",
       "unknown_rate": "Inconnue : taux de change manquant ({{code}}) · {{amount}}",
       "people_unknown_rate": "Inconnue : taux de change manquant ({{code}})",
-      "people_none": "Inconnue : aucune valeur saisie",
+      "people_none": "Aucun montant à répartir.",
       "chart_envelopes": "Graphique de la valeur de chaque enveloppe",
       "chart_people": "Graphique de la part de chaque personne"
     },

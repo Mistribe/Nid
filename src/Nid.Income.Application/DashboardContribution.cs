@@ -32,7 +32,7 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
     }
 }
 
-/// <summary>2D2a spec §4: the end of each running period of an open source, and each <c>income_gap_soon</c> (shown in « À faire »).</summary>
+/// <summary>2D2a spec §4: the end of each running period of an open source that no phase of its label continues, and each <c>income_gap_soon</c> (shown in « À faire »).</summary>
 public sealed class IncomeSourcesUpcoming(IVisibleItems visible, IItemRegistry items, ISourceStore sources, IPhaseStore phases) : IUpcomingEvents
 {
     public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
@@ -47,7 +47,7 @@ public sealed class IncomeSourcesUpcoming(IVisibleItems visible, IItemRegistry i
                 continue;
             var list = bySource[source.ItemId].ToList();
             foreach (var phase in list)
-                if (IncomeMath.IsActive(phase, today) && IncomeMath.EffectiveEnd(phase) is { } end && end <= until)
+                if (IncomeMath.IsActive(phase, today) && IncomeMath.EffectiveEnd(phase) is { } end && end <= until && !IncomeMath.IsContinued(phase, list))
                     events.Add(new UpcomingEvent(end, UpcomingKinds.IncomePhaseEnd, source.ItemId, "income", item.DisplayName, phase.Label, null));
             foreach (var gap in IncomeMath.Gaps(list, today))
                 events.Add(new UpcomingEvent(gap.EndsOn, UpcomingKinds.IncomeGapSoon, source.ItemId, "income", item.DisplayName, gap.Label, null));

@@ -86,13 +86,18 @@ public static class IncomeMath
         return months;
     }
 
+    /// <summary>Another phase of the same label runs on from where this one effectively ends (a raise, a renewed contract).</summary>
+    public static bool IsContinued(IncomePhase phase, IReadOnlyList<IncomePhase> phases)
+        => phases.Any(q => q.Id != phase.Id && q.Label == phase.Label && q.StartsOn <= EffectiveEnd(phase)
+                           && (EffectiveEnd(q) is not { } qe || qe > EffectiveEnd(phase)));
+
     /// <summary>income_gap_soon (spec §3): a running phase ending within 60 days that no phase of its label continues.</summary>
     public static IReadOnlyList<GapWarning> Gaps(IEnumerable<IncomePhase> phases, LocalDate today)
     {
         var list = phases.ToList();
         return list
             .Where(p => IsActive(p, today) && EffectiveEnd(p) is { } end && end <= today.PlusDays(GapWindowDays))
-            .Where(p => !list.Any(q => q.Id != p.Id && q.Label == p.Label && q.StartsOn <= EffectiveEnd(p) && (EffectiveEnd(q) is not { } qe || qe > EffectiveEnd(p))))
+            .Where(p => !IsContinued(p, list))
             .Select(p => new GapWarning(p.Label, EffectiveEnd(p)!.Value))
             .OrderBy(g => g.EndsOn).ThenBy(g => g.Label, StringComparer.Ordinal)
             .ToList();

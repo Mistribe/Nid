@@ -24,13 +24,15 @@ public class SplitTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var small = await app.NewEnvelopeAsync("Petit", app.AdultA, Visibility.Shared);
         var big = await app.NewEnvelopeAsync("Grand", app.AdultA, Visibility.Shared);
+        await app.NewEnvelopeAsync("Zèbre", app.AdultA, Visibility.Shared);
         await app.NewEnvelopeAsync("Vide", app.AdultA, Visibility.Shared);
+        await app.NewEnvelopeAsync("épargne", app.AdultA, Visibility.Shared);
         await ValueAsync(app, app.AdultA, small, "2025-08-01", "100.00"); // monthly cadence: stale on 2025-10-15
         await ValueAsync(app, app.AdultA, big, "2025-10-01", "900.00");
 
         var rows = (await DashboardAsync(app, app.AdultA)).GetProperty("envelopeSplit").EnumerateArray().ToList();
 
-        Assert.Equal(new[] { "Grand", "Petit", "Vide" }, rows.Select(r => r.GetProperty("name").GetString()));
+        Assert.Equal(new[] { "Grand", "Petit", "épargne", "Vide", "Zèbre" }, rows.Select(r => r.GetProperty("name").GetString()));
         Assert.All(rows, r => Assert.Equal("investments", r.GetProperty("module").GetString()));
         Assert.Equal("900.00", Amount(rows[0].GetProperty("converted")));
         Assert.Equal("2025-10-01", rows[0].GetProperty("asOf").GetString());

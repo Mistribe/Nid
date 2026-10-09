@@ -35,7 +35,7 @@ public sealed class SubscriptionsCommitments(IVisibleItems visible, ISubscriptio
 }
 
 /// <summary>
-/// 2D2a spec §4: the next charge of a phase whose cycle is longer than a month (monthly charges are already in « prélevés
+/// 2D2a spec §4: the first charge in the window (today included) of each phase whose cycle is longer than a month (monthly charges are already in « prélevés
 /// ce mois-ci »), and the end of coverage of a subscription that ends within the window (an open-ended one expires at the
 /// twelve-month horizon, never inside it).
 /// </summary>
@@ -51,12 +51,14 @@ public sealed class SubscriptionsUpcoming(IVisibleItems visible, ISubscriptionSt
                 continue; // as the list: a refused subscription is reported by its own detail
             var id = input.Subscription.Id;
             var name = (await items.FindAsync(id, ct))?.DisplayName ?? string.Empty;
-            if (timeline!.NextCharge() is { } next)
-            {
-                var phase = next.Origin is ChargeOrigin.FromPhase from ? input.Phases.FirstOrDefault(p => p.Id == from.PhaseId) : null;
-                if (phase is not null && LongerThanAMonth(phase.Every) && next.Date >= today && next.Date <= until)
-                    events.Add(new UpcomingEvent(next.Date, UpcomingKinds.SubscriptionRenewal, id, "subscriptions", name, null, next.Price));
-            }
+            // The first charge in the window of each long-cycle phase: a monthly phase charging first must not hide a yearly one after it.
+            foreach (var first in timeline!.Charges
+                         .Where(c => c.Date >= today && c.Date <= until)
+                         .Select(c => (Charge: c, Phase: c.Origin is ChargeOrigin.FromPhase from ? input.Phases.FirstOrDefault(p => p.Id == from.PhaseId) : null))
+                         .Where(x => x.Phase is not null && LongerThanAMonth(x.Phase.Every))
+                         .GroupBy(x => x.Phase!.Id)
+                         .Select(g => g.MinBy(x => x.Charge.Date).Charge))
+                events.Add(new UpcomingEvent(first.Date, UpcomingKinds.SubscriptionRenewal, id, "subscriptions", name, null, first.Price));
             if (timeline.ExpiresOn() is { } expires && expires >= today && expires <= until)
                 events.Add(new UpcomingEvent(expires, UpcomingKinds.SubscriptionExpiry, id, "subscriptions", name, null, null));
         }

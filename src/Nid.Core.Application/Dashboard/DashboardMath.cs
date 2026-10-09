@@ -45,6 +45,9 @@ public static class DashboardMath
 {
     public const int UpcomingDays = 60;
 
+    /// <summary>Names sort in French order, ignoring case, as the envelope list does.</summary>
+    private static readonly StringComparer French = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), ignoreCase: true);
+
     public static IReadOnlySet<Currency> Currencies(
         IEnumerable<NetWorthPart> worth, IEnumerable<CommitmentsPart> commitments, IEnumerable<IncomePart> income)
         => worth.SelectMany(p => p.Values.Keys.Concat(p.StartValues.Keys).Concat(p.NetContributions.Keys).Concat(p.Gains.Keys))
@@ -80,7 +83,7 @@ public static class DashboardMath
         var split = holdings
             .OrderBy(h => h.Holding.Value is null ? 2 : h.Converted.Amount is null ? 1 : 0)
             .ThenByDescending(h => h.Converted.Amount ?? 0m)
-            .ThenBy(h => h.Holding.Name, StringComparer.Ordinal)
+            .ThenBy(h => h.Holding.Name, French)
             .Select(h => new DashboardEnvelopeView(
                 h.Holding.Item, h.Holding.Module, h.Holding.Name,
                 h.Holding.Value is { } v ? Money(v.Amount, v.Currency) : null,
@@ -91,16 +94,16 @@ public static class DashboardMath
         var people = peopleMissing is null ? People(holdings.Select(h => (h.Holding.Owners, h.Converted.Amount)), persons, reference) : null;
 
         var upcoming = events.Where(e => e.Kind != UpcomingKinds.IncomeGapSoon)
-            .OrderBy(e => e.On).ThenBy(e => e.Name, StringComparer.Ordinal).ThenBy(e => e.Kind, StringComparer.Ordinal)
+            .OrderBy(e => e.On).ThenBy(e => e.Name, French).ThenBy(e => e.Kind, StringComparer.Ordinal)
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? Money(a.Amount, a.Currency) : null))
             .ToList();
         var todo = holdings.Where(h => h.Holding is { Value: not null, Stale: true })
-            .OrderBy(h => h.Holding.AsOf).ThenBy(h => h.Holding.Name, StringComparer.Ordinal)
+            .OrderBy(h => h.Holding.AsOf).ThenBy(h => h.Holding.Name, French)
             .Select(h => new DashboardTodoView("stale_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, h.Holding.AsOf, null))
-            .Concat(holdings.Where(h => h.Holding.Value is null).OrderBy(h => h.Holding.Name, StringComparer.Ordinal)
+            .Concat(holdings.Where(h => h.Holding.Value is null).OrderBy(h => h.Holding.Name, French)
                 .Select(h => new DashboardTodoView("no_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, null, null)))
-            .Concat(events.Where(e => e.Kind == UpcomingKinds.IncomeGapSoon).OrderBy(e => e.On).ThenBy(e => e.Name, StringComparer.Ordinal)
+            .Concat(events.Where(e => e.Kind == UpcomingKinds.IncomeGapSoon).OrderBy(e => e.On).ThenBy(e => e.Name, French)
                 .Select(e => new DashboardTodoView(UpcomingKinds.IncomeGapSoon, e.Item, e.Module, e.Name, e.On, e.Label)))
             .ToList();
 
@@ -139,7 +142,7 @@ public static class DashboardMath
         return persons.OrderBy(p => p.Kind == PersonKind.Adult ? 0 : 1)
             .Select((p, slot) => (Person: p, Slot: slot, Amount: shares.GetValueOrDefault(p.Id)))
             .Where(x => x.Amount != 0m)
-            .OrderByDescending(x => x.Amount).ThenBy(x => x.Person.DisplayName, StringComparer.Ordinal)
+            .OrderByDescending(x => x.Amount).ThenBy(x => x.Person.DisplayName, French)
             .Select(x => new DashboardPersonView(x.Person.Id.Value, x.Person.DisplayName, x.Slot, Money(x.Amount, reference),
                 total > 0m ? Percent(x.Amount / total) : 0m))
             .ToList();

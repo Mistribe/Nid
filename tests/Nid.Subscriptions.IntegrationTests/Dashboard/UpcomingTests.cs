@@ -27,12 +27,14 @@ public class UpcomingTests(PostgresFixture fixture)
         return id;
     }
 
-    private static async Task<ItemId> SourceAsync(NidApp app, string name, string label, string startsOn, string? endsOn)
+    private static async Task<ItemId> SourceAsync(
+        NidApp app, string name, string label, string startsOn, string? endsOn, PersonId? owner = null, string visibility = "shared")
     {
-        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new
+        var who = owner ?? app.AdultA;
+        var response = await app.RawAsync(who, HttpMethod.Post, "/api/v1/income/sources", new
         {
-            displayName = name, kind = "salary", currency = "EUR", visibility = "shared",
-            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            displayName = name, kind = "salary", currency = "EUR", visibility,
+            owners = new[] { new { personId = who.Value, shareBp = 10_000 } },
             phases = new[]
             {
                 new { label, startsOn, endsOn, netAmount = new { amount = "2000", currency = "EUR" }, every = new { count = 1, unit = "month" } },
@@ -135,6 +137,68 @@ public class UpcomingTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_raise_taking_effect_in_the_window_ends_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, "Employeur", "Salaire", "2025-01-01", null);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{source.Value}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-11-01", netAmount = new { amount = "2300", currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Empty(Upcoming(view));
+        Assert.Equal(0, view.GetProperty("todo").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task A_yearly_phase_following_a_monthly_one_renews_on_its_first_charge()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SubscriptionAsync(app, "Passage", "2025-01-20", 1, "month", "9.99", endsOn: "2025-11-01");
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+        {
+            startsOn = "2025-11-01", endsOn = (string?)null,
+            price = new { amount = "99.00", currency = "EUR" },
+            every = new { count = 1, unit = "year" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+        var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("subscription_renewal", only.GetProperty("kind").GetString());
+        Assert.Equal("2025-11-20", only.GetProperty("on").GetString()); // the yearly phase charges once the 2025-10-20 monthly charge stops covering
+        Assert.Equal("99.00", only.GetProperty("amount").GetProperty("amount").GetString());
+    }
+
+    [Fact]
+    public async Task Only_cycles_longer_than_a_month_renew()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        foreach (var (name, count, unit) in new[]
+                 {
+                     ("Deux mois", 2, "month"), ("Cinq semaines", 5, "week"), ("Quatre semaines", 4, "week"),
+                     ("Trente-deux jours", 32, "day"), ("Trente et un jours", 31, "day"),
+                 })
+            await SubscriptionAsync(app, name, "2025-10-20", count, unit, "5.00");
+
+        var names = Upcoming(await DashboardAsync(app, app.AdultA)).Select(e => e.GetProperty("name").GetString()).ToHashSet();
+
+        Assert.Equal(new HashSet<string?> { "Deux mois", "Cinq semaines", "Trente-deux jours" }, names);
+    }
+
+    [Fact]
+    public async Task A_renewal_charged_today_is_upcoming()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SubscriptionAsync(app, "Annuel", "2024-10-15", 1, "year");
+
+        var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("subscription_renewal", only.GetProperty("kind").GetString());
+        Assert.Equal("2025-10-15", only.GetProperty("on").GetString());
+    }
+
+    [Fact]
     public async Task To_do_lists_stale_values_oldest_first_then_envelopes_without_value()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -162,6 +226,7 @@ public class UpcomingTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         await SubscriptionAsync(app, "Secret", "2024-11-10", 1, "year", owner: app.AdultB, visibility: Visibility.Private);
         await app.NewEnvelopeAsync("Secret", app.AdultB, Visibility.Private);
+        await SourceAsync(app, "Secret", "CDD", "2025-01-01", "2025-11-30", owner: app.AdultB, visibility: "private");
 
         var view = await DashboardAsync(app, app.AdultA, scope);
 
