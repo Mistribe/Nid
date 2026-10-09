@@ -4091,6 +4091,101 @@
         }
       }
     },
+    "/api/v1/dashboard/net-worth": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetWorthHistoryView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/imports": {
       "post": {
         "tags": [
@@ -7875,7 +7970,8 @@
           "changeContributions",
           "envelopeSplit",
           "upcoming",
-          "todo"
+          "todo",
+          "envelopesWithoutStart"
         ],
         "type": "object",
         "properties": {
@@ -7983,6 +8079,10 @@
             "items": {
               "$ref": "#/components/schemas/DashboardTodoView"
             }
+          },
+          "envelopesWithoutStart": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -9840,6 +9940,66 @@
           },
           "currency": {
             "type": "string"
+          }
+        }
+      },
+      "NetWorthHistoryView": {
+        "required": [
+          "currency",
+          "period",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetWorthPointView"
+            }
+          }
+        }
+      },
+      "NetWorthPointView": {
+        "required": [
+          "on"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "contributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "missingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

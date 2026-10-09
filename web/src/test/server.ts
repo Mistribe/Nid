@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { emptyDashboard } from '@/features/dashboard/testData';
+import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
 import { aliceSessionResponse, allCapabilities } from './fixtures';
 
 export const handlers = [
@@ -8,6 +8,7 @@ export const handlers = [
   http.get('*/api/v1/platform/capabilities', () => HttpResponse.json(allCapabilities)),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
+  http.get('*/api/v1/dashboard/net-worth', () => HttpResponse.json(netWorth([]))),
   // The subscriptions list is read by every test that lands on it.
   http.get('*/api/v1/subscriptions', () => HttpResponse.json({
     items: [], householdCashCost: [], householdAmortizedCost: [], householdCashCostConverted: null,

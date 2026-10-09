@@ -7,12 +7,13 @@ namespace Nid.Core.Contracts;
 /// 2D1 spec §4: what a module holds of the reader's net worth, as exact per-currency sums. <c>StartValues</c>,
 /// <c>NetContributions</c> and <c>Gains</c> cover only the envelopes with a value both on or before 1 January and today.
 /// 2D2a spec §4: <c>Holdings</c> lists each counted envelope, with or without a value.
+/// 2D2b spec §4: <c>WithoutStart</c> counts the envelopes valued today whose start value is missing or older than their staleness threshold at 1 January; they are left out of the change.
 /// </summary>
 public sealed record NetWorthPart(
     int Envelopes, int WithoutValue, int Stale, LocalDate? OldestAsOf,
     IReadOnlyDictionary<Currency, decimal> Values, IReadOnlyDictionary<Currency, decimal> StartValues,
     IReadOnlyDictionary<Currency, decimal> NetContributions, IReadOnlyDictionary<Currency, decimal> Gains,
-    IReadOnlyList<Holding> Holdings);
+    IReadOnlyList<Holding> Holdings, int WithoutStart);
 
 /// <summary>2D2a spec §4: one visible open envelope of the net worth; <c>Value</c> null when it has none (or its facts cannot be read).</summary>
 public sealed record Holding(
@@ -32,7 +33,14 @@ public sealed record IncomePart(int Sources, IReadOnlyDictionary<Currency, decim
 public interface INetWorthContribution
 {
     Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
+
+    /// <summary>2D2b spec §4: one point per date of <paramref name="dates"/>, over the visible holdings, closed ones included until their closing.</summary>
+    Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct);
 }
+
+/// <summary>2D2b spec §4: a module's part of the curve at one date; <c>Envelopes</c> counts the holdings with a reading on or before it.</summary>
+public sealed record NetWorthPoint(
+    LocalDate On, IReadOnlyDictionary<Currency, decimal> Values, IReadOnlyDictionary<Currency, decimal> NetContributions, int Envelopes);
 
 public interface ICommitmentsContribution
 {

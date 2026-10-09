@@ -111,4 +111,61 @@ public class NetWorthContributionTests(PostgresFixture fixture)
         Assert.Equal(1, view.GetProperty("envelopesWithoutValue").GetInt32());
         Assert.Equal("500.00", Total(view.GetProperty("netWorth")));
     }
+
+    [Fact]
+    public async Task A_start_value_older_than_the_threshold_leaves_the_change_and_is_counted()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var old = await app.NewEnvelopeAsync("Ancien", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, old, "2024-10-31", "1000.00"); // 62 days before 1 January: beyond 45
+        await ValueAsync(app, app.AdultA, old, "2025-10-01", "1100.00");
+        var recent = await app.NewEnvelopeAsync("Récent", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, recent, "2024-12-20", "500.00"); // 12 days before: within 45
+        await ValueAsync(app, app.AdultA, recent, "2025-10-01", "600.00");
+        var opened = await app.NewEnvelopeAsync("Ouvert cette année", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, opened, "2025-03-01", "50.00"); // no value before 1 January at all
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("100.00", Total(view.GetProperty("change"))); // only « Récent »
+        Assert.Equal(2, view.GetProperty("envelopesWithoutStart").GetInt32());
+        Assert.Equal("1750.00", Total(view.GetProperty("netWorth"))); // the net worth itself is untouched
+    }
+
+    [Fact]
+    public async Task An_envelope_without_cadence_has_no_start_limit()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "Sans rythme", kind = "savings", currency = "EUR", visibility = "shared", valuationCadence = "manual",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        response.EnsureSuccessStatusCode();
+        var id = new ItemId(JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid());
+        await ValueAsync(app, app.AdultA, id, "2023-06-30", "1000.00");
+        await ValueAsync(app, app.AdultA, id, "2025-10-01", "1200.00");
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("200.00", Total(view.GetProperty("change")));
+        Assert.Equal(0, view.GetProperty("envelopesWithoutStart").GetInt32());
+    }
+
+    [Fact]
+    public async Task The_start_age_limit_is_inclusive_at_the_threshold()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var atLimit = await app.NewEnvelopeAsync("A 45 jours", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, atLimit, "2024-11-17", "1000.00"); // exactly 45 days before 1 January 2025
+        await ValueAsync(app, app.AdultA, atLimit, "2025-10-01", "1100.00");
+        var beyond = await app.NewEnvelopeAsync("A 46 jours", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, beyond, "2024-11-16", "500.00"); // 46 days
+        await ValueAsync(app, app.AdultA, beyond, "2025-10-01", "700.00");
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("100.00", Total(view.GetProperty("change")));
+        Assert.Equal(1, view.GetProperty("envelopesWithoutStart").GetInt32());
+    }
 }

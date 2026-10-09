@@ -20,14 +20,14 @@ public sealed class GetDashboardHandler(
         var reader = actor.Current!.PersonId!.Value;
         var today = await calendar.TodayAsync(ct);
 
-        var worth = await CollectAsync(netWorth, c => c.NetWorthAsync(reader, query.Scope, today, ct));
+        var worth = await Contributions.CollectAsync(netWorth, c => c.NetWorthAsync(reader, query.Scope, today, ct));
         if (worth.TryGetFailure(out var failure)) return Result.Failure<DashboardView>(failure!);
-        var committed = await CollectAsync(commitments, c => c.CommitmentsAsync(reader, query.Scope, today, ct));
+        var committed = await Contributions.CollectAsync(commitments, c => c.CommitmentsAsync(reader, query.Scope, today, ct));
         if (committed.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
-        var earned = await CollectAsync(income, c => c.IncomeAsync(reader, query.Scope, today, ct));
+        var earned = await Contributions.CollectAsync(income, c => c.IncomeAsync(reader, query.Scope, today, ct));
         if (earned.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var until = today.PlusDays(DashboardMath.UpcomingDays);
-        var dated = await CollectAsync(upcoming, u => u.UpcomingAsync(reader, query.Scope, today, until, ct));
+        var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, query.Scope, today, until, ct));
         if (dated.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         worth.TryGetValue(out var w);
         committed.TryGetValue(out var c);
@@ -42,19 +42,5 @@ public sealed class GetDashboardHandler(
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
         return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today));
-    }
-
-    private static async Task<Result<IReadOnlyList<T>>> CollectAsync<TSource, T>(IEnumerable<TSource> sources, Func<TSource, Task<Result<T>>> read)
-        where T : notnull
-    {
-        var parts = new List<T>();
-        foreach (var source in sources)
-        {
-            var part = await read(source);
-            if (part.TryGetFailure(out var failure)) return Result.Failure<IReadOnlyList<T>>(failure!);
-            part.TryGetValue(out var value);
-            parts.Add(value!);
-        }
-        return Result.Success<IReadOnlyList<T>>(parts);
     }
 }

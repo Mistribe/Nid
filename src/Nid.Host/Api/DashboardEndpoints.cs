@@ -16,6 +16,19 @@ public static class DashboardEndpoints
             => (await invoker.InvokeAsync(new GetDashboardQuery(ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<DashboardView>();
 
+        api.MapGet("/dashboard/net-worth", async (string? scope, string? period, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetNetWorthHistoryQuery(ParseScope(scope), ParsePeriod(period)), ct)).ToHttp(view => view))
+            .Returns<NetWorthHistoryView>();
+
         return routes;
     }
+
+    /// <summary>2D2b spec §4: absent is the default, an unknown period a bad request (never a silent default).</summary>
+    internal static NetWorthPeriod ParsePeriod(string? period) => period switch
+    {
+        null or "12m" => NetWorthPeriod.TwelveMonths,
+        "3y" => NetWorthPeriod.ThreeYears,
+        "all" => NetWorthPeriod.All,
+        _ => throw new BadHttpRequestException($"'{period}' is not a period: send '12m', '3y' or 'all'."),
+    };
 }

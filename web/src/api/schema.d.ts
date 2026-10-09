@@ -3846,6 +3846,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/net-worth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    period?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NetWorthHistoryView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/imports": {
         parameters: {
             query?: never;
@@ -6902,6 +6994,8 @@ export interface components {
             peopleMissingCurrency?: null | string;
             upcoming: components["schemas"]["DashboardEventView"][];
             todo: components["schemas"]["DashboardTodoView"][];
+            /** Format: int32 */
+            envelopesWithoutStart: number;
         };
         DurationBody: {
             /** Format: int32 */
@@ -7352,6 +7446,18 @@ export interface components {
         MoneyView: {
             amount: string;
             currency: string;
+        };
+        NetWorthHistoryView: {
+            currency: string;
+            period: string;
+            points: components["schemas"]["NetWorthPointView"][];
+        };
+        NetWorthPointView: {
+            /** Format: date */
+            on: string;
+            value?: null | components["schemas"]["DashboardMoneyView"];
+            contributions?: null | components["schemas"]["DashboardMoneyView"];
+            missingCurrency?: null | string;
         };
         OpeningBody: {
             occurredOn: string;

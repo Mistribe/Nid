@@ -23,7 +23,7 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         var nets = new Dictionary<Currency, decimal>();
         var gains = new Dictionary<Currency, decimal>();
         var holdings = new List<Holding>();
-        int count = 0, withoutValue = 0, stale = 0;
+        int count = 0, withoutValue = 0, stale = 0, withoutStart = 0;
         LocalDate? oldest = null;
 
         foreach (var envelope in found)
@@ -53,15 +53,55 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, figures.AsOf, figures.StaleDays is not null, owners));
 
             var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, january1, today);
-            if (period is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
+            // 2D2b decision 3: a start value older than the envelope's own staleness threshold would fold several
+            // years into « the year's gain »; a null threshold (no cadence) sets no limit.
+            var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
+            var recent = period.StartAsOf is { } startAsOf
+                && (limit is not { } days || NodaTime.Period.DaysBetween(startAsOf, january1) <= days);
+            if (recent && period is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {
                 Add(starts, start.Currency, start.Amount);
                 Add(nets, net.Currency, net.Amount);
                 Add(gains, gain.Currency, gain.Amount);
             }
+            else
+                withoutStart++;
         }
 
-        return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings));
+        return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings, withoutStart));
+    }
+
+    /// <summary>
+    /// 2D2b spec §4: at each date, each envelope's last reading on or before it, with the net contributions up to that
+    /// reading (as <see cref="EnvelopeMath.Series"/>), so the gap between the two lines stays the gain. A closed
+    /// envelope counts strictly before its closing; one whose facts cannot be read counts as having no reading.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
+    {
+        var ids = await visible.ForAsync(reader, scope, includeArchived: true, ct);
+        var series = new List<(LocalDate? ClosedOn, IReadOnlyList<SeriesPointFigures> Readings)>();
+        foreach (var envelope in await envelopes.FindManyAsync(ids.ToList(), ct))
+            if ((await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f))
+                series.Add((f!.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency)));
+
+        var points = new List<NetWorthPoint>();
+        foreach (var date in dates)
+        {
+            var values = new Dictionary<Currency, decimal>();
+            var nets = new Dictionary<Currency, decimal>();
+            var count = 0;
+            foreach (var (closedOn, readings) in series)
+            {
+                if (closedOn is { } closed && date >= closed) continue;
+                var reading = readings.LastOrDefault(r => r.AsOf <= date); // Series is ordered by date
+                if (reading is null) continue;
+                count++;
+                Add(values, reading.Value.Currency, reading.Value.Amount);
+                Add(nets, reading.NetContributions.Currency, reading.NetContributions.Amount);
+            }
+            points.Add(new NetWorthPoint(date, values, nets, count));
+        }
+        return Result.Success<IReadOnlyList<NetWorthPoint>>(points);
     }
 
     private static void Add(Dictionary<Currency, decimal> sums, Currency currency, decimal amount)

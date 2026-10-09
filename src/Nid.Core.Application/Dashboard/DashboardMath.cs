@@ -30,7 +30,7 @@ public sealed record DashboardView(
     DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct,
     DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
     IReadOnlyList<DashboardEnvelopeView> EnvelopeSplit, IReadOnlyList<DashboardPersonView>? People, string? PeopleMissingCurrency,
-    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo)
+    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id)).Concat(Todo.Select(t => t.Id));
@@ -115,7 +115,7 @@ public static class DashboardMath
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,
             margin is { } m ? Money(m, reference) : null, share,
             gain.View(reference), net.View(reference), changePct,
-            split, people, peopleMissing, upcoming, todo);
+            split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart));
     }
 
     /// <summary>One holding at today's rate: zero converts to zero at any rate, as <see cref="Sum.Of"/>.</summary>
@@ -148,15 +148,15 @@ public static class DashboardMath
             .ToList();
     }
 
-    private static IReadOnlyDictionary<Currency, decimal> Merge(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)
+    internal static IReadOnlyDictionary<Currency, decimal> Merge(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)
         => parts.SelectMany(p => p).GroupBy(p => p.Key).ToDictionary(g => g.Key, g => g.Sum(p => p.Value));
 
     private static decimal Percent(decimal ratio) => Math.Round(ratio * 100m, 1, MidpointRounding.AwayFromZero);
 
-    private static DashboardMoneyView Money(decimal amount, Currency currency)
+    internal static DashboardMoneyView Money(decimal amount, Currency currency)
         => new(Math.Round(amount, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture), currency.Code);
 
-    private sealed record Sum(IReadOnlyDictionary<Currency, decimal> PerCurrency, decimal? Total, string? Missing)
+    internal sealed record Sum(IReadOnlyDictionary<Currency, decimal> PerCurrency, decimal? Total, string? Missing)
     {
         public static readonly Sum Nothing = new(new Dictionary<Currency, decimal>(), null, null);
 

@@ -13,10 +13,11 @@ import { Direction } from '../investments/Figures';
 import { Todo, Upcoming } from './Agenda';
 import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
 import { percent } from './format';
-import { EnvelopeSplit, PeopleSplit } from './Split';
+import { EnvelopeSplit, Panel, PeopleSplit } from './Split';
 
 // The home page is in the initial bundle; Recharts is not (spec 2D2a §5).
 const EnvelopeChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.EnvelopeChart })));
+const NetWorthCurve = lazy(() => import('./NetWorthCurve').then((m) => ({ default: m.NetWorthCurve })));
 const PeopleChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.PeopleChart })));
 
 /** 2D1 design §5: the home page — four figures the server computed for the Foyer / Moi scope. */
@@ -64,6 +65,13 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
         <Income d={data} />
         <Change d={data} />
       </div>
+      {data.envelopes > 0 ? (
+        <Panel title={t('dashboard.curve.title')}>
+          <Suspense fallback={<div className="h-64 animate-pulse rounded-md border bg-muted" />}>
+            <NetWorthCurve />
+          </Suspense>
+        </Panel>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-4">
           <EnvelopeSplit d={data} chart={<Suspense fallback={null}><EnvelopeChart rows={data.envelopeSplit} /></Suspense>} />
@@ -148,6 +156,9 @@ function Change({ d }: { d: DashboardView }) {
       ) : <Big figure={d.change} unknown={t('dashboard.change_unknown')} unknownRate="dashboard.change_unknown_rate" />}
       {d.changeContributions.total ? (
         <p className="text-sm text-muted-foreground">{t('dashboard.of_which_paid_in', { amount: formatMoney(d.changeContributions.total) })}</p>
+      ) : null}
+      {d.envelopesWithoutStart > 0 ? (
+        <p className="text-sm text-muted-foreground">{t('dashboard.without_start', { count: d.envelopesWithoutStart })}</p>
       ) : null}
     </Card>
   );
