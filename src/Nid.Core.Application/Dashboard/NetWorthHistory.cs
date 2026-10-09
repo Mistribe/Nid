@@ -78,22 +78,17 @@ public sealed class GetNetWorthHistoryHandler(
         var today = await calendar.TodayAsync(ct);
         var grid = NetWorthHistory.Grid(query.Period, today);
 
-        var parts = new List<IReadOnlyList<NetWorthPoint>>();
-        foreach (var contribution in netWorth)
-        {
-            var part = await contribution.NetWorthHistoryAsync(reader, query.Scope, grid, ct);
-            if (part.TryGetFailure(out var failure)) return Result.Failure<NetWorthHistoryView>(failure!);
-            part.TryGetValue(out var points);
-            parts.Add(points!);
-        }
+        var collected = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, query.Scope, grid, ct));
+        if (collected.TryGetFailure(out var failure)) return Result.Failure<NetWorthHistoryView>(failure!);
+        collected.TryGetValue(out var parts);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = parts.SelectMany(p => p).SelectMany(p => p.Values.Keys.Concat(p.NetContributions.Keys))
+        var foreign = parts!.SelectMany(p => p).SelectMany(p => p.Values.Keys.Concat(p.NetContributions.Keys))
             .Where(c => c != reference).Distinct().ToList();
         // The reference's own quote too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = foreign.Count == 0
             ? RateTable.Empty(today, 0)
             : await fx.LoadAsync(foreign.Append(reference).ToList(), grid[0], today, ct);
-        return Result.Success(NetWorthHistory.Compose(query.Period, grid, parts, reference, rates));
+        return Result.Success(NetWorthHistory.Compose(query.Period, grid, parts!, reference, rates));
     }
 }

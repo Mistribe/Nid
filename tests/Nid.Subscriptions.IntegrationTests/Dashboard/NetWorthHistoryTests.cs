@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
@@ -36,6 +38,55 @@ public class NetWorthHistoryTests(PostgresFixture fixture)
     private sealed class FixedRates(RateTable table) : IFxRates
     {
         public Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct) => Task.FromResult(table);
+    }
+
+    private sealed class FakeHistory(Func<IReadOnlyList<LocalDate>, Result<IReadOnlyList<NetWorthPoint>>> history) : INetWorthContribution
+    {
+        public Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+            => Task.FromResult(Result.Success(new NetWorthPart(0, 0, 0, null, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(),
+                new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(), [], 0)));
+        public Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
+            => Task.FromResult(history(dates));
+    }
+
+    [Fact]
+    public async Task A_failing_contribution_fails_the_request()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddScoped<INetWorthContribution>(_ =>
+            new FakeHistory(_ => Result.Failure<IReadOnlyList<NetWorthPoint>>(new Failure("test.broken", "History unreadable.", null)))));
+
+        // An unknown failure code maps to 422 (ResultHttp.ProblemFor).
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Points_of_two_contributions_are_merged()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddScoped<INetWorthContribution>(_ =>
+            new FakeHistory(dates => Result.Success<IReadOnlyList<NetWorthPoint>>(dates.Select(d => new NetWorthPoint(
+                d, new Dictionary<Currency, decimal> { [Currency.Eur] = 100m }, new Dictionary<Currency, decimal> { [Currency.Eur] = 80m }, 1)).ToList()))));
+        var pea = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, pea, "2025-02-28", "1000.00");
+
+        var points = await PointsAsync(app, app.AdultA, "?period=12m");
+
+        Assert.Equal("1100.00", Amount(At(points, "2025-09-30"), "value"));
+        Assert.Equal("80.00", Amount(At(points, "2025-09-30"), "contributions"));
+    }
+
+    [Fact]
+    public async Task An_envelope_closed_on_a_grid_date_stops_counting_that_day()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, pea, "2025-03-31", "500.00");
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{pea.Value}/close", new { closedOn = "2025-05-31" }))
+            .EnsureSuccessStatusCode();
+
+        var points = await PointsAsync(app, app.AdultA, "?period=12m");
+
+        Assert.Equal("500.00", Amount(At(points, "2025-04-30"), "value"));
+        Assert.Null(Amount(At(points, "2025-05-31"), "value"));
     }
 
     [Fact]
