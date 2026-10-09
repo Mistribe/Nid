@@ -184,6 +184,34 @@ describe('the routine', () => {
     expect(screen.getByLabelText('Versements du mois sur PEA')).toHaveValue('50');
   });
 
+  it('shows since when the gain runs', async () => {
+    server.use(
+      http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine(lines()))),
+      http.post('*/api/v1/investments/routine', () => HttpResponse.json(recap([recapLine({ previousAsOf: '2025-06-30' })]))),
+    );
+    const { user } = await renderApp('/routine');
+    await user.click(await screen.findByRole('button', { name: /Enregistrer/ }));
+    expect(await screen.findByText('depuis le 30 juin 2025')).toBeInTheDocument();
+  });
+
+  it('Annuler restores each value under its envelope even when the list is reordered by the save', async () => {
+    let saved = false;
+    const due = [line(), line({ id: LIVRET, name: 'Livret A', lastValue: null, lastAsOf: null })];
+    const after = [line({ id: LIVRET, name: 'Livret A', lastValue: null, lastAsOf: null }), line({ due: false })];
+    server.use(
+      http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine(saved ? after : due))),
+      http.post('*/api/v1/investments/routine', () => { saved = true; return HttpResponse.json(recap([recapLine()])); }),
+      http.post('*/api/v1/investments/routine/undo', () => HttpResponse.json({ voided: 1 })),
+    );
+    const { user } = await renderApp('/routine');
+    await user.type(await screen.findByLabelText('Versements du mois sur PEA'), '50');
+    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+    expect(await screen.findByText('Routine annulée.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Versements du mois sur PEA')).toHaveValue('50');
+    expect(screen.getByLabelText('Versements du mois sur Livret A')).toHaveValue('');
+  });
+
   it('Annuler disappears after 10 seconds', async () => {
     // Combine with the date pin of beforeEach: fake the timers too, keep the pinned date.
     vi.useRealTimers();

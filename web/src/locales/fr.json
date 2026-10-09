@@ -40,7 +40,8 @@
     "col_value": "Valeur",
     "col_contributions": "Versements",
     "col_gain": "Gain du mois",
-    "gain_unknown": "Inconnu"
+    "gain_unknown": "Inconnu",
+    "since": "depuis le {{date}}"
   },
   "nav": {
     "sidebar": "Navigation principale",

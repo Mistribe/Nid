@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ export function RoutineRecapPanel({ recap, onUndone }: { recap: RoutineRecap; on
     <div className="space-y-3">
       <div role="status" className="flex items-center gap-3">
         <span>{t('routine.saved')}</span>
-        {canUndo ? (
+        {canUndo || undo.isPending ? (
           <Button type="button" variant="outline" disabled={undo.isPending}
             onClick={() => undo.mutate({ body: { facts } }, { onSuccess: () => onUndone() })}>
             {t('routine.undo')}
@@ -60,7 +61,10 @@ export function RoutineRecapPanel({ recap, onUndone }: { recap: RoutineRecap; on
               <th scope="row" className="text-left font-normal">{l.name}</th>
               <td className="text-right tabular-nums">{l.value ? formatMoney(l.value) : null}</td>
               <td className="text-right tabular-nums">{formatMoney(l.contributions)}</td>
-              <td className="text-right">{l.gain ? <Direction amount={l.gain} /> : <span className="text-muted-foreground">{t('routine.gain_unknown')}</span>}</td>
+              <td className="text-right">
+                {l.gain ? <Direction amount={l.gain} /> : <span className="text-muted-foreground">{t('routine.gain_unknown')}</span>}
+                {l.previousAsOf ? <small className="block text-xs text-muted-foreground">{t('routine.since', { date: formatLocalDate(l.previousAsOf) })}</small> : null}
+              </td>
             </tr>
           ))}
         </tbody>

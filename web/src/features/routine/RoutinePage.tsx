@@ -52,7 +52,7 @@ export function RoutinePage() {
         <p>{t('routine.none')} <Link to="/investments/new" className="underline">{t('routine.create_envelope')}</Link></p>
       ) : null}
       {answer.data && answer.data.lines.length > 0 && !saved ? (
-        <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText} initial={restored ?? startValues(answer.data, loadDraft(on))} onSaved={onSaved} />
+        <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText} initial={startValues(answer.data, restored ?? loadDraft(on))} onSaved={onSaved} />
       ) : null}
       {saved ? (
         <RoutineRecapPanel recap={saved.recap} onUndone={() => { setRestored(saved.values); setSaved(null); setUndone(true); }} />
