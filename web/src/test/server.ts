@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
+import { routine } from '@/features/routine/testData';
 import { aliceSessionResponse, allCapabilities } from './fixtures';
 
 export const handlers = [
@@ -15,6 +16,7 @@ export const handlers = [
     householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], findings: [],
   })),
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
+  http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/income/sources', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/income/sources/:id/expected', ({ params, request }) => {
     const url = new URL(request.url);

@@ -1,4 +1,4 @@
-import { Download, House, KeyRound, PiggyBank, Repeat, ShieldCheck, Settings, Upload, Wallet } from 'lucide-react';
+import { CalendarCheck, Download, House, KeyRound, PiggyBank, Repeat, ShieldCheck, Settings, Upload, Wallet } from 'lucide-react';
 import type { Capabilities } from './Providers';
 
 /** screens.md §1: one list for the sidebar, the bottom tabs and the « Plus » page. */
@@ -7,6 +7,7 @@ export const NAV = [
   { module: 'subscriptions', admin: false, mobile: 'tab', to: '/subscriptions', icon: Repeat, label: 'nav.subscriptions' },
   { module: 'investments', admin: false, mobile: 'tab', to: '/investments', icon: PiggyBank, label: 'nav.investments' },
   { module: 'income', admin: false, mobile: 'tab', to: '/income', icon: Wallet, label: 'nav.income' },
+  { module: 'investments', admin: false, mobile: 'more', to: '/routine', icon: CalendarCheck, label: 'nav.routine' },
   { module: 'import', admin: false, mobile: 'more', to: '/import', icon: Upload, label: 'nav.import' },
   { module: 'core', admin: false, mobile: 'more', to: '/export', icon: Download, label: 'nav.export' },
   { module: null, admin: false, mobile: 'more', to: '/security', icon: KeyRound, label: 'nav.security' },
