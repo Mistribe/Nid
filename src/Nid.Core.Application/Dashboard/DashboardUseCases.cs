@@ -11,7 +11,7 @@ public sealed record GetDashboardQuery(VisibilityScope Scope) : IQuery<Dashboard
 [RequestHandler<GetDashboardQuery, DashboardView>]
 public sealed class GetDashboardHandler(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
-    IEnumerable<IIncomeContribution> income, IActorAccessor actor, IHouseholdCalendar calendar,
+    IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming, IActorAccessor actor, IHouseholdCalendar calendar,
     IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
     : IRequestHandler<GetDashboardQuery, DashboardView>
 {
@@ -26,9 +26,13 @@ public sealed class GetDashboardHandler(
         if (committed.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var earned = await CollectAsync(income, c => c.IncomeAsync(reader, query.Scope, today, ct));
         if (earned.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
+        var until = today.PlusDays(DashboardMath.UpcomingDays);
+        var dated = await CollectAsync(upcoming, u => u.UpcomingAsync(reader, query.Scope, today, until, ct));
+        if (dated.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         worth.TryGetValue(out var w);
         committed.TryGetValue(out var c);
         earned.TryGetValue(out var e);
+        dated.TryGetValue(out var d);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = DashboardMath.Currencies(w!, c!, e!).Where(x => x != reference).ToList();
@@ -37,7 +41,7 @@ public sealed class GetDashboardHandler(
             ? RateTable.Empty(today, 0)
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, people, reference, rates, today));
+        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today));
     }
 
     private static async Task<Result<IReadOnlyList<T>>> CollectAsync<TSource, T>(IEnumerable<TSource> sources, Func<TSource, Task<Result<T>>> read)

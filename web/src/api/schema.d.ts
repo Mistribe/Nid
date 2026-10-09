@@ -6832,6 +6832,17 @@ export interface components {
             asOf?: null | string;
             stale: boolean;
         };
+        DashboardEventView: {
+            /** Format: date */
+            on: string;
+            kind: string;
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            label?: null | string;
+            amount?: null | components["schemas"]["DashboardMoneyView"];
+        };
         DashboardFigure: {
             perCurrency: components["schemas"]["DashboardMoneyView"][];
             total?: null | components["schemas"]["DashboardMoneyView"];
@@ -6850,6 +6861,16 @@ export interface components {
             amount: components["schemas"]["DashboardMoneyView"];
             /** Format: double */
             pct: number;
+        };
+        DashboardTodoView: {
+            kind: string;
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            /** Format: date */
+            on?: null | string;
+            label?: null | string;
         };
         DashboardView: {
             currency: string;
@@ -6879,6 +6900,8 @@ export interface components {
             envelopeSplit: components["schemas"]["DashboardEnvelopeView"][];
             people?: null | components["schemas"]["DashboardPersonView"][];
             peopleMissingCurrency?: null | string;
+            upcoming: components["schemas"]["DashboardEventView"][];
+            todo: components["schemas"]["DashboardTodoView"][];
         };
         DurationBody: {
             /** Format: int32 */

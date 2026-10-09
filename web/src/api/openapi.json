@@ -7702,6 +7702,51 @@
           }
         }
       },
+      "DashboardEventView": {
+        "required": [
+          "on",
+          "kind",
+          "id",
+          "module",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "DashboardFigure": {
         "required": [
           "perCurrency"
@@ -7777,6 +7822,43 @@
           }
         }
       },
+      "DashboardTodoView": {
+        "required": [
+          "kind",
+          "id",
+          "module",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "on": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "DashboardView": {
         "required": [
           "currency",
@@ -7791,7 +7873,9 @@
           "incomeSources",
           "change",
           "changeContributions",
-          "envelopeSplit"
+          "envelopeSplit",
+          "upcoming",
+          "todo"
         ],
         "type": "object",
         "properties": {
@@ -7887,6 +7971,18 @@
               "null",
               "string"
             ]
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardEventView"
+            }
+          },
+          "todo": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTodoView"
+            }
           }
         }
       },

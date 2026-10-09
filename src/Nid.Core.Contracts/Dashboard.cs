@@ -43,3 +43,20 @@ public interface IIncomeContribution
 {
     Task<Result<IncomePart>> IncomeAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
 }
+
+/// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IncomeGapSoon"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
+public sealed record UpcomingEvent(LocalDate On, string Kind, ItemId Item, string Module, string Name, string? Label, Money? Amount);
+
+public static class UpcomingKinds
+{
+    public const string SubscriptionRenewal = "subscription_renewal";
+    public const string SubscriptionExpiry = "subscription_expiry";
+    public const string IncomePhaseEnd = "income_phase_end";
+    public const string IncomeGapSoon = "income_gap_soon";
+}
+
+/// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>
+public interface IUpcomingEvents
+{
+    Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct);
+}

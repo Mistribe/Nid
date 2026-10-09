@@ -31,3 +31,27 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
         return Result.Success(new IncomePart(count, sums));
     }
 }
+
+/// <summary>2D2a spec §4: the end of each running period of an open source, and each <c>income_gap_soon</c> (shown in « À faire »).</summary>
+public sealed class IncomeSourcesUpcoming(IVisibleItems visible, IItemRegistry items, ISourceStore sources, IPhaseStore phases) : IUpcomingEvents
+{
+    public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+    {
+        var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
+        var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
+        var events = new List<UpcomingEvent>();
+        foreach (var source in found)
+        {
+            var item = await items.FindAsync(source.ItemId, ct);
+            if (item is null || item.ArchivedAt is not null)
+                continue;
+            var list = bySource[source.ItemId].ToList();
+            foreach (var phase in list)
+                if (IncomeMath.IsActive(phase, today) && IncomeMath.EffectiveEnd(phase) is { } end && end <= until)
+                    events.Add(new UpcomingEvent(end, UpcomingKinds.IncomePhaseEnd, source.ItemId, "income", item.DisplayName, phase.Label, null));
+            foreach (var gap in IncomeMath.Gaps(list, today))
+                events.Add(new UpcomingEvent(gap.EndsOn, UpcomingKinds.IncomeGapSoon, source.ItemId, "income", item.DisplayName, gap.Label, null));
+        }
+        return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
+    }
+}

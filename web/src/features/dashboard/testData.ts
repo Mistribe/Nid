@@ -12,7 +12,7 @@ export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => (
   commitments: figure('250.56'), cashThisMonth: figure('120.00'), subscriptions: 3,
   income: figure('2500.00'), incomeSources: 1, margin: eur('2249.45'), committedPct: 10,
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
-  envelopeSplit: [], people: [], peopleMissingCurrency: null,
+  envelopeSplit: [], people: [], peopleMissingCurrency: null, upcoming: [], todo: [],
   ...over,
 });
 
