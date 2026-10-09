@@ -17,6 +17,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
             .Returns<EnvelopeList>();
 
+        api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
+            .Returns<RoutineView>();
+
         api.MapGet("/envelopes/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetEnvelopeQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<EnvelopeDetail>();

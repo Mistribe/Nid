@@ -11,4 +11,7 @@ public static class InvestmentsCodes
     public const string TransferSameEnvelope = "investments.transfer_same_envelope";
     public const string TransferCurrencyMismatch = "investments.transfer_currency_mismatch";
     public const string InvalidPeriod = "investments.invalid_period";
+    public const string RoutineEmptyLine = "investments.routine_empty_line";
+    public const string RoutineDuplicate = "investments.routine_duplicate";
+    public const string RoutineInvalidAmount = "investments.routine_invalid_amount";
 }
