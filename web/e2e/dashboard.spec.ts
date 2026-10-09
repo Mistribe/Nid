@@ -25,8 +25,10 @@ test('alice lands on the dashboard and finds her net worth there', async ({ brow
 
   const curve = alice.getByRole('region', { name: 'Évolution du patrimoine' });
   const toTable = curve.getByRole('button', { name: 'Afficher en tableau' });
+  const table = curve.getByRole('table', { name: 'Évolution du patrimoine en tableau' });
+  await expect(toTable.or(table)).toBeVisible();
   if (await toTable.isVisible()) await toTable.click();
-  const lastRow = curve.getByRole('table', { name: 'Évolution du patrimoine en tableau' }).getByRole('row').last();
+  const lastRow = table.getByRole('row').last();
   await expect(lastRow).toContainText('Aujourd’hui');
   await expect(lastRow).toContainText('€');
 });
