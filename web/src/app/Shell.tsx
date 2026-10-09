@@ -1,46 +1,37 @@
-import { Link, Outlet } from '@tanstack/react-router';
-import { Download, House, KeyRound, PiggyBank, Repeat, ShieldCheck, Settings, Upload, Wallet } from 'lucide-react';
+import { Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { Ellipsis } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
+import { section, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
 
-const NAV = [
-  { module: 'core', admin: false, to: '/dashboard', icon: House, label: 'nav.dashboard' },
-  { module: 'subscriptions', admin: false, to: '/subscriptions', icon: Repeat, label: 'nav.subscriptions' },
-  { module: 'investments', admin: false, to: '/investments', icon: PiggyBank, label: 'nav.investments' },
-  { module: 'income', admin: false, to: '/income', icon: Wallet, label: 'nav.income' },
-  { module: 'import', admin: false, to: '/import', icon: Upload, label: 'nav.import' },
-  { module: 'core', admin: false, to: '/export', icon: Download, label: 'nav.export' },
-  { module: null, admin: false, to: '/security', icon: KeyRound, label: 'nav.security' },
-  { module: null, admin: false, to: '/settings/appearance', icon: Settings, label: 'nav.settings' },
-  { module: null, admin: true, to: '/admin/users', icon: ShieldCheck, label: 'nav.admin' },
-] as const;
+const LINK = 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground';
+// A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review).
+const TAB = 'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-xs hover:bg-accent hover:text-accent-foreground';
 
-/** Sidebar on desktop, bottom tabs on mobile, same entries (screens.md §1). */
+/** Sidebar on desktop; on mobile, four tabs and « Plus » (screens.md §1). */
 export function Shell() {
   const { t } = useTranslation();
   const { capabilities, signOut } = useSession();
-  const items = NAV.filter((item) =>
-    (item.module === null || capabilities.modules.includes(item.module)) && (!item.admin || capabilities.admin));
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const items = visibleNav(capabilities);
+  const more = items.filter((item) => item.mobile === 'more');
+  const inMore = pathname === '/more'
+    || more.some((item) => pathname === section(item.to) || pathname.startsWith(`${section(item.to)}/`));
 
-  const links = items.map((item) => (
-    <Link
-      key={item.to}
-      to={item.to}
-      className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
-      activeProps={{ 'aria-current': 'page', className: 'font-semibold' }}
-    >
-      <item.icon aria-hidden="true" className="size-5" />
-      <span>{t(item.label)}</span>
+  const link = (item: NavItem, style = LINK) => (
+    <Link key={item.to} to={item.to} className={style} activeProps={{ 'aria-current': 'page', className: 'font-semibold' }}>
+      <item.icon aria-hidden="true" className="size-5 shrink-0" />
+      <span className="max-w-full truncate">{t(item.label)}</span>
     </Link>
-  ));
+  );
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[14rem_1fr]">
       <nav aria-label={t('nav.sidebar')} className="hidden gap-1 border-r bg-sidebar p-4 text-sidebar-foreground md:flex md:flex-col">
         <p className="mb-4 px-3 text-lg font-semibold">{t('app.name')}</p>
-        {links}
+        {items.map((item) => link(item))}
       </nav>
       <div className="flex min-h-dvh flex-col pb-16 md:pb-0">
         <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
@@ -52,8 +43,12 @@ export function Shell() {
           <Outlet />
         </main>
       </div>
-      <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex justify-around border-t bg-background md:hidden">
-        {links}
+      <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex border-t bg-background md:hidden">
+        {items.filter((item) => item.mobile === 'tab').map((item) => link(item, TAB))}
+        <Link to="/more" aria-current={inMore ? 'page' : undefined} className={inMore ? `${TAB} font-semibold` : TAB}>
+          <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
+          <span className="max-w-full truncate">{t('nav.more')}</span>
+        </Link>
       </nav>
     </div>
   );

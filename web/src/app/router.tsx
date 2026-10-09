@@ -20,6 +20,7 @@ import { UsersPage } from '@/features/admin/UsersPage';
 import { IncomeSourcesPage } from '@/features/income/IncomeSourcesPage';
 import { EnvelopesPage } from '@/features/investments/EnvelopesPage';
 import { SecurityPage } from '@/features/security/SecurityPage';
+import { MorePage } from './MorePage';
 import { AppearancePage } from '@/features/settings/AppearancePage';
 import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
 import { ForbiddenPage } from './ForbiddenPage';
@@ -189,6 +190,7 @@ const settingsRoute = createRoute({
 const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/appearance', component: AppearancePage });
 
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: SecurityPage });
+const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', component: MorePage });
 
 const forbiddenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forbidden', component: ForbiddenPage });
 
@@ -218,7 +220,7 @@ export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
   incomeRoute, incomeNewRoute, incomeDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
-  securityRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
+  securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,
 ]);
 

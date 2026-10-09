@@ -25,7 +25,12 @@
     "export": "Export",
     "settings": "Réglages",
     "admin": "Administration",
-    "security": "Sécurité"
+    "security": "Sécurité",
+    "more": "Plus"
+  },
+  "more": {
+    "title": "Plus",
+    "list": "Autres sections"
   },
   "dashboard": {
     "curve": {
