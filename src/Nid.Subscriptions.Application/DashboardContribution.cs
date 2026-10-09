@@ -36,7 +36,8 @@ public sealed class SubscriptionsCommitments(IVisibleItems visible, ISubscriptio
 
 /// <summary>
 /// 2D2a spec §4: the next charge of a phase whose cycle is longer than a month (monthly charges are already in « prélevés
-/// ce mois-ci »), and the end of coverage of a subscription with no next charge.
+/// ce mois-ci »), and the end of coverage of a subscription that ends within the window (an open-ended one expires at the
+/// twelve-month horizon, never inside it).
 /// </summary>
 public sealed class SubscriptionsUpcoming(IVisibleItems visible, ISubscriptionStore store, IItemRegistry items) : IUpcomingEvents
 {
@@ -56,7 +57,7 @@ public sealed class SubscriptionsUpcoming(IVisibleItems visible, ISubscriptionSt
                 if (phase is not null && LongerThanAMonth(phase.Every) && next.Date >= today && next.Date <= until)
                     events.Add(new UpcomingEvent(next.Date, UpcomingKinds.SubscriptionRenewal, id, "subscriptions", name, null, next.Price));
             }
-            else if (timeline.ExpiresOn() is { } expires && expires >= today && expires <= until)
+            if (timeline.ExpiresOn() is { } expires && expires >= today && expires <= until)
                 events.Add(new UpcomingEvent(expires, UpcomingKinds.SubscriptionExpiry, id, "subscriptions", name, null, null));
         }
         return Result.Success<IReadOnlyList<UpcomingEvent>>(events);

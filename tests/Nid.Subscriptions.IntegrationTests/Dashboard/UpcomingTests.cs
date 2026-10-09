@@ -101,6 +101,19 @@ public class UpcomingTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_monthly_subscription_still_charging_once_before_its_end_expires_in_the_window()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await SubscriptionAsync(app, "Fin", "2025-09-01", 1, "month", "5.00", endsOn: "2025-12-01");
+        await SubscriptionAsync(app, "Netflix", "2025-01-05", 1, "month", "13.49");
+
+        var expiry = Upcoming(await DashboardAsync(app, app.AdultA)).Single();
+
+        Assert.Equal("subscription_expiry", expiry.GetProperty("kind").GetString());
+        Assert.Equal("2025-12-01", expiry.GetProperty("on").GetString());
+    }
+
+    [Fact]
     public async Task An_income_period_ending_soon_is_upcoming_and_its_missing_follow_up_is_to_do()
     {
         await using var app = await NidApp.StartAsync(fixture);
