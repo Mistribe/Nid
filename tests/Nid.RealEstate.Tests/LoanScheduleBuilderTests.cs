@@ -165,6 +165,49 @@ public class LoanScheduleBuilderTests
     }
 
     [Fact]
+    public void A_long_prorated_first_period_pays_its_extra_interest_on_the_first_payment()
+    {
+        // 60 days from 15 January to 15 March 2024: interest 200 000 × 3.5 % × 60 ÷ 365 = 1 150.68; a month's is 583.33.
+        // Row 1 pays 1 159.92 + (1 150.68 − 583.33) = 1 727.27, so its principal is a full month's: 1 159.92 − 583.33 = 576.59.
+        var s = Build(Loans.Golden() with { FirstPeriod = FirstPeriod.ProrataActual365, FirstPaymentDate = Loans.Disbursed.PlusMonths(2) });
+        Assert.Equal((1150.68m, 1727.27m, 576.59m), (s.Rows[0].Interest, s.Rows[0].Payment, s.Rows[0].Principal));
+        Assert.All(s.Rows, r => Assert.True(r.Principal > 0m, $"row {r.Number} principal {r.Principal}"));
+        Assert.All(s.Rows, r => Assert.True(r.Balance <= 200_000m, $"row {r.Number} balance {r.Balance}"));
+        Assert.True(s.Rows[^1].Payment <= 1159.92m + 1m, $"last payment {s.Rows[^1].Payment}");
+    }
+
+    [Fact]
+    public void A_term_reduced_in_one_annuity_phase_holds_in_the_next()
+    {
+        var events = new[] { new EarlyRepayment(Loans.First.PlusMonths(29), 20_000m, RepaymentEffect.ReduceTerm) };
+        var single = Build(Loans.Golden() with { Events = events });
+        var phased = Build(Loans.Golden() with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, 60), new LoanPhase(2, PhaseMode.Annuity, 0.035m, RateType.Variable)],
+            Events = events,
+        });
+        Assert.Equal(210, single.Rows.Count);
+        Assert.Equal(single.Rows.Count, phased.Rows.Count);
+        // Phase 2 recomputes over the 150 payments the effective end leaves: 1 157.20, not 1 159.92 (the single loan's
+        // last payment is a part payment of 648.72, which the annuity formula spreads over the 150).
+        Assert.All(phased.Rows.Skip(60).SkipLast(1), r => Assert.Equal(1157.20m, r.Payment));
+        Assert.Equal(0m, phased.Rows[^1].Balance);
+    }
+
+    [Fact]
+    public void An_imposed_payment_a_cent_short_settles_on_the_last_payment()
+    {
+        LoanTerms Imposed(decimal p) => Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, PaymentOverride: p)] };
+        var close = Build(Imposed(1159.91m));
+        Assert.Equal(240, close.Rows.Count);
+        Assert.Equal(0m, close.Rows[^1].Balance);
+        Assert.DoesNotContain(close.Warnings, w => w.Code == LoanWarnings.ExceedsTotalPayments);
+        var low = Build(Imposed(1100m));
+        Assert.True(low.Rows.Count > 240);
+        Assert.Contains(low.Warnings, w => w == new ScheduleWarning(LoanWarnings.ExceedsTotalPayments, 241));
+    }
+
+    [Fact]
     public void A_low_imposed_payment_extends_the_loan_with_a_warning_and_a_ceiling()
     {
         var s = Build(Loans.Annuity(100_000m, 0m, 12) with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0m, RateType.Fixed, PaymentOverride: 5_000m)] });

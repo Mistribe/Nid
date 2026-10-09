@@ -33,6 +33,7 @@ public static class LoanScheduleBuilder
         var current = -1;
         var projected = false;
         var exceeded = false;
+        var end = t.TotalPayments; // the loan's last payment, brought forward by a reduce-term repayment in an annuity
 
         var pending = t.Events.Select((e, i) => (Event: e, Index: i)).OrderBy(x => x.Event.OnDate).ToList();
         foreach (var (e, index) in pending.Where(x => x.Event.OnDate < t.FirstPaymentDate))
@@ -60,7 +61,7 @@ public static class LoanScheduleBuilder
                 {
                     projected = true;
                     warnings.Add(new ScheduleWarning(LoanWarnings.ProjectionUsesLastRate, k));
-                    payment = Annuity(balance + termReduction, rate, t.TotalPayments - (k - 1));
+                    payment = Annuity(balance + termReduction, rate, end - (k - 1));
                     termReduction = 0m;
                     overrideActive = false;
                 }
@@ -77,18 +78,22 @@ public static class LoanScheduleBuilder
                     {
                         (payment, overrideActive) = ph.PaymentOverride is { } imposed
                             ? (imposed, true)
-                            : (Annuity(balance + termReduction, rate, t.TotalPayments - (k - 1)), false);
+                            : (Annuity(balance + termReduction, rate, end - (k - 1)), false);
                         termReduction = 0m;
                     }
                 }
             }
 
             var before = balance;
+            var monthly = RoundInterest(balance * rate / 12m, t.Rounding);
             var interest = k == 1 && t.FirstPeriod == FirstPeriod.ProrataActual365
                 ? RoundInterest(balance * rate * Period.DaysBetween(t.DisbursedOn, t.FirstPaymentDate) / 365m, t.Rounding)
-                : RoundInterest(balance * rate / 12m, t.Rounding);
-            // From the contractual last payment on, every mode settles the balance; only an imposed annuity payment stays.
-            var settle = k >= t.TotalPayments && !(mode == PhaseMode.Annuity && overrideActive);
+                : monthly;
+            // From the last payment on, every mode settles the balance; an imposed annuity payment settles on the last
+            // payment only when less than one more payment is left, and otherwise extends the loan.
+            var settle = mode == PhaseMode.Annuity && overrideActive
+                ? k == end && balance + interest - payment < payment
+                : k >= end;
             decimal pay, principal;
             switch (mode)
             {
@@ -101,10 +106,11 @@ public static class LoanScheduleBuilder
                     if (settle) balance = 0m;
                     break;
                 default:
-                    if (overrideActive && payment <= interest)
+                    if (overrideActive && payment <= monthly)
                         return Refuse(LoanCodes.PaymentBelowInterest, "The imposed payment does not cover the interest: the loan would never end.",
                             $"phases[{phases[current].Index}].paymentOverride");
-                    pay = settle ? balance + interest : payment;
+                    // A prorated first period adds its interest beyond a month's to the payment, so row 1 repays a month's principal.
+                    pay = settle ? balance + interest : payment + interest - monthly;
                     pay = Math.Min(pay, balance + interest);
                     principal = pay - interest;
                     balance -= principal;
@@ -133,10 +139,14 @@ public static class LoanScheduleBuilder
                             warnings.Add(new ScheduleWarning(LoanWarnings.OverrideIgnoredAfterEarlyRepayment, k));
                             overrideActive = false;
                         }
-                        payment = Annuity(balance, rate, t.TotalPayments - k);
+                        payment = Annuity(balance, rate, end - k);
                     }
                 }
-                else if (mode != PhaseMode.Annuity)
+                else if (mode == PhaseMode.Annuity)
+                {
+                    end = Math.Min(end, k + PaymentsLeft(balance, rate, payment, t.Rounding));
+                }
+                else
                 {
                     termReduction += e.Amount;
                 }
@@ -147,6 +157,18 @@ public static class LoanScheduleBuilder
         }
         if (pending.Count > 0) return Refuse(LoanCodes.EventAboveBalance, "An early repayment is dated after the loan is repaid.", $"events[{pending[0].Index}].amount");
         return Result.Success(new LoanSchedule(rows, warnings));
+    }
+
+    /// <summary>How many payments of <paramref name="payment"/> repay the balance, the last one partial; MaxRows at most.</summary>
+    private static int PaymentsLeft(decimal balance, decimal rate, decimal payment, InterestRounding rounding)
+    {
+        var m = 0;
+        for (; balance > 0m && m < MaxRows; m++)
+        {
+            var interest = RoundInterest(balance * rate / 12m, rounding);
+            balance -= Math.Min(payment, balance + interest) - interest;
+        }
+        return m;
     }
 
     internal static LocalDate Due(LoanTerms t, int k) => t.FirstPaymentDate.PlusMonths(k - 1);

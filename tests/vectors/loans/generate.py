@@ -47,6 +47,16 @@ def annuity(balance, rate, n):
     return half_up(balance * r / (1 - 1 / (1 + r) ** n))
 
 
+def payments_needed(balance, rate, payment, rounding):
+    """Payments of `payment` that repay `balance`, the last one partial; MAX_ROWS at most (spec 3A1 §4)."""
+    count = 0
+    while balance > 0 and count < MAX_ROWS:
+        count += 1
+        interest = interest_round(balance * rate / 12, rounding)
+        balance -= min(payment, balance + interest) - interest
+    return count
+
+
 def insurance_for(loan, due_date, balance_before):
     total = D(0)
     for ins in loan["insurances"]:
@@ -82,6 +92,7 @@ def build(loan):
     rows = []
     payment, override_active, term_reduction = None, False, D(0)
     current, projected = -1, False
+    end = n_total  # brought forward by a reduce-term repayment during an annuity
     pending = sorted(loan["events"], key=lambda e: e["on"])
     first_due = due(1)
     for e in [e for e in pending if e["on"] < first_due]:
@@ -103,7 +114,7 @@ def build(loan):
             rate, mode, seq = phases[-1]["annual_rate"], "annuity", phases[-1]["seq"]
             if not projected:
                 projected = True
-                payment = annuity(balance + term_reduction, rate, n_total - (k - 1))
+                payment = annuity(balance + term_reduction, rate, end - (k - 1))
                 term_reduction, override_active = D(0), False
         else:
             ph = phases[i]
@@ -116,16 +127,21 @@ def build(loan):
                     if ph["payment_override"] is not None:
                         payment, override_active = ph["payment_override"], True
                     else:
-                        payment, override_active = annuity(balance + term_reduction, rate, n_total - (k - 1)), False
+                        payment, override_active = annuity(balance + term_reduction, rate, end - (k - 1)), False
                     term_reduction = D(0)
         before = balance
+        month_interest = interest_round(balance * rate / 12, rounding)
+        interest = month_interest
         if k == 1 and loan["first_period"] == "prorata_actual_365":
             days = (first_due - loan["disbursed_on"]).days
             interest = interest_round(balance * rate * days / 365, rounding)
+        if mode == "annuity" and override_active:
+            # An imposed payment settles on the last payment only if what is left is under one payment.
+            last = k == end and balance + interest - payment < payment
         else:
-            interest = interest_round(balance * rate / 12, rounding)
-        if k >= n_total and not (mode == "annuity" and override_active):
-            # The contractual last payment, and any later one, repays everything in every mode (spec 3A1 §4).
+            last = k >= end
+        if last:
+            # The last payment, and any later one, repays everything (spec 3A1 §4).
             pay = balance + interest
             principal = balance
             balance = D(0)
@@ -135,9 +151,10 @@ def build(loan):
         elif mode == "deferred_partial":
             pay, principal = interest, D(0)
         else:
-            if override_active and payment <= interest:
+            if override_active and payment <= month_interest:
                 raise Refused("payment_below_interest")
-            pay = min(payment, balance + interest)
+            # A broken first period: the interest beyond one month's rides on the payment, the principal stays a month's.
+            pay = min(payment + (interest - month_interest), balance + interest)
             principal = pay - interest
             balance -= principal
         row = [pay, interest, principal, insurance_for(loan, due_date, before), balance]
@@ -153,8 +170,10 @@ def build(loan):
             if e["effect"] == "reduce_payment":
                 if mode == "annuity":
                     override_active = False
-                    payment = annuity(balance, rate, n_total - k)
-            elif mode != "annuity":
+                    payment = annuity(balance, rate, end - k)
+            elif mode == "annuity":
+                end = min(end, k + payments_needed(balance, rate, payment, rounding))
+            else:
                 term_reduction += e["amount"]
         if balance == 0:
             break
