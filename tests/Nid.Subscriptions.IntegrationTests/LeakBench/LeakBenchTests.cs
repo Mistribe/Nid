@@ -199,6 +199,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                      "/api/v1/income/sources?scope=me",
                      "/api/v1/dashboard?scope=household",
                      "/api/v1/dashboard?scope=me",
+                     "/api/v1/dashboard/net-worth?scope=household&period=all",
+                     "/api/v1/dashboard/net-worth?scope=me&period=all",
                      "/api/v1/core/persons",
                  })
         {

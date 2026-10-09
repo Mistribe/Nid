@@ -21,6 +21,8 @@ public class DashboardAggregationTests(PostgresFixture fixture)
     private sealed class Worth(NetWorthPart part) : INetWorthContribution
     {
         public Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct) => Task.FromResult(Result.Success(part));
+        public Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
+            => Task.FromResult(Result.Success<IReadOnlyList<NetWorthPoint>>([]));
     }
     private sealed class Commitments(CommitmentsPart part) : ICommitmentsContribution
     {

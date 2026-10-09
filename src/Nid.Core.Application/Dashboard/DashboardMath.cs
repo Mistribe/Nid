@@ -148,15 +148,15 @@ public static class DashboardMath
             .ToList();
     }
 
-    private static IReadOnlyDictionary<Currency, decimal> Merge(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)
+    internal static IReadOnlyDictionary<Currency, decimal> Merge(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts)
         => parts.SelectMany(p => p).GroupBy(p => p.Key).ToDictionary(g => g.Key, g => g.Sum(p => p.Value));
 
     private static decimal Percent(decimal ratio) => Math.Round(ratio * 100m, 1, MidpointRounding.AwayFromZero);
 
-    private static DashboardMoneyView Money(decimal amount, Currency currency)
+    internal static DashboardMoneyView Money(decimal amount, Currency currency)
         => new(Math.Round(amount, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture), currency.Code);
 
-    private sealed record Sum(IReadOnlyDictionary<Currency, decimal> PerCurrency, decimal? Total, string? Missing)
+    internal sealed record Sum(IReadOnlyDictionary<Currency, decimal> PerCurrency, decimal? Total, string? Missing)
     {
         public static readonly Sum Nothing = new(new Dictionary<Currency, decimal>(), null, null);
 

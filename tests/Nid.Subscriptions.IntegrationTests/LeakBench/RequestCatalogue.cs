@@ -247,6 +247,7 @@ public static class RequestCatalogue
 
         new(typeof(ListIncomeSourcesQuery), false, (_, _) => new ListIncomeSourcesQuery(VisibilityScope.Me, true)),
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
+        new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
         new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
         new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,

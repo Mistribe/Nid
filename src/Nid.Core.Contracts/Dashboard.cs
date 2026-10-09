@@ -33,7 +33,14 @@ public sealed record IncomePart(int Sources, IReadOnlyDictionary<Currency, decim
 public interface INetWorthContribution
 {
     Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
+
+    /// <summary>2D2b spec §4: one point per date of <paramref name="dates"/>, over the visible holdings, closed ones included until their closing.</summary>
+    Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct);
 }
+
+/// <summary>2D2b spec §4: a module's part of the curve at one date; <c>Envelopes</c> counts the holdings with a reading on or before it.</summary>
+public sealed record NetWorthPoint(
+    LocalDate On, IReadOnlyDictionary<Currency, decimal> Values, IReadOnlyDictionary<Currency, decimal> NetContributions, int Envelopes);
 
 public interface ICommitmentsContribution
 {

@@ -71,6 +71,39 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings, withoutStart));
     }
 
+    /// <summary>
+    /// 2D2b spec §4: at each date, each envelope's last reading on or before it, with the net contributions up to that
+    /// reading (as <see cref="EnvelopeMath.Series"/>), so the gap between the two lines stays the gain. A closed
+    /// envelope counts strictly before its closing; one whose facts cannot be read counts as having no reading.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
+    {
+        var ids = await visible.ForAsync(reader, scope, includeArchived: true, ct);
+        var series = new List<(LocalDate? ClosedOn, IReadOnlyList<SeriesPointFigures> Readings)>();
+        foreach (var envelope in await envelopes.FindManyAsync(ids.ToList(), ct))
+            if ((await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f))
+                series.Add((f!.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency)));
+
+        var points = new List<NetWorthPoint>();
+        foreach (var date in dates)
+        {
+            var values = new Dictionary<Currency, decimal>();
+            var nets = new Dictionary<Currency, decimal>();
+            var count = 0;
+            foreach (var (closedOn, readings) in series)
+            {
+                if (closedOn is { } closed && date >= closed) continue;
+                var reading = readings.LastOrDefault(r => r.AsOf <= date); // Series is ordered by date
+                if (reading is null) continue;
+                count++;
+                Add(values, reading.Value.Currency, reading.Value.Amount);
+                Add(nets, reading.NetContributions.Currency, reading.NetContributions.Amount);
+            }
+            points.Add(new NetWorthPoint(date, values, nets, count));
+        }
+        return Result.Success<IReadOnlyList<NetWorthPoint>>(points);
+    }
+
     private static void Add(Dictionary<Currency, decimal> sums, Currency currency, decimal amount)
         => sums[currency] = sums.GetValueOrDefault(currency) + amount;
 }
