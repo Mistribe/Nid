@@ -241,4 +241,68 @@ public class RoutineTests(PostgresFixture fixture)
         });
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode); // already retired
     }
+
+    [Fact]
+    public async Task A_value_at_a_date_that_already_has_one_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await EnvelopeAsync(app, "PEA", "monthly");
+        await ValueAsync(app, pea, "2025-09-30", "1000.00");
+
+        var response = await RecordAsync(app, app.AdultA, new { on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("1100.00") } } });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("investments.routine_value_exists", problem.GetProperty("code").GetString());
+        Assert.Equal("lines[0].value", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal(1000m, Dec((await LatestAsync(app, pea)).GetProperty("lastValue")));
+    }
+
+    [Fact]
+    public async Task Undo_refuses_an_income_sources_flow_and_a_closed_envelopes_facts()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
+        {
+            ["displayName"] = "Salaire", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            ["phases"] = new[] { new { label = "Salaire", startsOn = "2025-01-01", endsOn = (string?)null, netAmount = Eur("2000"), every = new { count = 1, unit = "month" }, maxCycles = (int?)null } },
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var source = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var oneOff = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{source}/one-offs", new { occurredOn = "2025-06-10", amount = Eur("500"), note = "Prime" });
+        var flow = JsonDocument.Parse(await oneOff.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        var undo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts = new[] { new { envelopeId = source, valuationId = (Guid?)null, flowId = (Guid?)flow } } });
+        Assert.Equal(HttpStatusCode.NotFound, undo.StatusCode);
+        var detail = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/income/sources/{source}");
+        Assert.Contains(flow.ToString(), await detail.Content.ReadAsStringAsync());
+
+        var pea = await EnvelopeAsync(app, "PEA", "monthly");
+        var recorded = JsonDocument.Parse(await (await RecordAsync(app, app.AdultA, new { on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("10.00") } } })).Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0];
+        var close = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{pea.Value}/close", new { closedOn = "2025-09-30", finalWithdrawal = (object?)null });
+        Assert.True(close.IsSuccessStatusCode);
+        var closedUndo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts = new[] { new { envelopeId = pea.Value, valuationId = recorded.GetProperty("valuationId").GetGuid(), flowId = (Guid?)null } } });
+        Assert.Equal(HttpStatusCode.NotFound, closedUndo.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_partial_undo_is_all_or_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await EnvelopeAsync(app, "PEA", "monthly");
+        var recorded = JsonDocument.Parse(await (await RecordAsync(app, app.AdultA, new
+        {
+            on = "2025-09-30", lines = new[] { new { envelopeId = pea.Value, value = Eur("1100.00"), contribution = Eur("50.00") } },
+        })).Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0];
+        var valuation = recorded.GetProperty("valuationId").GetGuid();
+        var flow = recorded.GetProperty("flowId").GetGuid();
+        var delete = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/investments/envelopes/{pea.Value}/flows/{flow}");
+        Assert.True(delete.IsSuccessStatusCode);
+
+        var undo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts = new[] { new { envelopeId = pea.Value, valuationId = (Guid?)valuation, flowId = (Guid?)flow } } });
+
+        Assert.Equal(HttpStatusCode.Conflict, undo.StatusCode);
+        Assert.Equal(1100m, Dec((await LatestAsync(app, pea)).GetProperty("lastValue")));
+    }
 }

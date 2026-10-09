@@ -13,5 +13,6 @@ public static class InvestmentsCodes
     public const string InvalidPeriod = "investments.invalid_period";
     public const string RoutineEmptyLine = "investments.routine_empty_line";
     public const string RoutineDuplicate = "investments.routine_duplicate";
+    public const string RoutineValueExists = "investments.routine_value_exists";
     public const string RoutineInvalidAmount = "investments.routine_invalid_amount";
 }

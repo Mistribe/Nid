@@ -121,6 +121,8 @@ public sealed class RecordRoutineHandler(
             foreach (var (money, field) in new[] { (line.Value, "value"), (line.Contribution, "contribution") })
                 if (money is { } m && m.Currency != f.Currency)
                     return Fail(CoreFactCodes.CurrencyMismatch, "Amounts are in the envelope's currency.", $"lines[{i}].{field}");
+            if (line.Value is not null && f.Values.Any(v => v.AsOf == command.On))
+                return Fail(InvestmentsCodes.RoutineValueExists, "This envelope already has a value at this date: correct it from its page.", $"lines[{i}].value");
             var previous = f.Values.Where(v => v.AsOf <= command.On).OrderByDescending(v => v.AsOf).FirstOrDefault();
             before.Add((line, f.Item.DisplayName, f.Currency, previous, f.Flows));
         }
@@ -168,7 +170,7 @@ public sealed class RecordRoutineHandler(
 }
 
 [RequestHandler<UndoRoutineCommand, RoutineUndone>]
-public sealed class UndoRoutineHandler(IValuations valuations, IFlows flows, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
+public sealed class UndoRoutineHandler(IEnvelopeStore envelopes, IItemRegistry items, IValuations valuations, IFlows flows, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
     : IRequestHandler<UndoRoutineCommand, RoutineUndone>
 {
     public async ValueTask<Result<RoutineUndone>> HandleAsync(UndoRoutineCommand command, CancellationToken ct = default)
@@ -179,6 +181,15 @@ public sealed class UndoRoutineHandler(IValuations valuations, IFlows flows, IAc
         foreach (var fact in command.Facts)
             if (!(await policy.CheckAsync(reader, fact.Envelope, AccessKind.Write, ct)).IsSuccess)
                 return Result.Failure<RoutineUndone>(new NotFoundFailure("envelope", fact.Envelope.ToString()));
+        // Only an open envelope's facts: not another item's (an income source's flows), not a closed envelope's.
+        foreach (var fact in command.Facts)
+        {
+            var loaded = await EnvelopeCheck.LoadAsync(envelopes, items, fact.Envelope, ct);
+            if (loaded.TryGetFailure(out var failure)) return Result.Failure<RoutineUndone>(failure!);
+            loaded.TryGetValue(out var l);
+            if (l.Item.ArchivedAt is not null)
+                return Result.Failure<RoutineUndone>(new NotFoundFailure("envelope", fact.Envelope.ToString()));
+        }
 
         var voided = 0;
         await using (var transaction = await unitOfWork.BeginAsync(ct))
