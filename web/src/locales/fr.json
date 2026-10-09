@@ -28,6 +28,23 @@
     "security": "Sécurité"
   },
   "dashboard": {
+    "curve": {
+      "title": "Évolution du patrimoine",
+      "period": "Période de la courbe",
+      "period_12m": "12 mois",
+      "period_3y": "3 ans",
+      "period_all": "Tout",
+      "loading": "Chargement de la courbe du patrimoine",
+      "empty": "Aucune valeur sur cette période.",
+      "value": "Valeur",
+      "contributions": "Versements cumulés",
+      "month": "Mois",
+      "today": "Aujourd’hui",
+      "table": "Évolution du patrimoine en tableau",
+      "chart_title": "Valeur et versements cumulés",
+      "no_value": "Pas encore de valeur",
+      "unknown_rate": "Inconnue : taux de change manquant ({{code}})"
+    },
     "title": "Accueil",
     "loading": "Chargement du tableau de bord",
     "empty_title": "Bienvenue dans Nid",

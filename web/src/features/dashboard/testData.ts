@@ -1,4 +1,4 @@
-import type { DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView } from './api';
+import type { DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, NetWorthHistory, NetWorthPointView } from './api';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -40,3 +40,9 @@ export const todoItem = (over: Partial<DashboardTodo> = {}): DashboardTodo => ({
   kind: 'stale_value', id: '00000000-0000-7000-8000-0000000000e2', module: 'investments', name: 'Livret A',
   on: '2025-06-03', label: null, ...over,
 });
+
+export const curvePoint = (over: Partial<NetWorthPointView> = {}): NetWorthPointView => ({
+  on: '2025-09-30', value: eur('1000.00'), contributions: eur('900.00'), missingCurrency: null, ...over,
+});
+
+export const netWorth = (points: NetWorthPointView[], period = '12m'): NetWorthHistory => ({ currency: 'EUR', period, points });

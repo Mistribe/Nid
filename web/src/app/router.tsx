@@ -31,6 +31,7 @@ export type RouterContext = { capabilities: Capabilities };
 
 /** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
 export type RootSearch = { scope?: 'me' };
+export type DashboardSearch = { curve?: '3y' | 'all' };
 
 /** The list's own filters, in the URL beside the root scope (1E2a design §3; labels comma-joined, 1E2b2 design §3.3). */
 export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string; label?: string };
@@ -73,6 +74,8 @@ const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/dashboard',
   beforeLoad: requireModule('core'),
+  validateSearch: (search: Record<string, unknown>): DashboardSearch =>
+    (search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
   component: DashboardPage,
 });
 
