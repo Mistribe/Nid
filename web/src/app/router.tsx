@@ -32,6 +32,7 @@ export type RouterContext = { capabilities: Capabilities };
 
 /** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
 export type RootSearch = { scope?: 'me' };
+export type RoutineSearch = { on?: string };
 export type DashboardSearch = { curve?: '3y' | 'all' };
 
 /** The list's own filters, in the URL beside the root scope (1E2a design §3; labels comma-joined, 1E2b2 design §3.3). */
@@ -121,6 +122,15 @@ const incomeRoute = createRoute({
   beforeLoad: requireModule('income'),
   validateSearch: (search: Record<string, unknown>): IncomeSearch => (search.ended === 1 || search.ended === '1' ? { ended: 1 } : {}),
   component: IncomeSourcesPage,
+});
+
+const routineRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/routine',
+  beforeLoad: requireModule('investments'),
+  validateSearch: (search: Record<string, unknown>): RoutineSearch =>
+    (typeof search.on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(search.on) ? { on: search.on } : {}),
+  component: lazyRouteComponent(() => import('@/features/routine/RoutinePage'), 'RoutinePage'),
 });
 
 // Loaded on demand, as the envelope's: the forms and their libraries stay out of the initial bundle.
@@ -218,7 +228,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, routineRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

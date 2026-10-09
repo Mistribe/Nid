@@ -17,6 +17,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
             .Returns<EnvelopeList>();
 
+        api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
+            .Returns<RoutineView>();
+
         api.MapGet("/envelopes/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetEnvelopeQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<EnvelopeDetail>();
@@ -61,6 +65,16 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new TransferCommand(new ItemId(body.From), new ItemId(body.To), RequireDate(body.OccurredOn), RequireMoney(body.Amount), body.Note), ct))
                 .ToHttp(t => new IdResponse(t), StatusCodes.Status201Created))
             .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPost("/routine", async (RoutineBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(recap => recap))
+            .Returns<RoutineRecap>();
+
+        api.MapPost("/routine/undo", async (RoutineUndoBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UndoRoutineCommand((body.Facts ?? [])
+                    .Select(f => new RoutineFact(new ItemId(f.EnvelopeId), f.ValuationId, f.FlowId)).ToList()), ct))
+                .ToHttp(undone => undone))
+            .Returns<RoutineUndone>();
 
         api.MapPost("/envelopes/{id:guid}/close", async (Guid id, CloseBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new CloseEnvelopeCommand(new ItemId(id), RequireDate(body.ClosedOn), body.FinalWithdrawal?.ToMoney()), ct))
@@ -148,6 +162,18 @@ public static class InvestmentEndpoints
     // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney turns that null
     // into a located 400 instead of a NullReferenceException.
     public sealed record TransferBody(Guid From, Guid To, string OccurredOn, MoneyBody? Amount, string? Note);
+
+    public sealed record RoutineLineBody(Guid EnvelopeId, MoneyBody? Value, MoneyBody? Contribution);
+
+    public sealed record RoutineBody(string On, IReadOnlyList<RoutineLineBody>? Lines)
+    {
+        public RecordRoutineCommand ToCommand() => new(RequireDate(On), (Lines ?? [])
+            .Select(l => new RoutineEntry(new ItemId(l.EnvelopeId), l.Value?.ToMoney(), l.Contribution?.ToMoney())).ToList());
+    }
+
+    public sealed record RoutineFactBody(Guid EnvelopeId, Guid? ValuationId, Guid? FlowId);
+
+    public sealed record RoutineUndoBody(IReadOnlyList<RoutineFactBody>? Facts);
 
     public sealed record CloseBody(string ClosedOn, MoneyBody? FinalWithdrawal);
 }
