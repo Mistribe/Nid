@@ -124,6 +124,8 @@ Pour chaque échéance k, dans l'ordre des phases :
 6. **Fin** : le prêt s'arrête quand le capital restant dû est nul. Si une mensualité imposée est trop basse, il se prolonge au-delà de `total_payments` (avertissement `exceeds_total_payments`).
 7. **Phases non terminées** : au-delà de la dernière phase connue d'un prêt à taux variable, le futur est **projeté au dernier taux** (avertissement `projection_uses_last_rate`).
 
+**Règles précisées en 3A1** (`superpowers/specs/2026-10-09-loan-schedule-engine-design.md` §4) : l’arrondi `truncate` ne concerne que les intérêts (une mensualité calculée est toujours arrondie au demi supérieur) ; un remboursement anticipé daté avant la première échéance s’applique avant elle, sur le capital débloqué ; quand les phases s’épuisent avant la fin, le calcul continue en annuité au dernier taux connu sur les échéances restantes, avec `projection_uses_last_rate` ; une phase d’annuité qui commence en cours de prêt sans mensualité imposée la calcule sur son capital d’ouverture et les échéances restantes du prêt ; une mensualité imposée qui ne couvre pas les intérêts est refusée (`payment_below_interest`), une mensualité trop basse mais suffisante prolonge le prêt avec `exceeds_total_payments`, dans la limite de 1 200 échéances (`schedule_too_long`) ; l’assurance s’applique aux échéances datées dans [`starts_on`, `ends_on`), `rate_on_initial` = arrondi(taux × capital initial ÷ 12), `rate_on_remaining` = arrondi(taux × capital avant l’échéance ÷ 12), et reste due pendant un différé total ; les frais ne sont pas des lignes de l’échéancier, ils comptent dans les indicateurs ; la dernière échéance contractuelle solde capital + intérêts dans tous les modes, y compris un différé qui court jusqu’au terme (prêt in fine), sauf une annuité à mensualité imposée ; un remboursement anticipé daté après la fin du prêt est refusé (`event_above_balance`).
+
 ## 4. Exemple vérifié
 
 Calculé en décimal exact : **200 000 € à 3,5 % sur 240 échéances**, une phase `annuity`, arrondi demi supérieur.
@@ -196,6 +198,8 @@ La simulation de renégociation (nouveau taux et frais) est une extension possib
 | Date de fin | Dernière échéance du calcul |
 | **Coût total du crédit** | Σ intérêts + Σ assurance + Σ frais (pénalités comprises), en **payé** et en **restant** |
 | Mensualité totale | Mensualité + assurance |
+
+La mensualité totale est la prochaine échéance assurance comprise ; le capital remboursé inclut les intérêts capitalisés pendant un différé total ; des frais datés avant le déblocage comptent dès leur date.
 
 **TAEG** : hors v1. Il se calcule avec la fonction de TRI de l'étape 6 (`../investments-data-model.md` §6) sur les flux du prêt (capital reçu, mensualités, assurance, frais).
 
@@ -299,6 +303,8 @@ Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
 - en annuité, les intérêts par échéance sont non croissants ;
 - coût total du crédit = Σ mensualités − emprunté + Σ assurance + Σ frais ;
 - la simulation d'un anticipé de montant 0 ne change rien.
+
+Vecteurs de référence : `tests/vectors/loans/` (générateur Python en décimal à 60 chiffres, 220 prêts comparés au centime).
 
 ## 13. Limites
 
