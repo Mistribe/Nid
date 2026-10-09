@@ -49,7 +49,9 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 **Livré en 2D2a** (2026-10-09) : répartition par enveloppe (barres triées et tableau, enveloppes sans valeur listées à part) et par personne (au prorata des parts, une couleur par personne), « À venir » sur 60 jours (renouvellements des abonnements dont le cycle dépasse un mois, expirations, fins de période de revenus), « À faire » (valeurs à mettre à jour, enveloppes sans valeur, suites de revenus à renseigner). La courbe du patrimoine vient en 2D2b.
 
-- **Une seule requête** agrégée : `GET /api/v1/dashboard`, calculée par le serveur.
+**Livré en 2D2b** (2026-10-09) : courbe du patrimoine (valeur et versements cumulés, une fin de mois par point et aujourd’hui en dernier, sur 12 mois, 3 ans ou tout), avec sa vue en tableau ; un mois sans taux de change interrompt la courbe et nomme la devise. L’évolution depuis le 1er janvier n’utilise plus une valeur de départ plus ancienne que le seuil de péremption de l’enveloppe.
+
+- **Une seule requête** agrégée : `GET /api/v1/dashboard`, calculée par le serveur (tuiles et listes ; la courbe a sa route, `GET /api/v1/dashboard/net-worth`, rechargée seule au changement de période).
 - Une valeur inconnue s'affiche « inconnue », **jamais 0**.
 - Une valeur périmée (`../core-data-model.md` §5.2) est signalée : la tuile du patrimoine compte les « N valeurs à mettre à jour », chaque enveloppe ayant son propre seuil (spec 2D1 §7.2).
 - Mobile : une colonne de cartes ; bureau : grille de trois tuiles puis deux colonnes.

@@ -18,10 +18,17 @@ test('alice lands on the dashboard and finds her net worth there', async ({ brow
 
   await alice.goto('/');
   await expect(alice).toHaveURL(/\/dashboard$/);
-  const worth = alice.getByRole('region', { name: 'Patrimoine' });
+  const worth = alice.getByRole('region', { name: 'Patrimoine', exact: true });
   await expect(worth).toContainText('€');
   await expect(worth).not.toContainText('Inconnu');
   await expect(alice.getByRole('region', { name: 'Évolution depuis le 1er janvier' })).toBeVisible();
+
+  const curve = alice.getByRole('region', { name: 'Évolution du patrimoine' });
+  const toTable = curve.getByRole('button', { name: 'Afficher en tableau' });
+  if (await toTable.isVisible()) await toTable.click();
+  const lastRow = curve.getByRole('table', { name: 'Évolution du patrimoine en tableau' }).getByRole('row').last();
+  await expect(lastRow).toContainText('Aujourd’hui');
+  await expect(lastRow).toContainText('€');
 });
 
 test('alice shares an envelope 50/50 with bob and finds it in the split, keeping Moi through its link', async ({ browser }) => {
