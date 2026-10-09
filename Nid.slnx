@@ -14,6 +14,8 @@
     <Project Path="src/Nid.Investments.Contracts/Nid.Investments.Contracts.csproj" />
     <Project Path="src/Nid.Investments.Domain/Nid.Investments.Domain.csproj" />
     <Project Path="src/Nid.Investments.Infrastructure/Nid.Investments.Infrastructure.csproj" />
+    <Project Path="src/Nid.RealEstate.Contracts/Nid.RealEstate.Contracts.csproj" />
+    <Project Path="src/Nid.RealEstate.Domain/Nid.RealEstate.Domain.csproj" />
     <Project Path="src/Nid.Platform.Contracts/Nid.Platform.Contracts.csproj" />
     <Project Path="src/Nid.Platform.Infrastructure/Nid.Platform.Infrastructure.csproj" />
     <Project Path="src/Nid.ServiceDefaults/Nid.ServiceDefaults.csproj" />
@@ -28,6 +30,7 @@
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
     <Project Path="tests/Nid.Income.Tests/Nid.Income.Tests.csproj" />
     <Project Path="tests/Nid.Investments.Tests/Nid.Investments.Tests.csproj" />
+    <Project Path="tests/Nid.RealEstate.Tests/Nid.RealEstate.Tests.csproj" />
     <Project Path="tests/Nid.Platform.Tests/Nid.Platform.Tests.csproj" />
     <Project Path="tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Subscriptions.Tests/Nid.Subscriptions.Tests.csproj" />
