@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -152,5 +152,49 @@ describe('the routine', () => {
     serve(routine(lines()));
     await renderApp('/routine');
     expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1000.00');
+  });
+  it('shows the recap with the gain of the month', async () => {
+    serve(routine(lines()));
+    const { user, container } = await renderApp('/routine');
+    await user.click(await screen.findByRole('button', { name: /Enregistrer/ }));
+
+    const table = await screen.findByRole('table', { name: 'Récapitulatif de la routine' });
+    const row = within(table).getAllByRole('row')[1]!;
+    expect(row).toHaveTextContent('PEA');
+    expect(row).toHaveTextContent('1 100,00 €');
+    expect(row).toHaveTextContent('50,00 €');
+    expect(within(row).getByText('en hausse')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Routine enregistrée.');
+    await expectNoAxeViolations(container);
+  });
+
+  it('Annuler voids the routine and brings the form back with the values entered', async () => {
+    const undone: unknown[] = [];
+    serve(routine(lines()));
+    server.use(http.post('*/api/v1/investments/routine/undo', async ({ request }) => { undone.push(await request.json()); return HttpResponse.json({ voided: 1 }); }));
+    const { user } = await renderApp('/routine');
+    await user.type(await screen.findByLabelText('Versements du mois sur PEA'), '50');
+    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+
+    await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+
+    await expect.poll(() => undone.length).toBe(1);
+    expect(undone[0]).toEqual({ facts: [{ envelopeId: '00000000-0000-7000-8000-0000000000f1', valuationId: '00000000-0000-7000-8000-0000000000a9', flowId: null }] });
+    expect(await screen.findByText('Routine annulée.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Versements du mois sur PEA')).toHaveValue('50');
+  });
+
+  it('Annuler disappears after 10 seconds', async () => {
+    // Combine with the date pin of beforeEach: fake the timers too, keep the pinned date.
+    vi.useRealTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2025, 9, 15, 12));
+    serve(routine(lines()));
+    const { user } = await renderApp('/routine');
+    await user.click(await screen.findByRole('button', { name: /Enregistrer/ }));
+    expect(await screen.findByRole('button', { name: 'Annuler' })).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(10_000); });
+    expect(screen.queryByRole('button', { name: 'Annuler' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Routine enregistrée.');
   });
 });
