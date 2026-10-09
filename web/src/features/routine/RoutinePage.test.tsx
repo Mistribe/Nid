@@ -106,7 +106,7 @@ describe('the routine', () => {
     await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
     // lines[1] of what was sent is Livret A (PEA is lines[0]).
     const livret = screen.getByLabelText('Versements du mois sur Livret A');
-    expect(await screen.findByText('A contribution is positive.')).toBeInTheDocument();
+    expect(await screen.findByText('Montant invalide.')).toBeInTheDocument();
     expect(livret).toHaveAttribute('aria-invalid', 'true');
   });
 
@@ -124,5 +124,33 @@ describe('the routine', () => {
     await renderApp('/routine?on=2025-08-31');
     expect(await screen.findByRole('heading', { level: 1, name: 'Routine de août 2025' })).toBeInTheDocument();
     expect(seen[0]).toContain('on=2025-08-31');
+  });
+
+  it('refetches the list after a save', async () => {
+    let gets = 0;
+    serve(routine(lines()));
+    server.use(http.get('*/api/v1/investments/routine', () => { gets += 1; return HttpResponse.json(routine(lines())); }));
+    const { user } = await renderApp('/routine');
+    await user.type(await screen.findByLabelText('Versements du mois sur PEA'), '50');
+    const before = gets;
+    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await expect.poll(() => gets).toBeGreaterThan(before);
+  });
+
+  it('does not pin stale values: an untouched form leaves no draft', async () => {
+    serve(routine(lines()));
+    const first = await renderApp('/routine');
+    await screen.findByLabelText('Valeur de PEA');
+    first.unmount();
+    serve(routine([line({ lastValue: { amount: '1200.00', currency: 'EUR' }, lastAsOf: '2025-09-15' })]));
+    await renderApp('/routine');
+    expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1200.00');
+  });
+
+  it('ignores a malformed draft', async () => {
+    sessionStorage.setItem('routine:2025-09-30', '{}');
+    serve(routine(lines()));
+    await renderApp('/routine');
+    expect(await screen.findByLabelText('Valeur de PEA')).toHaveValue('1000.00');
   });
 });

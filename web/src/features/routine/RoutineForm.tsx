@@ -4,6 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { messageFor } from '../subscriptions/fieldErrors';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { invalidateInvestments } from '../investments/api';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { ROUTINE, type RoutineLine, type RoutineRecap, type RoutineView } from './api';
-import { saveDraft } from './draft';
+import { clearDraft, saveDraft } from './draft';
 
 export type RoutineValues = { lines: { id: string; value: string; contribution: string; skip: boolean }[] };
 
@@ -37,9 +38,18 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   const form = useForm<RoutineValues>({ defaultValues: initial });
   const values = useWatch({ control: form.control });
   const [problem, setProblem] = useState<ReturnType<typeof present> | null>(null);
-  const save = $api.useMutation('post', ROUTINE, { onSuccess: () => { void invalidateInvestments(queryClient); } });
+  const save = $api.useMutation('post', ROUTINE, { onSuccess: () => {
+    void invalidateInvestments(queryClient);
+    // The list of the month: what was just recorded is no longer due.
+    void queryClient.invalidateQueries({ queryKey: ['get', ROUTINE] });
+  } });
 
-  useEffect(() => { saveDraft(view.on, form.getValues()); }, [values, view.on, form]);
+  // The draft exists only once the form differs from what the server proposes; a pristine form must not pin stale values.
+  const fresh = useMemo(() => JSON.stringify(startValues(view, null)), [view]);
+  useEffect(() => {
+    const now = form.getValues();
+    if (JSON.stringify(now) === fresh) clearDraft(view.on); else saveDraft(view.on, now);
+  }, [values, view.on, form, fresh]);
 
   const indexed = useMemo(() => view.lines.map((line, index) => ({ line, index })), [view.lines]);
   const due = indexed.filter((x) => x.line.due);
@@ -49,7 +59,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   const onKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
     if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
     event.preventDefault();
-    const fields = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input'));
+    const fields = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input')).filter((el) => el.closest('details:not([open])') === null);
     fields[fields.indexOf(event.target) + 1]?.focus();
   };
 
@@ -77,14 +87,15 @@ export function RoutineForm({ view, month, initial, onSaved }: {
         onSuccess: (recap) => onSaved(recap, v),
         onError: (error) => {
           const p = toProblem(error);
-          const placed = (p.errors ?? []).filter((e) => {
+          const errors = p.errors ?? [];
+          const placed = errors.filter((e) => {
             const m = /^lines\[(\d+)\](?:\.(value|contribution))?$/.exec(e.path);
             const at = m ? sent[Number(m[1])] : undefined;
             if (!at) return false;
-            form.setError(`lines.${at.i}.${m?.[2] === 'contribution' ? 'contribution' : 'value'}`, { message: e.message });
+            form.setError(`lines.${at.i}.${m?.[2] === 'contribution' ? 'contribution' : 'value'}`, { message: messageFor(t, e) });
             return true;
           });
-          if (placed.length === 0) setProblem(present(p));
+          if (placed.length < errors.length || errors.length === 0) setProblem(present(p));
         },
       },
     );
