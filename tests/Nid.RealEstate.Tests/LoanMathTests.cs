@@ -94,4 +94,37 @@ public class LoanMathTests
         var late = Loans.Fail(LoanMath.SimulateEarlyRepayment(Loans.Golden(), new LocalDate(2045, 1, 15), 10m, null, 0m));
         Assert.Equal((LoanCodes.EventAboveBalance, "amount"), (late.Code, Loans.FieldOf(late)));
     }
+
+    [Fact]
+    public void A_fee_dated_before_disbursement_counts_before_disbursement()
+    {
+        var (t, s) = Golden(x => x with { Fees = [new LoanFee(FeeKind.File, 1_000m, Loans.Disbursed.PlusDays(-10))] });
+        var f = LoanMath.At(t, s, Loans.Disbursed.PlusDays(-1));
+        Assert.Equal((0m, 1_000m, 1_000m), (f.Balance, f.FeesPaid, f.CostPaid));
+        Assert.Equal(f.TotalCost - 1_000m, f.CostRemaining);
+    }
+
+    [Fact]
+    public void A_simulation_dated_before_disbursement_is_refused_at_on()
+    {
+        var f = Loans.Fail(LoanMath.SimulateEarlyRepayment(Loans.Golden(), Loans.Disbursed.PlusDays(-1), 10m, null, 0m));
+        Assert.Equal((LoanCodes.InvalidLoan, "on"), (f.Code, Loans.FieldOf(f)));
+    }
+
+    [Fact]
+    public void A_fixed_insurance_shows_in_the_next_payment_and_the_insurance_paid()
+    {
+        var (t, s) = Golden(x => x with { Insurances = [new LoanInsurance(InsuranceMode.FixedMonthly, 20m, null, Loans.First)] });
+        Assert.Equal(1179.92m, LoanMath.At(t, s, Loans.Disbursed.PlusDays(3)).NextPaymentTotal);
+        Assert.Equal(1_200m, LoanMath.At(t, s, Loans.First.PlusMonths(59)).InsurancePaid);
+    }
+
+    [Fact]
+    public void A_repayment_is_not_made_before_its_date()
+    {
+        var (t, s) = Golden(x => x with { Events = [new EarlyRepayment(Loans.Disbursed.PlusDays(5), 10_000m, RepaymentEffect.ReduceTerm)] });
+        Assert.Equal(200_000m, LoanMath.At(t, s, Loans.Disbursed.PlusDays(4)).Balance);
+        var after = LoanMath.At(t, s, Loans.Disbursed.PlusDays(6));
+        Assert.Equal((190_000m, 10_000m), (after.Balance, after.PrincipalRepaid));
+    }
 }

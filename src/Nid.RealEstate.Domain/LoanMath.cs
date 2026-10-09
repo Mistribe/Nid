@@ -10,16 +10,20 @@ public static class LoanMath
     /// <summary>
     /// Balance after the last payment due on or before <paramref name="d"/> (an early repayment applied after it counts only
     /// from its own date); the principal between disbursement and the first payment; 0 before disbursement.
-    /// <c>InterestPaid</c> is the interest accrued to <paramref name="d"/>, capitalised interest included.
+    /// <c>InterestPaid</c> is the interest accrued to <paramref name="d"/>, capitalised interest included; likewise
+    /// <c>PrincipalRepaid</c> includes interest capitalised by a total deferral (it is repaid with the later payments).
     /// </summary>
     public static LoanFigures At(LoanTerms t, LoanSchedule s, LocalDate d)
     {
         var rows = s.Rows;
         var totalCost = rows.Sum(r => r.Interest) + rows.Sum(r => r.Insurance) + t.Fees.Sum(f => f.Amount);
         if (d < t.DisbursedOn)
-            return new LoanFigures(0m, 0m, 0m, 0m, 0m, rows.FirstOrDefault()?.PhaseSeq, rows.FirstOrDefault()?.AnnualRate, rows.Count,
+        {
+            var early = t.Fees.Where(f => f.OnDate <= d).Sum(f => f.Amount); // a file fee at signing
+            return new LoanFigures(0m, 0m, 0m, 0m, early, rows.FirstOrDefault()?.PhaseSeq, rows.FirstOrDefault()?.AnnualRate, rows.Count,
                 rows.FirstOrDefault()?.DueDate, rows.FirstOrDefault() is { } r0 ? r0.Payment + r0.Insurance : null,
-                rows.LastOrDefault()?.DueDate, totalCost, 0m, totalCost);
+                rows.LastOrDefault()?.DueDate, totalCost, early, totalCost - early);
+        }
 
         var paid = rows.Where(r => r.DueDate <= d).ToList();
         var left = rows.Where(r => r.DueDate > d).ToList();
@@ -47,6 +51,10 @@ public static class LoanMath
             rows.LastOrDefault()?.DueDate, totalCost, interest + insurance + fees, totalCost - (interest + insurance + fees));
     }
 
+    // The appended event's own fields are answered under the simulation's parameter names.
+    private static string? Remap(string field, int index)
+        => field == $"events[{index}].onDate" ? "on" : field == $"events[{index}].effect" ? "effect" : null;
+
     public static Result<EarlyRepaymentSimulation> SimulateEarlyRepayment(
         LoanTerms t, LocalDate on, decimal amount, RepaymentEffect? effect, decimal penalty)
     {
@@ -67,7 +75,9 @@ public static class LoanMath
                 if (after.TryGetFailure(out var failure))
                     return Result.Failure<EarlyRepaymentSimulation>(failure!.Code == LoanCodes.EventAboveBalance
                         ? LoanValidation.Refuse("amount", failure.Message, LoanCodes.EventAboveBalance)
-                        : failure);
+                        : failure.Metadata is { } m && m.TryGetValue("field", out var fld) && fld is string fs && Remap(fs, t.Events.Count) is { } mapped
+                            ? LoanValidation.Refuse(mapped, failure.Message, failure.Code)
+                            : failure);
                 after.TryGetValue(out var schedule);
                 a = schedule!;
             }
