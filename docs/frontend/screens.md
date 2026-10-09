@@ -7,8 +7,8 @@
 
 ## 1. Navigation
 
-- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). La boîte de validation (étape 4) y prendra sa place avec son badge.
-- **Bureau** : barre latérale avec toutes les entrées d’un coup (celles des onglets et celles de « Plus ») ; Routine et Immobilier s’y ajouteront avec leurs étapes.
+- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Routine, Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). La boîte de validation (étape 4) y prendra sa place avec son badge.
+- **Bureau** : barre latérale avec toutes les entrées d’un coup (celles des onglets et celles de « Plus ») ; Immobilier s’y ajoutera avec son étape.
 - **Administration** n'apparaît (barre latérale sur bureau, page « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer. Le choix Foyer / Moi est conservé par tous les liens internes et par « Retour » (2D2a).
@@ -85,6 +85,8 @@ Objectif : moins de dix minutes (principe 2).
 - Récapitulatif final : gain du mois par enveloppe, **calculé par le serveur**.
 - **Annuler** : après une saisie, un message avec « Annuler » pendant 10 secondes appelle `Void` (historique conservé, `../core-data-model.md` §5.4).
 - La routine exige d'être en ligne (`pwa-offline.md`).
+
+**Livré en 2E2** (2026-10-09) : page `/routine` (dans « Plus » sur mobile, dans la barre latérale sur bureau) ; valeurs au dernier jour du mois précédent par défaut ; enveloppes dues selon leur cadence en premier, les autres repliées ; valeur du mois précédent proposée, versements du mois, « Passer » ; Entrée passe au champ suivant ; brouillon dans l’onglet ; un seul enregistrement, tout ou rien ; récapitulatif du gain du mois calculé par le serveur ; « Annuler » pendant 10 secondes.
 
 ## 6. Boîte de validation
 
