@@ -15,7 +15,7 @@ public sealed record DashboardEnvelopeView(
     LocalDate? AsOf, bool Stale);
 
 /// <summary>2D2a spec §4: a person's pro-rata share. <c>Slot</c> is their colour rank: adults by creation, then dependents.</summary>
-public sealed record DashboardPersonView(PersonId Id, string Name, int Slot, DashboardMoneyView Amount, decimal Pct);
+public sealed record DashboardPersonView(Guid Id, string Name, int Slot, DashboardMoneyView Amount, decimal Pct);
 
 public sealed record DashboardView(
     string Currency,
@@ -117,7 +117,7 @@ public static class DashboardMath
             .Select((p, slot) => (Person: p, Slot: slot, Amount: shares.GetValueOrDefault(p.Id)))
             .Where(x => x.Amount != 0m)
             .OrderByDescending(x => x.Amount).ThenBy(x => x.Person.DisplayName, StringComparer.Ordinal)
-            .Select(x => new DashboardPersonView(x.Person.Id, x.Person.DisplayName, x.Slot, Money(x.Amount, reference),
+            .Select(x => new DashboardPersonView(x.Person.Id.Value, x.Person.DisplayName, x.Slot, Money(x.Amount, reference),
                 total > 0m ? Percent(x.Amount / total) : 0m))
             .ToList();
     }

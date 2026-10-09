@@ -53,13 +53,13 @@ public class SplitTests(PostgresFixture fixture)
         var people = (await DashboardAsync(app, app.AdultA)).GetProperty("people").EnumerateArray().ToList();
 
         Assert.Equal(3, people.Count);
-        var byId = people.ToDictionary(p => p.GetProperty("id").GetProperty("value").GetGuid());
+        var byId = people.ToDictionary(p => p.GetProperty("id").GetGuid());
         Assert.Equal("500.00", Amount(byId[app.AdultA.Value].GetProperty("amount")));
         Assert.Equal("500.00", Amount(byId[app.AdultB.Value].GetProperty("amount")));
         Assert.Equal("300.00", Amount(byId[app.Dependent.Value].GetProperty("amount")));
         Assert.Equal(38.5m, byId[app.AdultA.Value].GetProperty("pct").GetDecimal()); // 500 ÷ 1300
         Assert.Equal(23.1m, byId[app.Dependent.Value].GetProperty("pct").GetDecimal());
-        Assert.Equal(app.Dependent.Value, people[2].GetProperty("id").GetProperty("value").GetGuid()); // sorted by amount
+        Assert.Equal(app.Dependent.Value, people[2].GetProperty("id").GetGuid()); // sorted by amount
         // Adults take the first colour slots, the dependent the next one.
         Assert.True(byId[app.Dependent.Value].GetProperty("slot").GetInt32() > byId[app.AdultA.Value].GetProperty("slot").GetInt32());
         Assert.True(byId[app.Dependent.Value].GetProperty("slot").GetInt32() > byId[app.AdultB.Value].GetProperty("slot").GetInt32());

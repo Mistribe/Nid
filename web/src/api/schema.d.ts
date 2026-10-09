@@ -6842,7 +6842,8 @@ export interface components {
             currency: string;
         };
         DashboardPersonView: {
-            id: components["schemas"]["PersonId"];
+            /** Format: uuid */
+            id: string;
             name: string;
             /** Format: int32 */
             slot: number;
@@ -7375,10 +7376,6 @@ export interface components {
             kind: string;
             displayName: string;
             email?: null | string;
-        };
-        PersonId: {
-            /** Format: uuid */
-            value: string;
         };
         PersonIdResponse: {
             /** Format: uuid */

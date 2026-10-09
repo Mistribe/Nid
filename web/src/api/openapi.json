@@ -7758,7 +7758,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "$ref": "#/components/schemas/PersonId"
+            "type": "string",
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -9925,18 +9926,6 @@
               "null",
               "string"
             ]
-          }
-        }
-      },
-      "PersonId": {
-        "required": [
-          "value"
-        ],
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string",
-            "format": "uuid"
           }
         }
       },
