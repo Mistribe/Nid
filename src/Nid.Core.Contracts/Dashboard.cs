@@ -6,11 +6,17 @@ namespace Nid.Core.Contracts;
 /// <summary>
 /// 2D1 spec §4: what a module holds of the reader's net worth, as exact per-currency sums. <c>StartValues</c>,
 /// <c>NetContributions</c> and <c>Gains</c> cover only the envelopes with a value both on or before 1 January and today.
+/// 2D2a spec §4: <c>Holdings</c> lists each counted envelope, with or without a value.
 /// </summary>
 public sealed record NetWorthPart(
     int Envelopes, int WithoutValue, int Stale, LocalDate? OldestAsOf,
     IReadOnlyDictionary<Currency, decimal> Values, IReadOnlyDictionary<Currency, decimal> StartValues,
-    IReadOnlyDictionary<Currency, decimal> NetContributions, IReadOnlyDictionary<Currency, decimal> Gains);
+    IReadOnlyDictionary<Currency, decimal> NetContributions, IReadOnlyDictionary<Currency, decimal> Gains,
+    IReadOnlyList<Holding> Holdings);
+
+/// <summary>2D2a spec §4: one visible open envelope of the net worth; <c>Value</c> null when it has none (or its facts cannot be read).</summary>
+public sealed record Holding(
+    ItemId Item, string Module, string Name, Money? Value, LocalDate? AsOf, bool Stale, IReadOnlyList<OwnerShare> Owners);
 
 /// <summary>2D1 spec §4: this month's amortized and cash cost of the reader's visible active subscriptions.</summary>
 public sealed record CommitmentsPart(

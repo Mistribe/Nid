@@ -6820,6 +6820,18 @@ export interface components {
             phases?: null | components["schemas"]["PhaseInput"][];
             purchases?: null | components["schemas"]["PurchaseInput"][];
         };
+        DashboardEnvelopeView: {
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            value?: null | components["schemas"]["DashboardMoneyView"];
+            converted?: null | components["schemas"]["DashboardMoneyView"];
+            missingCurrency?: null | string;
+            /** Format: date */
+            asOf?: null | string;
+            stale: boolean;
+        };
         DashboardFigure: {
             perCurrency: components["schemas"]["DashboardMoneyView"][];
             total?: null | components["schemas"]["DashboardMoneyView"];
@@ -6828,6 +6840,15 @@ export interface components {
         DashboardMoneyView: {
             amount: string;
             currency: string;
+        };
+        DashboardPersonView: {
+            id: components["schemas"]["PersonId"];
+            name: string;
+            /** Format: int32 */
+            slot: number;
+            amount: components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            pct: number;
         };
         DashboardView: {
             currency: string;
@@ -6854,6 +6875,9 @@ export interface components {
             changeContributions: components["schemas"]["DashboardFigure"];
             /** Format: double */
             changePct?: null | number;
+            envelopeSplit: components["schemas"]["DashboardEnvelopeView"][];
+            people?: null | components["schemas"]["DashboardPersonView"][];
+            peopleMissingCurrency?: null | string;
         };
         DurationBody: {
             /** Format: int32 */
@@ -7351,6 +7375,10 @@ export interface components {
             kind: string;
             displayName: string;
             email?: null | string;
+        };
+        PersonId: {
+            /** Format: uuid */
+            value: string;
         };
         PersonIdResponse: {
             /** Format: uuid */

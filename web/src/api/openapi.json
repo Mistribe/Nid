@@ -7645,6 +7645,63 @@
           }
         }
       },
+      "DashboardEnvelopeView": {
+        "required": [
+          "id",
+          "module",
+          "name",
+          "stale"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "converted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "missingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "asOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
       "DashboardFigure": {
         "required": [
           "perCurrency"
@@ -7690,6 +7747,35 @@
           }
         }
       },
+      "DashboardPersonView": {
+        "required": [
+          "id",
+          "name",
+          "slot",
+          "amount",
+          "pct"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "pct": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "DashboardView": {
         "required": [
           "currency",
@@ -7703,7 +7789,8 @@
           "income",
           "incomeSources",
           "change",
-          "changeContributions"
+          "changeContributions",
+          "envelopeSplit"
         ],
         "type": "object",
         "properties": {
@@ -7778,6 +7865,27 @@
               "number"
             ],
             "format": "double"
+          },
+          "envelopeSplit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardEnvelopeView"
+            }
+          },
+          "people": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DashboardPersonView"
+            }
+          },
+          "peopleMissingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9817,6 +9925,18 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PersonId": {
+        "required": [
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

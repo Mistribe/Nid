@@ -12,7 +12,7 @@ public sealed record GetDashboardQuery(VisibilityScope Scope) : IQuery<Dashboard
 public sealed class GetDashboardHandler(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
     IEnumerable<IIncomeContribution> income, IActorAccessor actor, IHouseholdCalendar calendar,
-    IHouseholdSettings household, IFxRates fx)
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
     : IRequestHandler<GetDashboardQuery, DashboardView>
 {
     public async ValueTask<Result<DashboardView>> HandleAsync(GetDashboardQuery query, CancellationToken ct = default)
@@ -36,7 +36,8 @@ public sealed class GetDashboardHandler(
         var rates = foreign.Count == 0
             ? RateTable.Empty(today, 0)
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, reference, rates, today));
+        var people = await persons.ListAsync(ct);
+        return Result.Success(DashboardMath.Compose(w!, c!, e!, people, reference, rates, today));
     }
 
     private static async Task<Result<IReadOnlyList<T>>> CollectAsync<TSource, T>(IEnumerable<TSource> sources, Func<TSource, Task<Result<T>>> read)
