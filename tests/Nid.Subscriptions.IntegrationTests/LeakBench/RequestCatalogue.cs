@@ -246,6 +246,9 @@ public static class RequestCatalogue
         new(typeof(GetEnvelopeSeriesQuery), true, (_, item) => new GetEnvelopeSeriesQuery(item)),
         new(typeof(GetPeriodPerformanceQuery), true, (_, item) => new GetPeriodPerformanceQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
 
+        new(typeof(RecordRoutineCommand), false, (_, _) => new RecordRoutineCommand(new LocalDate(2025, 1, 31), [])),
+        new(typeof(UndoRoutineCommand), false, (_, _) => new UndoRoutineCommand([])),
+
         new(typeof(ListIncomeSourcesQuery), false, (_, _) => new ListIncomeSourcesQuery(VisibilityScope.Me, true)),
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),

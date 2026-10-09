@@ -1505,7 +1505,84 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RoutineBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RoutineRecap"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2165,6 +2242,99 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/routine/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RoutineUndoBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RoutineUndone"];
                     };
                 };
                 /** @description Bad Request */
@@ -7707,6 +7877,24 @@ export interface components {
             grants: components["schemas"]["GrantView"][];
             note?: null | string;
         };
+        RoutineBody: {
+            on: string;
+            lines?: null | components["schemas"]["RoutineLineBody"][];
+        };
+        RoutineFactBody: {
+            /** Format: uuid */
+            envelopeId: string;
+            /** Format: uuid */
+            valuationId?: null | string;
+            /** Format: uuid */
+            flowId?: null | string;
+        };
+        RoutineLineBody: {
+            /** Format: uuid */
+            envelopeId: string;
+            value?: null | components["schemas"]["MoneyBody"];
+            contribution?: null | components["schemas"]["MoneyBody"];
+        };
         RoutineLineView: {
             /** Format: uuid */
             id: string;
@@ -7717,6 +7905,33 @@ export interface components {
             /** Format: date */
             lastAsOf?: null | string;
             due: boolean;
+        };
+        RoutineRecap: {
+            /** Format: date */
+            on: string;
+            lines: components["schemas"]["RoutineRecapLine"][];
+        };
+        RoutineRecapLine: {
+            /** Format: uuid */
+            envelope: string;
+            name: string;
+            previousValue?: null | components["schemas"]["AmountView"];
+            /** Format: date */
+            previousAsOf?: null | string;
+            value?: null | components["schemas"]["AmountView"];
+            contributions: components["schemas"]["AmountView"];
+            gain?: null | components["schemas"]["AmountView"];
+            /** Format: uuid */
+            valuationId?: null | string;
+            /** Format: uuid */
+            flowId?: null | string;
+        };
+        RoutineUndoBody: {
+            facts?: null | components["schemas"]["RoutineFactBody"][];
+        };
+        RoutineUndone: {
+            /** Format: int32 */
+            voided: number;
         };
         RoutineView: {
             /** Format: date */
