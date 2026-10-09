@@ -7,7 +7,7 @@
 
 ## 1. Navigation
 
-- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Validation (avec badge), Plus. Il n'existe pas encore de menu « Plus » : en attendant, **Administration** rejoint directement la barre d'onglets, au même niveau que les autres entrées, pour un admin seulement.
+- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). La boîte de validation (étape 4) y prendra sa place avec son badge.
 - **Bureau** : barre latérale avec les mêmes entrées, plus Revenus, Routine, Immobilier, Import, Export, Sécurité, Réglages, et **Administration** pour un admin.
 - **Administration** n'apparaît (barre latérale sur bureau, barre d'onglets sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
