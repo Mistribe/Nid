@@ -10,10 +10,10 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Direction } from '../investments/Figures';
+import { Todo, Upcoming } from './Agenda';
 import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
-
-const percent = (value: number, sign = false) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, signDisplay: sign ? 'exceptZero' : 'auto' }).format(value);
+import { percent } from './format';
+import { EnvelopeSplit, PeopleSplit } from './Split';
 
 /** 2D1 design §5: the home page — four figures the server computed for the Foyer / Moi scope. */
 export function DashboardPage() {
@@ -53,11 +53,23 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
         )} />
     );
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <NetWorth d={data} />
-      <Commitments d={data} />
-      <Income d={data} />
-      <Change d={data} />
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <NetWorth d={data} />
+        <Commitments d={data} />
+        <Income d={data} />
+        <Change d={data} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
+          <EnvelopeSplit d={data} />
+          <PeopleSplit d={data} />
+        </div>
+        <div className="space-y-4">
+          <Upcoming d={data} />
+          <Todo d={data} />
+        </div>
+      </div>
     </div>
   );
 }
