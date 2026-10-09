@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
+import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { LABELS, PROVIDERS } from './api';
@@ -38,7 +38,6 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
   const labelsErrorId = useId();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const labels = $api.useQuery('get', LABELS);
@@ -51,13 +50,9 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
   });
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: initialName, labelKeys: [] as string[], website: '' } });
 
-  useEffect(() => {
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    // The browser focuses the first field itself; jsdom does not, and Escape reaches the dialog only from inside it.
-    form.setFocus('name');
-    return () => { if (dialog?.open) dialog.close(); };
-  }, [form]);
+  // The browser focuses the first field itself; jsdom does not, and Escape reaches the dialog only from inside it.
+  // ModalDialog (a child) has opened the dialog by now: child effects run before the parent's.
+  useEffect(() => { form.setFocus('name'); }, [form]);
 
   const finish = (then: () => void) => {
     ref.current?.close();
@@ -84,49 +79,46 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
 
   const labelsError = form.formState.errors.labelKeys?.message;
 
-  return createPortal(
-    <dialog ref={ref} aria-labelledby={titleId}
-      onCancel={(event) => { event.preventDefault(); finish(onClose); }}
-      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); finish(onClose); } }}
-      className="m-auto w-full max-w-md rounded-md border bg-background p-4 text-foreground backdrop:bg-black/50">
-      <form noValidate className="space-y-3" onSubmit={(event) => { event.stopPropagation(); void submit(event); }}>
-        <h2 id={titleId} className="text-lg font-semibold">{t('provider_new.title')}</h2>
-        {problem ? <ProblemMessage problem={problem} /> : null}
-        <Field label={t('provider_new.name')} error={form.formState.errors.name?.message}>
-          {(c) => <input {...c} {...form.register('name')} className="w-full rounded-md border px-3 py-2" />}
-        </Field>
-        <fieldset aria-describedby={labelsError ? labelsErrorId : undefined} className="space-y-1">
-          <legend className="text-sm">{t('provider_new.labels')}</legend>
-          {labels.error ? <ProblemMessage problem={present(toProblem(labels.error))} /> : null}
-          {!labels.data && !labels.error ? (
-            <div aria-busy="true" className="h-10 animate-pulse rounded-md bg-muted"><span className="sr-only">{t('provider_new.labels_loading')}</span></div>
-          ) : null}
-          {labels.data ? (
-            <Controller control={form.control} name="labelKeys" render={({ field }) => (
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {labels.data.map((label) => (
-                  <label key={label.key} className="inline-flex items-center gap-1.5 text-sm">
-                    <input type="checkbox" checked={field.value.includes(label.key)}
-                      onChange={(event) => field.onChange(event.target.checked
-                        ? [...field.value, label.key] : field.value.filter((key) => key !== label.key))} />
-                    <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
-                    {label.name}
-                  </label>
-                ))}
-              </div>
-            )} />
-          ) : null}
-          {labelsError ? <span id={labelsErrorId} className="block text-sm text-destructive">{labelsError}</span> : null}
-        </fieldset>
-        <Field label={t('provider_new.website')} hint={t('provider_new.website_hint')} error={form.formState.errors.website?.message}>
-          {(c) => <input type="url" {...c} {...form.register('website')} className="w-full rounded-md border px-3 py-2" />}
-        </Field>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => finish(onClose)}>{t('provider_new.cancel')}</Button>
-          <Button type="submit" disabled={create.isPending || !labels.data}>{t('provider_new.create')}</Button>
-        </div>
-      </form>
-    </dialog>,
-    document.body,
+  return (
+    <ModalDialog title={t('provider_new.title')} onClose={() => finish(onClose)} dialogRef={ref}>
+      {(titleId) => (
+        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => { event.stopPropagation(); void submit(event); }}>
+          {problem ? <ProblemMessage problem={problem} /> : null}
+          <Field label={t('provider_new.name')} error={form.formState.errors.name?.message}>
+            {(c) => <input {...c} {...form.register('name')} className="w-full rounded-md border px-3 py-2" />}
+          </Field>
+          <fieldset aria-describedby={labelsError ? labelsErrorId : undefined} className="space-y-1">
+            <legend className="text-sm">{t('provider_new.labels')}</legend>
+            {labels.error ? <ProblemMessage problem={present(toProblem(labels.error))} /> : null}
+            {!labels.data && !labels.error ? (
+              <div aria-busy="true" className="h-10 animate-pulse rounded-md bg-muted"><span className="sr-only">{t('provider_new.labels_loading')}</span></div>
+            ) : null}
+            {labels.data ? (
+              <Controller control={form.control} name="labelKeys" render={({ field }) => (
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {labels.data.map((label) => (
+                    <label key={label.key} className="inline-flex items-center gap-1.5 text-sm">
+                      <input type="checkbox" checked={field.value.includes(label.key)}
+                        onChange={(event) => field.onChange(event.target.checked
+                          ? [...field.value, label.key] : field.value.filter((key) => key !== label.key))} />
+                      <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
+                      {label.name}
+                    </label>
+                  ))}
+                </div>
+              )} />
+            ) : null}
+            {labelsError ? <span id={labelsErrorId} className="block text-sm text-destructive">{labelsError}</span> : null}
+          </fieldset>
+          <Field label={t('provider_new.website')} hint={t('provider_new.website_hint')} error={form.formState.errors.website?.message}>
+            {(c) => <input type="url" {...c} {...form.register('website')} className="w-full rounded-md border px-3 py-2" />}
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => finish(onClose)}>{t('provider_new.cancel')}</Button>
+            <Button type="submit" disabled={create.isPending || !labels.data}>{t('provider_new.create')}</Button>
+          </div>
+        </form>
+      )}
+    </ModalDialog>
   );
 }

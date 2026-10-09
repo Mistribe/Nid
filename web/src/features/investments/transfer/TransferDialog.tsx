@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
@@ -35,30 +35,19 @@ export function TransferDialog({ source, onClose, onDone }: {
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
   const envelopes = $api.useQuery('get', ENVELOPES, { params: { query: { scope: 'me' } } });
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    return () => { if (dialog?.open) dialog.close(); };
-  }, []);
 
   const destinations = (envelopes.data?.items ?? []).filter(
     (e) => e.id !== source.id && !e.closed && e.canWrite && e.currency === source.currency);
 
-  return createPortal(
-    <dialog ref={ref} aria-labelledby={titleId}
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); onClose(); } }}
-      className="m-auto w-full max-w-md rounded-md border bg-background p-4 text-foreground backdrop:bg-black/50">
-      <div className="space-y-3">
-        <h2 id={titleId} className="text-lg font-semibold">{t('envelope.transfer.title')}</h2>
-        {envelopes.error ? (
-          <>
-            <ProblemMessage problem={present(toProblem(envelopes.error))} />
-            <CloseRow onClose={onClose} />
+  return (
+    <ModalDialog title={t('envelope.transfer.title')} onClose={onClose}>
+      {(titleId) => (
+        <>
+          {envelopes.error ? (
+            <>
+              <ProblemMessage problem={present(toProblem(envelopes.error))} />
+              <CloseRow onClose={onClose} />
           </>
         ) : null}
         {!envelopes.data && !envelopes.error ? (
@@ -71,9 +60,9 @@ export function TransferDialog({ source, onClose, onDone }: {
           </>
         ) : null}
         {destinations.length > 0 ? <TransferForm source={source} destinations={destinations} titleId={titleId} onClose={onClose} onDone={onDone} /> : null}
-      </div>
-    </dialog>,
-    document.body,
+        </>
+      )}
+    </ModalDialog>
   );
 }
 

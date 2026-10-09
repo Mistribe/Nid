@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem } from '@/api/errors';
+import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
@@ -31,14 +30,6 @@ export function CloseDialog({ envelope, onClose, onDone }: {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    return () => { if (dialog?.open) dialog.close(); };
-  }, []);
 
   const schema = z.object({
     closedOn: z.string().regex(ISO_DATE, t('edit.required')),
@@ -78,18 +69,15 @@ export function CloseDialog({ envelope, onClose, onDone }: {
   const e = form.formState.errors;
   const problem = errors.problem?.kind === 'conflict' ? presentConflict(t, close.error) : errors.problem;
 
-  return createPortal(
-    <dialog ref={ref} aria-labelledby={titleId}
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); onClose(); } }}
-      className="m-auto w-full max-w-md rounded-md border bg-background p-4 text-foreground backdrop:bg-black/50">
-      <div className="space-y-3">
-        <h2 id={titleId} className="text-lg font-semibold">{t('envelope.closing.title')}</h2>
-        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
-          {problem ? (
-            <>
-              <ProblemMessage problem={problem} />
-              {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
+  return (
+    <ModalDialog title={t('envelope.closing.title')} onClose={onClose}>
+      {(titleId) => (
+        <>
+          <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
+            {problem ? (
+              <>
+                <ProblemMessage problem={problem} />
+                {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
             </>
           ) : null}
           <p>{t('envelope.closing.effect')}</p>
@@ -104,8 +92,8 @@ export function CloseDialog({ envelope, onClose, onDone }: {
             <Button type="submit" disabled={close.isPending}>{t('envelope.closing.submit')}</Button>
           </div>
         </form>
-      </div>
-    </dialog>,
-    document.body,
+        </>
+      )}
+    </ModalDialog>
   );
 }
