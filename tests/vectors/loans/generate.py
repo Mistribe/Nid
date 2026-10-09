@@ -172,7 +172,10 @@ def build(loan):
                     override_active = False
                     payment = annuity(balance, rate, end - k)
             elif mode == "annuity":
-                end = min(end, k + payments_needed(balance, rate, payment, rounding))
+                # A later deferral pauses the payments, so the end moves past it; an open-ended one leaves the end alone.
+                pauses = [ph["payments"] for j, ph in enumerate(phases) if starts[j] > k and ph["mode"] != "annuity"]
+                if None not in pauses:
+                    end = min(end, k + payments_needed(balance, rate, payment, rounding) + sum(pauses))
             else:
                 term_reduction += e["amount"]
         if balance == 0:

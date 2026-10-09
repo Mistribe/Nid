@@ -144,7 +144,10 @@ public static class LoanScheduleBuilder
                 }
                 else if (mode == PhaseMode.Annuity)
                 {
-                    end = Math.Min(end, k + PaymentsLeft(balance, rate, payment, t.Rounding));
+                    // Later deferrals pause the payments: the end moves past them; an open-ended one keeps the loan's end.
+                    var pauses = phases.Where((p, j) => starts[j] > k && p.Phase.Mode != PhaseMode.Annuity).Select(p => p.Phase.Payments).ToList();
+                    if (pauses.All(n => n is not null))
+                        end = Math.Min(end, k + PaymentsLeft(balance, rate, payment, t.Rounding) + pauses.Sum(n => n!.Value));
                 }
                 else
                 {

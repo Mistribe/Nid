@@ -314,6 +314,32 @@ public class LoanScheduleBuilderTests
     }
 
     [Fact]
+    public void A_reduce_term_repayment_before_a_payment_pause_keeps_the_payment_after_it()
+    {
+        // Annuity, then a 6-month partial deferral (« report d’échéances »), then annuity again; 30 000 repaid at payment 50.
+        LoanSchedule Run(decimal amount) => Build(Loans.Golden() with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, 60), new LoanPhase(2, PhaseMode.DeferredPartial, 0.035m, RateType.Fixed, 6),
+                new LoanPhase(3, PhaseMode.Annuity, 0.035m, RateType.Fixed)],
+            Events = [new EarlyRepayment(Loans.First.PlusMonths(49), amount, RepaymentEffect.ReduceTerm)],
+        });
+        var s = Run(30_000m);
+        Assert.True(s.Rows[66].Payment <= 1159.92m, $"payment after the pause {s.Rows[66].Payment}");
+        Assert.Equal((1157.69m, 204), (s.Rows[66].Payment, s.Rows.Count)); // the Python reference's values
+        Assert.All(s.Rows.Skip(60).Take(6), r => Assert.Equal(r.Interest, r.Payment));
+        // A repayment large enough to end the loan inside the pause: no balloon in the pause; it pays off after it.
+        var big = Build(Loans.Golden() with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, 24), new LoanPhase(2, PhaseMode.DeferredPartial, 0.035m, RateType.Fixed, 12),
+                new LoanPhase(3, PhaseMode.Annuity, 0.035m, RateType.Fixed)],
+            Events = [new EarlyRepayment(Loans.First.PlusMonths(11), 172_000m, RepaymentEffect.ReduceTerm)],
+        });
+        Assert.All(big.Rows.Skip(24).Take(12), r => Assert.Equal(r.Interest, r.Payment));
+        Assert.Equal((1094.11m, 43), (big.Rows[36].Payment, big.Rows.Count));
+        Assert.Equal(0m, big.Rows[^1].Balance);
+    }
+
+    [Fact]
     public void Validation_refusals_come_through_the_builder()
         => Assert.Equal(LoanCodes.InvalidLoan, Loans.Fail(LoanScheduleBuilder.Build(Loans.Golden() with { Principal = -1m })).Code);
 }
