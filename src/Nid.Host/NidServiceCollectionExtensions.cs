@@ -24,6 +24,8 @@ using Nid.Platform.Infrastructure.Assets;
 using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
+using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
@@ -66,6 +68,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, SubscriptionsAuditMap>();
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
+        services.AddSingleton<IAuditMap, RealEstateAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
         services.AddDbContext<CoreDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -92,7 +95,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -148,6 +151,14 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
+
+        services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", RealEstateDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
+        services.AddScoped<ILoanStore, LoanStore>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.

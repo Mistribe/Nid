@@ -6,6 +6,7 @@ using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
 
@@ -29,6 +30,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture)
             scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>(),
             scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>(),
             scope.ServiceProvider.GetRequiredService<IncomeDbContext>(),
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>(),
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
         ];
         var unknown = contexts.SelectMany(c => c.Model.GetEntityTypes()).Select(t => t.ClrType).Distinct()
@@ -40,7 +42,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture)
     [Fact]
     public void No_module_context_exposes_the_log()
     {
-        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext), typeof(IncomeDbContext) })
+        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext), typeof(IncomeDbContext), typeof(RealEstateDbContext) })
             Assert.DoesNotContain(context.GetProperties(), p => p.PropertyType == typeof(DbSet<AuditEntryRow>));
     }
 
@@ -57,6 +59,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture)
         ["src/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
         ["src/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
         ["src/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
+        ["src/Nid.RealEstate.Infrastructure/Persistence/LoanStore.cs"] = 1, // the loan's row lock (3A2 precision 5): writes nothing
     };
 
     [GeneratedRegex(@"\.Execute(SqlRaw|SqlInterpolated|Sql|Update|Delete)Async\(")]
