@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.RealEstate.Domain\Nid.RealEstate.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Nid.RealEstate.Application\Nid.RealEstate.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\loans\vectors.json" Link="vectors\loans\vectors.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\vectors\loans\vectors.json')" />

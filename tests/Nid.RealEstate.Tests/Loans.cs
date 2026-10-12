@@ -18,6 +18,21 @@ internal static class Loans
         => new(Currency.Eur, principal, Disbursed, First, payments, rounding, FirstPeriod.Full,
             [new LoanPhase(1, PhaseMode.Annuity, rate, RateType.Fixed)], [], [], []);
 
+    /// <summary>A loan as 3A2 stores it (spec 3A2 §2): the golden case unless <paramref name="terms"/> says otherwise.</summary>
+    public static StoredLoan Stored(
+        IReadOnlyList<StoredFee>? fees = null, IReadOnlyList<StoredRepayment>? repayments = null, LoanTerms? terms = null)
+    {
+        var t = terms ?? Golden();
+        return new StoredLoan(ItemId.New(), "Banque", null,
+            new LoanContract(t.Principal, t.DisbursedOn, t.FirstPaymentDate, t.TotalPayments, t.Rounding, t.FirstPeriod,
+                t.Phases.Select(p => new LoanPhaseEntry(p, null)).ToList(), t.Insurances.Select(i => new LoanInsuranceEntry(i, null)).ToList()),
+            7, fees ?? [], repayments ?? []);
+    }
+
+    /// <summary>The loan's Core item: shared, one adult borrower, in euros.</summary>
+    public static ItemAccess Item()
+        => new(ItemId.New(), "Prêt maison", Visibility.Shared, [new Owner(PersonId.New(), PersonKind.Adult, 10_000)]) { Currency = "EUR" };
+
     public static T Ok<T>(Result<T> result) where T : notnull
     {
         Assert.True(result.TryGetValue(out var value), result.ToString());

@@ -204,6 +204,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
         });
         return services;
     }
