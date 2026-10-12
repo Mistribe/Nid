@@ -18,6 +18,7 @@ import { SecurityJournalPage } from '@/features/admin/SecurityJournalPage';
 import { SystemPage } from '@/features/admin/SystemPage';
 import { UsersPage } from '@/features/admin/UsersPage';
 import { IncomeSourcesPage } from '@/features/income/IncomeSourcesPage';
+import { LoansPage } from '@/features/loans/LoansPage';
 import { EnvelopesPage } from '@/features/investments/EnvelopesPage';
 import { SecurityPage } from '@/features/security/SecurityPage';
 import { MorePage } from './MorePage';
@@ -46,6 +47,9 @@ export type IncomeSearch = { ended?: 1 };
 
 /** The income detail's own choice: the expected-income period (2C2b design §5); the default stays out of the URL. */
 export type IncomeDetailSearch = { expected?: 'year' | 'next_year' };
+
+/** The loans list's own filter: ended loans shown on demand (3B1 design §5); anything but `1` is dropped. */
+export type LoansSearch = { ended?: 1 };
 
 export function homePath(capabilities: Capabilities): '/dashboard' | '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('core')) return '/dashboard';
@@ -150,6 +154,29 @@ const incomeDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourceDetailPage'), 'IncomeSourceDetailPage'),
 });
 
+const loansRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/loans',
+  beforeLoad: requireModule('realestate'),
+  validateSearch: (search: Record<string, unknown>): LoansSearch => (search.ended === 1 || search.ended === '1' ? { ended: 1 } : {}),
+  component: LoansPage,
+});
+
+// Loaded on demand, as the income's: the forms, the schedule and their libraries stay out of the initial bundle.
+const loanNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/loans/new',
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/loans/new/NewLoan'), 'NewLoan'),
+});
+
+const loanDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/loans/$id',
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/loans/LoanDetailPage'), 'LoanDetailPage'),
+});
+
 // Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
 const subscriptionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -228,7 +255,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, routineRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, routineRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

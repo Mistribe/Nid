@@ -18,6 +18,7 @@ export const handlers = [
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/income/sources', () => HttpResponse.json({ items: [] })),
+  http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/income/sources/:id/expected', ({ params, request }) => {
     const url = new URL(request.url);
     return HttpResponse.json({ id: params.id, from: url.searchParams.get('from'), to: url.searchParams.get('to'), months: [] });
