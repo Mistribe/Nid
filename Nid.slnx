@@ -14,8 +14,10 @@
     <Project Path="src/Nid.Investments.Contracts/Nid.Investments.Contracts.csproj" />
     <Project Path="src/Nid.Investments.Domain/Nid.Investments.Domain.csproj" />
     <Project Path="src/Nid.Investments.Infrastructure/Nid.Investments.Infrastructure.csproj" />
+    <Project Path="src/Nid.RealEstate.Application/Nid.RealEstate.Application.csproj" />
     <Project Path="src/Nid.RealEstate.Contracts/Nid.RealEstate.Contracts.csproj" />
     <Project Path="src/Nid.RealEstate.Domain/Nid.RealEstate.Domain.csproj" />
+    <Project Path="src/Nid.RealEstate.Infrastructure/Nid.RealEstate.Infrastructure.csproj" />
     <Project Path="src/Nid.Platform.Contracts/Nid.Platform.Contracts.csproj" />
     <Project Path="src/Nid.Platform.Infrastructure/Nid.Platform.Infrastructure.csproj" />
     <Project Path="src/Nid.ServiceDefaults/Nid.ServiceDefaults.csproj" />

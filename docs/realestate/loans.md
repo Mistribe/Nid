@@ -76,7 +76,6 @@ Une phase par régime. Les phases sont **contiguës par construction** : elles s
 | Champ | Type | Remarques |
 |---|---|---|
 | `id`, `loan_item_id` | uuid | |
-| `kind` | text | `early_repayment` |
 | `on_date` | date | |
 | `amount` | numeric(19,4) | > 0, au plus le capital restant dû à cette date |
 | `effect` | text | `reduce_term` (mensualité inchangée, fin anticipée) ou `reduce_payment` (mensualité recalculée) |
@@ -125,6 +124,17 @@ Pour chaque échéance k, dans l'ordre des phases :
 7. **Phases non terminées** : au-delà de la dernière phase connue d'un prêt à taux variable, le futur est **projeté au dernier taux** (avertissement `projection_uses_last_rate`).
 
 **Règles précisées en 3A1** (`superpowers/specs/2026-10-09-loan-schedule-engine-design.md` §4) : l’arrondi `truncate` ne concerne que les intérêts (une mensualité calculée est toujours arrondie au demi supérieur) ; un remboursement anticipé daté avant la première échéance s’applique avant elle, sur le capital débloqué ; quand les phases s’épuisent avant la fin, le calcul continue en annuité au dernier taux connu sur les échéances restantes, avec `projection_uses_last_rate` ; une phase d’annuité qui commence en cours de prêt sans mensualité imposée la calcule sur son capital d’ouverture et les échéances restantes du prêt ; une mensualité imposée qui ne couvre pas les intérêts est refusée (`payment_below_interest`), une mensualité trop basse mais suffisante prolonge le prêt avec `exceeds_total_payments`, dans la limite de 1 200 échéances (`schedule_too_long`) ; l’assurance s’applique aux échéances datées dans [`starts_on`, `ends_on`), `rate_on_initial` = arrondi(taux × capital initial ÷ 12), `rate_on_remaining` = arrondi(taux × capital avant l’échéance ÷ 12), et reste due pendant un différé total ; les frais ne sont pas des lignes de l’échéancier, ils comptent dans les indicateurs ; la dernière échéance (contractuelle, ou fin effective avancée par un `reduce_term`) solde capital + intérêts dans tous les modes, y compris un différé qui court jusqu’au terme (prêt in fine) ; une annuité à mensualité imposée ne la solde que si le reste (capital + intérêts − mensualité) est inférieur à une mensualité, sinon elle verse la mensualité et le prêt se prolonge avec `exceeds_total_payments`, chaque échéance suivante valant min(mensualité, capital + intérêts) ; en `prorata_actual_365`, la première échéance d’une annuité, sauf si elle solde le prêt, vaut la mensualité de la phase (calculée ou imposée) + (intérêts au prorata − arrondi(capital × taux annuel ÷ 12)), si bien que son capital est celui d’un mois ordinaire : les deux arrondis suivent `rounding_mode`, `payment_below_interest` compare la mensualité imposée aux intérêts d’un mois, le plafond capital + intérêts s’applique, et les échéances de différé ne changent pas (le différé partiel paie les intérêts au prorata, le total les capitalise) ; un remboursement `reduce_term` pendant une annuité, appliqué après l’échéance k, avance la fin effective du prêt (au départ `total_payments`) à min(fin, k + m), m étant le nombre d’échéances qu’il faut encore à la mensualité courante pour rembourser le nouveau capital au taux courant (compté échéance par échéance, même arrondi, chacune plafonnée à capital + intérêts), plus la durée des différés prévus après k (un différé sans durée, jusqu’au terme, laisse la fin inchangée) ; cette fin remplace `total_payments` pour la mensualité d’une phase qui s’ouvre (n = fin − (k − 1)), la projection, le recalcul `reduce_payment` (n = fin − k) et l’échéance qui solde (k ≥ fin), tandis que `exceeds_total_payments` reste rapporté à `total_payments` ; un remboursement anticipé daté après la fin du prêt est refusé (`event_above_balance`).
+
+**Livré en 3A2** (2026-10-12, `superpowers/specs/2026-10-12-loans-server-design.md`) : projets `Nid.RealEstate.Application` et `Nid.RealEstate.Infrastructure`, module `realestate` activé, schéma `realestate` avec les tables `loan`, `loan_phase`, `loan_insurance`, `loan_fee` et `loan_event` (pas encore de `property_item_id` ni de `schedule_source`, qui viendront en 3C et 3F, ni de `loan_bank_schedule_row`) ; `loan_event` n’a pas de colonne `kind` (§2.5) : le remboursement anticipé est le seul événement. Un prêt est un élément du Core (`realestate`, `loan`) ; ses emprunteurs sont ses propriétaires. Il n’est ni supprimé ni archivé : il est **terminé** quand sa dernière échéance et son dernier remboursement anticipé sont passés. API `/api/v1/realestate` :
+
+- `GET /loans?scope=&ended=` : capital, capital restant dû, prochaine échéance assurance comprise, taux courant, fin ; les prêts terminés seulement avec `ended=true` ;
+- `GET /loans/{id}` : le contrat et sa `version`, les emprunteurs, la visibilité, les frais et les remboursements avec leur `version` (un remboursement avec sa pénalité), tous les indicateurs du jour (§8), les avertissements ;
+- `GET /loans/{id}/schedule` : l’échéancier complet et ses avertissements ;
+- `POST /loans/{id}/simulations` : la simulation du §7, en lecture seule (un lecteur qui ne peut pas modifier le prêt peut simuler) ;
+- `POST /loans`, `PATCH /loans/{id}` (nom, prêteur, note ; emprunteurs, visibilité et devise sont fixés à la création, comme pour une source de revenus), `PUT /loans/{id}/contract` (le contrat remplacé en entier, phases et assurances comprises) ;
+- `POST`, `PUT` et `DELETE` sur `/loans/{id}/fees` et `/loans/{id}/repayments` : un remboursement et sa pénalité (un frais `early_repayment_penalty` à la même date) s’enregistrent, se modifient et se suppriment ensemble.
+
+Toute écriture qui change le calcul reconstruit l’échéancier et est refusée s’il échoue : un prêt enregistré se calcule toujours. Chaque écriture verrouille la ligne du prêt : deux remboursements envoyés ensemble ne peuvent pas dépasser à eux deux le capital restant dû. Montants et taux voyagent en chaînes décimales invariantes (`"200000.00"`, `"0.035"`) ; un montant a au plus deux décimales et reste sous 10¹², un taux au plus six décimales. Chaque refus nomme son champ dans le corps de la requête (`principal`, `phases[0].annualRate`, `insurances[1].endsOn`) ; pour un remboursement enregistré que le nouveau contrat rend impossible, le refus nomme `repayments[i].onDate` quand le contrat déplace `disbursedOn` au-delà de sa date et `repayments[i].amount` quand il le ferait dépasser le capital restant dû (rang compté par date puis identifiant) ; la suppression d’un remboursement refusée par le moteur répond à `phases[k].paymentOverride` ou à `repayments[r].…`, r étant le rang dans la liste complète enregistrée. Codes `realestate.invalid_loan`, `payment_below_interest`, `event_above_balance`, `schedule_too_long`, `loan_conflict`, `fee_conflict`, `repayment_conflict` (409) et `fee_linked` (une pénalité se modifie par son remboursement).
 
 ## 4. Exemple vérifié
 
@@ -229,7 +239,7 @@ La mensualité totale est la prochaine échéance assurance comprise ; le capita
 | `loan_phases` | `id`, `loan`, `seq`, `mode`, `annual_rate` (chaîne décimale), `rate_type`, `payments?`, `payment_override?` (montant), `opening_balance_override?` (montant), `note?` |
 | `loan_insurances` | `id`, `loan`, `mode`, `monthly_amount?` (montant), `annual_rate?`, `starts_on`, `ends_on?`, `note?` |
 | `loan_fees` | `id`, `loan`, `kind`, `amount` (montant), `on_date`, `note?` |
-| `loan_events` | `id`, `loan`, `kind`, `on_date`, `amount` (montant), `effect`, `note?` |
+| `loan_events` | `id`, `loan`, `on_date`, `amount` (montant), `effect`, `note?` |
 | `loan_bank_schedule` | `id`, `loan`, `due_date`, `payment`, `interest`, `principal`, `insurance?`, `crd` : chaînes décimales dans la devise du prêt |
 
 Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
@@ -316,7 +326,7 @@ Vecteurs de référence : `tests/vectors/loans/` (générateur Python en décima
 
 ## 14. Questions ouvertes
 
-- Faut-il un `payment_day` explicite distinct de `first_payment_date` ?
+- ~~Faut-il un `payment_day` explicite distinct de `first_payment_date` ?~~ **Tranché en 3A2 (2026-10-12) : non.** Les échéances suivent `first_payment_date`, le jour d’ancrage ramené à la fin du mois quand il manque.
 - Représentation d'un prêt à paliers d'un grand nombre de marches (import d'un tableau plutôt que saisie de phases ?).
 - Simulation de renégociation : à ajouter dès l'étape 3 ou plus tard ?
 - Mesure de l'écart toléré (1 € sur le capital restant dû) sur de vrais tableaux.

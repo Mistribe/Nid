@@ -13,6 +13,7 @@ using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Outbound;
+using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using UnambitiousFx.Synapse.Abstractions;
@@ -90,6 +91,7 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IncomeDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<RealEstateDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
 
@@ -104,6 +106,7 @@ app.MapPersonEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
+app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
 app.MapImportEndpoints();
 app.MapExportEndpoints();

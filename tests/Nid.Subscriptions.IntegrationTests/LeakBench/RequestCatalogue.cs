@@ -15,6 +15,8 @@ using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
 using Nid.Platform.Export;
 using Nid.Platform.Import;
+using Nid.RealEstate.Application;
+using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
@@ -277,7 +279,33 @@ public static class RequestCatalogue
         new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
         new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
+
+        new(typeof(ListLoansQuery), false, (_, _) => new ListLoansQuery(VisibilityScope.Me, true)),
+        new(typeof(GetLoanQuery), true, (_, item) => new GetLoanQuery(item)),
+        new(typeof(GetLoanScheduleQuery), true, (_, item) => new GetLoanScheduleQuery(item)),
+        new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),
+        new(typeof(CreateLoanCommand), false, (d, _) => new CreateLoanCommand("bench", Currency.Eur, Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], null, null, BenchContract)),
+        new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench"))),
+        // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
+        new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
+
+        // A fee or repayment id is looked up in the route's loan only (StoredLoan's own lists), so an id alone can never
+        // reach another item: no BuildNamingAnother, as the income phases.
+        new(typeof(AddLoanFeeCommand), true, (_, item) => new AddLoanFeeCommand(item, new FeeDraft(FeeKind.File, 100m, new LocalDate(2025, 1, 15), null))),
+        new(typeof(EditLoanFeeCommand), true, (_, item) => new EditLoanFeeCommand(item, Guid.NewGuid(),
+            new FeeDraft(FeeKind.File, 100m, new LocalDate(2025, 1, 15), null), 1)),
+        new(typeof(DeleteLoanFeeCommand), true, (_, item) => new DeleteLoanFeeCommand(item, Guid.NewGuid(), 1)),
+        new(typeof(AddLoanRepaymentCommand), true, (_, item) => new AddLoanRepaymentCommand(item,
+            new RepaymentDraft(new LocalDate(2025, 3, 15), 100m, RepaymentEffect.ReduceTerm, null, null))),
+        new(typeof(EditLoanRepaymentCommand), true, (_, item) => new EditLoanRepaymentCommand(item, Guid.NewGuid(),
+            new RepaymentDraft(new LocalDate(2025, 3, 15), 100m, RepaymentEffect.ReduceTerm, null, null), 1)),
+        new(typeof(DeleteLoanRepaymentCommand), true, (_, item) => new DeleteLoanRepaymentCommand(item, Guid.NewGuid(), 1)),
     ];
+
+    /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
+    private static LoanContract BenchContract => new(1_000m, new LocalDate(2025, 1, 15), new LocalDate(2025, 2, 15), 12,
+        InterestRounding.HalfUp, FirstPeriod.Full, [new LoanPhaseEntry(new LoanPhase(1, PhaseMode.Annuity, 0.01m, RateType.Fixed), null)], []);
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
 

@@ -338,6 +338,28 @@ public sealed class NidApp : IAsyncDisposable
     }
 
     /// <summary>
+    /// A loan owned by <paramref name="owners"/>, through the real API (3A2), created by an adult owner, or by A when only the
+    /// dependent owns it: 10 000 € at 1 % over 24 payments from 2025-01-15, named <paramref name="name"/> so a textual scan
+    /// finds a loan read by the wrong adult.
+    /// </summary>
+    public async Task<ItemId> NewLoanAsync(string name, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
+    {
+        var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == AdultA || p == AdultB, AdultA);
+
+        var response = await RawAsync(creator, HttpMethod.Post, "/api/v1/realestate/loans", new
+        {
+            name, currency = "EUR", visibility = visibility == Visibility.Private ? "private" : "shared",
+            borrowers = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+            principal = "10000", disbursedOn = "2025-01-01", firstPaymentDate = "2025-01-15", totalPayments = 24,
+            rounding = "half_up", firstPeriod = "full",
+            phases = new[] { new { seq = 1, mode = "annuity", annualRate = "0.01", rateType = "fixed" } },
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
     /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
     /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the
     /// way <c>ActorFilter</c> establishes it. Returns the failure the pipeline produced, or <c>null</c> on

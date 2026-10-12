@@ -65,6 +65,12 @@ public static class LoanCodes
     public const string PaymentBelowInterest = "realestate.payment_below_interest";
     public const string EventAboveBalance = "realestate.event_above_balance";
     public const string ScheduleTooLong = "realestate.schedule_too_long";
+
+    // Spec 3A2 §4: the server's own.
+    public const string LoanConflict = "realestate.loan_conflict";
+    public const string FeeConflict = "realestate.fee_conflict";
+    public const string RepaymentConflict = "realestate.repayment_conflict";
+    public const string FeeLinked = "realestate.fee_linked";
 }
 
 public static class LoanWarnings
