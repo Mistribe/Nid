@@ -289,6 +289,18 @@ public static class RequestCatalogue
         new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench"))),
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
+
+        // A fee or repayment id is looked up in the route's loan only (StoredLoan's own lists), so an id alone can never
+        // reach another item: no BuildNamingAnother, as the income phases.
+        new(typeof(AddLoanFeeCommand), true, (_, item) => new AddLoanFeeCommand(item, new FeeDraft(FeeKind.File, 100m, new LocalDate(2025, 1, 15), null))),
+        new(typeof(EditLoanFeeCommand), true, (_, item) => new EditLoanFeeCommand(item, Guid.NewGuid(),
+            new FeeDraft(FeeKind.File, 100m, new LocalDate(2025, 1, 15), null), 1)),
+        new(typeof(DeleteLoanFeeCommand), true, (_, item) => new DeleteLoanFeeCommand(item, Guid.NewGuid(), 1)),
+        new(typeof(AddLoanRepaymentCommand), true, (_, item) => new AddLoanRepaymentCommand(item,
+            new RepaymentDraft(new LocalDate(2025, 3, 15), 100m, RepaymentEffect.ReduceTerm, null, null))),
+        new(typeof(EditLoanRepaymentCommand), true, (_, item) => new EditLoanRepaymentCommand(item, Guid.NewGuid(),
+            new RepaymentDraft(new LocalDate(2025, 3, 15), 100m, RepaymentEffect.ReduceTerm, null, null), 1)),
+        new(typeof(DeleteLoanRepaymentCommand), true, (_, item) => new DeleteLoanRepaymentCommand(item, Guid.NewGuid(), 1)),
     ];
 
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
