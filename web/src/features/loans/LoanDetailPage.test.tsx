@@ -226,6 +226,16 @@ describe('LoanDetailPage', () => {
     expect(within(table()).getAllByRole('row')).toHaveLength(1 + 50 + 24);
   });
 
+  it('draws the yearly chart on demand, described by a text summary of the server’s totals', async () => {
+    serve();
+    const { container } = await renderApp(`/loans/${LOAN}`);
+
+    const chart = await screen.findByRole('figure', { name: 'Graphique de l’échéancier par année' });
+    const summary = screen.getByText('Échéancier de 2025 à 2027 : 78 380,66 € d’intérêts et 200 000,00 € de capital au total.');
+    expect(chart).toHaveAttribute('aria-describedby', summary.id);
+    await expectNoAxeViolations(container);
+  });
+
   it('tells a reader without write access the page is read-only, without settings', async () => {
     serve(loanDetail({ canWrite: false, visibility: 'shared' }));
     const { container } = await renderApp(`/loans/${LOAN}`);

@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Archive } from 'lucide-react';
-import { useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -12,8 +12,11 @@ import { LOAN, SCHEDULE } from './api';
 import { FeesAndRepayments, LoanContract } from './detail/LoanContract';
 import { LoanFigures } from './detail/LoanFigures';
 import { ScheduleTable } from './detail/ScheduleTable';
-import { warningText } from './format';
+import { money, warningText } from './format';
 import { SettingsForm } from './settings/SettingsForm';
+
+// Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
+const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ default: m.ScheduleChart })));
 
 /** 3B1 design §7: a loan read — its figures today, warnings, contract, fees and repayments, the schedule by year, settings. */
 export function LoanDetailPage() {
@@ -70,8 +73,30 @@ export function LoanDetailPage() {
 function Schedule({ id, currency }: { id: string; currency: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const summaryId = useId();
   const answer = $api.useQuery('get', SCHEDULE, { params: { path: { id } } });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('loan_detail.schedule.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
-  return <ScheduleTable schedule={answer.data} currency={currency} today={todayIso()} />;
+
+  const plan = answer.data;
+  const first = plan.years[0];
+  const last = plan.years[plan.years.length - 1];
+  return (
+    <div className="space-y-4">
+      {first && last ? (
+        <>
+          {/* Spec §7: the chart's reading for screen readers, outside the lazy chunk so it never waits for it. */}
+          <p id={summaryId} className="sr-only">
+            {t('loan_detail.chart.summary', {
+              first: first.year, last: last.year, interest: money(currency, plan.totalInterest), principal: money(currency, plan.totalPrincipal),
+            })}
+          </p>
+          <Suspense fallback={<div className="h-64 animate-pulse rounded-md border bg-muted" />}>
+            <ScheduleChart years={plan.years} currency={currency} summaryId={summaryId} />
+          </Suspense>
+        </>
+      ) : null}
+      <ScheduleTable schedule={plan} currency={currency} today={todayIso()} />
+    </div>
+  );
 }
