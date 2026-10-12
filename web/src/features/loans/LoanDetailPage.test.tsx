@@ -42,12 +42,12 @@ describe('LoanDetailPage', () => {
     expect(figure('Échéances restantes')).toHaveTextContent('229');
     expect(figure('Dernière échéance')).toHaveTextContent('15 octobre 2045');
     expect(figure('Capital remboursé')).toHaveTextContent('6 435,77 €');
-    expect(figure('Intérêts payés')).toHaveTextContent('6 323,35 €');
+    expect(figure('Intérêts à ce jour')).toHaveTextContent('6 323,35 €');
     expect(figure('Assurance payée')).toHaveTextContent('0,00 €');
     expect(figure('Frais payés')).toHaveTextContent('0,00 €');
     expect(figure('Coût total du crédit')).toHaveTextContent('78 380,66 €');
-    expect(figure('Déjà payé')).toHaveTextContent('6 323,35 €');
-    expect(figure('Reste à payer')).toHaveTextContent('72 057,31 €');
+    expect(figure('Coût à ce jour')).toHaveTextContent('6 323,35 €');
+    expect(figure('Coût à venir')).toHaveTextContent('72 057,31 €');
     expect(screen.queryByText('Terminé')).not.toBeInTheDocument();
     await screen.findByRole('table', { name: 'Échéancier par année' });
     await expectNoAxeViolations(container);
