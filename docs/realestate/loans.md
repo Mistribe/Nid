@@ -239,7 +239,7 @@ La mensualité totale est la prochaine échéance assurance comprise ; le capita
 | `loan_phases` | `id`, `loan`, `seq`, `mode`, `annual_rate` (chaîne décimale), `rate_type`, `payments?`, `payment_override?` (montant), `opening_balance_override?` (montant), `note?` |
 | `loan_insurances` | `id`, `loan`, `mode`, `monthly_amount?` (montant), `annual_rate?`, `starts_on`, `ends_on?`, `note?` |
 | `loan_fees` | `id`, `loan`, `kind`, `amount` (montant), `on_date`, `note?` |
-| `loan_events` | `id`, `loan`, `kind`, `on_date`, `amount` (montant), `effect`, `note?` |
+| `loan_events` | `id`, `loan`, `on_date`, `amount` (montant), `effect`, `note?` |
 | `loan_bank_schedule` | `id`, `loan`, `due_date`, `payment`, `interest`, `principal`, `insurance?`, `crd` : chaînes décimales dans la devise du prêt |
 
 Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
