@@ -7,8 +7,8 @@
 
 ## 1. Navigation
 
-- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Routine, Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). La boîte de validation (étape 4) y prendra sa place avec son badge.
-- **Bureau** : barre latérale avec toutes les entrées d’un coup (celles des onglets et celles de « Plus ») ; Immobilier s’y ajoutera avec son étape.
+- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Crédits, Routine, Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). La boîte de validation (étape 4) y prendra sa place avec son badge.
+- **Bureau** : barre latérale avec toutes les entrées d’un coup (celles des onglets et celles de « Plus ») ; « Crédits » y est depuis 3B1 ; Biens s’y ajoutera avec 3D.
 - **Administration** n'apparaît (barre latérale sur bureau, page « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer. Le choix Foyer / Moi est conservé par tous les liens internes et par « Retour » (2D2a).
