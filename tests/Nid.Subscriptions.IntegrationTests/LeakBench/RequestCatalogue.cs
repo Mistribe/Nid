@@ -16,6 +16,7 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Export;
 using Nid.Platform.Import;
 using Nid.RealEstate.Application;
+using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
@@ -283,7 +284,16 @@ public static class RequestCatalogue
         new(typeof(GetLoanQuery), true, (_, item) => new GetLoanQuery(item)),
         new(typeof(GetLoanScheduleQuery), true, (_, item) => new GetLoanScheduleQuery(item)),
         new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),
+        new(typeof(CreateLoanCommand), false, (d, _) => new CreateLoanCommand("bench", Currency.Eur, Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], null, null, BenchContract)),
+        new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench"))),
+        // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
+        new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
     ];
+
+    /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
+    private static LoanContract BenchContract => new(1_000m, new LocalDate(2025, 1, 15), new LocalDate(2025, 2, 15), 12,
+        InterestRounding.HalfUp, FirstPeriod.Full, [new LoanPhaseEntry(new LoanPhase(1, PhaseMode.Annuity, 0.01m, RateType.Fixed), null)], []);
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
 
