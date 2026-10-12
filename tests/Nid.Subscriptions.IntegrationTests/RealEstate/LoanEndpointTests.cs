@@ -18,6 +18,7 @@ public class LoanEndpointTests(PostgresFixture fixture)
         var row = Assert.Single((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Loans}?scope=me"))).GetProperty("items").EnumerateArray());
         Assert.Equal(id, row.GetProperty("id").GetGuid());
         Assert.Equal(("Prêt maison", "Banque", "EUR"), (S(row, "name"), S(row, "lender"), S(row, "currency")));
+        Assert.Equal("private", S(row, "visibility"));
         Assert.Equal(("200000.00", "162253.12"), (S(row, "principal"), S(row, "remainingBalance")));
         Assert.Equal(("2025-11-15", "1159.92", "0.035", "2040-10-15"),
             (S(row, "nextPaymentOn"), S(row, "nextPaymentTotal"), S(row, "currentRate"), S(row, "endDate")));
@@ -69,6 +70,29 @@ public class LoanEndpointTests(PostgresFixture fixture)
             ("an insurance ending as it starts", b => b["insurances"] = new[]
                 { new { mode = "fixed_monthly", monthlyAmount = "20", startsOn = "2020-11-15", endsOn = "2020-11-15" } },
                 Unprocessable, "realestate.invalid_loan", "insurances[0].endsOn"),
+            ("no rounding", b => b.Remove("rounding"), Unprocessable, "request.required", "rounding"),
+            ("a phase without its mode", b => b["phases"] = new[] { new { seq = 1, annualRate = "0.035", rateType = "fixed" } },
+                Unprocessable, "request.required", "phases[0].mode"),
+            ("a fixed insurance sent a rate of 100 %", b => b["insurances"] = new[]
+                { new { mode = "fixed_monthly", monthlyAmount = "20", annualRate = "1", startsOn = "2020-11-15" } },
+                Unprocessable, "realestate.invalid_loan", "insurances[0].annualRate"),
+            ("a rated insurance sent a zero monthly amount", b => b["insurances"] = new[]
+                { new { mode = "rate_on_initial", monthlyAmount = "0", annualRate = "0.003", startsOn = "2020-11-15" } },
+                Unprocessable, "realestate.invalid_loan", "insurances[0].monthlyAmount"),
+            ("a disbursement in 1899", b => b["disbursedOn"] = "1899-12-31", Unprocessable, "realestate.invalid_loan", "disbursedOn"),
+            ("a first payment in 2201", b => b["firstPaymentDate"] = "2201-01-15", Unprocessable, "realestate.invalid_loan", "firstPaymentDate"),
+            ("an insurance ending in 2201", b => b["insurances"] = new[]
+                { new { mode = "fixed_monthly", monthlyAmount = "20", startsOn = "2020-11-15", endsOn = "2201-01-01" } },
+                Unprocessable, "realestate.invalid_loan", "insurances[0].endsOn"),
+            ("21 insurances", b => b["insurances"] = Enumerable.Range(0, 21)
+                .Select(_ => new { mode = "fixed_monthly", monthlyAmount = "1", startsOn = "2020-11-15" }).ToArray(),
+                Unprocessable, "realestate.invalid_loan", "insurances"),
+            ("amounts that outgrow decimal", b =>
+                {
+                    b["principal"] = "900000000000";
+                    b["totalPayments"] = 600;
+                    b["phases"] = new[] { Phase(mode: "deferred_total", annualRate: "0.99") };
+                }, Unprocessable, "realestate.invalid_loan", "principal"),
             ("shares that do not add up", b => b["borrowers"] = new[] { new { personId = app.AdultA.Value, shareBp = 6_000 } },
                 Unprocessable, "core.share_sum", "borrowers"),
             ("a private loan with two borrowers", b =>
@@ -112,6 +136,27 @@ public class LoanEndpointTests(PostgresFixture fixture)
         Assert.Equal(2, all.Count);
         Assert.True(all.Single(r => r.GetProperty("id").GetGuid() == ended).GetProperty("ended").GetBoolean());
         Assert.True((await DetailAsync(app, ended)).GetProperty("ended").GetBoolean());
+    }
+
+    [Fact]
+    public async Task The_schedule_totals_each_calendar_year() // spec 3B1 §4.1
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAsync(app, Golden(app));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Loans}/{id}/repayments",
+            new { onDate = "2022-03-15", amount = "5000", effect = "reduce_term" }));
+
+        var schedule = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Loans}/{id}/schedule"));
+
+        var years = schedule.GetProperty("years").EnumerateArray().ToList();
+        // November and December 2020: the golden case's first two payments.
+        Assert.Equal(2020, years[0].GetProperty("year").GetInt32());
+        Assert.Equal(("2319.84", "1164.98", "1154.86", "0.00", "198845.14"),
+            (S(years[0], "payment"), S(years[0], "interest"), S(years[0], "principal"), S(years[0], "insurance"), S(years[0], "balance")));
+        Assert.Equal(("0.00", "5000.00"), (S(years[1], "earlyRepayment"), S(years[2], "earlyRepayment")));
+        Assert.Equal("0.00", S(years[^1], "balance"));
+        // Every row's principal, the repayment aside: the 5 000 is no row's principal.
+        Assert.Equal("195000.00", S(schedule, "totalPrincipal"));
     }
 
     [Fact]

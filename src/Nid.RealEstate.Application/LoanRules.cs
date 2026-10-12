@@ -1,4 +1,5 @@
 using Nid.RealEstate.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional.Failures;
 
 namespace Nid.RealEstate.Application;
@@ -15,6 +16,13 @@ internal static class LoanRules
 
     /// <summary>The spec's bound on the principal, kept for every amount: numeric(19,4) holds less than 10¹⁵.</summary>
     public const decimal AmountBound = 1_000_000_000_000m;
+
+    /// <summary>Spec 3B1 §4.2: every loan date lies in these years.</summary>
+    public const int FirstYear = 1900;
+    public const int LastYear = 2200;
+
+    /// <summary>Spec 3B1 §4.2.</summary>
+    public const int MaxInsurances = 20;
 
     /// <summary>1 to 100 characters after trimming, stored as sent (as an income source's name).</summary>
     public static Failure? Name(string? name)
@@ -39,11 +47,13 @@ internal static class LoanRules
     public static Failure? Rate(decimal? rate, string field)
         => rate is { } value && decimal.Round(value, 6) != value ? Invalid(field, "A rate has at most six decimals.") : null;
 
-    /// <summary>What the engine does not check of a contract: amounts, rates and notes.</summary>
+    /// <summary>What the engine does not check of a contract: amounts, rates, dates, notes and the insurance count.</summary>
     public static Failure? Contract(LoanContract contract)
     {
-        if (Amount(contract.Principal, "principal") is { } principal)
-            return principal;
+        if ((Amount(contract.Principal, "principal")
+             ?? InYears(contract.DisbursedOn, "disbursedOn")
+             ?? InYears(contract.FirstPaymentDate, "firstPaymentDate")) is { } terms)
+            return terms;
         for (var i = 0; i < contract.Phases.Count; i++)
         {
             var (phase, note) = contract.Phases[i];
@@ -53,16 +63,34 @@ internal static class LoanRules
                  ?? Note(note, $"phases[{i}].note")) is { } refused)
                 return refused;
         }
+        if (contract.Insurances.Count > MaxInsurances)
+            return Invalid("insurances", $"A loan has at most {MaxInsurances} insurances.");
         for (var i = 0; i < contract.Insurances.Count; i++)
         {
             var (insurance, note) = contract.Insurances[i];
             if ((Amount(insurance.MonthlyAmount, $"insurances[{i}].monthlyAmount")
+                 ?? Positive(insurance.MonthlyAmount, $"insurances[{i}].monthlyAmount")
                  ?? Rate(insurance.AnnualRate, $"insurances[{i}].annualRate")
+                 ?? Fraction(insurance.AnnualRate, $"insurances[{i}].annualRate")
+                 ?? InYears(insurance.StartsOn, $"insurances[{i}].startsOn")
+                 ?? InYears(insurance.EndsOn, $"insurances[{i}].endsOn")
                  ?? Note(note, $"insurances[{i}].note")) is { } refused)
                 return refused;
         }
         return null;
     }
+
+    /// <summary>Spec 3B1 §4.2: an amount sent is positive whatever the insurance's mode (the engine checks only the one its mode reads).</summary>
+    public static Failure? Positive(decimal? amount, string field)
+        => amount is <= 0m ? Invalid(field, "An amount is positive.") : null;
+
+    /// <summary>Spec 3B1 §4.2: a rate sent lies in [0, 1) whatever the insurance's mode.</summary>
+    public static Failure? Fraction(decimal? rate, string field)
+        => rate is { } value && (value < 0m || value >= 1m) ? Invalid(field, "A rate is at least 0 and below 1.") : null;
+
+    /// <summary>Spec 3B1 §4.2: every loan date lies in years 1900–2200.</summary>
+    public static Failure? InYears(LocalDate? date, string field)
+        => date is { Year: < FirstYear or > LastYear } ? Invalid(field, $"A date lies in years {FirstYear} to {LastYear}.") : null;
 
     public static Failure Invalid(string field, string message)
         => new(LoanCodes.InvalidLoan, message, new Dictionary<string, object?> { ["field"] = field });

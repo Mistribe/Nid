@@ -9067,7 +9067,20 @@ export interface components {
         };
         LoanScheduleView: {
             rows: components["schemas"]["LoanScheduleRowView"][];
+            years: components["schemas"]["LoanScheduleYearView"][];
+            totalInterest: string;
+            totalPrincipal: string;
             warnings: components["schemas"]["LoanWarningView"][];
+        };
+        LoanScheduleYearView: {
+            /** Format: int32 */
+            year: number;
+            payment: string;
+            interest: string;
+            principal: string;
+            insurance: string;
+            earlyRepayment: string;
+            balance: string;
         };
         LoanSimulationBody: {
             on?: null | string;
@@ -9088,6 +9101,7 @@ export interface components {
             name: string;
             lender?: null | string;
             currency: string;
+            visibility: string;
             principal: string;
             remainingBalance: string;
             /** Format: date */

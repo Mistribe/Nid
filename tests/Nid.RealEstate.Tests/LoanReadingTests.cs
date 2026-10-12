@@ -20,6 +20,7 @@ public class LoanReadingTests
         Assert.Equal((Loans.First.PlusMonths(60), "1159.92"), (row.NextPaymentOn!.Value, row.NextPaymentTotal));
         Assert.Equal(("0.035", new LocalDate(2044, 1, 15)), (row.CurrentRate, row.EndDate!.Value));
         Assert.Equal(("Prêt maison", "Banque", true, false), (row.Name, row.Lender, row.CanWrite, row.Ended));
+        Assert.Equal("shared", row.Visibility);
     }
 
     [Fact]
@@ -96,5 +97,37 @@ public class LoanReadingTests
         {
             CultureInfo.CurrentCulture = culture;
         }
+    }
+
+    [Fact]
+    public void The_schedule_totals_each_calendar_year_exactly() // spec 3B1 §4.1
+    {
+        var schedule = LoanViews.ScheduleOf(Loans.Ok(LoanScheduleBuilder.Build(Loans.Golden())));
+
+        Assert.Equal(Enumerable.Range(2024, 21), schedule.Years.Select(y => y.Year));
+        var first = schedule.Years[0]; // February to December 2024: eleven payments
+        Assert.Equal(("12759.12", "6323.35", "6435.77", "0.00", "0.00", "193564.23"),
+            (first.Payment, first.Interest, first.Principal, first.Insurance, first.EarlyRepayment, first.Balance));
+        Assert.Equal(schedule.Rows[10].Balance, first.Balance);
+        var last = schedule.Years[^1]; // January 2044: the last payment absorbs the rounding residue
+        Assert.Equal(("1159.78", "3.37", "1156.41", "0.00"), (last.Payment, last.Interest, last.Principal, last.Balance));
+        Assert.Equal(("78380.66", "200000.00"), (schedule.TotalInterest, schedule.TotalPrincipal));
+    }
+
+    [Fact]
+    public void A_year_counts_its_early_repayment_and_its_insurance() // spec 3B1 §4.1
+    {
+        var terms = Loans.Golden() with
+        {
+            Insurances = [new LoanInsurance(InsuranceMode.FixedMonthly, 20m, null, Loans.First)],
+            Events = [new EarlyRepayment(new LocalDate(2029, 2, 20), 10_000m, RepaymentEffect.ReducePayment)],
+        };
+
+        var schedule = LoanViews.ScheduleOf(Loans.Ok(LoanScheduleBuilder.Build(terms)));
+
+        var y2029 = schedule.Years.Single(y => y.Year == 2029);
+        Assert.Equal(("10000.00", "240.00"), (y2029.EarlyRepayment, y2029.Insurance));
+        Assert.Equal(schedule.Rows.Last(r => r.DueDate.Year == 2029).Balance, y2029.Balance);
+        Assert.Equal(("220.00", "0.00"), (schedule.Years[0].Insurance, schedule.Years[0].EarlyRepayment));
     }
 }

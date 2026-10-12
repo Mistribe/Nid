@@ -33,7 +33,7 @@ internal static class FeeCheck
     public static Failure? Rules(FeeDraft draft)
         => !Enum.IsDefined(draft.Kind) ? LoanRules.Invalid("kind", "The fee kind is unknown.")
             : draft.Amount <= 0m ? LoanRules.Invalid("amount", "A fee is positive.")
-            : LoanRules.Amount(draft.Amount, "amount") ?? LoanRules.Note(draft.Note, "note");
+            : LoanRules.Amount(draft.Amount, "amount") ?? LoanRules.InYears(draft.OnDate, "onDate") ?? LoanRules.Note(draft.Note, "note");
 
     public static LoanFee Fee(FeeDraft draft) => new(draft.Kind, draft.Amount, draft.OnDate);
 

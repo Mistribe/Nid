@@ -16,6 +16,20 @@ public static class LoanScheduleBuilder
 
     public static Result<LoanSchedule> Build(LoanTerms t)
     {
+        // Spec 3B1 §4.2: amounts that outgrow decimal (a long total deferral at a high rate on a large principal) are a refusal
+        // at the principal, never a 500; caught here, every caller (creation, contract, repayments, simulation) answers alike.
+        try
+        {
+            return Compute(t);
+        }
+        catch (OverflowException)
+        {
+            return Refuse(LoanCodes.InvalidLoan, "The loan's amounts outgrow what can be computed.", "principal");
+        }
+    }
+
+    private static Result<LoanSchedule> Compute(LoanTerms t)
+    {
         if (LoanValidation.Check(t) is { } refused) return Result.Failure<LoanSchedule>(refused);
 
         var phases = t.Phases.Select((p, i) => (Phase: p, Index: i)).OrderBy(x => x.Phase.Seq).ToList();
