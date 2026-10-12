@@ -12343,6 +12343,9 @@
       "LoanScheduleView": {
         "required": [
           "rows",
+          "years",
+          "totalInterest",
+          "totalPrincipal",
           "warnings"
         ],
         "type": "object",
@@ -12353,11 +12356,59 @@
               "$ref": "#/components/schemas/LoanScheduleRowView"
             }
           },
+          "years": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanScheduleYearView"
+            }
+          },
+          "totalInterest": {
+            "type": "string"
+          },
+          "totalPrincipal": {
+            "type": "string"
+          },
           "warnings": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanWarningView"
             }
+          }
+        }
+      },
+      "LoanScheduleYearView": {
+        "required": [
+          "year",
+          "payment",
+          "interest",
+          "principal",
+          "insurance",
+          "earlyRepayment",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payment": {
+            "type": "string"
+          },
+          "interest": {
+            "type": "string"
+          },
+          "principal": {
+            "type": "string"
+          },
+          "insurance": {
+            "type": "string"
+          },
+          "earlyRepayment": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
           }
         }
       },
@@ -12422,6 +12473,7 @@
           "id",
           "name",
           "currency",
+          "visibility",
           "principal",
           "remainingBalance",
           "canWrite",
@@ -12443,6 +12495,9 @@
             ]
           },
           "currency": {
+            "type": "string"
+          },
+          "visibility": {
             "type": "string"
           },
           "principal": {

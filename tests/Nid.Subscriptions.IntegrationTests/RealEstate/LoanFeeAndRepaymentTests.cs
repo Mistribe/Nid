@@ -48,6 +48,26 @@ public class LoanFeeAndRepaymentTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_fee_or_a_repayment_is_dated_in_1900_to_2200_and_names_its_enum() // spec 3B1 §4.2, §4.3
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAsync(app, Golden(app));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.invalid_loan", "onDate"), await RefusalAsync(await app.RawAsync(app.AdultA,
+            HttpMethod.Post, $"{Loans}/{id}/fees", new { kind = "file", amount = "10", onDate = "1899-12-31" })));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.invalid_loan", "onDate"), await RefusalAsync(await app.RawAsync(app.AdultA,
+            HttpMethod.Post, $"{Loans}/{id}/repayments", new { onDate = "2201-01-15", amount = "1000", effect = "reduce_term" })));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.required", "kind"), await RefusalAsync(await app.RawAsync(app.AdultA,
+            HttpMethod.Post, $"{Loans}/{id}/fees", new { amount = "10", onDate = "2020-10-15" })));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.required", "effect"), await RefusalAsync(await app.RawAsync(app.AdultA,
+            HttpMethod.Post, $"{Loans}/{id}/repayments", new { onDate = "2025-03-15", amount = "1000" })));
+
+        var detail = await DetailAsync(app, id);
+        Assert.Empty(detail.GetProperty("fees").EnumerateArray());
+        Assert.Empty(detail.GetProperty("repayments").EnumerateArray());
+    }
+
+    [Fact]
     public async Task A_penalty_lives_and_dies_with_its_repayment()
     {
         await using var app = await NidApp.StartAsync(fixture);

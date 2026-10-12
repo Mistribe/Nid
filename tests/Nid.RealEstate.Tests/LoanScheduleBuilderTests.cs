@@ -342,4 +342,15 @@ public class LoanScheduleBuilderTests
     [Fact]
     public void Validation_refusals_come_through_the_builder()
         => Assert.Equal(LoanCodes.InvalidLoan, Loans.Fail(LoanScheduleBuilder.Build(Loans.Golden() with { Principal = -1m })).Code);
+
+    [Fact]
+    public void An_overflow_is_refused_at_the_principal() // spec 3B1 §4.2
+    {
+        // A total deferral at 99 % a year capitalises its interest for up to 600 months: 9·10¹¹ × 1.0825^k outgrows decimal near k = 480.
+        var terms = Loans.Annuity(900_000_000_000m, 0.99m, 600) with { Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0.99m, RateType.Fixed)] };
+
+        var refused = Loans.Fail(LoanScheduleBuilder.Build(terms));
+
+        Assert.Equal((LoanCodes.InvalidLoan, "principal"), (refused.Code, Loans.FieldOf(refused)));
+    }
 }

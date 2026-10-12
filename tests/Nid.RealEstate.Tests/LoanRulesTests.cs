@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
+using NodaTime;
 
 namespace Nid.RealEstate.Tests;
 
@@ -52,5 +53,34 @@ public class LoanRulesTests
         Assert.Equal("lender", Loans.FieldOf(LoanRules.Details(new string('x', 101), null)!));
         Assert.Equal("note", Loans.FieldOf(LoanRules.Details(null, new string('x', 2001))!));
         Assert.Null(LoanRules.Details("Banque", "note"));
+    }
+
+    [Fact]
+    public void An_insurance_rate_and_monthly_amount_are_bounded_whatever_its_mode() // spec 3B1 §4.2
+    {
+        LoanContract With(LoanInsurance insurance) => Contract() with { Insurances = [new LoanInsuranceEntry(insurance, null)] };
+
+        Assert.Equal("insurances[0].annualRate", Loans.FieldOf(LoanRules.Contract(With(new LoanInsurance(InsuranceMode.FixedMonthly, 20m, 1m, Loans.First)))!));
+        Assert.Equal("insurances[0].annualRate", Loans.FieldOf(LoanRules.Contract(With(new LoanInsurance(InsuranceMode.FixedMonthly, 20m, -0.001m, Loans.First)))!));
+        Assert.Equal("insurances[0].monthlyAmount", Loans.FieldOf(LoanRules.Contract(With(new LoanInsurance(InsuranceMode.RateOnInitial, 0m, 0.003m, Loans.First)))!));
+        Assert.Null(LoanRules.Contract(With(new LoanInsurance(InsuranceMode.RateOnInitial, null, 0.003m, Loans.First))));
+    }
+
+    [Fact]
+    public void Every_contract_date_lies_in_years_1900_to_2200() // spec 3B1 §4.2
+    {
+        Assert.Equal("disbursedOn", Loans.FieldOf(LoanRules.Contract(Contract() with { DisbursedOn = new LocalDate(1899, 12, 31) })!));
+        Assert.Equal("firstPaymentDate", Loans.FieldOf(LoanRules.Contract(Contract() with { FirstPaymentDate = new LocalDate(2201, 1, 1) })!));
+        var late = new LoanInsurance(InsuranceMode.FixedMonthly, 20m, null, Loans.First, new LocalDate(2201, 1, 1));
+        Assert.Equal("insurances[0].endsOn", Loans.FieldOf(LoanRules.Contract(Contract() with { Insurances = [new LoanInsuranceEntry(late, null)] })!));
+        Assert.Null(LoanRules.Contract(Contract() with { DisbursedOn = new LocalDate(1900, 1, 1), FirstPaymentDate = new LocalDate(2200, 12, 31) }));
+    }
+
+    [Fact]
+    public void A_contract_has_at_most_twenty_insurances() // spec 3B1 §4.2
+    {
+        var one = new LoanInsuranceEntry(new LoanInsurance(InsuranceMode.FixedMonthly, 1m, null, Loans.First), null);
+        Assert.Null(LoanRules.Contract(Contract() with { Insurances = Enumerable.Repeat(one, 20).ToList() }));
+        Assert.Equal("insurances", Loans.FieldOf(LoanRules.Contract(Contract() with { Insurances = Enumerable.Repeat(one, 21).ToList() })!));
     }
 }

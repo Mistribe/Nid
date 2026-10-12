@@ -8,7 +8,7 @@ namespace Nid.RealEstate.Application;
 
 /// <summary>A row of <c>GET /loans</c> (spec 3A2 §4): the figures today; amounts and rates as invariant text (precision 1).</summary>
 public sealed record LoanSummary(
-    ItemId Id, string Name, string? Lender, string Currency, string Principal, string RemainingBalance,
+    ItemId Id, string Name, string? Lender, string Currency, string Visibility, string Principal, string RemainingBalance,
     LocalDate? NextPaymentOn, string? NextPaymentTotal, string? CurrentRate, LocalDate? EndDate, bool CanWrite, bool Ended);
 
 public sealed record LoanList(IReadOnlyList<LoanSummary> Items) : IExposesItems
@@ -54,7 +54,14 @@ public sealed record LoanScheduleRowView(
     int Number, LocalDate DueDate, int PhaseSeq, string AnnualRate, string Payment, string Interest, string Principal,
     string Insurance, string Balance, string? EarlyRepayment);
 
-public sealed record LoanScheduleView(IReadOnlyList<LoanScheduleRowView> Rows, IReadOnlyList<LoanWarningView> Warnings);
+/// <summary>Spec 3B1 §4.1: one calendar year of the schedule: the sums of its rows, and the balance after its last one.</summary>
+public sealed record LoanScheduleYearView(
+    int Year, string Payment, string Interest, string Principal, string Insurance, string EarlyRepayment, string Balance);
+
+/// <summary>The rows, their years, and the totals of interest and principal the chart's summary reads (3B1 precision 2).</summary>
+public sealed record LoanScheduleView(
+    IReadOnlyList<LoanScheduleRowView> Rows, IReadOnlyList<LoanScheduleYearView> Years, string TotalInterest,
+    string TotalPrincipal, IReadOnlyList<LoanWarningView> Warnings);
 
 public sealed record LoanOutcomeView(
     string Effect, string PaymentBefore, string PaymentAfter, LocalDate? EndBefore, LocalDate? EndAfter, int PaymentsBefore,
@@ -70,7 +77,7 @@ internal static class LoanViews
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms);
         var figures = LoanMath.At(terms, schedule, today);
-        return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Amount(loan.Contract.Principal),
+        return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
             canWrite, Ended(terms, schedule, today));
     }
@@ -95,6 +102,13 @@ internal static class LoanViews
     public static LoanScheduleView ScheduleOf(LoanSchedule schedule)
         => new(schedule.Rows.Select(r => new LoanScheduleRowView(r.Number, r.DueDate, r.PhaseSeq, Rate(r.AnnualRate), Amount(r.Payment),
                 Amount(r.Interest), Amount(r.Principal), Amount(r.Insurance), Amount(r.Balance), Amount(r.EarlyRepayment))).ToList(),
+            // Rows come by due date, so the groups come by year; exact decimal sums, written as every amount is.
+            schedule.Rows.GroupBy(r => r.DueDate.Year)
+                .Select(y => new LoanScheduleYearView(y.Key, Amount(y.Sum(r => r.Payment)), Amount(y.Sum(r => r.Interest)),
+                    Amount(y.Sum(r => r.Principal)), Amount(y.Sum(r => r.Insurance)), Amount(y.Sum(r => r.EarlyRepayment ?? 0m)),
+                    Amount(y.Last().Balance)))
+                .ToList(),
+            Amount(schedule.Rows.Sum(r => r.Interest)), Amount(schedule.Rows.Sum(r => r.Principal)),
             WarningsOf(schedule));
 
     public static LoanSimulationView SimulationOf(EarlyRepaymentSimulation simulation)

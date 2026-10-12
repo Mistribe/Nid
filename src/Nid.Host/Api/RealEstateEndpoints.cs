@@ -237,6 +237,12 @@ public static class RealEstateEndpoints
         /// <summary>A loans.md enum in snake_case (<see cref="LoanWire"/>); anything else is the module's refusal at its field.</summary>
         public static T? Wire<T>(FieldReader reader, string? value, string path) where T : struct, Enum
         {
+            // Spec 3B1 §4.3: a missing enum is missing, as a missing amount or date is; only a value sent can be unknown.
+            if (value is null)
+            {
+                reader.Add(path, "request.required", "This field is required.");
+                return null;
+            }
             if (LoanWire.TryParse<T>(value, out var parsed))
                 return parsed;
             reader.Add(path, LoanCodes.InvalidLoan, $"'{value}' is not one of {string.Join(", ", Enum.GetValues<T>().Select(v => LoanWire.Of(v)))}.");

@@ -33,7 +33,8 @@ internal static class RepaymentCheck
 {
     /// <summary>Spec §3: the repayment and its penalty have at most two decimals; the engine checks the rest.</summary>
     public static Failure? Rules(RepaymentDraft draft)
-        => LoanRules.Amount(draft.Amount, "amount") ?? LoanRules.Amount(draft.Penalty, "penalty") ?? LoanRules.Note(draft.Note, "note");
+        => LoanRules.Amount(draft.Amount, "amount") ?? LoanRules.Amount(draft.Penalty, "penalty")
+            ?? LoanRules.InYears(draft.OnDate, "onDate") ?? LoanRules.Note(draft.Note, "note");
 
     public static StoredRepayment Repayment(Guid id, RepaymentDraft draft, Guid? feeId)
         => new(id, new EarlyRepayment(draft.OnDate, draft.Amount, draft.Effect), feeId, draft.Note, 0);
