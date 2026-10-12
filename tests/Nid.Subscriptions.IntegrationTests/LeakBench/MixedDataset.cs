@@ -41,14 +41,16 @@ public sealed class MixedDataset
 
     private MixedDataset(
         NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
-        IReadOnlyDictionary<string, ItemId> incomeSources)
+        IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans)
     {
-        (App, Items, Envelopes, IncomeSources) = (app, items, envelopes, incomeSources);
+        (App, Items, Envelopes, IncomeSources, Loans) = (app, items, envelopes, incomeSources, loans);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
         foreach (var (name, source) in incomeSources)
             names[source] = name + " (income)";
+        foreach (var (name, loan) in loans)
+            names[loan] = name + " (loan)";
     }
 
     public NidApp App { get; }
@@ -68,6 +70,9 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> IncomeSources { get; }
 
+    /// <summary>The loan twin of each row (3A2): same §2 name, label, owners and visibility. The RealEstate requests run against these.</summary>
+    public IReadOnlyDictionary<string, ItemId> Loans { get; }
+
     public ItemId this[string name] => Items[name];
 
     /// <summary>
@@ -78,6 +83,7 @@ public sealed class MixedDataset
     public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
         => requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
+            : requestType.Assembly == typeof(Nid.RealEstate.Application.ListLoansQuery).Assembly ? Loans
             : Items;
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
@@ -87,6 +93,7 @@ public sealed class MixedDataset
         var items = new Dictionary<string, ItemId>();
         var envelopes = new Dictionary<string, ItemId>();
         var incomeSources = new Dictionary<string, ItemId>();
+        var loans = new Dictionary<string, ItemId>();
         foreach (var row in Rows)
         {
             var owners = row.Owners
@@ -96,6 +103,8 @@ public sealed class MixedDataset
             envelopes[row.Name] = await app.NewEnvelopeAsync(row.Label, row.Visibility, owners);
             // Its one phase carries the label in its note, so the textual scan catches a phase read by the wrong adult.
             incomeSources[row.Name] = await app.NewIncomeSourceAsync(row.Label, row.Visibility, owners);
+            // Named after the label, so the textual scan catches a loan read by the wrong adult.
+            loans[row.Name] = await app.NewLoanAsync(row.Label, row.Visibility, owners);
 
             // One value and one flow per twin, through the real requests: without facts the valuations and flows
             // export pages are empty for everyone and the output guard would check nothing on them. The label in
@@ -121,7 +130,7 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {name}'s provider failed: {notLinked.Code}");
         }
 
-        return new MixedDataset(app, items, envelopes, incomeSources);
+        return new MixedDataset(app, items, envelopes, incomeSources, loans);
     }
 
     /// <summary>The §2 name of an item, for a failure message that says which row went wrong.</summary>
@@ -137,7 +146,7 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlySet<ItemId> ExpectedReadable(PersonId actor)
         => Rows.Where(r => r.Readers.Contains(NameOf(actor)))
-            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name] })
+            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name] })
             .ToHashSet();
 
     /// <summary>Whether access-tests.md §2 says this actor may change this item.</summary>
