@@ -64,6 +64,19 @@ internal static class RepaymentCheck
             : null;
     }
 
+    /// <summary>A removal changes the calculation too (spec §1): an imposed payment may have relied on it (precision 7). Null when it computes.</summary>
+    public static Failure? Removable(Currency currency, StoredLoan loan, StoredRepayment old)
+    {
+        var remaining = loan.Repayments.Where(r => r.Id != old.Id).ToList();
+        var built = LoanScheduleBuilder.Build(LoanReading.Terms(currency, loan.Contract, loan.Fees.Where(f => f.Id != old.FeeId), remaining));
+        if (!built.TryGetFailure(out var failure))
+            return null;
+        // Terms orders by date then id; the k-th remaining one is the stored list's index of that same repayment.
+        var ordered = remaining.OrderBy(r => r.Repayment.OnDate).ThenBy(r => r.Id).ToList();
+        var stored = loan.Repayments.OrderBy(r => r.Repayment.OnDate).ThenBy(r => r.Id).ToList();
+        return LoanPaths.ForRemoval(failure!, k => stored.FindIndex(r => r.Id == ordered[k].Id));
+    }
+
     /// <summary>The repayment to change: missing (404) or read since (409), in that order.</summary>
     public static (StoredRepayment? Old, Failure? Refused) Writable(StoredLoan loan, Guid id, uint version)
     {
@@ -158,12 +171,9 @@ public sealed class DeleteLoanRepaymentHandler(IItemRegistry items, ILoanStore l
         if (old is null || unwritable is not null)
             return Result.Failure<bool>(unwritable!);
 
-        // A removal changes the calculation too (spec §1): an imposed payment may have relied on it (precision 7).
+        if (RepaymentCheck.Removable(LoanViews.CurrencyOf(found.Item), found.Loan, old) is { } impossible)
+            return Result.Failure<bool>(impossible);
         var (id, penaltyId) = (old.Id, old.FeeId);
-        var built = LoanScheduleBuilder.Build(LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract,
-            found.Loan.Fees.Where(f => f.Id != penaltyId), found.Loan.Repayments.Where(r => r.Id != id)));
-        if (built.TryGetFailure(out failure))
-            return Result.Failure<bool>(LoanPaths.ForContract(failure!));
 
         await loans.DeleteRepaymentAsync(command.ItemId, id, ct);
         if (penaltyId is { } penalty)

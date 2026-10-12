@@ -89,4 +89,23 @@ public class RepaymentCheckTests
         Assert.IsType<NotFoundFailure>(FeeCheck.Writable(loan, Guid.NewGuid(), 1));
         Assert.Null(FeeCheck.Writable(loan, file.Id, 3));
     }
+
+    [Fact]
+    public void A_removal_maps_the_engines_rank_among_the_remaining_to_the_rank_in_the_full_list()
+    {
+        // Removing a balance can only raise a later one's room, so the engine cannot refuse an event on a removal today: the mapping is checked on a refusal as the engine words one.
+        var refused = new Failure(LoanCodes.EventAboveBalance, "x", new Dictionary<string, object?> { ["field"] = "events[0].amount" });
+        Assert.Equal((LoanCodes.EventAboveBalance, "repayments[1].amount"), Located(LoanPaths.ForRemoval(refused, k => k + 1)));
+        Assert.Equal("phases[0].paymentOverride", Loans.FieldOf(LoanPaths.ForRemoval(LoanRules.Invalid("phases[0].paymentOverride", "x"), k => k + 1)));
+    }
+
+    [Fact]
+    public void A_removal_that_breaks_an_imposed_payment_answers_at_that_phase()
+    {
+        var terms = Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, PaymentOverride: 500m)] };
+        var early = Stored(new LocalDate(2024, 1, 20), 50_000m);
+        var loan = Loans.Stored(repayments: [early], terms: terms);
+
+        Assert.Equal((LoanCodes.PaymentBelowInterest, "phases[0].paymentOverride"), Located(RepaymentCheck.Removable(Currency.Eur, loan, early)));
+    }
 }

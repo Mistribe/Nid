@@ -24,6 +24,13 @@ internal static class LoanPaths
         => Event(FieldOf(failure)) is { } e ? At(failure, $"repayments[{e.Index}]{e.Tail}") : failure;
 
     /// <summary>
+    /// A removal (precision 7): the engine's <c>events[k]</c> ranks the repayments that remain; the detail's
+    /// <c>repayments[i]</c> ranks the full stored list, which still holds the removed one, so <paramref name="stored"/> maps k to i.
+    /// </summary>
+    public static Failure ForRemoval(Failure failure, Func<int, int> stored)
+        => Event(FieldOf(failure)) is { } e ? At(failure, $"repayments[{stored(e.Index)}]{e.Tail}") : failure;
+
+    /// <summary>
     /// A repayment route (precision 7): the written repayment, <c>events[written]</c>, answers at its own fields; its
     /// penalty, <c>fees[penalty]</c>, at <c>penalty</c>; anything else it makes impossible (a later repayment above the
     /// balance) at <c>amount</c>.
