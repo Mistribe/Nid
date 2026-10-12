@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useId, useRef, type ChangeEvent } from 'react';
+import { useId, useRef, useState, type ChangeEvent } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -62,12 +62,18 @@ export function NewLoan() {
     onError: (error) => errors.onError(error),
   });
   const e = form.formState.errors;
-  const plain = phases.fields.length === 1;
+  // The phase list shows from the second line on, and stays while the one line left is a deferral (its mode must be seen).
+  const [listed, setListed] = useState(false);
+  const plain = phases.fields.length === 1 && !listed;
 
   const removePhase = (i: number) => {
+    const leftMode = form.getValues(`phases.${i === 0 ? 1 : 0}.mode`);
     phases.remove(i);
-    // Back to a plain loan (precision 11): the line left keeps its mode, rate and type; what a plain loan hides is cleared.
-    if (phases.fields.length === 2) for (const field of PLAIN_HIDDEN) form.setValue(`phases.0.${field}`, '');
+    // Back to a plain loan (precision 11) when the line left is an annuity: it keeps its mode, rate and type; what a plain loan hides is cleared.
+    if (phases.fields.length === 2 && leftMode === 'annuity') {
+      setListed(false);
+      for (const field of PLAIN_HIDDEN) form.setValue(`phases.0.${field}`, '');
+    }
     addPhaseRef.current?.focus();
   };
   const removeInsurance = (i: number) => {
@@ -136,12 +142,14 @@ export function NewLoan() {
               <fieldset key={row.id} className="space-y-2 rounded-md border p-3">
                 <legend className="px-1 text-sm font-medium">{t('loan_form.phase_n', { n: i + 1 })}</legend>
                 <PhaseFields form={form} index={i} last={i === phases.fields.length - 1} />
-                <Button type="button" variant="ghost" size="sm" onClick={() => removePhase(i)}>{t('loan_form.remove_phase', { n: i + 1 })}</Button>
+                {phases.fields.length > 1 ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removePhase(i)}>{t('loan_form.remove_phase', { n: i + 1 })}</Button>
+                ) : null}
               </fieldset>
             ))}
           </section>
         )}
-        <Button ref={addPhaseRef} type="button" variant="outline" size="sm" onClick={() => phases.append(newPhase())}>{t('loan_form.add_phase')}</Button>
+        <Button ref={addPhaseRef} type="button" variant="outline" size="sm" onClick={() => { setListed(true); phases.append(newPhase()); }}>{t('loan_form.add_phase')}</Button>
 
         <Folded label={t('loan_form.options')} hasError={Boolean(e.rounding || e.firstPeriod)}>
           <Field label={t('loan_form.rounding')} error={e.rounding?.message}>

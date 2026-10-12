@@ -57,6 +57,11 @@ describe('the schema', () => {
     expect(issues(valid({ phases: [line('200'), line('')] }))).toEqual([]);
   });
 
+  it('reports the unanswered visibility together with the cross-field checks', () => {
+    const v = { ...valid({ firstPaymentDate: '2026-09-11' }), visibility: undefined } as unknown as NewLoanValues;
+    expect(issues(v)).toEqual(['visibility: loan_form.visibility_required', 'firstPaymentDate: loan_form.first_after_disbursed']);
+  });
+
   it('checks an insurance as its mode asks, and its end after its start', () => {
     const insurance = newInsurance('2026-10-12');
     expect(issues(valid({ insurances: [insurance] }))).toEqual(['insurances.0.amount: loan_form.amount_format']);

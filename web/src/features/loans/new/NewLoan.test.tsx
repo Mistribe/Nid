@@ -149,7 +149,7 @@ describe('NewLoan', () => {
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.click(screen.getByRole('button', { name: 'Ajouter une phase' }));
     const one = group('Phase 1');
-    await user.selectOptions(within(one).getByLabelText('Type d’échéance'), 'deferred_total');
+    await user.selectOptions(within(one).getByLabelText('Nature du taux'), 'variable');
     await user.type(within(one).getByLabelText('Nombre d’échéances'), '12');
     await user.click(within(one).getByRole('button', { name: 'Plus d’options' }));
     await user.type(within(one).getByLabelText('Note de la phase'), 'travaux');
@@ -161,7 +161,20 @@ describe('NewLoan', () => {
     await submit(user);
 
     await waitFor(() => expect(bodies).toHaveLength(1));
-    expect(sent(bodies).phases).toEqual([{ seq: 1, mode: 'deferred_total', annualRate: '0.035', rateType: 'fixed' }]);
+    expect(sent(bodies).phases).toEqual([{ seq: 1, mode: 'annuity', annualRate: '0.035', rateType: 'variable' }]);
+  });
+
+  it('keeps the phase list when the line left is a deferral, so its mode is seen', async () => {
+    serveCreate([]);
+    const { user } = await renderApp('/loans/new');
+
+    await fillPlain(user);
+    await user.click(screen.getByRole('button', { name: 'Ajouter une phase' }));
+    await user.selectOptions(within(group('Phase 2')).getByLabelText('Type d’échéance'), 'deferred_total');
+    await user.click(within(group('Phase 1')).getByRole('button', { name: 'Retirer la phase 1' }));
+
+    expect(within(group('Phase 1')).getByLabelText('Type d’échéance')).toHaveValue('deferred_total');
+    expect(within(group('Phase 1')).queryByRole('button', { name: /^Retirer la phase/ })).not.toBeInTheDocument();
   });
 
   it('refuses more phase payments than the loan has, before sending, under the duration', async () => {

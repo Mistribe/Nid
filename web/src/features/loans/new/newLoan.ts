@@ -57,7 +57,8 @@ export function newLoanSchema(t: TFunction) {
     currency: z.string().trim().toUpperCase().regex(CURRENCY, t('field_error.request_currency')),
     note: z.string().max(2000, t('investments_form.note_too_long')),
     // No default (spec §6): the person answers, or nothing is sent.
-    visibility: z.enum(['shared', 'private'], { error: t('loan_form.visibility_required') }),
+    // Not aborting: an aborting issue would skip the superRefine below and hide its checks until a second submit.
+    visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
     principal: z.string().trim().regex(LOAN_AMOUNT, t('loan_form.amount_format')),
     totalPayments: z.string().refine(inRange, t('loan_form.duration_range')),
