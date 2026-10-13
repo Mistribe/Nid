@@ -132,24 +132,14 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('lists the fees and early repayments when there are any', async () => {
+  it('lists the early repayments when there are any', async () => {
     serve(loanDetail({
-      fees: [
-        { id: 'f1', kind: 'file', amount: '1000.00', onDate: '2025-10-15', note: 'dossier', repaymentId: null, version: 1 },
-        { id: 'f2', kind: 'early_repayment_penalty', amount: '300.00', onDate: '2026-03-20', note: null, repaymentId: 'r1', version: 2 },
-      ],
       repayments: [{ id: 'r1', onDate: '2026-03-20', amount: '10000.00', effect: 'reduce_payment', penalty: '300.00', note: 'prime', version: 3 }],
     }));
     const { container } = await renderApp(`/loans/${LOAN}`);
 
     await heading();
-    const region = screen.getByRole('region', { name: 'Frais et remboursements anticipés' });
-    const fees = bodyRows(region, 'Frais');
-    expect(fees[0]).toHaveTextContent('15 octobre 2025');
-    expect(fees[0]).toHaveTextContent('Frais de dossier');
-    expect(fees[0]).toHaveTextContent('1 000,00 €');
-    expect(fees[0]).toHaveTextContent('dossier');
-    expect(fees[1]).toHaveTextContent('Pénalité de remboursement anticipé');
+    const region = screen.getByRole('region', { name: 'Remboursements anticipés' });
     const repayments = bodyRows(region, 'Remboursements anticipés');
     expect(repayments[0]).toHaveTextContent('20 mars 2026');
     expect(repayments[0]).toHaveTextContent('Mensualité réduite');
@@ -159,12 +149,12 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('shows no fee or repayment section without any', async () => {
+  it('shows no repayment section without any', async () => {
     serve();
     await renderApp(`/loans/${LOAN}`);
 
     await heading();
-    expect(screen.queryByRole('region', { name: 'Frais et remboursements anticipés' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Remboursements anticipés' })).not.toBeInTheDocument();
   });
 
   it('reads the schedule by year, the current year open and today’s payment marked in words', async () => {

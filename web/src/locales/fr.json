@@ -493,7 +493,9 @@
     "realestate_payment_below_interest": "Cette mensualité ne couvre pas les intérêts : le prêt ne finirait jamais.",
     "realestate_schedule_too_long": "L’échéancier dépasserait 1 200 échéances : vérifiez la durée, les phases et la mensualité imposée.",
     "realestate_event_above_balance": "Ce remboursement dépasse le capital restant dû.",
-    "realestate_loan_conflict": "Ce crédit a changé entre-temps : rechargez la page."
+    "realestate_loan_conflict": "Ce crédit a changé entre-temps : rechargez la page.",
+    "realestate_fee_conflict": "Ces frais ont changé entre-temps : rechargez la page.",
+    "realestate_fee_linked": "Cette pénalité se modifie avec son remboursement."
   },
   "settings": {
     "appearance": {
@@ -1253,6 +1255,11 @@
     "col_amount": "Montant",
     "col_effect": "Effet",
     "col_penalty": "Pénalité",
+    "col_actions": "Actions",
+    "correct": "Corriger",
+    "delete": "Supprimer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
     "fee_kind": { "file": "Frais de dossier", "guarantee": "Garantie", "early_repayment_penalty": "Pénalité de remboursement anticipé", "renegotiation": "Renégociation", "other": "Autre" },
     "effect": { "reduce_term": "Durée réduite", "reduce_payment": "Mensualité réduite" },
     "schedule": {
@@ -1294,6 +1301,23 @@
     "saved": "Contrat enregistré.",
     "repayment_impossible": "Ce contrat rend impossible le remboursement du {{date}} ({{amount}}).",
     "reload_loses": "« Recharger » remplace le formulaire par le contrat enregistré : vos modifications non enregistrées sont perdues."
+  },
+  "loan_fees": {
+    "table": "Frais du crédit",
+    "empty": "Aucun frais",
+    "add": "Ajouter des frais",
+    "add_title": "Nouveaux frais",
+    "edit_title": "Corriger les frais",
+    "kind": "Nature",
+    "amount": "Montant",
+    "date": "Date",
+    "note": "Note",
+    "submit": "Ajouter",
+    "added": "Frais ajoutés.",
+    "corrected": "Frais corrigés.",
+    "deleted": "Frais supprimés.",
+    "delete_confirm": "Ces frais seront supprimés.",
+    "linked": "Se modifie avec son remboursement"
   },
   "security": {
     "title": "Sécurité",

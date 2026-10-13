@@ -11,6 +11,7 @@ import { LOAN, SCHEDULE } from './api';
 import { FeesAndRepayments, LoanContract } from './detail/LoanContract';
 import { LoanFigures } from './detail/LoanFigures';
 import { ScheduleTable } from './detail/ScheduleTable';
+import { FeesSection } from './fees/FeesSection';
 import { money, warningText } from './format';
 import { SettingsForm } from './settings/SettingsForm';
 
@@ -66,8 +67,9 @@ export function LoanDetailPage() {
             {loan.canWrite ? <Link to="/loans/$id/contract" params={{ id: loan.id }} className="text-sm underline">{t('loan_detail.edit_contract')}</Link> : null}
             <LoanContract loan={loan} />
           </Section>
-          {loan.fees.length > 0 || loan.repayments.length > 0 ? (
-            <Section title={t('loan_detail.fees_and_repayments')}><FeesAndRepayments loan={loan} /></Section>
+          <FeesSection loan={loan} />
+          {loan.repayments.length > 0 ? (
+            <Section title={t('loan_detail.repayments')}><FeesAndRepayments loan={loan} /></Section>
           ) : null}
           <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
           {loan.canWrite ? (
