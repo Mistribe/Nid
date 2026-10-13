@@ -12,7 +12,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateLoans, REPAYMENT, REPAYMENTS, type LoanDetail, type LoanRepayment } from '../api';
 import { EFFECTS } from '../format';
 import { presentRefusal } from '../refusal';
-import { REPAYMENT_PATHS, repaymentSchema, repaymentValuesOf, toRepaymentBody, type RepaymentValues } from './repayment';
+import { REPAYMENT_PATHS, repaymentSchema, repaymentValuesOf, toRepaymentBody, type RepaymentPrefill, type RepaymentValues } from './repayment';
 
 const input = 'rounded-md border px-3 py-2';
 
@@ -20,7 +20,9 @@ const input = 'rounded-md border px-3 py-2';
  * 3B2 design §7: adding an early repayment (`editing` absent: POST) or correcting it inline (PUT, with the version read);
  * its penalty is typed here, never computed. The section announces and places the focus.
  */
-export function RepaymentForm({ loan, editing, onDone }: { loan: LoanDetail; editing?: LoanRepayment; onDone: (message?: string) => void }) {
+export function RepaymentForm({ loan, editing, prefill, onDone }: {
+  loan: LoanDetail; editing?: LoanRepayment; prefill?: RepaymentPrefill | null; onDone: (message?: string) => void;
+}) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -28,7 +30,7 @@ export function RepaymentForm({ loan, editing, onDone }: { loan: LoanDetail; edi
   // The version the form opened on: a refetch meanwhile must not turn the expected 409 into an overwrite.
   const [version] = useState(editing?.version);
   const effectErrorId = useId();
-  const form = useForm<RepaymentValues>({ resolver: zodResolver(repaymentSchema(t)), defaultValues: repaymentValuesOf(editing) });
+  const form = useForm<RepaymentValues>({ resolver: zodResolver(repaymentSchema(t)), defaultValues: repaymentValuesOf(editing, prefill) });
   const errors = useSubmitErrors(form.setError, REPAYMENT_PATHS);
   // Mount only: opening the form lands the person in it (the date when adding, the amount when correcting).
   useEffect(() => { form.setFocus(editing ? 'amount' : 'onDate'); }, []); // eslint-disable-line react-hooks/exhaustive-deps

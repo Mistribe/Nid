@@ -13,8 +13,10 @@ import { LoanFigures } from './detail/LoanFigures';
 import { ScheduleTable } from './detail/ScheduleTable';
 import { FeesSection } from './fees/FeesSection';
 import { money, warningText } from './format';
+import type { RepaymentPrefill } from './repayments/repayment';
 import { RepaymentsSection } from './repayments/RepaymentsSection';
 import { SettingsForm } from './settings/SettingsForm';
+import { SimulationSection } from './simulation/SimulationSection';
 
 // Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
 const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ default: m.ScheduleChart })));
@@ -31,6 +33,9 @@ export function LoanDetailPage() {
   // mount so assistive technologies hear it. ponytail: the history entry keeps the state, so reloading it says it again.
   const [announcement, setAnnouncement] = useState('');
   useEffect(() => { if (saved === 'contract') setAnnouncement(t('loan_contract.saved')); }, [saved, t]);
+  // 3B2 design §8: the simulation hands a column to the repayments' add form; `seq` makes each press a new one.
+  const [prefill, setPrefill] = useState<RepaymentPrefill | null>(null);
+  const record = (p: Omit<RepaymentPrefill, 'seq'>) => setPrefill((prev) => ({ ...p, seq: (prev?.seq ?? 0) + 1 }));
   const loan = answer.data;
 
   return (
@@ -64,12 +69,13 @@ export function LoanDetailPage() {
             </ul>
           ) : null}
           <Section title={t('loan_detail.figures')}><LoanFigures loan={loan} /></Section>
+          {loan.ended ? null : <SimulationSection loan={loan} onRecord={loan.canWrite ? record : undefined} />}
           <Section title={t('loan_detail.contract')}>
             {loan.canWrite ? <Link to="/loans/$id/contract" params={{ id: loan.id }} className="text-sm underline">{t('loan_detail.edit_contract')}</Link> : null}
             <LoanContract loan={loan} />
           </Section>
           <FeesSection loan={loan} />
-          <RepaymentsSection loan={loan} />
+          <RepaymentsSection loan={loan} prefill={prefill} />
           <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
           {loan.canWrite ? (
             <Section title={t('loan_detail.settings.title')} announcement={settingsAnnouncement}>

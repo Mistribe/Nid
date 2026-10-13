@@ -220,7 +220,6 @@ describe('LoanDetailPage', () => {
     expect(await screen.findByText('Vous pouvez consulter ce crédit, pas le modifier.')).toBeInTheDocument();
     expect(screen.getByText('Partagé')).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Réglages' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Modifier le contrat' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });

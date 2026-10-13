@@ -1,4 +1,4 @@
-import type { LoanDetail, LoanList, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSummary } from './api';
+import type { LoanDetail, LoanList, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoanSummary } from './api';
 
 export const LOAN = '0192f0aa-0000-7000-8000-00000000d001';
 
@@ -57,4 +57,20 @@ export const schedule = (over: Partial<LoanSchedule> = {}): LoanSchedule => ({
     year({ year: 2027, payment: '11599.20', balance: '171000.35' }),
   ],
   totalInterest: '78380.66', totalPrincipal: '200000.00', warnings: [], ...over,
+});
+
+/** 10 000 € repaid on 2026-10-12 with a 300 € penalty, both effects as the server compares them. */
+export const simulation = (over: Partial<LoanSimulation> = {}): LoanSimulation => ({
+  on: '2026-10-12', amount: '10000.00', penalty: '300.00',
+  outcomes: [
+    {
+      effect: 'reduce_term', paymentBefore: '1159.92', paymentAfter: '1159.92', endBefore: '2045-10-15', endAfter: '2044-07-15',
+      paymentsBefore: 240, paymentsAfter: 226, interestBefore: '78380.66', interestAfter: '71814.08', interestSaved: '6566.58', netSaving: '6266.58',
+    },
+    {
+      effect: 'reduce_payment', paymentBefore: '1159.92', paymentAfter: '1088.43', endBefore: '2045-10-15', endAfter: '2045-10-15',
+      paymentsBefore: 240, paymentsAfter: 240, interestBefore: '78380.66', interestAfter: '75050.00', interestSaved: '3330.66', netSaving: '3030.66',
+    },
+  ],
+  ...over,
 });

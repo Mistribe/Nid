@@ -1340,6 +1340,27 @@
     "delete_confirm": "Ce remboursement anticipé sera supprimé.",
     "delete_confirm_penalty": "Ce remboursement anticipé et sa pénalité de {{amount}} seront supprimés."
   },
+  "loan_simulation": {
+    "title": "Simuler un remboursement anticipé",
+    "help": "Comparez les deux effets possibles d’un remboursement ; rien n’est enregistré.",
+    "on": "Date du remboursement",
+    "amount": "Montant à rembourser",
+    "penalty": "Pénalité",
+    "submit": "Simuler",
+    "announced": "Simulation calculée : comparez les deux effets ci-dessous.",
+    "result": "Résultat de la simulation",
+    "line": "Indicateur",
+    "payment": "Première mensualité après la date",
+    "end": "Dernière échéance",
+    "payments": "Nombre d’échéances",
+    "interest": "Intérêts sur toute la durée",
+    "interest_saved": "Intérêts économisés",
+    "net_saving": "Économie nette (pénalité déduite)",
+    "change": "de {{before}} à {{after}}",
+    "record": "Enregistrer ce remboursement",
+    "record_reduce_term": "Enregistrer ce remboursement en réduisant la durée",
+    "record_reduce_payment": "Enregistrer ce remboursement en réduisant la mensualité"
+  },
   "security": {
     "title": "Sécurité",
     "events_title": "Mes derniers événements",

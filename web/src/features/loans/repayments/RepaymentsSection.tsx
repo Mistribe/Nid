@@ -11,6 +11,7 @@ import { Reload } from '../../subscriptions/edits/Reload';
 import { invalidateLoans, REPAYMENT, type LoanDetail, type LoanRepayment } from '../api';
 import { effectText, money } from '../format';
 import { presentRefusal } from '../refusal';
+import type { RepaymentPrefill } from './repayment';
 import { RepaymentForm } from './RepaymentForm';
 
 const th = 'px-2 py-1 text-left font-medium';
@@ -21,19 +22,28 @@ const num = 'px-2 py-1 text-right tabular-nums';
  * 3B2 design §7: the early repayments by date (the server's order), edited in place as the fees: one form open at a
  * time, the section's live region and focus; a deletion the engine refuses is said in the row.
  */
-export function RepaymentsSection({ loan }: { loan: LoanDetail }) {
+export function RepaymentsSection({ loan, prefill = null }: { loan: LoanDetail; prefill?: RepaymentPrefill | null }) {
   const { t } = useTranslation();
   const writable = loan.canWrite;
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [prefilled, setPrefilled] = useState<RepaymentPrefill | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const startAdd = () => { setAnnouncement(''); setEditingId(null); setAdding(true); };
-  const closeAdd = (message?: string) => { setAdding(false); if (message) announce(message); else addButtonRef.current?.focus(); };
+  const startAdd = () => { setAnnouncement(''); setEditingId(null); setPrefilled(null); setAdding(true); };
+  const closeAdd = (message?: string) => { setAdding(false); setPrefilled(null); if (message) announce(message); else addButtonRef.current?.focus(); };
+  // « Enregistrer ce remboursement » (3B2 design §8): each press opens the add form afresh with its column; the form takes the focus.
+  useEffect(() => {
+    if (!prefill) return;
+    setAnnouncement('');
+    setEditingId(null);
+    setPrefilled(prefill);
+    setAdding(true);
+  }, [prefill]);
   const startEdit = (id: string) => { setAnnouncement(''); setAdding(false); setEditingId(id); };
   const closeEdit = (message?: string) => { const was = editingId; setEditingId(null); if (message) announce(message); else setFocusId(was); };
   useEffect(() => {
@@ -51,7 +61,7 @@ export function RepaymentsSection({ loan }: { loan: LoanDetail }) {
   return (
     <Section title={t('loan_detail.repayments')} headingRef={headingRef} announcement={announcement}>
       {writable ? <Button ref={addButtonRef} type="button" variant="outline" onClick={startAdd}>{t('loan_repayments.add')}</Button> : null}
-      {writable && adding ? <RepaymentForm loan={loan} onDone={closeAdd} /> : null}
+      {writable && adding ? <RepaymentForm key={prefilled?.seq ?? 0} loan={loan} prefill={prefilled} onDone={closeAdd} /> : null}
       <div className="overflow-x-auto">
         <table className="w-full text-sm" aria-label={t('loan_repayments.table')}>
           <thead>
