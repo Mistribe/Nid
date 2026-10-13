@@ -2,12 +2,12 @@ import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
 import { INSURANCE_MODES } from '../format';
-import type { NewLoanValues } from './newLoan';
+import type { ContractValues } from './newLoan';
 
 const input = 'rounded-md border px-3 py-2';
 
 /** One insurance (spec §6): its mode, then the monthly amount or the rate in % as the mode asks, its dates and note. */
-export function InsuranceFields({ form, index }: { form: UseFormReturn<NewLoanValues>; index: number }) {
+export function InsuranceFields({ form, index }: { form: UseFormReturn<ContractValues>; index: number }) {
   const { t } = useTranslation();
   const e = form.formState.errors.insurances?.[index];
   const mode = form.watch(`insurances.${index}.mode`);
@@ -30,7 +30,7 @@ export function InsuranceFields({ form, index }: { form: UseFormReturn<NewLoanVa
         </Field>
       )}
       <Field label={t('loan_form.starts_on')} error={e?.startsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.startsOn`)} className={input} />}
+        {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.startsOn`, { onChange: () => form.setValue(`insurances.${index}.follows`, false) })} className={input} />}
       </Field>
       <Field label={t('loan_form.ends_on')} hint={t('loan_form.optional')} error={e?.endsOn?.message}>
         {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.endsOn`)} className={input} />}

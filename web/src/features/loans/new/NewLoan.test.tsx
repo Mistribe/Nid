@@ -241,6 +241,29 @@ describe('NewLoan', () => {
     expect(sent(bodies).insurances).toEqual([{ mode: 'rate_on_remaining', annualRate: '0.0036', startsOn: '2026-10-12' }]);
   });
 
+  it('keeps an added insurance’s start on the first payment until its start is typed in', async () => {
+    serveCreate([]);
+    const { user } = await renderApp('/loans/new');
+
+    await fillPlain(user); // disbursed 2026-09-12, first payment proposed on 2026-10-12
+    await user.click(screen.getByRole('button', { name: 'Ajouter une assurance' }));
+    await user.click(screen.getByRole('button', { name: 'Ajouter une assurance' }));
+    const one = group('Assurance 1');
+    const two = group('Assurance 2');
+    await user.clear(within(two).getByLabelText('Début'));
+    await user.type(within(two).getByLabelText('Début'), '2027-01-12');
+
+    // The first payment re-proposed from the disbursement carries the untouched start along.
+    await user.clear(screen.getByLabelText('Date de déblocage'));
+    await user.type(screen.getByLabelText('Date de déblocage'), '2026-09-20');
+    expect(within(one).getByLabelText('Début')).toHaveValue('2026-10-20');
+    // So does a first payment typed in.
+    await user.clear(screen.getByLabelText('Première échéance'));
+    await user.type(screen.getByLabelText('Première échéance'), '2026-11-05');
+    expect(within(one).getByLabelText('Début')).toHaveValue('2026-11-05');
+    expect(within(two).getByLabelText('Début')).toHaveValue('2027-01-12');
+  });
+
   it('stops offering insurances at twenty', async () => {
     serveCreate([]);
     const { user } = await renderApp('/loans/new');
