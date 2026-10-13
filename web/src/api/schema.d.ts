@@ -5170,6 +5170,344 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertyList"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreatePropertyBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/realestate/properties/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertyDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EditPropertyBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -8327,6 +8665,25 @@ export interface components {
             phases?: null | components["schemas"]["LoanPhaseBody"][];
             insurances?: null | components["schemas"]["LoanInsuranceBody"][];
         };
+        CreatePropertyBody: {
+            name?: null | string;
+            currency?: null | string;
+            visibility?: null | string;
+            owners?: null | components["schemas"]["OwnerBody"][];
+            type?: null | string;
+            purchaseDate?: null | string;
+            purchasePrice?: null | string;
+            notaryFees?: null | string;
+            agencyFees?: null | string;
+            otherAcquisitionCosts?: null | string;
+            surfaceM2?: null | string;
+            locationLabel?: null | string;
+            valuationCadence?: null | string;
+            /** Format: int32 */
+            staleAfterDays?: null | number;
+            rentalStartsOn?: null | string;
+            note?: null | string;
+        };
         CreateProviderBody: {
             name: string;
             website?: null | string;
@@ -8467,6 +8824,29 @@ export interface components {
             name?: null | string;
             lender?: null | string;
             clearLender: boolean;
+            note?: null | string;
+            clearNote: boolean;
+        };
+        EditPropertyBody: {
+            /** Format: uint32 */
+            version?: null | number;
+            name?: null | string;
+            type?: null | string;
+            purchaseDate?: null | string;
+            purchasePrice?: null | string;
+            notaryFees?: null | string;
+            agencyFees?: null | string;
+            otherAcquisitionCosts?: null | string;
+            surfaceM2?: null | string;
+            clearSurfaceM2: boolean;
+            locationLabel?: null | string;
+            clearLocationLabel: boolean;
+            valuationCadence?: null | string;
+            /** Format: int32 */
+            staleAfterDays?: null | number;
+            clearStaleAfterDays: boolean;
+            rentalStartsOn?: null | string;
+            clearRentalStartsOn: boolean;
             note?: null | string;
             clearNote: boolean;
         };
@@ -9258,6 +9638,107 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+        };
+        PropertyCostLineView: {
+            code: string;
+            amount: string;
+        };
+        PropertyDetail: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            currency: string;
+            visibility: string;
+            owners: components["schemas"]["PropertyOwnerView"][];
+            /** Format: date */
+            purchaseDate: string;
+            purchasePrice: string;
+            notaryFees: string;
+            agencyFees: string;
+            otherAcquisitionCosts: string;
+            surfaceM2?: null | string;
+            locationLabel?: null | string;
+            valuationCadence: string;
+            /** Format: int32 */
+            staleAfterDays?: null | number;
+            /** Format: date */
+            rentalStartsOn?: null | string;
+            note?: null | string;
+            /** Format: uint32 */
+            version: number;
+            figures: components["schemas"]["PropertyFiguresView"];
+            warnings: components["schemas"]["PropertyWarningView"][];
+            valuations: components["schemas"]["PropertyValuationView"][];
+            flows: components["schemas"]["PropertyFlowView"][];
+            loans: components["schemas"]["PropertyLoanView"][];
+            canWrite: boolean;
+        };
+        PropertyFiguresView: {
+            value?: null | string;
+            /** Format: date */
+            valueOn?: null | string;
+            stale: boolean;
+            costPrice: string;
+            latentGain?: null | string;
+            linkedBalance: string;
+            netValue?: null | string;
+            realCost: string;
+            realCostLines: components["schemas"]["PropertyCostLineView"][];
+            netCostOfRents: string;
+        };
+        PropertyFlowView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            occurredOn: string;
+            kind: string;
+            amount: string;
+            category?: null | string;
+            note?: null | string;
+        };
+        PropertyList: {
+            items: components["schemas"]["PropertySummary"][];
+        };
+        PropertyLoanView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            currency: string;
+            balance: string;
+            balanceConverted?: null | string;
+        };
+        PropertyOwnerView: {
+            /** Format: uuid */
+            personId: string;
+            /** Format: int32 */
+            shareBp: number;
+        };
+        PropertySummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            currency: string;
+            value?: null | string;
+            /** Format: date */
+            valueOn?: null | string;
+            stale: boolean;
+            netValue?: null | string;
+            canWrite: boolean;
+        };
+        PropertyValuationView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            asOf: string;
+            amount: string;
+            note?: null | string;
+        };
+        PropertyWarningView: {
+            code: string;
+            /** Format: uuid */
+            loanId?: null | string;
         };
         ProviderSummaryView: {
             key: string;
