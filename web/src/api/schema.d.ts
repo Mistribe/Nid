@@ -9118,6 +9118,8 @@ export interface components {
             firstPeriod?: null | string;
             phases?: null | components["schemas"]["LoanPhaseBody"][];
             insurances?: null | components["schemas"]["LoanInsuranceBody"][];
+            /** Format: uuid */
+            propertyId?: null | string;
         };
         CreatePropertyBody: {
             name?: null | string;
@@ -9280,6 +9282,9 @@ export interface components {
             clearLender: boolean;
             note?: null | string;
             clearNote: boolean;
+            /** Format: uuid */
+            propertyId?: null | string;
+            clearProperty: boolean;
         };
         EditPropertyBody: {
             /** Format: uint32 */
@@ -9759,6 +9764,9 @@ export interface components {
             warnings: components["schemas"]["LoanWarningView"][];
             canWrite: boolean;
             ended: boolean;
+            /** Format: uuid */
+            propertyId?: null | string;
+            propertyName?: null | string;
         };
         LoanFeeBody: {
             kind?: null | string;
@@ -9946,6 +9954,9 @@ export interface components {
             endDate?: null | string;
             canWrite: boolean;
             ended: boolean;
+            /** Format: uuid */
+            propertyId?: null | string;
+            propertyName?: null | string;
         };
         LoanWarningView: {
             code: string;

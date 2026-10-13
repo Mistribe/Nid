@@ -49,6 +49,12 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
     /// request carrying a <c>ProviderKey</c>, which <c>LeakBenchTests</c> checks by reflection.
     /// </summary>
     public Func<MixedDataset, PersonId, ItemId, string, object>? BuildLinkingProvider { get; init; }
+
+    /// <summary>
+    /// The access the second axis expects on the second item: <c>Write</c> for a write reaching two items, <c>Read</c> for a link
+    /// to an item the actor only has to read (spec 3C1 §3: a loan's property).
+    /// </summary>
+    public AccessKind SecondItemAccess { get; init; } = AccessKind.Write;
 }
 
 /// <summary>
@@ -286,7 +292,13 @@ public static class RequestCatalogue
         new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),
         new(typeof(CreateLoanCommand), false, (d, _) => new CreateLoanCommand("bench", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], null, null, BenchContract)),
-        new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench"))),
+        new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench")))
+        {
+            // Spec 3C1 §3: a loan links to a property its actor reads; the bench names the property twin of the other row.
+            BuildNamingAnother = (d, target, other) => Task.FromResult<object>(
+                new EditLoanCommand(target, null, new LoanDetailsChange(PropertyId: d.PropertyTwinOf(other)))),
+            SecondItemAccess = AccessKind.Read,
+        },
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
 

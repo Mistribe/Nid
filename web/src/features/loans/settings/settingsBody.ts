@@ -22,7 +22,7 @@ export function toEditBody(before: LoanDetail, values: SettingsValues): EditBody
   return Object.keys(body).length === 0 ? null : body;
 }
 
-/** The wire body: `clearLender` and `clearNote` are required members, so both are stated. */
+/** The wire body: `clearLender`, `clearNote` and `clearProperty` are required members, so all are stated. */
 export function toWireBody(body: EditBody): components['schemas']['EditLoanBody'] {
-  return { clearLender: false, clearNote: false, ...body };
+  return { clearLender: false, clearNote: false, clearProperty: false, ...body };
 }

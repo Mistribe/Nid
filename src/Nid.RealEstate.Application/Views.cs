@@ -6,10 +6,14 @@ using static Nid.RealEstate.Application.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
-/// <summary>A row of <c>GET /loans</c> (spec 3A2 §4): the figures today; amounts and rates as invariant text (precision 1).</summary>
+/// <summary>
+/// A row of <c>GET /loans</c> (spec 3A2 §4): the figures today; amounts and rates as invariant text (precision 1).
+/// <c>PropertyName</c> is null when the reader cannot read the linked property, whose id stays (spec 3C1 §4): it is not exposed.
+/// </summary>
 public sealed record LoanSummary(
     ItemId Id, string Name, string? Lender, string Currency, string Visibility, string Principal, string RemainingBalance,
-    LocalDate? NextPaymentOn, string? NextPaymentTotal, string? CurrentRate, LocalDate? EndDate, bool CanWrite, bool Ended);
+    LocalDate? NextPaymentOn, string? NextPaymentTotal, string? CurrentRate, LocalDate? EndDate, bool CanWrite, bool Ended,
+    ItemId? PropertyId, string? PropertyName);
 
 public sealed record LoanList(IReadOnlyList<LoanSummary> Items) : IExposesItems
 {
@@ -45,7 +49,7 @@ public sealed record LoanWarningView(string Code, int Row);
 public sealed record LoanDetail(
     ItemId Id, string Name, string? Lender, string? Note, string Currency, string Visibility, IReadOnlyList<LoanBorrowerView> Borrowers,
     LoanContractView Contract, IReadOnlyList<LoanFeeView> Fees, IReadOnlyList<LoanRepaymentView> Repayments, LoanFiguresView Figures,
-    IReadOnlyList<LoanWarningView> Warnings, bool CanWrite, bool Ended) : IExposesItems
+    IReadOnlyList<LoanWarningView> Warnings, bool CanWrite, bool Ended, ItemId? PropertyId, string? PropertyName) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
@@ -72,17 +76,17 @@ public sealed record LoanSimulationView(LocalDate On, string Amount, string Pena
 /// <summary>Pure builders of the views, with the real engine (spec §5 tests them in Nid.RealEstate.Tests).</summary>
 internal static class LoanViews
 {
-    public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite)
+    public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms);
         var figures = LoanMath.At(terms, schedule, today);
         return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
-            canWrite, Ended(terms, schedule, today));
+            canWrite, Ended(terms, schedule, today), loan.PropertyId, propertyName);
     }
 
-    public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite)
+    public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms);
@@ -96,7 +100,8 @@ internal static class LoanViews
             .ToList();
         return new LoanDetail(loan.ItemId, item.DisplayName, loan.Lender, loan.Note, terms.Currency.Code, Wire(item.Visibility),
             item.Owners.Select(o => new LoanBorrowerView(o.PersonId.Value, o.ShareBp)).ToList(), ContractOf(loan), fees, repayments,
-            FiguresOf(LoanMath.At(terms, schedule, today)), WarningsOf(schedule), canWrite, Ended(terms, schedule, today));
+            FiguresOf(LoanMath.At(terms, schedule, today)), WarningsOf(schedule), canWrite, Ended(terms, schedule, today),
+            loan.PropertyId, propertyName);
     }
 
     /// <summary>

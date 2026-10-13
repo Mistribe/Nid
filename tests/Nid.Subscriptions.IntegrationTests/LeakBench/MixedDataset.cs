@@ -146,6 +146,10 @@ public sealed class MixedDataset
     /// <summary>The §2 name of an item, for a failure message that says which row went wrong.</summary>
     public string NameOf(ItemId item) => names.TryGetValue(item, out var name) ? name : item.ToString();
 
+    /// <summary>The property twin of a loan twin's row; any other id as it is (an unknown id stays unknown).</summary>
+    public ItemId PropertyTwinOf(ItemId loan)
+        => Loans.Where(kv => kv.Value == loan).Select(kv => (ItemId?)Properties[kv.Key]).FirstOrDefault() ?? loan;
+
     /// <summary>"A", "B" or "D" — how access-tests.md §2 names this person.</summary>
     public string NameOf(PersonId person)
         => person == App.AdultA ? "A" : person == App.AdultB ? "B" : person == App.Dependent ? "D" : person.ToString();

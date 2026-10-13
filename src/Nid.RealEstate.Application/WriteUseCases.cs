@@ -8,10 +8,13 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.RealEstate.Application;
 
-/// <summary>Spec 3A2 §4: open to every adult; the pipeline checks the borrowers as an item's creators (<c>ICreatesItem</c>).</summary>
+/// <summary>
+/// Spec 3A2 §4: open to every adult; the pipeline checks the borrowers as an item's creators (<c>ICreatesItem</c>).
+/// <paramref name="PropertyId"/> is the property it finances (spec 3C1 §1.5), checked by <see cref="PropertyCheck.LinkableAsync"/>.
+/// </summary>
 public sealed record CreateLoanCommand(
     string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, string? Lender, string? Note,
-    LoanContract Contract) : ICommand<ItemId>, ICreatesItem;
+    LoanContract Contract, ItemId? PropertyId = null) : ICommand<ItemId>, ICreatesItem;
 
 /// <summary>Spec 3A2 §4: name, lender and note, only what is sent; borrowers, visibility and currency are set at creation.</summary>
 public sealed record EditLoanCommand(ItemId ItemId, string? Name, LoanDetailsChange Change) : ICommand<ItemId>, IItemScoped
@@ -26,7 +29,8 @@ public sealed record ReplaceLoanContractCommand(ItemId ItemId, LoanContract Cont
 }
 
 [RequestHandler<CreateLoanCommand, ItemId>]
-public sealed class CreateLoanHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class CreateLoanHandler(
+    IItemRegistry items, ILoanStore loans, IPropertyStore properties, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
     : IRequestHandler<CreateLoanCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateLoanCommand command, CancellationToken ct = default)
@@ -36,6 +40,8 @@ public sealed class CreateLoanHandler(IItemRegistry items, ILoanStore loans, IUn
         var built = LoanScheduleBuilder.Build(LoanReading.Terms(command.Currency, command.Contract, [], []));
         if (built.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(LoanPaths.ForContract(failure!));
+        if (await PropertyCheck.LinkableAsync(properties, policy, actor.Current!.PersonId!.Value, command.PropertyId, ct) is { } unlinkable)
+            return Result.Failure<ItemId>(unlinkable);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(
@@ -43,14 +49,15 @@ public sealed class CreateLoanHandler(IItemRegistry items, ILoanStore loans, IUn
         if (created.TryGetFailure(out failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "borrowers")); // disposed without commit: nothing is left
         created.TryGetValue(out var id);
-        await loans.CreateAsync(id, command.Lender, command.Note, null, command.Contract, ct);
+        await loans.CreateAsync(id, command.Lender, command.Note, command.PropertyId, command.Contract, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditLoanCommand, ItemId>]
-public sealed class EditLoanHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class EditLoanHandler(
+    IItemRegistry items, ILoanStore loans, IPropertyStore properties, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
     : IRequestHandler<EditLoanCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditLoanCommand command, CancellationToken ct = default)
@@ -65,6 +72,11 @@ public sealed class EditLoanHandler(IItemRegistry items, ILoanStore loans, IUnit
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var found);
         var item = found.Item;
+
+        // Spec 3C1 §3: linking needs the property's read access (the loan's write access is the pipeline's); clearing needs nothing more.
+        if (!change.ClearProperty
+            && await PropertyCheck.LinkableAsync(properties, policy, actor.Current!.PersonId!.Value, change.PropertyId, ct) is { } unlinkable)
+            return Result.Failure<ItemId>(unlinkable);
 
         // The name is the Core item's: renamed as EditIncomeSourceHandler renames a source, visibility and borrowers kept.
         if (command.Name is { } name && name != item.DisplayName)

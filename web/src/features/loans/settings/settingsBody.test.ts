@@ -21,6 +21,6 @@ describe('toEditBody', () => {
 
 describe('toWireBody', () => {
   it('states both clear flags, which the wire type requires', () => {
-    expect(toWireBody({ name: 'Résidence' })).toEqual({ name: 'Résidence', clearLender: false, clearNote: false });
+    expect(toWireBody({ name: 'Résidence' })).toEqual({ name: 'Résidence', clearLender: false, clearNote: false, clearProperty: false });
   });
 });

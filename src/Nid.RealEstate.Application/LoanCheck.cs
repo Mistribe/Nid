@@ -26,6 +26,12 @@ internal static class LoanCheck
         return await LoadAsync(loans, items, id, ct);
     }
 
+    /// <summary>Spec 3C1 §4: the linked property's name when the reader can read it; null otherwise — the id stays, the loan's reader knows its own link.</summary>
+    public static async Task<string?> PropertyNameAsync(IAccessPolicy policy, IItemRegistry items, PersonId reader, ItemId? property, CancellationToken ct)
+        => property is { } id && (await policy.CheckAsync(reader, id, AccessKind.Read, ct)).IsSuccess
+            ? (await items.FindAsync(id, ct))?.DisplayName
+            : null;
+
     public static Failure Conflict(string code, string what)
         => new(code, $"Someone else changed this {what} since you read it; read it again.", null);
 }

@@ -60,6 +60,7 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
         var row = await db.Loans.SingleAsync(l => l.ItemId == item.Value, ct);
         if (change.ClearLender) row.Lender = null; else if (change.Lender is { } lender) row.Lender = lender;
         if (change.ClearNote) row.Note = null; else if (change.Note is { } note) row.Note = note;
+        if (change.ClearProperty) row.PropertyItemId = null; else if (change.PropertyId is { } property) row.PropertyItemId = property.Value;
         await db.SaveChangesAsync(ct);
     }
 

@@ -204,7 +204,7 @@ public static class RealEstateEndpoints
     public sealed record CreateLoanBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Borrowers, string? Lender, string? Note,
         string? Principal, string? DisbursedOn, string? FirstPaymentDate, int? TotalPayments, string? Rounding, string? FirstPeriod,
-        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances)
+        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances, Guid? PropertyId)
     {
         internal CreateLoanCommand? ToCommand(FieldReader reader)
         {
@@ -214,18 +214,20 @@ public static class RealEstateEndpoints
             var borrowers = LoanBodies.Borrowers(reader, Borrowers);
             var contract = LoanBodies.Contract(reader, Principal, DisbursedOn, FirstPaymentDate, TotalPayments, Rounding, FirstPeriod, Phases, Insurances);
             return reader.Ok
-                ? new CreateLoanCommand(Name ?? "", currency, visibility!.Value, borrowers!, Lender, Note, contract!)
+                ? new CreateLoanCommand(Name ?? "", currency, visibility!.Value, borrowers!, Lender, Note, contract!,
+                    PropertyId is { } property ? new ItemId(property) : null)
                 : null;
         }
     }
 
     /// <summary>
-    /// Spec §4: name, lender and note, only what is sent; <c>clear…</c> empties an optional field. Borrowers, visibility and
-    /// currency are set at creation: the body has no such members (as an income source's).
+    /// Spec §4: name, lender, note and the linked property (spec 3C1 §4), only what is sent; <c>clear…</c> empties an optional
+    /// field. Borrowers, visibility and currency are set at creation: the body has no such members (as an income source's).
     /// </summary>
-    public sealed record EditLoanBody(string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote)
+    public sealed record EditLoanBody(string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote, Guid? PropertyId, bool ClearProperty)
     {
-        public EditLoanCommand ToCommand(ItemId id) => new(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote));
+        public EditLoanCommand ToCommand(ItemId id) => new(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote,
+            PropertyId is { } property ? new ItemId(property) : null, ClearProperty));
     }
 
     /// <summary>Spec §4: the whole contract and the <c>version</c> read with it.</summary>

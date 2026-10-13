@@ -10142,6 +10142,13 @@
             "items": {
               "$ref": "#/components/schemas/LoanInsuranceBody"
             }
+          },
+          "propertyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -10846,7 +10853,8 @@
       "EditLoanBody": {
         "required": [
           "clearLender",
-          "clearNote"
+          "clearNote",
+          "clearProperty"
         ],
         "type": "object",
         "properties": {
@@ -10872,6 +10880,16 @@
             ]
           },
           "clearNote": {
+            "type": "boolean"
+          },
+          "propertyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearProperty": {
             "type": "boolean"
           }
         }
@@ -12872,6 +12890,19 @@
           },
           "ended": {
             "type": "boolean"
+          },
+          "propertyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "propertyName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -13623,6 +13654,19 @@
           },
           "ended": {
             "type": "boolean"
+          },
+          "propertyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "propertyName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

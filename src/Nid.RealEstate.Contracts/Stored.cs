@@ -60,8 +60,10 @@ public sealed record StoredLoan(
     ItemId ItemId, string? Lender, string? Note, LoanContract Contract, uint Version,
     IReadOnlyList<StoredFee> Fees, IReadOnlyList<StoredRepayment> Repayments, ItemId? PropertyId = null);
 
-/// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
-public sealed record LoanDetailsChange(string? Lender = null, bool ClearLender = false, string? Note = null, bool ClearNote = false);
+/// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one. <c>PropertyId</c> links the loan (spec 3C1 §1.5).</summary>
+public sealed record LoanDetailsChange(
+    string? Lender = null, bool ClearLender = false, string? Note = null, bool ClearNote = false,
+    ItemId? PropertyId = null, bool ClearProperty = false);
 
 public interface ILoanStore
 {

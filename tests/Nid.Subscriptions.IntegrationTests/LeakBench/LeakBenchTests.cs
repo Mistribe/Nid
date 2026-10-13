@@ -371,7 +371,10 @@ public class LeakBenchTests(PostgresFixture fixture)
                     continue;
                 }
 
-                if (!data.ExpectedWritable(otherName, actor))
+                // A link needs only the second item's read access (spec 3C1 §3); every other second item, its write access.
+                if (entry.SecondItemAccess == AccessKind.Read
+                        ? !data.ExpectedReadable(actor).Contains(other)
+                        : !data.ExpectedWritable(otherName, actor))
                 {
                     // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
                     // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
