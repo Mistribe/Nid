@@ -126,6 +126,14 @@ public sealed class MixedDataset
                 envelopes[row.Name], new FlowDraft(new LocalDate(2025, 3, 1), "contribution", Money.Create(900m, Currency.Eur).Ok(), null, null, row.Label)));
             if (valueRefused is not null || flowRefused is not null)
                 throw new InvalidOperationException($"Seeding {row.Name}'s facts failed: {(valueRefused ?? flowRefused)!.Code}");
+
+            // The property twin's estimate and flow too, the label in their notes: a property read returning another item's facts is caught.
+            var (_, estimateRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.RecordPropertyValuationCommand(
+                properties[row.Name], new LocalDate(2025, 3, 31), 1000m, row.Label));
+            var (_, expenseRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.RecordPropertyFlowCommand(
+                properties[row.Name], new Nid.RealEstate.Application.PropertyFlowDraft(new LocalDate(2025, 3, 1), "expense", 900m, "other", row.Label)));
+            if (estimateRefused is not null || expenseRefused is not null)
+                throw new InvalidOperationException($"Seeding {row.Name}'s property facts failed: {(estimateRefused ?? expenseRefused)!.Code}");
         }
 
         // Each private item gets a custom provider named after its label, through the real requests: a provider list
@@ -138,6 +146,18 @@ public sealed class MixedDataset
             var (_, notLinked) = await app.InvokeAsync(owner, new EditSubscriptionCommand(items[name], null, null, false, null, ((ProviderView)created!).Key));
             if (notLinked is not null)
                 throw new InvalidOperationException($"Linking {name}'s provider failed: {notLinked.Code}");
+        }
+
+        // Each loan twin is linked to its row's property twin, except the private ones, linked to their owner's shared property:
+        // the other adult reads that property, and the textual scan finds the private loan's label in it if it is ever shown.
+        foreach (var row in Rows)
+        {
+            var property = properties[row.Name switch { "P-A" => "S-A", "P-B" => "S-B", var same => same }];
+            var writer = row.Owners.Select(o => PersonOf(app, o)).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA);
+            var (_, refused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.EditLoanCommand(
+                loans[row.Name], null, new Nid.RealEstate.Contracts.LoanDetailsChange(PropertyId: property)));
+            if (refused is not null)
+                throw new InvalidOperationException($"Linking {row.Name}'s loan failed: {refused.Code}");
         }
 
         return new MixedDataset(app, items, envelopes, incomeSources, loans, properties);
