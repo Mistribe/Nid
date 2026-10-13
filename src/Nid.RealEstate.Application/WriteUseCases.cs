@@ -43,7 +43,7 @@ public sealed class CreateLoanHandler(IItemRegistry items, ILoanStore loans, IUn
         if (created.TryGetFailure(out failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "borrowers")); // disposed without commit: nothing is left
         created.TryGetValue(out var id);
-        await loans.CreateAsync(id, command.Lender, command.Note, command.Contract, ct);
+        await loans.CreateAsync(id, command.Lender, command.Note, null, command.Contract, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(id);
     }

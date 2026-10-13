@@ -6,9 +6,9 @@ namespace Nid.RealEstate.Infrastructure.Persistence;
 
 public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
 {
-    public async Task CreateAsync(ItemId item, string? lender, string? note, LoanContract contract, CancellationToken ct)
+    public async Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct)
     {
-        var row = new LoanRow { ItemId = item.Value, Lender = lender, Note = note };
+        var row = new LoanRow { ItemId = item.Value, Lender = lender, Note = note, PropertyItemId = property?.Value };
         Fill(row, contract);
         db.Loans.Add(row);
         AddParts(item, contract);
@@ -40,8 +40,16 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
                     insurances[l.ItemId].OrderBy(i => i.StartsOn).ThenBy(i => i.Id).Select(ToInsurance).ToList()),
                 l.Version,
                 fees[l.ItemId].OrderBy(f => f.OnDate).ThenBy(f => f.Id).Select(ToFee).ToList(),
-                events[l.ItemId].OrderBy(e => e.OnDate).ThenBy(e => e.Id).Select(ToRepayment).ToList()))
+                events[l.ItemId].OrderBy(e => e.OnDate).ThenBy(e => e.Id).Select(ToRepayment).ToList(),
+                l.PropertyItemId is { } property ? new ItemId(property) : null))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<StoredLoan>> FindLinkedAsync(IReadOnlyCollection<ItemId> properties, CancellationToken ct)
+    {
+        var ids = properties.Select(p => (Guid?)p.Value).ToList();
+        var linked = await db.Loans.AsNoTracking().Where(l => ids.Contains(l.PropertyItemId)).Select(l => l.ItemId).ToListAsync(ct);
+        return await FindManyAsync(linked.Select(i => new ItemId(i)).ToList(), ct);
     }
 
     public Task LockAsync(ItemId item, CancellationToken ct)

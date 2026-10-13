@@ -24,7 +24,7 @@ public class LoanStoreTests(PostgresFixture fixture)
     {
         var store = new LoanStore(PostgresFixture.NewRealEstateContext(await f.NewConnectionStringAsync()));
         var id = ItemId.New();
-        await store.CreateAsync(id, "Banque", "note", Contract(), default);
+        await store.CreateAsync(id, "Banque", "note", null, Contract(), default);
         return (store, id);
     }
 
@@ -93,5 +93,19 @@ public class LoanStoreTests(PostgresFixture fixture)
         await store.LockAsync(id, default); // outside a transaction the lock is released at once: it must simply not fail
         await store.DeleteRepaymentAsync(id, repayment, default);
         Assert.Empty((await store.FindAsync(id, default))!.Repayments);
+    }
+
+    [Fact]
+    public async Task A_loan_keeps_its_property_and_is_found_by_it()
+    {
+        var store = new LoanStore(PostgresFixture.NewRealEstateContext(await fixture.NewConnectionStringAsync()));
+        var (property, other, linked, alone) = (ItemId.New(), ItemId.New(), ItemId.New(), ItemId.New());
+        await store.CreateAsync(linked, null, null, property, Contract(), default);
+        await store.CreateAsync(alone, null, null, null, Contract(), default);
+
+        Assert.Equal(property, (await store.FindAsync(linked, default))!.PropertyId);
+        Assert.Null((await store.FindAsync(alone, default))!.PropertyId);
+        Assert.Equal([linked], (await store.FindLinkedAsync([property], default)).Select(l => l.ItemId));
+        Assert.Empty(await store.FindLinkedAsync([other], default));
     }
 }

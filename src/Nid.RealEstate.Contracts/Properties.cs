@@ -62,3 +62,22 @@ public sealed record PropertyFigures(
     decimal? Value, LocalDate? ValueOn, bool Stale, decimal CostPrice, decimal? LatentGain, decimal LinkedBalance, decimal? NetValue,
     decimal RealCost, IReadOnlyList<CostLine> RealCostLines, decimal NetCostOfRents, IReadOnlyList<LinkedLoanBalance> Loans,
     IReadOnlyList<PropertyWarning> Warnings);
+
+/// <summary>A property as stored. <c>Version</c> is its row's <c>xmin</c>: it moves when one of its fields changes, not on a rename.</summary>
+public sealed record StoredProperty(ItemId ItemId, PropertyDetails Details, uint Version);
+
+public interface IPropertyStore
+{
+    Task CreateAsync(ItemId item, PropertyDetails details, CancellationToken ct);
+
+    /// <summary>Null when the item is not a property (or does not exist).</summary>
+    Task<StoredProperty?> FindAsync(ItemId item, CancellationToken ct);
+
+    Task<IReadOnlyList<StoredProperty>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+
+    /// <summary>Locks the property's row until the transaction ends: a PATCH compares its version with what is now stored (precision 4).</summary>
+    Task LockAsync(ItemId item, CancellationToken ct);
+
+    /// <summary>Every field in place.</summary>
+    Task UpdateAsync(ItemId item, PropertyDetails details, CancellationToken ct);
+}

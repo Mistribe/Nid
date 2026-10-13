@@ -19,6 +19,8 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     public DbSet<LoanEventRow> Events => Set<LoanEventRow>();
 
+    public DbSet<PropertyRow> Properties => Set<PropertyRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -36,6 +38,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
             e.Property(x => x.Principal).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => x.PropertyItemId);
             MapXmin(e.Property(x => x.Version));
         });
 
@@ -91,6 +94,29 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
             e.HasIndex(x => x.LoanItemId);
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<PropertyRow>(e =>
+        {
+            e.ToTable("property", t =>
+            {
+                t.HasCheckConstraint("ck_property_type",
+                    "property_type in ('primary_residence','secondary_residence','rental','parking','land','other')");
+                t.HasCheckConstraint("ck_property_purchase_price", "purchase_price > 0");
+                t.HasCheckConstraint("ck_property_fees", "notary_fees >= 0 and agency_fees >= 0 and other_acquisition_costs >= 0");
+                t.HasCheckConstraint("ck_property_surface", "surface_m2 is null or surface_m2 > 0");
+                t.HasCheckConstraint("ck_property_cadence", "valuation_cadence in ('yearly','manual')");
+                t.HasCheckConstraint("ck_property_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
+                t.HasCheckConstraint("ck_property_rental_starts_on", "rental_starts_on is null or rental_starts_on >= purchase_date");
+            });
+            e.HasKey(x => x.ItemId);
+            e.Property(x => x.ItemId).ValueGeneratedNever();
+            e.Property(x => x.PurchasePrice).HasColumnType("numeric(19,4)");
+            e.Property(x => x.NotaryFees).HasColumnType("numeric(19,4)");
+            e.Property(x => x.AgencyFees).HasColumnType("numeric(19,4)");
+            e.Property(x => x.OtherAcquisitionCosts).HasColumnType("numeric(19,4)");
+            e.Property(x => x.SurfaceM2).HasColumnType("numeric(19,4)");
             MapXmin(e.Property(x => x.Version));
         });
 

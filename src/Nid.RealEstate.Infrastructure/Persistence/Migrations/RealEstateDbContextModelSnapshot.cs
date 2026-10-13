@@ -362,6 +362,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("principal");
 
+                    b.Property<Guid?>("PropertyItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_item_id");
+
                     b.Property<string>("RoundingMode")
                         .IsRequired()
                         .HasColumnType("text")
@@ -380,6 +384,9 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasKey("ItemId")
                         .HasName("pk_loan");
 
+                    b.HasIndex("PropertyItemId")
+                        .HasDatabaseName("ix_loan_property_item_id");
+
                     b.ToTable("loan", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_loan_dates", "first_payment_date >= disbursed_on");
@@ -391,6 +398,89 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_loan_rounding_mode", "rounding_mode in ('half_up','truncate')");
 
                             t.HasCheckConstraint("ck_loan_total_payments", "total_payments between 1 and 600");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.PropertyRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<decimal>("AgencyFees")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("agency_fees");
+
+                    b.Property<string>("LocationLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("location_label");
+
+                    b.Property<decimal>("NotaryFees")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("notary_fees");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<decimal>("OtherAcquisitionCosts")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("other_acquisition_costs");
+
+                    b.Property<string>("PropertyType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("property_type");
+
+                    b.Property<LocalDate>("PurchaseDate")
+                        .HasColumnType("date")
+                        .HasColumnName("purchase_date");
+
+                    b.Property<decimal>("PurchasePrice")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("purchase_price");
+
+                    b.Property<LocalDate?>("RentalStartsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("rental_starts_on");
+
+                    b.Property<int?>("StaleAfterDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("stale_after_days");
+
+                    b.Property<decimal?>("SurfaceM2")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("surface_m2");
+
+                    b.Property<string>("ValuationCadence")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("valuation_cadence");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("ItemId")
+                        .HasName("pk_property");
+
+                    b.ToTable("property", "realestate", t =>
+                        {
+                            t.HasCheckConstraint("ck_property_cadence", "valuation_cadence in ('yearly','manual')");
+
+                            t.HasCheckConstraint("ck_property_fees", "notary_fees >= 0 and agency_fees >= 0 and other_acquisition_costs >= 0");
+
+                            t.HasCheckConstraint("ck_property_purchase_price", "purchase_price > 0");
+
+                            t.HasCheckConstraint("ck_property_rental_starts_on", "rental_starts_on is null or rental_starts_on >= purchase_date");
+
+                            t.HasCheckConstraint("ck_property_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
+
+                            t.HasCheckConstraint("ck_property_surface", "surface_m2 is null or surface_m2 > 0");
+
+                            t.HasCheckConstraint("ck_property_type", "property_type in ('primary_residence','secondary_residence','rental','parking','land','other')");
                         });
                 });
 #pragma warning restore 612, 618

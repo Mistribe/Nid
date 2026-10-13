@@ -52,22 +52,28 @@ public sealed record StoredFee(Guid Id, LoanFee Fee, string? Note, uint Version)
 /// <summary>An early repayment; <c>FeeId</c> is its penalty, a fee of kind <c>early_repayment_penalty</c> on its date.</summary>
 public sealed record StoredRepayment(Guid Id, EarlyRepayment Repayment, Guid? FeeId, string? Note, uint Version);
 
-/// <summary>A loan as stored. <c>Version</c> is the loan row's, the contract's; fees and repayments by date, then id.</summary>
+/// <summary>
+/// A loan as stored. <c>Version</c> is the loan row's, the contract's; fees and repayments by date, then id;
+/// <c>PropertyId</c> is the property it finances (spec 3C1 §2), a column of the same row.
+/// </summary>
 public sealed record StoredLoan(
     ItemId ItemId, string? Lender, string? Note, LoanContract Contract, uint Version,
-    IReadOnlyList<StoredFee> Fees, IReadOnlyList<StoredRepayment> Repayments);
+    IReadOnlyList<StoredFee> Fees, IReadOnlyList<StoredRepayment> Repayments, ItemId? PropertyId = null);
 
 /// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
 public sealed record LoanDetailsChange(string? Lender = null, bool ClearLender = false, string? Note = null, bool ClearNote = false);
 
 public interface ILoanStore
 {
-    Task CreateAsync(ItemId item, string? lender, string? note, LoanContract contract, CancellationToken ct);
+    Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct);
 
     /// <summary>Null when the item is not a loan (or does not exist).</summary>
     Task<StoredLoan?> FindAsync(ItemId item, CancellationToken ct);
 
     Task<IReadOnlyList<StoredLoan>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+
+    /// <summary>The loans linked to these properties, whoever may read them: the caller filters (spec 3C1 §1.7).</summary>
+    Task<IReadOnlyList<StoredLoan>> FindLinkedAsync(IReadOnlyCollection<ItemId> properties, CancellationToken ct);
 
     /// <summary>Locks the loan's row until the transaction ends: a loan's writes run one after the other (precision 5).</summary>
     Task LockAsync(ItemId item, CancellationToken ct);
