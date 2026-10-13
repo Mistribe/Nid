@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import type { LoanDetail } from '../api';
-import { effectText, feeKindText, firstPeriodText, insuranceModeText, modeText, money, percent, rateTypeText, roundingText } from '../format';
+import { firstPeriodText, insuranceModeText, modeText, money, percent, rateTypeText, roundingText } from '../format';
 import { Terms } from './Terms';
 
 const th = 'px-2 py-1 text-left font-medium';
@@ -85,68 +85,6 @@ export function LoanContract({ loan }: { loan: LoanDetail }) {
           </table>
         </div>
       )}
-    </div>
-  );
-}
-
-/** Spec §7: fees and early repayments, read (adding them is 3B2); a table only for what exists. */
-export function FeesAndRepayments({ loan }: { loan: LoanDetail }) {
-  const { t } = useTranslation();
-  const m = (amount: string) => money(loan.currency, amount);
-  return (
-    <div className="space-y-4">
-      {loan.fees.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <caption className={caption}>{t('loan_detail.fees')}</caption>
-            <thead>
-              <tr>
-                <th scope="col" className={th}>{t('loan_detail.col_date')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_kind')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_amount')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_note')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loan.fees.map((f) => (
-                <tr key={f.id} className="border-t">
-                  <td className={td}><LocalDate value={f.onDate} /></td>
-                  <td className={td}>{feeKindText(t, f.kind)}</td>
-                  <td className={num}>{m(f.amount)}</td>
-                  <td className={td}>{f.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-      {loan.repayments.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <caption className={caption}>{t('loan_detail.repayments')}</caption>
-            <thead>
-              <tr>
-                <th scope="col" className={th}>{t('loan_detail.col_date')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_effect')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_amount')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_penalty')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_note')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loan.repayments.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className={td}><LocalDate value={r.onDate} /></td>
-                  <td className={td}>{effectText(t, r.effect)}</td>
-                  <td className={num}>{m(r.amount)}</td>
-                  <td className={num}>{r.penalty ? m(r.penalty) : null}</td>
-                  <td className={td}>{r.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
 import { PHASE_MODES, RATE_TYPES } from '../format';
 import { Folded } from './Folded';
-import type { NewLoanValues } from './newLoan';
+import type { ContractValues } from './newLoan';
 
 const input = 'rounded-md border px-3 py-2';
 
 /** One line of the phase list (spec §6): mode, rate in %, fixed or variable, its count; the rest under « Plus d’options ». */
-export function PhaseFields({ form, index, last }: { form: UseFormReturn<NewLoanValues>; index: number; last: boolean }) {
+export function PhaseFields({ form, index, last }: { form: UseFormReturn<ContractValues>; index: number; last: boolean }) {
   const { t } = useTranslation();
   const e = form.formState.errors.phases?.[index];
   return (

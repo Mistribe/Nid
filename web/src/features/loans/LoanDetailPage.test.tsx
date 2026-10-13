@@ -132,41 +132,6 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('lists the fees and early repayments when there are any', async () => {
-    serve(loanDetail({
-      fees: [
-        { id: 'f1', kind: 'file', amount: '1000.00', onDate: '2025-10-15', note: 'dossier', repaymentId: null, version: 1 },
-        { id: 'f2', kind: 'early_repayment_penalty', amount: '300.00', onDate: '2026-03-20', note: null, repaymentId: 'r1', version: 2 },
-      ],
-      repayments: [{ id: 'r1', onDate: '2026-03-20', amount: '10000.00', effect: 'reduce_payment', penalty: '300.00', note: 'prime', version: 3 }],
-    }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
-
-    await heading();
-    const region = screen.getByRole('region', { name: 'Frais et remboursements anticipés' });
-    const fees = bodyRows(region, 'Frais');
-    expect(fees[0]).toHaveTextContent('15 octobre 2025');
-    expect(fees[0]).toHaveTextContent('Frais de dossier');
-    expect(fees[0]).toHaveTextContent('1 000,00 €');
-    expect(fees[0]).toHaveTextContent('dossier');
-    expect(fees[1]).toHaveTextContent('Pénalité de remboursement anticipé');
-    const repayments = bodyRows(region, 'Remboursements anticipés');
-    expect(repayments[0]).toHaveTextContent('20 mars 2026');
-    expect(repayments[0]).toHaveTextContent('Mensualité réduite');
-    expect(repayments[0]).toHaveTextContent('10 000,00 €');
-    expect(repayments[0]).toHaveTextContent('300,00 €');
-    expect(repayments[0]).toHaveTextContent('prime');
-    await expectNoAxeViolations(container);
-  });
-
-  it('shows no fee or repayment section without any', async () => {
-    serve();
-    await renderApp(`/loans/${LOAN}`);
-
-    await heading();
-    expect(screen.queryByRole('region', { name: 'Frais et remboursements anticipés' })).not.toBeInTheDocument();
-  });
-
   it('reads the schedule by year, the current year open and today’s payment marked in words', async () => {
     serve();
     const { user, container } = await renderApp(`/loans/${LOAN}`);
@@ -195,19 +160,31 @@ describe('LoanDetailPage', () => {
     expect(within(table()).getAllByRole('row')).toHaveLength(1 + 3 + 10);
   });
 
-  it('opens the first payment’s year when the loan starts after this year, its first payment marked', async () => {
+  it('opens the next payment’s year late in December, though this year still has payments, and marks that payment', async () => {
     vi.setSystemTime(new Date(2026, 11, 20, 12));
-    serve(loanDetail(), schedule({ rows: rows('2027-01-15', 24), years: [year({ year: 2027 }), year({ year: 2028 })] }));
+    serve(loanDetail({ figures: { ...loanDetail().figures, nextPaymentOn: '2027-01-15' } }));
     await renderApp(`/loans/${LOAN}`);
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     expect(yearButton(2027)).toHaveAttribute('aria-expanded', 'true');
+    expect(yearButton(2026)).toHaveAttribute('aria-expanded', 'false');
     expect(within(table()).getByText('prochaine échéance').closest('tr')).toHaveTextContent('15 janvier 2027');
   });
 
-  it('folds every year and marks nothing once every payment is past', async () => {
+  it('marks the figures’ next payment, a payment due today counting as paid', async () => {
+    vi.setSystemTime(new Date(2026, 9, 15, 12));
+    serve(loanDetail({ figures: { ...loanDetail().figures, nextPaymentOn: '2026-11-15' } }));
+    await renderApp(`/loans/${LOAN}`);
+
+    await screen.findByRole('table', { name: 'Échéancier par année' });
+    const marked = within(table()).getByText('prochaine échéance').closest('tr')!;
+    expect(marked).toHaveTextContent('15 novembre 2026');
+    expect(within(marked).getAllByRole('cell')[0]).toHaveTextContent('13');
+  });
+
+  it('folds every year and marks nothing for an ended loan', async () => {
     vi.setSystemTime(new Date(2028, 2, 1, 12));
-    serve();
+    serve(loanDetail({ ended: true, figures: { ...loanDetail().figures, nextPaymentOn: null, nextPaymentTotal: null } }));
     await renderApp(`/loans/${LOAN}`);
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
@@ -243,7 +220,7 @@ describe('LoanDetailPage', () => {
     expect(await screen.findByText('Vous pouvez consulter ce crédit, pas le modifier.')).toBeInTheDocument();
     expect(screen.getByText('Partagé')).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Réglages' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Modifier le contrat' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 

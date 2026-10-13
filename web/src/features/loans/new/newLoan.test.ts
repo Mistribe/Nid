@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { newInsurance, newLoanPath, newLoanSchema, newPhase, plusOneMonth, toCreateBody, type NewLoanValues } from './newLoan';
+import { contractPath, contractSchema, newInsurance, newLoanPath, newLoanSchema, newPhase, plusOneMonth, toContractBody, toCreateBody, type NewLoanValues } from './newLoan';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -119,5 +119,34 @@ describe('server paths', () => {
     expect(newLoanPath('phases[0].seq')).toBeUndefined();
     expect(newLoanPath('insurances')).toBeUndefined();
     expect(newLoanPath('version')).toBeUndefined();
+  });
+});
+
+describe('the contract alone', () => {
+  it('checks the contract’s own fields without the loan’s identity', () => {
+    const { principal, totalPayments, disbursedOn, rounding, firstPeriod, phases, insurances } = valid();
+    const contract = { principal, totalPayments, disbursedOn, firstPaymentDate: '2026-09-11', rounding, firstPeriod, phases, insurances };
+    const r = contractSchema(t).safeParse(contract);
+    expect(r.success ? [] : r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)).toEqual(['firstPaymentDate: loan_form.first_after_disbursed']);
+  });
+
+  it('sends the contract without the loan’s identity', () => {
+    expect(toContractBody(valid())).toEqual({
+      principal: '200000', totalPayments: 240, disbursedOn: '2026-09-12', firstPaymentDate: '2026-10-12', rounding: 'half_up',
+      firstPeriod: 'full', phases: [{ seq: 1, mode: 'annuity', annualRate: '0.035', rateType: 'fixed' }], insurances: [],
+    });
+  });
+
+  it('places a contract path, and leaves the identity’s and a repayment’s to the page', () => {
+    expect(contractPath('phases[1].annualRate')).toBe('phases.1.rate');
+    expect(contractPath('phases')).toBe('totalPayments');
+    expect(contractPath('insurances[0].startsOn')).toBe('insurances.0.startsOn');
+    expect(contractPath('name')).toBeUndefined();
+    expect(contractPath('borrowers')).toBeUndefined();
+    expect(contractPath('repayments[0].amount')).toBeUndefined();
+  });
+
+  it('marks an insurance added on the form as following the first payment', () => {
+    expect(newInsurance('2026-10-12')).toMatchObject({ startsOn: '2026-10-12', follows: true });
   });
 });
