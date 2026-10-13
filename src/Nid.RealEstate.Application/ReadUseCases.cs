@@ -84,7 +84,7 @@ public sealed class GetLoanScheduleHandler(ILoanStore loans, IItemRegistry items
             return Result.Failure<LoanScheduleView>(failure!);
         loaded.TryGetValue(out var found);
         var terms = LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
-        return Result.Success(LoanViews.ScheduleOf(LoanReading.Schedule(terms)));
+        return Result.Success(LoanViews.ScheduleOf(terms, LoanReading.Schedule(terms)));
     }
 }
 

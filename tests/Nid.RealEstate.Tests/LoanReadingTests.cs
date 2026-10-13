@@ -11,6 +11,8 @@ public class LoanReadingTests
 {
     private static readonly LocalDate After60 = Loans.First.PlusMonths(59);
 
+    private static LoanScheduleView ScheduleOf(LoanTerms terms) => LoanViews.ScheduleOf(terms, Loans.Ok(LoanScheduleBuilder.Build(terms)));
+
     [Fact]
     public void The_list_row_reads_the_golden_case_after_its_60th_payment()
     {
@@ -71,7 +73,7 @@ public class LoanReadingTests
     [Fact]
     public void The_schedule_and_a_simulation_read_as_text()
     {
-        var schedule = LoanViews.ScheduleOf(Loans.Ok(LoanScheduleBuilder.Build(Loans.Golden())));
+        var schedule = ScheduleOf(Loans.Golden());
         Assert.Equal(240, schedule.Rows.Count);
         Assert.Equal(("1159.92", "583.33", "576.59", "0.035"), (schedule.Rows[0].Payment, schedule.Rows[0].Interest, schedule.Rows[0].Principal, schedule.Rows[0].AnnualRate));
         Assert.Equal(("162253.12", (string?)null), (schedule.Rows[59].Balance, schedule.Rows[59].EarlyRepayment));
@@ -102,7 +104,7 @@ public class LoanReadingTests
     [Fact]
     public void The_schedule_totals_each_calendar_year_exactly() // spec 3B1 §4.1
     {
-        var schedule = LoanViews.ScheduleOf(Loans.Ok(LoanScheduleBuilder.Build(Loans.Golden())));
+        var schedule = ScheduleOf(Loans.Golden());
 
         Assert.Equal(Enumerable.Range(2024, 21), schedule.Years.Select(y => y.Year));
         var first = schedule.Years[0]; // February to December 2024: eleven payments
@@ -123,11 +125,66 @@ public class LoanReadingTests
             Events = [new EarlyRepayment(new LocalDate(2029, 2, 20), 10_000m, RepaymentEffect.ReducePayment)],
         };
 
-        var schedule = LoanViews.ScheduleOf(Loans.Ok(LoanScheduleBuilder.Build(terms)));
+        var schedule = ScheduleOf(terms);
 
         var y2029 = schedule.Years.Single(y => y.Year == 2029);
         Assert.Equal(("10000.00", "240.00"), (y2029.EarlyRepayment, y2029.Insurance));
         Assert.Equal(schedule.Rows.Last(r => r.DueDate.Year == 2029).Balance, y2029.Balance);
         Assert.Equal(("220.00", "0.00"), (schedule.Years[0].Insurance, schedule.Years[0].EarlyRepayment));
+    }
+
+    [Fact]
+    public void A_repayment_before_the_first_payment_counts_in_its_own_year_even_without_a_row() // spec 3B2 §3
+    {
+        // Disbursed in December 2023, first payment in February 2024: one repayment in each calendar year before it.
+        var terms = Loans.Golden() with
+        {
+            DisbursedOn = new LocalDate(2023, 12, 1),
+            Events =
+            [
+                new EarlyRepayment(new LocalDate(2023, 12, 20), 10_000m, RepaymentEffect.ReduceTerm),
+                new EarlyRepayment(new LocalDate(2024, 1, 20), 5_000m, RepaymentEffect.ReduceTerm),
+            ],
+        };
+
+        var schedule = ScheduleOf(terms);
+
+        var y2023 = schedule.Years[0];
+        Assert.Equal((2023, "0.00", "0.00", "0.00", "0.00", "10000.00", "190000.00"),
+            (y2023.Year, y2023.Payment, y2023.Interest, y2023.Principal, y2023.Insurance, y2023.EarlyRepayment, y2023.Balance));
+        var y2024 = schedule.Years[1];
+        Assert.Equal((2024, "5000.00"), (y2024.Year, y2024.EarlyRepayment));
+        Assert.Equal(schedule.Rows.Last(r => r.DueDate.Year == 2024).Balance, y2024.Balance);
+    }
+
+    [Fact]
+    public void An_off_date_repayment_counts_in_the_year_it_is_dated_and_the_year_before_ends_on_31_december() // spec 3B2 §3
+    {
+        // Dated 2030-01-05, the repayment applies right after the 2029-12-15 payment: that row's balance already deducts it.
+        var terms = Loans.Golden() with { Events = [new EarlyRepayment(new LocalDate(2030, 1, 5), 10_000m, RepaymentEffect.ReduceTerm)] };
+        var rows = Loans.Ok(LoanScheduleBuilder.Build(terms)).Rows;
+        var december = rows.Single(r => r.DueDate == new LocalDate(2029, 12, 15));
+
+        var schedule = ScheduleOf(terms);
+
+        Assert.Equal(10_000m, december.EarlyRepayment); // the monthly rows keep the engine's reading
+        var y2029 = schedule.Years.Single(y => y.Year == 2029);
+        var y2030 = schedule.Years.Single(y => y.Year == 2030);
+        Assert.Equal(("0.00", LoanReading.Amount(december.Balance + 10_000m)), (y2029.EarlyRepayment, y2029.Balance));
+        Assert.Equal(("10000.00", LoanReading.Amount(rows.Last(r => r.DueDate.Year == 2030).Balance)), (y2030.EarlyRepayment, y2030.Balance));
+    }
+
+    [Fact]
+    public void A_buy_out_dated_in_january_after_the_december_payment_makes_a_year_of_its_own() // Review Focus #2
+    {
+        var december = Loans.Ok(LoanScheduleBuilder.Build(Loans.Golden())).Rows.Single(r => r.DueDate == new LocalDate(2029, 12, 15));
+        var terms = Loans.Golden() with { Events = [new EarlyRepayment(new LocalDate(2030, 1, 5), december.Balance, RepaymentEffect.ReduceTerm)] };
+
+        var schedule = ScheduleOf(terms);
+
+        Assert.Equal(new LocalDate(2029, 12, 15), Loans.Ok(LoanScheduleBuilder.Build(terms)).Rows[^1].DueDate);
+        var last = schedule.Years[^1];
+        Assert.Equal((2030, "0.00", LoanReading.Amount(december.Balance), "0.00"), (last.Year, last.Payment, last.EarlyRepayment, last.Balance));
+        Assert.Equal(LoanReading.Amount(december.Balance), schedule.Years.Single(y => y.Year == 2029).Balance);
     }
 }

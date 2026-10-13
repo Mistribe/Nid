@@ -99,17 +99,28 @@ internal static class LoanViews
             FiguresOf(LoanMath.At(terms, schedule, today)), WarningsOf(schedule), canWrite, Ended(terms, schedule, today));
     }
 
-    public static LoanScheduleView ScheduleOf(LoanSchedule schedule)
-        => new(schedule.Rows.Select(r => new LoanScheduleRowView(r.Number, r.DueDate, r.PhaseSeq, Rate(r.AnnualRate), Amount(r.Payment),
+    /// <summary>
+    /// The rows and their years (spec 3B2 §3): a year sums the rows due in it and the repayments dated in it, and its balance
+    /// is the one on 31 December, read as the figures read it (a repayment applied after a row but dated later is not yet
+    /// made); the years listed are the rows' and the repayments'.
+    /// </summary>
+    public static LoanScheduleView ScheduleOf(LoanTerms terms, LoanSchedule schedule)
+    {
+        var rows = schedule.Rows;
+        var years = rows.Select(r => r.DueDate.Year).Concat(terms.Events.Select(e => e.OnDate.Year)).Distinct().Order();
+        return new(rows.Select(r => new LoanScheduleRowView(r.Number, r.DueDate, r.PhaseSeq, Rate(r.AnnualRate), Amount(r.Payment),
                 Amount(r.Interest), Amount(r.Principal), Amount(r.Insurance), Amount(r.Balance), Amount(r.EarlyRepayment))).ToList(),
-            // Rows come by due date, so the groups come by year; exact decimal sums, written as every amount is.
-            schedule.Rows.GroupBy(r => r.DueDate.Year)
-                .Select(y => new LoanScheduleYearView(y.Key, Amount(y.Sum(r => r.Payment)), Amount(y.Sum(r => r.Interest)),
-                    Amount(y.Sum(r => r.Principal)), Amount(y.Sum(r => r.Insurance)), Amount(y.Sum(r => r.EarlyRepayment ?? 0m)),
-                    Amount(y.Last().Balance)))
-                .ToList(),
-            Amount(schedule.Rows.Sum(r => r.Interest)), Amount(schedule.Rows.Sum(r => r.Principal)),
+            years.Select(y =>
+            {
+                var due = rows.Where(r => r.DueDate.Year == y).ToList();
+                return new LoanScheduleYearView(y, Amount(due.Sum(r => r.Payment)), Amount(due.Sum(r => r.Interest)),
+                    Amount(due.Sum(r => r.Principal)), Amount(due.Sum(r => r.Insurance)),
+                    Amount(terms.Events.Where(e => e.OnDate.Year == y).Sum(e => e.Amount)),
+                    Amount(LoanMath.At(terms, schedule, new LocalDate(y, 12, 31)).Balance));
+            }).ToList(),
+            Amount(rows.Sum(r => r.Interest)), Amount(rows.Sum(r => r.Principal)),
             WarningsOf(schedule));
+    }
 
     public static LoanSimulationView SimulationOf(EarlyRepaymentSimulation simulation)
         => new(simulation.On, Amount(simulation.Amount), Amount(simulation.Penalty), simulation.Outcomes
