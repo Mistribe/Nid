@@ -175,7 +175,7 @@ public class LoanReadingTests
     }
 
     [Fact]
-    public void A_buy_out_dated_in_january_after_the_december_payment_makes_a_year_of_its_own() // Review Focus #2
+    public void A_buy_out_dated_in_january_after_the_december_payment_makes_a_year_of_its_own() // spec 3B2 §3
     {
         var december = Loans.Ok(LoanScheduleBuilder.Build(Loans.Golden())).Rows.Single(r => r.DueDate == new LocalDate(2029, 12, 15));
         var terms = Loans.Golden() with { Events = [new EarlyRepayment(new LocalDate(2030, 1, 5), december.Balance, RepaymentEffect.ReduceTerm)] };

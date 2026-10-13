@@ -45,8 +45,9 @@ export function SimulationSection({ loan, onRecord }: { loan: LoanDetail; onReco
   const [result, setResult] = useState<{ view: LoanSimulation; asked: SimulationValues } | null>(null);
   const [announcement, setAnnouncement] = useState('');
   // A write refetches the loan: a result computed before it no longer holds.
-  useEffect(() => { setResult(null); }, [loan]);
-  const clear = () => setResult(null);
+  const clear = () => { setResult(null); setAnnouncement(''); errors.clear(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new loan resets; `clear` is recreated every render
+  useEffect(clear, [loan]);
 
   const submit = form.handleSubmit((values) => {
     errors.clear();

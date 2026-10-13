@@ -104,6 +104,7 @@ describe('the simulation', () => {
     await user.type(within(await region()).getByLabelText('Montant à rembourser'), '0');
 
     expect(screen.queryByRole('table', { name: 'Résultat de la simulation' })).not.toBeInTheDocument();
+    expect(within(await region()).getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('opens the repayment form prefilled from a column, the latest press winning; nothing is sent until submitted, then the result goes', async () => {
@@ -140,6 +141,7 @@ describe('the simulation', () => {
     await waitFor(() => expect(recorded).toEqual([{ onDate: '2026-10-12', amount: '10000', effect: 'reduce_term', penalty: '300' }]));
     // The loan changed: a comparison of the loan before it no longer holds.
     await waitFor(() => expect(screen.queryByRole('table', { name: 'Résultat de la simulation' })).not.toBeInTheDocument());
+    expect(within(await region()).getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('is shown to a reader without write access, without « Enregistrer ce remboursement »', async () => {
