@@ -148,6 +148,47 @@ public static class RealEstateEndpoints
             })
             .Returns<IdResponse>();
 
+        api.MapPost("/properties/{id:guid}/valuations", async (Guid id, PropertyValuationBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var asOf = reader.Date(body.AsOf, "asOf");
+                var amount = LoanBodies.Number(reader, body.Amount, "amount");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordPropertyValuationCommand(new ItemId(id), asOf!.Value, amount!.Value, body.Note), ct))
+                        .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapDelete("/properties/{id:guid}/valuations/{valuationId:guid}", async (Guid id, Guid valuationId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidPropertyValuationCommand(new ItemId(id), valuationId), ct)).ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
+        api.MapPost("/properties/{id:guid}/flows", async (Guid id, PropertyFlowBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordPropertyFlowCommand(new ItemId(id), draft), ct))
+                        .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/properties/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, PropertyFlowBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CorrectPropertyFlowCommand(new ItemId(id), flowId, draft), ct)).ToHttp(x => new IdResponse(x));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/properties/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidPropertyFlowCommand(new ItemId(id), flowId), ct)).ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
         return routes;
     }
 
@@ -302,6 +343,20 @@ public static class RealEstateEndpoints
                 reader.Date(RentalStartsOn, "rentalStartsOn", required: false), ClearRentalStartsOn,
                 Note, ClearNote);
             return reader.Ok ? new EditPropertyCommand(id, Name, change, version!.Value) : null;
+        }
+    }
+
+    /// <summary>Spec 3C1 §4: an estimate, under the envelopes' member names; the amount an invariant decimal string (precision 1).</summary>
+    public sealed record PropertyValuationBody(string? AsOf, string? Amount, string? Note);
+
+    /// <summary>Spec 3C1 §4: <c>{ occurredOn, kind, amount, category, note? }</c>; kind and category are the module's convention, checked by the handler.</summary>
+    public sealed record PropertyFlowBody(string? OccurredOn, string? Kind, string? Amount, string? Category, string? Note)
+    {
+        internal PropertyFlowDraft? Read(FieldReader reader)
+        {
+            var occurredOn = reader.Date(OccurredOn, "occurredOn");
+            var amount = LoanBodies.Number(reader, Amount, "amount");
+            return occurredOn is null || amount is null ? null : new PropertyFlowDraft(occurredOn.Value, Kind, amount.Value, Category, Note);
         }
     }
 

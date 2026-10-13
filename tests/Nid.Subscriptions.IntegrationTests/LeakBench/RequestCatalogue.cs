@@ -308,6 +308,13 @@ public static class RequestCatalogue
             [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
         // Version 1 is never a row's xmin: an allowed writer meets realestate.property_conflict, never an access refusal.
         new(typeof(EditPropertyCommand), true, (_, item) => new EditPropertyCommand(item, null, new PropertyChange(Note: "bench"), 1)),
+
+        // A fact id is looked up by (id, item_id) in the Core (2A), as the envelopes': no BuildNamingAnother.
+        new(typeof(RecordPropertyValuationCommand), true, (_, item) => new RecordPropertyValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),
+        new(typeof(VoidPropertyValuationCommand), true, (_, item) => new VoidPropertyValuationCommand(item, Guid.NewGuid())),
+        new(typeof(RecordPropertyFlowCommand), true, (_, item) => new RecordPropertyFlowCommand(item, BenchFlow)),
+        new(typeof(CorrectPropertyFlowCommand), true, (_, item) => new CorrectPropertyFlowCommand(item, Guid.NewGuid(), BenchFlow)),
+        new(typeof(VoidPropertyFlowCommand), true, (_, item) => new VoidPropertyFlowCommand(item, Guid.NewGuid())),
     ];
 
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
@@ -317,6 +324,8 @@ public static class RequestCatalogue
     /// <summary>A rental bought 100 000 on 2020-01-15, nothing else.</summary>
     private static PropertyDetails BenchProperty => new(PropertyType.Rental, new LocalDate(2020, 1, 15), 100_000m, 0m, 0m, 0m,
         null, null, PropertyCadence.Yearly, null, null, null);
+
+    private static PropertyFlowDraft BenchFlow => new(new LocalDate(2025, 1, 1), "expense", 1m, PropertyCategories.Works, null);
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
 

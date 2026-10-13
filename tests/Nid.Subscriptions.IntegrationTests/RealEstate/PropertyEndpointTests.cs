@@ -186,9 +186,18 @@ public class PropertyEndpointTests(PostgresFixture fixture)
     }
 
     private static IEnumerable<(HttpMethod Method, string Url, object? Body)> Routes(Guid id)
-        =>
+    {
+        var other = Guid.NewGuid();
+        var flow = new { occurredOn = "2025-06-01", kind = "expense", amount = "100", category = "works" };
+        return
         [
             (HttpMethod.Get, $"{Properties}/{id}", null),
             (HttpMethod.Patch, $"{Properties}/{id}", new { version = 1, note = "x" }),
+            (HttpMethod.Post, $"{Properties}/{id}/valuations", new { asOf = "2025-06-01", amount = "290000" }),
+            (HttpMethod.Delete, $"{Properties}/{id}/valuations/{other}", null),
+            (HttpMethod.Post, $"{Properties}/{id}/flows", flow),
+            (HttpMethod.Put, $"{Properties}/{id}/flows/{other}", flow),
+            (HttpMethod.Delete, $"{Properties}/{id}/flows/{other}", null),
         ];
+    }
 }
