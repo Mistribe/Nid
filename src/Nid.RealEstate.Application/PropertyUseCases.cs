@@ -88,12 +88,13 @@ public sealed class GetPropertyHandler(
             return Result.Failure<PropertyDetail>(failure!);
         loaded.TryGetValue(out var found);
         var person = actor.Current!.PersonId!.Value;
-        var read = await reading.ReadAsync(found.Property, found.Item, person, await calendar.TodayAsync(ct), ct);
+        var today = await calendar.TodayAsync(ct);
+        var read = await reading.ReadAsync(found.Property, found.Item, person, today, ct);
         if (read.TryGetFailure(out failure))
             return Result.Failure<PropertyDetail>(failure!);
         read.TryGetValue(out var r);
         var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite));
+        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today));
     }
 }
 
@@ -142,6 +143,9 @@ public sealed class EditPropertyHandler(IItemRegistry items, IPropertyStore prop
         var rentalField = change.PurchaseDate is not null && change.RentalStartsOn is null ? "purchaseDate" : "rentalStartsOn";
         if (PropertyRules.Details(details, today, rentalField) is { } refused)
             return Result.Failure<ItemId>(refused);
+        // Spec 3C2 §2: no tenancy starts before the purchase; tenancy writes take the same row lock, so none slips in between.
+        if (found.Property.Tenancies.Count > 0 && details.PurchaseDate > found.Property.Tenancies.Min(t => t.Tenancy.StartsOn))
+            return Result.Failure<ItemId>(PropertyRules.Invalid("purchaseDate", "A tenancy of this property starts before this purchase date."));
 
         // The name is the Core item's: renamed as a loan is, visibility and owners kept.
         var item = found.Item;

@@ -50,7 +50,7 @@ Les **estimations** sont des valorisations du Core (une à deux fois par an, ave
 - `POST /properties` et `PATCH /properties/{id}` (avec la `version` lue ; propriétaires, visibilité et devise sont fixés à la création ; une version périmée répond `409 realestate.property_conflict`) ;
 - `POST` et `DELETE` sur `/properties/{id}/valuations`, `POST`, `PUT` et `DELETE` sur `/properties/{id}/flows`.
 
-Un prêt lié que la personne ne peut pas lire n’apparaît nulle part : ni son identifiant, ni son montant, ni leur nombre ; il ne compte ni dans la valeur nette ni dans le coût réel qu’elle voit. Un prêt dans une autre devise est converti au taux du jour (`loan_other_currency`) ; sans taux, il est laissé de côté (`fx_missing`). Composantes du coût réel : `acquisition`, `loan_interest`, `loan_insurance`, `loan_fees`, puis une ligne par catégorie de dépense. Avertissements : `no_valuation`, `valuation_stale` (400 jours en cadence `yearly`, jamais en `manual`, sauf `stale_after_days`), `loan_other_currency`, `fx_missing`, `visibility_mismatch`. Montants en chaînes décimales invariantes (`"290000.00"`), deux décimales au plus, sous 10¹² ; les montants des estimations et des flux sont eux aussi des chaînes décimales invariantes, dans la devise du bien (pas d’objet `{ amount, currency }`) ; chaque refus nomme son champ (`realestate.invalid_property_field`, `realestate.invalid_category`). Charges récurrentes, baux, loyer attendu, impayés, vacance et rendements viendront en 3C2.
+Un prêt lié que la personne ne peut pas lire n’apparaît nulle part : ni son identifiant, ni son montant, ni leur nombre ; il ne compte ni dans la valeur nette ni dans le coût réel qu’elle voit. Un prêt dans une autre devise est converti au taux du jour (`loan_other_currency`) ; sans taux, il est laissé de côté (`fx_missing`). Composantes du coût réel : `acquisition`, `loan_interest`, `loan_insurance`, `loan_fees`, puis une ligne par catégorie de dépense. Avertissements : `no_valuation`, `valuation_stale` (400 jours en cadence `yearly`, jamais en `manual`, sauf `stale_after_days`), `loan_other_currency`, `fx_missing`, `visibility_mismatch`. Montants en chaînes décimales invariantes (`"290000.00"`), deux décimales au plus, sous 10¹² ; les montants des estimations et des flux sont eux aussi des chaînes décimales invariantes, dans la devise du bien (pas d’objet `{ amount, currency }`) ; chaque refus nomme son champ (`realestate.invalid_property_field`, `realestate.invalid_category`). Charges récurrentes, baux, loyer attendu, impayés, vacance et rendements sont livrés en 3C2 (§5 à §7).
 
 ## 4. Catégories de flux
 
@@ -96,7 +96,15 @@ Calculs indicatifs :
 - **Loyer attendu** : mois complet couvert par le bail = `rent_monthly + charges_monthly` ; mois partiel = proratisé au nombre de jours du mois, arrondi au centime (demi supérieur).
 - **Loyer réel** : flux `income` de catégorie `rent`.
 - **Impayés** = loyer attendu − loyer réel, affichés à titre d'information.
-- **Vacance** : jours sans bail entre `rental_starts_on` (ou l'achat) et la date d. **Taux de vacance** = jours vacants ÷ jours de la période.
+- **Vacance** : jours sans bail entre le début de location R et la date d, sur les 12 mois glissants : de max(R, d − 12 mois + 1 jour) à d. R est la plus ancienne date entre `rental_starts_on` et le début du premier bail ; sans l’une ni l’autre, ou si R est après d, la vacance n’est pas calculée. **Taux de vacance** = jours vacants ÷ jours de la période.
+
+**Livré en 3C2** (2026-10-13, `superpowers/specs/2026-10-13-property-rental-design.md`) : tables `realestate.property_recurring_cost` et `realestate.property_tenancy`, chaque ligne avec sa `version`. API sous `/api/v1/realestate/properties/{id}` :
+
+- `POST /recurring-costs`, `PUT /recurring-costs/{costId}` (avec la `version` lue ; une version périmée répond `409 realestate.recurring_cost_conflict`), `DELETE /recurring-costs/{costId}?version=` ; corps `{ category, amount, every: { count, unit }, startsOn, endsOn?, note? }`, `unit` valant `month` ou `year`, `count` de 1 à 120 ;
+- `POST /tenancies`, `PUT /tenancies/{tenancyId}` (`409 realestate.tenancy_conflict`), `DELETE /tenancies/{tenancyId}?version=` ; corps `{ label, startsOn, endsOn?, rentMonthly, chargesMonthly?, deposit?, note? }` ; terminer un bail, c’est le corriger avec un `endsOn` ;
+- `GET /properties/{id}` ajoute `recurringCosts` (avec `monthlyEquivalent` et `nextDueOn`, `null` une fois la charge terminée) et `tenancies` (avec `current`), par date de début, et dans `figures` : `rentedSince`, `expectedRent`, `rentReceived`, `arrears`, `vacantDays`, `vacancyRate`, `grossYield`, `netYieldBeforeTax` ; `GET /properties` ajoute à chaque ligne `grossYield` et `vacancyRate`.
+
+Une charge récurrente ne crée aucun flux. Deux baux d’un même bien ne se chevauchent jamais (`realestate.tenancy_overlap` sur `startsOn`) : chaque écriture de bail verrouille la ligne du bien avant de vérifier. Un `PATCH` du bien refuse une date d’achat postérieure au début d’un de ses baux (`purchaseDate`). Une charge de catégorie `works` est refusée (`realestate.invalid_category`) : les travaux sont déjà dans le prix de revient. Avertissement `rental_without_tenancy` : un bien de type `rental` sans bail ni `rental_starts_on`.
 
 ## 7. Calculs
 
@@ -113,6 +121,7 @@ Fonctions pures, décimal exact, à la date d (par défaut aujourd'hui).
 | **Rendement net avant impôt** | (loyers − charges) des 12 derniers mois ÷ prix de revient |
 
 - Les rendements sont « non significatifs » si le bien n'est pas loué depuis au moins 12 mois.
+- Précisé en 3C2 : les 12 mois glissants sont ]d − 12 mois, d] (365 ou 366 jours) ; les rendements sont non significatifs (`null`) quand R est inconnu ou postérieur à d − 12 mois ; le rendement net déduit les dépenses du bien sur la période, hors `works` (déjà dans le prix de revient), jamais les coûts du prêt ; rendements et taux de vacance sont des fractions écrites avec quatre décimales (`"0.0384"`).
 - Le prix de revient est une notion **économique** : il diffère de la base fiscale d'une plus-value immobilière.
 
 ## 8. Intégration au foyer

@@ -89,3 +89,33 @@ public sealed class PropertyRow
     public string? Note { get; set; }
     public uint Version { get; set; }
 }
+
+/// <summary>realestate.property_recurring_cost (spec 3C2 §2): a planned cost of a property; <c>Version</c> is <c>xmin</c>.</summary>
+public sealed class PropertyRecurringCostRow
+{
+    public Guid Id { get; set; }
+    public Guid PropertyItemId { get; set; }
+    public string Category { get; set; } = "";
+    public decimal Amount { get; set; }
+    public int EveryCount { get; set; }
+    public string EveryUnit { get; set; } = "";
+    public LocalDate StartsOn { get; set; }
+    public LocalDate? EndsOn { get; set; }
+    public string? Note { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>realestate.property_tenancy (spec 3C2 §2): a tenancy of a property; <c>Version</c> is <c>xmin</c>.</summary>
+public sealed class PropertyTenancyRow
+{
+    public Guid Id { get; set; }
+    public Guid PropertyItemId { get; set; }
+    public string Label { get; set; } = "";
+    public LocalDate StartsOn { get; set; }
+    public LocalDate? EndsOn { get; set; }
+    public decimal RentMonthly { get; set; }
+    public decimal ChargesMonthly { get; set; }
+    public decimal? Deposit { get; set; }
+    public string? Note { get; set; }
+    public uint Version { get; set; }
+}

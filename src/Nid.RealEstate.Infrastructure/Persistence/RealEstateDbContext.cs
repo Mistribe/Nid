@@ -21,6 +21,10 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     public DbSet<PropertyRow> Properties => Set<PropertyRow>();
 
+    public DbSet<PropertyRecurringCostRow> RecurringCosts => Set<PropertyRecurringCostRow>();
+
+    public DbSet<PropertyTenancyRow> Tenancies => Set<PropertyTenancyRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -117,6 +121,40 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.Property(x => x.AgencyFees).HasColumnType("numeric(19,4)");
             e.Property(x => x.OtherAcquisitionCosts).HasColumnType("numeric(19,4)");
             e.Property(x => x.SurfaceM2).HasColumnType("numeric(19,4)");
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        // Spec 3C2 §2. No foreign key to the property, as the loan's link: a property is never deleted.
+        modelBuilder.Entity<PropertyRecurringCostRow>(e =>
+        {
+            e.ToTable("property_recurring_cost", t =>
+            {
+                t.HasCheckConstraint("ck_property_recurring_cost_category",
+                    "category in ('property_tax','condo_fees','insurance','energy','maintenance','other')");
+                t.HasCheckConstraint("ck_property_recurring_cost_amount", "amount > 0");
+                t.HasCheckConstraint("ck_property_recurring_cost_every", "every_count between 1 and 120 and every_unit in ('month','year')");
+                t.HasCheckConstraint("ck_property_recurring_cost_dates", "ends_on is null or ends_on > starts_on");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => x.PropertyItemId);
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<PropertyTenancyRow>(e =>
+        {
+            e.ToTable("property_tenancy", t =>
+            {
+                t.HasCheckConstraint("ck_property_tenancy_amounts", "rent_monthly > 0 and charges_monthly >= 0 and (deposit is null or deposit > 0)");
+                t.HasCheckConstraint("ck_property_tenancy_dates", "ends_on is null or ends_on > starts_on");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.RentMonthly).HasColumnType("numeric(19,4)");
+            e.Property(x => x.ChargesMonthly).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Deposit).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => x.PropertyItemId);
             MapXmin(e.Property(x => x.Version));
         });
 

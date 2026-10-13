@@ -39,7 +39,7 @@ public class PropertyMathTests
         => PropertyMath.At(property ?? Bought(), shared,
             values ?? new[] { Estimate(new LocalDate(2025, 6, 1), 290_000m) },
             flows ?? new[] { Expense(new LocalDate(2021, 3, 1), PropertyCategories.Works, 12_000m) },
-            loans ?? new[] { Linked(Owing(150_000m)) }, D);
+            loans ?? new[] { Linked(Owing(150_000m)) }, [], D);
 
     [Fact]
     public void Readme_section_12_golden_case()

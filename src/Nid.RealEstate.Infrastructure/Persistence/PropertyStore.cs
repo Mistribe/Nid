@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.RealEstate.Infrastructure.Persistence;
 
@@ -20,7 +21,19 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
     public async Task<IReadOnlyList<StoredProperty>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
     {
         var ids = items.Select(i => i.Value).ToList();
-        return (await db.Properties.AsNoTracking().Where(p => ids.Contains(p.ItemId)).ToListAsync(ct)).Select(ToStored).ToList();
+        var rows = await db.Properties.AsNoTracking().Where(p => ids.Contains(p.ItemId)).ToListAsync(ct);
+        if (rows.Count == 0)
+            return [];
+
+        var found = rows.Select(p => p.ItemId).ToList();
+        var costs = (await db.RecurringCosts.AsNoTracking().Where(c => found.Contains(c.PropertyItemId)).ToListAsync(ct)).ToLookup(c => c.PropertyItemId);
+        var tenancies = (await db.Tenancies.AsNoTracking().Where(t => found.Contains(t.PropertyItemId)).ToListAsync(ct)).ToLookup(t => t.PropertyItemId);
+
+        // Ordered here, by start date then id: the same order on every server (as a loan's fees).
+        return rows.Select(r => new StoredProperty(new ItemId(r.ItemId), ToDetails(r), r.Version,
+                costs[r.ItemId].OrderBy(c => c.StartsOn).ThenBy(c => c.Id).Select(ToCost).ToList(),
+                tenancies[r.ItemId].OrderBy(t => t.StartsOn).ThenBy(t => t.Id).Select(ToTenancy).ToList()))
+            .ToList();
     }
 
     public Task LockAsync(ItemId item, CancellationToken ct)
@@ -30,6 +43,50 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
     {
         var row = await db.Properties.SingleAsync(p => p.ItemId == item.Value, ct);
         Fill(row, details);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddCostAsync(ItemId property, Guid id, RecurringCost cost, CancellationToken ct)
+    {
+        var row = new PropertyRecurringCostRow { Id = id, PropertyItemId = property.Value };
+        Fill(row, cost);
+        db.RecurringCosts.Add(row);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateCostAsync(ItemId property, Guid id, RecurringCost cost, CancellationToken ct)
+    {
+        var row = await db.RecurringCosts.SingleAsync(c => c.Id == id && c.PropertyItemId == property.Value, ct);
+        Fill(row, cost);
+        db.Entry(row).State = EntityState.Modified; // the version moves even when nothing changed, as a fee's
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteCostAsync(ItemId property, Guid id, CancellationToken ct)
+    {
+        db.RecurringCosts.Remove(await db.RecurringCosts.SingleAsync(c => c.Id == id && c.PropertyItemId == property.Value, ct));
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct)
+    {
+        var row = new PropertyTenancyRow { Id = id, PropertyItemId = property.Value };
+        Fill(row, tenancy);
+        db.Tenancies.Add(row);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct)
+    {
+        var row = await db.Tenancies.SingleAsync(t => t.Id == id && t.PropertyItemId == property.Value, ct);
+        Fill(row, tenancy);
+        db.Entry(row).State = EntityState.Modified;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteTenancyAsync(ItemId property, Guid id, CancellationToken ct)
+    {
+        db.Tenancies.Remove(await db.Tenancies.SingleAsync(t => t.Id == id && t.PropertyItemId == property.Value, ct));
         await db.SaveChangesAsync(ct);
     }
 
@@ -49,9 +106,42 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         row.Note = d.Note;
     }
 
-    private static StoredProperty ToStored(PropertyRow r) => new(new ItemId(r.ItemId), new PropertyDetails(
+    private static void Fill(PropertyRecurringCostRow row, RecurringCost c)
+    {
+        row.Category = c.Category;
+        row.Amount = c.Amount;
+        row.EveryCount = c.Every.Count;
+        row.EveryUnit = LoanWire.Of(c.Every.Unit);
+        row.StartsOn = c.StartsOn;
+        row.EndsOn = c.EndsOn;
+        row.Note = c.Note;
+    }
+
+    private static void Fill(PropertyTenancyRow row, Tenancy t)
+    {
+        row.Label = t.Label;
+        row.StartsOn = t.StartsOn;
+        row.EndsOn = t.EndsOn;
+        row.RentMonthly = t.RentMonthly;
+        row.ChargesMonthly = t.ChargesMonthly;
+        row.Deposit = t.Deposit;
+        row.Note = t.Note;
+    }
+
+    private static PropertyDetails ToDetails(PropertyRow r) => new(
         Parse<PropertyType>(r.PropertyType), r.PurchaseDate, r.PurchasePrice, r.NotaryFees, r.AgencyFees, r.OtherAcquisitionCosts,
-        r.SurfaceM2, r.LocationLabel, Parse<PropertyCadence>(r.ValuationCadence), r.StaleAfterDays, r.RentalStartsOn, r.Note), r.Version);
+        r.SurfaceM2, r.LocationLabel, Parse<PropertyCadence>(r.ValuationCadence), r.StaleAfterDays, r.RentalStartsOn, r.Note);
+
+    /// <summary>The check constraints admit counts of 1 to 120 only: the Core's period always builds.</summary>
+    private static StoredRecurringCost ToCost(PropertyRecurringCostRow r)
+        => new(r.Id, new RecurringCost(r.Category, r.Amount,
+            Duration.Create(r.EveryCount, Parse<DurationUnit>(r.EveryUnit)).TryGetValue(out var every)
+                ? every
+                : throw new InvalidOperationException($"{r.EveryCount} is not a stored period's count."),
+            r.StartsOn, r.EndsOn, r.Note), r.Version);
+
+    private static StoredTenancy ToTenancy(PropertyTenancyRow r)
+        => new(r.Id, new Tenancy(r.Label, r.StartsOn, r.EndsOn, r.RentMonthly, r.ChargesMonthly, r.Deposit, r.Note), r.Version);
 
     /// <summary>The check constraints admit only these texts: anything else is a broken invariant.</summary>
     private static T Parse<T>(string text) where T : struct, Enum

@@ -3,6 +3,7 @@ using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.TestSupport;
 using NodaTime;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
@@ -32,5 +33,46 @@ public class PropertyStoreTests(PostgresFixture fixture)
 
         await store.LockAsync(id, default); // outside a transaction the lock is released at once: it must simply not fail
         Assert.Equal([id], (await store.FindManyAsync([id, ItemId.New()], default)).Select(p => p.ItemId));
+    }
+
+    private static Duration Every(int count, DurationUnit unit)
+        => Duration.Create(count, unit).TryGetValue(out var every) ? every : throw new InvalidOperationException();
+
+    [Fact]
+    public async Task Costs_and_tenancies_read_back_by_start_date_and_their_versions_move_alone()
+    {
+        var store = new PropertyStore(PostgresFixture.NewRealEstateContext(await fixture.NewConnectionStringAsync()));
+        var (id, other) = (ItemId.New(), ItemId.New());
+        await store.CreateAsync(id, Home(), default);
+        await store.CreateAsync(other, Home(), default);
+
+        var yearly = new RecurringCost("property_tax", 1_200.5m, Every(1, DurationUnit.Year), new LocalDate(2021, 10, 15), new LocalDate(2030, 1, 1), "taxe");
+        var quarterly = new RecurringCost("condo_fees", 250m, Every(3, DurationUnit.Month), new LocalDate(2020, 7, 1), null, null);
+        var lease = new Tenancy("T2 meublé", new LocalDate(2020, 9, 1), new LocalDate(2023, 9, 1), 900.25m, 50m, 1_800m, "bail");
+        var (c1, c2, t1) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        await store.AddCostAsync(id, c1, yearly, default);
+        await store.AddCostAsync(id, c2, quarterly, default);
+        await store.AddTenancyAsync(id, t1, lease, default);
+
+        var stored = (await store.FindAsync(id, default))!;
+        Assert.Equal([(c2, quarterly), (c1, yearly)], stored.Costs.Select(c => (c.Id, c.Cost))); // by start date
+        Assert.Equal([(t1, lease)], stored.Tenancies.Select(t => (t.Id, t.Tenancy)));
+        Assert.All(stored.Costs, c => Assert.NotEqual(0u, c.Version));
+        Assert.Empty((await store.FindAsync(other, default))!.Costs);
+
+        var ended = lease with { EndsOn = new LocalDate(2024, 1, 1), Deposit = null };
+        await store.UpdateTenancyAsync(id, t1, ended, default);
+        await store.UpdateCostAsync(id, c1, yearly, default); // the same values: its version moves all the same
+        var changed = (await store.FindAsync(id, default))!;
+        Assert.Equal(ended, changed.Tenancies[0].Tenancy);
+        Assert.NotEqual(stored.Tenancies[0].Version, changed.Tenancies[0].Version);
+        Assert.NotEqual(stored.Costs[1].Version, changed.Costs[1].Version);
+        Assert.Equal(stored.Version, changed.Version); // the property's own row is untouched
+
+        await store.DeleteCostAsync(id, c2, default);
+        await store.DeleteTenancyAsync(id, t1, default);
+        var left = (await store.FindAsync(id, default))!;
+        Assert.Equal([c1], left.Costs.Select(c => c.Id));
+        Assert.Empty(left.Tenancies);
     }
 }

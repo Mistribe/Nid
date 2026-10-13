@@ -514,6 +514,9 @@ public class LeakBenchTests(PostgresFixture fixture)
             Assert.Contains(incomeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(loanBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(propertyBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+            // 3C2: a tenancy labelled and a recurring cost noted with the row's label reach the property reads, so the scan above looks through them.
+            Assert.Contains(propertyBodies[actor], body => body.Contains("\"label\":\"shared-a\"", StringComparison.Ordinal)
+                && body.Contains("\"note\":\"shared-a\",\"monthlyEquivalent\"", StringComparison.Ordinal));
         }
     }
 
