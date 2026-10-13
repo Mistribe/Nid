@@ -327,6 +327,12 @@ public static class RequestCatalogue
         new(typeof(RecordPropertyFlowCommand), true, (_, item) => new RecordPropertyFlowCommand(item, BenchFlow)),
         new(typeof(CorrectPropertyFlowCommand), true, (_, item) => new CorrectPropertyFlowCommand(item, Guid.NewGuid(), BenchFlow)),
         new(typeof(VoidPropertyFlowCommand), true, (_, item) => new VoidPropertyFlowCommand(item, Guid.NewGuid())),
+
+        // A cost or tenancy id is looked up in the route's property only (StoredProperty's own lists), so an id alone can never
+        // reach another item: no BuildNamingAnother, as the loan's fees.
+        new(typeof(AddPropertyRecurringCostCommand), true, (_, item) => new AddPropertyRecurringCostCommand(item, BenchCost)),
+        new(typeof(EditPropertyRecurringCostCommand), true, (_, item) => new EditPropertyRecurringCostCommand(item, Guid.NewGuid(), BenchCost, 1)),
+        new(typeof(DeletePropertyRecurringCostCommand), true, (_, item) => new DeletePropertyRecurringCostCommand(item, Guid.NewGuid(), 1)),
     ];
 
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
@@ -338,6 +344,8 @@ public static class RequestCatalogue
         null, null, PropertyCadence.Yearly, null, null, null);
 
     private static PropertyFlowDraft BenchFlow => new(new LocalDate(2025, 1, 1), "expense", 1m, PropertyCategories.Works, null);
+
+    private static RecurringCostDraft BenchCost => new("property_tax", 1m, 1, DurationUnit.Year, new LocalDate(2025, 1, 1), null, null);
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
 

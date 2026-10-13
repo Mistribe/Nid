@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using static Nid.RealEstate.Application.LoanReading;
 
@@ -21,6 +22,14 @@ public sealed record PropertyValuationView(Guid Id, LocalDate AsOf, string Amoun
 
 public sealed record PropertyFlowView(Guid Id, LocalDate OccurredOn, string Kind, string Amount, string? Category, string? Note);
 
+/// <summary>A planned cost's period, <c>{ count, unit }</c> as the body sends it (<c>month</c> or <c>year</c>).</summary>
+public sealed record PropertyEveryView(int Count, string Unit);
+
+/// <summary>A planned cost (spec 3C2 §3): its monthly equivalent, and its next due date on or after today (null once ended).</summary>
+public sealed record PropertyRecurringCostView(
+    Guid Id, uint Version, string Category, string Amount, PropertyEveryView Every, LocalDate StartsOn, LocalDate? EndsOn, string? Note,
+    string MonthlyEquivalent, LocalDate? NextDueOn);
+
 /// <summary>A linked loan the reader can read: its balance today, and in the property's currency (null when the rate is missing).</summary>
 public sealed record PropertyLoanView(ItemId Id, string Name, string Currency, string Balance, string? BalanceConverted);
 
@@ -38,7 +47,8 @@ public sealed record PropertyDetail(
     LocalDate PurchaseDate, string PurchasePrice, string NotaryFees, string AgencyFees, string OtherAcquisitionCosts, string? SurfaceM2,
     string? LocationLabel, string ValuationCadence, int? StaleAfterDays, LocalDate? RentalStartsOn, string? Note, uint Version,
     PropertyFiguresView Figures, IReadOnlyList<PropertyWarningView> Warnings, IReadOnlyList<PropertyValuationView> Valuations,
-    IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyLoanView> Loans, bool CanWrite) : IExposesItems
+    IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyRecurringCostView> RecurringCosts, IReadOnlyList<PropertyLoanView> Loans,
+    bool CanWrite) : IExposesItems
 {
     /// <summary>The property and its readable linked loans; every warning's loan is one of them.</summary>
     public IEnumerable<ItemId> ExposedItems() => [Id, .. Loans.Select(l => l.Id)];
@@ -51,7 +61,7 @@ internal static class PropertyViews
         => new(property.ItemId, item.DisplayName, LoanWire.Of(property.Details.Type), LoanViews.CurrencyOf(item).Code,
             Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), canWrite);
 
-    public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite)
+    public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, LocalDate today)
     {
         var d = property.Details;
         var f = read.Figures;
@@ -65,6 +75,9 @@ internal static class PropertyViews
             f.Warnings.Select(w => new PropertyWarningView(w.Code, w.LoanId)).ToList(),
             read.Values.OrderBy(v => v.AsOf).Select(v => new PropertyValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note)).ToList(),
             read.Flows.Select(x => new PropertyFlowView(x.Id, x.OccurredOn, LoanWire.Of(x.Kind), Amount(x.Amount.Amount), x.Category, x.Note)).ToList(),
+            property.Costs.Select(c => new PropertyRecurringCostView(c.Id, c.Version, c.Cost.Category, Amount(c.Cost.Amount),
+                new PropertyEveryView(c.Cost.Every.Count, LoanWire.Of(c.Cost.Every.Unit)), c.Cost.StartsOn, c.Cost.EndsOn, c.Cost.Note,
+                Amount(PropertyMath.MonthlyEquivalent(c.Cost)), PropertyMath.NextDueOn(c.Cost, today))).ToList(),
             read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanViews.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
             canWrite);
     }

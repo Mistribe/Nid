@@ -32,6 +32,7 @@ public static class PropertyCodes
     public const string InvalidPropertyField = "realestate.invalid_property_field";
     public const string InvalidCategory = "realestate.invalid_category";
     public const string PropertyConflict = "realestate.property_conflict";
+    public const string RecurringCostConflict = "realestate.recurring_cost_conflict";
 }
 
 /// <summary>Spec 3C1 §6.</summary>

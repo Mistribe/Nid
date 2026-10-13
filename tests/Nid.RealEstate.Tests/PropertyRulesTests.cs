@@ -1,6 +1,8 @@
+using Nid.Core.Contracts;
 using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 using NodaTime;
+using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.RealEstate.Tests;
 
@@ -97,4 +99,44 @@ public class PropertyRulesTests
         var changed = new PropertyChange(PurchasePrice: 255_000m, ClearSurfaceM2: true, LocationLabel: "Rezé", ClearNote: true).ApplyTo(Home());
         Assert.Equal(Home() with { PurchasePrice = 255_000m, SurfaceM2 = null, LocationLabel = "Rezé", Note = null }, changed);
     }
+
+    private static RecurringCostDraft Tax() => new("property_tax", 1_200m, 1, DurationUnit.Year, new LocalDate(2021, 10, 15), null, "taxe");
+
+    [Fact]
+    public void A_recurring_cost_refusal_names_its_field()
+    {
+        Assert.Null(PropertyRules.CostFields(Tax()));
+        Assert.Null(PropertyRules.CostFields(Tax() with
+        {
+            EveryCount = 120, EveryUnit = DurationUnit.Month, EndsOn = new LocalDate(2021, 10, 16), Note = new string('x', 2000),
+        }));
+        var cases = new (string Why, RecurringCostDraft Draft, string Code, string Field)[]
+        {
+            ("works", Tax() with { Category = PropertyCategories.Works }, PropertyCodes.InvalidCategory, "category"),
+            ("rent", Tax() with { Category = PropertyCategories.Rent }, PropertyCodes.InvalidCategory, "category"),
+            ("no category", Tax() with { Category = null }, PropertyCodes.InvalidCategory, "category"),
+            ("nothing to pay", Tax() with { Amount = 0m }, PropertyCodes.InvalidPropertyField, "amount"),
+            ("a third decimal", Tax() with { Amount = 1.005m }, PropertyCodes.InvalidPropertyField, "amount"),
+            ("every 0 years", Tax() with { EveryCount = 0 }, PropertyCodes.InvalidPropertyField, "every.count"),
+            ("every 121 months", Tax() with { EveryCount = 121, EveryUnit = DurationUnit.Month }, PropertyCodes.InvalidPropertyField, "every.count"),
+            ("every week", Tax() with { EveryUnit = DurationUnit.Week }, PropertyCodes.InvalidPropertyField, "every.unit"),
+            ("every day", Tax() with { EveryUnit = DurationUnit.Day }, PropertyCodes.InvalidPropertyField, "every.unit"),
+            ("a start in 1899", Tax() with { StartsOn = new LocalDate(1899, 12, 31) }, PropertyCodes.InvalidPropertyField, "startsOn"),
+            ("an end in 2201", Tax() with { EndsOn = new LocalDate(2201, 1, 1) }, PropertyCodes.InvalidPropertyField, "endsOn"),
+            ("an end on its start", Tax() with { EndsOn = new LocalDate(2021, 10, 15) }, PropertyCodes.InvalidPropertyField, "endsOn"),
+            ("a long note", Tax() with { Note = new string('x', 2001) }, PropertyCodes.InvalidPropertyField, "note"),
+        };
+
+        foreach (var (why, draft, code, field) in cases)
+        {
+            var refused = PropertyRules.CostFields(draft);
+            Assert.True(refused is not null && refused.Code == code && Loans.FieldOf(refused) == field,
+                $"{why}: expected {code} at {field}, got {refused?.Code} at {(refused is null ? null : Loans.FieldOf(refused))}");
+        }
+    }
+
+    [Fact]
+    public void A_checked_draft_becomes_a_cost_with_the_cores_period()
+        => Assert.Equal(new RecurringCost("property_tax", 1_200m, Loans.Ok(Duration.Create(1, DurationUnit.Year)), new LocalDate(2021, 10, 15), null, "taxe"),
+            Tax().ToCost());
 }

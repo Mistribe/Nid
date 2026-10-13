@@ -88,12 +88,13 @@ public sealed class GetPropertyHandler(
             return Result.Failure<PropertyDetail>(failure!);
         loaded.TryGetValue(out var found);
         var person = actor.Current!.PersonId!.Value;
-        var read = await reading.ReadAsync(found.Property, found.Item, person, await calendar.TodayAsync(ct), ct);
+        var today = await calendar.TodayAsync(ct);
+        var read = await reading.ReadAsync(found.Property, found.Item, person, today, ct);
         if (read.TryGetFailure(out failure))
             return Result.Failure<PropertyDetail>(failure!);
         read.TryGetValue(out var r);
         var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite));
+        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today));
     }
 }
 

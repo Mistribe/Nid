@@ -14,6 +14,12 @@ internal static class PropertyRules
     public const int LocationLabelMax = 100;
     public const int StaleAfterDaysMax = 3650;
 
+    /// <summary>Spec 3C2 §2: a planned cost comes every 1 to 120 months or years.</summary>
+    public const int EveryCountMax = 120;
+
+    /// <summary>Spec 3C2 §2: an expense category of the property without <c>works</c>, already in the cost price.</summary>
+    public static readonly IReadOnlyList<string> RecurringCategories = PropertyCategories.Expense.Where(c => c != PropertyCategories.Works).ToList();
+
     /// <summary>1 to 100 characters after trimming, stored as sent (as a loan's name).</summary>
     public static Failure? Name(string? name)
         => name is null || name.Trim().Length is < 1 or > LoanRules.NameMax
@@ -68,6 +74,31 @@ internal static class PropertyRules
             ? null
             : Refuse("category", $"This {kind}'s category is one of {string.Join(", ", allowed)}.");
     }
+
+    /// <summary>Spec 3C2 §2: a planned cost, at the body's fields (<c>every.count</c>, <c>every.unit</c> for its period).</summary>
+    public static Failure? CostFields(RecurringCostDraft c)
+    {
+        if (c.Category is null || !RecurringCategories.Contains(c.Category))
+            return Refuse("category", $"A recurring cost's category is one of {string.Join(", ", RecurringCategories)}.");
+        if (Positive(c.Amount, "amount") is { } amount)
+            return amount;
+        if (c.EveryCount is < 1 or > EveryCountMax)
+            return Invalid("every.count", $"A recurring cost comes every 1 to {EveryCountMax} months or years.");
+        if (c.EveryUnit is not (DurationUnit.Month or DurationUnit.Year))
+            return Invalid("every.unit", "A recurring cost comes every month(s) or year(s).");
+        return InYears(c.StartsOn, "startsOn") ?? InYears(c.EndsOn, "endsOn") ?? Ends(c.StartsOn, c.EndsOn) ?? Note(c.Note);
+    }
+
+    /// <summary>A range is half-open: it ends after it starts.</summary>
+    private static Failure? Ends(LocalDate startsOn, LocalDate? endsOn)
+        => endsOn <= startsOn ? Invalid("endsOn", "It ends after it starts.") : null;
+
+    /// <summary>The loans' years (1900–2200), under this module's property code.</summary>
+    private static Failure? InYears(LocalDate? date, string field)
+        => LoanRules.InYears(date, field) is { } refused ? Invalid(field, refused.Message) : null;
+
+    private static Failure? Note(string? note)
+        => note is { Length: > LoanRules.NoteMax } ? Invalid("note", $"A note has at most {LoanRules.NoteMax} characters.") : null;
 
     /// <summary>Once <see cref="Category"/> has passed: the Core's kind.</summary>
     public static FlowKind KindOf(string kind) => kind == "income" ? FlowKind.Income : FlowKind.Expense;
