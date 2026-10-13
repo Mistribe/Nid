@@ -12,6 +12,7 @@ export type LoanWarning = components['schemas']['LoanWarningView'];
 export const LOANS = '/api/v1/realestate/loans' as const;
 export const LOAN = '/api/v1/realestate/loans/{id}' as const;
 export const SCHEDULE = '/api/v1/realestate/loans/{id}/schedule' as const;
+export const CONTRACT = '/api/v1/realestate/loans/{id}/contract' as const;
 
 /** Every write invalidates the list, every detail and every schedule (3B1 design §7). */
 export function invalidateLoans(queryClient: QueryClient): Promise<void> {

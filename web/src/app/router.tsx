@@ -177,6 +177,14 @@ const loanDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/loans/LoanDetailPage'), 'LoanDetailPage'),
 });
 
+// Loaded on demand, as the detail: the contract form and its libraries stay out of the initial bundle (3B2 design §5).
+const loanContractRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/loans/$id/contract',
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/loans/contract/ContractPage'), 'ContractPage'),
+});
+
 // Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
 const subscriptionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -255,7 +263,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, routineRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,
@@ -268,6 +276,10 @@ export function createAppRouter(context: RouterContext, history?: RouterHistory)
 declare module '@tanstack/react-router' {
   interface Register {
     router: ReturnType<typeof createAppRouter>;
+  }
+  /** What a page landing on another says it did: the contract page lands on the loan's detail (3B2 design §5). */
+  interface HistoryState {
+    loanSaved?: 'contract';
   }
 }
 

@@ -1220,6 +1220,7 @@
     "cost_paid": "Coût à ce jour",
     "cost_remaining": "Coût à venir",
     "contract": "Contrat",
+    "edit_contract": "Modifier le contrat",
     "disbursed_on": "Déblocage",
     "first_payment": "Première échéance",
     "duration": "Durée",
@@ -1283,6 +1284,16 @@
       "saved": "Réglages enregistrés.",
       "nothing": "Aucune modification à enregistrer."
     }
+  },
+  "loan_contract": {
+    "title": "Modifier le contrat : {{name}}",
+    "back": "Retour au crédit",
+    "loading": "Chargement du contrat",
+    "form": "Contrat du crédit",
+    "submit": "Enregistrer le contrat",
+    "saved": "Contrat enregistré.",
+    "repayment_impossible": "Ce contrat rend impossible le remboursement du {{date}} ({{amount}}).",
+    "reload_loses": "« Recharger » remplace le formulaire par le contrat enregistré : vos modifications non enregistrées sont perdues."
   },
   "security": {
     "title": "Sécurité",
