@@ -134,6 +134,15 @@ public sealed class MixedDataset
                 properties[row.Name], new Nid.RealEstate.Application.PropertyFlowDraft(new LocalDate(2025, 3, 1), "expense", 900m, "other", row.Label)));
             if (estimateRefused is not null || expenseRefused is not null)
                 throw new InvalidOperationException($"Seeding {row.Name}'s property facts failed: {(estimateRefused ?? expenseRefused)!.Code}");
+
+            // And its rental (3C2): a planned cost noted with the label and a tenancy labelled with it, after the twin's purchase (2020-01-15).
+            var (_, costRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.AddPropertyRecurringCostCommand(
+                properties[row.Name], new Nid.RealEstate.Application.RecurringCostDraft(
+                    "property_tax", 800m, 1, DurationUnit.Year, new LocalDate(2020, 10, 15), null, row.Label)));
+            var (_, tenancyRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.AddPropertyTenancyCommand(
+                properties[row.Name], new Nid.RealEstate.Contracts.Tenancy(row.Label, new LocalDate(2020, 2, 1), null, 500m, 0m, null, null)));
+            if (costRefused is not null || tenancyRefused is not null)
+                throw new InvalidOperationException($"Seeding {row.Name}'s rental failed: {(costRefused ?? tenancyRefused)!.Code}");
         }
 
         // Each private item gets a custom provider named after its label, through the real requests: a provider list
