@@ -195,19 +195,31 @@ describe('LoanDetailPage', () => {
     expect(within(table()).getAllByRole('row')).toHaveLength(1 + 3 + 10);
   });
 
-  it('opens the first payment’s year when the loan starts after this year, its first payment marked', async () => {
+  it('opens the next payment’s year late in December, though this year still has payments, and marks that payment', async () => {
     vi.setSystemTime(new Date(2026, 11, 20, 12));
-    serve(loanDetail(), schedule({ rows: rows('2027-01-15', 24), years: [year({ year: 2027 }), year({ year: 2028 })] }));
+    serve(loanDetail({ figures: { ...loanDetail().figures, nextPaymentOn: '2027-01-15' } }));
     await renderApp(`/loans/${LOAN}`);
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     expect(yearButton(2027)).toHaveAttribute('aria-expanded', 'true');
+    expect(yearButton(2026)).toHaveAttribute('aria-expanded', 'false');
     expect(within(table()).getByText('prochaine échéance').closest('tr')).toHaveTextContent('15 janvier 2027');
   });
 
-  it('folds every year and marks nothing once every payment is past', async () => {
+  it('marks the figures’ next payment, a payment due today counting as paid', async () => {
+    vi.setSystemTime(new Date(2026, 9, 15, 12));
+    serve(loanDetail({ figures: { ...loanDetail().figures, nextPaymentOn: '2026-11-15' } }));
+    await renderApp(`/loans/${LOAN}`);
+
+    await screen.findByRole('table', { name: 'Échéancier par année' });
+    const marked = within(table()).getByText('prochaine échéance').closest('tr')!;
+    expect(marked).toHaveTextContent('15 novembre 2026');
+    expect(within(marked).getAllByRole('cell')[0]).toHaveTextContent('13');
+  });
+
+  it('folds every year and marks nothing for an ended loan', async () => {
     vi.setSystemTime(new Date(2028, 2, 1, 12));
-    serve();
+    serve(loanDetail({ ended: true, figures: { ...loanDetail().figures, nextPaymentOn: null, nextPaymentTotal: null } }));
     await renderApp(`/loans/${LOAN}`);
 
     await screen.findByRole('table', { name: 'Échéancier par année' });

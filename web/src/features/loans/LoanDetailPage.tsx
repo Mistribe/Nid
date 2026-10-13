@@ -7,7 +7,6 @@ import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Section } from '../income/Section';
-import { todayIso } from '../subscriptions/today';
 import { LOAN, SCHEDULE } from './api';
 import { FeesAndRepayments, LoanContract } from './detail/LoanContract';
 import { LoanFigures } from './detail/LoanFigures';
@@ -59,7 +58,7 @@ export function LoanDetailPage() {
       {loan.fees.length > 0 || loan.repayments.length > 0 ? (
         <Section title={t('loan_detail.fees_and_repayments')}><FeesAndRepayments loan={loan} /></Section>
       ) : null}
-      <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} /></Section>
+      <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
       {loan.canWrite ? (
         <Section title={t('loan_detail.settings.title')} announcement={settingsAnnouncement}>
           <SettingsForm loan={loan} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
@@ -70,7 +69,7 @@ export function LoanDetailPage() {
 }
 
 /** The schedule's own request: the rest of the page reads without waiting for its rows. */
-function Schedule({ id, currency }: { id: string; currency: string }) {
+function Schedule({ id, currency, nextPaymentOn }: { id: string; currency: string; nextPaymentOn?: string | null }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const summaryId = useId();
@@ -96,7 +95,7 @@ function Schedule({ id, currency }: { id: string; currency: string }) {
           </Suspense>
         </>
       ) : null}
-      <ScheduleTable schedule={plan} currency={currency} today={todayIso()} />
+      <ScheduleTable schedule={plan} currency={currency} nextPaymentOn={nextPaymentOn} />
     </div>
   );
 }

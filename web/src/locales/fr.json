@@ -1257,7 +1257,7 @@
     "schedule": {
       "title": "Échéancier",
       "table": "Échéancier par année",
-      "help": "Une ligne par année, avec ses totaux et le capital restant dû après sa dernière échéance ; ouvrez une année pour voir ses mois.",
+      "help": "Une ligne par année : ses échéances, ses remboursements anticipés et le capital restant dû au 31 décembre ; ouvrez une année pour voir ses mois.",
       "loading": "Chargement de l’échéancier",
       "year": "Année {{year}}",
       "col_number": "N°",
