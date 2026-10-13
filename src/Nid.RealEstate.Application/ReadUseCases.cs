@@ -49,7 +49,7 @@ public sealed class ListLoansHandler(
             if (item is null)
                 continue;
             var canWrite = (await policy.CheckAsync(person, loan.ItemId, AccessKind.Write, ct)).IsSuccess;
-            var row = LoanViews.Summary(item, loan, today, canWrite);
+            var row = LoanViews.Summary(item, loan, today, canWrite, await LoanCheck.PropertyNameAsync(policy, items, person, loan.PropertyId, ct));
             if (query.IncludeEnded || !row.Ended)
                 rows.Add(row);
         }
@@ -69,8 +69,10 @@ public sealed class GetLoanHandler(ILoanStore loans, IItemRegistry items, IHouse
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<LoanDetail>(failure!);
         loaded.TryGetValue(out var found);
-        var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(LoanViews.Detail(found.Item, found.Loan, await calendar.TodayAsync(ct), canWrite));
+        var person = actor.Current!.PersonId!.Value;
+        var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
+        var propertyName = await LoanCheck.PropertyNameAsync(policy, items, person, found.Loan.PropertyId, ct);
+        return Result.Success(LoanViews.Detail(found.Item, found.Loan, await calendar.TodayAsync(ct), canWrite, propertyName));
     }
 }
 

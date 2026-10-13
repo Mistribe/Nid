@@ -122,6 +122,73 @@ public static class RealEstateEndpoints
             })
             .ReturnsNoContent();
 
+        api.MapGet("/properties", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListPropertiesQuery(ParseScope(scope)), ct)).ToHttp(list => list))
+            .Returns<PropertyList>();
+
+        api.MapGet("/properties/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertyQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
+            .Returns<PropertyDetail>();
+
+        api.MapPost("/properties", async (CreatePropertyBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(reader);
+                return command is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPatch("/properties/{id:guid}", async (Guid id, EditPropertyBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        api.MapPost("/properties/{id:guid}/valuations", async (Guid id, PropertyValuationBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var asOf = reader.Date(body.AsOf, "asOf");
+                var amount = LoanBodies.Number(reader, body.Amount, "amount");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordPropertyValuationCommand(new ItemId(id), asOf!.Value, amount!.Value, body.Note), ct))
+                        .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapDelete("/properties/{id:guid}/valuations/{valuationId:guid}", async (Guid id, Guid valuationId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidPropertyValuationCommand(new ItemId(id), valuationId), ct)).ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
+        api.MapPost("/properties/{id:guid}/flows", async (Guid id, PropertyFlowBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordPropertyFlowCommand(new ItemId(id), draft), ct))
+                        .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/properties/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, PropertyFlowBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CorrectPropertyFlowCommand(new ItemId(id), flowId, draft), ct)).ToHttp(x => new IdResponse(x));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/properties/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidPropertyFlowCommand(new ItemId(id), flowId), ct)).ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
         return routes;
     }
 
@@ -137,7 +204,7 @@ public static class RealEstateEndpoints
     public sealed record CreateLoanBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Borrowers, string? Lender, string? Note,
         string? Principal, string? DisbursedOn, string? FirstPaymentDate, int? TotalPayments, string? Rounding, string? FirstPeriod,
-        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances)
+        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances, Guid? PropertyId)
     {
         internal CreateLoanCommand? ToCommand(FieldReader reader)
         {
@@ -147,18 +214,20 @@ public static class RealEstateEndpoints
             var borrowers = LoanBodies.Borrowers(reader, Borrowers);
             var contract = LoanBodies.Contract(reader, Principal, DisbursedOn, FirstPaymentDate, TotalPayments, Rounding, FirstPeriod, Phases, Insurances);
             return reader.Ok
-                ? new CreateLoanCommand(Name ?? "", currency, visibility!.Value, borrowers!, Lender, Note, contract!)
+                ? new CreateLoanCommand(Name ?? "", currency, visibility!.Value, borrowers!, Lender, Note, contract!,
+                    PropertyId is { } property ? new ItemId(property) : null)
                 : null;
         }
     }
 
     /// <summary>
-    /// Spec §4: name, lender and note, only what is sent; <c>clear…</c> empties an optional field. Borrowers, visibility and
-    /// currency are set at creation: the body has no such members (as an income source's).
+    /// Spec §4: name, lender, note and the linked property (spec 3C1 §4), only what is sent; <c>clear…</c> empties an optional
+    /// field. Borrowers, visibility and currency are set at creation: the body has no such members (as an income source's).
     /// </summary>
-    public sealed record EditLoanBody(string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote)
+    public sealed record EditLoanBody(string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote, Guid? PropertyId, bool ClearProperty)
     {
-        public EditLoanCommand ToCommand(ItemId id) => new(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote));
+        public EditLoanCommand ToCommand(ItemId id) => new(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote,
+            PropertyId is { } property ? new ItemId(property) : null, ClearProperty));
     }
 
     /// <summary>Spec §4: the whole contract and the <c>version</c> read with it.</summary>
@@ -220,6 +289,97 @@ public static class RealEstateEndpoints
         }
     }
 
+    /// <summary>Spec 3C1 §4: the visibility is required, with no default on the wire; the property's fields sit at the top level.</summary>
+    public sealed record CreatePropertyBody(
+        string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Type, string? PurchaseDate,
+        string? PurchasePrice, string? NotaryFees, string? AgencyFees, string? OtherAcquisitionCosts, string? SurfaceM2,
+        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note)
+    {
+        internal CreatePropertyCommand? ToCommand(FieldReader reader)
+        {
+            var visibility = reader.Visibility(Visibility, "visibility");
+            if (!Nid.Core.Contracts.Currency.TryCreate(Currency, out var currency))
+                reader.Add("currency", PersonCodes.UnknownCurrency, "A currency is a three-letter ISO 4217 code, in capitals.");
+            var owners = LoanBodies.Borrowers(reader, Owners, "owners");
+            var type = PropertyBodies.Wire<PropertyType>(reader, Type, "type", required: true);
+            var purchaseDate = reader.Date(PurchaseDate, "purchaseDate");
+            var price = LoanBodies.Number(reader, PurchasePrice, "purchasePrice");
+            var notary = LoanBodies.Number(reader, NotaryFees, "notaryFees", required: false);
+            var agency = LoanBodies.Number(reader, AgencyFees, "agencyFees", required: false);
+            var other = LoanBodies.Number(reader, OtherAcquisitionCosts, "otherAcquisitionCosts", required: false);
+            var surface = LoanBodies.Number(reader, SurfaceM2, "surfaceM2", required: false);
+            var cadence = PropertyBodies.Wire<PropertyCadence>(reader, ValuationCadence, "valuationCadence", required: false);
+            var rentalStartsOn = reader.Date(RentalStartsOn, "rentalStartsOn", required: false);
+            return reader.Ok
+                ? new CreatePropertyCommand(Name ?? "", currency, visibility!.Value, owners!, new PropertyDetails(
+                    type!.Value, purchaseDate!.Value, price!.Value, notary ?? 0m, agency ?? 0m, other ?? 0m, surface, LocationLabel,
+                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note))
+                : null;
+        }
+    }
+
+    /// <summary>
+    /// Spec 3C1 §4: the <c>version</c> read and only what changes; <c>clear…</c> empties an optional field. Owners, visibility and
+    /// currency are set at creation: the body has no such members.
+    /// </summary>
+    public sealed record EditPropertyBody(
+        uint? Version, string? Name, string? Type, string? PurchaseDate, string? PurchasePrice, string? NotaryFees, string? AgencyFees,
+        string? OtherAcquisitionCosts, string? SurfaceM2, bool ClearSurfaceM2, string? LocationLabel, bool ClearLocationLabel,
+        string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays, string? RentalStartsOn, bool ClearRentalStartsOn,
+        string? Note, bool ClearNote)
+    {
+        internal EditPropertyCommand? ToCommand(ItemId id, FieldReader reader)
+        {
+            var version = RequireVersion(reader, Version);
+            var change = new PropertyChange(
+                PropertyBodies.Wire<PropertyType>(reader, Type, "type", required: false),
+                reader.Date(PurchaseDate, "purchaseDate", required: false),
+                LoanBodies.Number(reader, PurchasePrice, "purchasePrice", required: false),
+                LoanBodies.Number(reader, NotaryFees, "notaryFees", required: false),
+                LoanBodies.Number(reader, AgencyFees, "agencyFees", required: false),
+                LoanBodies.Number(reader, OtherAcquisitionCosts, "otherAcquisitionCosts", required: false),
+                LoanBodies.Number(reader, SurfaceM2, "surfaceM2", required: false), ClearSurfaceM2,
+                LocationLabel, ClearLocationLabel,
+                PropertyBodies.Wire<PropertyCadence>(reader, ValuationCadence, "valuationCadence", required: false),
+                StaleAfterDays, ClearStaleAfterDays,
+                reader.Date(RentalStartsOn, "rentalStartsOn", required: false), ClearRentalStartsOn,
+                Note, ClearNote);
+            return reader.Ok ? new EditPropertyCommand(id, Name, change, version!.Value) : null;
+        }
+    }
+
+    /// <summary>Spec 3C1 §4: an estimate, under the envelopes' member names; the amount an invariant decimal string (precision 1).</summary>
+    public sealed record PropertyValuationBody(string? AsOf, string? Amount, string? Note);
+
+    /// <summary>Spec 3C1 §4: <c>{ occurredOn, kind, amount, category, note? }</c>; kind and category are the module's convention, checked by the handler.</summary>
+    public sealed record PropertyFlowBody(string? OccurredOn, string? Kind, string? Amount, string? Category, string? Note)
+    {
+        internal PropertyFlowDraft? Read(FieldReader reader)
+        {
+            var occurredOn = reader.Date(OccurredOn, "occurredOn");
+            var amount = LoanBodies.Number(reader, Amount, "amount");
+            return occurredOn is null || amount is null ? null : new PropertyFlowDraft(occurredOn.Value, Kind, amount.Value, Category, Note);
+        }
+    }
+
+    internal static class PropertyBodies
+    {
+        /// <summary>A property enum in snake_case (<see cref="LoanWire"/>); a value sent outside the list is the module's refusal at its field.</summary>
+        public static T? Wire<T>(FieldReader reader, string? value, string path, bool required) where T : struct, Enum
+        {
+            if (value is null)
+            {
+                if (required)
+                    reader.Add(path, "request.required", "This field is required.");
+                return null;
+            }
+            if (LoanWire.TryParse<T>(value, out var parsed))
+                return parsed;
+            reader.Add(path, PropertyCodes.InvalidPropertyField, $"'{value}' is not one of {string.Join(", ", Enum.GetValues<T>().Select(v => LoanWire.Of(v)))}.");
+            return null;
+        }
+    }
+
     /// <summary>The readers the loan bodies share; each refusal is added to the reader at its body path.</summary>
     internal static class LoanBodies
     {
@@ -249,17 +409,17 @@ public static class RealEstateEndpoints
             return null;
         }
 
-        /// <summary>The creation's borrowers (precision 8: never sent again); at least one.</summary>
-        public static IReadOnlyList<OwnerShare>? Borrowers(FieldReader reader, IReadOnlyList<OwnerBody>? body)
+        /// <summary>A loan's borrowers, or a property's owners at <paramref name="path"/> (set at creation, never sent again); at least one.</summary>
+        public static IReadOnlyList<OwnerShare>? Borrowers(FieldReader reader, IReadOnlyList<OwnerBody>? body, string path = "borrowers")
         {
             if (body is null || body.Count == 0)
             {
-                reader.Add("borrowers", "request.required", "A loan has at least one borrower.");
+                reader.Add(path, "request.required", "At least one owner is required.");
                 return null;
             }
             for (var i = 0; i < body.Count; i++)
                 if (body[i] is null) // nullable annotations stop at collection elements
-                    reader.Add($"borrowers[{i}]", "request.required", "A borrower is required.");
+                    reader.Add($"{path}[{i}]", "request.required", "An owner is required.");
             return body.Where(o => o is not null).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList();
         }
 

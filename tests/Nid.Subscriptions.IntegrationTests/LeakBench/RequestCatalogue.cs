@@ -49,6 +49,12 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
     /// request carrying a <c>ProviderKey</c>, which <c>LeakBenchTests</c> checks by reflection.
     /// </summary>
     public Func<MixedDataset, PersonId, ItemId, string, object>? BuildLinkingProvider { get; init; }
+
+    /// <summary>
+    /// The access the second axis expects on the second item: <c>Write</c> for a write reaching two items, <c>Read</c> for a link
+    /// to an item the actor only has to read (spec 3C1 §3: a loan's property).
+    /// </summary>
+    public AccessKind SecondItemAccess { get; init; } = AccessKind.Write;
 }
 
 /// <summary>
@@ -286,7 +292,13 @@ public static class RequestCatalogue
         new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),
         new(typeof(CreateLoanCommand), false, (d, _) => new CreateLoanCommand("bench", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], null, null, BenchContract)),
-        new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench"))),
+        new(typeof(EditLoanCommand), true, (_, item) => new EditLoanCommand(item, null, new LoanDetailsChange(Note: "bench")))
+        {
+            // Spec 3C1 §3: a loan links to a property its actor reads; the bench names the property twin of the other row.
+            BuildNamingAnother = (d, target, other) => Task.FromResult<object>(
+                new EditLoanCommand(target, null, new LoanDetailsChange(PropertyId: d.PropertyTwinOf(other)))),
+            SecondItemAccess = AccessKind.Read,
+        },
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceLoanContractCommand), true, (_, item) => new ReplaceLoanContractCommand(item, BenchContract, 1)),
 
@@ -301,11 +313,31 @@ public static class RequestCatalogue
         new(typeof(EditLoanRepaymentCommand), true, (_, item) => new EditLoanRepaymentCommand(item, Guid.NewGuid(),
             new RepaymentDraft(new LocalDate(2025, 3, 15), 100m, RepaymentEffect.ReduceTerm, null, null), 1)),
         new(typeof(DeleteLoanRepaymentCommand), true, (_, item) => new DeleteLoanRepaymentCommand(item, Guid.NewGuid(), 1)),
+
+        new(typeof(ListPropertiesQuery), false, (_, _) => new ListPropertiesQuery(VisibilityScope.Me)),
+        new(typeof(GetPropertyQuery), true, (_, item) => new GetPropertyQuery(item)),
+        new(typeof(CreatePropertyCommand), false, (d, _) => new CreatePropertyCommand("bench", Currency.Eur, Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
+        // Version 1 is never a row's xmin: an allowed writer meets realestate.property_conflict, never an access refusal.
+        new(typeof(EditPropertyCommand), true, (_, item) => new EditPropertyCommand(item, null, new PropertyChange(Note: "bench"), 1)),
+
+        // A fact id is looked up by (id, item_id) in the Core (2A), as the envelopes': no BuildNamingAnother.
+        new(typeof(RecordPropertyValuationCommand), true, (_, item) => new RecordPropertyValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),
+        new(typeof(VoidPropertyValuationCommand), true, (_, item) => new VoidPropertyValuationCommand(item, Guid.NewGuid())),
+        new(typeof(RecordPropertyFlowCommand), true, (_, item) => new RecordPropertyFlowCommand(item, BenchFlow)),
+        new(typeof(CorrectPropertyFlowCommand), true, (_, item) => new CorrectPropertyFlowCommand(item, Guid.NewGuid(), BenchFlow)),
+        new(typeof(VoidPropertyFlowCommand), true, (_, item) => new VoidPropertyFlowCommand(item, Guid.NewGuid())),
     ];
 
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
     private static LoanContract BenchContract => new(1_000m, new LocalDate(2025, 1, 15), new LocalDate(2025, 2, 15), 12,
         InterestRounding.HalfUp, FirstPeriod.Full, [new LoanPhaseEntry(new LoanPhase(1, PhaseMode.Annuity, 0.01m, RateType.Fixed), null)], []);
+
+    /// <summary>A rental bought 100 000 on 2020-01-15, nothing else.</summary>
+    private static PropertyDetails BenchProperty => new(PropertyType.Rental, new LocalDate(2020, 1, 15), 100_000m, 0m, 0m, 0m,
+        null, null, PropertyCadence.Yearly, null, null, null);
+
+    private static PropertyFlowDraft BenchFlow => new(new LocalDate(2025, 1, 1), "expense", 1m, PropertyCategories.Works, null);
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
 

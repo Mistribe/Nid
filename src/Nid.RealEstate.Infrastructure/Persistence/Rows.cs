@@ -14,6 +14,10 @@ public sealed class LoanRow
     public string RoundingMode { get; set; } = "";
     public string FirstPeriodMode { get; set; } = "";
     public string? Note { get; set; }
+
+    /// <summary>Spec 3C1 §2: the property financed; no foreign key across items (a property is never deleted).</summary>
+    public Guid? PropertyItemId { get; set; }
+
     public uint Version { get; set; }
 }
 
@@ -63,6 +67,25 @@ public sealed class LoanEventRow
     public decimal Amount { get; set; }
     public string Effect { get; set; } = "";
     public Guid? FeeId { get; set; }
+    public string? Note { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>realestate.property (spec 3C1 §2): 1:1 with its Core item; <c>Version</c> is <c>xmin</c>.</summary>
+public sealed class PropertyRow
+{
+    public Guid ItemId { get; set; }
+    public string PropertyType { get; set; } = "";
+    public LocalDate PurchaseDate { get; set; }
+    public decimal PurchasePrice { get; set; }
+    public decimal NotaryFees { get; set; }
+    public decimal AgencyFees { get; set; }
+    public decimal OtherAcquisitionCosts { get; set; }
+    public decimal? SurfaceM2 { get; set; }
+    public string? LocationLabel { get; set; }
+    public string ValuationCadence { get; set; } = "";
+    public int? StaleAfterDays { get; set; }
+    public LocalDate? RentalStartsOn { get; set; }
     public string? Note { get; set; }
     public uint Version { get; set; }
 }

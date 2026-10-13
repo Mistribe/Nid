@@ -133,7 +133,8 @@ public static class ResultHttp
             _ when failure.Code == InvestmentsCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
-            _ when failure.Code is LoanCodes.LoanConflict or LoanCodes.FeeConflict or LoanCodes.RepaymentConflict => StatusCodes.Status409Conflict,
+            _ when failure.Code is LoanCodes.LoanConflict or LoanCodes.FeeConflict or LoanCodes.RepaymentConflict
+                or PropertyCodes.PropertyConflict => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 

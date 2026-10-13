@@ -172,6 +172,14 @@ public class LeakBenchTests(PostgresFixture fixture)
                 expectedLoans.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 loans.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
 
+            // And for the property twins (3C1).
+            var properties = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/properties?scope={scope}");
+            var expectedProperties = data.ExpectedVisible(
+                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Properties);
+            Assert.Equal(
+                expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                properties.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
             // And the dashboard (2D2a): its envelope split lists exactly the visible open envelopes, and every item
             // named in « À venir » or « À faire » is one this actor may read.
             var dashboard = System.Text.Json.JsonDocument.Parse(await app.GetRawAsync(actor, $"/api/v1/dashboard?scope={scope}")).RootElement;
@@ -208,6 +216,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                      "/api/v1/income/sources?scope=me",
                      "/api/v1/realestate/loans?scope=household",
                      "/api/v1/realestate/loans?scope=me",
+                     "/api/v1/realestate/properties?scope=household",
+                     "/api/v1/realestate/properties?scope=me",
                      "/api/v1/dashboard?scope=household",
                      "/api/v1/dashboard?scope=me",
                      "/api/v1/dashboard/net-worth?scope=household&period=all",
@@ -361,7 +371,10 @@ public class LeakBenchTests(PostgresFixture fixture)
                     continue;
                 }
 
-                if (!data.ExpectedWritable(otherName, actor))
+                // A link needs only the second item's read access (spec 3C1 §3); every other second item, its write access.
+                if (entry.SecondItemAccess == AccessKind.Read
+                        ? !data.ExpectedReadable(actor).Contains(other)
+                        : !data.ExpectedWritable(otherName, actor))
                 {
                     // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
                     // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
@@ -438,6 +451,11 @@ public class LeakBenchTests(PostgresFixture fixture)
             [app.AdultA] = [],
             [app.AdultB] = [],
         };
+        var propertyBodies = new Dictionary<PersonId, List<string>>
+        {
+            [app.AdultA] = [],
+            [app.AdultB] = [],
+        };
 
         foreach (var entry in RequestCatalogue.Entries)
         {
@@ -479,6 +497,8 @@ public class LeakBenchTests(PostgresFixture fixture)
                     incomeBodies[actor].Add(serialised);
                 if (rows == data.Loans)
                     loanBodies[actor].Add(serialised);
+                if (rows == data.Properties)
+                    propertyBodies[actor].Add(serialised);
 
                 Assert.DoesNotContain(data.ForbiddenLabel(actor), serialised, StringComparison.Ordinal);
             }
@@ -493,6 +513,7 @@ public class LeakBenchTests(PostgresFixture fixture)
             Assert.Contains(envelopeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(incomeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(loanBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+            Assert.Contains(propertyBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
         }
     }
 

@@ -43,6 +43,15 @@ Un bien est un `item` du Core. Un prêt est un autre `item`, lié à un bien par
 
 Les **estimations** sont des valorisations du Core (une à deux fois par an, avec rappel, note « estimation en ligne » ou autre). L'interface propose des liens vers des estimateurs en ligne ; aucune donnée n'y est envoyée. Les données publiques de transactions restent à explorer plus tard (`../Project.md` §13).
 
+**Livré en 3C1** (2026-10-13, `superpowers/specs/2026-10-13-properties-server-design.md`) : table `realestate.property` (1:1 avec l’élément du Core `realestate` / `property`) et colonne `loan.property_item_id` (`loans.md` §3) ; un bien n’est ni vendu, ni supprimé, ni archivé à cette étape. Ses estimations et ses flux sont ceux du Core ; un flux de bien est `expense` ou `income` et porte une catégorie **obligatoire** de la convention du §4 (`realestate.invalid_category` sinon). API `/api/v1/realestate` :
+
+- `GET /properties?scope=` : par bien, le type, la devise, la valeur du jour (dernière estimation, sa date, périmée ou non) et la valeur nette (`null` sans estimation) ;
+- `GET /properties/{id}` : les champs du bien et sa `version`, les propriétaires, la visibilité, les indicateurs du jour (§7 : valeur, prix de revient, plus-value latente brute, capital restant dû des prêts liés, valeur nette, coût réel et ses composantes, coût net des loyers), les avertissements, toutes les estimations et tous les flux par date, et les prêts liés **que la personne peut lire**, avec leur capital restant dû et sa conversion dans la devise du bien ;
+- `POST /properties` et `PATCH /properties/{id}` (avec la `version` lue ; propriétaires, visibilité et devise sont fixés à la création ; une version périmée répond `409 realestate.property_conflict`) ;
+- `POST` et `DELETE` sur `/properties/{id}/valuations`, `POST`, `PUT` et `DELETE` sur `/properties/{id}/flows`.
+
+Un prêt lié que la personne ne peut pas lire n’apparaît nulle part : ni son identifiant, ni son montant, ni leur nombre ; il ne compte ni dans la valeur nette ni dans le coût réel qu’elle voit. Un prêt dans une autre devise est converti au taux du jour (`loan_other_currency`) ; sans taux, il est laissé de côté (`fx_missing`). Composantes du coût réel : `acquisition`, `loan_interest`, `loan_insurance`, `loan_fees`, puis une ligne par catégorie de dépense. Avertissements : `no_valuation`, `valuation_stale` (400 jours en cadence `yearly`, jamais en `manual`, sauf `stale_after_days`), `loan_other_currency`, `fx_missing`, `visibility_mismatch`. Montants en chaînes décimales invariantes (`"290000.00"`), deux décimales au plus, sous 10¹² ; les montants des estimations et des flux sont eux aussi des chaînes décimales invariantes, dans la devise du bien (pas d’objet `{ amount, currency }`) ; chaque refus nomme son champ (`realestate.invalid_property_field`, `realestate.invalid_category`). Charges récurrentes, baux, loyer attendu, impayés, vacance et rendements viendront en 3C2.
+
 ## 4. Catégories de flux
 
 Convention du module pour le champ `category` des flux du Core :
@@ -189,6 +198,6 @@ Achat de 250 000 € + notaire 19 000 € + travaux 12 000 € (`works`).
 
 ## 15. Questions ouvertes
 
-- Faut-il lier une charge récurrente à la génération automatique de flux prévus, ou seulement à la routine mensuelle ?
-- Rendement locatif : fenêtre de 12 mois glissants ou année civile ?
-- Représentation d'une résidence principale partiellement louée (colocation, location meublée d'une pièce).
+- ~~Faut-il lier une charge récurrente à la génération automatique de flux prévus, ou seulement à la routine mensuelle ?~~ **Tranché en 3C1 (2026-10-13) : la routine seulement.** Une charge récurrente donne sa prochaine échéance et son équivalent mensuel ; la routine (3E) propose un flux prérempli à confirmer ; les flux réels restent la vérité comptable.
+- ~~Rendement locatif : fenêtre de 12 mois glissants ou année civile ?~~ **Tranché en 3C1 (2026-10-13) : les 12 mois glissants** avant la date.
+- ~~Représentation d’une résidence principale partiellement louée (colocation, location meublée d’une pièce).~~ **Tranché en 3C1 (2026-10-13) : un bail sur le bien, sans proratisation** des charges entre partie louée et partie occupée ; tout type de bien peut porter des baux.

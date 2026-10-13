@@ -1,0 +1,100 @@
+using Nid.RealEstate.Application;
+using Nid.RealEstate.Contracts;
+using NodaTime;
+
+namespace Nid.RealEstate.Tests;
+
+/// <summary>Spec 3C1 §2–§3: the bounds of a property's fields and of its flows, each at the body's field.</summary>
+public class PropertyRulesTests
+{
+    private static readonly LocalDate Today = new(2025, 10, 15);
+
+    private static PropertyDetails Home() => new(PropertyType.PrimaryResidence, new LocalDate(2020, 6, 15), 250_000m, 19_000m, 0m, 0m,
+        85.5m, "Nantes", PropertyCadence.Yearly, null, null, "achat");
+
+    [Fact]
+    public void A_sound_property_passes()
+        => Assert.Null(PropertyRules.Details(Home(), Today));
+
+    [Fact]
+    public void Each_refusal_names_its_field()
+    {
+        var cases = new (string Why, PropertyDetails Details, string Field)[]
+        {
+            ("a purchase tomorrow", Home() with { PurchaseDate = Today.PlusDays(1) }, "purchaseDate"),
+            ("a purchase in 1899", Home() with { PurchaseDate = new LocalDate(1899, 12, 31) }, "purchaseDate"),
+            ("a free purchase", Home() with { PurchasePrice = 0m }, "purchasePrice"),
+            ("a third decimal", Home() with { PurchasePrice = 250_000.005m }, "purchasePrice"),
+            ("a trillion", Home() with { PurchasePrice = 1_000_000_000_000m }, "purchasePrice"),
+            ("negative notary fees", Home() with { NotaryFees = -1m }, "notaryFees"),
+            ("negative agency fees", Home() with { AgencyFees = -0.01m }, "agencyFees"),
+            ("negative other costs", Home() with { OtherAcquisitionCosts = -5m }, "otherAcquisitionCosts"),
+            ("no surface", Home() with { SurfaceM2 = 0m }, "surfaceM2"),
+            ("a surface to the thousandth", Home() with { SurfaceM2 = 85.505m }, "surfaceM2"),
+            ("a full address", Home() with { LocationLabel = new string('x', 101) }, "locationLabel"),
+            ("a threshold of no day", Home() with { StaleAfterDays = 0 }, "staleAfterDays"),
+            ("a threshold of 3651 days", Home() with { StaleAfterDays = 3651 }, "staleAfterDays"),
+            ("a rental before the purchase", Home() with { RentalStartsOn = new LocalDate(2020, 6, 14) }, "rentalStartsOn"),
+            ("a long note", Home() with { Note = new string('x', 2001) }, "note"),
+        };
+
+        foreach (var (why, details, field) in cases)
+        {
+            var refused = PropertyRules.Details(details, Today);
+            Assert.True(refused is { Code: PropertyCodes.InvalidPropertyField } && Loans.FieldOf(refused) == field,
+                $"{why}: expected {field}, got {refused?.Code} at {(refused is null ? null : Loans.FieldOf(refused))}");
+        }
+    }
+
+    [Fact]
+    public void The_bounds_themselves_pass()
+    {
+        Assert.Null(PropertyRules.Details(Home() with
+        {
+            PurchaseDate = Today, PurchasePrice = 0.01m, SurfaceM2 = null, LocationLabel = new string('x', 100), StaleAfterDays = 3650,
+            RentalStartsOn = Today, Note = new string('x', 2000),
+        }, Today));
+        Assert.Null(PropertyRules.Details(Home() with { PurchaseDate = new LocalDate(1900, 1, 1), StaleAfterDays = 1 }, Today));
+    }
+
+    [Fact]
+    public void A_rental_start_before_the_purchase_answers_where_the_caller_says()
+    {
+        var early = Home() with { RentalStartsOn = new LocalDate(2020, 6, 14) };
+        Assert.Equal("rentalStartsOn", Loans.FieldOf(PropertyRules.Details(early, Today)!));
+        Assert.Equal("purchaseDate", Loans.FieldOf(PropertyRules.Details(early, Today, "purchaseDate")!));
+    }
+
+    [Fact]
+    public void A_name_is_1_to_100_characters_and_not_only_whitespace()
+    {
+        Assert.Null(PropertyRules.Name("Maison"));
+        foreach (var bad in new[] { null, "", "   ", new string('x', 101) })
+            Assert.Equal("name", Loans.FieldOf(PropertyRules.Name(bad)!));
+    }
+
+    [Theory]
+    [InlineData("expense", "works", null)]
+    [InlineData("expense", "property_tax", null)]
+    [InlineData("income", "rent", null)]
+    [InlineData("income", "other_income", null)]
+    [InlineData("contribution", "works", "kind")]
+    [InlineData(null, "works", "kind")]
+    [InlineData("expense", "rent", "category")]
+    [InlineData("income", "works", "category")]
+    [InlineData("expense", null, "category")]
+    public void A_flow_category_matches_its_kind(string? kind, string? category, string? refusedAt)
+    {
+        var refused = PropertyRules.Category(kind, category);
+        Assert.Equal(refusedAt, refused is null ? null : Loans.FieldOf(refused));
+        if (refused is not null)
+            Assert.Equal(PropertyCodes.InvalidCategory, refused.Code);
+    }
+
+    [Fact]
+    public void A_change_keeps_what_it_does_not_send_and_clears_what_it_is_told_to()
+    {
+        var changed = new PropertyChange(PurchasePrice: 255_000m, ClearSurfaceM2: true, LocationLabel: "Rezé", ClearNote: true).ApplyTo(Home());
+        Assert.Equal(Home() with { PurchasePrice = 255_000m, SurfaceM2 = null, LocationLabel = "Rezé", Note = null }, changed);
+    }
+}

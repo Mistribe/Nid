@@ -41,9 +41,10 @@ public sealed class MixedDataset
 
     private MixedDataset(
         NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
-        IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans)
+        IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
+        IReadOnlyDictionary<string, ItemId> properties)
     {
-        (App, Items, Envelopes, IncomeSources, Loans) = (app, items, envelopes, incomeSources, loans);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties) = (app, items, envelopes, incomeSources, loans, properties);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -51,6 +52,8 @@ public sealed class MixedDataset
             names[source] = name + " (income)";
         foreach (var (name, loan) in loans)
             names[loan] = name + " (loan)";
+        foreach (var (name, property) in properties)
+            names[property] = name + " (property)";
     }
 
     public NidApp App { get; }
@@ -70,8 +73,11 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> IncomeSources { get; }
 
-    /// <summary>The loan twin of each row (3A2): same §2 name, label, owners and visibility. The RealEstate requests run against these.</summary>
+    /// <summary>The loan twin of each row (3A2): same §2 name, label, owners and visibility. The loan requests run against these.</summary>
     public IReadOnlyDictionary<string, ItemId> Loans { get; }
+
+    /// <summary>The property twin of each row (3C1): same §2 name, label, owners and visibility. The property requests run against these.</summary>
+    public IReadOnlyDictionary<string, ItemId> Properties { get; }
 
     public ItemId this[string name] => Items[name];
 
@@ -83,7 +89,9 @@ public sealed class MixedDataset
     public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
         => requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
-            : requestType.Assembly == typeof(Nid.RealEstate.Application.ListLoansQuery).Assembly ? Loans
+            : requestType.Assembly == typeof(Nid.RealEstate.Application.ListLoansQuery).Assembly
+                // Every property request carries « Propert » in its name (ListPropertiesQuery, RecordPropertyValuationCommand…).
+                ? (requestType.Name.Contains("Propert", StringComparison.Ordinal) ? Properties : Loans)
             : Items;
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
@@ -94,6 +102,7 @@ public sealed class MixedDataset
         var envelopes = new Dictionary<string, ItemId>();
         var incomeSources = new Dictionary<string, ItemId>();
         var loans = new Dictionary<string, ItemId>();
+        var properties = new Dictionary<string, ItemId>();
         foreach (var row in Rows)
         {
             var owners = row.Owners
@@ -105,6 +114,7 @@ public sealed class MixedDataset
             incomeSources[row.Name] = await app.NewIncomeSourceAsync(row.Label, row.Visibility, owners);
             // Named after the label, so the textual scan catches a loan read by the wrong adult.
             loans[row.Name] = await app.NewLoanAsync(row.Label, row.Visibility, owners);
+            properties[row.Name] = await app.NewPropertyAsync(row.Label, row.Visibility, owners);
 
             // One value and one flow per twin, through the real requests: without facts the valuations and flows
             // export pages are empty for everyone and the output guard would check nothing on them. The label in
@@ -116,6 +126,14 @@ public sealed class MixedDataset
                 envelopes[row.Name], new FlowDraft(new LocalDate(2025, 3, 1), "contribution", Money.Create(900m, Currency.Eur).Ok(), null, null, row.Label)));
             if (valueRefused is not null || flowRefused is not null)
                 throw new InvalidOperationException($"Seeding {row.Name}'s facts failed: {(valueRefused ?? flowRefused)!.Code}");
+
+            // The property twin's estimate and flow too, the label in their notes: a property read returning another item's facts is caught.
+            var (_, estimateRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.RecordPropertyValuationCommand(
+                properties[row.Name], new LocalDate(2025, 3, 31), 1000m, row.Label));
+            var (_, expenseRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.RecordPropertyFlowCommand(
+                properties[row.Name], new Nid.RealEstate.Application.PropertyFlowDraft(new LocalDate(2025, 3, 1), "expense", 900m, "other", row.Label)));
+            if (estimateRefused is not null || expenseRefused is not null)
+                throw new InvalidOperationException($"Seeding {row.Name}'s property facts failed: {(estimateRefused ?? expenseRefused)!.Code}");
         }
 
         // Each private item gets a custom provider named after its label, through the real requests: a provider list
@@ -130,11 +148,27 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {name}'s provider failed: {notLinked.Code}");
         }
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans);
+        // Each loan twin is linked to its row's property twin, except the private ones, linked to their owner's shared property:
+        // the other adult reads that property, and the textual scan finds the private loan's label in it if it is ever shown.
+        foreach (var row in Rows)
+        {
+            var property = properties[row.Name switch { "P-A" => "S-A", "P-B" => "S-B", var same => same }];
+            var writer = row.Owners.Select(o => PersonOf(app, o)).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA);
+            var (_, refused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.EditLoanCommand(
+                loans[row.Name], null, new Nid.RealEstate.Contracts.LoanDetailsChange(PropertyId: property)));
+            if (refused is not null)
+                throw new InvalidOperationException($"Linking {row.Name}'s loan failed: {refused.Code}");
+        }
+
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties);
     }
 
     /// <summary>The §2 name of an item, for a failure message that says which row went wrong.</summary>
     public string NameOf(ItemId item) => names.TryGetValue(item, out var name) ? name : item.ToString();
+
+    /// <summary>The property twin of a loan twin's row; any other id as it is (an unknown id stays unknown).</summary>
+    public ItemId PropertyTwinOf(ItemId loan)
+        => Loans.Where(kv => kv.Value == loan).Select(kv => (ItemId?)Properties[kv.Key]).FirstOrDefault() ?? loan;
 
     /// <summary>"A", "B" or "D" — how access-tests.md §2 names this person.</summary>
     public string NameOf(PersonId person)
@@ -146,7 +180,7 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlySet<ItemId> ExpectedReadable(PersonId actor)
         => Rows.Where(r => r.Readers.Contains(NameOf(actor)))
-            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name] })
+            .SelectMany(r => new[] { Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name], Properties[r.Name] })
             .ToHashSet();
 
     /// <summary>Whether access-tests.md §2 says this actor may change this item.</summary>

@@ -35,7 +35,7 @@ describe('loan settings', () => {
     await user.click(save());
 
     expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Réglages enregistrés.');
-    expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: true, clearNote: false }]);
+    expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: true, clearNote: false, clearProperty: false }]);
     await waitFor(() => expect(reads.detail).toBeGreaterThan(1));
   });
 
