@@ -360,6 +360,26 @@ public sealed class NidApp : IAsyncDisposable
     }
 
     /// <summary>
+    /// A property owned by <paramref name="owners"/>, through the real API (3C1), created by an adult owner, or by A when only the
+    /// dependent owns it: a rental bought 100 000 € on 2020-01-15, named <paramref name="name"/> so a textual scan finds a property
+    /// read by the wrong adult.
+    /// </summary>
+    public async Task<ItemId> NewPropertyAsync(string name, Visibility visibility, params (PersonId Person, int ShareBp)[] owners)
+    {
+        var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == AdultA || p == AdultB, AdultA);
+
+        var response = await RawAsync(creator, HttpMethod.Post, "/api/v1/realestate/properties", new
+        {
+            name, currency = "EUR", visibility = visibility == Visibility.Private ? "private" : "shared",
+            owners = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+            type = "rental", purchaseDate = "2020-01-15", purchasePrice = "100000",
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
     /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
     /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the
     /// way <c>ActorFilter</c> establishes it. Returns the failure the pipeline produced, or <c>null</c> on
