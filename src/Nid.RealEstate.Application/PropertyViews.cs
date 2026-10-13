@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
@@ -8,7 +9,8 @@ namespace Nid.RealEstate.Application;
 
 /// <summary>A row of <c>GET /properties</c> (spec 3C1 §4): the value today and the net value, both null without an estimate.</summary>
 public sealed record PropertySummary(
-    ItemId Id, string Name, string Type, string Currency, string? Value, LocalDate? ValueOn, bool Stale, string? NetValue, bool CanWrite);
+    ItemId Id, string Name, string Type, string Currency, string? Value, LocalDate? ValueOn, bool Stale, string? NetValue,
+    string? GrossYield, string? VacancyRate, bool CanWrite);
 
 public sealed record PropertyList(IReadOnlyList<PropertySummary> Items) : IExposesItems
 {
@@ -43,7 +45,9 @@ public sealed record PropertyWarningView(string Code, ItemId? LoanId);
 
 public sealed record PropertyFiguresView(
     string? Value, LocalDate? ValueOn, bool Stale, string CostPrice, string? LatentGain, string LinkedBalance, string? NetValue,
-    string RealCost, IReadOnlyList<PropertyCostLineView> RealCostLines, string NetCostOfRents);
+    string RealCost, IReadOnlyList<PropertyCostLineView> RealCostLines, string NetCostOfRents,
+    LocalDate? RentedSince, string ExpectedRent, string RentReceived, string Arrears, int? VacantDays, string? VacancyRate,
+    string? GrossYield, string? NetYieldBeforeTax);
 
 /// <summary>Spec 3C1 §4: shaped like an envelope's detail.</summary>
 public sealed record PropertyDetail(
@@ -63,7 +67,7 @@ internal static class PropertyViews
 {
     public static PropertySummary Summary(ItemAccess item, StoredProperty property, PropertyFigures f, bool canWrite)
         => new(property.ItemId, item.DisplayName, LoanWire.Of(property.Details.Type), LoanViews.CurrencyOf(item).Code,
-            Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), canWrite);
+            Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), Fraction(f.Rental.GrossYield), Fraction(f.Rental.VacancyRate), canWrite);
 
     public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, LocalDate today)
     {
@@ -75,7 +79,9 @@ internal static class PropertyViews
             Amount(d.SurfaceM2), d.LocationLabel, LoanWire.Of(d.Cadence), d.StaleAfterDays, d.RentalStartsOn, d.Note, property.Version,
             new PropertyFiguresView(Amount(f.Value), f.ValueOn, f.Stale, Amount(f.CostPrice), Amount(f.LatentGain), Amount(f.LinkedBalance),
                 Amount(f.NetValue), Amount(f.RealCost), f.RealCostLines.Select(l => new PropertyCostLineView(l.Code, Amount(l.Amount))).ToList(),
-                Amount(f.NetCostOfRents)),
+                Amount(f.NetCostOfRents), f.Rental.RentedSince, Amount(f.Rental.ExpectedRent), Amount(f.Rental.RentReceived),
+                Amount(f.Rental.Arrears), f.Rental.VacantDays, Fraction(f.Rental.VacancyRate), Fraction(f.Rental.GrossYield),
+                Fraction(f.Rental.NetYieldBeforeTax)),
             f.Warnings.Select(w => new PropertyWarningView(w.Code, w.LoanId)).ToList(),
             read.Values.OrderBy(v => v.AsOf).Select(v => new PropertyValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note)).ToList(),
             read.Flows.Select(x => new PropertyFlowView(x.Id, x.OccurredOn, LoanWire.Of(x.Kind), Amount(x.Amount.Amount), x.Category, x.Note)).ToList(),
@@ -88,4 +94,7 @@ internal static class PropertyViews
             read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanViews.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
             canWrite);
     }
+
+    /// <summary>Spec 3C2 §4: a rate on the wire, a fraction with four decimals, invariant (<c>"0.0384"</c>), rounded once here.</summary>
+    private static string? Fraction(decimal? x) => x?.ToString("0.0000", CultureInfo.InvariantCulture);
 }

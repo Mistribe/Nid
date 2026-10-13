@@ -15101,7 +15101,10 @@
           "linkedBalance",
           "realCost",
           "realCostLines",
-          "netCostOfRents"
+          "netCostOfRents",
+          "expectedRent",
+          "rentReceived",
+          "arrears"
         ],
         "type": "object",
         "properties": {
@@ -15150,6 +15153,47 @@
           },
           "netCostOfRents": {
             "type": "string"
+          },
+          "rentedSince": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "expectedRent": {
+            "type": "string"
+          },
+          "rentReceived": {
+            "type": "string"
+          },
+          "arrears": {
+            "type": "string"
+          },
+          "vacantDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "vacancyRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grossYield": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netYieldBeforeTax": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -15437,6 +15481,18 @@
             "type": "boolean"
           },
           "netValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grossYield": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vacancyRate": {
             "type": [
               "null",
               "string"

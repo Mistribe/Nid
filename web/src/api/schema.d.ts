@@ -10692,6 +10692,16 @@ export interface components {
             realCost: string;
             realCostLines: components["schemas"]["PropertyCostLineView"][];
             netCostOfRents: string;
+            /** Format: date */
+            rentedSince?: null | string;
+            expectedRent: string;
+            rentReceived: string;
+            arrears: string;
+            /** Format: int32 */
+            vacantDays?: null | number;
+            vacancyRate?: null | string;
+            grossYield?: null | string;
+            netYieldBeforeTax?: null | string;
         };
         PropertyFlowBody: {
             occurredOn?: null | string;
@@ -10765,6 +10775,8 @@ export interface components {
             valueOn?: null | string;
             stale: boolean;
             netValue?: null | string;
+            grossYield?: null | string;
+            vacancyRate?: null | string;
             canWrite: boolean;
         };
         PropertyTenancyBody: {
