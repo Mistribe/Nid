@@ -29,6 +29,10 @@ public sealed record PropertyEveryView(int Count, string Unit);
 public sealed record PropertyRecurringCostView(
     Guid Id, uint Version, string Category, string Amount, PropertyEveryView Every, LocalDate StartsOn, LocalDate? EndsOn, string? Note,
     string MonthlyEquivalent, LocalDate? NextDueOn);
+/// <summary>A tenancy (spec 3C2 §3); <c>Current</c>: it covers today.</summary>
+public sealed record PropertyTenancyView(
+    Guid Id, uint Version, string Label, LocalDate StartsOn, LocalDate? EndsOn, string RentMonthly, string ChargesMonthly, string? Deposit,
+    string? Note, bool Current);
 
 /// <summary>A linked loan the reader can read: its balance today, and in the property's currency (null when the rate is missing).</summary>
 public sealed record PropertyLoanView(ItemId Id, string Name, string Currency, string Balance, string? BalanceConverted);
@@ -47,8 +51,8 @@ public sealed record PropertyDetail(
     LocalDate PurchaseDate, string PurchasePrice, string NotaryFees, string AgencyFees, string OtherAcquisitionCosts, string? SurfaceM2,
     string? LocationLabel, string ValuationCadence, int? StaleAfterDays, LocalDate? RentalStartsOn, string? Note, uint Version,
     PropertyFiguresView Figures, IReadOnlyList<PropertyWarningView> Warnings, IReadOnlyList<PropertyValuationView> Valuations,
-    IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyRecurringCostView> RecurringCosts, IReadOnlyList<PropertyLoanView> Loans,
-    bool CanWrite) : IExposesItems
+    IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyRecurringCostView> RecurringCosts, IReadOnlyList<PropertyTenancyView> Tenancies,
+    IReadOnlyList<PropertyLoanView> Loans, bool CanWrite) : IExposesItems
 {
     /// <summary>The property and its readable linked loans; every warning's loan is one of them.</summary>
     public IEnumerable<ItemId> ExposedItems() => [Id, .. Loans.Select(l => l.Id)];
@@ -78,6 +82,9 @@ internal static class PropertyViews
             property.Costs.Select(c => new PropertyRecurringCostView(c.Id, c.Version, c.Cost.Category, Amount(c.Cost.Amount),
                 new PropertyEveryView(c.Cost.Every.Count, LoanWire.Of(c.Cost.Every.Unit)), c.Cost.StartsOn, c.Cost.EndsOn, c.Cost.Note,
                 Amount(PropertyMath.MonthlyEquivalent(c.Cost)), PropertyMath.NextDueOn(c.Cost, today))).ToList(),
+            property.Tenancies.Select(t => new PropertyTenancyView(t.Id, t.Version, t.Tenancy.Label, t.Tenancy.StartsOn, t.Tenancy.EndsOn,
+                Amount(t.Tenancy.RentMonthly), Amount(t.Tenancy.ChargesMonthly), Amount(t.Tenancy.Deposit), t.Tenancy.Note,
+                PropertyMath.Covers(t.Tenancy, today))).ToList(),
             read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanViews.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
             canWrite);
     }

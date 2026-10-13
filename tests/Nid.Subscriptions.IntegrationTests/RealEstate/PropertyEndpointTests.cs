@@ -190,6 +190,7 @@ public class PropertyEndpointTests(PostgresFixture fixture)
         var other = Guid.NewGuid();
         var flow = new { occurredOn = "2025-06-01", kind = "expense", amount = "100", category = "works" };
         var cost = new { category = "property_tax", amount = "1200", every = new { count = 1, unit = "year" }, startsOn = "2021-10-15", version = 1 };
+        var tenancy = new { label = "T2", startsOn = "2021-01-01", rentMonthly = "900", version = 1 };
         return
         [
             (HttpMethod.Get, $"{Properties}/{id}", null),
@@ -202,6 +203,9 @@ public class PropertyEndpointTests(PostgresFixture fixture)
             (HttpMethod.Post, $"{Properties}/{id}/recurring-costs", cost),
             (HttpMethod.Put, $"{Properties}/{id}/recurring-costs/{other}", cost),
             (HttpMethod.Delete, $"{Properties}/{id}/recurring-costs/{other}?version=1", null),
+            (HttpMethod.Post, $"{Properties}/{id}/tenancies", tenancy),
+            (HttpMethod.Put, $"{Properties}/{id}/tenancies/{other}", tenancy),
+            (HttpMethod.Delete, $"{Properties}/{id}/tenancies/{other}?version=1", null),
         ];
     }
 }

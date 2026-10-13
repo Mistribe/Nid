@@ -33,6 +33,8 @@ public static class PropertyCodes
     public const string InvalidCategory = "realestate.invalid_category";
     public const string PropertyConflict = "realestate.property_conflict";
     public const string RecurringCostConflict = "realestate.recurring_cost_conflict";
+    public const string TenancyOverlap = "realestate.tenancy_overlap";
+    public const string TenancyConflict = "realestate.tenancy_conflict";
 }
 
 /// <summary>Spec 3C1 §6.</summary>

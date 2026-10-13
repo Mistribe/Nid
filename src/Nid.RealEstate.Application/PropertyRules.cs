@@ -89,6 +89,35 @@ internal static class PropertyRules
         return InYears(c.StartsOn, "startsOn") ?? InYears(c.EndsOn, "endsOn") ?? Ends(c.StartsOn, c.EndsOn) ?? Note(c.Note);
     }
 
+    /// <summary>Spec 3C2 §2: a tenancy's label.</summary>
+    public const int TenancyLabelMax = 100;
+
+    /// <summary>Spec 3C2 §2: a tenancy alone, against its property's purchase; the overlap with the others is <see cref="Overlap"/>'s.</summary>
+    public static Failure? TenancyFields(Tenancy t, LocalDate purchaseDate)
+    {
+        if (t.Label.Trim().Length is < 1 or > TenancyLabelMax)
+            return Invalid("label", $"A label is 1 to {TenancyLabelMax} characters, and not only whitespace: never personal data.");
+        if ((InYears(t.StartsOn, "startsOn") ?? InYears(t.EndsOn, "endsOn")) is { } year)
+            return year;
+        if (t.StartsOn < purchaseDate)
+            return Invalid("startsOn", "A tenancy starts on or after the purchase.");
+        return Ends(t.StartsOn, t.EndsOn)
+               ?? Positive(t.RentMonthly, "rentMonthly")
+               ?? NotNegative(t.ChargesMonthly, "chargesMonthly")
+               ?? (t.Deposit is { } deposit ? Positive(deposit, "deposit") : null)
+               ?? Note(t.Note);
+    }
+
+    /// <summary>
+    /// Spec 3C2 §2: two tenancies of one property never overlap, each from its start (inclusive) to its end (exclusive), an open one
+    /// running on; <paramref name="others"/> leaves out the one being written.
+    /// </summary>
+    public static Failure? Overlap(Tenancy t, IEnumerable<Tenancy> others)
+        => others.Any(o => o.StartsOn < (t.EndsOn ?? LocalDate.MaxIsoValue) && t.StartsOn < (o.EndsOn ?? LocalDate.MaxIsoValue))
+            ? new Failure(PropertyCodes.TenancyOverlap, "Another tenancy of this property covers part of this period.",
+                new Dictionary<string, object?> { ["field"] = "startsOn" })
+            : null;
+
     /// <summary>A range is half-open: it ends after it starts.</summary>
     private static Failure? Ends(LocalDate startsOn, LocalDate? endsOn)
         => endsOn <= startsOn ? Invalid("endsOn", "It ends after it starts.") : null;

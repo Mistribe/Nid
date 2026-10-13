@@ -333,6 +333,9 @@ public static class RequestCatalogue
         new(typeof(AddPropertyRecurringCostCommand), true, (_, item) => new AddPropertyRecurringCostCommand(item, BenchCost)),
         new(typeof(EditPropertyRecurringCostCommand), true, (_, item) => new EditPropertyRecurringCostCommand(item, Guid.NewGuid(), BenchCost, 1)),
         new(typeof(DeletePropertyRecurringCostCommand), true, (_, item) => new DeletePropertyRecurringCostCommand(item, Guid.NewGuid(), 1)),
+        new(typeof(AddPropertyTenancyCommand), true, (_, item) => new AddPropertyTenancyCommand(item, BenchTenancy)),
+        new(typeof(EditPropertyTenancyCommand), true, (_, item) => new EditPropertyTenancyCommand(item, Guid.NewGuid(), BenchTenancy, 1)),
+        new(typeof(DeletePropertyTenancyCommand), true, (_, item) => new DeletePropertyTenancyCommand(item, Guid.NewGuid(), 1)),
     ];
 
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
@@ -346,6 +349,8 @@ public static class RequestCatalogue
     private static PropertyFlowDraft BenchFlow => new(new LocalDate(2025, 1, 1), "expense", 1m, PropertyCategories.Works, null);
 
     private static RecurringCostDraft BenchCost => new("property_tax", 1m, 1, DurationUnit.Year, new LocalDate(2025, 1, 1), null, null);
+    /// <summary>After the twins' purchase (2020-01-15); a writer's second run meets realestate.tenancy_overlap, never an access refusal.</summary>
+    private static Tenancy BenchTenancy => new("bench", new LocalDate(2025, 1, 1), null, 1m, 0m, null, null);
 
     public static IReadOnlySet<Type> Covered => Entries.Select(e => e.RequestType).ToHashSet();
 

@@ -221,6 +221,38 @@ public static class RealEstateEndpoints
                 return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
             })
             .ReturnsNoContent();
+        api.MapPost("/properties/{id:guid}/tenancies", async (Guid id, PropertyTenancyBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var tenancy = body.Read(reader);
+                return tenancy is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AddPropertyTenancyCommand(new ItemId(id), tenancy), ct))
+                        .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/properties/{id:guid}/tenancies/{tenancyId:guid}", async (Guid id, Guid tenancyId, PropertyTenancyBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var tenancy = body.Read(reader);
+                var version = RequireVersion(reader, body.Version);
+                return tenancy is null || version is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new EditPropertyTenancyCommand(new ItemId(id), tenancyId, tenancy, version.Value), ct))
+                        .ToHttp(x => new IdResponse(x));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/properties/{id:guid}/tenancies/{tenancyId:guid}", async (Guid id, Guid tenancyId, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (RequireVersion(reader, version) is not { } read)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeletePropertyTenancyCommand(new ItemId(id), tenancyId, read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
 
         return routes;
     }
@@ -411,6 +443,24 @@ public static class RealEstateEndpoints
             var startsOn = reader.Date(StartsOn, "startsOn");
             var endsOn = reader.Date(EndsOn, "endsOn", required: false);
             return reader.Ok ? new RecurringCostDraft(Category, amount!.Value, Every!.Count, unit!.Value, startsOn!.Value, endsOn, Note) : null;
+        }
+    }
+
+    /// <summary>
+    /// Spec 3C2 §3: a tenancy; a missing label reaches the rules as empty and is refused there, at <c>label</c>. The <c>PUT</c> reads
+    /// <c>version</c>, the <c>POST</c> ignores it.
+    /// </summary>
+    public sealed record PropertyTenancyBody(
+        string? Label, string? StartsOn, string? EndsOn, string? RentMonthly, string? ChargesMonthly, string? Deposit, string? Note, uint? Version)
+    {
+        internal Tenancy? Read(FieldReader reader)
+        {
+            var startsOn = reader.Date(StartsOn, "startsOn");
+            var endsOn = reader.Date(EndsOn, "endsOn", required: false);
+            var rent = LoanBodies.Number(reader, RentMonthly, "rentMonthly");
+            var charges = LoanBodies.Number(reader, ChargesMonthly, "chargesMonthly", required: false);
+            var deposit = LoanBodies.Number(reader, Deposit, "deposit", required: false);
+            return reader.Ok ? new Tenancy(Label ?? "", startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, Note) : null;
         }
     }
 

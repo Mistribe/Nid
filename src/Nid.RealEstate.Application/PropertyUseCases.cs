@@ -143,6 +143,9 @@ public sealed class EditPropertyHandler(IItemRegistry items, IPropertyStore prop
         var rentalField = change.PurchaseDate is not null && change.RentalStartsOn is null ? "purchaseDate" : "rentalStartsOn";
         if (PropertyRules.Details(details, today, rentalField) is { } refused)
             return Result.Failure<ItemId>(refused);
+        // Spec 3C2 §2: no tenancy starts before the purchase; tenancy writes take the same row lock, so none slips in between.
+        if (found.Property.Tenancies.Count > 0 && details.PurchaseDate > found.Property.Tenancies.Min(t => t.Tenancy.StartsOn))
+            return Result.Failure<ItemId>(PropertyRules.Invalid("purchaseDate", "A tenancy of this property starts before this purchase date."));
 
         // The name is the Core item's: renamed as a loan is, visibility and owners kept.
         var item = found.Item;

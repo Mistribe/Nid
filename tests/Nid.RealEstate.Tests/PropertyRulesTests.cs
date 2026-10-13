@@ -139,4 +139,47 @@ public class PropertyRulesTests
     public void A_checked_draft_becomes_a_cost_with_the_cores_period()
         => Assert.Equal(new RecurringCost("property_tax", 1_200m, Loans.Ok(Duration.Create(1, DurationUnit.Year)), new LocalDate(2021, 10, 15), null, "taxe"),
             Tax().ToCost());
+
+    private static Tenancy Lease(LocalDate starts, LocalDate? ends = null) => new("T2", starts, ends, 900m, 0m, null, null);
+
+    [Fact]
+    public void A_tenancy_refusal_names_its_field()
+    {
+        var purchase = new LocalDate(2020, 6, 15);
+        var sound = new Tenancy("T2 meublé", new LocalDate(2021, 1, 1), null, 900m, 50m, 1_800m, "bail");
+        Assert.Null(PropertyRules.TenancyFields(sound, purchase));
+        Assert.Null(PropertyRules.TenancyFields(sound with { StartsOn = purchase, Label = new string('x', 100), ChargesMonthly = 0m, Deposit = null }, purchase));
+        var cases = new (string Why, Tenancy Tenancy, string Field)[]
+        {
+            ("a blank label", sound with { Label = "  " }, "label"),
+            ("a label of 101 characters", sound with { Label = new string('x', 101) }, "label"),
+            ("a start before the purchase", sound with { StartsOn = new LocalDate(2020, 6, 14) }, "startsOn"),
+            ("an end on its start", sound with { EndsOn = new LocalDate(2021, 1, 1) }, "endsOn"),
+            ("an end in 2201", sound with { EndsOn = new LocalDate(2201, 1, 1) }, "endsOn"),
+            ("a free tenancy", sound with { RentMonthly = 0m }, "rentMonthly"),
+            ("a rent to the thousandth", sound with { RentMonthly = 900.005m }, "rentMonthly"),
+            ("negative charges", sound with { ChargesMonthly = -0.01m }, "chargesMonthly"),
+            ("no deposit", sound with { Deposit = 0m }, "deposit"),
+            ("a long note", sound with { Note = new string('x', 2001) }, "note"),
+        };
+
+        foreach (var (why, tenancy, field) in cases)
+        {
+            var refused = PropertyRules.TenancyFields(tenancy, purchase);
+            Assert.True(refused is { Code: PropertyCodes.InvalidPropertyField } && Loans.FieldOf(refused) == field,
+                $"{why}: expected {field}, got {refused?.Code} at {(refused is null ? null : Loans.FieldOf(refused))}");
+        }
+    }
+
+    [Fact]
+    public void Back_to_back_tenancies_do_not_overlap_and_an_open_one_does() // Review Focus #1
+    {
+        var first = Lease(new LocalDate(2021, 1, 1), new LocalDate(2023, 1, 1));
+        Assert.Null(PropertyRules.Overlap(Lease(new LocalDate(2023, 1, 1)), [first]));
+        Assert.Null(PropertyRules.Overlap(Lease(new LocalDate(2020, 7, 1), new LocalDate(2021, 1, 1)), [first]));
+        var refused = PropertyRules.Overlap(Lease(new LocalDate(2022, 12, 31)), [first]);
+        Assert.Equal((PropertyCodes.TenancyOverlap, "startsOn"), (refused!.Code, Loans.FieldOf(refused)));
+        Assert.NotNull(PropertyRules.Overlap(Lease(new LocalDate(2030, 1, 1)), [Lease(new LocalDate(2023, 1, 1))])); // an open one runs on
+        Assert.Null(PropertyRules.Overlap(Lease(new LocalDate(2021, 1, 1)), []));
+    }
 }
