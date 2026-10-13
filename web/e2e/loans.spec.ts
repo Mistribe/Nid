@@ -54,6 +54,7 @@ test('alice simulates an early repayment, records it from the simulation, then c
   await alice.getByRole('button', { name: 'Créer le crédit' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
+  const amount = /\d,\d{2}\D*€/;
   const nextPayment = alice.getByRole('region', { name: 'Aujourd’hui' }).locator('dt:text-is("Prochaine échéance") + dd');
   await expect(nextPayment).toContainText('1 159,92 €');
 
@@ -72,8 +73,11 @@ test('alice simulates an early repayment, records it from the simulation, then c
   await expect(repayments.getByRole('status')).toHaveText('Remboursement anticipé ajouté.');
   await expect(repayments.getByRole('table', { name: 'Remboursements anticipés du crédit' })).toContainText('20 000,00 €');
   // Reducing the payment: the next one is no longer 1 159,92 €.
+  // Wait for an amount first: a negated assertion also passes while the figure is absent.
+  await expect(nextPayment).toContainText(amount);
   await expect(nextPayment).not.toContainText('1 159,92 €');
   const reduced = (await nextPayment.textContent()) ?? '';
+  expect(reduced).toMatch(amount);
 
   await alice.getByRole('link', { name: 'Modifier le contrat' }).click();
   const rate = alice.getByLabel('Taux annuel (%)');
@@ -83,5 +87,7 @@ test('alice simulates an early repayment, records it from the simulation, then c
 
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
   await expect(alice.getByText('Contrat enregistré.')).toBeVisible();
+  await expect(alice.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(nextPayment).toContainText(amount);
   await expect(nextPayment).not.toHaveText(reduced);
 });
