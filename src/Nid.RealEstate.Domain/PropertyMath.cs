@@ -4,7 +4,7 @@ using NodaTime;
 
 namespace Nid.RealEstate.Domain;
 
-/// <summary>Spec 3C1 §5–§6, README §7: a property at d. Pure, exact decimals, in the property's currency.</summary>
+/// <summary>Specs 3C1 §5–§6 and 3C2 §3–§4, README §5–§7: a property at d. Pure, exact decimals, in the property's currency.</summary>
 public static class PropertyMath
 {
     /// <summary>Spec 3C1 §2: a yearly estimate is stale after 400 days.</summary>
@@ -16,7 +16,7 @@ public static class PropertyMath
 
     public static PropertyFigures At(
         PropertyDetails property, bool shared, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows,
-        IReadOnlyList<LinkedLoan> loans, LocalDate d)
+        IReadOnlyList<LinkedLoan> loans, IReadOnlyList<Tenancy> tenancies, LocalDate d)
     {
         var latest = values.Where(v => v.AsOf <= d).OrderByDescending(v => v.AsOf).FirstOrDefault();
         var stale = latest is not null && StaleThreshold(property.Cadence, property.StaleAfterDays) is { } limit
@@ -60,11 +60,98 @@ public static class PropertyMath
                 warnings.Add(new(PropertyWarnings.VisibilityMismatch, loan.Id));
         }
 
+        // Spec 3C2 §4: a rental with nothing saying since when it is let.
+        if (property.Type == PropertyType.Rental && tenancies.Count == 0 && property.RentalStartsOn is null)
+            warnings.Add(new(PropertyWarnings.RentalWithoutTenancy));
+
         var value = latest?.Value.Amount;
         return new PropertyFigures(value, latest?.AsOf, stale, costPrice, value - costPrice, balance, value - balance,
             realCost, lines, realCost - rents,
             loans.Select(l => new LinkedLoanBalance(l.Id, l.Figures.Balance, l.Rate is { } rate ? l.Figures.Balance * rate : null)).ToList(),
-            warnings);
+            warnings, Rental(property, flows, tenancies, costPrice, d));
+    }
+
+    /// <summary>Spec 3C2 §3: the amount over the months of its period (count, or count × 12 for years), rounded to the cent.</summary>
+    public static decimal MonthlyEquivalent(RecurringCost cost)
+    {
+        var months = cost.Every.Unit switch
+        {
+            DurationUnit.Year => 12m * cost.Every.Count,
+            DurationUnit.Month => cost.Every.Count,
+            _ => throw new ArgumentOutOfRangeException(nameof(cost), "A recurring cost comes every month(s) or year(s)."),
+        };
+        return Math.Round(cost.Amount / months, 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>Spec 3C2 §3: the first <c>StartsOn + k × Every</c> (from the anchor each time) on or after d and before <c>EndsOn</c>; null once ended.</summary>
+    public static LocalDate? NextDueOn(RecurringCost cost, LocalDate d)
+    {
+        for (var k = 0; ; k++)
+        {
+            var on = cost.Every.AddTo(cost.StartsOn, k);
+            if (cost.EndsOn is { } end && on >= end)
+                return null;
+            if (on >= d)
+                return on;
+        }
+    }
+
+    /// <summary>Spec 3C2 §4: a tenancy covers its days from its start (inclusive) to its end (exclusive).</summary>
+    public static bool Covers(Tenancy tenancy, LocalDate d) => tenancy.StartsOn <= d && (tenancy.EndsOn is not { } end || d < end);
+
+    /// <summary>Spec 3C2 §4 over W = (d − 12 months, d].</summary>
+    private static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<Tenancy> tenancies, decimal costPrice, LocalDate d)
+    {
+        var first = d.PlusMonths(-12).PlusDays(1);
+        var inWindow = flows.Where(f => f.OccurredOn >= first && f.OccurredOn <= d).ToList();
+        var rent = inWindow.Where(f => f.Kind == FlowKind.Income && f.Category == PropertyCategories.Rent).Sum(f => f.Amount.Amount);
+        // Spec 3C2 §1.4: works are in the cost price already; loan costs are never deducted.
+        var charges = inWindow.Where(f => f.Kind == FlowKind.Expense && f.Category != PropertyCategories.Works).Sum(f => f.Amount.Amount);
+        var expected = tenancies.Sum(t => Expected(t, first, d));
+
+        var starts = tenancies.Select(t => t.StartsOn).ToList();
+        if (property.RentalStartsOn is { } declared)
+            starts.Add(declared);
+        LocalDate? rentedSince = starts.Count == 0 ? null : starts.Min();
+
+        int? vacantDays = null;
+        decimal? vacancyRate = null;
+        if (rentedSince is { } since && since <= d)
+        {
+            var from = since > first ? since : first;
+            var days = Period.DaysBetween(from, d) + 1;
+            vacantDays = days - tenancies.Sum(t => Covered(t, from, d));
+            vacancyRate = (decimal)vacantDays.Value / days;
+        }
+
+        // Significant once let since d − 12 months or before (R before W's first day).
+        var significant = rentedSince is { } r && r < first;
+        return new RentalFigures(rentedSince, expected, rent, expected - rent, vacantDays, vacancyRate,
+            significant ? rent / costPrice : null, significant ? (rent - charges) / costPrice : null);
+    }
+
+    /// <summary>Month by month over W: a month the tenancy covers whole counts in full, a partial one prorated to its days, half up to the cent.</summary>
+    private static decimal Expected(Tenancy tenancy, LocalDate first, LocalDate d)
+    {
+        var monthly = tenancy.RentMonthly + tenancy.ChargesMonthly;
+        var total = 0m;
+        for (var month = new LocalDate(first.Year, first.Month, 1); month <= d; month = month.PlusMonths(1))
+        {
+            var next = month.PlusMonths(1);
+            var length = Period.DaysBetween(month, next);
+            var last = next.PlusDays(-1);
+            var covered = Covered(tenancy, month > first ? month : first, last < d ? last : d);
+            total += covered == length ? monthly : Math.Round(monthly * covered / length, 2, MidpointRounding.AwayFromZero);
+        }
+        return total;
+    }
+
+    /// <summary>The days of [from, to] the tenancy covers.</summary>
+    private static int Covered(Tenancy tenancy, LocalDate from, LocalDate to)
+    {
+        var start = tenancy.StartsOn > from ? tenancy.StartsOn : from;
+        var end = tenancy.EndsOn is { } ends && ends.PlusDays(-1) < to ? ends.PlusDays(-1) : to;
+        return start > end ? 0 : Period.DaysBetween(start, end) + 1;
     }
 
     /// <summary>The convention's order; a category no route writes goes last.</summary>

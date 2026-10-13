@@ -53,6 +53,6 @@ public sealed class PropertyReading(
         }).ToList();
 
         return Result.Success(new PropertyRead(values!, flowList!, readable.Select(l => l.Item).ToList(),
-            PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values!, flowList!, linked, today)));
+            PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values!, flowList!, linked, [], today)));
     }
 }
