@@ -495,7 +495,8 @@
     "realestate_event_above_balance": "Ce remboursement dépasse le capital restant dû.",
     "realestate_loan_conflict": "Ce crédit a changé entre-temps : rechargez la page.",
     "realestate_fee_conflict": "Ces frais ont changé entre-temps : rechargez la page.",
-    "realestate_fee_linked": "Cette pénalité se modifie avec son remboursement."
+    "realestate_fee_linked": "Cette pénalité se modifie avec son remboursement.",
+    "realestate_repayment_conflict": "Ce remboursement a changé entre-temps : rechargez la page."
   },
   "settings": {
     "appearance": {
@@ -1247,7 +1248,6 @@
     "col_end": "Fin",
     "no_end": "sans fin",
     "per_month": "{{amount}} par mois",
-    "fees_and_repayments": "Frais et remboursements anticipés",
     "fees": "Frais",
     "repayments": "Remboursements anticipés",
     "col_date": "Date",
@@ -1318,6 +1318,27 @@
     "deleted": "Frais supprimés.",
     "delete_confirm": "Ces frais seront supprimés.",
     "linked": "Se modifie avec son remboursement"
+  },
+  "loan_repayments": {
+    "table": "Remboursements anticipés du crédit",
+    "empty": "Aucun remboursement anticipé",
+    "add": "Ajouter un remboursement",
+    "add_title": "Nouveau remboursement anticipé",
+    "edit_title": "Corriger le remboursement anticipé",
+    "date": "Date",
+    "amount": "Montant",
+    "effect": "Effet",
+    "effect_option": { "reduce_term": "Réduire la durée", "reduce_payment": "Réduire la mensualité" },
+    "effect_required": "Choisissez l’effet du remboursement.",
+    "penalty": "Pénalité",
+    "penalty_help": "Facultatif. Saisie par vous, jamais calculée.",
+    "note": "Note",
+    "submit": "Ajouter",
+    "added": "Remboursement anticipé ajouté.",
+    "corrected": "Remboursement anticipé corrigé.",
+    "deleted": "Remboursement anticipé supprimé.",
+    "delete_confirm": "Ce remboursement anticipé sera supprimé.",
+    "delete_confirm_penalty": "Ce remboursement anticipé et sa pénalité de {{amount}} seront supprimés."
   },
   "security": {
     "title": "Sécurité",

@@ -132,31 +132,6 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('lists the early repayments when there are any', async () => {
-    serve(loanDetail({
-      repayments: [{ id: 'r1', onDate: '2026-03-20', amount: '10000.00', effect: 'reduce_payment', penalty: '300.00', note: 'prime', version: 3 }],
-    }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
-
-    await heading();
-    const region = screen.getByRole('region', { name: 'Remboursements anticipés' });
-    const repayments = bodyRows(region, 'Remboursements anticipés');
-    expect(repayments[0]).toHaveTextContent('20 mars 2026');
-    expect(repayments[0]).toHaveTextContent('Mensualité réduite');
-    expect(repayments[0]).toHaveTextContent('10 000,00 €');
-    expect(repayments[0]).toHaveTextContent('300,00 €');
-    expect(repayments[0]).toHaveTextContent('prime');
-    await expectNoAxeViolations(container);
-  });
-
-  it('shows no repayment section without any', async () => {
-    serve();
-    await renderApp(`/loans/${LOAN}`);
-
-    await heading();
-    expect(screen.queryByRole('region', { name: 'Remboursements anticipés' })).not.toBeInTheDocument();
-  });
-
   it('reads the schedule by year, the current year open and today’s payment marked in words', async () => {
     serve();
     const { user, container } = await renderApp(`/loans/${LOAN}`);

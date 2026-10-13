@@ -8,11 +8,12 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Section } from '../income/Section';
 import { LOAN, SCHEDULE } from './api';
-import { FeesAndRepayments, LoanContract } from './detail/LoanContract';
+import { LoanContract } from './detail/LoanContract';
 import { LoanFigures } from './detail/LoanFigures';
 import { ScheduleTable } from './detail/ScheduleTable';
 import { FeesSection } from './fees/FeesSection';
 import { money, warningText } from './format';
+import { RepaymentsSection } from './repayments/RepaymentsSection';
 import { SettingsForm } from './settings/SettingsForm';
 
 // Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
@@ -68,9 +69,7 @@ export function LoanDetailPage() {
             <LoanContract loan={loan} />
           </Section>
           <FeesSection loan={loan} />
-          {loan.repayments.length > 0 ? (
-            <Section title={t('loan_detail.repayments')}><FeesAndRepayments loan={loan} /></Section>
-          ) : null}
+          <RepaymentsSection loan={loan} />
           <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
           {loan.canWrite ? (
             <Section title={t('loan_detail.settings.title')} announcement={settingsAnnouncement}>

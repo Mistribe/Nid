@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -24,6 +24,8 @@ export function FeeForm({ loan, editing, onDone }: { loan: LoanDetail; editing?:
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const headingId = useId();
+  // The version the form opened on: a refetch meanwhile must not turn the expected 409 into an overwrite.
+  const [version] = useState(editing?.version);
   const form = useForm<FeeValues>({ resolver: zodResolver(feeSchema(t)), defaultValues: feeValuesOf(editing) });
   const errors = useSubmitErrors(form.setError, FEE_PATHS);
   // Mount only: opening the form lands the person in it (the kind when adding, the amount when correcting).
@@ -42,7 +44,7 @@ export function FeeForm({ loan, editing, onDone }: { loan: LoanDetail; editing?:
       },
       onError: (error: unknown) => errors.onError(error),
     };
-    if (editing) correct.mutate({ params: { path: { id: loan.id, feeId: editing.id } }, body: toFeeBody(values, editing.version) }, callbacks);
+    if (editing) correct.mutate({ params: { path: { id: loan.id, feeId: editing.id } }, body: toFeeBody(values, version) }, callbacks);
     else add.mutate({ params: { path: { id: loan.id } }, body: toFeeBody(values) }, callbacks);
   });
 
