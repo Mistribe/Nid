@@ -82,8 +82,18 @@ public sealed record PropertyFigures(
     decimal RealCost, IReadOnlyList<CostLine> RealCostLines, decimal NetCostOfRents, IReadOnlyList<LinkedLoanBalance> Loans,
     IReadOnlyList<PropertyWarning> Warnings, RentalFigures Rental);
 
-/// <summary>A property as stored. <c>Version</c> is its row's <c>xmin</c>: it moves when one of its fields changes, not on a rename.</summary>
-public sealed record StoredProperty(ItemId ItemId, PropertyDetails Details, uint Version);
+/// <summary>A planned cost as stored; <c>Version</c> is its row's <c>xmin</c>.</summary>
+public sealed record StoredRecurringCost(Guid Id, RecurringCost Cost, uint Version);
+
+/// <summary>A tenancy as stored; <c>Version</c> is its row's <c>xmin</c>.</summary>
+public sealed record StoredTenancy(Guid Id, Tenancy Tenancy, uint Version);
+
+/// <summary>
+/// A property as stored. <c>Version</c> is its row's <c>xmin</c>: it moves when one of its fields changes, not on a rename, nor when
+/// a cost or a tenancy is written (each has its own). Costs and tenancies by start date, then id.
+/// </summary>
+public sealed record StoredProperty(
+    ItemId ItemId, PropertyDetails Details, uint Version, IReadOnlyList<StoredRecurringCost> Costs, IReadOnlyList<StoredTenancy> Tenancies);
 
 public interface IPropertyStore
 {
@@ -99,4 +109,18 @@ public interface IPropertyStore
 
     /// <summary>Every field in place.</summary>
     Task UpdateAsync(ItemId item, PropertyDetails details, CancellationToken ct);
+
+    Task AddCostAsync(ItemId property, Guid id, RecurringCost cost, CancellationToken ct);
+
+    /// <summary>Every value in place; the cost's version always moves.</summary>
+    Task UpdateCostAsync(ItemId property, Guid id, RecurringCost cost, CancellationToken ct);
+
+    Task DeleteCostAsync(ItemId property, Guid id, CancellationToken ct);
+
+    Task AddTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct);
+
+    /// <summary>Every value in place; the tenancy's version always moves.</summary>
+    Task UpdateTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct);
+
+    Task DeleteTenancyAsync(ItemId property, Guid id, CancellationToken ct);
 }

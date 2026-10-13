@@ -401,6 +401,70 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.PropertyRecurringCostRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<LocalDate?>("EndsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("ends_on");
+
+                    b.Property<int>("EveryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("every_count");
+
+                    b.Property<string>("EveryUnit")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("every_unit");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("PropertyItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_item_id");
+
+                    b.Property<LocalDate>("StartsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("starts_on");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_property_recurring_cost");
+
+                    b.HasIndex("PropertyItemId")
+                        .HasDatabaseName("ix_property_recurring_cost_property_item_id");
+
+                    b.ToTable("property_recurring_cost", "realestate", t =>
+                        {
+                            t.HasCheckConstraint("ck_property_recurring_cost_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_property_recurring_cost_category", "category in ('property_tax','condo_fees','insurance','energy','maintenance','other')");
+
+                            t.HasCheckConstraint("ck_property_recurring_cost_dates", "ends_on is null or ends_on > starts_on");
+
+                            t.HasCheckConstraint("ck_property_recurring_cost_every", "every_count between 1 and 120 and every_unit in ('month','year')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.PropertyRow", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -481,6 +545,65 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_property_surface", "surface_m2 is null or surface_m2 > 0");
 
                             t.HasCheckConstraint("ck_property_type", "property_type in ('primary_residence','secondary_residence','rental','parking','land','other')");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.PropertyTenancyRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("ChargesMonthly")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("charges_monthly");
+
+                    b.Property<decimal?>("Deposit")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("deposit");
+
+                    b.Property<LocalDate?>("EndsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("ends_on");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("PropertyItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_item_id");
+
+                    b.Property<decimal>("RentMonthly")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("rent_monthly");
+
+                    b.Property<LocalDate>("StartsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("starts_on");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_property_tenancy");
+
+                    b.HasIndex("PropertyItemId")
+                        .HasDatabaseName("ix_property_tenancy_property_item_id");
+
+                    b.ToTable("property_tenancy", "realestate", t =>
+                        {
+                            t.HasCheckConstraint("ck_property_tenancy_amounts", "rent_monthly > 0 and charges_monthly >= 0 and (deposit is null or deposit > 0)");
+
+                            t.HasCheckConstraint("ck_property_tenancy_dates", "ends_on is null or ends_on > starts_on");
                         });
                 });
 #pragma warning restore 612, 618
