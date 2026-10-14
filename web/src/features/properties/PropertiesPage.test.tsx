@@ -56,6 +56,18 @@ describe('PropertiesPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows the gross yield and the vacancy in %, « — » when the server gives none', async () => {
+    serve(propertyList([propertySummary({ grossYield: '0.0384', vacancyRate: '0.0822' }), parking]));
+    const { container } = await renderApp('/properties');
+
+    const [rented, unknown] = await rows();
+    expect(rented).toHaveTextContent('Rendement brut 3,84 %');
+    expect(rented).toHaveTextContent('Vacance 8,22 %');
+    expect(unknown).toHaveTextContent('Rendement brut —');
+    expect(unknown).toHaveTextContent('Vacance —');
+    await expectNoAxeViolations(container);
+  });
+
   it('offers « Ajouter un bien » above the list', async () => {
     serve(propertyList([propertySummary()]));
     await renderApp('/properties');

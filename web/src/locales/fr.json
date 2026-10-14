@@ -1381,7 +1381,10 @@
     "value": "Valeur {{amount}} au {{date}}",
     "not_estimated": "Pas encore estimé",
     "stale": "À réestimer",
-    "net_value": "Valeur nette {{amount}}"
+    "net_value": "Valeur nette {{amount}}",
+    "gross_yield": "Rendement brut {{rate}}",
+    "vacancy": "Vacance {{rate}}",
+    "unknown_rate": "—"
   },
   "property_form": {
     "title": "Nouveau bien",
