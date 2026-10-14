@@ -57,7 +57,7 @@ export function newPropertySchema(t: TFunction) {
 
 export type NewPropertyValues = z.infer<ReturnType<typeof newPropertySchema>>;
 
-/** The one creation request (spec §5): amounts as typed with a dot, empty optional fields left out; no rental start (3D2). */
+/** The one creation request (spec §5): amounts as typed with a dot, empty optional fields left out; the rental start is the settings' (3D2 §5). */
 export function toCreateBody(v: NewPropertyValues): components['schemas']['CreatePropertyBody'] {
   const { visibility, owners } = ownershipToWire(v);
   return {

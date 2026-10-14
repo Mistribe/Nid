@@ -1412,7 +1412,9 @@
     "fee_format": "Un montant positif ou nul, avec deux décimales au plus, comme 1500,50.",
     "surface_format": "Une surface positive, avec deux décimales au plus, comme 85,5.",
     "location_too_long": "100 caractères au plus.",
-    "stale_range": "Un nombre entier de jours, de 1 à 3 650."
+    "stale_range": "Un nombre entier de jours, de 1 à 3 650.",
+    "rental_starts_on": "Début de location",
+    "rental_starts_on_help": "Date de mise en location, si elle précède le premier bail."
   },
   "property_detail": {
     "back": "Retour aux biens",

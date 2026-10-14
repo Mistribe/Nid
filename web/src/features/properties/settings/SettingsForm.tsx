@@ -12,9 +12,8 @@ import { Field } from '../../subscriptions/edits/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, PROPERTY, type PropertyDetail } from '../api';
-import { propertyFieldPath, propertyFieldsSchema, type PropertyFieldsValues } from '../new/newProperty';
 import { PropertyFields } from '../new/PropertyFields';
-import { settingsValuesOf, toEditBody, toWireBody } from './settingsBody';
+import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 
 const input = 'rounded-md border px-3 py-2';
 
@@ -52,8 +51,8 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [opened] = useState(property);
-  const form = useForm<PropertyFieldsValues>({ resolver: zodResolver(propertyFieldsSchema(t)), defaultValues: settingsValuesOf(opened) });
-  const errors = useSubmitErrors(form.setError, propertyFieldPath);
+  const form = useForm<SettingsValues>({ resolver: zodResolver(settingsSchema(t)), defaultValues: settingsValuesOf(opened) });
+  const errors = useSubmitErrors(form.setError, settingsPath);
   const save = $api.useMutation('patch', PROPERTY);
 
   const submit = form.handleSubmit((values) => {
@@ -88,6 +87,10 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
           {(c) => <input {...c} {...form.register('name')} className={`w-full ${input}`} />}
         </Field>
         <PropertyFields />
+        {/* Spec 3D2 §5: the rental start lives here, not in « Location »; emptied, it is cleared. */}
+        <Field label={t('property_form.rental_starts_on')} hint={t('property_form.rental_starts_on_help')} error={e.rentalStartsOn?.message}>
+          {(c) => <input type="date" {...c} {...form.register('rentalStartsOn')} className={input} />}
+        </Field>
         <Field label={t('property_form.note')} error={e.note?.message}>
           {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
         </Field>
