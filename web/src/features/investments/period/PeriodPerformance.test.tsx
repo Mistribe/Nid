@@ -85,7 +85,7 @@ describe('PeriodPerformance', () => {
     const form = await screen.findByRole('form', { name: 'Nouvelle valeur' });
     await waitFor(() => expect(seen).toHaveLength(1));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
-    await within(form).findByRole('status');
+    await waitFor(() => expect(within(form).getByRole('status')).not.toBeEmptyDOMElement());
     await waitFor(() => expect(seen).toHaveLength(2));
   });
 

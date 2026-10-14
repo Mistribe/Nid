@@ -81,7 +81,7 @@ describe('recording values and flows', () => {
     await user.type(within(form).getByLabelText('Montant'), '25400,10');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
 
-    expect(await within(form).findByRole('status')).toHaveTextContent('Valeur enregistrée.');
+    await waitFor(() => expect(within(form).getByRole('status')).toHaveTextContent('Valeur enregistrée.'));
     expect(within(form).getByLabelText('Montant')).toHaveValue('25400.1');
     expect(calls).toEqual([{ method: 'POST', path: 'valuations', body: expect.objectContaining({ amount: { amount: '25400.10', currency: 'EUR' } }) as unknown }]);
     await expectNoAxeViolations(container);
@@ -98,7 +98,7 @@ describe('recording values and flows', () => {
     expect(within(form).getByText('Une valeur existe déjà à cette date : elle sera remplacée.')).toBeInTheDocument();
     await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
 
-    await within(form).findByRole('status');
+    await waitFor(() => expect(within(form).getByRole('status')).not.toBeEmptyDOMElement());
     const rows = within(screen.getByRole('table', { name: 'Valeurs de l’enveloppe' })).getAllByRole('row').slice(1);
     expect(rows.filter((r) => r.textContent?.includes('30 septembre 2025'))).toHaveLength(1);
   });
@@ -141,7 +141,7 @@ describe('recording values and flows', () => {
     await user.clear(within(value).getByLabelText('Montant'));
     await user.type(within(value).getByLabelText('Montant'), '-120,50');
     await user.click(within(value).getByRole('button', { name: 'Enregistrer la valeur' }));
-    await within(value).findByRole('status');
+    await waitFor(() => expect(within(value).getByRole('status')).not.toBeEmptyDOMElement());
 
     const flow = screen.getByRole('form', { name: 'Nouveau flux' });
     await user.type(within(flow).getByLabelText('Montant'), '-10');
@@ -160,7 +160,7 @@ describe('recording values and flows', () => {
     await user.type(within(flow).getByLabelText('Montant'), '150');
     await user.click(within(flow).getByRole('button', { name: 'Ajouter le flux' }));
 
-    expect(await within(flow).findByRole('status')).toHaveTextContent('Flux ajouté.');
+    await waitFor(() => expect(within(flow).getByRole('status')).toHaveTextContent('Flux ajouté.'));
     expect(calls).toEqual([{ method: 'POST', path: 'flows', body: expect.objectContaining({ kind: 'contribution', amount: { amount: '150', currency: 'EUR' } }) as unknown }]);
   });
 
@@ -478,7 +478,7 @@ describe('recording values and flows', () => {
     await user.type(within(flow).getByLabelText('Montant'), '20000');
     await user.click(within(flow).getByRole('button', { name: 'Ajouter le flux' }));
 
-    await within(flow).findByRole('status');
+    await waitFor(() => expect(within(flow).getByRole('status')).not.toBeEmptyDOMElement());
     expect(within(flow).getByLabelText('Nature')).toHaveValue('contribution');
   });
 

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -37,6 +37,9 @@ async function fillOffer(user: Awaited<ReturnType<typeof start>>['user']) {
   await user.type(screen.getByLabelText('Montant'), '13,49');
   await user.click(screen.getByRole('button', { name: 'Continuer' }));
 }
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NewSubscription'); }, 30_000);
 
 describe('Abonnements › ajout', () => {
   it('defaults the owner to the signed-in person at 100 %', async () => {

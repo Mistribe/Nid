@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -33,6 +33,9 @@ async function fillPlain(user: User) {
   await user.clear(screen.getByLabelText('Date de déblocage'));
   await user.type(screen.getByLabelText('Date de déblocage'), '2026-09-12');
 }
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NewLoan'); }, 30_000);
 
 describe('NewLoan', () => {
   it('creates a plain loan in one request, its rate as a fraction, then shows it', async () => {

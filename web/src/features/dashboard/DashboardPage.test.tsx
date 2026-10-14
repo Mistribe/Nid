@@ -1,7 +1,7 @@
 import { invalidateInvestments } from '../investments/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -13,6 +13,9 @@ function serve(body: DashboardView, seen: string[] = []) {
 }
 
 const card = (name: string) => screen.findByRole('region', { name });
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NetWorthCurve'); await import('./SplitCharts'); }, 30_000);
 
 describe('DashboardPage', () => {
   it('shows the four figures the server computed', async () => {

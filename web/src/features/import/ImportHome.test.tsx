@@ -1,10 +1,13 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { fakeImportServer, householdPersons, session, SESSION_ID } from '@/test/importServer';
 import { nidFile, upload, workedExample } from '@/test/nidFile';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./ImportLayout'); await import('./ImportHome'); }, 30_000);
 
 describe('Import › home', () => {
   it('lists recent imports with their state and a way back into each', async () => {

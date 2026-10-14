@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { fakeExportServer } from '@/test/exportServer';
 import { renderApp } from '@/test/renderApp';
@@ -22,6 +22,9 @@ function hold() {
   const held = new Promise<void>((resolve) => { release = resolve; });
   return { held, release: () => release() };
 }
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./ExportPage'); }, 30_000);
 
 describe('Export', () => {
   beforeEach(() => vi.mocked(downloadBlob).mockClear());

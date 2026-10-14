@@ -34,7 +34,7 @@ describe('loan settings', () => {
     await expectNoAxeViolations(container);
     await user.click(save());
 
-    expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Réglages enregistrés.');
+    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
     expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: true, clearNote: false, clearProperty: false }]);
     await waitFor(() => expect(reads.detail).toBeGreaterThan(1));
   });
@@ -47,7 +47,7 @@ describe('loan settings', () => {
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     await user.click(save());
 
-    expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Aucune modification à enregistrer.');
+    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Aucune modification à enregistrer.'));
     expect(bodies).toEqual([]);
   });
 

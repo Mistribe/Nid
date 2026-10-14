@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -30,7 +30,7 @@ describe('income settings', () => {
     await expectNoAxeViolations(container);
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Réglages enregistrés.');
+    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
     expect(bodies).toEqual([{ kind: 'pension', clearPayerLabel: true, clearNote: false }]);
   });
 
@@ -42,7 +42,7 @@ describe('income settings', () => {
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Aucune modification à enregistrer.');
+    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Aucune modification à enregistrer.'));
     expect(bodies).toEqual([]);
   });
 
@@ -80,7 +80,7 @@ describe('income settings', () => {
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await user.selectOptions(within(settings()).getByLabelText('Type'), 'pension');
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
-    expect(await within(settingsRegion()).findByRole('status')).toHaveTextContent('Réglages enregistrés.');
+    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
     await user.clear(within(settings()).getByLabelText('Nom'));
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
 

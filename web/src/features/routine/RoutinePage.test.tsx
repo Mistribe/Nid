@@ -1,6 +1,6 @@
 import { act, screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -26,6 +26,9 @@ function serve(view: RoutineView, posted: unknown[] = []) {
 // The default date is the last day of last month: pin today so it is 2025-09-30.
 beforeEach(() => { sessionStorage.clear(); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2025, 9, 15, 12)); });
 afterEach(() => { sessionStorage.clear(); vi.useRealTimers(); });
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./RoutinePage'); }, 30_000);
 
 describe('the routine', () => {
   it('lists the due envelopes with last month’s value proposed, the others folded', async () => {

@@ -104,7 +104,7 @@ describe('early repayments', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Remboursement anticipé ajouté.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé ajouté.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { onDate: todayIso(), amount: '5000', effect: 'reduce_term', penalty: '150' } })]);
     expect(screen.getByRole('heading', { name: 'Remboursements anticipés' })).toHaveFocus();
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('5 000,00 €'));
@@ -121,7 +121,7 @@ describe('early repayments', () => {
     await user.clear(within(form).getByLabelText('Pénalité'));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Remboursement anticipé corrigé.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé corrigé.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { onDate: '2026-03-20', amount: '10000.00', effect: 'reduce_payment', note: 'prime', version: 3 } });
     expect(sent[0]!.body).not.toHaveProperty('penalty');
     expect(sent[0]!.url).toContain('/repayments/r1');
@@ -150,7 +150,7 @@ describe('early repayments', () => {
     expect(screen.getByText('Ce remboursement anticipé et sa pénalité de 300,00 € seront supprimés.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Remboursement anticipé supprimé.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé supprimé.'));
     expect(await within(await region()).findByText('Aucun remboursement anticipé')).toBeInTheDocument();
     expect(sent[0]!.url).toContain('version=3');
   });

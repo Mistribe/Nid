@@ -40,7 +40,7 @@ describe('Administration › Taux de change', () => {
     await user.click(await screen.findByRole('button', { name: 'Synchroniser' }));
     expect(calls).toBe(0);
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Collecte demandée');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Collecte demandée'));
 
     await user.click(screen.getByRole('button', { name: 'Synchroniser' }));
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
@@ -64,6 +64,6 @@ describe('Administration › Taux de change', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
 
     await waitFor(() => expect(sent).toEqual([{ path: '2025-10-01/EUR', body: { rate: '0.8612' } }]));
-    expect(await screen.findByRole('status')).toHaveTextContent('Taux enregistré');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Taux enregistré'));
   });
 });

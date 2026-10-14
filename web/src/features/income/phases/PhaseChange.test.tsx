@@ -91,7 +91,7 @@ describe('changing the amount', () => {
     await user.type(within(form).getByLabelText('Montant net'), '2500');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer le changement' }));
 
-    expect(await within(screen.getByRole('region', { name: 'Périodes' })).findByRole('status')).toHaveTextContent('Montant changé.');
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Périodes' })).getByRole('status')).toHaveTextContent('Montant changé.'));
     expect(sent).toEqual([{ label: 'Salaire de base', effectiveOn: options[0]!.value, netAmount: { amount: '2500', currency: 'EUR' }, every: { count: 1, unit: 'month' } }]);
     expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus();
   });

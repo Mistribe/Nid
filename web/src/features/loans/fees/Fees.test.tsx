@@ -98,7 +98,7 @@ describe('fees', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Frais ajoutés.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Frais ajoutés.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { kind: 'guarantee', amount: '1500.50', onDate: '2025-10-20', note: 'caution' } })]);
     expect(screen.getByRole('heading', { name: 'Frais' })).toHaveFocus();
     await waitFor(async () => expect((await rows())[1]).toHaveTextContent('1 500,50 €'));
@@ -116,7 +116,7 @@ describe('fees', () => {
     await user.clear(within(form).getByLabelText('Note'));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Frais corrigés.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Frais corrigés.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { kind: 'file', amount: '1200', onDate: '2025-10-15', version: 1 } });
     expect(sent[0]!.body).not.toHaveProperty('note');
     expect(sent[0]!.url).toContain('/fees/f1');
@@ -140,7 +140,7 @@ describe('fees', () => {
     expect(screen.getByText('Ces frais seront supprimés.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Frais supprimés.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Frais supprimés.'));
     expect(await within(await region()).findByText('Aucun frais')).toBeInTheDocument();
     expect(sent[0]!.url).toContain('version=1');
   });

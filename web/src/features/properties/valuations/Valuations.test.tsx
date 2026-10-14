@@ -87,7 +87,7 @@ describe('estimates', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form()).getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Estimation ajoutée.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Estimation ajoutée.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { asOf: '2026-09-30', amount: '295000.5', note: 'notaire' } })]);
     expect(screen.getByRole('heading', { name: 'Estimations' })).toHaveFocus();
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('295 000,50 €'));
@@ -105,7 +105,7 @@ describe('estimates', () => {
     await user.type(within(form()).getByLabelText('Valeur'), '300000');
     await user.click(within(form()).getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Estimation remplacée.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Estimation remplacée.'));
     expect(sent[0]!.body).toEqual({ asOf: '2026-06-01', amount: '300000' });
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('300 000,00 €'));
     expect(await rows()).toHaveLength(2);
@@ -146,7 +146,7 @@ describe('estimates', () => {
     expect(screen.getByText('Cette estimation sera supprimée.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    expect(await within(await region()).findByRole('status')).toHaveTextContent('Estimation supprimée.');
+    await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Estimation supprimée.'));
     expect(sent[0]!.url).toContain('/valuations/v2');
     await waitFor(async () => expect(await rows()).toHaveLength(1));
   });

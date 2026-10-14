@@ -157,7 +157,7 @@ describe('Administration › Catalogue', () => {
     await user.click(syncButton());
     expect(calls).toBe(0);
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Synchronisation demandée');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Synchronisation demandée'));
     expect(csrf).toBe('csrf-alice');
     await waitFor(() => expect(syncButton()).toBeDisabled());
 
@@ -206,7 +206,7 @@ describe('Administration › Catalogue', () => {
     await user.click(syncButton());
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Une synchronisation est déjà en cours');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une synchronisation est déjà en cours'));
     expect(syncButton()).toBeEnabled();
   });
 
