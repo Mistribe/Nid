@@ -46,7 +46,8 @@ public class PropertyEndpointTests(PostgresFixture fixture)
         Assert.Empty(detail.GetProperty("loans").EnumerateArray());
 
         var row = Assert.Single((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Properties}?scope=household"))).GetProperty("items").EnumerateArray());
-        Assert.Equal((id, "Maison", "primary_residence", "EUR"), (row.GetProperty("id").GetGuid(), S(row, "name"), S(row, "type"), S(row, "currency")));
+        Assert.Equal((id, "Maison", "primary_residence", "EUR", "shared"),
+            (row.GetProperty("id").GetGuid(), S(row, "name"), S(row, "type"), S(row, "currency"), S(row, "visibility")));
         Assert.Equal(JsonValueKind.Null, row.GetProperty("value").ValueKind);
         Assert.Equal(JsonValueKind.Null, row.GetProperty("netValue").ValueKind);
         Assert.False(row.GetProperty("stale").GetBoolean());
@@ -172,6 +173,9 @@ public class PropertyEndpointTests(PostgresFixture fixture)
     {
         await using var app = await NidApp.StartAsync(fixture);
         var hidden = await NewPropertyAsync(app, Home(app, name: "Maison de B", visibility: "private", owners: [app.AdultB]), app.AdultB);
+        // Spec 3D1 §4: each row says its visibility, for the list's access badge.
+        var mine = Assert.Single((await JsonAsync(await app.RawAsync(app.AdultB, HttpMethod.Get, $"{Properties}?scope=me"))).GetProperty("items").EnumerateArray());
+        Assert.Equal("private", S(mine, "visibility"));
         var loan = await NewAsync(app, Golden(app));
         var envelope = (await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared)).Value;
 

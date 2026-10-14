@@ -10770,6 +10770,7 @@ export interface components {
             name: string;
             type: string;
             currency: string;
+            visibility: string;
             value?: null | string;
             /** Format: date */
             valueOn?: null | string;
