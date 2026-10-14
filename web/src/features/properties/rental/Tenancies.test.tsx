@@ -133,16 +133,18 @@ describe('tenancies', () => {
       expect(screen.getByRole('heading', { name: 'Location' })).toHaveFocus();
     });
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('900,50 €'));
+    await expectNoAxeViolations(container);
   });
 
   it('ends a tenancy by correcting it with an end, the version it opened with, an emptied deposit left out', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
 
     await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
     const form = screen.getByRole('form', { name: 'Corriger le bail' });
     expect(within(form).getByLabelText('Fin')).toHaveFocus();
     expect(within(form).getByLabelText('Loyer mensuel')).toHaveValue('900.00');
+    await expectNoAxeViolations(container);
     await user.type(within(form).getByLabelText('Fin'), '2025-12-31');
     await user.clear(within(form).getByLabelText('Dépôt de garantie'));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
@@ -160,6 +162,7 @@ describe('tenancies', () => {
       expect((await rows())[0]).toHaveTextContent('du 1 janvier 2023 au 31 décembre 2025');
       expect((await rows())[0]).not.toHaveTextContent('En cours');
     });
+    await expectNoAxeViolations(container);
   });
 
   it('reopening an ended tenancy sends no end, and the overlap it creates reads under « Début »', async () => {
@@ -202,7 +205,7 @@ describe('tenancies', () => {
 
   it('deletes a tenancy after a confirmation, with the version it read', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
 
     await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
     expect(screen.getByText('Ce bail sera supprimé.')).toBeInTheDocument();
@@ -213,6 +216,7 @@ describe('tenancies', () => {
       expect(sent[0]!.url).toContain('/tenancies/t2?version=3');
       expect(await rows()).toHaveLength(1);
     });
+    await expectNoAxeViolations(container);
   });
 
   it('sends the version it opened with though the property was read again meanwhile, and « Recharger » closes onto the stored row', async () => {

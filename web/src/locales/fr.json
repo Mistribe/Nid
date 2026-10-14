@@ -503,7 +503,7 @@
     "realestate_invalid_property": "Ce bien n’existe pas ou n’est pas accessible.",
     "realestate_property_conflict": "Ce bien a changé entre-temps : rechargez la page.",
     "realestate_tenancy_overlap": "Ce bail chevauche un autre bail du bien.",
-        "realestate_tenancy_conflict": "Ce bail a changé entre-temps : rechargez la page.",
+    "realestate_tenancy_conflict": "Ce bail a changé entre-temps : rechargez la page.",
     "realestate_recurring_cost_conflict": "Cette charge prévue a changé entre-temps : rechargez la page."
   },
   "settings": {

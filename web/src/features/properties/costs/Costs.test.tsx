@@ -145,6 +145,7 @@ describe('recurring costs', () => {
       expect((await rows())[2]).toHaveTextContent('tous les 3 mois');
       expect((await rows())[2]).toHaveTextContent('83,33 €');
     });
+    await expectNoAxeViolations(container);
   });
 
   it('corrects a cost with the version it opened with: ended, it reads « Terminée »', async () => {

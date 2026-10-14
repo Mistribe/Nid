@@ -158,6 +158,7 @@ describe('property settings', () => {
       { ...FLAGS, version: 8, clearRentalStartsOn: true },
     ]));
     await waitFor(() => expect(within(settings()).getByLabelText('Début de location')).toHaveValue(''));
+    await expectNoAxeViolations(container);
   });
 
   it('shows a rental start the server refuses (before the purchase) under « Début de location »', async () => {

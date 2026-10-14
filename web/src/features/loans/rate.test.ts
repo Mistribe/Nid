@@ -19,7 +19,7 @@ describe('percentToFraction', () => {
 describe('fractionToPercent', () => {
   it.each([
     ['0.035', '3,5'], ['0.0076', '0,76'], ['1', '100'], ['0', '0'], ['0.123456', '12,3456'], ['0.04', '4'], ['0.5', '50'],
-    ['0.000001', '0,0001'], ['1.5', '150'],
+    ['0.000001', '0,0001'], ['1.5', '150'], ['-0.0120', '-1,2'], ['-0.5', '-50'], ['-0.0000', '0'], ['-0', '0'],
   ])('shows %j as %j %', (wire, shown) => {
     expect(fractionToPercent(wire)).toBe(shown);
   });
@@ -31,7 +31,7 @@ describe('fractionToPercent', () => {
 
   it('leaves a value it cannot read as it came', () => {
     expect(fractionToPercent('abc')).toBe('abc');
-    expect(fractionToPercent('-0.5')).toBe('-0.5');
+    expect(fractionToPercent('--0.5')).toBe('--0.5');
   });
 });
 

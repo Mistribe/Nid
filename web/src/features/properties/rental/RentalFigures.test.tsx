@@ -50,6 +50,14 @@ describe('rental figures', () => {
     expect(figure('Rendement net avant impôt')).toHaveTextContent('Non significatif (moins de 12 mois de location)');
   });
 
+  it('shows a negative net yield with its sign, as -1,2 %', async () => {
+    serve(propertyDetail({ figures: rentedFigures({ netYieldBeforeTax: '-0.0120' }) }));
+    await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    expect(figure('Rendement net avant impôt')).toHaveTextContent('-1,2 %');
+  });
+
   it('signs arrears still owed', async () => {
     serve(propertyDetail({ figures: rentedFigures({ rentReceived: '9900.00', arrears: '900.00' }) }));
     await renderApp(`/properties/${PROPERTY}`);
