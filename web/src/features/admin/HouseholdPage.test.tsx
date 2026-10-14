@@ -37,7 +37,7 @@ describe('Administration › Foyer', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(sent).toEqual([{ maxAdults: 4 }]));
-    expect(await screen.findByRole('status')).toHaveTextContent('Réglages enregistrés');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Réglages enregistrés'));
   });
 
   it('shows the refusal the server answers', async () => {

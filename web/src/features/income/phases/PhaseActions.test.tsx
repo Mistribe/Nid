@@ -62,7 +62,7 @@ describe('phase actions', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter la période' }));
 
-    expect(await within(phasesRegion()).findByRole('status')).toHaveTextContent('Période ajoutée.');
+    await waitFor(() => expect(within(phasesRegion()).getByRole('status')).toHaveTextContent('Période ajoutée.'));
     expect(await screen.findByRole('table', { name: 'Prime de vacances' })).toBeInTheDocument();
     expect(sent[0]).toMatchObject({ method: 'POST', body: { label: 'Prime de vacances', startsOn: '2026-07-01', netAmount: { amount: '500', currency: 'EUR' }, every: { count: 1, unit: 'year' } } });
     expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus();
@@ -82,7 +82,7 @@ describe('phase actions', () => {
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await within(phasesRegion()).findByRole('status')).toHaveTextContent('Période corrigée.');
+    await waitFor(() => expect(within(phasesRegion()).getByRole('status')).toHaveTextContent('Période corrigée.'));
     await waitFor(() => expect(rowsOf('Prime annuelle')[0]).toHaveTextContent('1 900,00 €'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { label: 'Prime annuelle', version: 0, netAmount: { amount: '1900', currency: 'EUR' } } });
   });
@@ -107,7 +107,7 @@ describe('phase actions', () => {
     expect(screen.getByText('Cette période sera retirée.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
-    expect(await within(phasesRegion()).findByRole('status')).toHaveTextContent('Période supprimée.');
+    await waitFor(() => expect(within(phasesRegion()).getByRole('status')).toHaveTextContent('Période supprimée.'));
     await waitFor(() => expect(screen.queryByRole('table', { name: 'Prime annuelle' })).not.toBeInTheDocument());
     expect(new URL(sent[0]!.url).searchParams.get('version')).toBe('0');
   });

@@ -1,0 +1,98 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
+import { Section } from '../../income/Section';
+import { presentRefusal } from '../../loans/refusal';
+import { Field } from '../../subscriptions/edits/Field';
+import { Reload } from '../../subscriptions/edits/Reload';
+import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
+import { invalidateProperties, PROPERTY, type PropertyDetail } from '../api';
+import { propertyFieldPath, propertyFieldsSchema, type PropertyFieldsValues } from '../new/newProperty';
+import { PropertyFields } from '../new/PropertyFields';
+import { settingsValuesOf, toEditBody, toWireBody } from './settingsBody';
+
+const input = 'rounded-md border px-3 py-2';
+
+/**
+ * 3D1 design §6: « Réglages », its live region and its focus. The form remounts on the stored property — its new values
+ * and version — after a save, « nothing to save » or « Recharger » (precision 8).
+ */
+export function SettingsSection({ property }: { property: PropertyDetail }) {
+  const { t } = useTranslation();
+  const [announcement, setAnnouncement] = useState('');
+  const queryClient = useQueryClient();
+  const [generation, setGeneration] = useState(0);
+  // The form opens on this snapshot: re-taken from the cache when `done`, as the page's own copy renders a tick later.
+  const [opened, setOpened] = useState(property);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const done = (message?: string) => {
+    setOpened(queryClient.getQueryData<PropertyDetail>(['get', PROPERTY, { params: { path: { id: property.id } } }]) ?? property);
+    setGeneration((g) => g + 1);
+    if (message) setAnnouncement(message);
+    headingRef.current?.focus();
+  };
+  return (
+    <Section title={t('loan_detail.settings.title')} headingRef={headingRef} announcement={announcement}>
+      <SettingsForm key={generation} property={opened} onStart={() => setAnnouncement('')} onDone={done} />
+    </Section>
+  );
+}
+
+/**
+ * Only what changed, an emptied optional field with its `clear*` flag, and the version of the property the form opened
+ * on: a refetch meanwhile must not turn the expected 409 into an overwrite (3B2 ruling).
+ */
+function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail; onStart: () => void; onDone: (message?: string) => void }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const [opened] = useState(property);
+  const form = useForm<PropertyFieldsValues>({ resolver: zodResolver(propertyFieldsSchema(t)), defaultValues: settingsValuesOf(opened) });
+  const errors = useSubmitErrors(form.setError, propertyFieldPath);
+  const save = $api.useMutation('patch', PROPERTY);
+
+  const submit = form.handleSubmit((values) => {
+    onStart();
+    errors.clear();
+    const body = toEditBody(opened, values);
+    if (!body) { onDone(t('loan_detail.settings.nothing')); return; }
+    save.mutate(
+      { params: { path: { id: opened.id } }, body: toWireBody(body, opened.version) },
+      {
+        // The section remounts this form once the property is read again, on its new values and version.
+        onSuccess: () => void invalidateProperties(queryClient).then(() => onDone(t('loan_detail.settings.saved'))),
+        onError: (error) => errors.onError(error),
+      },
+    );
+  }, onStart); // an invalid submit clears the previous status too
+
+  const e = form.formState.errors;
+  // Every refusal reads in French: a conflict by its own sentence, a 422 no field owns by its code's.
+  const problem = errors.problem ? presentRefusal(t, save.error) : null;
+
+  return (
+    <FormProvider {...form}>
+      <form aria-label={t('loan_detail.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
+        {problem ? (
+          <>
+            <ProblemMessage problem={problem} />
+            {problem.kind === 'conflict' ? <Reload onReload={() => invalidateProperties(queryClient).then(() => onDone())} /> : null}
+          </>
+        ) : null}
+        <Field label={t('property_form.name')} error={e.name?.message}>
+          {(c) => <input {...c} {...form.register('name')} className={`w-full ${input}`} />}
+        </Field>
+        <PropertyFields />
+        <Field label={t('property_form.note')} error={e.note?.message}>
+          {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        </Field>
+        <Button type="submit" disabled={save.isPending}>{t('loan_detail.settings.submit')}</Button>
+      </form>
+    </FormProvider>
+  );
+}

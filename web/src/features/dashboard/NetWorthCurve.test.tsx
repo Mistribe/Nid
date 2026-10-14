@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -16,6 +16,9 @@ function serveCurve(body: NetWorthHistory, seen: string[] = []) {
 }
 
 const curve = () => screen.findByRole('region', { name: 'Évolution du patrimoine' });
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NetWorthCurve'); await import('./SplitCharts'); }, 30_000);
 
 describe('net worth curve', () => {
   it('asks for twelve months in the scope by default and keeps the choice in the URL', async () => {

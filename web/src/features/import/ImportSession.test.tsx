@@ -1,5 +1,5 @@
 import { act, cleanup, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { canonicalizeText } from '@/lib/canonical-json';
 import { sha256Hex } from '@/lib/hash';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -7,6 +7,9 @@ import { fakeImportServer, SESSION_ID, session } from '@/test/importServer';
 import { nidFile, upload, workedExample } from '@/test/nidFile';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./ImportLayout'); await import('./ImportSession'); }, 30_000);
 
 describe('Import › one session', () => {
   it('shows an expired import and starts over', async () => {

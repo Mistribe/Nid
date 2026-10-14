@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -12,6 +12,9 @@ function serve(body: DashboardView) {
 }
 
 const section = (name: string) => screen.findByRole('region', { name });
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NetWorthCurve'); await import('./SplitCharts'); }, 30_000);
 
 describe('dashboard lists', () => {
   it('shows each envelope with its converted value, date and staleness, and links to it keeping the scope', async () => {

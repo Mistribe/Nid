@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { EnvelopeChart } from './SplitCharts';
 import { dashboard, envelope, person } from './testData';
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NetWorthCurve'); await import('./SplitCharts'); }, 30_000);
 
 describe('split charts', () => {
   it('loads both charts on demand on the dashboard', async () => {

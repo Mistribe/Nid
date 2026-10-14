@@ -1,12 +1,13 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { persons } from '../../subscriptions/testData';
 import { todayIso } from '../../subscriptions/today';
 import { LOAN, loanDetail, schedule } from '../testData';
+import { PROPERTY, propertyList, propertySummary } from '../../properties/testData';
 import { plusOneMonth } from './newLoan';
 
 function serveCreate(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: LOAN }, { status: 201 })) {
@@ -33,6 +34,9 @@ async function fillPlain(user: User) {
   await user.clear(screen.getByLabelText('Date de déblocage'));
   await user.type(screen.getByLabelText('Date de déblocage'), '2026-09-12');
 }
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NewLoan'); }, 30_000);
 
 describe('NewLoan', () => {
   it('creates a plain loan in one request, its rate as a fraction, then shows it', async () => {
@@ -309,5 +313,48 @@ describe('NewLoan', () => {
     await submit(user);
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('finances a property chosen in « Bien financé », « Aucun » by default, from the household’s list', async () => {
+    const bodies: unknown[] = [];
+    const seen: string[] = [];
+    serveCreate(bodies);
+    server.use(http.get('*/api/v1/realestate/properties', ({ request }) => {
+      seen.push(new URL(request.url).search);
+      return HttpResponse.json(propertyList([propertySummary()]));
+    }));
+    const { user, container } = await renderApp('/loans/new?scope=me');
+
+    await fillPlain(user);
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    const select = screen.getByLabelText('Bien financé');
+    expect(select).toHaveValue('');
+    expect(select).toHaveDisplayValue('Aucun');
+    await screen.findByRole('option', { name: 'Maison de Nantes' });
+    await user.selectOptions(select, 'Maison de Nantes');
+    await expectNoAxeViolations(container);
+    await submit(user);
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(sent(bodies).propertyId).toBe(PROPERTY);
+    expect(seen[0]).toBe('?scope=me');
+  });
+
+  it('shows realestate.invalid_property under « Bien financé »', async () => {
+    serveCreate([], () => HttpResponse.json(
+      { status: 422, code: 'realestate.invalid_property', title: 'x', errors: [{ path: 'propertyId', code: 'realestate.invalid_property', message: 'x' }] },
+      { status: 422 }));
+    server.use(http.get('*/api/v1/realestate/properties', () => HttpResponse.json(propertyList([propertySummary()]))));
+    const { user } = await renderApp('/loans/new');
+
+    await fillPlain(user);
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await screen.findByRole('option', { name: 'Maison de Nantes' });
+    await user.selectOptions(screen.getByLabelText('Bien financé'), 'Maison de Nantes');
+    await submit(user);
+
+    expect(await screen.findByText('Ce bien n’existe pas ou n’est pas accessible.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Bien financé')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

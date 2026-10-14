@@ -72,7 +72,7 @@ describe('ValueChart', () => {
     const form = await screen.findByRole('form', { name: 'Nouvelle valeur' });
     await waitFor(() => expect(seriesCalls).toBe(1));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
-    await within(form).findByRole('status');
+    await waitFor(() => expect(within(form).getByRole('status')).not.toBeEmptyDOMElement());
     await waitFor(() => expect(seriesCalls).toBe(2));
   });
 });

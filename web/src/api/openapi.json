@@ -15446,6 +15446,7 @@
           "name",
           "type",
           "currency",
+          "visibility",
           "stale",
           "canWrite"
         ],
@@ -15462,6 +15463,9 @@
             "type": "string"
           },
           "currency": {
+            "type": "string"
+          },
+          "visibility": {
             "type": "string"
           },
           "value": {

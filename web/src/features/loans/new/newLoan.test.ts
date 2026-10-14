@@ -8,7 +8,7 @@ const valid = (over: Partial<NewLoanValues> = {}): NewLoanValues => ({
   name: 'Prêt maison', lender: 'Banque', currency: 'EUR', note: '', visibility: 'private',
   owners: [{ personId: 'alice', share: '100' }],
   principal: '200000', totalPayments: '240', disbursedOn: '2026-09-12', firstPaymentDate: '2026-10-12',
-  rounding: 'half_up', firstPeriod: 'full', phases: [{ ...newPhase(), rate: '3,5' }], insurances: [], ...over,
+  rounding: 'half_up', firstPeriod: 'full', phases: [{ ...newPhase(), rate: '3,5' }], insurances: [], propertyId: '', ...over,
 });
 
 const issues = (v: NewLoanValues) => {
@@ -72,6 +72,11 @@ describe('the schema', () => {
 });
 
 describe('the wire', () => {
+  it('sends the property financed only when one is chosen (3D1 design §7)', () => {
+    expect(toCreateBody(valid())).not.toHaveProperty('propertyId');
+    expect(toCreateBody(valid({ propertyId: 'p1' }))).toMatchObject({ propertyId: 'p1' });
+  });
+
   it('sends a plain loan as one phase with its rate as a fraction, and leaves out what is empty', () => {
     expect(toCreateBody(valid())).toEqual({
       name: 'Prêt maison', lender: 'Banque', currency: 'EUR', visibility: 'private', borrowers: [{ personId: 'alice', shareBp: 10000 }],
@@ -111,6 +116,7 @@ describe('server paths', () => {
     ['phases[1].paymentOverride', 'phases.1.paymentOverride'], ['insurances[0].monthlyAmount', 'insurances.0.amount'],
     ['insurances[2].annualRate', 'insurances.2.rate'], ['insurances[2].endsOn', 'insurances.2.endsOn'], ['borrowers', 'owners'],
     ['borrowers[0].shareBp', 'owners'],
+    ['propertyId', 'propertyId'],
   ])('places %s under %s', (path, field) => {
     expect(newLoanPath(path)).toBe(field);
   });

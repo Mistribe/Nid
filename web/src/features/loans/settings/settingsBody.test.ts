@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { loanDetail } from '../testData';
 import { toEditBody, toWireBody } from './settingsBody';
 
-const values = { name: 'Prêt maison', lender: 'Banque', note: '' };
+const values = { name: 'Prêt maison', lender: 'Banque', note: '', propertyId: '' };
 
 describe('toEditBody', () => {
+  it('links, relinks and unlinks the property financed, and leaves an unchanged link alone (3D1 design §7)', () => {
+    expect(toEditBody(loanDetail(), { ...values, propertyId: 'p1' })).toEqual({ propertyId: 'p1' });
+    const linked = loanDetail({ propertyId: 'p1', propertyName: null });
+    expect(toEditBody(linked, { ...values, propertyId: 'p2' })).toEqual({ propertyId: 'p2' });
+    expect(toEditBody(linked, values)).toEqual({ clearProperty: true });
+    expect(toEditBody(linked, { ...values, propertyId: 'p1' })).toBeNull();
+  });
+
   it('is null when nothing changed, a trimmed name included', () => {
     expect(toEditBody(loanDetail(), { ...values, name: ' Prêt maison ' })).toBeNull();
   });

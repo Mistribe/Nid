@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -21,6 +21,9 @@ const line = (n: number) => screen.getByRole('group', { name: `Composante ${n}` 
 async function fillName(user: Awaited<ReturnType<typeof renderApp>>['user']) {
   await user.type(await screen.findByLabelText('Nom'), 'Salaire Alice');
 }
+
+// Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
+beforeAll(async () => { await import('./NewIncomeSource'); }, 30_000);
 
 describe('NewIncomeSource', () => {
   it('creates a private salary with two components in one request, then shows it', async () => {

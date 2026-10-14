@@ -45,7 +45,7 @@ Les **estimations** sont des valorisations du Core (une à deux fois par an, ave
 
 **Livré en 3C1** (2026-10-13, `superpowers/specs/2026-10-13-properties-server-design.md`) : table `realestate.property` (1:1 avec l’élément du Core `realestate` / `property`) et colonne `loan.property_item_id` (`loans.md` §3) ; un bien n’est ni vendu, ni supprimé, ni archivé à cette étape. Ses estimations et ses flux sont ceux du Core ; un flux de bien est `expense` ou `income` et porte une catégorie **obligatoire** de la convention du §4 (`realestate.invalid_category` sinon). API `/api/v1/realestate` :
 
-- `GET /properties?scope=` : par bien, le type, la devise, la valeur du jour (dernière estimation, sa date, périmée ou non) et la valeur nette (`null` sans estimation) ;
+- `GET /properties?scope=` : par bien, le type, la devise, la visibilité (depuis 3D1), la valeur du jour (dernière estimation, sa date, périmée ou non) et la valeur nette (`null` sans estimation) ;
 - `GET /properties/{id}` : les champs du bien et sa `version`, les propriétaires, la visibilité, les indicateurs du jour (§7 : valeur, prix de revient, plus-value latente brute, capital restant dû des prêts liés, valeur nette, coût réel et ses composantes, coût net des loyers), les avertissements, toutes les estimations et tous les flux par date, et les prêts liés **que la personne peut lire**, avec leur capital restant dû et sa conversion dans la devise du bien ;
 - `POST /properties` et `PATCH /properties/{id}` (avec la `version` lue ; propriétaires, visibilité et devise sont fixés à la création ; une version périmée répond `409 realestate.property_conflict`) ;
 - `POST` et `DELETE` sur `/properties/{id}/valuations`, `POST`, `PUT` et `DELETE` sur `/properties/{id}/flows`.
