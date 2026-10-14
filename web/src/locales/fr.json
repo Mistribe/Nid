@@ -1484,6 +1484,21 @@
     "deleted": "Ligne supprimée.",
     "delete_confirm": "Cette ligne sera supprimée."
   },
+  "property_rental": {
+    "title": "Location",
+    "not_rented": "Ce bien n’est pas loué.",
+    "rented_since": "Début de location",
+    "expected_rent": "Loyers attendus sur 12 mois",
+    "rent_received": "Loyers perçus sur 12 mois",
+    "arrears": "Impayés sur 12 mois",
+    "arrears_ahead": "{{amount}} (plus perçu que prévu)",
+    "vacancy": "Vacance sur 12 mois",
+    "vacancy_days_one": "{{count}} jour ({{rate}})",
+    "vacancy_days_other": "{{count}} jours ({{rate}})",
+    "gross_yield": "Rendement brut",
+    "net_yield": "Rendement net avant impôt",
+    "not_significant": "Non significatif (moins de 12 mois de location)"
+  },
   "security": {
     "title": "Sécurité",
     "events_title": "Mes derniers événements",

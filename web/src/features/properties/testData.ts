@@ -45,3 +45,12 @@ export const propertyDetail = (over: Partial<PropertyDetail> = {}): PropertyDeta
   loans: [{ id: LOAN, name: 'Prêt maison', currency: 'EUR', balance: '193564.23', balanceConverted: '193564.23' }],
   canWrite: true, ...over,
 });
+
+/**
+ * Let since 2021-01-01 at 900 € a month, the twelve rents of the last 12 months received, against the 281 000 € cost price
+ * and the 1 500 € property tax of the window: the rental figures the server would write.
+ */
+export const rentedFigures = (over: Partial<PropertyDetail['figures']> = {}): PropertyDetail['figures'] => ({
+  ...propertyDetail().figures, rentedSince: '2021-01-01', expectedRent: '10800.00', rentReceived: '10800.00', arrears: '0.00',
+  vacantDays: 0, vacancyRate: '0.0000', grossYield: '0.0384', netYieldBeforeTax: '0.0331', ...over,
+});
