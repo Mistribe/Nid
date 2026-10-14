@@ -164,7 +164,7 @@ describe('estimates', () => {
     await user.click(within(row).getByRole('button', { name: 'Recharger' }));
 
     await waitFor(async () => expect(await rows()).toHaveLength(1));
-    expect(screen.getByRole('heading', { name: 'Estimations' })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Estimations' })).toHaveFocus());
   });
 
   it('gives a reader the estimates without any action', async () => {

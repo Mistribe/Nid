@@ -9,6 +9,7 @@ import { Section } from '../income/Section';
 import { PROPERTY } from './api';
 import { LinkedLoans } from './detail/LinkedLoans';
 import { PropertyFigures } from './detail/PropertyFigures';
+import { FlowsSection } from './flows/FlowsSection';
 import { typeText, warningText } from './format';
 import { ValuationsSection } from './valuations/ValuationsSection';
 
@@ -50,6 +51,7 @@ export function PropertyDetailPage() {
           <Section title={t('property_detail.figures')}><PropertyFigures property={property} /></Section>
           <Section title={t('property_detail.loans')}><LinkedLoans property={property} /></Section>
           <ValuationsSection property={property} />
+          <FlowsSection property={property} />
         </>
       )}
     </article>
