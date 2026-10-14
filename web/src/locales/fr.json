@@ -501,7 +501,9 @@
     "realestate_invalid_property_field": "Cette valeur n’est pas acceptée.",
     "realestate_invalid_category": "Cette catégorie ne correspond pas à ce type de ligne.",
     "realestate_invalid_property": "Ce bien n’existe pas ou n’est pas accessible.",
-    "realestate_property_conflict": "Ce bien a changé entre-temps : rechargez la page."
+    "realestate_property_conflict": "Ce bien a changé entre-temps : rechargez la page.",
+    "realestate_tenancy_overlap": "Ce bail chevauche un autre bail du bien.",
+    "realestate_tenancy_conflict": "Ce bail a changé entre-temps : rechargez la page."
   },
   "settings": {
     "appearance": {
@@ -1497,7 +1499,28 @@
     "vacancy_days_other": "{{count}} jours ({{rate}})",
     "gross_yield": "Rendement brut",
     "net_yield": "Rendement net avant impôt",
-    "not_significant": "Non significatif (moins de 12 mois de location)"
+    "not_significant": "Non significatif (moins de 12 mois de location)",
+    "add": "Ajouter un bail",
+    "add_title": "Nouveau bail",
+    "edit_title": "Corriger le bail",
+    "table": "Baux du bien",
+    "label": "Libellé",
+    "label_help": "Pas de nom de locataire : une colocation est un seul bail.",
+    "starts": "Début",
+    "ends": "Fin",
+    "period": "Période",
+    "since": "depuis le {{start}}",
+    "between": "du {{start}} au {{end}}",
+    "rent": "Loyer mensuel",
+    "charges": "Charges mensuelles",
+    "deposit": "Dépôt de garantie",
+    "note": "Note",
+    "current": "En cours",
+    "submit": "Ajouter",
+    "added": "Bail ajouté.",
+    "corrected": "Bail corrigé.",
+    "deleted": "Bail supprimé.",
+    "delete_confirm": "Ce bail sera supprimé."
   },
   "security": {
     "title": "Sécurité",

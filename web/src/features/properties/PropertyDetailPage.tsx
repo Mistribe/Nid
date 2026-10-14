@@ -9,7 +9,7 @@ import { Section } from '../income/Section';
 import { PROPERTY } from './api';
 import { LinkedLoans } from './detail/LinkedLoans';
 import { PropertyFigures } from './detail/PropertyFigures';
-import { RentalFigures } from './rental/RentalFigures';
+import { RentalSection } from './rental/RentalSection';
 import { FlowsSection } from './flows/FlowsSection';
 import { typeText, warningText } from './format';
 import { SettingsSection } from './settings/SettingsForm';
@@ -52,7 +52,7 @@ export function PropertyDetailPage() {
           ) : null}
           <Section title={t('property_detail.figures')}><PropertyFigures property={property} /></Section>
           <Section title={t('property_detail.loans')}><LinkedLoans property={property} /></Section>
-          <Section title={t('property_rental.title')}><RentalFigures property={property} /></Section>
+          <RentalSection property={property} />
           <ValuationsSection property={property} />
           <FlowsSection property={property} />
           {property.canWrite ? <SettingsSection property={property} /> : null}
