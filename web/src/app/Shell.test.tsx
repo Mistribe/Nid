@@ -14,7 +14,7 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Crédits', 'Routine', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(links).toEqual(['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Biens', 'Crédits', 'Routine', 'Import', 'Export', 'Sécurité', 'Réglages']);
   });
 
   it('offers Export even where import is disabled', async () => {
@@ -38,6 +38,18 @@ describe('the shell', () => {
     await renderApp('/loans');
     expect(within(tabs()).queryByRole('link', { name: 'Crédits' })).not.toBeInTheDocument();
     expect(within(sidebar()).getByRole('link', { name: 'Crédits' })).toHaveAttribute('href', '/loans');
+  });
+
+  it('offers « Biens » only with the realestate module, its routes sending you home otherwise', async () => {
+    const { router } = await renderApp('/properties', { capabilities: { modules: ['core', 'subscriptions', 'investments', 'income'], admin: false } });
+    expect(within(sidebar()).queryByRole('link', { name: 'Biens' })).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/dashboard');
+  });
+
+  it('keeps « Biens » out of the phone’s tabs: it sits in « Plus », just before « Crédits »', async () => {
+    await renderApp('/properties');
+    expect(within(tabs()).queryByRole('link', { name: 'Biens' })).not.toBeInTheDocument();
+    expect(within(sidebar()).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
   });
 
   it('opens on the dashboard', async () => {
@@ -129,7 +141,7 @@ describe('the shell', () => {
   it('lists the other sections on /more, Administration for an admin only', async () => {
     const { container } = await renderApp('/more');
     const list = await screen.findByRole('list', { name: 'Autres sections' });
-    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['Crédits', 'Routine', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['Biens', 'Crédits', 'Routine', 'Import', 'Export', 'Sécurité', 'Réglages']);
     await expectNoAxeViolations(container);
   });
 

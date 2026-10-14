@@ -154,6 +154,28 @@ const incomeDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourceDetailPage'), 'IncomeSourceDetailPage'),
 });
 
+// Loaded on demand, all three, as the loans' forms: nothing of the properties weighs on the initial bundle (3D1 design §3).
+const propertiesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/properties',
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/properties/PropertiesPage'), 'PropertiesPage'),
+});
+
+const propertyNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/properties/new',
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/properties/new/NewProperty'), 'NewProperty'),
+});
+
+const propertyDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/properties/$id',
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/properties/PropertyDetailPage'), 'PropertyDetailPage'),
+});
+
 const loansRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/loans',
@@ -263,7 +285,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,
