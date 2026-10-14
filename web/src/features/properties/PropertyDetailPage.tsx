@@ -11,6 +11,7 @@ import { LinkedLoans } from './detail/LinkedLoans';
 import { PropertyFigures } from './detail/PropertyFigures';
 import { FlowsSection } from './flows/FlowsSection';
 import { typeText, warningText } from './format';
+import { SettingsSection } from './settings/SettingsForm';
 import { ValuationsSection } from './valuations/ValuationsSection';
 
 /** 3D1 design §6: a property — its figures today, warnings, linked loans, estimates, flows and settings. */
@@ -52,6 +53,7 @@ export function PropertyDetailPage() {
           <Section title={t('property_detail.loans')}><LinkedLoans property={property} /></Section>
           <ValuationsSection property={property} />
           <FlowsSection property={property} />
+          {property.canWrite ? <SettingsSection property={property} /> : null}
         </>
       )}
     </article>
