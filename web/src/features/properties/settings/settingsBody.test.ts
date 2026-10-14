@@ -21,6 +21,14 @@ describe('toEditBody', () => {
     expect(toEditBody(before, { ...settingsValuesOf(before), surfaceM2: '', locationLabel: '  ', staleAfterDays: '', note: '' }))
       .toEqual({ clearSurfaceM2: true, clearLocationLabel: true, clearStaleAfterDays: true, clearNote: true });
   });
+
+  it('sends a rental start typed, and its clearing once emptied', () => {
+    expect(values.rentalStartsOn).toBe('');
+    expect(toEditBody(propertyDetail(), { ...values, rentalStartsOn: '2021-01-01' })).toEqual({ rentalStartsOn: '2021-01-01' });
+    const before = propertyDetail({ rentalStartsOn: '2021-01-01' });
+    expect(toEditBody(before, settingsValuesOf(before))).toBeNull();
+    expect(toEditBody(before, { ...settingsValuesOf(before), rentalStartsOn: '' })).toEqual({ clearRentalStartsOn: true });
+  });
 });
 
 describe('toWireBody', () => {

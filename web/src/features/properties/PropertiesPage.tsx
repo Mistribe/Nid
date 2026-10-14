@@ -8,7 +8,7 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { money } from '../loans/format';
+import { money, percent } from '../loans/format';
 import { PROPERTIES, type PropertySummary } from './api';
 import { typeText } from './format';
 
@@ -65,6 +65,9 @@ function Row({ item }: { item: PropertySummary }) {
           <span className="flex items-center gap-1"><AlertTriangle aria-hidden="true" className="size-4" />{t('properties.stale')}</span>
         ) : null}
         {item.netValue ? <span>{t('properties.net_value', { amount: money(item.currency, item.netValue) })}</span> : null}
+        {/* Spec 3D2 §5: the server's fractions in %, « — » when it gives none. */}
+        <span>{t('properties.gross_yield', { rate: item.grossYield ? percent(t, item.grossYield) : t('properties.unknown_rate') })}</span>
+        <span>{t('properties.vacancy', { rate: item.vacancyRate ? percent(t, item.vacancyRate) : t('properties.unknown_rate') })}</span>
       </div>
     </li>
   );

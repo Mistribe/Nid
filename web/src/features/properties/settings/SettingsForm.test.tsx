@@ -33,6 +33,7 @@ function serve(initial: PropertyDetail = propertyDetail()) {
         name: body.name ?? current.name,
         purchasePrice: body.purchasePrice ? written(body.purchasePrice) : current.purchasePrice,
         locationLabel: body.clearLocationLabel ? null : (body.locationLabel ?? current.locationLabel),
+        rentalStartsOn: body.clearRentalStartsOn ? null : (body.rentalStartsOn ?? current.rentalStartsOn),
         note: body.clearNote ? null : (body.note ?? current.note),
         version: fields ? current.version + 1 : current.version,
       };
@@ -135,6 +136,47 @@ describe('property settings', () => {
     expect(await within(settings()).findByText('Cette valeur n’est pas acceptée.')).toBeInTheDocument();
     expect(within(settings()).getByLabelText('Date d’achat')).toHaveAttribute('aria-invalid', 'true');
     expect(within(settings()).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('sends the rental start typed, then its clearing once emptied, each with the version it opened on', async () => {
+    const { sent } = serve();
+    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    expect(within(settings()).getByText('Date de mise en location, si elle précède le premier bail.')).toBeInTheDocument();
+    await user.type(within(settings()).getByLabelText('Début de location'), '2021-01-01');
+    await expectNoAxeViolations(container);
+    await user.click(save());
+
+    await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
+    await waitFor(() => expect(within(settings()).getByLabelText('Début de location')).toHaveValue('2021-01-01'));
+    await user.clear(within(settings()).getByLabelText('Début de location'));
+    await user.click(save());
+
+    await waitFor(() => expect(sent).toEqual([
+      { ...FLAGS, version: 7, rentalStartsOn: '2021-01-01' },
+      { ...FLAGS, version: 8, clearRentalStartsOn: true },
+    ]));
+    await waitFor(() => expect(within(settings()).getByLabelText('Début de location')).toHaveValue(''));
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows a rental start the server refuses (before the purchase) under « Début de location »', async () => {
+    serve();
+    server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
+      { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'rentalStartsOn', code: 'realestate.invalid_property_field', message: 'x' }] },
+      { status: 422 })));
+    const { user } = await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    await user.type(within(settings()).getByLabelText('Début de location'), '2019-01-01');
+    await user.click(save());
+
+    await waitFor(() => {
+      expect(within(settings()).getByText('Cette valeur n’est pas acceptée.')).toBeInTheDocument();
+      expect(within(settings()).getByLabelText('Début de location')).toHaveAttribute('aria-invalid', 'true');
+      expect(within(settings()).queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 
   it('refuses an empty name before sending', async () => {

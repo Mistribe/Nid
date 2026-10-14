@@ -11,6 +11,11 @@ export const CATEGORIES = {
   income: ['rent', 'other_income'],
 } as const;
 const WARNINGS = ['no_valuation', 'valuation_stale', 'loan_other_currency', 'fx_missing', 'visibility_mismatch', 'rental_without_tenancy'] as const;
+/** A planned cost's categories (3C2 §2): the expense ones but works, already in the cost price, in the server's order. */
+export const RECURRING_CATEGORIES = ['property_tax', 'condo_fees', 'insurance', 'energy', 'maintenance', 'other'] as const;
+/** A planned cost comes every few months or years (3C2 §2). */
+export const EVERY_UNITS = ['month', 'year'] as const;
+
 /** The real cost's own lines (3C1's `CostLine`); every other line is an expense category. */
 const COST_LINES = ['acquisition', 'loan_interest', 'loan_insurance', 'loan_fees'] as const;
 
@@ -55,4 +60,10 @@ export function warningText(t: TFunction, warning: PropertyWarning, property: Pr
   const name = property.loans.find((l) => l.id === warning.loanId)?.name ?? '';
   const date = property.figures.valueOn ? formatLocalDate(property.figures.valueOn) : '';
   return t(`property_detail.warning.${k}`, { name, currency: property.currency, date });
+}
+
+/** A planned cost's period in words: « tous les mois », « tous les 3 mois », « tous les ans »; an unknown unit reads raw. */
+export function everyText(t: TFunction, every: { count: number; unit: string }): string {
+  const k = known(EVERY_UNITS, every.unit);
+  return k ? t(`property_costs.every_${k}`, { count: every.count }) : `${every.count} ${every.unit}`;
 }

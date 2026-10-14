@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { PropertyDetail, PropertyList, PropertySummary } from './api';
+import type { PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -44,4 +44,25 @@ export const propertyDetail = (over: Partial<PropertyDetail> = {}): PropertyDeta
   recurringCosts: [], tenancies: [],
   loans: [{ id: LOAN, name: 'Prêt maison', currency: 'EUR', balance: '193564.23', balanceConverted: '193564.23' }],
   canWrite: true, ...over,
+});
+
+/**
+ * Let since 2021-01-01 at 900 € a month, the twelve rents of the last 12 months received, against the 281 000 € cost price
+ * and the 1 500 € property tax of the window: the rental figures the server would write.
+ */
+export const rentedFigures = (over: Partial<PropertyDetail['figures']> = {}): PropertyDetail['figures'] => ({
+  ...propertyDetail().figures, rentedSince: '2021-01-01', expectedRent: '10800.00', rentReceived: '10800.00', arrears: '0.00',
+  vacantDays: 0, vacancyRate: '0.0000', grossYield: '0.0384', netYieldBeforeTax: '0.0331', ...over,
+});
+
+/** A tenancy under way since 2023-01-01, as the server writes it (3C2 §3). */
+export const tenancy = (over: Partial<PropertyTenancy> = {}): PropertyTenancy => ({
+  id: 't2', version: 3, label: 'T2 meublé', startsOn: '2023-01-01', endsOn: null, rentMonthly: '900.00', chargesMonthly: '50.00',
+  deposit: '1800.00', note: 'bail de 3 ans', current: true, ...over,
+});
+
+/** A property tax of 1 200 € a year from 2021-10-15, as the server writes it: 100 € a month, next due on 2026-10-15 (3C2 §3). */
+export const recurringCost = (over: Partial<PropertyRecurringCost> = {}): PropertyRecurringCost => ({
+  id: 'c1', version: 1, category: 'property_tax', amount: '1200.00', every: { count: 1, unit: 'year' }, startsOn: '2021-10-15',
+  endsOn: null, note: null, monthlyEquivalent: '100.00', nextDueOn: '2026-10-15', ...over,
 });

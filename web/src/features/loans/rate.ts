@@ -1,7 +1,7 @@
 /** A rate as typed in percent: digits, then a comma or a dot and at most four decimals (3B1 design §6). */
 const TYPED = /^(\d+)(?:[.,](\d{1,4}))?$/;
 /** A rate as the API writes it: an invariant decimal fraction (`0.035`). */
-const WIRE = /^(\d+)(?:\.(\d+))?$/;
+const WIRE = /^(-?)(\d+)(?:\.(\d+))?$/;
 
 const withoutLeadingZeros = (digits: string) => digits.replace(/^0+(?=\d)/, '');
 
@@ -24,10 +24,11 @@ export function percentToFraction(typed: string): string | null {
 export function fractionToPercent(wire: string): string {
   const match = WIRE.exec(wire);
   if (!match) return wire;
-  const decimals = (match[2] ?? '').padEnd(2, '0');
-  const whole = withoutLeadingZeros(match[1]! + decimals.slice(0, 2));
+  const decimals = (match[3] ?? '').padEnd(2, '0');
+  const whole = withoutLeadingZeros(match[2]! + decimals.slice(0, 2));
   const rest = decimals.slice(2).replace(/0+$/, '');
-  return rest ? `${whole},${rest}` : whole;
+  const shown = rest ? `${whole},${rest}` : whole;
+  return match[1] && /[1-9]/.test(shown) ? `-${shown}` : shown;
 }
 
 /** A rate as typed, at least 0 and below 100 % (the server's [0, 1) as a fraction). */
