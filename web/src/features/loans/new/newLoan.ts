@@ -106,6 +106,7 @@ export function newLoanSchema(t: TFunction) {
     // Not aborting: an aborting issue would skip the superRefine below and hide its checks until a second submit.
     visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
+    propertyId: z.string(),
     ...contractShape(t),
   }).superRefine((v, ctx) => {
     checkOwnership(v, ctx, t);
@@ -155,6 +156,7 @@ export function toCreateBody(v: NewLoanValues): components['schemas']['CreateLoa
     name: v.name.trim(), currency: v.currency, visibility, borrowers: owners,
     ...(v.lender.trim() ? { lender: v.lender.trim() } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
+    ...(v.propertyId ? { propertyId: v.propertyId } : {}),
     ...toContractBody(v),
   };
 }
@@ -166,7 +168,7 @@ const CONTRACT_TOP: Record<string, Path<ContractValues>> = {
   phases: 'totalPayments',
 };
 const IDENTITY_TOP: Record<string, Path<NewLoanValues>> = {
-  name: 'name', lender: 'lender', currency: 'currency', note: 'note', visibility: 'visibility', borrowers: 'owners',
+  name: 'name', lender: 'lender', currency: 'currency', note: 'note', visibility: 'visibility', borrowers: 'owners', propertyId: 'propertyId',
 };
 const PHASE: Record<string, keyof PhaseLine> = {
   mode: 'mode', annualRate: 'rate', rateType: 'rateType', payments: 'payments', paymentOverride: 'paymentOverride',

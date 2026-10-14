@@ -1188,6 +1188,9 @@
     "optional": "Facultatif.",
     "submit": "Créer le crédit",
     "lender_too_long": "100 caractères au plus.",
+    "property": "Bien financé",
+    "property_none": "Aucun",
+    "property_unreadable": "Un bien que vous ne pouvez pas consulter",
     "amount_format": "Un montant positif, avec deux décimales au plus, comme 1500,50.",
     "rate_format": "Un taux de 0 à moins de 100 %, avec quatre décimales au plus, comme 3,5.",
     "duration_range": "Un nombre entier de mois, de 1 à 600.",
@@ -1201,6 +1204,8 @@
     "back": "Retour aux crédits",
     "loading": "Chargement du crédit",
     "read_only": "Vous pouvez consulter ce crédit, pas le modifier.",
+    "property": "Bien financé :",
+    "property_unreadable": "un bien que vous ne pouvez pas consulter",
     "ended": "Terminé",
     "warnings": "Avertissements",
     "warning": {

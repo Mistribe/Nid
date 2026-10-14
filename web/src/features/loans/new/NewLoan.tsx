@@ -13,7 +13,9 @@ import { PERSONS } from '../../subscriptions/api';
 import { Field } from '../../subscriptions/edits/Field';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
+import { invalidateProperties } from '../../properties/api';
 import { invalidateLoans, LOANS } from '../api';
+import { PropertySelect } from '../PropertySelect';
 import { ContractFields } from './ContractFields';
 import { newLoanPath, newLoanSchema, newPhase, plusOneMonth, toCreateBody, type NewLoanValues } from './newLoan';
 
@@ -35,13 +37,14 @@ export function NewLoan() {
     defaultValues: {
       name: '', lender: '', currency: 'EUR', note: '', owners: [{ personId: session.person.id, share: '100' }],
       principal: '', totalPayments: '', disbursedOn: today, firstPaymentDate: plusOneMonth(today),
-      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [],
+      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: '',
     },
   });
   const errors = useSubmitErrors(form.setError, newLoanPath);
   const create = $api.useMutation('post', LOANS, {
     onSuccess: ({ id }) => {
       void invalidateLoans(queryClient);
+      void invalidateProperties(queryClient); // a linked property's detail now lists this loan (3D1 design §7)
       void navigate({ to: '/loans/$id', params: { id } });
     },
     onError: (error) => errors.onError(error),
@@ -78,6 +81,7 @@ export function NewLoan() {
             {e.visibility ? <p id={visibilityErrorId} className="text-sm text-destructive">{e.visibility.message}</p> : null}
           </fieldset>
           <OwnershipFields form={form} persons={people.data ?? []} withVisibility={false} />
+          <PropertySelect registration={form.register('propertyId')} error={e.propertyId?.message} />
           <ContractFields />
           <Button type="submit" disabled={create.isPending}>{t('loan_form.submit')}</Button>
         </form>

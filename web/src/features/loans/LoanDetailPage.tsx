@@ -58,6 +58,14 @@ export function LoanDetailPage() {
             ) : null}
           </header>
           {loan.canWrite ? null : <p>{t('loan_detail.read_only')}</p>}
+          {loan.propertyId ? (
+            <p>
+              {t('loan_detail.property')}{' '}
+              {loan.propertyName
+                ? <Link to="/properties/$id" params={{ id: loan.propertyId }} className="underline">{loan.propertyName}</Link>
+                : t('loan_detail.property_unreadable')}
+            </p>
+          ) : null}
           {loan.warnings.length > 0 ? (
             <ul aria-label={t('loan_detail.warnings')} className="space-y-1">
               {loan.warnings.map((w, i) => (

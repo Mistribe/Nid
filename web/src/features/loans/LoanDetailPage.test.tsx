@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { LoanDetail, LoanSchedule } from './api';
+import { PROPERTY } from '../properties/testData';
 import { LOAN, loanDetail, rows, schedule, year } from './testData';
 
 function serve(detail: LoanDetail = loanDetail(), plan: LoanSchedule = schedule()) {
@@ -229,5 +230,33 @@ describe('LoanDetailPage', () => {
     await renderApp(`/loans/${LOAN}`);
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+  });
+
+  it('names the property the loan finances, with a link to it', async () => {
+    serve(loanDetail({ propertyId: PROPERTY, propertyName: 'Maison de Nantes' }));
+    const { container } = await renderApp(`/loans/${LOAN}`);
+
+    await heading();
+    const link = screen.getByRole('link', { name: 'Maison de Nantes' });
+    expect(link).toHaveAttribute('href', `/properties/${PROPERTY}`);
+    expect(link.parentElement).toHaveTextContent('Bien financé : Maison de Nantes');
+    await expectNoAxeViolations(container);
+  });
+
+  it('says a financed property the reader cannot read is one, without naming it', async () => {
+    serve(loanDetail({ propertyId: PROPERTY, propertyName: null }));
+    await renderApp(`/loans/${LOAN}`);
+
+    await heading();
+    expect(screen.getByText('Bien financé : un bien que vous ne pouvez pas consulter')).toBeInTheDocument();
+  });
+
+  it('says nothing of a property for a loan without one', async () => {
+    serve();
+    await renderApp(`/loans/${LOAN}`);
+
+    await heading();
+    // The line only: the settings' select keeps its label « Bien financé », without the colon.
+    expect(screen.queryByText(/^Bien financé :/)).not.toBeInTheDocument();
   });
 });
