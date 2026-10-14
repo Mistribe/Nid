@@ -38,6 +38,8 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
 var webPath = Path.Combine(builder.AppHostDirectory, "..", "..", "web");
 var web = Directory.Exists(webPath)
     ? builder.AddViteApp("nid-web", webPath).WithPnpm().WithHttpEndpoint(port: 5173, env: "PORT", isProxied: false)
+        // Bare Vite has no /auth or /api proxy: the app only works through Caddy, so keep this link out of the grid.
+        .WithUrlForEndpoint("http", url => url.DisplayLocation = UrlDisplayLocation.DetailsOnly)
     : null;
 
 // TLS reverse proxy, single origin. Reaches the host processes through host.docker.internal.
@@ -45,6 +47,8 @@ var caddy = builder.AddContainer("caddy", "caddy", "2")
     .WithBindMount("../../deploy/dev/caddy/Caddyfile", "/etc/caddy/Caddyfile", isReadOnly: true)
     .WithContainerRuntimeArgs("--add-host=host.docker.internal:host-gateway")
     .WithEndpoint(port: 443, targetPort: 443, name: "https", scheme: "https", isProxied: false)
+    // The public origin (Authelia cookies refuse localhost), not https://localhost:443.
+    .WithUrlForEndpoint("https", url => { url.Url = "https://nid.localtest.me"; url.DisplayText = "Nid"; })
     .WaitFor(api).WaitFor(authelia);
 if (web is not null) caddy.WaitFor(web);
 
