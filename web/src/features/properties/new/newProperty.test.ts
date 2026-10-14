@@ -30,7 +30,7 @@ describe('the schema', () => {
     [{ staleAfterDays: '0' }, 'staleAfterDays: property_form.stale_range'],
     [{ staleAfterDays: '3651' }, 'staleAfterDays: property_form.stale_range'],
     [{ purchaseDate: '1899-12-31' }, 'purchaseDate: property_form.date_range'],
-    [{ purchaseDate: '2999-01-01' }, 'purchaseDate: property_form.purchase_not_future'],
+    [{ purchaseDate: '2999-01-01' }, 'purchaseDate: field_error.core_date_in_future'],
     [{ locationLabel: 'x'.repeat(101) }, 'locationLabel: property_form.location_too_long'],
     [{ currency: 'eu' }, 'currency: field_error.request_currency'],
   ] as [Partial<NewPropertyValues>, string][])('refuses %j as the server would', (over, issue) => {

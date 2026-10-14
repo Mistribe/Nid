@@ -88,7 +88,7 @@ describe('NewProperty', () => {
 
     expect(await screen.findByText('Un montant positif, avec deux décimales au plus, comme 1500,50.')).toBeInTheDocument();
     expect(screen.getByText('Un montant positif ou nul, avec deux décimales au plus, comme 1500,50.')).toBeInTheDocument();
-    expect(screen.getByText('La date d’achat n’est pas après aujourd’hui.')).toBeInTheDocument();
+    expect(screen.getByText('Cette date est dans le futur.')).toBeInTheDocument();
     expect(screen.getByText('Un nombre entier de jours, de 1 à 3 650.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
   });

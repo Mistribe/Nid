@@ -1406,7 +1406,6 @@
     "stale_after_help": "Facultatif : remplace le délai du rythme (400 jours pour « Une fois par an »).",
     "submit": "Créer le bien",
     "date_range": "Une date à partir de 1900.",
-    "purchase_not_future": "La date d’achat n’est pas après aujourd’hui.",
     "fee_format": "Un montant positif ou nul, avec deux décimales au plus, comme 1500,50.",
     "surface_format": "Une surface positive, avec deux décimales au plus, comme 85,5.",
     "location_too_long": "100 caractères au plus.",

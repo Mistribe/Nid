@@ -23,7 +23,7 @@ export function propertyFieldsShape(t: TFunction) {
     // ISO dates compare as strings; today is earlier than 2200, so « on or before today » is the upper bound.
     purchaseDate: z.string().regex(ISO_DATE, t('edit.required'))
       .refine((v) => v >= '1900-01-01', t('property_form.date_range'))
-      .refine((v) => v <= todayIso(), t('property_form.purchase_not_future')),
+      .refine((v) => v <= todayIso(), t('field_error.core_date_in_future')),
     purchasePrice: z.string().trim().regex(LOAN_AMOUNT, t('loan_form.amount_format')),
     notaryFees: z.string().trim().regex(FEE_AMOUNT, t('property_form.fee_format')),
     agencyFees: z.string().trim().regex(FEE_AMOUNT, t('property_form.fee_format')),

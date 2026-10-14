@@ -337,7 +337,7 @@ describe('NewLoan', () => {
 
     await waitFor(() => expect(bodies).toHaveLength(1));
     expect(sent(bodies).propertyId).toBe(PROPERTY);
-    expect(seen[0]).toBe('?scope=household');
+    expect(seen[0]).toBe('?scope=me');
   });
 
   it('shows realestate.invalid_property under « Bien financé »', async () => {
