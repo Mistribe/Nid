@@ -14,6 +14,16 @@ async function createProperty(page: Page, name: string, visibility: 'Oui, partag
   return page.url();
 }
 
+/**
+ * Twelve rent dates inside the server's 12 rolling months, (today − 12 months, today], whatever its timezone: 15 days
+ * before today, then a month earlier each time, the day capped at 28 so no month overflows.
+ */
+function rentDates(): string[] {
+  const base = new Date(Date.now() - 15 * 86_400_000);
+  return Array.from({ length: 12 }, (_, k) =>
+    new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() - k, Math.min(base.getUTCDate(), 28))).toISOString().slice(0, 10));
+}
+
 test('alice records a shared property, its estimate, its works and her loan; bob reads it, never her private one', async ({ browser }) => {
   const stamp = Date.now();
   const home = `Maison ${stamp}`;
@@ -63,4 +73,48 @@ test('alice records a shared property, its estimate, its works and her loan; bob
   const flat = await createProperty(alice, `Studio ${stamp}`, 'Non, privé');
   await bob.goto(flat);
   await expect(bob.getByText('Cet élément est introuvable.')).toBeVisible();
+});
+
+test('alice lets her property: a tenancy under way, a yearly property tax, and its gross yield over twelve rents', async ({ page }) => {
+  const stamp = Date.now();
+  await signIn(page, 'alice', '/properties');
+  await createProperty(page, `Locatif ${stamp}`, 'Oui, partagé');
+  const id = new URL(page.url()).pathname.split('/').pop()!;
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
+  const record = async (data: object) => {
+    const response = await page.request.post(`/api/v1/realestate/properties/${id}/flows`, { headers: { 'X-Nid-Csrf': session.csrf }, data });
+    expect(response.status()).toBe(201);
+  };
+  // Its works, through the API to keep the journey short: the cost price is 281 000 €, as in the first journey.
+  await record({ occurredOn: '2020-07-01', kind: 'expense', category: 'works', amount: '12000' });
+
+  const rental = page.getByRole('region', { name: 'Location', exact: true });
+  await expect(rental).toContainText('Ce bien n’est pas loué.');
+  await rental.getByRole('button', { name: 'Ajouter un bail' }).click();
+  const lease = rental.getByRole('form', { name: 'Nouveau bail' });
+  await lease.getByLabel('Libellé', { exact: true }).fill('T2 meublé');
+  await lease.getByLabel('Début', { exact: true }).fill('2021-01-01');
+  await lease.getByLabel('Loyer mensuel', { exact: true }).fill('900');
+  await lease.getByRole('button', { name: 'Ajouter' }).click();
+  await expect(rental.getByRole('status')).toHaveText('Bail ajouté.');
+  await expect(rental.getByRole('table', { name: 'Baux du bien' }).getByRole('row').nth(1)).toContainText('En cours');
+
+  const costs = page.getByRole('region', { name: 'Charges prévues', exact: true });
+  await costs.getByRole('button', { name: 'Ajouter une charge prévue' }).click();
+  const tax = costs.getByRole('form', { name: 'Nouvelle charge prévue' });
+  await tax.getByLabel('Catégorie', { exact: true }).selectOption('property_tax');
+  await tax.getByLabel('Montant', { exact: true }).fill('1200');
+  await tax.getByLabel('Tous les', { exact: true }).fill('1');
+  await tax.getByLabel('Unité', { exact: true }).selectOption('year');
+  await tax.getByLabel('Début', { exact: true }).fill('2021-10-15');
+  await tax.getByRole('button', { name: 'Ajouter' }).click();
+  await expect(costs.getByRole('status')).toHaveText('Charge prévue ajoutée.');
+  await expect(costs.getByRole('table', { name: 'Charges prévues du bien' }).getByRole('row').nth(1)).toContainText('100,00 €');
+
+  // Twelve rents of 900 € through the API, all within the last 12 months: 10 800 € over 281 000 € is 3,84 %.
+  for (const occurredOn of rentDates()) await record({ occurredOn, kind: 'income', category: 'rent', amount: '900' });
+  await page.reload();
+  const figure = (term: string) => page.getByRole('region', { name: 'Location', exact: true }).locator(`dt:text-is("${term}") + dd`);
+  await expect(figure('Loyers perçus sur 12 mois')).toContainText('10 800,00 €');
+  await expect(figure('Rendement brut')).toContainText('3,84 %');
 });
