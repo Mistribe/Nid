@@ -503,7 +503,8 @@
     "realestate_invalid_property": "Ce bien n’existe pas ou n’est pas accessible.",
     "realestate_property_conflict": "Ce bien a changé entre-temps : rechargez la page.",
     "realestate_tenancy_overlap": "Ce bail chevauche un autre bail du bien.",
-    "realestate_tenancy_conflict": "Ce bail a changé entre-temps : rechargez la page."
+        "realestate_tenancy_conflict": "Ce bail a changé entre-temps : rechargez la page.",
+    "realestate_recurring_cost_conflict": "Cette charge prévue a changé entre-temps : rechargez la page."
   },
   "settings": {
     "appearance": {
@@ -1521,6 +1522,35 @@
     "corrected": "Bail corrigé.",
     "deleted": "Bail supprimé.",
     "delete_confirm": "Ce bail sera supprimé."
+  },
+  "property_costs": {
+    "title": "Charges prévues",
+    "intro": "Prévisions seulement : la routine proposera de les enregistrer comme dépenses.",
+    "table": "Charges prévues du bien",
+    "empty": "Aucune charge prévue",
+    "add": "Ajouter une charge prévue",
+    "add_title": "Nouvelle charge prévue",
+    "edit_title": "Corriger la charge prévue",
+    "category": "Catégorie",
+    "amount": "Montant",
+    "period": "Période",
+    "unit_option": { "month": "mois", "year": "an(s)" },
+    "every_month_one": "tous les mois",
+    "every_month_other": "tous les {{count}} mois",
+    "every_year_one": "tous les ans",
+    "every_year_other": "tous les {{count}} ans",
+    "every_range": "Un nombre entier de 1 à 120.",
+    "starts": "Début",
+    "ends": "Fin",
+    "monthly": "Par mois",
+    "next_due": "Prochaine échéance",
+    "ended": "Terminée",
+    "note": "Note",
+    "submit": "Ajouter",
+    "added": "Charge prévue ajoutée.",
+    "corrected": "Charge prévue corrigée.",
+    "deleted": "Charge prévue supprimée.",
+    "delete_confirm": "Cette charge prévue sera supprimée."
   },
   "security": {
     "title": "Sécurité",

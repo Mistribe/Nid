@@ -7,6 +7,7 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Section } from '../income/Section';
 import { PROPERTY } from './api';
+import { CostsSection } from './costs/CostsSection';
 import { LinkedLoans } from './detail/LinkedLoans';
 import { PropertyFigures } from './detail/PropertyFigures';
 import { RentalSection } from './rental/RentalSection';
@@ -55,6 +56,7 @@ export function PropertyDetailPage() {
           <RentalSection property={property} />
           <ValuationsSection property={property} />
           <FlowsSection property={property} />
+          <CostsSection property={property} />
           {property.canWrite ? <SettingsSection property={property} /> : null}
         </>
       )}
