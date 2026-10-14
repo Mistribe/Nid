@@ -10,6 +10,7 @@ import { PROPERTY } from './api';
 import { LinkedLoans } from './detail/LinkedLoans';
 import { PropertyFigures } from './detail/PropertyFigures';
 import { typeText, warningText } from './format';
+import { ValuationsSection } from './valuations/ValuationsSection';
 
 /** 3D1 design §6: a property — its figures today, warnings, linked loans, estimates, flows and settings. */
 export function PropertyDetailPage() {
@@ -48,6 +49,7 @@ export function PropertyDetailPage() {
           ) : null}
           <Section title={t('property_detail.figures')}><PropertyFigures property={property} /></Section>
           <Section title={t('property_detail.loans')}><LinkedLoans property={property} /></Section>
+          <ValuationsSection property={property} />
         </>
       )}
     </article>
