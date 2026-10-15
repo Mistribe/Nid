@@ -28,6 +28,8 @@ public class CommandCountTests(PostgresFixture fixture)
     [Theory]
     [InlineData("/api/v1/realestate/loans?scope=me")]
     [InlineData("/api/v1/realestate/properties?scope=me")]
+    [InlineData("/api/v1/dashboard?scope=me")]
+    [InlineData("/api/v1/dashboard/net-worth?scope=me&period=all")]
     public async Task A_route_issues_as_many_commands_for_2N_items_as_for_N(string route)
     {
         var counter = new CommandCounter();

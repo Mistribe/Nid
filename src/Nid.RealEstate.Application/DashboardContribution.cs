@@ -10,7 +10,8 @@ namespace Nid.RealEstate.Application;
 /// <summary>
 /// 3E1 spec §2: each visible property for its latest estimate and each visible loan for − its remaining balance, one
 /// <see cref="Holding"/> each, never netted (README §8), so the per-person split follows each item's own shares. Since
-/// 1 January, a property's estimate change is a gain and a loan's principal repaid is paid in.
+/// 1 January, a property's estimate change is a gain and a loan's principal repaid is paid in. Batched reads spec §3: the
+/// items and the estimates are read once for all, whatever their number.
 /// </summary>
 public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations)
     : INetWorthContribution
@@ -18,6 +19,11 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
     public async Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, ct);
+        var found = await properties.FindManyAsync(ids, ct);
+        var owing = await loans.FindManyAsync(ids, ct);
+        var accesses = await items.FindManyAsync([.. found.Select(p => p.ItemId), .. owing.Select(l => l.ItemId)], ct);
+        // Estimates that cannot be read count as no value, as an envelope's facts: never skipped, so no total is silently partial.
+        var estimated = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
         var january1 = new LocalDate(today.Year, 1, 1);
         var values = new Dictionary<Currency, decimal>();
         var starts = new Dictionary<Currency, decimal>();
@@ -27,14 +33,13 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
         int count = 0, withoutValue = 0, stale = 0, withoutStart = 0;
         LocalDate? oldest = null;
 
-        foreach (var property in await properties.FindManyAsync(ids, ct))
+        foreach (var property in found)
         {
-            if (await items.FindAsync(property.ItemId, ct) is not { } item)
+            if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
             count++;
             var currency = LoanViews.CurrencyOf(item);
-            // Estimates that cannot be read count as no value, as an envelope's facts: never skipped, so no total is silently partial.
-            var estimates = await DashboardParts.EstimatesAsync(valuations, property.ItemId, ct);
+            var estimates = estimated?.GetValueOrDefault(property.ItemId);
             var now = estimates is null ? null : PropertyMath.At(property.Details, false, estimates, [], [], [], today);
             if (estimates is null || now?.Value is not { } value)
             {
@@ -62,9 +67,9 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
                 withoutStart++;
         }
 
-        foreach (var loan in await loans.FindManyAsync(ids, ct))
+        foreach (var loan in owing)
         {
-            if (await items.FindAsync(loan.ItemId, ct) is not { } item)
+            if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms);
@@ -102,13 +107,17 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
     public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, ct);
+        var found = await properties.FindManyAsync(ids, ct);
+        var owing = await loans.FindManyAsync(ids, ct);
+        var accesses = await items.FindManyAsync([.. found.Select(p => p.ItemId), .. owing.Select(l => l.ItemId)], ct);
+        var estimates = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
         var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series)>();
-        foreach (var property in await properties.FindManyAsync(ids, ct))
-            if (await items.FindAsync(property.ItemId, ct) is { } item && await DashboardParts.EstimatesAsync(valuations, property.ItemId, ct) is { } series)
+        foreach (var property in found)
+            if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { } series)
                 estimated.Add((LoanViews.CurrencyOf(item), series));
         var owed = new List<(LoanTerms Terms, LoanSchedule Schedule)>();
-        foreach (var loan in await loans.FindManyAsync(ids, ct))
-            if (await items.FindAsync(loan.ItemId, ct) is { } item)
+        foreach (var loan in owing)
+            if (accesses.TryGetValue(loan.ItemId, out var item))
             {
                 var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
                 owed.Add((terms, LoanReading.Schedule(terms)));
@@ -121,7 +130,7 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
             var nets = new Dictionary<Currency, decimal>();
             var count = 0;
             foreach (var (currency, series) in estimated)
-                if (series.LastOrDefault(v => v.AsOf <= date) is { } latest) // SeriesAsync is ordered by as_of
+                if (series.LastOrDefault(v => v.AsOf <= date) is { } latest) // SeriesManyAsync keeps SeriesAsync's as_of order
                 {
                     count++;
                     DashboardParts.Add(values, currency, latest.Value.Amount);
@@ -148,9 +157,14 @@ internal static class DashboardParts
 
     public static IReadOnlyList<OwnerShare> OwnersOf(ItemAccess item) => item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
 
-    /// <summary>A property's current estimates by date, read as the ambient actor; null when they cannot be read.</summary>
-    public static async Task<IReadOnlyList<Valuation>?> EstimatesAsync(IValuations valuations, ItemId property, CancellationToken ct)
-        => (await valuations.SeriesAsync(property, PropertyReading.Everything, ct)).TryGetValue(out var series) ? series : null;
+    /// <summary>
+    /// The current estimates by date of the properties the registry knows, read as the ambient actor in one block (batched reads
+    /// spec §2); null when they cannot be read. Only known ids: one the registry does not know would refuse the whole block.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>?> EstimatesAsync(
+        IValuations valuations, IEnumerable<StoredProperty> found, IReadOnlyDictionary<ItemId, ItemAccess> accesses, CancellationToken ct)
+        => (await valuations.SeriesManyAsync(found.Select(p => p.ItemId).Where(accesses.ContainsKey).ToList(), PropertyReading.Everything, ct))
+            .TryGetValue(out var series) ? series : null;
 }
 
 /// <summary>
@@ -166,9 +180,11 @@ public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, 
         var amortized = new Dictionary<Currency, decimal>();
         var cash = new Dictionary<Currency, decimal>();
         var count = 0;
-        foreach (var loan in await loans.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct))
+        var found = await loans.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct);
+        var accesses = await items.FindManyAsync(found.Select(l => l.ItemId).ToList(), ct); // batched reads spec §3
+        foreach (var loan in found)
         {
-            if (await items.FindAsync(loan.ItemId, ct) is not { } item)
+            if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms);
@@ -198,9 +214,11 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
         var amortized = new Dictionary<Currency, decimal>();
         var cash = new Dictionary<Currency, decimal>();
         var count = 0;
-        foreach (var property in await properties.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct))
+        var found = await properties.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct);
+        var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct); // batched reads spec §3
+        foreach (var property in found)
         {
-            if (await items.FindAsync(property.ItemId, ct) is not { } item)
+            if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
             var currency = LoanViews.CurrencyOf(item);
             foreach (var cost in property.Costs.Select(c => c.Cost))
@@ -221,7 +239,7 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
 /// <summary>
 /// 3E1 spec §4, over the visible loans and properties: a phase's end on the next phase's first payment (its rate or its deferral
 /// changes), the last payment, the day the latest estimate turns stale, each planned cost's next due date with its amount, and a
-/// tenancy's end.
+/// tenancy's end. Batched reads spec §3: the items and the estimates are read once for all.
 /// </summary>
 public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations)
     : IUpcomingEvents
@@ -229,12 +247,15 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
     public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, ct);
+        var owing = await loans.FindManyAsync(ids, ct);
+        var found = await properties.FindManyAsync(ids, ct);
+        var accesses = await items.FindManyAsync([.. owing.Select(l => l.ItemId), .. found.Select(p => p.ItemId)], ct);
         var events = new List<UpcomingEvent>();
         bool Within(LocalDate on) => on >= today && on <= until;
 
-        foreach (var loan in await loans.FindManyAsync(ids, ct))
+        foreach (var loan in owing)
         {
-            if (await items.FindAsync(loan.ItemId, ct) is not { } item)
+            if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var rows = LoanReading.Schedule(terms).Rows;
@@ -246,13 +267,16 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
                 events.Add(new UpcomingEvent(rows[^1].DueDate, UpcomingKinds.LoanEnd, loan.ItemId, "loans", item.DisplayName, null, null));
         }
 
-        foreach (var property in await properties.FindManyAsync(ids, ct))
+        // Only a property with a staleness threshold has an estimate to redo; its latest on or before today is LatestAsync's.
+        var estimates = await DashboardParts.EstimatesAsync(valuations,
+            found.Where(p => PropertyMath.StaleThreshold(p.Details.Cadence, p.Details.StaleAfterDays) is not null), accesses, ct);
+        foreach (var property in found)
         {
-            if (await items.FindAsync(property.ItemId, ct) is not { } item)
+            if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
             var currency = LoanViews.CurrencyOf(item);
             if (PropertyMath.StaleThreshold(property.Details.Cadence, property.Details.StaleAfterDays) is { } days
-                && (await valuations.LatestAsync(property.ItemId, today, ct)).TryGetValue(out var latest) && latest!.Value is { } estimate)
+                && estimates?.GetValueOrDefault(property.ItemId)?.LastOrDefault(v => v.AsOf <= today) is { } estimate)
             {
                 // The first day PropertyMath.At calls it stale (more than the threshold since its date). Once stale it is in « À faire ».
                 var due = estimate.AsOf.PlusDays(days + 1);
