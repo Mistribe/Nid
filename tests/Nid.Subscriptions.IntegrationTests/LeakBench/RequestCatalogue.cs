@@ -226,6 +226,11 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("properties", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("property_recurring_costs", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("tenancies", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loans", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_phases", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_insurances", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_fees", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_events", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
 

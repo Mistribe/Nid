@@ -71,6 +71,9 @@ public static class LoanCodes
     public const string FeeConflict = "realestate.fee_conflict";
     public const string RepaymentConflict = "realestate.repayment_conflict";
     public const string FeeLinked = "realestate.fee_linked";
+
+    /// <summary>Spec 3F1 §2: a file's loan whose schedule is the bank's; its table's section arrives in 3F2.</summary>
+    public const string ImportBankSchedule = "realestate.import_bank_schedule";
 }
 
 public static class LoanWarnings

@@ -18,7 +18,7 @@ namespace Nid.RealEstate.Application.Import;
 /// after this section, find them through <see cref="ImportContext.Items"/> and their file ids through <see cref="ExportContext.NameItem"/>.
 /// </summary>
 public sealed partial class RealEstateImportSection(
-    IItemRegistry items, IPropertyStore properties, IRealEstateImports imports, IAccessPolicy policy, IItemRules rules,
+    IItemRegistry items, IPropertyStore properties, ILoanStore loans, IRealEstateImports imports, IAccessPolicy policy, IItemRules rules,
     IHouseholdCalendar calendar, IVisibleItems visible, IPersonRegistry persons) : IImportSection
 {
     public const string PropertiesSection = "properties";
@@ -65,7 +65,8 @@ public sealed partial class RealEstateImportSection(
     private LocalDate today;
 
     public string Module => "realestate";
-    public IReadOnlyList<string> Sections => [PropertiesSection, CostsSection, TenanciesSection];
+    public IReadOnlyList<string> Sections =>
+        [PropertiesSection, CostsSection, TenanciesSection, LoansSection, PhasesSection, InsurancesSection, FeesSection, EventsSection];
     public int Order => 40;
 
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
@@ -88,6 +89,22 @@ public sealed partial class RealEstateImportSection(
                 case TenanciesSection:
                     Read<TenancyRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryTenancy(r, path, null, issues, out _));
                     break;
+                case LoansSection:
+                    Read<LoanRecord>(entity, path, issues, r => r.Id, r => NoNullOwners(r.Ownership, path, issues)
+                        && EstateParsing.TryLoan(r, path, f => standIn(f), issues, out _));
+                    break;
+                case PhasesSection:
+                    Read<LoanPhaseRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryPhase(r, path, null, issues, out _));
+                    break;
+                case InsurancesSection:
+                    Read<LoanInsuranceRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryInsurance(r, path, null, issues, out _));
+                    break;
+                case FeesSection:
+                    Read<LoanFeeRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryFee(r, path, null, issues, out _));
+                    break;
+                case EventsSection:
+                    Read<LoanEventRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryEvent(r, path, null, issues, out _));
+                    break;
             }
         }
         return issues;
@@ -103,6 +120,7 @@ public sealed partial class RealEstateImportSection(
         var issues = new List<ImportIssue>();
 
         await ValidatePropertiesAsync(staged, issues, ct);
+        await ValidateLoansAsync(staged, issues, ct); // after the properties: a loan names one of them
         return new SectionOutcome(issues, tally);
     }
 
@@ -110,6 +128,8 @@ public sealed partial class RealEstateImportSection(
     {
         this.context = context;
         var applied = await ApplyPropertiesAsync(ct);
+        if (applied.IsSuccess)
+            applied = await ApplyLoansAsync(ct);
         return applied.IsSuccess ? Result.Success<IReadOnlyDictionary<string, SectionCounts>>(tally) : ImportSectionKit.FailureOf(applied);
     }
 
@@ -122,7 +142,8 @@ public sealed partial class RealEstateImportSection(
         var ids = (await visible.ForAsync(context.Reader, VisibilityScope.Me, includeArchived: true, ct)).ToList();
         var heads = await items.FindManyAsync(ids, ct);
         var sections = new Dictionary<string, IReadOnlyList<JsonElement>>(StringComparer.Ordinal);
-        await ExportPropertiesAsync(context, ids, heads, sections, ct);
+        var propertyFileIds = await ExportPropertiesAsync(context, ids, heads, sections, ct);
+        await ExportLoansAsync(context, ids, heads, propertyFileIds, sections, ct);
         return sections;
     }
 

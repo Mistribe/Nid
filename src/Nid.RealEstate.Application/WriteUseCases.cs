@@ -116,7 +116,16 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
         if (built.TryGetFailure(out failure))
             return Result.Failure<ItemId>(LoanPaths.ForContract(failure!));
 
-        await loans.ReplaceContractAsync(command.ItemId, command.Contract, ct);
+        // Spec 3F1 §2: an edit keeps each phase's file id by its number and each insurance's by its rank, so the file the loan
+        // came from re-imports unchanged (Review Focus 1). ponytail: by rank, two insurances reordered in one edit swap their file
+        // ids — harmless unless that file is then re-imported with replace; match on the start date if it ever matters.
+        var stored = found.Loan.Contract;
+        var contract = command.Contract with
+        {
+            Phases = command.Contract.Phases.Select(p => p with { Import = stored.Phases.FirstOrDefault(s => s.Phase.Seq == p.Phase.Seq)?.Import }).ToList(),
+            Insurances = command.Contract.Insurances.Select((i, k) => i with { Import = k < stored.Insurances.Count ? stored.Insurances[k].Import : null }).ToList(),
+        };
+        await loans.ReplaceContractAsync(command.ItemId, contract, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }

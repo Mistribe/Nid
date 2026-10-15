@@ -402,8 +402,8 @@ public class LeakBenchTests(PostgresFixture fixture)
 
     /// <summary>
     /// The fact export pages are not vacuous in the bench: every readable envelope twin and property twin exports its value and
-    /// its flow (3F1 spec §6: the property twins' estimate and expense), and every readable property twin its planned cost and its
-    /// tenancy; the other adult's private twins export none of it.
+    /// its flow (3F1 spec §6: the property twins' estimate and expense), every readable property twin its planned cost and its
+    /// tenancy, and every readable loan twin its link; the other adult's private twins export none of it.
     /// </summary>
     [Fact]
     public async Task The_fact_export_pages_carry_the_twins_facts_to_their_readers_only()
@@ -438,6 +438,11 @@ public class LeakBenchTests(PostgresFixture fixture)
                     all[section].Select(r => r.GetProperty("property").GetString()!).Order(StringComparer.Ordinal));
                 Assert.DoesNotContain(other, JsonSerializer.Serialize(all[section]));
             }
+
+            // The loan twins: each linked to a property twin the reader exports (a private one to its owner's shared one).
+            Assert.Equal(6, all["loans"].Count);
+            Assert.All(all["loans"], l => Assert.Contains(l.GetProperty("property").GetString()!, properties.Values));
+            Assert.DoesNotContain(other, JsonSerializer.Serialize(all["loans"]));
         }
     }
 

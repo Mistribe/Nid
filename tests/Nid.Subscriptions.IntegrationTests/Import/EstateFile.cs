@@ -39,6 +39,32 @@ internal static class EstateFile
          "rent_monthly":{"amount":"700.00","currency":"EUR"},"charges_monthly":{"amount":"50.00","currency":"EUR"}}
         """;
 
+    public const string MainLoan = """
+        {"id":"loan-main","name":"Prêt principal","lender":"Banque","currency":"EUR","principal":{"amount":"200000.00","currency":"EUR"},
+         "disbursed_on":"2020-10-15","first_payment_date":"2020-11-15","total_payments":240,"property":"prop-home",
+         "ownership":[{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}],"visibility":"shared"}
+        """;
+
+    /// <summary>A zero-rate loan on the same home: five years deferred, then repaid without interest.</summary>
+    public const string ZeroLoan = """
+        {"id":"loan-ptz","name":"Prêt à taux zéro","currency":"EUR","principal":{"amount":"40000.00","currency":"EUR"},
+         "disbursed_on":"2020-10-15","first_payment_date":"2020-11-15","total_payments":240,"property":"prop-home",
+         "ownership":[{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}]}
+        """;
+
+    public const string MainRate = """{"id":"lp-1","loan":"loan-main","seq":1,"mode":"annuity","annual_rate":"0.035","rate_type":"fixed"}""";
+
+    public const string ZeroDeferred = """{"id":"lp-2","loan":"loan-ptz","seq":1,"mode":"deferred_total","annual_rate":"0","rate_type":"fixed","payments":60}""";
+
+    /// <summary>Its rate as a JSON number: tolerated on the form (import-format.md §2).</summary>
+    public const string ZeroAnnuity = """{"id":"lp-3","loan":"loan-ptz","seq":2,"mode":"annuity","annual_rate":0,"rate_type":"fixed"}""";
+
+    public const string Insurance = """{"id":"li-1","loan":"loan-main","mode":"rate_on_initial","annual_rate":"0.003","starts_on":"2020-11-15"}""";
+
+    public const string FileFee = """{"id":"fee-file","loan":"loan-main","kind":"file","amount":{"amount":"1000.00","currency":"EUR"},"on_date":"2020-10-15"}""";
+
+    public const string Repayment = """{"id":"ev-1","loan":"loan-main","on_date":"2023-03-15","amount":{"amount":"10000.00","currency":"EUR"},"effect":"reduce_term"}""";
+
     public static string List(params string[] entities) => "[" + string.Join(",", entities) + "]";
 
     public static Dictionary<string, string> Properties(string? properties = null, string? costs = null, string? tenancies = null)
@@ -49,4 +75,17 @@ internal static class EstateFile
             ["property_recurring_costs"] = costs ?? List(Tax, Condo),
             ["tenancies"] = tenancies ?? List(Lease1, Lease2),
         };
+
+    /// <summary>The properties and both loans; the phases are listed out of their seq order on purpose (Review Focus 4).</summary>
+    public static Dictionary<string, string> Loans(
+        string? loans = null, string? phases = null, string? insurances = null, string? fees = null, string? events = null)
+    {
+        var file = Properties();
+        file["loans"] = loans ?? List(MainLoan, ZeroLoan);
+        file["loan_phases"] = phases ?? List(ZeroAnnuity, MainRate, ZeroDeferred);
+        file["loan_insurances"] = insurances ?? List(Insurance);
+        file["loan_fees"] = fees ?? List(FileFee);
+        file["loan_events"] = events ?? List(Repayment);
+        return file;
+    }
 }
