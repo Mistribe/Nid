@@ -18,7 +18,7 @@ public sealed class PropertyReading(
     IValuations valuations, IFlows flows, ILoanStore loans, IItemRegistry items, IAccessPolicy policy, IFxRates fx)
 {
     /// <summary>Every current fact, whenever dated.</summary>
-    private static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r) ? r : throw new InvalidOperationException();
+    internal static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r) ? r : throw new InvalidOperationException();
 
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
