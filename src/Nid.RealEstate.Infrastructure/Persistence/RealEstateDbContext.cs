@@ -19,6 +19,8 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     public DbSet<LoanEventRow> Events => Set<LoanEventRow>();
 
+    public DbSet<LoanBankScheduleRow> BankSchedule => Set<LoanBankScheduleRow>();
+
     public DbSet<PropertyRow> Properties => Set<PropertyRow>();
 
     public DbSet<PropertyRecurringCostRow> RecurringCosts => Set<PropertyRecurringCostRow>();
@@ -39,11 +41,13 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_loan_rounding_mode", "rounding_mode in ('half_up','truncate')");
                 t.HasCheckConstraint("ck_loan_first_period_mode", "first_period_mode in ('full','prorata_actual_365')");
                 t.HasCheckConstraint("ck_loan_import", ImportCheck);
+                t.HasCheckConstraint("ck_loan_schedule_source", "schedule_source in ('computed','bank')");
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
             e.Property(x => x.Principal).HasColumnType("numeric(19,4)");
             e.HasIndex(x => x.PropertyItemId);
+            e.Property(x => x.ScheduleSource).HasDefaultValue("computed"); // the loans stored before 3F2 read the calculation
             MapXmin(e.Property(x => x.Version));
         });
 
@@ -106,6 +110,25 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
             e.HasIndex(x => x.LoanItemId);
             MapXmin(e.Property(x => x.Version));
+        });
+
+        // Spec 3F2 §2: the key is (loan, due date); the row id is the import's (a file id resolves to a row).
+        modelBuilder.Entity<LoanBankScheduleRow>(e =>
+        {
+            e.ToTable("loan_bank_schedule_row", t =>
+            {
+                t.HasCheckConstraint("ck_loan_bank_schedule_row_amounts",
+                    "payment >= 0 and interest >= 0 and principal >= 0 and (insurance is null or insurance >= 0) and crd >= 0");
+                t.HasCheckConstraint("ck_loan_bank_schedule_row_import", ImportCheck);
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Payment).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Interest).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Principal).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Insurance).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Crd).HasColumnType("numeric(19,4)");
+            e.HasIndex(x => new { x.LoanItemId, x.DueDate }).IsUnique();
         });
 
         modelBuilder.Entity<PropertyRow>(e =>

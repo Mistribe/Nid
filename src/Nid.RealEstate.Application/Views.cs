@@ -79,7 +79,7 @@ internal static class LoanViews
     public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-        var schedule = LoanReading.Schedule(terms);
+        var schedule = LoanReading.Schedule(terms, loan);
         var figures = LoanMath.At(terms, schedule, today);
         return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
@@ -89,7 +89,7 @@ internal static class LoanViews
     public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-        var schedule = LoanReading.Schedule(terms);
+        var schedule = LoanReading.Schedule(terms, loan);
         var fees = loan.Fees.OrderBy(f => f.Fee.OnDate).ThenBy(f => f.Id)
             .Select(f => new LoanFeeView(f.Id, LoanWire.Of(f.Fee.Kind), Amount(f.Fee.Amount), f.Fee.OnDate, f.Note,
                 loan.Repayments.FirstOrDefault(r => r.FeeId == f.Id)?.Id, f.Version))

@@ -6,8 +6,10 @@ using Nid.Core.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
+using Nid.Subscriptions.IntegrationTests.RealEstate;
 using Nid.TestSupport;
 using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
 using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
@@ -17,7 +19,7 @@ namespace Nid.Subscriptions.IntegrationTests.BatchedReads;
 /// <summary>
 /// Batched reads spec §4, the permanent guard: each route issues as many SQL commands for 2N items as for N — no read per item.
 /// Every round adds, for A, a shared envelope with a value and a contribution, a shared property with an estimate, a planned
-/// cost and a tenancy, a loan linked to it and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription and an income source with a phase: the same shapes each
+/// cost and a tenancy, a loan linked to it reading its bank's table (3F2) and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription and an income source with a phase: the same shapes each
 /// round, so every branch a route takes is taken alike for N and 2N.
 /// </summary>
 [Collection("postgres")]
@@ -84,7 +86,9 @@ public class CommandCountTests(PostgresFixture fixture)
             new { label = "T2", startsOn = "2021-01-01", endsOn = "2025-12-01", rentMonthly = "900" });
         var loan = Golden(app, $"Prêt {i}");
         loan["propertyId"] = property;
-        await NewAsync(app, loan);
+        var main = await NewAsync(app, loan);
+        // 3F2: its bank rows come with the loans, in the same batch, and it reads them as its reference.
+        await BankScheduleReadingTests.StoreTableAsync(app, main, ScheduleSource.Bank, BankScheduleReadingTests.Sixtieth);
         var dollars = Short(app, $"Prêt dollars {i}"); // converted at the stored rate
         dollars["currency"] = "USD";
         dollars["propertyId"] = property;

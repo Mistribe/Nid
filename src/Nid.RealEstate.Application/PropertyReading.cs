@@ -103,7 +103,7 @@ public sealed class PropertyReading(
             var terms = LoanReading.Terms(loanCurrency, l.Loan.Contract, l.Loan.Fees, l.Loan.Repayments);
             decimal? rate = rates.TryConvert(1m, loanCurrency, currency, today, projected: false, out var converted, out _) ? converted : null;
             return new LinkedLoan(l.Item.Id, loanCurrency != currency, l.Item.Visibility == Visibility.Private,
-                LoanMath.At(terms, LoanReading.Schedule(terms), today), rate);
+                LoanMath.At(terms, LoanReading.Schedule(terms, l.Loan), today), rate);
         }).ToList();
 
         return new PropertyRead(values, flowList, readable.Select(l => l.Item).ToList(),

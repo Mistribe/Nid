@@ -30,6 +30,7 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
         var insurances = (await db.Insurances.AsNoTracking().Where(i => found.Contains(i.LoanItemId)).ToListAsync(ct)).ToLookup(i => i.LoanItemId);
         var fees = (await db.Fees.AsNoTracking().Where(f => found.Contains(f.LoanItemId)).ToListAsync(ct)).ToLookup(f => f.LoanItemId);
         var events = (await db.Events.AsNoTracking().Where(e => found.Contains(e.LoanItemId)).ToListAsync(ct)).ToLookup(e => e.LoanItemId);
+        var bank = (await db.BankSchedule.AsNoTracking().Where(b => found.Contains(b.LoanItemId)).ToListAsync(ct)).ToLookup(b => b.LoanItemId);
 
         // Ordered here, not by the database's collation or uuid order: the same order on every server (precision 12).
         return loans.Select(l => new StoredLoan(
@@ -41,7 +42,11 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
                 l.Version,
                 fees[l.ItemId].OrderBy(f => f.OnDate).ThenBy(f => f.Id).Select(ToFee).ToList(),
                 events[l.ItemId].OrderBy(e => e.OnDate).ThenBy(e => e.Id).Select(ToRepayment).ToList(),
-                l.PropertyItemId is { } property ? new ItemId(property) : null))
+                l.PropertyItemId is { } property ? new ItemId(property) : null)
+            {
+                Source = Parse<ScheduleSource>(l.ScheduleSource),
+                Bank = bank[l.ItemId].OrderBy(b => b.DueDate).Select(ToBankRow).ToList(),
+            })
             .ToList();
     }
 
@@ -61,6 +66,7 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
         if (change.ClearLender) row.Lender = null; else if (change.Lender is { } lender) row.Lender = lender;
         if (change.ClearNote) row.Note = null; else if (change.Note is { } note) row.Note = note;
         if (change.ClearProperty) row.PropertyItemId = null; else if (change.PropertyId is { } property) row.PropertyItemId = property.Value;
+        if (change.Source is { } source) row.ScheduleSource = LoanWire.Of(source);
         await db.SaveChangesAsync(ct);
     }
 
@@ -73,6 +79,28 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
         db.Insurances.RemoveRange(await db.Insurances.Where(i => i.LoanItemId == item.Value).ToListAsync(ct));
         await db.SaveChangesAsync(ct); // the old seqs leave before the new ones arrive: (loan_item_id, seq) is unique
         AddParts(item, contract);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task ReplaceBankScheduleAsync(ItemId loan, IReadOnlyList<StoredBankRow> rows, CancellationToken ct)
+    {
+        var row = await db.Loans.SingleAsync(l => l.ItemId == loan.Value, ct);
+        if (rows.Count == 0)
+            row.ScheduleSource = LoanWire.Of(ScheduleSource.Computed); // no table, no bank reference
+        db.Entry(row).State = EntityState.Modified; // the table is the loan's: its version moves
+        db.BankSchedule.RemoveRange(await db.BankSchedule.Where(b => b.LoanItemId == loan.Value).ToListAsync(ct));
+        await db.SaveChangesAsync(ct); // the old dates leave before the new ones arrive: (loan_item_id, due_date) is unique
+        foreach (var entry in rows)
+        {
+            var r = entry.Row;
+            var added = new LoanBankScheduleRow
+            {
+                Id = entry.Id, LoanItemId = loan.Value, DueDate = r.DueDate, Payment = r.Payment, Interest = r.Interest,
+                Principal = r.Principal, Insurance = r.Insurance, Crd = r.Crd,
+            };
+            RealEstateImports.Mark(added, entry.Import);
+            db.BankSchedule.Add(added);
+        }
         await db.SaveChangesAsync(ct);
     }
 
@@ -188,6 +216,9 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
 
     private static StoredRepayment ToRepayment(LoanEventRow r)
         => new(r.Id, new EarlyRepayment(r.OnDate, r.Amount, Parse<RepaymentEffect>(r.Effect)), r.FeeId, r.Note, r.Version);
+
+    private static StoredBankRow ToBankRow(LoanBankScheduleRow r)
+        => new(r.Id, new BankRow(r.DueDate, r.Payment, r.Interest, r.Principal, r.Insurance, r.Crd)) { Import = RealEstateImports.MarkOf(r) };
 
     /// <summary>The check constraints admit only these texts: anything else is a broken invariant.</summary>
     private static T Parse<T>(string text) where T : struct, Enum

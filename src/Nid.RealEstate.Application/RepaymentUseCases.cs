@@ -58,7 +58,7 @@ internal static class RepaymentCheck
         var repayments = loan.Repayments.Where(r => r.Id != written.Id).Append(written)
             .OrderBy(r => r.Repayment.OnDate).ThenBy(r => r.Id).ToList();
 
-        var built = LoanScheduleBuilder.Build(LoanReading.Terms(currency, loan.Contract, fees, repayments));
+        var built = LoanReading.Build(LoanReading.Terms(currency, loan.Contract, fees, repayments), LoanReading.BankRows(loan));
         return built.TryGetFailure(out var failure)
             ? LoanPaths.ForRepayment(failure!, repayments.FindIndex(r => r.Id == written.Id),
                 penalty is null ? null : fees.FindIndex(f => f.Id == penalty.Id))
@@ -69,7 +69,7 @@ internal static class RepaymentCheck
     public static Failure? Removable(Currency currency, StoredLoan loan, StoredRepayment old)
     {
         var remaining = loan.Repayments.Where(r => r.Id != old.Id).ToList();
-        var built = LoanScheduleBuilder.Build(LoanReading.Terms(currency, loan.Contract, loan.Fees.Where(f => f.Id != old.FeeId), remaining));
+        var built = LoanReading.Build(LoanReading.Terms(currency, loan.Contract, loan.Fees.Where(f => f.Id != old.FeeId), remaining), LoanReading.BankRows(loan));
         if (!built.TryGetFailure(out var failure))
             return null;
         // Terms orders by date then id; the k-th remaining one is the stored list's index of that same repayment.
