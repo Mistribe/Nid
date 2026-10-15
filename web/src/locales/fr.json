@@ -544,6 +544,8 @@
     "realestate_fee_conflict": "Ces frais ont changé entre-temps : rechargez la page.",
     "realestate_fee_linked": "Cette pénalité se modifie avec son remboursement.",
     "realestate_repayment_conflict": "Ce remboursement a changé entre-temps : rechargez la page.",
+    "realestate_bank_schedule_invalid": "Le tableau de la banque enregistré ne correspond plus à ce crédit : remplacez-le ou supprimez-le d’abord.",
+    "realestate_bank_schedule_missing": "Enregistrez d’abord le tableau de la banque pour le choisir comme référence.",
     "realestate_invalid_property_field": "Cette valeur n’est pas acceptée.",
     "realestate_invalid_category": "Cette catégorie ne correspond pas à ce type de ligne.",
     "realestate_invalid_property": "Ce bien n’existe pas ou n’est pas accessible.",
@@ -674,6 +676,7 @@
     "see_subscriptions": "Voir les abonnements",
     "see_investments": "Voir les placements",
     "codes": {
+      "realestate_bank_schedule_invalid": "Ce tableau de la banque ne correspond pas au crédit.",
       "realestate_bank_schedule_missing": "Ce crédit prend le tableau de la banque comme référence, mais n’en a aucune ligne : ajoutez-les dans « loan_bank_schedule » ou mettez « computed ».",
       "realestate_invalid_category": "Ce type ou cette catégorie ne correspond pas à cette ligne."
     }
@@ -1269,7 +1272,8 @@
       "exceeds_total_payments": "La mensualité imposée ne suffit pas : le prêt dépasse sa durée prévue (échéance {{n}})",
       "event_off_payment_date": "Remboursement daté hors échéance (appliqué après l’échéance {{n}})",
       "event_before_first_payment": "Remboursement daté avant la première échéance",
-      "override_ignored_after_early_repayment": "Mensualité imposée ignorée après le remboursement de l’échéance {{n}}"
+      "override_ignored_after_early_repayment": "Mensualité imposée ignorée après le remboursement de l’échéance {{n}}",
+      "schedule_mismatch": "Le calcul s’écarte du tableau de la banque à partir du {{date}}"
     },
     "figures": "Aujourd’hui",
     "balance": "Capital restant dû",
@@ -1342,7 +1346,8 @@
       "col_insurance": "Assurance",
       "col_early": "Remboursement anticipé",
       "col_balance": "Capital restant dû",
-      "next": "prochaine échéance"
+      "next": "prochaine échéance",
+      "bank": "Banque"
     },
     "chart": {
       "title": "Graphique de l’échéancier par année",
@@ -1426,6 +1431,52 @@
     "record": "Enregistrer ce remboursement",
     "record_reduce_term": "Enregistrer ce remboursement en réduisant la durée",
     "record_reduce_payment": "Enregistrer ce remboursement en réduisant la mensualité"
+  },
+  "loan_bank": {
+    "title": "Tableau de la banque",
+    "loading": "Chargement du tableau de la banque",
+    "none": "Aucun tableau de la banque enregistré.",
+    "import": "Importer le tableau de la banque",
+    "replace": "Remplacer le tableau",
+    "delete": "Supprimer le tableau",
+    "delete_confirm": "Le tableau de la banque sera supprimé et le calcul redeviendra la référence.",
+    "deleted": "Tableau de la banque supprimé.",
+    "form": "Tableau de la banque à comparer",
+    "text": "Tableau copié",
+    "text_help": "Collez le tableau exporté par la banque ou copié d’un tableur, une ligne par échéance, ses colonnes dans cet ordre : date, mensualité hors assurance, intérêts, capital, assurance (facultative), capital restant dû. Une première ligne de titres est ignorée ; rien n’est enregistré avant « Enregistrer le tableau ».",
+    "has_refusals": "Certaines lignes sont refusées : elles sont citées ci-dessous avec leur raison.",
+    "compare": "Comparer",
+    "cancel": "Annuler",
+    "save": "Enregistrer le tableau",
+    "saved": "Tableau de la banque enregistré.",
+    "preview": "Lignes lues",
+    "refused": "Lignes refusées",
+    "line": "Ligne {{n}} : {{text}}",
+    "unreadable": "Ce texte ne donne aucun tableau comparable à ce crédit : vérifiez ce qui a été collé.",
+    "refusal": {
+      "line": "Une ligne compte 5 ou 6 colonnes : date, mensualité, intérêts, capital, assurance (facultative), capital restant dû.",
+      "dueDate": "La date s’écrit jj/mm/aaaa ou aaaa-mm-jj ; elle tombe sur une échéance du crédit et suit la précédente, sans échéance manquante.",
+      "payment": "La mensualité, hors assurance, vaut les intérêts plus le capital : si elle comprend l’assurance, ajoutez la colonne de l’assurance avant le capital restant dû.",
+      "interest": "Les intérêts sont un montant positif ou nul, avec deux décimales au plus.",
+      "principal": "Le capital est un montant positif ou nul, avec deux décimales au plus.",
+      "insurance": "L’assurance est un montant positif ou nul, avec deux décimales au plus.",
+      "crd": "Le capital restant dû est un montant positif ou nul, qui ne remonte que pendant un différé total, remboursements anticipés compris."
+    },
+    "period_one": "Du {{first}} au {{last}} ({{count}} échéance)",
+    "period_other": "Du {{first}} au {{last}} ({{count}} échéances)",
+    "comparison": "Comparaison avec le calcul",
+    "max_gap": "Écart maximal : {{amount}}",
+    "max_gap_on": "Écart maximal : {{amount}}, le {{date}}",
+    "diverges": "Le capital restant dû diverge de plus de {{threshold}} à partir du {{date}}.",
+    "agree": "Les deux concordent (écarts d’arrondi seulement).",
+    "close_one": "Le capital restant dû reste à moins de {{threshold}} près ; {{count}} échéance s’écarte de plus de {{rounding}}.",
+    "close_other": "Le capital restant dû reste à moins de {{threshold}} près ; {{count}} échéances s’écartent de plus de {{rounding}}.",
+    "interest_gap": "Écart cumulé d’intérêts : {{amount}}",
+    "reference": "Référence",
+    "reference_is": "Référence : {{source}}",
+    "reference_submit": "Choisir cette référence",
+    "reference_saved": { "computed": "Le calcul est la référence.", "bank": "Le tableau de la banque est la référence." },
+    "source": { "computed": "Calcul", "bank": "Tableau de la banque" }
   },
   "properties": {
     "title": "Biens",

@@ -1,4 +1,4 @@
-import type { LoanDetail, LoanList, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoanSummary } from './api';
+import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoanSummary } from './api';
 
 export const LOAN = '0192f0aa-0000-7000-8000-00000000d001';
 
@@ -74,3 +74,20 @@ export const simulation = (over: Partial<LoanSimulation> = {}): LoanSimulation =
   ],
   ...over,
 });
+
+/** The golden case's first three payments as its bank writes them, dated as `rows` (3F2). */
+export const bankRows = (): BankRow[] => [
+  { dueDate: '2025-11-15', payment: '1159.92', interest: '583.33', principal: '576.59', insurance: null, crd: '199423.41' },
+  { dueDate: '2025-12-15', payment: '1159.92', interest: '581.65', principal: '578.27', insurance: null, crd: '198845.14' },
+  { dueDate: '2026-01-15', payment: '1159.92', interest: '579.96', principal: '579.96', insurance: null, crd: '198265.18' },
+];
+
+export const bankTable = () => ({ rows: bankRows(), firstDueOn: '2025-11-15', lastDueOn: '2026-01-15' });
+
+/** A comparison that agrees within rounding, unless `over` says otherwise. */
+export const agreeing = (over: Partial<LoanComparison> = {}): LoanComparison => ({
+  maxGap: '0.00', maxGapOn: null, divergesOn: null, interestGap: '0.00', rowsBeyondRounding: 0, ...over,
+});
+
+/** The loan with its bank's table stored, agreeing with the calculation. */
+export const withTable = (over: Partial<LoanDetail> = {}): LoanDetail => loanDetail({ bankSchedule: bankTable(), comparison: agreeing(), ...over });

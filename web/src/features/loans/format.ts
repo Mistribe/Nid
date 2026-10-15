@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
+import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
-import type { LoanWarning } from './api';
+import type { LoanDetail, LoanWarning } from './api';
 import { fractionToPercent } from './rate';
 
 export const PHASE_MODES = ['annuity', 'deferred_partial', 'deferred_total'] as const;
@@ -59,9 +60,14 @@ export function effectText(t: TFunction, value: string): string {
   return k ? t(`loan_detail.effect.${k}`) : value;
 }
 
-/** Spec §7: each warning in French with its payment number; row 0 is a repayment before the first payment (precision 10). */
-export function warningText(t: TFunction, warning: LoanWarning): string {
+/**
+ * Spec §7: each warning in French with its payment number; row 0 is a repayment before the first payment (precision 10);
+ * 3F2's `schedule_mismatch` names the date the calculation leaves the bank's table, read from the loan's comparison.
+ */
+export function warningText(t: TFunction, warning: LoanWarning, loan?: LoanDetail): string {
   if (warning.code === 'event_off_payment_date' && warning.row === 0) return t('loan_detail.warning.event_before_first_payment');
+  if (warning.code === 'schedule_mismatch' && loan?.comparison?.divergesOn)
+    return t('loan_detail.warning.schedule_mismatch', { date: formatLocalDate(loan.comparison.divergesOn) });
   const k = known(WARNINGS, warning.code);
   return k ? t(`loan_detail.warning.${k}`, { n: warning.row }) : warning.code;
 }

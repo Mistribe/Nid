@@ -20,6 +20,8 @@ import { SimulationSection } from './simulation/SimulationSection';
 
 // Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
 const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ default: m.ScheduleChart })));
+// 3F2: the bank's table, its own chunk too: the paste form and its preview load with the section only.
+const BankScheduleSection = lazy(() => import('./bank/BankScheduleSection').then((m) => ({ default: m.BankScheduleSection })));
 
 /** 3B1 design §7, 3B2: a loan — its figures today, warnings, contract, fees and repayments, the schedule by year, settings. */
 export function LoanDetailPage() {
@@ -71,7 +73,7 @@ export function LoanDetailPage() {
               {loan.warnings.map((w, i) => (
                 <li key={`${w.code}-${w.row}-${i}`} className="flex items-center gap-2">
                   <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
-                  {warningText(t, w)}
+                  {warningText(t, w, loan)}
                 </li>
               ))}
             </ul>
@@ -84,6 +86,9 @@ export function LoanDetailPage() {
           </Section>
           <FeesSection loan={loan} />
           <RepaymentsSection loan={loan} prefill={prefill} />
+          <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('loan_bank.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />}>
+            <BankScheduleSection loan={loan} />
+          </Suspense>
           <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
           {loan.canWrite ? (
             <Section title={t('loan_detail.settings.title')} announcement={settingsAnnouncement}>

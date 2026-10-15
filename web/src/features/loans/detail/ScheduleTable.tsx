@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Landmark } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
@@ -12,7 +12,7 @@ const num = 'px-2 py-1 text-right tabular-nums';
 /**
  * Spec 3B1 §7: one line per year — the server's totals and the balance on 31 December — each a button with
  * `aria-expanded` folding out its months; only open years render their months (precision 8). The marked payment is the
- * figures' next one and its year is the one open (3B2 design §4.1–4.2), marked by words, never by colour alone.
+ * figures' next one and its year is the one open (3B2 design §4.1–4.2), marked by words, never by colour alone; with the bank as the reference, its rows say « Banque » (3F2).
  */
 export function ScheduleTable({ schedule, currency, nextPaymentOn }: { schedule: LoanSchedule; currency: string; nextPaymentOn?: string | null }) {
   const { t } = useTranslation();
@@ -68,6 +68,11 @@ export function ScheduleTable({ schedule, currency, nextPaymentOn }: { schedule:
                     <td className="px-2 py-1">
                       <LocalDate value={r.dueDate} />
                       {r === next ? <span className="ml-2 rounded border px-1 text-xs">{t('loan_detail.schedule.next')}</span> : null}
+                      {r.fromBank ? (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded border px-1 text-xs">
+                          <Landmark aria-hidden="true" className="size-3" />{t('loan_detail.schedule.bank')}
+                        </span>
+                      ) : null}
                     </td>
                     <td className={num}>{m(r.payment)}</td>
                     <td className={num}>{m(r.interest)}</td>
