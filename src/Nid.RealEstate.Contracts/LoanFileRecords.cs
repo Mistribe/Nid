@@ -77,3 +77,29 @@ public sealed record LoanEventRecord
     public required string Effect { get; init; }
     public string? Note { get; init; }
 }
+
+/// <summary>
+/// Spec 3F2 §3 (loans.md §10): a row of a loan's bank table. Amounts are decimal strings in the loan's currency, written with two
+/// decimals (a JSON number is read too); <c>Crd</c> is the remaining balance right after the payment.
+/// </summary>
+public sealed record LoanBankScheduleRecord
+{
+    public required string Id { get; init; }
+    public required string Loan { get; init; }
+    public required string DueDate { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public required decimal Payment { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public required decimal Interest { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public required decimal Principal { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? Insurance { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public required decimal Crd { get; init; }
+}

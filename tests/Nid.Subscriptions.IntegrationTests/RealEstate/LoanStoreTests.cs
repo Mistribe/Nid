@@ -108,4 +108,31 @@ public class LoanStoreTests(PostgresFixture fixture)
         Assert.Equal([linked], (await store.FindLinkedAsync([property], default)).Select(l => l.ItemId));
         Assert.Empty(await store.FindLinkedAsync([other], default));
     }
+
+    [Fact]
+    public async Task A_bank_table_reads_back_by_date_with_its_marks_and_an_emptied_one_returns_to_the_calculation()
+    {
+        var (store, id) = await NewAsync(fixture);
+        var version = (await store.FindAsync(id, default))!.Version;
+        var mark = new ImportMark("lbs-2", new string('e', 64), PersonId.New());
+
+        await store.ReplaceBankScheduleAsync(id,
+        [
+            new StoredBankRow(Guid.CreateVersion7(), new BankRow(new LocalDate(2020, 12, 15), 1_159.92m, 581.65m, 578.27m, 30.5m, 198_845.14m)) { Import = mark },
+            new StoredBankRow(Guid.CreateVersion7(), new BankRow(new LocalDate(2020, 11, 15), 1_159.92m, 583.33m, 576.59m, null, 199_423.41m)),
+        ], default);
+        await store.UpdateDetailsAsync(id, new LoanDetailsChange(Source: ScheduleSource.Bank), default);
+
+        var loan = (await store.FindAsync(id, default))!;
+        Assert.Equal(ScheduleSource.Bank, loan.Source);
+        Assert.Equal([new LocalDate(2020, 11, 15), new LocalDate(2020, 12, 15)], loan.Bank.Select(b => b.Row.DueDate));
+        Assert.Equal(((decimal?)null, (decimal?)30.5m, 198_845.14m), (loan.Bank[0].Row.Insurance, loan.Bank[1].Row.Insurance, loan.Bank[1].Row.Crd));
+        Assert.Equal(((ImportMark?)null, mark), (loan.Bank[0].Import, loan.Bank[1].Import));
+        Assert.NotEqual(version, loan.Version);
+
+        await store.ReplaceBankScheduleAsync(id, [], default);
+
+        var emptied = (await store.FindAsync(id, default))!;
+        Assert.Equal((ScheduleSource.Computed, 0), (emptied.Source, emptied.Bank.Count));
+    }
 }

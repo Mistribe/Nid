@@ -44,8 +44,12 @@ public static class RealEstateEndpoints
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
-        api.MapPatch("/loans/{id:guid}", async (Guid id, EditLoanBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+        api.MapPatch("/loans/{id:guid}", async (Guid id, EditLoanBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(x => new IdResponse(x.Value));
+            })
             .Returns<IdResponse>();
 
         api.MapPut("/loans/{id:guid}/contract", async (Guid id, LoanContractBody body, IInvoker invoker, CancellationToken ct) =>
@@ -118,6 +122,38 @@ public static class RealEstateEndpoints
                 if (RequireVersion(reader, version) is not { } read)
                     return reader.Problem();
                 var result = await invoker.InvokeAsync(new DeleteLoanRepaymentCommand(new ItemId(id), eventId, read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
+        // Spec 3F2 §3: the bank's table, pasted as text; read access compares, write access stores and deletes.
+        api.MapPost("/loans/{id:guid}/bank-schedule/preview", async (Guid id, BankSchedulePreviewBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var text = BankText(reader, body.Text);
+                return text is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new PreviewBankScheduleQuery(new ItemId(id), text), ct)).ToHttp(preview => preview);
+            })
+            .Returns<BankSchedulePreview>();
+
+        api.MapPut("/loans/{id:guid}/bank-schedule", async (Guid id, BankScheduleBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var text = BankText(reader, body.Text);
+                var version = RequireVersion(reader, body.Version);
+                return text is null || version is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new ReplaceBankScheduleCommand(new ItemId(id), text, version.Value), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/loans/{id:guid}/bank-schedule", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (RequireVersion(reader, version) is not { } read)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeleteBankScheduleCommand(new ItemId(id), read), ct);
                 return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
             })
             .ReturnsNoContent();
@@ -287,6 +323,14 @@ public static class RealEstateEndpoints
         return version;
     }
 
+    /// <summary>Spec 3F2 §3: the pasted table is required.</summary>
+    private static string? BankText(FieldReader reader, string? text)
+    {
+        if (text is null)
+            reader.Add("text", "request.required", "The table's text is required.");
+        return text;
+    }
+
     /// <summary>Spec §4: the visibility is required, with no default on the wire; the contract sits at the top level of the body.</summary>
     public sealed record CreateLoanBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Borrowers, string? Lender, string? Note,
@@ -308,13 +352,21 @@ public static class RealEstateEndpoints
     }
 
     /// <summary>
-    /// Spec §4: name, lender, note and the linked property (spec 3C1 §4), only what is sent; <c>clear…</c> empties an optional
-    /// field. Borrowers, visibility and currency are set at creation: the body has no such members (as an income source's).
+    /// Spec §4: name, lender, note, the linked property (spec 3C1 §4) and the schedule's reference (spec 3F2 §3), only what is sent;
+    /// <c>clear…</c> empties an optional field. Borrowers, visibility and currency are set at creation: the body has no such members (as an income source's).
     /// </summary>
-    public sealed record EditLoanBody(string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote, Guid? PropertyId, bool ClearProperty)
+    public sealed record EditLoanBody(
+        string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote, Guid? PropertyId, bool ClearProperty, string? ScheduleSource)
     {
-        public EditLoanCommand ToCommand(ItemId id) => new(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote,
-            PropertyId is { } property ? new ItemId(property) : null, ClearProperty));
+        /// <summary>Spec 3F2 §3: <c>scheduleSource</c> is <c>computed</c> or <c>bank</c>, anything else refused at it (the enum named in full: this member shadows it).</summary>
+        internal EditLoanCommand? ToCommand(ItemId id, FieldReader reader)
+        {
+            var source = ScheduleSource is null ? null : LoanBodies.Wire<Nid.RealEstate.Contracts.ScheduleSource>(reader, ScheduleSource, "scheduleSource");
+            return reader.Ok
+                ? new EditLoanCommand(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote, PropertyId is { } property ? new ItemId(property) : null,
+                    ClearProperty, source))
+                : null;
+        }
     }
 
     /// <summary>Spec §4: the whole contract and the <c>version</c> read with it.</summary>
@@ -375,6 +427,12 @@ public static class RealEstateEndpoints
             return reader.Ok ? new SimulateLoanRepaymentQuery(id, on!.Value, amount!.Value, effect, penalty ?? 0m) : null;
         }
     }
+
+    /// <summary>Spec 3F2 §3: the pasted table.</summary>
+    public sealed record BankSchedulePreviewBody(string? Text);
+
+    /// <summary>Spec 3F2 §3: the pasted table and the loan's <c>version</c> read with it.</summary>
+    public sealed record BankScheduleBody(string? Text, uint? Version);
 
     /// <summary>Spec 3C1 §4: the visibility is required, with no default on the wire; the property's fields sit at the top level.</summary>
     public sealed record CreatePropertyBody(

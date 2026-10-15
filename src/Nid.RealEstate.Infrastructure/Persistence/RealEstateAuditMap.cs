@@ -12,6 +12,7 @@ public sealed class RealEstateAuditMap : IAuditMap
         [typeof(LoanInsuranceRow)] = new(e => AuditItems.Of(e, nameof(LoanInsuranceRow.LoanItemId))),
         [typeof(LoanFeeRow)] = new(e => AuditItems.Of(e, nameof(LoanFeeRow.LoanItemId))),
         [typeof(LoanEventRow)] = new(e => AuditItems.Of(e, nameof(LoanEventRow.LoanItemId))),
+        [typeof(LoanBankScheduleRow)] = new(e => AuditItems.Of(e, nameof(LoanBankScheduleRow.LoanItemId))),
         [typeof(PropertyRow)] = new(e => AuditItems.Of(e, nameof(PropertyRow.ItemId))),
         [typeof(PropertyRecurringCostRow)] = new(e => AuditItems.Of(e, nameof(PropertyRecurringCostRow.PropertyItemId))),
         [typeof(PropertyTenancyRow)] = new(e => AuditItems.Of(e, nameof(PropertyTenancyRow.PropertyItemId))),

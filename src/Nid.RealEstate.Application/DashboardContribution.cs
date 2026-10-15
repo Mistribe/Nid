@@ -72,7 +72,7 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-            var schedule = LoanReading.Schedule(terms);
+            var schedule = LoanReading.Schedule(terms, loan);
             var now = LoanMath.At(terms, schedule, today);
             if (now.Balance == 0m)
                 continue; // repaid, or not yet disbursed: nothing owed, not listed (spec §2)
@@ -120,7 +120,7 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
             if (accesses.TryGetValue(loan.ItemId, out var item))
             {
                 var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-                owed.Add((terms, LoanReading.Schedule(terms)));
+                owed.Add((terms, LoanReading.Schedule(terms, loan)));
             }
 
         var points = new List<NetWorthPoint>();
@@ -187,7 +187,7 @@ public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, 
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-            var schedule = LoanReading.Schedule(terms);
+            var schedule = LoanReading.Schedule(terms, loan);
             if (LoanReading.EndOf(terms, schedule) < first)
                 continue;
             count++;
@@ -256,7 +256,7 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-            var rows = LoanReading.Schedule(terms).Rows;
+            var rows = LoanReading.Schedule(terms, loan).Rows;
             for (var i = 1; i < rows.Count; i++)
                 if (rows[i].PhaseSeq != rows[i - 1].PhaseSeq && Within(rows[i].DueDate))
                     events.Add(new UpcomingEvent(rows[i].DueDate, UpcomingKinds.LoanPhaseEnd, loan.ItemId, "loans", item.DisplayName,

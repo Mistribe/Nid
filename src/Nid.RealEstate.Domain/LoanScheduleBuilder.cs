@@ -14,13 +14,23 @@ public static class LoanScheduleBuilder
 {
     public const int MaxRows = 1200;
 
-    public static Result<LoanSchedule> Build(LoanTerms t)
+    public static Result<LoanSchedule> Build(LoanTerms t) => Guarded(t, []);
+
+    /// <summary>
+    /// Spec 3F2 §2: the schedule whose first rows are <paramref name="head"/> — rows already decided from payment 1, the bank's
+    /// last — then calculated from the last one's balance with the loan's phases. The loop runs over the head too, its figures in
+    /// place of the calculation's, so early repayments, the end a reduce-term one brings forward and the warnings evolve as in
+    /// <see cref="Build"/>; after the head the payment is the bank's last, unless a repayment or a phase recalculates it.
+    /// </summary>
+    internal static Result<LoanSchedule> Continue(LoanTerms t, IReadOnlyList<ScheduleRow> head) => Guarded(t, head);
+
+    private static Result<LoanSchedule> Guarded(LoanTerms t, IReadOnlyList<ScheduleRow> head)
     {
         // Spec 3B1 §4.2: amounts that outgrow decimal (a long total deferral at a high rate on a large principal) are a refusal
         // at the principal, never a 500; caught here, every caller (creation, contract, repayments, simulation) answers alike.
         try
         {
-            return Compute(t);
+            return Compute(t, head);
         }
         catch (OverflowException)
         {
@@ -28,7 +38,7 @@ public static class LoanScheduleBuilder
         }
     }
 
-    private static Result<LoanSchedule> Compute(LoanTerms t)
+    private static Result<LoanSchedule> Compute(LoanTerms t, IReadOnlyList<ScheduleRow> head)
     {
         if (LoanValidation.Check(t) is { } refused) return Result.Failure<LoanSchedule>(refused);
 
@@ -59,7 +69,7 @@ public static class LoanScheduleBuilder
         }
         pending.RemoveAll(x => x.Event.OnDate < t.FirstPaymentDate);
 
-        for (var k = 1; balance > 0m; k++)
+        for (var k = 1; balance > 0m || k <= head.Count; k++)
         {
             if (k > MaxRows) return Refuse(LoanCodes.ScheduleTooLong, $"The schedule would exceed {MaxRows} payments.", "phases");
             var due = Due(t, k);
@@ -130,6 +140,15 @@ public static class LoanScheduleBuilder
                     balance -= principal;
                     break;
             }
+            if (k <= head.Count)
+            {
+                // Spec 3F2 §2: a decided row's figures in place of the calculation's, its balance before the repayments applied below.
+                var h = head[k - 1];
+                (pay, interest, principal, balance) = (h.Payment, h.Interest, h.Principal, h.Balance + (h.EarlyRepayment ?? 0m));
+                // The next payment is the bank's; a prorated first payment's interest beyond a month's is not part of it.
+                if (mode == PhaseMode.Annuity && !settle)
+                    payment = k == 1 && t.FirstPeriod == FirstPeriod.ProrataActual365 ? pay - interest + monthly : pay;
+            }
             if (k > t.TotalPayments && !exceeded)
             {
                 exceeded = true;
@@ -170,7 +189,7 @@ public static class LoanScheduleBuilder
             }
             pending.RemoveAll(x => x.Event.OnDate < nextDue);
 
-            rows.Add(new ScheduleRow(k, due, seq, rate, pay, interest, principal, Insurance(t, due, before), balance, early));
+            rows.Add(k <= head.Count ? head[k - 1] : new ScheduleRow(k, due, seq, rate, pay, interest, principal, Insurance(t, due, before), balance, early));
         }
         if (pending.Count > 0) return Refuse(LoanCodes.EventAboveBalance, "An early repayment is dated after the loan is repaid.", $"events[{pending[0].Index}].amount");
         return Result.Success(new LoanSchedule(rows, warnings));

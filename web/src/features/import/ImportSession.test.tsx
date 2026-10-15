@@ -351,16 +351,20 @@ describe('Import › report, confirmation and commit', () => {
   });
 
   it('names the real estate sections and the import’s own errors in French', async () => {
-    const bank = { severity: 'error' as const, code: 'realestate.import_bank_schedule', message: "The bank's table arrives in 3F2.", path: 'loans[0].schedule_source' };
+    const bank = { severity: 'error' as const, code: 'realestate.bank_schedule_missing', message: 'The bank is the reference only with its table.', path: 'loans[0].schedule_source' };
+    const invalid = { severity: 'error' as const, code: 'realestate.bank_schedule_invalid', message: 'The table does not fit the loan.', path: 'loan_bank_schedule[0].due_date' };
     const gap = { severity: 'error' as const, code: 'realestate.invalid_loan', message: 'Phases are numbered 1, 2, 3… without gap.', path: 'loan_phases[1].seq' };
-    const report = { state: 'invalid', sections: { properties: counts(2), loan_events: counts(1) }, issues: [bank, gap] };
+    const report = { state: 'invalid', sections: { properties: counts(2), loan_events: counts(1), loan_bank_schedule: counts(3) }, issues: [bank, gap, invalid] };
     server.use(...fakeImportServer({ sessions: [session({ state: 'invalid', report })] }).handlers);
     const { container } = await renderApp(`/import/${SESSION_ID}`);
 
     expect(await screen.findByRole('row', { name: /Biens/ })).toHaveTextContent('2');
     expect(screen.getByRole('row', { name: /Remboursements anticipés/ })).toHaveTextContent('1');
-    expect(screen.getByText(/Le tableau d’amortissement de la banque ne s’importe pas encore/)).toBeInTheDocument();
-    expect(screen.queryByText("The bank's table arrives in 3F2.")).not.toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /Tableaux de la banque/ })).toHaveTextContent('3');
+    expect(screen.getByText(/Ce crédit prend le tableau de la banque comme référence/)).toBeInTheDocument();
+    expect(screen.queryByText('The bank is the reference only with its table.')).not.toBeInTheDocument();
+    expect(screen.getByText('Ce tableau de la banque ne correspond pas au crédit.')).toBeInTheDocument();
+    expect(screen.queryByText('The table does not fit the loan.')).not.toBeInTheDocument();
     expect(screen.getByText('Phases are numbered 1, 2, 3… without gap.')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });

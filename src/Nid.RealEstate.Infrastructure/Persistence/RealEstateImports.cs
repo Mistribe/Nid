@@ -12,7 +12,7 @@ internal interface IImportMarked
     Guid? ImportedBy { get; set; }
 }
 
-/// <summary>Spec 3F1 §2: the marks of the module's eight tables; the rows themselves are written by <see cref="PropertyStore"/> and <see cref="LoanStore"/>.</summary>
+/// <summary>Spec 3F1 §2: the marks of the module's nine tables; the rows themselves are written by <see cref="PropertyStore"/> and <see cref="LoanStore"/>.</summary>
 public sealed class RealEstateImports(RealEstateDbContext db) : IRealEstateImports
 {
     public Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedEstateRow>>> FindAsync(EstateTable table, IReadOnlyCollection<string> refs, CancellationToken ct)
@@ -26,6 +26,7 @@ public sealed class RealEstateImports(RealEstateDbContext db) : IRealEstateImpor
             EstateTable.Insurance => Find(db.Insurances, refs, r => (r.Id, r.LoanItemId), ct),
             EstateTable.Fee => Find(db.Fees, refs, r => (r.Id, r.LoanItemId), ct),
             EstateTable.Event => Find(db.Events, refs, r => (r.Id, r.LoanItemId), ct),
+            EstateTable.BankRow => Find(db.BankSchedule, refs, r => (r.Id, r.LoanItemId), ct),
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };
 
@@ -40,7 +41,7 @@ public sealed class RealEstateImports(RealEstateDbContext db) : IRealEstateImpor
             EstateTable.Loan => await Marks(db.Loans.Where(r => ids.Contains(r.ItemId)), r => r.ItemId, ct),
             EstateTable.Fee => await Marks(db.Fees.Where(r => ids.Contains(r.LoanItemId)), r => r.Id, ct),
             EstateTable.Event => await Marks(db.Events.Where(r => ids.Contains(r.LoanItemId)), r => r.Id, ct),
-            _ => throw new ArgumentOutOfRangeException(nameof(table), "A phase's or an insurance's mark is read with its loan (LoanPhaseEntry.Import)."),
+            _ => throw new ArgumentOutOfRangeException(nameof(table), "A phase's, an insurance's or a bank row's mark is read with its loan (LoanPhaseEntry.Import, StoredBankRow.Import)."),
         };
     }
 
@@ -55,7 +56,7 @@ public sealed class RealEstateImports(RealEstateDbContext db) : IRealEstateImpor
             EstateTable.Loan => await db.Loans.SingleAsync(r => r.ItemId == id, ct),
             EstateTable.Fee => await db.Fees.SingleAsync(r => r.Id == id, ct),
             EstateTable.Event => await db.Events.SingleAsync(r => r.Id == id, ct),
-            _ => throw new ArgumentOutOfRangeException(nameof(table), "A phase's or an insurance's mark is written with its loan's contract."),
+            _ => throw new ArgumentOutOfRangeException(nameof(table), "A phase's, an insurance's or a bank row's mark is written with its loan's contract or table."),
         };
         Mark(row, mark);
         await db.SaveChangesAsync(ct);

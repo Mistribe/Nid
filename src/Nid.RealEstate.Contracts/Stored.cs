@@ -66,17 +66,36 @@ public sealed record StoredFee(Guid Id, LoanFee Fee, string? Note, uint Version)
 public sealed record StoredRepayment(Guid Id, EarlyRepayment Repayment, Guid? FeeId, string? Note, uint Version);
 
 /// <summary>
+/// A row of the bank's table as stored (spec 3F2 §2). <c>Import</c> is the file id it came under, as a phase's: a table written
+/// again gives its rows new ids, and the app keeps each one's file id by its due date.
+/// </summary>
+public sealed record StoredBankRow(Guid Id, BankRow Row)
+{
+    public ImportMark? Import { get; init; }
+}
+
+/// <summary>
 /// A loan as stored. <c>Version</c> is the loan row's, the contract's; fees and repayments by date, then id;
 /// <c>PropertyId</c> is the property it finances (spec 3C1 §2), a column of the same row.
 /// </summary>
 public sealed record StoredLoan(
     ItemId ItemId, string? Lender, string? Note, LoanContract Contract, uint Version,
-    IReadOnlyList<StoredFee> Fees, IReadOnlyList<StoredRepayment> Repayments, ItemId? PropertyId = null);
+    IReadOnlyList<StoredFee> Fees, IReadOnlyList<StoredRepayment> Repayments, ItemId? PropertyId = null)
+{
+    /// <summary>Spec 3F2 §2: the schedule its readers read; the bank's only with a stored table.</summary>
+    public ScheduleSource Source { get; init; }
 
-/// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one. <c>PropertyId</c> links the loan (spec 3C1 §1.5).</summary>
+    /// <summary>The bank's table by due date; empty when none is stored.</summary>
+    public IReadOnlyList<StoredBankRow> Bank { get; init; } = [];
+}
+
+/// <summary>
+/// A change: a null field is left as it is; <c>Clear*</c> empties an optional one. <c>PropertyId</c> links the loan (spec 3C1
+/// §1.5); <c>Source</c> chooses the schedule's reference (spec 3F2 §3).
+/// </summary>
 public sealed record LoanDetailsChange(
     string? Lender = null, bool ClearLender = false, string? Note = null, bool ClearNote = false,
-    ItemId? PropertyId = null, bool ClearProperty = false);
+    ItemId? PropertyId = null, bool ClearProperty = false, ScheduleSource? Source = null);
 
 public interface ILoanStore
 {
@@ -97,6 +116,12 @@ public interface ILoanStore
 
     /// <summary>The terms in place, the phases and insurances deleted and written again; the loan's version always moves.</summary>
     Task ReplaceContractAsync(ItemId item, LoanContract contract, CancellationToken ct);
+
+    /// <summary>
+    /// Spec 3F2 §3: the bank's table replaced whole by <paramref name="rows"/>, their ids and marks as given; the loan's version
+    /// always moves. An empty table returns the loan to the calculation (<c>schedule_source</c> back to <c>computed</c>).
+    /// </summary>
+    Task ReplaceBankScheduleAsync(ItemId loan, IReadOnlyList<StoredBankRow> rows, CancellationToken ct);
 
     Task AddFeeAsync(ItemId loan, Guid id, LoanFee fee, string? note, CancellationToken ct);
 

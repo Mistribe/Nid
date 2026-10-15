@@ -12,6 +12,9 @@ export type LoanFee = components['schemas']['LoanFeeView'];
 export type LoanRepayment = components['schemas']['LoanRepaymentView'];
 export type LoanSimulation = components['schemas']['LoanSimulationView'];
 export type LoanOutcome = components['schemas']['LoanOutcomeView'];
+export type BankRow = components['schemas']['BankRowView'];
+export type LoanComparison = components['schemas']['ScheduleComparisonView'];
+export type BankPreview = components['schemas']['BankSchedulePreview'];
 
 export const LOANS = '/api/v1/realestate/loans' as const;
 export const LOAN = '/api/v1/realestate/loans/{id}' as const;
@@ -22,6 +25,8 @@ export const FEE = '/api/v1/realestate/loans/{id}/fees/{feeId}' as const;
 export const REPAYMENTS = '/api/v1/realestate/loans/{id}/repayments' as const;
 export const REPAYMENT = '/api/v1/realestate/loans/{id}/repayments/{eventId}' as const;
 export const SIMULATIONS = '/api/v1/realestate/loans/{id}/simulations' as const;
+export const BANK_SCHEDULE = '/api/v1/realestate/loans/{id}/bank-schedule' as const;
+export const BANK_PREVIEW = '/api/v1/realestate/loans/{id}/bank-schedule/preview' as const;
 
 /** Every write invalidates the list, every detail and every schedule (3B1 design §7). */
 export function invalidateLoans(queryClient: QueryClient): Promise<void> {

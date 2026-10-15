@@ -18,6 +18,9 @@ public sealed class LoanRow : IImportMarked
     /// <summary>Spec 3C1 §2: the property financed; no foreign key across items (a property is never deleted).</summary>
     public Guid? PropertyItemId { get; set; }
 
+    /// <summary>Spec 3F2 §2: <c>computed</c> or <c>bank</c>, the schedule the loan's readers read.</summary>
+    public string ScheduleSource { get; set; } = "computed";
+
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
@@ -84,6 +87,25 @@ public sealed class LoanEventRow : IImportMarked
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
+}
+
+/// <summary>
+/// realestate.loan_bank_schedule_row (spec 3F2 §2, loans.md §2.6): a row of the bank's table, unique by (loan, due date);
+/// <c>Crd</c> is the remaining balance right after the payment, before an early repayment dated that day or later.
+/// </summary>
+public sealed class LoanBankScheduleRow : IImportMarked
+{
+    public Guid Id { get; set; }
+    public Guid LoanItemId { get; set; }
+    public LocalDate DueDate { get; set; }
+    public decimal Payment { get; set; }
+    public decimal Interest { get; set; }
+    public decimal Principal { get; set; }
+    public decimal? Insurance { get; set; }
+    public decimal Crd { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
 }
 
 /// <summary>realestate.property (spec 3C1 §2): 1:1 with its Core item; <c>Version</c> is <c>xmin</c>.</summary>

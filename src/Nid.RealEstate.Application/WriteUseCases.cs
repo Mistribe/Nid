@@ -16,7 +16,7 @@ public sealed record CreateLoanCommand(
     string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, string? Lender, string? Note,
     LoanContract Contract, ItemId? PropertyId = null) : ICommand<ItemId>, ICreatesItem;
 
-/// <summary>Spec 3A2 §4: name, lender and note, only what is sent; borrowers, visibility and currency are set at creation.</summary>
+/// <summary>Spec 3A2 §4: name, lender, note, linked property and (3F2) the schedule's reference, only what is sent; borrowers, visibility and currency are set at creation.</summary>
 public sealed record EditLoanCommand(ItemId ItemId, string? Name, LoanDetailsChange Change) : ICommand<ItemId>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -73,6 +73,11 @@ public sealed class EditLoanHandler(
         loaded.TryGetValue(out var found);
         var item = found.Item;
 
+        // Spec 3F2 §3: the bank is the reference only with a stored table.
+        if (change.Source == ScheduleSource.Bank && found.Loan.Bank.Count == 0)
+            return Result.Failure<ItemId>(new Failure(LoanCodes.BankScheduleMissing, "Store the bank's table before choosing it as the reference.",
+                new Dictionary<string, object?> { ["field"] = "scheduleSource" }));
+
         // Spec 3C1 §3: linking needs the property's read access (the loan's write access is the pipeline's); clearing needs nothing more.
         if (!change.ClearProperty
             && await PropertyCheck.LinkableAsync(properties, policy, actor.Current!.PersonId!.Value, change.PropertyId, ct) is { } unlinkable)
@@ -110,9 +115,9 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
         if (found.Loan.Version != command.Version)
             return Result.Failure<ItemId>(LoanCheck.Conflict(LoanCodes.LoanConflict, "loan"));
 
-        // Rebuilt with the stored fees and repayments (spec §4): a repayment the new contract makes impossible refuses it.
-        var built = LoanScheduleBuilder.Build(
-            LoanReading.Terms(LoanViews.CurrencyOf(found.Item), command.Contract, found.Loan.Fees, found.Loan.Repayments));
+        // Rebuilt with the stored fees, repayments and bank table (spec §4, 3F2 precision 4): a repayment or a table the new contract makes impossible refuses it.
+        var built = LoanReading.Build(
+            LoanReading.Terms(LoanViews.CurrencyOf(found.Item), command.Contract, found.Loan.Fees, found.Loan.Repayments), LoanReading.BankRows(found.Loan));
         if (built.TryGetFailure(out failure))
             return Result.Failure<ItemId>(LoanPaths.ForContract(failure!));
 

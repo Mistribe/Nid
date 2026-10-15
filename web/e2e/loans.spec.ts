@@ -7,6 +7,15 @@ function aMonthAgo(): string {
   return new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, Math.min(now.getDate(), 28))).toISOString().slice(0, 10);
 }
 
+/** The ISO date `k` months after `iso`; its day is below 29 (`aMonthAgo`), so every month has it. */
+function plusMonths(iso: string, k: number): string {
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1 + k, d)).toISOString().slice(0, 10);
+}
+
+/** yyyy-mm-dd as a French spreadsheet writes it: dd/mm/yyyy. */
+const french = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
 test('alice creates a private loan and reads its schedule; bob never sees it', async ({ browser }) => {
   const name = `Prêt ${Date.now()}`;
   const alice = await browser.newPage();
@@ -90,4 +99,42 @@ test('alice simulates an early repayment, records it from the simulation, then c
   await expect(alice.locator('[aria-busy="true"]')).toHaveCount(0);
   await expect(nextPayment).toContainText(amount);
   await expect(nextPayment).not.toHaveText(reduced);
+});
+
+test('alice pastes her bank’s table, reads the comparison and takes the bank as the reference', async ({ browser }) => {
+  const name = `Prêt ${Date.now()}`;
+  const disbursed = aMonthAgo();
+  const alice = await browser.newPage();
+  await signIn(alice, 'alice', '/loans/new');
+
+  await alice.getByLabel('Nom', { exact: true }).fill(name);
+  await alice.getByRole('radio', { name: 'Non, privé' }).check();
+  await alice.getByLabel('Capital emprunté').fill('200000');
+  await alice.getByLabel('Taux annuel (%)').fill('3,5');
+  await alice.getByLabel('Durée (mois)').fill('240');
+  await alice.getByLabel('Date de déblocage').fill(disbursed);
+  await alice.getByRole('button', { name: 'Créer le crédit' }).click();
+  await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
+
+  // loans.md §4's first two payments as the bank's spreadsheet gives them: a header, semicolons, decimal commas.
+  const table = [
+    'Date;Échéance;Intérêts;Capital;Capital restant dû',
+    `${french(plusMonths(disbursed, 1))};1 159,92;583,33;576,59;199 423,41`,
+    `${french(plusMonths(disbursed, 2))};1 159,92;581,65;578,27;198 845,14`,
+  ].join('\n');
+  const bank = alice.getByRole('region', { name: 'Tableau de la banque' });
+  await expect(bank.getByText('Aucun tableau de la banque enregistré.')).toBeVisible();
+  await bank.getByRole('button', { name: 'Importer le tableau de la banque' }).click();
+  await bank.getByLabel('Tableau copié').fill(table);
+  await bank.getByRole('button', { name: 'Comparer' }).click();
+  await expect(bank.getByText('Les deux concordent (écarts d’arrondi seulement).')).toBeVisible();
+  await expect(bank.getByRole('table', { name: 'Lignes lues' }).getByRole('row')).toHaveCount(3);
+  await bank.getByRole('button', { name: 'Enregistrer le tableau' }).click();
+  await expect(bank.getByRole('status')).toHaveText('Tableau de la banque enregistré.');
+
+  await bank.getByRole('radio', { name: 'Tableau de la banque' }).check();
+  await bank.getByRole('button', { name: 'Choisir cette référence' }).click();
+  await expect(bank.getByRole('status')).toHaveText('Le tableau de la banque est la référence.');
+  // The open year holds the next payment, one of the two the bank's table gives: its row says so.
+  await expect(alice.getByRole('table', { name: 'Échéancier par année' }).getByText('Banque').first()).toBeVisible();
 });

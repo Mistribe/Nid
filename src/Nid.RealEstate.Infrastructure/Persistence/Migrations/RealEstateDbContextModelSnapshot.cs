@@ -125,6 +125,72 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.LoanBankScheduleRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Crd")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("crd");
+
+                    b.Property<LocalDate>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
+                    b.Property<decimal?>("Insurance")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("insurance");
+
+                    b.Property<decimal>("Interest")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("interest");
+
+                    b.Property<Guid>("LoanItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("loan_item_id");
+
+                    b.Property<decimal>("Payment")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("payment");
+
+                    b.Property<decimal>("Principal")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("principal");
+
+                    b.HasKey("Id")
+                        .HasName("pk_loan_bank_schedule_row");
+
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_bank_schedule_row_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
+                    b.HasIndex("LoanItemId", "DueDate")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_bank_schedule_row_loan_item_id_due_date");
+
+                    b.ToTable("loan_bank_schedule_row", "realestate", t =>
+                        {
+                            t.HasCheckConstraint("ck_loan_bank_schedule_row_amounts", "payment >= 0 and interest >= 0 and principal >= 0 and (insurance is null or insurance >= 0) and crd >= 0");
+
+                            t.HasCheckConstraint("ck_loan_bank_schedule_row_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
+                        });
+                });
+
             modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.LoanEventRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -459,6 +525,13 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("rounding_mode");
 
+                    b.Property<string>("ScheduleSource")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("computed")
+                        .HasColumnName("schedule_source");
+
                     b.Property<int>("TotalPayments")
                         .HasColumnType("integer")
                         .HasColumnName("total_payments");
@@ -491,6 +564,8 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_loan_principal", "principal > 0");
 
                             t.HasCheckConstraint("ck_loan_rounding_mode", "rounding_mode in ('half_up','truncate')");
+
+                            t.HasCheckConstraint("ck_loan_schedule_source", "schedule_source in ('computed','bank')");
 
                             t.HasCheckConstraint("ck_loan_total_payments", "total_payments between 1 and 600");
                         });

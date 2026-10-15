@@ -5,6 +5,7 @@ using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.RealEstate.Application.Import;
 
@@ -15,6 +16,7 @@ public sealed partial class RealEstateImportSection
     public const string InsurancesSection = "loan_insurances";
     public const string FeesSection = "loan_fees";
     public const string EventsSection = "loan_events";
+    public const string BankScheduleSection = "loan_bank_schedule";
 
     /// <summary>A loan of the file; <see cref="Contract"/> is what validation built and the engine accepted, written at apply.</summary>
     private sealed class LoanPlan(StagedEntity entity, LoanRecord record, ParsedLoan parsed, string path, PropertyPlan? property)
@@ -28,6 +30,9 @@ public sealed partial class RealEstateImportSection
 
         /// <summary>The phases and insurances are written again: the loan is new or replaced, or the file writes one of them.</summary>
         public bool RewritesContract { get; set; }
+
+        /// <summary>Spec 3F2 §3: the bank's table as it will be stored, when the file writes one of its rows; null otherwise.</summary>
+        public IReadOnlyList<StoredBankRow>? Bank { get; set; }
     }
 
     private readonly List<LoanPlan> loanPlans = [];
@@ -35,6 +40,7 @@ public sealed partial class RealEstateImportSection
     private readonly List<RowPlan<LoanInsuranceEntry>> insurancePlans = [];
     private readonly List<RowPlan<StoredFee>> feePlans = [];
     private readonly List<RowPlan<StoredRepayment>> eventPlans = [];
+    private readonly List<RowPlan<StoredBankRow>> bankPlans = [];
 
     private async Task ValidateLoansAsync(IStagedBatches staged, List<ImportIssue> issues, CancellationToken ct)
     {
@@ -43,6 +49,7 @@ public sealed partial class RealEstateImportSection
         insurancePlans.Clear();
         feePlans.Clear();
         eventPlans.Clear();
+        bankPlans.Clear();
 
         // Loans: each with its property (one of this file's, validated before), resolved and refused or planned before any part.
         var propertyByFileId = propertyPlans.ToDictionary(p => p.FileId, StringComparer.Ordinal);
@@ -132,13 +139,30 @@ public sealed partial class RealEstateImportSection
             }
         }
 
+        var bankRecords = ImportSectionKit.ReadAll<LoanBankScheduleRecord>(staged, BankScheduleSection, r => r.Id, issues);
+        var knownBank = await imports.FindAsync(EstateTable.BankRow, bankRecords.Select(r => r.Record.Id).ToList(), ct);
+        foreach (var (entity, record) in bankRecords)
+        {
+            var path = NidDataJson.Path(BankScheduleSection, entity.Index);
+            if (Parent(byFileId, LoansSection, record.Loan, path + ".loan", issues) is not { } loan
+                || !EstateParsing.TryBankRow(record, path, issues, out var row))
+                continue;
+            if (await ResolveRowAsync(BankScheduleSection, "bank row", entity, record.Id, path, loan, "loan", knownBank,
+                    (loan.Stored?.Bank ?? []).Select(b => b.Id), issues, ct) is { } resolved)
+                bankPlans.Add(new RowPlan<StoredBankRow>(entity, record.Id, path, loan, resolved.Mode, resolved.Id, resolved.ImportedBy,
+                    new StoredBankRow(resolved.Id, row) { Import = new ImportMark(record.Id, entity.Hash, resolved.ImportedBy) }));
+        }
+
         // Spec 3F1 §2, the screens' rules on each loan as it will be once applied: its terms, phases and insurances through
-        // LoanRules.Contract, then the whole schedule through the engine with its fees and early repayments. A loan nothing writes
-        // computes as stored.
+        // LoanRules.Contract, then the whole schedule through the engine with its fees and early repayments, then (spec 3F2 §3) its
+        // bank table against it — the file's rows, or the stored ones it does not name, so a stored table always fits its loan
+        // (precision 4) — and the reference it names. A loan nothing writes computes as stored.
         foreach (var loan in loanPlans.ToList())
         {
             var parts = phasePlans.Any(p => p.Parent == loan && p.Writes) || insurancePlans.Any(p => p.Parent == loan && p.Writes);
-            if (loan.Mode == Mode.Unchanged && !parts && !feePlans.Any(p => p.Parent == loan && p.Writes) && !eventPlans.Any(p => p.Parent == loan && p.Writes))
+            var table = bankPlans.Any(p => p.Parent == loan && p.Writes);
+            if (loan.Mode == Mode.Unchanged && !parts && !table
+                && !feePlans.Any(p => p.Parent == loan && p.Writes) && !eventPlans.Any(p => p.Parent == loan && p.Writes))
                 continue;
             var current = loan.Stored?.Contract;
             var phases = Resulting(current?.Phases ?? [], p => p.Id, phasePlans.Where(p => p.Parent == loan));
@@ -146,24 +170,26 @@ public sealed partial class RealEstateImportSection
             var fees = Resulting(loan.Stored?.Fees ?? [], f => f.Id, feePlans.Where(p => p.Parent == loan));
             var events = Resulting(loan.Stored?.Repayments ?? [], r => r.Id, eventPlans.Where(p => p.Parent == loan))
                 .OrderBy(e => e.Value.Repayment.OnDate).ThenBy(e => e.Value.Id).ToList(); // the engine's order (LoanReading.Terms)
+            var bank = Resulting(loan.Stored?.Bank ?? [], b => b.Id, bankPlans.Where(p => p.Parent == loan))
+                .OrderBy(b => b.Value.Row.DueDate).ToList(); // a table is read by date (spec 3F2 §2)
             var terms = loan.Mode == Mode.Unchanged ? current! : loan.Parsed.Terms;
             var contract = terms with { Phases = phases.Select(p => p.Value).ToList(), Insurances = insurances.Select(i => i.Value).ToList() };
+            var source = loan.Mode == Mode.Unchanged ? loan.Stored!.Source : loan.Parsed.Source;
 
-            var refused = LoanRules.Contract(contract);
-            if (refused is null
-                && LoanScheduleBuilder.Build(LoanReading.Terms(loan.Currency, contract, fees.Select(f => f.Value), events.Select(e => e.Value)))
-                    .TryGetFailure(out var failure))
-                refused = failure!;
+            var refused = LoanRules.Contract(contract)
+                ?? Computes(LoanReading.Terms(loan.Currency, contract, fees.Select(f => f.Value), events.Select(e => e.Value)),
+                    bank.Select(b => b.Value.Row).ToList(), source);
             if (refused is not null)
             {
                 issues.Add(ImportIssue.Error(refused.Code, refused.Message, EstateParsing.PathOf(refused, loan.Path,
                     phases.Select(p => p.Path).ToList(), insurances.Select(i => i.Path).ToList(),
-                    fees.Select(f => f.Path).ToList(), events.Select(e => e.Path).ToList())));
+                    fees.Select(f => f.Path).ToList(), events.Select(e => e.Path).ToList(), bank.Select(b => b.Path).ToList())));
                 FailLoan(loan);
                 continue;
             }
             loan.Contract = contract;
             loan.RewritesContract = loan.Mode != Mode.Unchanged || parts;
+            loan.Bank = table ? bank.Select(b => b.Value).ToList() : null;
         }
 
         foreach (var plan in loanPlans)
@@ -176,6 +202,8 @@ public sealed partial class RealEstateImportSection
             Tally(FeesSection, Of(plan.Mode));
         foreach (var plan in eventPlans)
             Tally(EventsSection, Of(plan.Mode));
+        foreach (var plan in bankPlans)
+            Tally(BankScheduleSection, Of(plan.Mode));
     }
 
     /// <summary>
@@ -193,6 +221,24 @@ public sealed partial class RealEstateImportSection
         return result;
     }
 
+    /// <summary>
+    /// The engine on the whole loan, then (spec 3F2 §3) its bank table against the schedule, then the reference the file names:
+    /// the first refusal, or null. The bank as the reference needs rows once applied (the file's, or stored ones it does not name).
+    /// </summary>
+    private static Failure? Computes(LoanTerms terms, IReadOnlyList<BankRow> bank, ScheduleSource source)
+    {
+        var built = LoanScheduleBuilder.Build(terms);
+        if (built.TryGetFailure(out var failure))
+            return failure;
+        built.TryGetValue(out var computed);
+        if (bank.Count > 0 && BankSchedule.Merge(terms, computed!, bank).TryGetFailure(out failure))
+            return failure;
+        return source == ScheduleSource.Bank && bank.Count == 0
+            ? new Failure(LoanCodes.BankScheduleMissing, "The bank is the reference only with its table: bring its loan_bank_schedule rows, or set computed.",
+                new Dictionary<string, object?> { ["field"] = "scheduleSource" })
+            : null;
+    }
+
     private void FailLoan(LoanPlan loan)
     {
         context.FailedItems.Add((LoansSection, loan.FileId));
@@ -201,6 +247,7 @@ public sealed partial class RealEstateImportSection
         insurancePlans.RemoveAll(p => p.Parent == loan);
         feePlans.RemoveAll(p => p.Parent == loan);
         eventPlans.RemoveAll(p => p.Parent == loan);
+        bankPlans.RemoveAll(p => p.Parent == loan);
     }
 
     /// <summary>After the properties: a loan links to its property's real id.</summary>
@@ -215,6 +262,8 @@ public sealed partial class RealEstateImportSection
             made.TryGetValue(out var id);
             Applied(plan, id, LoansSection);
             await loans.CreateAsync(id, plan.Record.Lender, plan.Record.Note, plan.Property?.Id, plan.Contract!, ct);
+            if (p.Source == ScheduleSource.Bank) // its table is written below, in the same transaction
+                await loans.UpdateDetailsAsync(id, new LoanDetailsChange(Source: p.Source), ct);
             await imports.MarkAsync(EstateTable.Loan, id.Value, plan.Mark, ct);
         }
 
@@ -225,13 +274,17 @@ public sealed partial class RealEstateImportSection
             if (!replaced.IsSuccess)
                 return replaced;
             await loans.UpdateDetailsAsync(plan.Id, new LoanDetailsChange(r.Lender, r.Lender is null, r.Note, r.Note is null,
-                plan.Property?.Id, plan.Property is null), ct);
+                plan.Property?.Id, plan.Property is null, p.Source), ct);
             await imports.MarkAsync(EstateTable.Loan, plan.Id.Value, plan.Mark, ct);
         }
 
         // The phases and insurances with their file ids (LoanPhaseEntry.Import), a replaced loan's terms with them.
         foreach (var plan in loanPlans.Where(l => l.Mode != Mode.Created && l.RewritesContract))
             await loans.ReplaceContractAsync(plan.Id, plan.Contract!, ct);
+
+        // Spec 3F2 §3: a table the file writes a row of is stored whole, each row with its file id (StoredBankRow.Import).
+        foreach (var plan in loanPlans.Where(l => l.Bank is not null))
+            await loans.ReplaceBankScheduleAsync(plan.Id, plan.Bank!, ct);
 
         foreach (var plan in feePlans.Where(f => f.Mode == Mode.Replaced))
             await loans.UpdateFeeAsync(plan.Parent.Id, plan.Id, plan.Value.Fee, plan.Value.Note, ct);
@@ -275,7 +328,7 @@ public sealed partial class RealEstateImportSection
                 Id = id, Name = head.DisplayName, Lender = l.Lender, Currency = currency, Principal = Money(c.Principal, currency),
                 DisbursedOn = Iso(c.DisbursedOn), FirstPaymentDate = Iso(c.FirstPaymentDate), TotalPayments = c.TotalPayments,
                 Property = l.PropertyId is { } linked && propertyFileIds.TryGetValue(linked.Value, out var propertyId) ? propertyId : null,
-                ScheduleSource = "computed", RoundingMode = LoanWire.Of(c.Rounding), FirstPeriodMode = LoanWire.Of(c.FirstPeriod),
+                ScheduleSource = LoanWire.Of(l.Source), RoundingMode = LoanWire.Of(c.Rounding), FirstPeriodMode = LoanWire.Of(c.FirstPeriod),
                 Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility), Note = l.Note,
             });
         }
@@ -325,10 +378,26 @@ public sealed partial class RealEstateImportSection
                 Amount = Money(e.Row.Repayment.Amount, currencies[e.Loan]), Effect = LoanWire.Of(e.Row.Repayment.Effect), Note = e.Row.Note,
             })
             .OrderBy(r => r.Loan, StringComparer.Ordinal).ThenBy(r => r.OnDate, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal));
+
+        var rows = stored.SelectMany(l => l.Bank.Select(b => (Loan: l.ItemId.Value, Entry: b))).ToList();
+        var rowIds = FileIds.Assign("lbs", rows.Select(r => new KeyedRow(r.Entry.Id, r.Entry.Import?.Ref, r.Entry.Import?.ImportedBy)).ToList(), export.Reader);
+        sections[BankScheduleSection] = Elements(rows
+            .Select(r => new LoanBankScheduleRecord
+            {
+                Id = rowIds[r.Entry.Id], Loan = fileIds[r.Loan], DueDate = Iso(r.Entry.Row.DueDate), Payment = Cents(r.Entry.Row.Payment),
+                Interest = Cents(r.Entry.Row.Interest), Principal = Cents(r.Entry.Row.Principal), Insurance = Cents(r.Entry.Row.Insurance),
+                Crd = Cents(r.Entry.Row.Crd),
+            })
+            .OrderBy(r => r.Loan, StringComparer.Ordinal).ThenBy(r => r.DueDate, StringComparer.Ordinal));
     }
 
     /// <summary>A rate as the screens write it (<c>0.035</c>, <c>0</c>), whatever scale the column gives back.</summary>
     private static decimal Rate(decimal rate) => decimal.Parse(LoanReading.Rate(rate), CultureInfo.InvariantCulture);
 
     private static decimal? Rate(decimal? rate) => rate is { } value ? Rate(value) : null;
+
+    /// <summary>A bank row's amount as the file writes it: two decimals, whatever scale the column gives back (spec 3F2 §3).</summary>
+    private static decimal Cents(decimal amount) => decimal.Parse(LoanReading.Amount(amount), CultureInfo.InvariantCulture);
+
+    private static decimal? Cents(decimal? amount) => amount is { } value ? Cents(value) : null;
 }

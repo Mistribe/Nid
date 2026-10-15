@@ -231,6 +231,7 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_insurances", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_fees", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_events", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_bank_schedule", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
 
@@ -321,6 +322,11 @@ public static class RequestCatalogue
         new(typeof(EditLoanRepaymentCommand), true, (_, item) => new EditLoanRepaymentCommand(item, Guid.NewGuid(),
             new RepaymentDraft(new LocalDate(2025, 3, 15), 100m, RepaymentEffect.ReduceTerm, null, null), 1)),
         new(typeof(DeleteLoanRepaymentCommand), true, (_, item) => new DeleteLoanRepaymentCommand(item, Guid.NewGuid(), 1)),
+        // 3F2: the bank's table is the route's loan's own and its text names no item: no BuildNamingAnother.
+        new(typeof(PreviewBankScheduleQuery), true, (_, item) => new PreviewBankScheduleQuery(item, BenchTable)),
+        // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
+        new(typeof(ReplaceBankScheduleCommand), true, (_, item) => new ReplaceBankScheduleCommand(item, BenchTable, 1)),
+        new(typeof(DeleteBankScheduleCommand), true, (_, item) => new DeleteBankScheduleCommand(item, 1)),
 
         new(typeof(ListPropertiesQuery), false, (_, _) => new ListPropertiesQuery(VisibilityScope.Me)),
         new(typeof(GetPropertyRoutineQuery), false, (_, _) => new GetPropertyRoutineQuery(null)),
@@ -353,6 +359,9 @@ public static class RequestCatalogue
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
     private static LoanContract BenchContract => new(1_000m, new LocalDate(2025, 1, 15), new LocalDate(2025, 2, 15), 12,
         InterestRounding.HalfUp, FirstPeriod.Full, [new LoanPhaseEntry(new LoanPhase(1, PhaseMode.Annuity, 0.01m, RateType.Fixed), null)], []);
+
+    /// <summary>One row of a bank's table, as pasted: it may not fit a bench loan — the bench checks access, not merits.</summary>
+    private const string BenchTable = "15/02/2025;84,25;0,83;83,42;916,58";
 
     /// <summary>A rental bought 100 000 on 2020-01-15, nothing else.</summary>
     private static PropertyDetails BenchProperty => new(PropertyType.Rental, new LocalDate(2020, 1, 15), 100_000m, 0m, 0m, 0m,

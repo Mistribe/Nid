@@ -49,14 +49,28 @@ public sealed record LoanWarningView(string Code, int Row);
 public sealed record LoanDetail(
     ItemId Id, string Name, string? Lender, string? Note, string Currency, string Visibility, IReadOnlyList<LoanBorrowerView> Borrowers,
     LoanContractView Contract, IReadOnlyList<LoanFeeView> Fees, IReadOnlyList<LoanRepaymentView> Repayments, LoanFiguresView Figures,
-    IReadOnlyList<LoanWarningView> Warnings, bool CanWrite, bool Ended, ItemId? PropertyId, string? PropertyName) : IExposesItems
+    IReadOnlyList<LoanWarningView> Warnings, bool CanWrite, bool Ended, ItemId? PropertyId, string? PropertyName,
+    string ScheduleSource, BankScheduleView? BankSchedule, ScheduleComparisonView? Comparison) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
 
+/// <summary>A row of the schedule; <c>FromBank</c>: its figures are the bank's table's (spec 3F2 §3), only with the bank as the reference.</summary>
 public sealed record LoanScheduleRowView(
     int Number, LocalDate DueDate, int PhaseSeq, string AnnualRate, string Payment, string Interest, string Principal,
-    string Insurance, string Balance, string? EarlyRepayment);
+    string Insurance, string Balance, string? EarlyRepayment, bool FromBank);
+
+/// <summary>A row of the bank's table on the wire (spec 3F2 §3); <c>Insurance</c> is null when the table does not detail it.</summary>
+public sealed record BankRowView(LocalDate DueDate, string Payment, string Interest, string Principal, string? Insurance, string Crd);
+
+/// <summary>The stored table: its rows by date and its period.</summary>
+public sealed record BankScheduleView(IReadOnlyList<BankRowView> Rows, LocalDate FirstDueOn, LocalDate LastDueOn);
+
+/// <summary>Spec 3F2 §2's summary of the comparison with the calculation; gaps are the bank's figure minus the calculation's.</summary>
+public sealed record ScheduleComparisonView(string MaxGap, LocalDate? MaxGapOn, LocalDate? DivergesOn, string InterestGap, int RowsBeyondRounding);
+
+/// <summary><c>POST …/bank-schedule/preview</c>: the rows read and their comparison; nothing is stored.</summary>
+public sealed record BankSchedulePreview(IReadOnlyList<BankRowView> Rows, ScheduleComparisonView Comparison);
 
 /// <summary>Spec 3B1 §4.1: one calendar year of the schedule: the sums of its rows, and the balance after its last one.</summary>
 public sealed record LoanScheduleYearView(
@@ -79,7 +93,7 @@ internal static class LoanViews
     public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-        var schedule = LoanReading.Schedule(terms);
+        var schedule = LoanReading.Schedule(terms, loan);
         var figures = LoanMath.At(terms, schedule, today);
         return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
@@ -89,7 +103,15 @@ internal static class LoanViews
     public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-        var schedule = LoanReading.Schedule(terms);
+        var schedule = LoanReading.Schedule(terms, loan);
+        // Spec 3F2 §3–§4: a stored table is compared with the calculation whatever the reference; the calculation as the reference
+        // drifting from it is a warning, at the computed row of the date it diverges on.
+        var bank = LoanReading.BankRows(loan);
+        var computed = bank.Count == 0 ? null : loan.Source == ScheduleSource.Computed ? schedule : LoanReading.Computed(terms);
+        var diff = computed is null ? null : BankSchedule.Diff(computed, bank);
+        var warnings = WarningsOf(schedule);
+        if (loan.Source == ScheduleSource.Computed && diff?.Summary.DivergesOn is { } on)
+            warnings.Add(new LoanWarningView(LoanWarnings.ScheduleMismatch, computed!.Rows.First(r => r.DueDate == on).Number));
         var fees = loan.Fees.OrderBy(f => f.Fee.OnDate).ThenBy(f => f.Id)
             .Select(f => new LoanFeeView(f.Id, LoanWire.Of(f.Fee.Kind), Amount(f.Fee.Amount), f.Fee.OnDate, f.Note,
                 loan.Repayments.FirstOrDefault(r => r.FeeId == f.Id)?.Id, f.Version))
@@ -100,8 +122,10 @@ internal static class LoanViews
             .ToList();
         return new LoanDetail(loan.ItemId, item.DisplayName, loan.Lender, loan.Note, terms.Currency.Code, Wire(item.Visibility),
             item.Owners.Select(o => new LoanBorrowerView(o.PersonId.Value, o.ShareBp)).ToList(), ContractOf(loan), fees, repayments,
-            FiguresOf(LoanMath.At(terms, schedule, today)), WarningsOf(schedule), canWrite, Ended(terms, schedule, today),
-            loan.PropertyId, propertyName);
+            FiguresOf(LoanMath.At(terms, schedule, today)), warnings, canWrite, Ended(terms, schedule, today),
+            loan.PropertyId, propertyName, LoanWire.Of(loan.Source),
+            bank.Count == 0 ? null : new BankScheduleView(bank.Select(BankRowOf).ToList(), bank[0].DueDate, bank[^1].DueDate),
+            diff is null ? null : ComparisonOf(diff.Summary));
     }
 
     /// <summary>
@@ -114,7 +138,7 @@ internal static class LoanViews
         var rows = schedule.Rows;
         var years = rows.Select(r => r.DueDate.Year).Concat(terms.Events.Select(e => e.OnDate.Year)).Distinct().Order();
         return new(rows.Select(r => new LoanScheduleRowView(r.Number, r.DueDate, r.PhaseSeq, Rate(r.AnnualRate), Amount(r.Payment),
-                Amount(r.Interest), Amount(r.Principal), Amount(r.Insurance), Amount(r.Balance), Amount(r.EarlyRepayment))).ToList(),
+                Amount(r.Interest), Amount(r.Principal), Amount(r.Insurance), Amount(r.Balance), Amount(r.EarlyRepayment), r.FromBank)).ToList(),
             years.Select(y =>
             {
                 var due = rows.Where(r => r.DueDate.Year == y).ToList();
@@ -133,6 +157,12 @@ internal static class LoanViews
                 o.EndAfter, o.PaymentsBefore, o.PaymentsAfter, Amount(o.InterestBefore), Amount(o.InterestAfter),
                 Amount(o.InterestSaved), Amount(o.NetSaving)))
             .ToList());
+
+    public static BankRowView BankRowOf(BankRow r)
+        => new(r.DueDate, Amount(r.Payment), Amount(r.Interest), Amount(r.Principal), Amount(r.Insurance), Amount(r.Crd));
+
+    public static ScheduleComparisonView ComparisonOf(ScheduleDiffSummary s)
+        => new(Amount(s.MaxGap), s.MaxGapOn, s.DivergesOn, Amount(s.InterestGap), s.RowsBeyondRounding);
 
     /// <summary>A loan's item always has a currency (it is created with one); its absence is a broken invariant.</summary>
     public static Currency CurrencyOf(ItemAccess item)

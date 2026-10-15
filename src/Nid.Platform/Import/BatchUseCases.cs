@@ -19,7 +19,7 @@ public static class ImportSections
     /// <summary>Sections of <c>import-format.md</c> §3 whose module does not deliver them yet, or not in this form.</summary>
     public static IReadOnlySet<string> NotYetSupported { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        "loan_bank_schedule", "documents",
+        "documents",
     };
 }
 
