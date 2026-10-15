@@ -99,6 +99,26 @@ public static class PropertyMath
     /// <summary>Spec 3C2 §4: a tenancy covers its days from its start (inclusive) to its end (exclusive).</summary>
     public static bool Covers(Tenancy tenancy, LocalDate d) => tenancy.StartsOn <= d && (tenancy.EndsOn is not { } end || d < end);
 
+    /// <summary>Spec 3E2 §2: the cost's occurrence in the calendar month of <paramref name="month"/> — a cost comes every month or more, so at most one.</summary>
+    public static LocalDate? DueIn(RecurringCost cost, LocalDate month)
+    {
+        var first = new LocalDate(month.Year, month.Month, 1);
+        return NextDueOn(cost, first) is { } on && on < first.PlusMonths(1) ? on : null;
+    }
+
+    /// <summary>
+    /// Spec 3E2 §2: the rent a tenancy expects in the calendar month of <paramref name="month"/> — rent plus charges, prorated for a
+    /// partial month exactly as the arrears' figure — and the first day of that month it covers; null when it covers none.
+    /// </summary>
+    public static (decimal Amount, LocalDate From)? RentIn(Tenancy tenancy, LocalDate month)
+    {
+        var first = new LocalDate(month.Year, month.Month, 1);
+        var last = first.PlusMonths(1).PlusDays(-1);
+        if (Covered(tenancy, first, last) == 0)
+            return null;
+        return (Expected(tenancy, first, last), tenancy.StartsOn > first ? tenancy.StartsOn : first);
+    }
+
     /// <summary>Spec 3C2 §4 over W = (d − 12 months, d].</summary>
     private static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<Tenancy> tenancies, decimal costPrice, LocalDate d)
     {

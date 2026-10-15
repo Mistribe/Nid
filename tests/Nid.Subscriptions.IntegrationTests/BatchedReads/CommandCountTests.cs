@@ -30,6 +30,7 @@ public class CommandCountTests(PostgresFixture fixture)
     [InlineData("/api/v1/realestate/properties?scope=me")]
     [InlineData("/api/v1/dashboard?scope=me")]
     [InlineData("/api/v1/dashboard/net-worth?scope=me&period=all")]
+    [InlineData("/api/v1/realestate/routine?on=2025-10-15")] // 3E2: the round's tax (due 20 October) and tenancy are both proposed
     public async Task A_route_issues_as_many_commands_for_2N_items_as_for_N(string route)
     {
         var counter = new CommandCounter();

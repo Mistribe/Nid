@@ -58,8 +58,9 @@ export function homePath(capabilities: Capabilities): '/dashboard' | '/subscript
   return '/settings/appearance';
 }
 
-const requireModule = (module: string) => ({ context }: { context: RouterContext }) => {
-  if (!context.capabilities.modules.includes(module)) redirect({ to: homePath(context.capabilities), throw: true });
+/** A list means « any of ». */
+const requireModule = (module: string | string[]) => ({ context }: { context: RouterContext }) => {
+  if (![module].flat().some((m) => context.capabilities.modules.includes(m))) redirect({ to: homePath(context.capabilities), throw: true });
 };
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
@@ -131,7 +132,7 @@ const incomeRoute = createRoute({
 const routineRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/routine',
-  beforeLoad: requireModule('investments'),
+  beforeLoad: requireModule(['investments', 'realestate']),
   validateSearch: (search: Record<string, unknown>): RoutineSearch =>
     (typeof search.on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(search.on) ? { on: search.on } : {}),
   component: lazyRouteComponent(() => import('@/features/routine/RoutinePage'), 'RoutinePage'),

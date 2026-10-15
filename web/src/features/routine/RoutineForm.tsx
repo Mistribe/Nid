@@ -147,7 +147,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
         </details>
       ) : null}
       <Button type="submit" disabled={count === 0 || save.isPending}>
-        {count === 0 ? t('routine.nothing') : t('routine.save', { count })}
+        {t('routine.save')}
       </Button>
     </form>
   );

@@ -209,8 +209,6 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
 {
     public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
-        var first = new LocalDate(today.Year, today.Month, 1);
-        var last = first.PlusMonths(1).PlusDays(-1);
         var amortized = new Dictionary<Currency, decimal>();
         var cash = new Dictionary<Currency, decimal>();
         var count = 0;
@@ -228,7 +226,7 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
                     count++;
                     DashboardParts.Add(amortized, currency, PropertyMath.MonthlyEquivalent(cost));
                 }
-                if (PropertyMath.NextDueOn(cost, first) is { } due && due <= last)
+                if (PropertyMath.DueIn(cost, today) is not null)
                     DashboardParts.Add(cash, currency, cost.Amount);
             }
         }

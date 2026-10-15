@@ -41,7 +41,7 @@ describe('the routine', () => {
     expect(within(due).getByText('1 000,00 € au 31 août 2025')).toBeInTheDocument();
     expect(within(due).getByLabelText('Valeur de Livret A')).toHaveValue('');
     expect(screen.getByText('Autres enveloppes').closest('details')).not.toHaveAttribute('open');
-    expect(screen.getByRole('button', { name: 'Enregistrer 1 enveloppe' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeEnabled();
     await expectNoAxeViolations(container);
   });
 
@@ -55,7 +55,7 @@ describe('the routine', () => {
     await user.click(screen.getByText('Autres enveloppes'));
     await user.type(screen.getByLabelText('Versements du mois sur Manuel'), '10');
     await user.click(screen.getByLabelText('Passer Manuel'));
-    await user.click(screen.getByRole('button', { name: 'Enregistrer 2 enveloppes' }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
 
     await expect.poll(() => posted.length).toBe(1);
     expect(posted[0]).toEqual({
@@ -100,13 +100,13 @@ describe('the routine', () => {
     const { user } = await renderApp('/routine');
 
     await user.type(await screen.findByLabelText('Versements du mois sur PEA'), 'abc');
-    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
     expect(await screen.findByText('Un montant comme 1200 ou 1200,50')).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText('Versements du mois sur PEA'));
     await user.type(screen.getByLabelText('Valeur de Livret A'), '10');
     await user.type(screen.getByLabelText('Versements du mois sur Livret A'), '5');
-    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
     // lines[1] of what was sent is Livret A (PEA is lines[0]).
     const livret = screen.getByLabelText('Versements du mois sur Livret A');
     expect(await screen.findByText('Montant invalide.')).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe('the routine', () => {
     await renderApp('/routine');
     expect(await screen.findByText('Tout est à jour pour septembre 2025.')).toBeInTheDocument();
     expect(screen.getByText('Autres enveloppes').closest('details')).toHaveAttribute('open');
-    expect(screen.getByRole('button', { name: 'Rien à enregistrer' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeDisabled();
   });
 
   it('keeps the chosen date in the URL', async () => {
@@ -136,7 +136,7 @@ describe('the routine', () => {
     const { user } = await renderApp('/routine');
     await user.type(await screen.findByLabelText('Versements du mois sur PEA'), '50');
     const before = gets;
-    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
     await expect.poll(() => gets).toBeGreaterThan(before);
   });
 
@@ -159,7 +159,7 @@ describe('the routine', () => {
   it('shows the recap with the gain of the month', async () => {
     serve(routine(lines()));
     const { user, container } = await renderApp('/routine');
-    await user.click(await screen.findByRole('button', { name: /Enregistrer/ }));
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer les placements' }));
 
     const table = await screen.findByRole('table', { name: 'Récapitulatif de la routine' });
     const row = within(table).getAllByRole('row')[1]!;
@@ -177,7 +177,7 @@ describe('the routine', () => {
     server.use(http.post('*/api/v1/investments/routine/undo', async ({ request }) => { undone.push(await request.json()); return HttpResponse.json({ voided: 1 }); }));
     const { user } = await renderApp('/routine');
     await user.type(await screen.findByLabelText('Versements du mois sur PEA'), '50');
-    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
 
     await user.click(await screen.findByRole('button', { name: 'Annuler' }));
 
@@ -193,7 +193,7 @@ describe('the routine', () => {
       http.post('*/api/v1/investments/routine', () => HttpResponse.json(recap([recapLine({ previousAsOf: '2025-06-30' })]))),
     );
     const { user } = await renderApp('/routine');
-    await user.click(await screen.findByRole('button', { name: /Enregistrer/ }));
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer les placements' }));
     expect(await screen.findByText('depuis le 30 juin 2025')).toBeInTheDocument();
   });
 
@@ -208,7 +208,7 @@ describe('the routine', () => {
     );
     const { user } = await renderApp('/routine');
     await user.type(await screen.findByLabelText('Versements du mois sur PEA'), '50');
-    await user.click(screen.getByRole('button', { name: /Enregistrer/ }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
     await user.click(await screen.findByRole('button', { name: 'Annuler' }));
     expect(await screen.findByText('Routine annulée.')).toBeInTheDocument();
     expect(screen.getByLabelText('Versements du mois sur PEA')).toHaveValue('50');
@@ -222,7 +222,7 @@ describe('the routine', () => {
     vi.setSystemTime(new Date(2025, 9, 15, 12));
     serve(routine(lines()));
     const { user } = await renderApp('/routine');
-    await user.click(await screen.findByRole('button', { name: /Enregistrer/ }));
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer les placements' }));
     expect(await screen.findByRole('button', { name: 'Annuler' })).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(10_000); });
     expect(screen.queryByRole('button', { name: 'Annuler' })).not.toBeInTheDocument();

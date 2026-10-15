@@ -9,7 +9,7 @@ export const NAV = [
   { module: 'income', admin: false, mobile: 'tab', to: '/income', icon: Wallet, label: 'nav.income' },
   { module: 'realestate', admin: false, mobile: 'more', to: '/properties', icon: Building2, label: 'nav.properties' },
   { module: 'realestate', admin: false, mobile: 'more', to: '/loans', icon: Landmark, label: 'nav.loans' },
-  { module: 'investments', admin: false, mobile: 'more', to: '/routine', icon: CalendarCheck, label: 'nav.routine' },
+  { module: ['investments', 'realestate'], admin: false, mobile: 'more', to: '/routine', icon: CalendarCheck, label: 'nav.routine' },
   { module: 'import', admin: false, mobile: 'more', to: '/import', icon: Upload, label: 'nav.import' },
   { module: 'core', admin: false, mobile: 'more', to: '/export', icon: Download, label: 'nav.export' },
   { module: null, admin: false, mobile: 'more', to: '/security', icon: KeyRound, label: 'nav.security' },
@@ -21,7 +21,7 @@ export type NavItem = (typeof NAV)[number];
 
 export function visibleNav(capabilities: Capabilities): NavItem[] {
   return NAV.filter((item) =>
-    (item.module === null || capabilities.modules.includes(item.module)) && (!item.admin || capabilities.admin));
+    (item.module === null || [item.module].flat().some((m) => capabilities.modules.includes(m))) && (!item.admin || capabilities.admin));
 }
 
 /** The first path segment an entry stands for: « Plus » is current on any page under one of its entries. */

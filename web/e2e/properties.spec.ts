@@ -159,3 +159,34 @@ test('alice finds her property, her private loan and the next property tax on he
   const upcoming = page.getByRole('region', { name: 'À venir' });
   await expect(upcoming.getByRole('listitem').filter({ hasText: home })).toContainText('Taxe foncière');
 });
+
+test('alice confirms her property’s tax and rent in the routine and reads the rent received on its page', async ({ page }) => {
+  const stamp = Date.now();
+  const name = `Routine ${stamp}`;
+  await signIn(page, 'alice', '/properties');
+  await createProperty(page, name, 'Oui, partagé');
+  const id = new URL(page.url()).pathname.split('/').pop()!;
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
+  const post = async (route: string, data: object) => {
+    const response = await page.request.post(`/api/v1/realestate/properties/${id}/${route}`, { headers: { 'X-Nid-Csrf': session.csrf }, data });
+    expect(response.status()).toBe(201);
+  };
+  // Last month, the routine's default: a lease since 2021 covers it whole, a yearly tax falls on its 10th. Through the API to keep the journey short.
+  const now = new Date();
+  const taxStart = new Date(Date.UTC(now.getUTCFullYear() - 3, now.getUTCMonth() - 1, 10)).toISOString().slice(0, 10);
+  await post('tenancies', { label: 'T2', startsOn: '2021-01-01', rentMonthly: '900' });
+  await post('recurring-costs', { category: 'property_tax', amount: '1200', every: { count: 1, unit: 'year' }, startsOn: taxStart });
+
+  // alice's other properties (earlier journeys) are listed too, unticked: only this one's lines are recorded.
+  await page.goto('/routine');
+  const biens = page.getByRole('region', { name: 'Biens', exact: true });
+  await biens.getByLabel(`Taxe foncière de ${name}`, { exact: true }).check();
+  await biens.getByLabel(`Loyer T2 de ${name}`, { exact: true }).check();
+  await biens.getByRole('button', { name: 'Enregistrer les biens' }).click();
+  await expect(biens.getByRole('status')).toContainText('Biens enregistrés.');
+  await expect(biens.getByRole('table', { name: 'Récapitulatif des biens' }).getByRole('row', { name: new RegExp(name) })).toContainText('900,00');
+
+  await page.goto(`/properties/${id}`);
+  const figure = (term: string) => page.getByRole('region', { name: 'Location', exact: true }).locator(`dt:text-is("${term}") + dd`);
+  await expect(figure('Loyers perçus sur 12 mois')).toContainText('900,00 €');
+});
