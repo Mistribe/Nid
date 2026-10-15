@@ -51,6 +51,24 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
         return Result.Success<IReadOnlyList<Flow>>(rows.Select(ToFlow).ToList());
     }
 
+    public async Task<Result<IReadOnlyDictionary<ItemId, IReadOnlyList<Flow>>>> ListManyAsync(
+        IReadOnlyCollection<ItemId> items, DateRange range, IReadOnlySet<FlowKind>? kinds, CancellationToken ct)
+    {
+        var read = await gate.ForReadManyAsync(items, ct);
+        if (read.TryGetFailure(out var denied))
+            return Result.Failure<IReadOnlyDictionary<ItemId, IReadOnlyList<Flow>>>(denied!);
+        if (items.Count == 0)
+            return Result.Success<IReadOnlyDictionary<ItemId, IReadOnlyList<Flow>>>(new Dictionary<ItemId, IReadOnlyList<Flow>>());
+
+        var ids = items.Select(i => i.Value).Distinct().ToList();
+        // ListAsync's filter and order; a lookup keeps each item's rows in that order.
+        var rows = (await Within(db.Flows.AsNoTracking().Where(r => ids.Contains(r.ItemId)), range, kinds)
+            .OrderBy(r => r.OccurredOn).ThenBy(r => r.CreatedAt).ThenBy(r => r.Id)
+            .ToListAsync(ct)).ToLookup(r => r.ItemId);
+        return Result.Success<IReadOnlyDictionary<ItemId, IReadOnlyList<Flow>>>(
+            ids.ToDictionary(id => new ItemId(id), id => (IReadOnlyList<Flow>)rows[id].Select(ToFlow).ToList()));
+    }
+
     public async Task<Result<Money>> SumAsync(ItemId item, IReadOnlySet<FlowKind> kinds, DateRange range, CancellationToken ct)
     {
         var read = await gate.ForReadAsync(item, ct);
@@ -129,8 +147,12 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
     }
 
     private IQueryable<FlowRow> Current(ItemId item, DateRange range, IReadOnlySet<FlowKind>? kinds)
+        => Within(db.Flows.AsNoTracking().Where(r => r.ItemId == item.Value), range, kinds);
+
+    /// <summary>The current rows of <paramref name="query"/> in <paramref name="range"/>, of <paramref name="kinds"/> (all when null).</summary>
+    private static IQueryable<FlowRow> Within(IQueryable<FlowRow> query, DateRange range, IReadOnlySet<FlowKind>? kinds)
     {
-        var query = db.Flows.AsNoTracking().Where(r => r.ItemId == item.Value && r.RetiredAt == null && r.OccurredOn >= range.Start);
+        query = query.Where(r => r.RetiredAt == null && r.OccurredOn >= range.Start);
         if (range.EndBefore is { } end)
             query = query.Where(r => r.OccurredOn < end);
         if (kinds is not null)

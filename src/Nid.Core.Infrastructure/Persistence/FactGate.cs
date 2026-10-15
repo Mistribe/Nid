@@ -29,6 +29,30 @@ public sealed class FactGate(CoreDbContext db, IAccessPolicy policy, IActorAcces
         return Result.Success(reader!.Currency);
     }
 
+    /// <summary>
+    /// Batched reads spec §2: <see cref="ForReadAsync"/> for many items as a block, in four queries whatever their number. The
+    /// first item the actor cannot read (or that does not exist) fails the whole read as it fails alone — existence is not
+    /// disclosed — then any item without a currency.
+    /// </summary>
+    public async Task<Result> ForReadManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
+    {
+        if (actors.Current is not { PersonId: { } person })
+            return Result.Failure(new UnauthorizedFailure("Values and flows are written and read by a person.", null));
+        if (items.Count == 0)
+            return Result.Success();
+
+        var readable = await policy.CheckManyAsync(person, items, AccessKind.Read, ct);
+        foreach (var item in items)
+            if (!readable.Contains(item))
+                return Result.Failure(new NotFoundFailure("item", item.ToString()));
+
+        var ids = items.Select(i => i.Value).Distinct().ToList();
+        var codes = await db.Items.AsNoTracking().Where(i => ids.Contains(i.Id)).Select(i => i.Currency).ToListAsync(ct);
+        return codes.All(code => Currency.TryCreate(code?.Trim(), out _))
+            ? Result.Success()
+            : Fail(CoreFactCodes.ItemWithoutCurrency, "This item takes no values or flows: it has no currency.");
+    }
+
     /// <summary>The fact's own currency and date, once the item is known.</summary>
     public async Task<Result> CheckAsync(FactWriter writer, Money amount, LocalDate date, CancellationToken ct)
     {

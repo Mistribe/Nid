@@ -128,6 +128,26 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
         return Result.Success<IReadOnlyList<Valuation>>(rows.Select(ToValuation).ToList());
     }
 
+    public async Task<Result<IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>>> SeriesManyAsync(
+        IReadOnlyCollection<ItemId> items, DateRange range, CancellationToken ct)
+    {
+        var read = await gate.ForReadManyAsync(items, ct);
+        if (read.TryGetFailure(out var denied))
+            return Result.Failure<IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>>(denied!);
+        if (items.Count == 0)
+            return Result.Success<IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>>(new Dictionary<ItemId, IReadOnlyList<Valuation>>());
+
+        var ids = items.Select(i => i.Value).Distinct().ToList();
+        var end = range.EndBefore;
+        // SeriesAsync's filter and order; a lookup keeps each item's rows in that order.
+        var rows = (await db.Valuations.AsNoTracking()
+            .Where(r => ids.Contains(r.ItemId) && r.RetiredAt == null && r.AsOf >= range.Start && (end == null || r.AsOf < end))
+            .OrderBy(r => r.AsOf)
+            .ToListAsync(ct)).ToLookup(r => r.ItemId);
+        return Result.Success<IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>>(
+            ids.ToDictionary(id => new ItemId(id), id => (IReadOnlyList<Valuation>)rows[id].Select(ToValuation).ToList()));
+    }
+
     internal static Valuation ToValuation(ValuationRow row)
     {
         if (!Currency.TryCreate(row.Currency.Trim(), out var currency) || !Money.Create(row.Amount, currency).TryGetValue(out var value))
