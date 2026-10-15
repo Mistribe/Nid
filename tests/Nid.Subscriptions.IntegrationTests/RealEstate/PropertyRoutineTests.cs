@@ -144,4 +144,191 @@ public class PropertyRoutineTests(PostgresFixture fixture)
         var rent = Assert.Single(Lines(view, "rents"));
         Assert.Equal(("USD", "2000.00"), (S(rent, "currency"), S(rent, "amount")));
     }
+
+    private static object Estimate(Guid property, string amount) => new { property, amount };
+
+    private static object Flow(Guid property, string kind, string category, string occurredOn, string amount)
+        => new { property, kind, category, occurredOn, amount };
+
+    private static async Task<HttpResponseMessage> RecordAsync(NidApp app, object body) => await app.RawAsync(app.AdultA, HttpMethod.Post, Url, body);
+
+    [Fact]
+    public async Task Recording_writes_the_estimates_and_the_ticked_lines_and_answers_each_facts_id()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app, "Maison"));
+        var rental = await NewPropertyAsync(app, Home(app, "Locatif"));
+
+        var response = await RecordAsync(app, new
+        {
+            on = "2025-09-30",
+            estimates = new[] { Estimate(home, "300000") },
+            flows = new[] { Flow(home, "expense", "property_tax", "2025-09-20", "1200"), Flow(rental, "income", "rent", "2025-09-01", "950.5") },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var recap = await JsonAsync(response);
+        Assert.Equal("2025-09-30", S(recap, "on"));
+        var lines = Lines(recap, "lines");
+        Assert.Equal(["Locatif", "Maison"], lines.Select(l => S(l, "name")));
+        Assert.Equal((JsonValueKind.Null, (string?)null), (lines[0].GetProperty("valuationId").ValueKind, S(lines[0], "estimate")));
+        var rent = Assert.Single(Lines(lines[0], "flows"));
+        Assert.Equal(("income", "rent", "2025-09-01", "950.50"), (S(rent, "kind"), S(rent, "category"), S(rent, "occurredOn"), S(rent, "amount")));
+        Assert.Equal(("300000.00", "EUR"), (S(lines[1], "estimate"), S(lines[1], "currency")));
+
+        var detail = await PropertyAsync(app, home);
+        var valuation = Only(detail, "valuations");
+        Assert.Equal((lines[1].GetProperty("valuationId").GetGuid(), "2025-09-30", "300000.00"),
+            (valuation.GetProperty("id").GetGuid(), S(valuation, "asOf"), S(valuation, "amount")));
+        var tax = Only(detail, "flows");
+        Assert.Equal((Lines(lines[1], "flows")[0].GetProperty("flowId").GetGuid(), "expense", "property_tax", "1200.00"),
+            (tax.GetProperty("id").GetGuid(), S(tax, "kind"), S(tax, "category"), S(tax, "amount")));
+        Assert.Equal(("950.50", "2025-09-01"), (S(Only(await PropertyAsync(app, rental), "flows"), "amount"), S(Only(await PropertyAsync(app, rental), "flows"), "occurredOn")));
+
+        // Read again, the month says what was entered and the estimate is no longer due.
+        var view = await ReadAsync(app);
+        Assert.All(Lines(view, "estimates"), e => Assert.Equal(S(e, "name") == "Locatif", e.GetProperty("due").GetBoolean()));
+    }
+
+    [Theory]
+    [InlineData("nothing", "estimates", "realestate.routine_empty")]
+    [InlineData("future routine", "on", "core.date_in_future")]
+    [InlineData("zero estimate", "estimates[1].amount", "realestate.invalid_property_field")]
+    [InlineData("three decimals", "estimates[1].amount", "realestate.invalid_property_field")]
+    [InlineData("same property twice", "estimates[1]", "realestate.routine_duplicate")]
+    [InlineData("unknown kind", "flows[0].kind", "realestate.invalid_category")]
+    [InlineData("works", "flows[0].category", "realestate.invalid_category")]
+    [InlineData("other income", "flows[0].category", "realestate.invalid_category")]
+    [InlineData("outside the month", "flows[0].occurredOn", "realestate.invalid_property_field")]
+    [InlineData("after today", "flows[0].occurredOn", "core.date_in_future")] // Review Focus #3
+    [InlineData("negative flow", "flows[0].amount", "realestate.invalid_property_field")]
+    [InlineData("same flow twice", "flows[1]", "realestate.routine_duplicate")]
+    [InlineData("no amount", "estimates[1].amount", "request.required")]
+    public async Task A_refusal_names_its_field_and_nothing_is_written(string why, string path, string code)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var first = await NewPropertyAsync(app, Home(app, "Premier"));
+        var second = await NewPropertyAsync(app, Home(app, "Second"));
+        var good = Estimate(first, "300000");
+        var tax = Flow(first, "expense", "property_tax", "2025-09-20", "1200");
+        object body = why switch
+        {
+            "nothing" => new { on = "2025-09-30", estimates = Array.Empty<object>(), flows = Array.Empty<object>() },
+            "future routine" => new { on = "2025-10-16", estimates = new[] { good } },
+            "zero estimate" => new { on = "2025-09-30", estimates = new[] { good, Estimate(second, "0") } },
+            "three decimals" => new { on = "2025-09-30", estimates = new[] { good, Estimate(second, "1.005") } },
+            "same property twice" => new { on = "2025-09-30", estimates = new[] { good, Estimate(first, "1") } },
+            "unknown kind" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { Flow(first, "contribution", "property_tax", "2025-09-20", "1") } },
+            "works" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { Flow(first, "expense", "works", "2025-09-20", "1") } },
+            "other income" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { Flow(first, "income", "other_income", "2025-09-20", "1") } },
+            "outside the month" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { Flow(first, "expense", "property_tax", "2025-08-31", "1") } },
+            // The current month: a cost due on the 20th, later than today, recorded as listed.
+            "after today" => new { on = "2025-10-15", estimates = new[] { good }, flows = new[] { Flow(first, "expense", "property_tax", "2025-10-20", "1200") } },
+            "negative flow" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { Flow(first, "expense", "property_tax", "2025-09-20", "-1") } },
+            "same flow twice" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { tax, tax } },
+            _ => new { on = "2025-09-30", estimates = new[] { good, new { property = second } } },
+        };
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, code, path), await RefusalAsync(await RecordAsync(app, body)));
+        var detail = await PropertyAsync(app, first);
+        Assert.Empty(detail.GetProperty("valuations").EnumerateArray());
+        Assert.Empty(detail.GetProperty("flows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task An_estimate_already_at_on_is_refused_and_nothing_else_is_written()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+        await PostAsync(app, id, "valuations", new { asOf = "2025-09-30", amount = "290000" });
+
+        var refused = await RecordAsync(app, new
+        {
+            on = "2025-09-30", estimates = new[] { Estimate(id, "300000") }, flows = new[] { Flow(id, "expense", "property_tax", "2025-09-20", "1200") },
+        });
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.routine_value_exists", "estimates[0].amount"), await RefusalAsync(refused));
+        var detail = await PropertyAsync(app, id);
+        Assert.Equal("290000.00", S(Only(detail, "valuations"), "amount"));
+        Assert.Empty(detail.GetProperty("flows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task A_property_the_reader_does_not_write_is_not_found_and_nothing_is_written()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mine = await NewPropertyAsync(app, Home(app, "Mien"));
+        var secret = await NewPropertyAsync(app, Home(app, "Secret", "private", app.AdultB), app.AdultB);
+        var bobs = await NewPropertyAsync(app, Home(app, "À Bob", "shared", app.AdultB), app.AdultB);
+        var envelope = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+
+        foreach (var other in new[] { secret, bobs, envelope.Value, Guid.NewGuid() })
+            Assert.Equal(HttpStatusCode.NotFound, (await RecordAsync(app, new
+            {
+                on = "2025-09-30", estimates = new[] { Estimate(mine, "300000") }, flows = new[] { Flow(other, "expense", "property_tax", "2025-09-20", "1200") },
+            })).StatusCode);
+
+        Assert.Empty((await PropertyAsync(app, mine)).GetProperty("valuations").EnumerateArray());
+        Assert.Empty((await PropertyAsync(app, bobs)).GetProperty("flows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task A_property_in_another_currency_records_in_its_own()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Home(app, "Miami");
+        body["currency"] = "USD";
+        var id = await NewPropertyAsync(app, body);
+
+        var response = await RecordAsync(app, new { on = "2025-09-30", estimates = new[] { Estimate(id, "450000") } });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode); // the Core refuses an amount in another currency than the item's
+        var line = Lines(await JsonAsync(response), "lines")[0];
+        Assert.Equal(("USD", "450000.00"), (S(line, "currency"), S(line, "estimate")));
+        Assert.Equal("450000.00", S(Only(await PropertyAsync(app, id), "valuations"), "amount"));
+    }
+
+    [Fact]
+    public async Task Undo_voids_exactly_what_the_routine_recorded_and_refuses_twice()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+        await PostAsync(app, id, "valuations", new { asOf = "2025-06-01", amount = "290000" });
+        var line = Lines(await JsonAsync(await RecordAsync(app, new
+        {
+            on = "2025-09-30", estimates = new[] { Estimate(id, "300000") }, flows = new[] { Flow(id, "expense", "property_tax", "2025-09-20", "1200") },
+        })), "lines")[0];
+        var facts = new object[]
+        {
+            new { property = id, valuationId = line.GetProperty("valuationId").GetGuid() },
+            new { property = id, flowId = Lines(line, "flows")[0].GetProperty("flowId").GetGuid() },
+        };
+
+        var undo = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts });
+
+        Assert.Equal(HttpStatusCode.OK, undo.StatusCode);
+        Assert.Equal(2, (await JsonAsync(undo)).GetProperty("voided").GetInt32());
+        var detail = await PropertyAsync(app, id);
+        Assert.Equal(["2025-06-01"], detail.GetProperty("valuations").EnumerateArray().Select(v => S(v, "asOf")));
+        Assert.Empty(detail.GetProperty("flows").EnumerateArray());
+        Assert.Equal(HttpStatusCode.Conflict, (await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts })).StatusCode); // already voided
+    }
+
+    [Fact]
+    public async Task Undo_refuses_a_property_the_reader_does_not_write_and_another_items_facts()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var secret = await NewPropertyAsync(app, Home(app, "Secret", "private"));
+        var line = Lines(await JsonAsync(await RecordAsync(app, new { on = "2025-09-30", estimates = new[] { Estimate(secret, "300000") } })), "lines")[0];
+        var valuation = line.GetProperty("valuationId").GetGuid();
+        var envelope = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Post, Url + "/undo",
+            new { facts = new[] { new { property = secret, valuationId = valuation } } })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo",
+            new { facts = new[] { new { property = envelope.Value, valuationId = valuation } } })).StatusCode);
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.routine_empty", "facts"),
+            await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Url + "/undo", new { facts = Array.Empty<object>() })));
+        Assert.Equal("300000.00", S(Only(await PropertyAsync(app, secret), "valuations"), "amount"));
+    }
 }

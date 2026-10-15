@@ -35,6 +35,11 @@ public static class PropertyCodes
     public const string RecurringCostConflict = "realestate.recurring_cost_conflict";
     public const string TenancyOverlap = "realestate.tenancy_overlap";
     public const string TenancyConflict = "realestate.tenancy_conflict";
+
+    /// <summary>Spec 3E2 §3: a routine with nothing to record, a line twice, an estimate already at the routine's date.</summary>
+    public const string RoutineEmpty = "realestate.routine_empty";
+    public const string RoutineDuplicate = "realestate.routine_duplicate";
+    public const string RoutineValueExists = "realestate.routine_value_exists";
 }
 
 /// <summary>Spec 3C1 §6.</summary>

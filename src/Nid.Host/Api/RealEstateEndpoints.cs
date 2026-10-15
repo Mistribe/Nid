@@ -259,6 +259,23 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new GetPropertyRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
             .Returns<PropertyRoutineView>();
 
+        // Spec 3E2 §3: all or nothing; the recap names each fact recorded, which the undo voids.
+        api.MapPost("/routine", async (PropertyRoutineBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(recap => recap);
+            })
+            .Returns<PropertyRoutineRecap>();
+
+        api.MapPost("/routine/undo", async (PropertyRoutineUndoBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(undone => undone);
+            })
+            .Returns<PropertyRoutineUndone>();
+
         return routes;
     }
 
@@ -467,6 +484,73 @@ public static class RealEstateEndpoints
             var deposit = LoanBodies.Number(reader, Deposit, "deposit", required: false);
             return reader.Ok ? new Tenancy(Label ?? "", startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, Note) : null;
         }
+    }
+
+    /// <summary>
+    /// Spec 3E2 §3: <c>{ on, estimates: [{ property, amount }], flows: [{ property, kind, category, occurredOn, amount }] }</c>, amounts
+    /// invariant decimal strings in the property's currency; kind and category are the handler's.
+    /// </summary>
+    public sealed record PropertyRoutineBody(string? On, IReadOnlyList<PropertyRoutineEstimateBody>? Estimates, IReadOnlyList<PropertyRoutineFlowBody>? Flows)
+    {
+        internal RecordPropertyRoutineCommand? ToCommand(FieldReader reader)
+        {
+            var on = reader.Date(On, "on");
+            var estimates = (Estimates ?? []).Select((e, i) =>
+            {
+                var path = $"estimates[{i}]";
+                if (e is null) // nullable annotations stop at collection elements
+                {
+                    reader.Add(path, "request.required", "An estimate is required.");
+                    return null;
+                }
+                var property = PropertyOf(reader, e.Property, path);
+                var amount = LoanBodies.Number(reader, e.Amount, path + ".amount");
+                return property is null || amount is null ? null : new PropertyRoutineEstimate(property.Value, amount.Value);
+            }).ToList();
+            var flows = (Flows ?? []).Select((f, i) =>
+            {
+                var path = $"flows[{i}]";
+                if (f is null)
+                {
+                    reader.Add(path, "request.required", "A flow is required.");
+                    return null;
+                }
+                var property = PropertyOf(reader, f.Property, path);
+                var occurredOn = reader.Date(f.OccurredOn, path + ".occurredOn");
+                var amount = LoanBodies.Number(reader, f.Amount, path + ".amount");
+                return property is null || occurredOn is null || amount is null
+                    ? null
+                    : new PropertyRoutineFlow(property.Value, f.Kind, f.Category, occurredOn.Value, amount.Value);
+            }).ToList();
+            return reader.Ok ? new RecordPropertyRoutineCommand(on!.Value, estimates.Select(e => e!).ToList(), flows.Select(f => f!).ToList()) : null;
+        }
+    }
+
+    public sealed record PropertyRoutineEstimateBody(Guid? Property, string? Amount);
+
+    public sealed record PropertyRoutineFlowBody(Guid? Property, string? Kind, string? Category, string? OccurredOn, string? Amount);
+
+    /// <summary>Spec 3E2 §3: the facts a routine's recap named, each on its property.</summary>
+    public sealed record PropertyRoutineUndoBody(IReadOnlyList<PropertyRoutineFactBody>? Facts)
+    {
+        internal UndoPropertyRoutineCommand? ToCommand(FieldReader reader)
+        {
+            var facts = (Facts ?? []).Select((f, i) =>
+            {
+                var property = PropertyOf(reader, f?.Property, $"facts[{i}]");
+                return property is null ? null : new PropertyRoutineFact(property.Value, f!.ValuationId, f.FlowId);
+            }).ToList();
+            return reader.Ok ? new UndoPropertyRoutineCommand(facts.Select(f => f!).ToList()) : null;
+        }
+    }
+
+    public sealed record PropertyRoutineFactBody(Guid? Property, Guid? ValuationId, Guid? FlowId);
+
+    private static ItemId? PropertyOf(FieldReader reader, Guid? property, string path)
+    {
+        if (property is null)
+            reader.Add(path + ".property", "request.required", "A property is required.");
+        return property is { } id ? new ItemId(id) : null;
     }
 
     internal static class PropertyBodies

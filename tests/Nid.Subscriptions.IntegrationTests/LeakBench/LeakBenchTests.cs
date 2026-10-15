@@ -550,6 +550,37 @@ public class LeakBenchTests(PostgresFixture fixture)
         }
     }
 
+    /// <summary>
+    /// 3E2: the routine records on a property twin exactly when the actor writes it (then undoes it, so the next actor meets no
+    /// estimate at that date); any other twin answers « not found » and gets nothing — each twin is written by A or B, whose
+    /// routine then still reads the seeded estimate as the latest.
+    /// </summary>
+    [Fact]
+    public async Task The_property_routine_records_only_on_a_property_twin_the_actor_may_write()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+
+        foreach (var actor in new[] { app.AdultA, app.AdultB })
+        foreach (var (name, property) in data.Properties)
+        {
+            var response = await app.RawAsync(actor, HttpMethod.Post, "/api/v1/realestate/routine",
+                new { on = "2025-09-30", estimates = new[] { new { property = property.Value, amount = "1000" } } });
+            var writable = data.ExpectedWritable(name, actor);
+            Assert.True(response.StatusCode == (writable ? HttpStatusCode.OK : HttpStatusCode.NotFound),
+                $"{name} recorded by {data.NameOf(actor)}: expected writable={writable}, got {response.StatusCode}");
+            if (!writable)
+                continue;
+            var valuation = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("lines")[0].GetProperty("valuationId").GetGuid();
+            Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(actor, HttpMethod.Post, "/api/v1/realestate/routine/undo",
+                new { facts = new[] { new { property = property.Value, valuationId = valuation } } })).StatusCode);
+        }
+
+        foreach (var actor in new[] { app.AdultA, app.AdultB })
+            Assert.All(JsonDocument.Parse(await app.GetRawAsync(actor, "/api/v1/realestate/routine")).RootElement.GetProperty("estimates").EnumerateArray(),
+                e => Assert.Equal("2025-03-31", e.GetProperty("lastAsOf").GetString()));
+    }
+
     [Fact]
     public async Task A_write_on_an_item_the_actor_may_only_read_is_forbidden_not_silently_applied()
     {

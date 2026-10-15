@@ -316,6 +316,9 @@ public static class RequestCatalogue
 
         new(typeof(ListPropertiesQuery), false, (_, _) => new ListPropertiesQuery(VisibilityScope.Me)),
         new(typeof(GetPropertyRoutineQuery), false, (_, _) => new GetPropertyRoutineQuery(null)),
+        // 3E2: the routine names its properties in its lines; each one's write check is the bench fact below.
+        new(typeof(RecordPropertyRoutineCommand), false, (_, _) => new RecordPropertyRoutineCommand(new LocalDate(2025, 1, 31), [], [])),
+        new(typeof(UndoPropertyRoutineCommand), false, (_, _) => new UndoPropertyRoutineCommand([])),
         new(typeof(GetPropertyQuery), true, (_, item) => new GetPropertyQuery(item)),
         new(typeof(CreatePropertyCommand), false, (d, _) => new CreatePropertyCommand("bench", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
