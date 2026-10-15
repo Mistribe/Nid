@@ -51,7 +51,7 @@ test('alice shares an envelope 50/50 with bob and finds it in the split, keeping
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
   await alice.goto('/dashboard?scope=me');
-  const split = alice.getByRole('region', { name: 'Répartition par enveloppe' });
+  const split = alice.getByRole('region', { name: 'Répartition par élément' });
   await expect(split.getByRole('row', { name: new RegExp(name) })).toContainText('1 000,00 €');
   await expect(alice.getByRole('table', { name: 'Part de chaque personne' })).toContainText('%');
 

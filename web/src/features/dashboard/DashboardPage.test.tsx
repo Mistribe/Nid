@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { DashboardView } from './api';
@@ -50,7 +51,7 @@ describe('DashboardPage', () => {
 
     const worth = await card('Patrimoine');
     expect(worth).toHaveTextContent('Inconnu : aucune valeur saisie');
-    expect(worth).toHaveTextContent('1 enveloppe sans valeur');
+    expect(worth).toHaveTextContent('1 élément sans valeur');
     expect(worth).not.toHaveTextContent('0,00 €');
     const income = await card('Revenus et marge');
     expect(income).toHaveTextContent('Inconnu : aucun revenu déclaré');
@@ -120,15 +121,35 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(seen).toHaveLength(2));
   });
 
-  it('welcomes a household with nothing yet, with the three ways to start', async () => {
+  it('welcomes a household with nothing yet, with the four ways to start', async () => {
     serve(emptyDashboard);
     const { container } = await renderApp('/dashboard');
 
     expect(await screen.findByRole('heading', { name: 'Bienvenue dans Nid' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ajouter une enveloppe' })).toHaveAttribute('href', '/investments/new');
+    expect(screen.getByRole('link', { name: 'Ajouter un bien' })).toHaveAttribute('href', '/properties/new');
     expect(screen.getByRole('link', { name: 'Ajouter un abonnement' })).toHaveAttribute('href', '/subscriptions/new');
     expect(screen.getByRole('link', { name: 'Ajouter un revenu' })).toHaveAttribute('href', '/income/new');
     await expectNoAxeViolations(container);
+  });
+
+  it('links the net worth to the investments and to the properties', async () => {
+    serve(dashboard());
+    const { container } = await renderApp('/dashboard');
+
+    const worth = await card('Patrimoine');
+    expect(within(worth).getByRole('link', { name: 'Voir les placements' })).toHaveAttribute('href', '/investments');
+    expect(within(worth).getByRole('link', { name: 'Voir les biens' })).toHaveAttribute('href', '/properties');
+    await expectNoAxeViolations(container);
+  });
+
+  it('offers no link to a module that is off', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard', { capabilities: { ...allCapabilities, modules: ['core', 'subscriptions', 'investments', 'income'] } });
+
+    const worth = await card('Patrimoine');
+    expect(within(worth).getByRole('link', { name: 'Voir les placements' })).toBeInTheDocument();
+    expect(within(worth).queryByRole('link', { name: 'Voir les biens' })).not.toBeInTheDocument();
   });
 
   it('shows skeletons while loading', async () => {
@@ -164,6 +185,6 @@ describe('DashboardPage', () => {
   it('says how many envelopes have no recent value at 1 January', async () => {
     serve(dashboard({ envelopesWithoutStart: 2 }));
     await renderApp('/dashboard');
-    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('2 enveloppes sans valeur récente au 1er janvier');
+    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('2 éléments sans valeur récente au 1er janvier');
   });
 });
