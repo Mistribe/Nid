@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
@@ -8,7 +9,7 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.RealEstate.Application.Import;
 
 /// <summary>A loan record, parsed: its terms; the phases and insurances come with the whole loan.</summary>
-internal sealed record ParsedLoan(Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, LoanContract Terms);
+internal sealed record ParsedLoan(Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners, LoanContract Terms, ScheduleSource Source);
 
 internal static partial class EstateParsing
 {
@@ -28,13 +29,13 @@ internal static partial class EstateParsing
                  & TryDate(r.DisbursedOn, path + ".disbursed_on", issues, out var disbursedOn)
                  & TryDate(r.FirstPaymentDate, path + ".first_payment_date", issues, out var firstPayment)
                  & TryMoney(r.Principal, path + ".principal", currency, issues, out var principal)
-                 & ScheduleSource(r.ScheduleSource, path + ".schedule_source", issues);
+                 & TrySource(r.ScheduleSource, path + ".schedule_source", issues, out var source);
         if (!ok)
             return false;
         var terms = new LoanContract(principal!.Value, disbursedOn!.Value, firstPayment!.Value, r.TotalPayments, rounding, firstPeriod, [], []);
         if (!Check(LoanRules.Name(r.Name) ?? LoanRules.Details(r.Lender, r.Note) ?? LoanRules.Contract(terms), path, issues))
             return false;
-        parsed = new ParsedLoan(currency!.Value, visibility, owners, terms);
+        parsed = new ParsedLoan(currency!.Value, visibility, owners, terms, source);
         return true;
     }
 
@@ -102,36 +103,43 @@ internal static partial class EstateParsing
         return true;
     }
 
+    /// <summary>Spec 3F2 §3: a row of a bank's table, its date read; its rules are its loan's, the whole table checked with it.</summary>
+    public static bool TryBankRow(LoanBankScheduleRecord r, string path, List<ImportIssue> issues, out BankRow row)
+    {
+        row = null!;
+        if (!TryDate(r.DueDate, path + ".due_date", issues, out var dueDate))
+            return false;
+        row = new BankRow(dueDate!.Value, r.Payment, r.Interest, r.Principal, r.Insurance, r.Crd);
+        return true;
+    }
+
     /// <summary>
-    /// A refusal of <see cref="LoanRules.Contract"/> or of the engine on a whole loan, at the file entity that brings the part at
-    /// fault: <c>phases[k]</c> is the k-th of <paramref name="phases"/>, and so on for the insurances, fees and events — the lists
-    /// the engine was handed, in its order. A part the file does not name (null), a term, or the loan as a whole answers at
-    /// <paramref name="loan"/>.
+    /// A refusal of <see cref="LoanRules.Contract"/>, of the engine or of the bank's table on a whole loan, at the file entity that
+    /// brings the part at fault: <c>phases[k]</c> is the k-th of <paramref name="phases"/>, and so on for the insurances, fees,
+    /// events and the table's <paramref name="rows"/> (by date) — the lists the checks were handed, in their order. A part the file
+    /// does not name (null), a term, or the loan as a whole answers at <paramref name="loan"/>.
     /// </summary>
     public static string PathOf(Failure failure, string loan, IReadOnlyList<string?> phases, IReadOnlyList<string?> insurances,
-        IReadOnlyList<string?> fees, IReadOnlyList<string?> events)
+        IReadOnlyList<string?> fees, IReadOnlyList<string?> events, IReadOnlyList<string?>? rows = null)
     {
         var field = LoanPaths.FieldOf(failure) ?? "";
         var open = field.IndexOf('[');
         if (open < 0)
-            return loan + (field is "phases" or "insurances" ? "" : Member(field));
+            return loan + (field is "phases" or "insurances" or "rows" ? "" : Member(field));
         var close = field.IndexOf(']');
         var index = int.Parse(field[(open + 1)..close], CultureInfo.InvariantCulture);
-        var parts = field[..open] switch { "phases" => phases, "insurances" => insurances, "fees" => fees, _ => events };
+        var parts = field[..open] switch { "phases" => phases, "insurances" => insurances, "fees" => fees, "rows" => rows ?? [], _ => events };
         var tail = close + 2 <= field.Length ? field[(close + 2)..] : "";
-        return index < parts.Count && parts[index] is { } path ? path + Member(tail) : loan;
+        // A bank row's amounts are plain decimals, not { amount, currency }: its principal has no ".amount".
+        var member = field[..open] == "rows" && tail.Length > 0 ? "." + JsonNamingPolicy.SnakeCaseLower.ConvertName(tail) : Member(tail);
+        return index < parts.Count && parts[index] is { } path ? path + member : loan;
     }
 
-    /// <summary>Spec 3F1 §2: <c>computed</c> or absent; <c>bank</c> waits for 3F2's table.</summary>
-    private static bool ScheduleSource(string? source, string path, List<ImportIssue> issues)
+    /// <summary>Spec 3F2 §3: <c>computed</c> (or absent) or <c>bank</c>; <c>bank</c> needs the loan's table, checked with the whole loan.</summary>
+    private static bool TrySource(string? source, string path, List<ImportIssue> issues, out ScheduleSource value)
     {
-        if (source is null or "computed")
-            return true;
-        issues.Add(source == "bank"
-            ? ImportIssue.Error(LoanCodes.ImportBankSchedule,
-                "The bank's amortisation table arrives in a later version (3F2): leave schedule_source out, or computed.", path)
-            : ImportIssue.Error(ImportCodes.InvalidValue, "A schedule source is computed.", path));
-        return false;
+        value = ScheduleSource.Computed;
+        return source is null || LoanWire.TryParse(source, out value) || Invalid(issues, path, "A schedule source is computed or bank.");
     }
 
     /// <summary>A contract holding only the parts given, on neutral terms: what <see cref="LoanRules.Contract"/> checks of one part alone.</summary>

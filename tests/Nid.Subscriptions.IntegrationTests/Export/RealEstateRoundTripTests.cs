@@ -36,9 +36,10 @@ public class RealEstateRoundTripTests(PostgresFixture fixture)
     {
         await using var source = await NidApp.StartAsync(fixture);
         await NameAdultsAsync(source);
-        // Two properties, two loans (one zero-rate on the same home), phases, an insurance, a fee, an early repayment, planned
+        // Two properties, two loans (one zero-rate on the same home, the main one with its bank's table as reference), phases, an insurance, a fee, an early repayment, planned
         // costs, tenancies, an estimate and flows.
-        var file = EstateFile.Loans();
+        var file = EstateFile.Loans(loans: EstateFile.List(EstateFile.BankLoan, EstateFile.ZeroLoan),
+            bank: EstateFile.List(EstateFile.Bank1, EstateFile.Bank2, EstateFile.Bank3));
         file["valuations"] = """[{"id":"v-home","item":"prop-home","as_of":"2024-12-31","amount":{"amount":"300000","currency":"EUR"}}]""";
         file["flows"] = """
             [{"id":"f-works","item":"prop-home","occurred_on":"2021-05-10","kind":"expense","amount":{"amount":"12000","currency":"EUR"},"category":"works"},
@@ -69,6 +70,8 @@ public class RealEstateRoundTripTests(PostgresFixture fixture)
         Assert.Equal((2, 3, 1, 2, 2, 1), (first["loans"].Count, first["loan_phases"].Count, first["loan_insurances"].Count,
             first["loan_fees"].Count, first["loan_events"].Count, first["valuations"].Count));
         Assert.Contains(first["loan_fees"], f => f.GetProperty("kind").GetString() == "early_repayment_penalty");
+        Assert.Equal(3, first["loan_bank_schedule"].Count);
+        Assert.Contains(first["loans"], l => l.GetProperty("id").GetString() == "loan-main" && l.GetProperty("schedule_source").GetString() == "bank");
         Assert.Contains(first["tenancies"], t => t.GetProperty("label").GetString() == "Chambre" && t.GetProperty("id").GetString() is not ("ten-1" or "ten-2"));
         Assert.Contains(first["loans"], l => l.GetProperty("id").GetString() == "loan-ptz" && l.GetProperty("property").GetString() == "prop-home");
     }

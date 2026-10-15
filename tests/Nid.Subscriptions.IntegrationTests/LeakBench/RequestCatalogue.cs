@@ -231,6 +231,7 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_insurances", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_fees", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_events", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_bank_schedule", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
 

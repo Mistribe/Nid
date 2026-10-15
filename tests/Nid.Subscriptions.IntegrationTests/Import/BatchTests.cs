@@ -97,7 +97,7 @@ public class BatchTests(PostgresFixture fixture)
         var session = await client.StartAsync(app.AdultA);
 
         var unknown = await client.PutRawAsync(app.AdultA, session.Id, "gadgets", 0, "[]");
-        var later = await client.PutRawAsync(app.AdultA, session.Id, "loan_bank_schedule", 0, "[]"); // the bank's table arrives in 3F2
+        var later = await client.PutRawAsync(app.AdultA, session.Id, "documents", 0, "[]"); // reserved, not delivered yet
 
         // A named section the server does not know or does not support yet is a well-formed request the
         // server refuses: 422, not 400 (see ImportCodes.BadRequests).

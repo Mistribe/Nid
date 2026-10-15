@@ -65,6 +65,16 @@ internal static class EstateFile
 
     public const string Repayment = """{"id":"ev-1","loan":"loan-main","on_date":"2023-03-15","amount":{"amount":"10000.00","currency":"EUR"},"effect":"reduce_term"}""";
 
+    /// <summary>The main loan's first three payments as its bank writes them (loans.md §4): decimal strings in its currency.</summary>
+    public const string Bank1 = """{"id":"lbs-1","loan":"loan-main","due_date":"2020-11-15","payment":"1159.92","interest":"583.33","principal":"576.59","crd":"199423.41"}""";
+
+    public const string Bank2 = """{"id":"lbs-2","loan":"loan-main","due_date":"2020-12-15","payment":"1159.92","interest":"581.65","principal":"578.27","crd":"198845.14"}""";
+
+    public const string Bank3 = """{"id":"lbs-3","loan":"loan-main","due_date":"2021-01-15","payment":"1159.92","interest":"579.96","principal":"579.96","crd":"198265.18"}""";
+
+    /// <summary>The main loan with the bank as the reference.</summary>
+    public static readonly string BankLoan = MainLoan.Replace("\"visibility\":\"shared\"", "\"visibility\":\"shared\",\"schedule_source\":\"bank\"");
+
     public static string List(params string[] entities) => "[" + string.Join(",", entities) + "]";
 
     public static Dictionary<string, string> Properties(string? properties = null, string? costs = null, string? tenancies = null)
@@ -78,7 +88,7 @@ internal static class EstateFile
 
     /// <summary>The properties and both loans; the phases are listed out of their seq order on purpose (Review Focus 4).</summary>
     public static Dictionary<string, string> Loans(
-        string? loans = null, string? phases = null, string? insurances = null, string? fees = null, string? events = null)
+        string? loans = null, string? phases = null, string? insurances = null, string? fees = null, string? events = null, string? bank = null)
     {
         var file = Properties();
         file["loans"] = loans ?? List(MainLoan, ZeroLoan);
@@ -86,6 +96,8 @@ internal static class EstateFile
         file["loan_insurances"] = insurances ?? List(Insurance);
         file["loan_fees"] = fees ?? List(FileFee);
         file["loan_events"] = events ?? List(Repayment);
+        if (bank is not null)
+            file["loan_bank_schedule"] = bank;
         return file;
     }
 }

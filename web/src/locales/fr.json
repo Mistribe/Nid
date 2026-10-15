@@ -223,6 +223,7 @@
       "loan_insurances": "Assurances emprunteur",
       "loan_fees": "Frais de crédit",
       "loan_events": "Remboursements anticipés",
+      "loan_bank_schedule": "Tableaux de la banque",
       "valuations": "Valeurs",
       "flows": "Flux"
     }
@@ -673,7 +674,7 @@
     "see_subscriptions": "Voir les abonnements",
     "see_investments": "Voir les placements",
     "codes": {
-      "realestate_import_bank_schedule": "Le tableau d’amortissement de la banque ne s’importe pas encore : retirez « schedule_source » ou mettez « computed », l’échéancier sera calculé.",
+      "realestate_bank_schedule_missing": "Ce crédit prend le tableau de la banque comme référence, mais n’en a aucune ligne : ajoutez-les dans « loan_bank_schedule » ou mettez « computed ».",
       "realestate_invalid_category": "Ce type ou cette catégorie ne correspond pas à cette ligne."
     }
   },

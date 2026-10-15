@@ -159,7 +159,7 @@ public class LoanImportTests(PostgresFixture fixture)
         // Rules local to an entity: the receipt of its batch reports them.
         var session = await client.StartAsync(app.AdultA, Adults(app));
         var loans = await client.PutAsync(app.AdultA, session.Id, "loans", 0, List(
-            MainLoan.Replace("\"visibility\":\"shared\"", "\"visibility\":\"shared\",\"schedule_source\":\"bank\""),
+            MainLoan.Replace("\"visibility\":\"shared\"", "\"visibility\":\"shared\",\"schedule_source\":\"spreadsheet\""),
             MainLoan.Replace("loan-main", "l1").Replace("\"visibility\":\"shared\"", "\"visibility\":\"shared\",\"rounding_mode\":\"up\""),
             MainLoan.Replace("loan-main", "l2").Replace("\"amount\":\"200000.00\"", "\"amount\":\"0.001\""),
             MainLoan.Replace("loan-main", "l3").Replace("\"name\":\"Prêt principal\"", "\"name\":\"  \""),
@@ -175,7 +175,7 @@ public class LoanImportTests(PostgresFixture fixture)
 
         Assert.Equal(
             [
-                (LoanCodes.ImportBankSchedule, "loans[0].schedule_source"),
+                (ImportCodes.InvalidValue, "loans[0].schedule_source"),
                 (ImportCodes.InvalidValue, "loans[1].rounding_mode"),
                 (LoanCodes.InvalidLoan, "loans[2].principal.amount"),
                 (LoanCodes.InvalidLoan, "loans[3].name"),
@@ -329,5 +329,108 @@ public class LoanImportTests(PostgresFixture fixture)
         Assert.Equal(("li-1", "0.003"), (S(export["loan_insurances"][0], "id"), S(export["loan_insurances"][0], "annual_rate")));
         Assert.Equal(("fee-file", "1000.00"), (S(export["loan_fees"][0], "id"), S(export["loan_fees"][0].GetProperty("amount"), "amount")));
         Assert.Equal(("ev-1", "reduce_term", "2023-03-15"), (S(export["loan_events"][0], "id"), S(export["loan_events"][0], "effect"), S(export["loan_events"][0], "on_date")));
+    }
+
+    private static JsonElement TableOf(JsonElement loan) => loan.GetProperty("bankSchedule");
+
+    /// <summary>Spec 3F2 §3: the rows arrive in any order; the loan takes the bank as the reference; the same file again is unchanged.</summary>
+    [Fact]
+    public async Task A_bank_table_imports_with_its_loan_and_the_bank_as_reference()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var file = Loans(loans: List(BankLoan, ZeroLoan), bank: List(Bank3, Bank1, Bank2));
+
+        var committed = await CommitAsync(client, app, app.AdultA, file);
+
+        Assert.Equal(new CountsResponse(3, 0, 0), committed.Report!.Sections["loan_bank_schedule"]);
+        var main = await LoanAsync(app, "Prêt principal");
+        Assert.Equal(("bank", "2020-11-15", "2021-01-15"), (S(main, "scheduleSource"), S(TableOf(main), "firstDueOn"), S(TableOf(main), "lastDueOn")));
+        Assert.Equal("198265.18", S(TableOf(main).GetProperty("rows")[2], "crd"));
+        Assert.Equal("computed", S(await LoanAsync(app, "Prêt à taux zéro"), "scheduleSource"));
+
+        var again = await CommitAsync(client, app, app.AdultA, file);
+
+        Assert.Equal(new CountsResponse(0, 3, 0), again.Report!.Sections["loan_bank_schedule"]);
+    }
+
+    /// <summary>Review Focus 5 among them: the payment with the insurance (50 a month on this loan) and no insurance member.</summary>
+    [Fact]
+    public async Task The_bank_without_rows_and_a_broken_table_are_refused_at_their_entity()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutAsync(app.AdultA, session.Id, "loan_bank_schedule", 0, List(Bank1.Replace("2020-11-15", "15/11/2020")));
+        await client.CancelRawAsync(app.AdultA, session.Id);
+        Assert.Equal([(ImportCodes.InvalidValue, "loan_bank_schedule[0].due_date")], batch.Issues.Select(i => (i.Code, i.Path)));
+
+        var missing = await ValidateAsync(client, app, app.AdultA, Loans(loans: List(BankLoan, ZeroLoan)));
+        Assert.Equal([(LoanCodes.BankScheduleMissing, "loans[0].schedule_source")], ErrorsOf(missing));
+        await client.CancelRawAsync(app.AdultA, missing.Id);
+
+        var offCalendar = await ValidateAsync(client, app, app.AdultA, Loans(bank: List(Bank1, Bank2.Replace("2020-12-15", "2020-12-16"), Bank3)));
+        Assert.Equal([(LoanCodes.BankScheduleInvalid, "loan_bank_schedule[1].due_date")], ErrorsOf(offCalendar));
+        await client.CancelRawAsync(app.AdultA, offCalendar.Id);
+
+        var insured = await ValidateAsync(client, app, app.AdultA, Loans(bank: List(Bank1.Replace("\"payment\":\"1159.92\"", "\"payment\":\"1209.92\""))));
+        Assert.Equal([(LoanCodes.BankScheduleInvalid, "loan_bank_schedule[0].payment")], ErrorsOf(insured));
+    }
+
+    /// <summary>Spec 3F2 precision 5: a table replaced in the app keeps each row's file id by its date — the file re-imports unchanged, the app's rows stay.</summary>
+    [Fact]
+    public async Task A_table_replaced_in_the_app_keeps_its_file_ids_and_the_file_reimports_unchanged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var file = Loans(bank: List(Bank1, Bank2, Bank3));
+        await CommitAsync(client, app, app.AdultA, file);
+        var id = await LoanIdAsync(app, "Prêt principal");
+        var version = (await LoanAsync(app, "Prêt principal")).GetProperty("contract").GetProperty("version").GetUInt32();
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/realestate/loans/{id}/bank-schedule",
+            new { text = LoanApi.BankTable.Replace("198 265,18", "197 265,18"), version });
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+
+        var again = await CommitAsync(client, app, app.AdultA, file);
+
+        Assert.Equal(new CountsResponse(0, 3, 0), again.Report!.Sections["loan_bank_schedule"]);
+        Assert.Equal("197265.18", S(TableOf(await LoanAsync(app, "Prêt principal")).GetProperty("rows")[2], "crd"));
+    }
+
+    /// <summary>
+    /// Spec 3F2 precision 4: a stored table always fits its loan. A file that no longer brings the table but moves the loan's due
+    /// dates is checked against the stored rows, and refused at the loan, even with replace: nothing is written.
+    /// </summary>
+    [Fact]
+    public async Task A_contract_change_the_stored_table_no_longer_fits_is_refused_and_nothing_is_written()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, Loans(loans: List(BankLoan, ZeroLoan), bank: List(Bank1, Bank2, Bank3)));
+
+        var moved = await ValidateAsync(client, app, app.AdultA,
+            Loans(loans: List(BankLoan.Replace("\"first_payment_date\":\"2020-11-15\"", "\"first_payment_date\":\"2020-11-16\""), ZeroLoan)), replace: true);
+
+        Assert.Equal([(LoanCodes.BankScheduleInvalid, "loans[0]")], ErrorsOf(moved));
+        await client.CancelRawAsync(app.AdultA, moved.Id);
+        var main = await LoanAsync(app, "Prêt principal");
+        Assert.Equal(("2020-11-15", "bank", 3), (S(main.GetProperty("contract"), "firstPaymentDate"), S(main, "scheduleSource"),
+            TableOf(main).GetProperty("rows").GetArrayLength()));
+    }
+
+    [Fact]
+    public async Task The_export_writes_the_bank_table_and_the_reference()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await CommitAsync(new ImportClient(app), app, app.AdultA, Loans(loans: List(BankLoan, ZeroLoan), bank: List(Bank2, Bank1, Bank3)));
+
+        var export = await new ExportClient(app).ExportAllAsync(app.AdultA);
+
+        Assert.Equal(("bank", "computed"), (S(export["loans"][0], "schedule_source"), S(export["loans"][1], "schedule_source")));
+        Assert.Equal(
+            [("lbs-1", "2020-11-15", "1159.92", "199423.41"), ("lbs-2", "2020-12-15", "1159.92", "198845.14"), ("lbs-3", "2021-01-15", "1159.92", "198265.18")],
+            export["loan_bank_schedule"].Select(r => (S(r, "id"), S(r, "due_date"), S(r, "payment"), S(r, "crd"))));
+        Assert.Equal((JsonValueKind.Null, "loan-main"), (export["loan_bank_schedule"][0].GetProperty("insurance").ValueKind, S(export["loan_bank_schedule"][0], "loan")));
     }
 }

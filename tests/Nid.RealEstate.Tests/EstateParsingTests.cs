@@ -31,5 +31,11 @@ public class EstateParsingTests
         Assert.Equal("loans[1].principal.amount", EstateParsing.PathOf(At("principal"), "loans[1]", phases, none, none, events));
         Assert.Equal("loans[1].total_payments", EstateParsing.PathOf(At("totalPayments"), "loans[1]", phases, none, none, events));
         Assert.Equal("loans[1]", EstateParsing.PathOf(At("phases"), "loans[1]", phases, none, none, events));
+        string?[] rows = [null, "loan_bank_schedule[0]"];
+        Assert.Equal("loan_bank_schedule[0].crd", EstateParsing.PathOf(At("rows[1].crd"), "loans[1]", phases, none, none, events, rows));
+        Assert.Equal("loan_bank_schedule[0].principal", EstateParsing.PathOf(At("rows[1].principal"), "loans[1]", phases, none, none, events, rows)); // a plain decimal
+        Assert.Equal("loan_bank_schedule[0].due_date", EstateParsing.PathOf(At("rows[1].dueDate"), "loans[1]", phases, none, none, events, rows));
+        Assert.Equal("loans[1]", EstateParsing.PathOf(At("rows[0].payment"), "loans[1]", phases, none, none, events, rows)); // a stored row
+        Assert.Equal("loans[1].schedule_source", EstateParsing.PathOf(At("scheduleSource"), "loans[1]", phases, none, none, events, rows));
     }
 }

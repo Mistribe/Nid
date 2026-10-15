@@ -102,9 +102,6 @@ public static class LoanCodes
 
     /// <summary>Spec 3F2 §3: the bank chosen as the reference without a stored table (in a file, without its rows).</summary>
     public const string BankScheduleMissing = "realestate.bank_schedule_missing";
-
-    /// <summary>Spec 3F1 §2: a file's loan whose schedule is the bank's; its table's section arrives in 3F2.</summary>
-    public const string ImportBankSchedule = "realestate.import_bank_schedule";
 }
 
 public static class LoanWarnings

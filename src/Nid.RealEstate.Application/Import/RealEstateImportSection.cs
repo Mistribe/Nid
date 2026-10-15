@@ -66,7 +66,7 @@ public sealed partial class RealEstateImportSection(
 
     public string Module => "realestate";
     public IReadOnlyList<string> Sections =>
-        [PropertiesSection, CostsSection, TenanciesSection, LoansSection, PhasesSection, InsurancesSection, FeesSection, EventsSection];
+        [PropertiesSection, CostsSection, TenanciesSection, LoansSection, PhasesSection, InsurancesSection, FeesSection, EventsSection, BankScheduleSection];
     public int Order => 40;
 
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
@@ -104,6 +104,9 @@ public sealed partial class RealEstateImportSection(
                     break;
                 case EventsSection:
                     Read<LoanEventRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryEvent(r, path, null, issues, out _));
+                    break;
+                case BankScheduleSection:
+                    Read<LoanBankScheduleRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryBankRow(r, path, issues, out _));
                     break;
             }
         }

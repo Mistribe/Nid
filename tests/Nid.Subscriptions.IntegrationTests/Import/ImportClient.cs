@@ -24,7 +24,7 @@ public sealed class ImportClient(NidApp app)
     /// then the real estate module's sections, then the Core's <c>valuations</c> and <c>flows</c>.</summary>
     private static readonly IReadOnlyList<string> CommitOrder =
         ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "income_sources", "income_phases",
-         "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "valuations", "flows"];
+         "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "valuations", "flows"];
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
