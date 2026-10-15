@@ -13,13 +13,14 @@ export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => (
   income: figure('2500.00'), incomeSources: 1, margin: eur('2249.45'), committedPct: 10,
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
   envelopeSplit: [], people: [], peopleMissingCurrency: null, upcoming: [], todo: [], envelopesWithoutStart: 0,
+  commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56') }],
   ...over,
 });
 
 export const emptyDashboard = dashboard({
   netWorth: figure(null), valuesAsOf: null, envelopes: 0, commitments: figure(null), cashThisMonth: figure(null),
   subscriptions: 0, income: figure(null), incomeSources: 0, margin: null, committedPct: null,
-  change: figure(null), changeContributions: figure(null), changePct: null,
+  change: figure(null), changeContributions: figure(null), changePct: null, commitmentSources: [],
 });
 
 export const envelope = (over: Partial<DashboardEnvelope> = {}): DashboardEnvelope => ({

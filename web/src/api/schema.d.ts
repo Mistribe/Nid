@@ -9691,6 +9691,10 @@ export interface components {
             phases?: null | components["schemas"]["PhaseInput"][];
             purchases?: null | components["schemas"]["PurchaseInput"][];
         };
+        DashboardCommitmentSourceView: {
+            source: string;
+            amortized?: null | components["schemas"]["DashboardMoneyView"];
+        };
         DashboardEnvelopeView: {
             /** Format: uuid */
             id: string;
@@ -9775,6 +9779,7 @@ export interface components {
             todo: components["schemas"]["DashboardTodoView"][];
             /** Format: int32 */
             envelopesWithoutStart: number;
+            commitmentSources: components["schemas"]["DashboardCommitmentSourceView"][];
         };
         DurationBody: {
             /** Format: int32 */

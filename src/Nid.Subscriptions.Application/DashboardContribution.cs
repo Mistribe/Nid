@@ -25,7 +25,7 @@ public sealed class SubscriptionsCommitments(IVisibleItems visible, ISubscriptio
                 timelines.Add(timeline!); // as the list: a refused subscription is reported by its own detail
 
         return Result.Success(new CommitmentsPart(
-            timelines.Count,
+            CommitmentSources.Subscriptions, timelines.Count,
             Sum(HouseholdCost.AmortizedPieces(timelines, window)),
             Sum(HouseholdCost.CashPieces(timelines, window))));
     }

@@ -19,9 +19,21 @@ public sealed record NetWorthPart(
 public sealed record Holding(
     ItemId Item, string Module, string Name, Money? Value, LocalDate? AsOf, bool Stale, IReadOnlyList<OwnerShare> Owners);
 
-/// <summary>2D1 spec §4: this month's amortized and cash cost of the reader's visible active subscriptions.</summary>
+/// <summary>
+/// 2D1 spec §4: this month's amortized and cash cost of one source of the reader's visible commitments. 3E1 spec §3:
+/// <c>Source</c> is one of <see cref="CommitmentSources"/>; <c>Count</c> the items it counted, so a source counting items
+/// that cost nothing this month still reads « aucun coût ce mois-ci », not « aucun engagement ».
+/// </summary>
 public sealed record CommitmentsPart(
-    int Subscriptions, IReadOnlyDictionary<Currency, decimal> Amortized, IReadOnlyDictionary<Currency, decimal> Cash);
+    string Source, int Count, IReadOnlyDictionary<Currency, decimal> Amortized, IReadOnlyDictionary<Currency, decimal> Cash);
+
+/// <summary>3E1 spec §3: the sources of the commitments, as the wire names them.</summary>
+public static class CommitmentSources
+{
+    public const string Subscriptions = "subscriptions";
+    public const string Loans = "loans";
+    public const string PropertyCosts = "property_costs";
+}
 
 /// <summary>
 /// 2D1 spec §4: the monthly equivalent of the phases running today, per currency. A contribution counting a source in

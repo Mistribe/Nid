@@ -23,6 +23,9 @@ public sealed record DashboardTodoView(string Kind, ItemId Id, string Module, st
 /// <summary>2D2a spec §4: a person's pro-rata share. <c>Slot</c> is their colour rank: adults by creation, then dependents.</summary>
 public sealed record DashboardPersonView(Guid Id, string Name, int Slot, DashboardMoneyView Amount, decimal Pct);
 
+/// <summary>3E1 spec §3: one source of the commitments, its amortized month in the household currency; null when a rate is missing.</summary>
+public sealed record DashboardCommitmentSourceView(string Source, DashboardMoneyView? Amortized);
+
 public sealed record DashboardView(
     string Currency,
     DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes,
@@ -30,7 +33,8 @@ public sealed record DashboardView(
     DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct,
     DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
     IReadOnlyList<DashboardEnvelopeView> EnvelopeSplit, IReadOnlyList<DashboardPersonView>? People, string? PeopleMissingCurrency,
-    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart)
+    IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart,
+    IReadOnlyList<DashboardCommitmentSourceView> CommitmentSources)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id)).Concat(Todo.Select(t => t.Id));
@@ -69,6 +73,16 @@ public static class DashboardMath
         var cash = Of(commitments.Select(p => p.Cash));
         var monthly = Of(income.Select(p => p.MonthlyEquivalent));
         var sources = income.Sum(p => p.Sources);
+        // 3E1 spec §3: each source counting at least one item, its amortized month converted as the total.
+        var bySource = commitments.GroupBy(p => p.Source)
+            .Where(g => g.Sum(p => p.Count) > 0)
+            .OrderBy(g => SourceRank(g.Key)).ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g =>
+            {
+                var sum = Of(g.Select(p => p.Amortized));
+                return new DashboardCommitmentSourceView(g.Key, sum.Missing is null ? Money(sum.Total ?? 0m, reference) : null);
+            })
+            .ToList();
 
         // No income declared reads « inconnu », never 0 (spec §3); no subscription commits nothing.
         decimal? incomeTotal = sources > 0 ? monthly.Total : null;
@@ -111,11 +125,12 @@ public static class DashboardMath
             reference.Code,
             netWorth.View(reference), worth.Select(p => p.OldestAsOf).Min(), worth.Sum(p => p.Envelopes),
             worth.Sum(p => p.WithoutValue), worth.Sum(p => p.Stale),
-            amortized.View(reference), cash.View(reference), commitments.Sum(p => p.Subscriptions),
+            amortized.View(reference), cash.View(reference),
+            commitments.Where(p => p.Source == CommitmentSources.Subscriptions).Sum(p => p.Count),
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,
             margin is { } m ? Money(m, reference) : null, share,
             gain.View(reference), net.View(reference), changePct,
-            split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart));
+            split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource);
     }
 
     /// <summary>One holding at today's rate: zero converts to zero at any rate, as <see cref="Sum.Of"/>.</summary>
@@ -127,6 +142,15 @@ public static class DashboardMath
             ? (converted, null)
             : (null, v.Currency.Code);
     }
+
+    /// <summary>3E1 spec §3: « Abonnements · Crédits · Charges des biens ».</summary>
+    private static int SourceRank(string source) => source switch
+    {
+        CommitmentSources.Subscriptions => 0,
+        CommitmentSources.Loans => 1,
+        CommitmentSources.PropertyCosts => 2,
+        _ => 3,
+    };
 
     /// <summary>Spec decision 2: value × share, pro rata; a person at zero is left out; percent of the persons' total.</summary>
     private static List<DashboardPersonView> People(
