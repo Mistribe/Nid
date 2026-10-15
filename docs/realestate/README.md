@@ -77,7 +77,7 @@ Ce sont des **prévisions**. Elles alimentent les engagements du tableau de bord
 
 - **Équivalent mensuel exact** : `amount ÷ (count × 12 si l'unité est l'année)`, arrondi à 0,01 à l'affichage.
 - **Prochaine échéance** : `starts_on` + k périodes (arithmétique de mois du Core).
-- **Routine mensuelle** : pour chaque charge attendue dans le mois, l'interface propose un flux `expense` **prérempli à confirmer**.
+- **Routine mensuelle** : pour chaque charge attendue dans le mois, l'interface propose un flux `expense` **prérempli à confirmer** (livré en 3E2, voir §6).
 
 ## 6. Baux : `property_tenancy`
 
@@ -94,7 +94,7 @@ Ce sont des **prévisions**. Elles alimentent les engagements du tableau de bord
 Calculs indicatifs :
 
 - **Loyer attendu** : mois complet couvert par le bail = `rent_monthly + charges_monthly` ; mois partiel = proratisé au nombre de jours du mois, arrondi au centime (demi supérieur).
-- **Loyer réel** : flux `income` de catégorie `rent`.
+- **Loyer réel** : flux `income` de catégorie `rent` ; la routine mensuelle propose chaque mois le loyer attendu de chaque bail, à confirmer comme tel (3E2).
 - **Impayés** = loyer attendu − loyer réel, affichés à titre d'information.
 - **Vacance** : jours sans bail entre le début de location R et la date d, sur les 12 mois glissants : de max(R, d − 12 mois + 1 jour) à d. R est la plus ancienne date entre `rental_starts_on` et le début du premier bail ; sans l’une ni l’autre, ou si R est après d, la vacance n’est pas calculée. **Taux de vacance** = jours vacants ÷ jours de la période.
 
@@ -105,6 +105,8 @@ Calculs indicatifs :
 - `GET /properties/{id}` ajoute `recurringCosts` (avec `monthlyEquivalent` et `nextDueOn`, `null` une fois la charge terminée) et `tenancies` (avec `current`), par date de début, et dans `figures` : `rentedSince`, `expectedRent`, `rentReceived`, `arrears`, `vacantDays`, `vacancyRate`, `grossYield`, `netYieldBeforeTax` ; `GET /properties` ajoute à chaque ligne `grossYield` et `vacancyRate`.
 
 Une charge récurrente ne crée aucun flux. Deux baux d’un même bien ne se chevauchent jamais (`realestate.tenancy_overlap` sur `startsOn`) : chaque écriture de bail verrouille la ligne du bien avant de vérifier. Un `PATCH` du bien refuse une date d’achat postérieure au début d’un de ses baux (`purchaseDate`). Une charge de catégorie `works` est refusée (`realestate.invalid_category`) : les travaux sont déjà dans le prix de revient. Avertissement `rental_without_tenancy` : un bien de type `rental` sans bail ni `rental_starts_on`.
+
+**Livré en 3E2** (`superpowers/specs/2026-10-15-realestate-routine-design.md`) : `GET /api/v1/realestate/routine?on=` (par défaut le dernier jour du mois précédent, jamais après aujourd’hui ; M est le mois de `on`) propose, pour les biens visibles dans « Moi » que le lecteur peut modifier, une estimation par bien (due sans estimation au plus tard à `on`, ou quand la dernière est périmée à `on`), chaque charge prévue dont une échéance tombe dans M, et le loyer attendu de M de chaque bail qui en couvre au moins un jour (loyer + charges, proratisé comme les impayés, daté du premier jour couvert), chacun avec ce qui est déjà saisi dans M pour la même nature et la même catégorie ; lectures par lots. `POST /api/v1/realestate/routine` (`{ on, estimates: [{ property, amount }], flows: [{ property, kind, category, occurredOn, amount }] }`) enregistre tout ou rien, dans la devise du bien : une dépense d’une catégorie de charge prévue ou un revenu `rent`, daté dans M et au plus tard aujourd’hui ; une estimation déjà présente à `on` est refusée (`realestate.routine_value_exists` : la corriger depuis la fiche), une ligne en double aussi (`realestate.routine_duplicate`), une routine vide aussi (`realestate.routine_empty`) ; un bien que le lecteur ne peut pas modifier répond « introuvable ». La réponse récapitule, bien par bien, les faits créés ; `POST /api/v1/realestate/routine/undo` les annule exactement (`Void`, historique conservé).
 
 ## 7. Calculs
 
