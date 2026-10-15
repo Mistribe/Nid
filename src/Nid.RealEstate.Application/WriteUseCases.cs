@@ -116,8 +116,37 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
         if (built.TryGetFailure(out failure))
             return Result.Failure<ItemId>(LoanPaths.ForContract(failure!));
 
-        await loans.ReplaceContractAsync(command.ItemId, command.Contract, ct);
+        // Spec 3F1 §2: an edit that keeps the count keeps each phase's file id by its number and each insurance's by its rank, so
+        // the file the loan came from re-imports unchanged (Review Focus 1). When the count changes, only an entry left exactly as
+        // stored keeps its file id (each id once); a deleted row frees its id, so the file recreates it instead of doubling another.
+        // ponytail: an entry edited in the same PUT that adds or deletes one loses its file id (the file re-adds its version beside
+        // it), and two insurances swapped in a count-keeping edit swap ids; match on stable row ids from the web if either matters.
+        var stored = found.Loan.Contract;
+        var sent = command.Contract;
+        var phaseMarks = stored.Phases.Where(s => s.Import is not null).ToList();
+        var insuranceMarks = stored.Insurances.Where(s => s.Import is not null).ToList();
+        var contract = sent with
+        {
+            Phases = sent.Phases.Count == stored.Phases.Count
+                ? sent.Phases.Select(p => p with { Import = stored.Phases.FirstOrDefault(s => s.Phase.Seq == p.Phase.Seq)?.Import }).ToList()
+                : sent.Phases.Select(p => p with { Import = Take(phaseMarks, s => s.Phase == p.Phase && s.Note == p.Note)?.Import }).ToList(),
+            Insurances = sent.Insurances.Count == stored.Insurances.Count
+                ? sent.Insurances.Select((i, k) => i with { Import = stored.Insurances[k].Import }).ToList()
+                : sent.Insurances.Select(i => i with { Import = Take(insuranceMarks, s => s.Insurance == i.Insurance && s.Note == i.Note)?.Import }).ToList(),
+        };
+        await loans.ReplaceContractAsync(command.ItemId, contract, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
+    }
+
+    /// <summary>The first marked stored entry that matches, removed from <paramref name="marked"/> so its mark is used once.</summary>
+    private static T? Take<T>(List<T> marked, Predicate<T> match) where T : class
+    {
+        var index = marked.FindIndex(match);
+        if (index < 0)
+            return null;
+        var taken = marked[index];
+        marked.RemoveAt(index);
+        return taken;
     }
 }

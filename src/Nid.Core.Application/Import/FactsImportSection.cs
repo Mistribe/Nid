@@ -16,7 +16,8 @@ namespace Nid.Core.Application.Import;
 /// one the file does not name is a conflict, which <c>replace</c> corrects through the <c>supersedes_id</c> chain.
 /// </summary>
 public sealed class FactsImportSection(
-    IValuations valuations, IFlows flows, IFactImports facts, IAccessPolicy policy, IHouseholdCalendar calendar) : IImportSection
+    IValuations valuations, IFlows flows, IFactImports facts, IAccessPolicy policy, IHouseholdCalendar calendar,
+    IEnumerable<IFactConventions> conventions) : IImportSection
 {
     public const string ValuationsSection = "valuations";
     public const string FlowsSection = "flows";
@@ -191,6 +192,13 @@ public sealed class FactsImportSection(
             if (!TryParse(entity, record, path, currency, today, issues, out var fact))
                 continue;
 
+            // 3F1 spec §3: a flow of an item whose module declares a convention keeps it, at validation and again at commit.
+            if (fact.Kind is { } kind && Convention(context, itemRef) is { } convention && convention.Refusal(kind, fact.Category) is { } refusal)
+            {
+                issues.Add(ImportIssue.Error(convention.Code, refusal.Message, path + "." + refusal.Member));
+                continue;
+            }
+
             // Duplicates in the file, at the second one: what the Core allows once per item.
             var keys = Keys(fact);
             if (keys.FirstOrDefault(k => inFile.Contains((item, k))) is { } repeated)
@@ -318,6 +326,13 @@ public sealed class FactsImportSection(
             return (null, 0, true);
         var matches = context.Items.Where(e => e.Key.Id == fileId).Select(e => e.Value).Distinct().ToList();
         return (matches.Count == 1 ? matches[0] : null, matches.Count, false);
+    }
+
+    /// <summary>3F1 spec §3: the convention of the section that created the one item a fact names (<see cref="ItemOf"/>), or null.</summary>
+    private FactConvention? Convention(ImportContext context, string fileId)
+    {
+        var section = context.Items.Keys.First(k => k.Id == fileId).Section;
+        return conventions.SelectMany(c => c.Conventions).FirstOrDefault(c => c.Section == section);
     }
 
     /// <summary>At apply, the item is looked up again by its file id: the item sections have replaced planned ids with real ones.</summary>

@@ -160,11 +160,13 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
         services.AddScoped<ILoanStore, LoanStore>();
         services.AddScoped<IPropertyStore, PropertyStore>();
+        services.AddScoped<IRealEstateImports, RealEstateImports>();
         services.AddScoped<Nid.RealEstate.Application.PropertyReading>();
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
         services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
+        services.AddSingleton<IFactConventions, Nid.RealEstate.Application.RealEstateFactConventions>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.
@@ -199,6 +201,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, SubscriptionsImportSection>();
         services.AddScoped<IImportSection, EnvelopesImportSection>();
         services.AddScoped<IImportSection, IncomeImportSection>();
+        services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();
 
         services.AddLogging();

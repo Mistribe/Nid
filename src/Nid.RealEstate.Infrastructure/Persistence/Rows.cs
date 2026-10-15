@@ -3,7 +3,7 @@ using NodaTime;
 namespace Nid.RealEstate.Infrastructure.Persistence;
 
 /// <summary>realestate.loan (spec 3A2 §2): 1:1 with its Core item; <c>Version</c> is <c>xmin</c>, the contract's version.</summary>
-public sealed class LoanRow
+public sealed class LoanRow : IImportMarked
 {
     public Guid ItemId { get; set; }
     public string? Lender { get; set; }
@@ -18,10 +18,13 @@ public sealed class LoanRow
     /// <summary>Spec 3C1 §2: the property financed; no foreign key across items (a property is never deleted).</summary>
     public Guid? PropertyItemId { get; set; }
 
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
 
-public sealed class LoanPhaseRow
+public sealed class LoanPhaseRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid LoanItemId { get; set; }
@@ -33,9 +36,12 @@ public sealed class LoanPhaseRow
     public decimal? PaymentOverride { get; set; }
     public decimal? OpeningBalanceOverride { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
 }
 
-public sealed class LoanInsuranceRow
+public sealed class LoanInsuranceRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid LoanItemId { get; set; }
@@ -45,9 +51,12 @@ public sealed class LoanInsuranceRow
     public LocalDate StartsOn { get; set; }
     public LocalDate? EndsOn { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
 }
 
-public sealed class LoanFeeRow
+public sealed class LoanFeeRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid LoanItemId { get; set; }
@@ -55,11 +64,14 @@ public sealed class LoanFeeRow
     public decimal Amount { get; set; }
     public LocalDate OnDate { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
 
 /// <summary>realestate.loan_event: an early repayment, the only event (no <c>kind</c> column); <c>FeeId</c> is its penalty.</summary>
-public sealed class LoanEventRow
+public sealed class LoanEventRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid LoanItemId { get; set; }
@@ -68,11 +80,14 @@ public sealed class LoanEventRow
     public string Effect { get; set; } = "";
     public Guid? FeeId { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
 
 /// <summary>realestate.property (spec 3C1 §2): 1:1 with its Core item; <c>Version</c> is <c>xmin</c>.</summary>
-public sealed class PropertyRow
+public sealed class PropertyRow : IImportMarked
 {
     public Guid ItemId { get; set; }
     public string PropertyType { get; set; } = "";
@@ -87,11 +102,14 @@ public sealed class PropertyRow
     public int? StaleAfterDays { get; set; }
     public LocalDate? RentalStartsOn { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
 
 /// <summary>realestate.property_recurring_cost (spec 3C2 §2): a planned cost of a property; <c>Version</c> is <c>xmin</c>.</summary>
-public sealed class PropertyRecurringCostRow
+public sealed class PropertyRecurringCostRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid PropertyItemId { get; set; }
@@ -102,11 +120,14 @@ public sealed class PropertyRecurringCostRow
     public LocalDate StartsOn { get; set; }
     public LocalDate? EndsOn { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
 
 /// <summary>realestate.property_tenancy (spec 3C2 §2): a tenancy of a property; <c>Version</c> is <c>xmin</c>.</summary>
-public sealed class PropertyTenancyRow
+public sealed class PropertyTenancyRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid PropertyItemId { get; set; }
@@ -117,5 +138,8 @@ public sealed class PropertyTenancyRow
     public decimal ChargesMonthly { get; set; }
     public decimal? Deposit { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }

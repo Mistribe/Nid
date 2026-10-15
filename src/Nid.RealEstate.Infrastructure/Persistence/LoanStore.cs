@@ -122,20 +122,31 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
 
     private void AddParts(ItemId item, LoanContract contract)
     {
-        foreach (var (phase, note) in contract.Phases)
-            db.Phases.Add(new LoanPhaseRow
+        // Spec 3F1 §2: a rewritten phase or insurance keeps the file id its entry carries.
+        foreach (var entry in contract.Phases)
+        {
+            var phase = entry.Phase;
+            var row = new LoanPhaseRow
             {
                 Id = Guid.CreateVersion7(), LoanItemId = item.Value, Seq = phase.Seq, Mode = LoanWire.Of(phase.Mode),
                 AnnualRate = phase.AnnualRate, RateType = LoanWire.Of(phase.RateType), Payments = phase.Payments,
-                PaymentOverride = phase.PaymentOverride, OpeningBalanceOverride = phase.OpeningBalanceOverride, Note = note,
-            });
-        foreach (var (insurance, note) in contract.Insurances)
-            db.Insurances.Add(new LoanInsuranceRow
+                PaymentOverride = phase.PaymentOverride, OpeningBalanceOverride = phase.OpeningBalanceOverride, Note = entry.Note,
+            };
+            RealEstateImports.Mark(row, entry.Import);
+            db.Phases.Add(row);
+        }
+        foreach (var entry in contract.Insurances)
+        {
+            var insurance = entry.Insurance;
+            var row = new LoanInsuranceRow
             {
                 Id = Guid.CreateVersion7(), LoanItemId = item.Value, Mode = LoanWire.Of(insurance.Mode),
                 MonthlyAmount = insurance.MonthlyAmount, AnnualRate = insurance.AnnualRate, StartsOn = insurance.StartsOn,
-                EndsOn = insurance.EndsOn, Note = note,
-            });
+                EndsOn = insurance.EndsOn, Note = entry.Note,
+            };
+            RealEstateImports.Mark(row, entry.Import);
+            db.Insurances.Add(row);
+        }
     }
 
     private static void Fill(LoanRow row, LoanContract contract)
@@ -167,10 +178,11 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
 
     private static LoanPhaseEntry ToPhase(LoanPhaseRow r)
         => new(new LoanPhase(r.Seq, Parse<PhaseMode>(r.Mode), r.AnnualRate, Parse<RateType>(r.RateType), r.Payments,
-            r.PaymentOverride, r.OpeningBalanceOverride), r.Note);
+            r.PaymentOverride, r.OpeningBalanceOverride), r.Note) { Import = RealEstateImports.MarkOf(r), Id = r.Id };
 
     private static LoanInsuranceEntry ToInsurance(LoanInsuranceRow r)
-        => new(new LoanInsurance(Parse<InsuranceMode>(r.Mode), r.MonthlyAmount, r.AnnualRate, r.StartsOn, r.EndsOn), r.Note);
+        => new(new LoanInsurance(Parse<InsuranceMode>(r.Mode), r.MonthlyAmount, r.AnnualRate, r.StartsOn, r.EndsOn), r.Note)
+            { Import = RealEstateImports.MarkOf(r), Id = r.Id };
 
     private static StoredFee ToFee(LoanFeeRow r) => new(r.Id, new LoanFee(Parse<FeeKind>(r.Kind), r.Amount, r.OnDate), r.Note, r.Version);
 

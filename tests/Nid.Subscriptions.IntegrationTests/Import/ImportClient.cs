@@ -21,9 +21,10 @@ public sealed class ImportClient(NidApp app)
     /// <summary>The commit order the runner applies sections in (§11.4: Order, then module, then each module's sections):
     /// <c>persons</c>, the subscriptions module's <c>providers</c>, <c>subscriptions</c>, <c>billing_phases</c>,
     /// <c>purchases</c>, then <c>envelopes</c>, then the income module's <c>income_sources</c> and <c>income_phases</c>,
-    /// then the Core's <c>valuations</c> and <c>flows</c>.</summary>
+    /// then the real estate module's sections, then the Core's <c>valuations</c> and <c>flows</c>.</summary>
     private static readonly IReadOnlyList<string> CommitOrder =
-        ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "income_sources", "income_phases", "valuations", "flows"];
+        ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "income_sources", "income_phases",
+         "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "valuations", "flows"];
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

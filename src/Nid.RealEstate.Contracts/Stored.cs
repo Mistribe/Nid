@@ -36,11 +36,24 @@ public static class LoanWire
     }
 }
 
-/// <summary>A phase as stored: the engine's phase and its note.</summary>
-public sealed record LoanPhaseEntry(LoanPhase Phase, string? Note);
+/// <summary>
+/// A phase as stored: the engine's phase and its note. <c>Import</c> is the file id it was imported under (spec 3F1 §2), null when
+/// made in the app; <c>Id</c> is its row's, set when read back — a contract write gives its rows new ids, not new marks.
+/// </summary>
+public sealed record LoanPhaseEntry(LoanPhase Phase, string? Note)
+{
+    public ImportMark? Import { get; init; }
 
-/// <summary>An insurance as stored: the engine's insurance and its note.</summary>
-public sealed record LoanInsuranceEntry(LoanInsurance Insurance, string? Note);
+    public Guid Id { get; init; }
+}
+
+/// <summary>An insurance as stored: the engine's insurance and its note; <c>Import</c> and <c>Id</c> as a phase's.</summary>
+public sealed record LoanInsuranceEntry(LoanInsurance Insurance, string? Note)
+{
+    public ImportMark? Import { get; init; }
+
+    public Guid Id { get; init; }
+}
 
 /// <summary>Spec 3A2 §1: what one <c>PUT</c> replaces whole — the terms, the phases (read back by <c>Seq</c>), the insurances.</summary>
 public sealed record LoanContract(

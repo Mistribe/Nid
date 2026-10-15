@@ -16,11 +16,10 @@ public sealed record BatchView(string Section, int Index, int Count, bool Accept
 
 public static class ImportSections
 {
-    /// <summary>Sections of <c>import-format.md</c> §3 whose module does not exist yet, or not in this form.</summary>
+    /// <summary>Sections of <c>import-format.md</c> §3 whose module does not deliver them yet, or not in this form.</summary>
     public static IReadOnlySet<string> NotYetSupported { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases",
-        "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "documents",
+        "loan_bank_schedule", "documents",
     };
 }
 

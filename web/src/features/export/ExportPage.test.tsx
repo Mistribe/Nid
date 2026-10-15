@@ -57,6 +57,15 @@ describe('Export', () => {
     expect(items).toEqual(expect.arrayContaining(['Enveloppes : 1', 'Valeurs : 2', 'Flux : 1']));
   });
 
+  it('labels the real estate sections', async () => {
+    server.use(...fakeExportServer({ ...pages(), properties: [[{ id: 'p1' }]], loans: [[{ id: 'l1' }, { id: 'l2' }]], loan_events: [[{ id: 'e1' }]] }).handlers);
+    await renderApp('/export');
+
+    const contents = await screen.findByRole('list', { name: "Contenu de l'export" });
+    const items = within(contents).getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(expect.arrayContaining(['Biens : 1', 'Crédits : 2', 'Remboursements anticipés : 1']));
+  });
+
   it('exports, downloads one file, and says how many elements it holds', async () => {
     server.use(...fakeExportServer(pages()).handlers);
     const { container, user } = await renderApp('/export');
