@@ -65,5 +65,33 @@ public sealed class EnvelopePerformance(
         return Result.Success(new Facts(envelope.Envelope, envelope.Item, values!, flowList!, currency!.Value));
     }
 
+    /// <summary>
+    /// Batched reads spec §3: <see cref="FactsAsync"/> for many envelopes whose items are already read, in a fixed number of
+    /// queries; null when their facts cannot be read as a block. An envelope the registry does not know is left out of the
+    /// block (it has no facts, as alone) so it cannot refuse it.
+    /// </summary>
+    internal async Task<IReadOnlyDictionary<ItemId, Facts>?> FactsManyAsync(
+        IReadOnlyList<Envelope> found, IReadOnlyDictionary<ItemId, ItemAccess> accesses, CancellationToken ct)
+    {
+        var ids = found.Select(e => e.ItemId).Where(accesses.ContainsKey).ToList();
+        if (!(await valuations.SeriesManyAsync(ids, EnvelopeCheck.Everything, ct)).TryGetValue(out var values)
+            || !(await flows.ListManyAsync(ids, EnvelopeCheck.Everything, null, ct)).TryGetValue(out var flowLists))
+            return null;
+
+        var facts = new Dictionary<ItemId, Facts>();
+        foreach (var envelope in found)
+        {
+            if (!accesses.TryGetValue(envelope.ItemId, out var item))
+                continue;
+            var series = values![envelope.ItemId];
+            var list = flowLists![envelope.ItemId];
+            // As FactsAsync: the first fact's currency, else the item's (the block was refused if an item had none).
+            var currency = series.FirstOrDefault()?.Value.Currency ?? list.FirstOrDefault()?.Amount.Currency
+                ?? (Currency.TryCreate(item.Currency ?? "", out var own) ? own : throw new InvalidOperationException($"Envelope {item.Id} has no currency."));
+            facts[envelope.ItemId] = new Facts(envelope, item, series, list, currency);
+        }
+        return facts;
+    }
+
     internal sealed record Facts(Envelope Envelope, ItemAccess Item, IReadOnlyList<Valuation> Values, IReadOnlyList<Flow> Flows, Currency Currency);
 }
