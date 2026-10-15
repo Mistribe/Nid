@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
+import { categoryText } from '../properties/format';
 import type { DashboardEvent, DashboardTodo, DashboardView } from './api';
 import { ItemLink } from './ItemLink';
 import { Panel } from './Split';
@@ -11,6 +12,11 @@ function EventText({ e }: { e: DashboardEvent }) {
     case 'subscription_renewal': return <>{t('dashboard.upcoming.subscription_renewal')}</>;
     case 'subscription_expiry': return <>{t('dashboard.upcoming.subscription_expiry')}</>;
     case 'income_phase_end': return <>{t('dashboard.upcoming.income_phase_end', { label: e.label ?? '' })}</>;
+    case 'loan_phase_end': return <>{t('dashboard.upcoming.loan_phase_end', { n: e.label ?? '' })}</>;
+    case 'loan_end': return <>{t('dashboard.upcoming.loan_end')}</>;
+    case 'valuation_due': return <>{t('dashboard.upcoming.valuation_due')}</>;
+    case 'property_cost_due': return <>{categoryText(t, e.label)}</>;
+    case 'tenancy_end': return <>{t('dashboard.upcoming.tenancy_end', { label: e.label ?? '' })}</>;
     default: return null;
   }
 }

@@ -1,6 +1,7 @@
 import { Link, useSearch } from '@tanstack/react-router';
 import { Clock } from 'lucide-react';
 import { lazy, Suspense, useId, type ReactNode } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -12,7 +13,7 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Direction } from '../investments/Figures';
 import { Todo, Upcoming } from './Agenda';
-import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
+import { DASHBOARD, type DashboardCommitmentSource, type DashboardFigure, type DashboardView } from './api';
 import { percent } from './format';
 import { EnvelopeSplit, Panel, PeopleSplit } from './Split';
 
@@ -142,12 +143,27 @@ function NetWorth({ d }: { d: DashboardView }) {
   );
 }
 
+const SOURCES = ['subscriptions', 'loans', 'property_costs'] as const;
+
+/** Spec 3E1 §3: « Abonnements X · Crédits Y · Charges des biens Z », the server's amounts, only the sources it lists. */
+function sourcesText(t: TFunction, sources: DashboardCommitmentSource[]): string {
+  return sources.flatMap((s) => {
+    const k = SOURCES.find((x) => x === s.source);
+    return k && s.amortized ? [t(`dashboard.commitment_source.${k}`, { amount: formatMoney(s.amortized) })] : [];
+  }).join(' · ');
+}
+
 function Commitments({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   return (
-    <Card title={t('dashboard.commitments')} links={[{ module: 'subscriptions', to: '/subscriptions', label: t('dashboard.see_subscriptions') }]}>
-      <Big figure={d.commitments} unknown={t(d.subscriptions > 0 ? 'dashboard.commitments_none_this_month' : 'dashboard.commitments_none')} />
+    <Card title={t('dashboard.commitments')} links={[
+      { module: 'subscriptions', to: '/subscriptions', label: t('dashboard.see_subscriptions') },
+      { module: 'realestate', to: '/loans', label: t('dashboard.see_loans') },
+    ]}>
+      {/* A source the server lists counts items: with nothing due this month it is « aucun coût », not « aucun engagement ». */}
+      <Big figure={d.commitments} unknown={t(d.commitmentSources.length > 0 ? 'dashboard.commitments_none_this_month' : 'dashboard.commitments_none')} />
       {d.commitments.total ? <p className="text-sm text-muted-foreground">{t('dashboard.amortized_per_month')}</p> : null}
+      {d.commitments.total ? <p className="text-sm text-muted-foreground">{sourcesText(t, d.commitmentSources)}</p> : null}
       {d.cashThisMonth.total ? <p className="text-sm">{t('dashboard.cash_this_month', { amount: formatMoney(d.cashThisMonth.total) })}</p> : null}
       {d.committedPct != null ? <p className="text-sm">{t('dashboard.committed_share', { value: percent(d.committedPct) })}</p> : null}
     </Card>

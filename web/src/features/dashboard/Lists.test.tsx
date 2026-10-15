@@ -128,6 +128,32 @@ describe('dashboard lists', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('says what each real estate event is, a planned cost by its category with its amount', async () => {
+    const property = { module: 'properties', id: '00000000-0000-7000-8000-0000000000f1', name: 'Maison' };
+    const loan = { module: 'loans', id: '00000000-0000-7000-8000-0000000000f2', name: 'Prêt travaux', amount: null };
+    serve(dashboard({
+      upcoming: [
+        event({ ...property, on: '2025-10-20', kind: 'property_cost_due', label: 'property_tax', amount: { amount: '1200.00', currency: 'EUR' } }),
+        event({ ...property, on: '2025-10-26', kind: 'valuation_due', amount: null }),
+        event({ ...loan, on: '2025-11-15', kind: 'loan_end' }),
+        event({ ...loan, on: '2025-11-15', kind: 'loan_phase_end', label: '1' }),
+        event({ ...property, on: '2025-12-01', kind: 'tenancy_end', label: 'T2 meublé', amount: null }),
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const items = within(await section('À venir')).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Taxe foncière');
+    expect(items[0]).toHaveTextContent('1 200,00 €');
+    expect(within(items[0] as HTMLElement).getByRole('link', { name: 'Maison' })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1');
+    expect(items[1]).toHaveTextContent('Estimation à refaire');
+    expect(items[2]).toHaveTextContent('Dernière échéance');
+    expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Prêt travaux' })).toHaveAttribute('href', '/loans/00000000-0000-7000-8000-0000000000f2');
+    expect(items[3]).toHaveTextContent('Fin de la phase 1 : taux ou différé qui change');
+    expect(items[4]).toHaveTextContent('Fin du bail « T2 meublé »');
+    await expectNoAxeViolations(container);
+  });
+
   it('lists what to do, each linked to its item', async () => {
     serve(dashboard({
       todo: [

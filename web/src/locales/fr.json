@@ -102,12 +102,18 @@
     "see_investments": "Voir les placements",
     "see_properties": "Voir les biens",
     "commitments": "Engagements",
-    "commitments_none": "Aucun abonnement",
+    "commitments_none": "Aucun engagement",
     "commitments_none_this_month": "Aucun coût ce mois-ci",
     "amortized_per_month": "par mois, amorti",
     "cash_this_month": "{{amount}} prélevés ce mois-ci",
     "committed_share": "{{value}} % des revenus",
     "see_subscriptions": "Voir les abonnements",
+    "see_loans": "Voir les crédits",
+    "commitment_source": {
+      "subscriptions": "Abonnements {{amount}}",
+      "loans": "Crédits {{amount}}",
+      "property_costs": "Charges des biens {{amount}}"
+    },
     "income": "Revenus et marge",
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
@@ -146,7 +152,11 @@
       "empty": "Rien dans les 60 prochains jours.",
       "subscription_renewal": "Renouvellement",
       "subscription_expiry": "Expire",
-      "income_phase_end": "Fin de « {{label}} »"
+      "income_phase_end": "Fin de « {{label}} »",
+      "loan_phase_end": "Fin de la phase {{n}} : taux ou différé qui change",
+      "loan_end": "Dernière échéance",
+      "valuation_due": "Estimation à refaire",
+      "tenancy_end": "Fin du bail « {{label}} »"
     },
     "todo": {
       "title": "À faire",

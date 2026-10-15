@@ -78,13 +78,43 @@ describe('DashboardPage', () => {
     expect(within(change).getByText('en baisse')).toBeInTheDocument();
   });
 
-  it('says « Aucun coût ce mois-ci » for subscriptions without a cost this month', async () => {
-    serve(dashboard({ commitments: figure(null), cashThisMonth: figure(null), committedPct: null, subscriptions: 2 }));
+  it('says « Aucun coût ce mois-ci » when a source costs nothing this month', async () => {
+    serve(dashboard({
+      commitments: figure(null), cashThisMonth: figure(null), committedPct: null, subscriptions: 0,
+      commitmentSources: [{ source: 'loans', amortized: { amount: '0.00', currency: 'EUR' } }],
+    }));
     await renderApp('/dashboard');
 
     const commitments = await card('Engagements');
     expect(commitments).toHaveTextContent('Aucun coût ce mois-ci');
-    expect(commitments).not.toHaveTextContent('Aucun abonnement');
+    expect(commitments).not.toHaveTextContent('Aucun engagement');
+    expect(commitments).not.toHaveTextContent('Crédits');
+  });
+
+  it('says « Aucun engagement » with no source at all', async () => {
+    serve(dashboard({ commitments: figure(null), cashThisMonth: figure(null), committedPct: null, subscriptions: 0, commitmentSources: [] }));
+    await renderApp('/dashboard');
+
+    expect(await card('Engagements')).toHaveTextContent('Aucun engagement');
+  });
+
+  it('details the commitments by source under the total, as the server computed them, with a link to the loans', async () => {
+    serve(dashboard({
+      commitments: figure('1279.99'),
+      commitmentSources: [
+        { source: 'subscriptions', amortized: { amount: '9.99', currency: 'EUR' } },
+        { source: 'loans', amortized: { amount: '1020.00', currency: 'EUR' } },
+        { source: 'property_costs', amortized: { amount: '250.00', currency: 'EUR' } },
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const commitments = await card('Engagements');
+    expect(commitments).toHaveTextContent('1 279,99 €');
+    expect(commitments).toHaveTextContent('Abonnements 9,99 € · Crédits 1 020,00 € · Charges des biens 250,00 €');
+    expect(within(commitments).getByRole('link', { name: 'Voir les abonnements' })).toHaveAttribute('href', '/subscriptions');
+    expect(within(commitments).getByRole('link', { name: 'Voir les crédits' })).toHaveAttribute('href', '/loans');
+    await expectNoAxeViolations(container);
   });
 
   it('names the missing rate when the margin is unknown though income is declared', async () => {
