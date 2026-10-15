@@ -45,6 +45,8 @@ public class BankScheduleTests
         "deferred" => Deferred() with { Events = [new EarlyRepayment(Due(3), 1_000m, RepaymentEffect.ReduceTerm)] },
         // An imposed payment below the annuity: the loan runs past its 240 payments, the warning on the 241st.
         "extended" => Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, PaymentOverride: 1_100m)] },
+        // A prorated first payment: the bank's first interest beyond a month's is not part of the next payment (LoanScheduleBuilder).
+        "prorata" => Loans.Golden() with { FirstPeriod = FirstPeriod.ProrataActual365 },
         _ => throw new ArgumentOutOfRangeException(nameof(loan)),
     };
 
@@ -56,6 +58,8 @@ public class BankScheduleTests
     [InlineData("reduce-payment", 1, 3)]
     [InlineData("two-rates", 1, 6)]
     [InlineData("deferred", 1, 4)]
+    [InlineData("prorata", 1, 1)]
+    [InlineData("prorata", 1, 6)]
     [InlineData("extended", 1, 0)]
     [InlineData("extended", 1, 200)]
     public void A_table_equal_to_the_calculation_gives_the_calculation_back_with_its_rows_marked(string loan, int from, int count)

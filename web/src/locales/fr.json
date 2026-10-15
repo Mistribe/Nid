@@ -1456,7 +1456,7 @@
     "refusal": {
       "line": "Une ligne compte 5 ou 6 colonnes : date, mensualité, intérêts, capital, assurance (facultative), capital restant dû.",
       "dueDate": "La date s’écrit jj/mm/aaaa ou aaaa-mm-jj ; elle tombe sur une échéance du crédit et suit la précédente, sans échéance manquante.",
-      "payment": "La mensualité, hors assurance, vaut les intérêts plus le capital : si elle comprend l’assurance, ajoutez la colonne de l’assurance avant le capital restant dû.",
+      "payment": "Un montant lisible, avec deux décimales au plus ; la mensualité, hors assurance, vaut les intérêts plus le capital (si elle comprend l’assurance, ajoutez la colonne de l’assurance avant le capital restant dû).",
       "interest": "Les intérêts sont un montant positif ou nul, avec deux décimales au plus.",
       "principal": "Le capital est un montant positif ou nul, avec deux décimales au plus.",
       "insurance": "L’assurance est un montant positif ou nul, avec deux décimales au plus.",

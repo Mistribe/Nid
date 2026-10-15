@@ -188,10 +188,11 @@ describe('the bank’s table', () => {
 
   it('tells a reader no table is stored, without offering one', async () => {
     serve(loanDetail({ canWrite: false }));
-    await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(`/loans/${LOAN}`);
 
     const section = await region();
     expect(within(section).getByText('Aucun tableau de la banque enregistré.')).toBeInTheDocument();
     expect(within(section).queryByRole('button')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 });

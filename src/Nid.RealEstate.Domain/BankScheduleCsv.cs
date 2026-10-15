@@ -78,6 +78,8 @@ public static class BankScheduleCsv
     {
         var text = new string(cell.Where(c => !char.IsWhiteSpace(c) && char.GetUnicodeCategory(c) != UnicodeCategory.CurrencySymbol).ToArray())
             .Replace(',', '.');
+        if (text is "-" or "\u2013")
+            return 0m; // a spreadsheet's accounting format shows zero as a dash
         if (decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount))
             return amount;
         errors.Add(new(line, column, "An amount is written like 1 159,92 or 1159.92."));

@@ -107,7 +107,7 @@ internal static class LoanViews
         // Spec 3F2 §3–§4: a stored table is compared with the calculation whatever the reference; the calculation as the reference
         // drifting from it is a warning, at the computed row of the date it diverges on.
         var bank = LoanReading.BankRows(loan);
-        var computed = bank.Count == 0 ? null : LoanReading.Computed(terms);
+        var computed = bank.Count == 0 ? null : loan.Source == ScheduleSource.Computed ? schedule : LoanReading.Computed(terms);
         var diff = computed is null ? null : BankSchedule.Diff(computed, bank);
         var warnings = WarningsOf(schedule);
         if (loan.Source == ScheduleSource.Computed && diff?.Summary.DivergesOn is { } on)

@@ -26,6 +26,15 @@ public class BankScheduleCsvTests
     }
 
     [Fact]
+    public void A_dash_reads_as_zero_and_an_empty_insurance_stays_absent()
+    {
+        var read = BankScheduleCsv.Read("15/02/2024;1159,92;583,33;-;\u2013;199423,41\n15/03/2024;1159,92;581,65;578,27;;198845,14");
+
+        Assert.Empty(read.Errors);
+        Assert.Equal([new BankCsvRow(0, First with { Principal = 0m, Insurance = 0m }), new BankCsvRow(1, Second)], read.Rows);
+    }
+
+    [Fact]
     public void Tabs_iso_dates_and_decimal_points_read_without_an_insurance_column()
     {
         var read = BankScheduleCsv.Read("2024-02-15\t1159.92\t583.33\t576.59\t199423.41\n2024-03-15\t1159.92\t581.65\t578.27\t198845.14");

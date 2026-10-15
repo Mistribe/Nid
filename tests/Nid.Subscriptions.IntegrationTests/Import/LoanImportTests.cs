@@ -398,6 +398,23 @@ public class LoanImportTests(PostgresFixture fixture)
         Assert.Equal("197265.18", S(TableOf(await LoanAsync(app, "Prêt principal")).GetProperty("rows")[2], "crd"));
     }
 
+    /// <summary>import-format.md §12bis: rows at the dates of a table typed in the app are refused on a first import of rows, not merged.</summary>
+    [Fact]
+    public async Task Rows_at_the_dates_of_a_table_stored_in_the_app_are_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, Loans(loans: List(MainLoan, ZeroLoan)));
+        var id = await LoanIdAsync(app, "Prêt principal");
+        var version = (await LoanAsync(app, "Prêt principal")).GetProperty("contract").GetProperty("version").GetUInt32();
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/realestate/loans/{id}/bank-schedule", new { text = LoanApi.BankTable, version });
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+
+        var clash = await ValidateAsync(client, app, app.AdultA, Loans(loans: List(BankLoan, ZeroLoan), bank: List(Bank1, Bank2, Bank3)), replace: true);
+
+        Assert.Equal([(LoanCodes.BankScheduleInvalid, "loan_bank_schedule[0].due_date")], ErrorsOf(clash));
+    }
+
     /// <summary>
     /// Spec 3F2 precision 4: a stored table always fits its loan. A file that no longer brings the table but moves the loan's due
     /// dates is checked against the stored rows, and refused at the loan, even with replace: nothing is written.
