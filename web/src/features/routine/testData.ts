@@ -1,4 +1,6 @@
-import type { RoutineLine, RoutineRecap, RoutineRecapLine, RoutineView } from './api';
+import type {
+  EstateCost, EstateEstimate, EstateRecap, EstateRecapLine, EstateRent, EstateRoutineView, RoutineLine, RoutineRecap, RoutineRecapLine, RoutineView,
+} from './api';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -18,3 +20,34 @@ export const recapLine = (over: Partial<RoutineRecapLine> = {}): RoutineRecapLin
 });
 
 export const recap = (lines: RoutineRecapLine[], on = '2025-09-30'): RoutineRecap => ({ on, lines });
+
+export const MAISON = '00000000-0000-7000-8000-0000000000e1';
+export const LOCATIF = '00000000-0000-7000-8000-0000000000e2';
+export const TAX = '00000000-0000-7000-8000-0000000000c1';
+export const LEASE = '00000000-0000-7000-8000-0000000000d1';
+export const VALUATION = '00000000-0000-7000-8000-0000000000b1';
+export const FLOW = '00000000-0000-7000-8000-0000000000b2';
+
+export const estimate = (over: Partial<EstateEstimate> = {}): EstateEstimate => ({
+  property: MAISON, name: 'Maison', currency: 'EUR', lastValue: '290000.00', lastAsOf: '2024-06-30', due: true, ...over,
+});
+
+export const cost = (over: Partial<EstateCost> = {}): EstateCost => ({
+  property: MAISON, name: 'Maison', currency: 'EUR', costId: TAX, category: 'property_tax', amount: '1200.00', dueOn: '2025-09-15',
+  alreadyEntered: null, ...over,
+});
+
+export const rent = (over: Partial<EstateRent> = {}): EstateRent => ({
+  property: LOCATIF, name: 'Locatif', currency: 'EUR', tenancyId: LEASE, label: 'T2', amount: '950.00', occurredOn: '2025-09-01',
+  alreadyEntered: null, ...over,
+});
+
+export const estateRoutine = (over: Partial<EstateRoutineView> = {}): EstateRoutineView => ({
+  on: '2025-09-30', estimates: [], costs: [], rents: [], ...over,
+});
+
+export const estateRecapLine = (over: Partial<EstateRecapLine> = {}): EstateRecapLine => ({
+  property: MAISON, name: 'Maison', currency: 'EUR', valuationId: VALUATION, estimate: '300000.00', flows: [], ...over,
+});
+
+export const estateRecap = (lines: EstateRecapLine[], on = '2025-09-30'): EstateRecap => ({ on, lines });

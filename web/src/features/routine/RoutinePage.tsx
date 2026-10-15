@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { useSession } from '@/app/Providers';
 import type { RootSearch, RoutineSearch } from '@/app/router';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { monthLabel } from '../income/expected/months';
@@ -10,6 +11,7 @@ import { todayIso } from '../subscriptions/today';
 import { ROUTINE, type RoutineRecap } from './api';
 import { defaultRoutineDate } from './dates';
 import { clearDraft, loadDraft } from './draft';
+import { EstateSection } from './EstateSection';
 import { RoutineRecapPanel } from './RoutineRecap';
 import { RoutineForm, startValues, type RoutineValues } from './RoutineForm';
 
@@ -17,13 +19,15 @@ import { RoutineForm, startValues, type RoutineValues } from './RoutineForm';
 export function RoutinePage() {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const { modules } = useSession().capabilities;
+  const envelopes = modules.includes('investments');
   const navigate = useNavigate();
   const search: RootSearch & RoutineSearch = useSearch({ strict: false });
   const today = todayIso();
   const on = search.on ?? defaultRoutineDate(today);
   const [year = 0, month = 1] = on.split('-').map(Number);
   const monthText = monthLabel(year, month);
-  const answer = $api.useQuery('get', ROUTINE, { params: { query: { on } } });
+  const answer = $api.useQuery('get', ROUTINE, { params: { query: { on } } }, { enabled: envelopes });
   const [saved, setSaved] = useState<{ recap: RoutineRecap; values: RoutineValues } | null>(null);
 
   const [restored, setRestored] = useState<RoutineValues | null>(null);
@@ -46,18 +50,23 @@ export function RoutinePage() {
               search: (prev: RootSearch & RoutineSearch) => ({ ...prev, on: e.target.value === defaultRoutineDate(today) ? undefined : e.target.value }) });
           }} />
       </label>
-      {answer.error && !answer.data ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-      {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('routine.loading')} className="h-48 animate-pulse rounded-md border bg-muted" /> : null}
-      {answer.data && answer.data.lines.length === 0 ? (
-        <p>{t('routine.none')} <Link to="/investments/new" className="underline">{t('routine.create_envelope')}</Link></p>
+      {envelopes ? (
+        <>
+          {answer.error && !answer.data ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
+          {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('routine.loading')} className="h-48 animate-pulse rounded-md border bg-muted" /> : null}
+          {answer.data && answer.data.lines.length === 0 ? (
+            <p>{t('routine.none')} <Link to="/investments/new" className="underline">{t('routine.create_envelope')}</Link></p>
+          ) : null}
+          {answer.data && answer.data.lines.length > 0 && !saved ? (
+            <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText} initial={startValues(answer.data, restored ?? loadDraft(on))} onSaved={onSaved} />
+          ) : null}
+          {saved ? (
+            <RoutineRecapPanel recap={saved.recap} onUndone={() => { setRestored(saved.values); setSaved(null); setUndone(true); }} />
+          ) : null}
+          {undone && !saved ? <p role="status" tabIndex={-1} ref={focusStatus}>{t('routine.undone')}</p> : null}
+        </>
       ) : null}
-      {answer.data && answer.data.lines.length > 0 && !saved ? (
-        <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText} initial={startValues(answer.data, restored ?? loadDraft(on))} onSaved={onSaved} />
-      ) : null}
-      {saved ? (
-        <RoutineRecapPanel recap={saved.recap} onUndone={() => { setRestored(saved.values); setSaved(null); setUndone(true); }} />
-      ) : null}
-      {undone && !saved ? <p role="status" tabIndex={-1} ref={focusStatus}>{t('routine.undone')}</p> : null}
+      {modules.includes('realestate') ? <EstateSection key={on} on={on} /> : null}
     </div>
   );
 }

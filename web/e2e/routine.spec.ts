@@ -20,7 +20,7 @@ test('alice does her routine on a new envelope, reads the gain, then cancels', a
     const label = await skip.locator('xpath=ancestor::label').textContent();
     if (label !== `Passer ${name}`) await skip.check();
   }
-  await alice.getByRole('button', { name: /^Enregistrer/ }).click();
+  await alice.getByRole('button', { name: 'Enregistrer les placements' }).click();
 
   const recap = alice.getByRole('table', { name: 'Récapitulatif de la routine' });
   await expect(recap.getByRole('row', { name: new RegExp(name) })).toContainText('Inconnu'); // a first value: no gain yet
