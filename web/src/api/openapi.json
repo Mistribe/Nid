@@ -7023,6 +7023,94 @@
         }
       }
     },
+    "/api/v1/realestate/routine": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "on",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyRoutineView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "tags": [
@@ -15465,6 +15553,164 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "PropertyRoutineCostView": {
+        "required": [
+          "property",
+          "name",
+          "currency",
+          "costId",
+          "category",
+          "amount",
+          "dueOn"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "costId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "dueOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "alreadyEntered": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PropertyRoutineEstimateView": {
+        "required": [
+          "property",
+          "name",
+          "currency",
+          "due"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "lastValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAsOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "due": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PropertyRoutineRentView": {
+        "required": [
+          "property",
+          "name",
+          "currency",
+          "tenancyId",
+          "label",
+          "amount",
+          "occurredOn"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "tenancyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "alreadyEntered": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PropertyRoutineView": {
+        "required": [
+          "on",
+          "estimates",
+          "costs",
+          "rents"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "estimates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyRoutineEstimateView"
+            }
+          },
+          "costs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyRoutineCostView"
+            }
+          },
+          "rents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyRoutineRentView"
+            }
           }
         }
       },

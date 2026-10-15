@@ -6496,6 +6496,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/routine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    on?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertyRoutineView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -10768,6 +10859,49 @@ export interface components {
             monthlyEquivalent: string;
             /** Format: date */
             nextDueOn?: null | string;
+        };
+        PropertyRoutineCostView: {
+            /** Format: uuid */
+            property: string;
+            name: string;
+            currency: string;
+            /** Format: uuid */
+            costId: string;
+            category: string;
+            amount: string;
+            /** Format: date */
+            dueOn: string;
+            alreadyEntered?: null | string;
+        };
+        PropertyRoutineEstimateView: {
+            /** Format: uuid */
+            property: string;
+            name: string;
+            currency: string;
+            lastValue?: null | string;
+            /** Format: date */
+            lastAsOf?: null | string;
+            due: boolean;
+        };
+        PropertyRoutineRentView: {
+            /** Format: uuid */
+            property: string;
+            name: string;
+            currency: string;
+            /** Format: uuid */
+            tenancyId: string;
+            label: string;
+            amount: string;
+            /** Format: date */
+            occurredOn: string;
+            alreadyEntered?: null | string;
+        };
+        PropertyRoutineView: {
+            /** Format: date */
+            on: string;
+            estimates: components["schemas"]["PropertyRoutineEstimateView"][];
+            costs: components["schemas"]["PropertyRoutineCostView"][];
+            rents: components["schemas"]["PropertyRoutineRentView"][];
         };
         PropertySummary: {
             /** Format: uuid */

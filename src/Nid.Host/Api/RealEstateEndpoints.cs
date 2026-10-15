@@ -254,6 +254,11 @@ public static class RealEstateEndpoints
             })
             .ReturnsNoContent();
 
+        // Spec 3E2 §2: the month's estimates, planned costs and rents of the properties the reader writes.
+        api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertyRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
+            .Returns<PropertyRoutineView>();
+
         return routes;
     }
 

@@ -225,6 +225,7 @@ public class LeakBenchTests(PostgresFixture fixture)
                      "/api/v1/realestate/loans?scope=me",
                      "/api/v1/realestate/properties?scope=household",
                      "/api/v1/realestate/properties?scope=me",
+                     "/api/v1/realestate/routine",
                      "/api/v1/dashboard?scope=household",
                      "/api/v1/dashboard?scope=me",
                      "/api/v1/dashboard/net-worth?scope=household&period=all",
@@ -524,6 +525,28 @@ public class LeakBenchTests(PostgresFixture fixture)
             // 3C2: a tenancy labelled and a recurring cost noted with the row's label reach the property reads, so the scan above looks through them.
             Assert.Contains(propertyBodies[actor], body => body.Contains("\"label\":\"shared-a\"", StringComparison.Ordinal)
                 && body.Contains("\"note\":\"shared-a\",\"monthlyEquivalent\"", StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>
+    /// 3E2: the routine proposes exactly the property twins visible in « Moi » that the actor writes — each one's estimate, and
+    /// each one's rent (every twin's tenancy covers September 2025).
+    /// </summary>
+    [Fact]
+    public async Task The_property_routine_lists_exactly_the_property_twins_the_actor_may_write()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+
+        foreach (var actor in new[] { app.AdultA, app.AdultB })
+        {
+            var visible = data.ExpectedVisible(actor, VisibilityScope.Me, data.Properties);
+            var expected = data.Properties.Where(kv => visible.Contains(kv.Value) && data.ExpectedWritable(kv.Key, actor))
+                .Select(kv => data.NameOf(kv.Value)).OrderBy(n => n, StringComparer.Ordinal).ToList();
+            var routine = JsonDocument.Parse(await app.GetRawAsync(actor, "/api/v1/realestate/routine")).RootElement;
+            foreach (var list in new[] { "estimates", "rents" })
+                Assert.Equal(expected, routine.GetProperty(list).EnumerateArray()
+                    .Select(l => data.NameOf(new ItemId(l.GetProperty("property").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
         }
     }
 

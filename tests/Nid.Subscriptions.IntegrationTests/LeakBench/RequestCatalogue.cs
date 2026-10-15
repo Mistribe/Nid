@@ -315,6 +315,7 @@ public static class RequestCatalogue
         new(typeof(DeleteLoanRepaymentCommand), true, (_, item) => new DeleteLoanRepaymentCommand(item, Guid.NewGuid(), 1)),
 
         new(typeof(ListPropertiesQuery), false, (_, _) => new ListPropertiesQuery(VisibilityScope.Me)),
+        new(typeof(GetPropertyRoutineQuery), false, (_, _) => new GetPropertyRoutineQuery(null)),
         new(typeof(GetPropertyQuery), true, (_, item) => new GetPropertyQuery(item)),
         new(typeof(CreatePropertyCommand), false, (d, _) => new CreatePropertyCommand("bench", Currency.Eur, Visibility.Shared,
             [new OwnerShare(d.App.AdultA, 10_000)], BenchProperty)),
