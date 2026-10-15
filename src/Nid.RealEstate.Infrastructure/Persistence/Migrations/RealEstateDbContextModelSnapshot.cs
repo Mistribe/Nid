@@ -144,6 +144,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("fee_id");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<Guid>("LoanItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("loan_item_id");
@@ -168,11 +180,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("LoanItemId")
                         .HasDatabaseName("ix_loan_event_loan_item_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_event_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("loan_event", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_loan_event_amount", "amount > 0");
 
                             t.HasCheckConstraint("ck_loan_event_effect", "effect in ('reduce_term','reduce_payment')");
+
+                            t.HasCheckConstraint("ck_loan_event_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
                         });
                 });
 
@@ -185,6 +204,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("amount");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<string>("Kind")
                         .IsRequired()
@@ -215,9 +246,16 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("LoanItemId")
                         .HasDatabaseName("ix_loan_fee_loan_item_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_fee_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("loan_fee", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_loan_fee_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_loan_fee_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_loan_fee_kind", "kind in ('file','guarantee','early_repayment_penalty','renegotiation','other')");
                         });
@@ -236,6 +274,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate?>("EndsOn")
                         .HasColumnType("date")
                         .HasColumnName("ends_on");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<Guid>("LoanItemId")
                         .HasColumnType("uuid")
@@ -264,8 +314,15 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("LoanItemId")
                         .HasDatabaseName("ix_loan_insurance_loan_item_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_insurance_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("loan_insurance", "realestate", t =>
                         {
+                            t.HasCheckConstraint("ck_loan_insurance_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
+
                             t.HasCheckConstraint("ck_loan_insurance_mode", "mode in ('fixed_monthly','rate_on_initial','rate_on_remaining')");
                         });
                 });
@@ -279,6 +336,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("AnnualRate")
                         .HasColumnType("numeric(9,6)")
                         .HasColumnName("annual_rate");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<Guid>("LoanItemId")
                         .HasColumnType("uuid")
@@ -317,6 +386,11 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_loan_phase");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_phase_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.HasIndex("LoanItemId", "Seq")
                         .IsUnique()
                         .HasDatabaseName("ix_loan_phase_loan_item_id_seq");
@@ -324,6 +398,8 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.ToTable("loan_phase", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_loan_phase_annual_rate", "annual_rate >= 0 and annual_rate < 1");
+
+                            t.HasCheckConstraint("ck_loan_phase_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_loan_phase_mode", "mode in ('annuity','deferred_partial','deferred_total')");
 
@@ -349,6 +425,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("first_period_mode");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<string>("Lender")
                         .HasColumnType("text")
@@ -387,11 +475,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("PropertyItemId")
                         .HasDatabaseName("ix_loan_property_item_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loan_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("loan", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_loan_dates", "first_payment_date >= disbursed_on");
 
                             t.HasCheckConstraint("ck_loan_first_period_mode", "first_period_mode in ('full','prorata_actual_365')");
+
+                            t.HasCheckConstraint("ck_loan_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_loan_principal", "principal > 0");
 
@@ -429,6 +524,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("every_unit");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<string>("Note")
                         .HasColumnType("text")
                         .HasColumnName("note");
@@ -453,6 +560,11 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("PropertyItemId")
                         .HasDatabaseName("ix_property_recurring_cost_property_item_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_property_recurring_cost_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("property_recurring_cost", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_property_recurring_cost_amount", "amount > 0");
@@ -462,6 +574,8 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_property_recurring_cost_dates", "ends_on is null or ends_on > starts_on");
 
                             t.HasCheckConstraint("ck_property_recurring_cost_every", "every_count between 1 and 120 and every_unit in ('month','year')");
+
+                            t.HasCheckConstraint("ck_property_recurring_cost_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
                         });
                 });
 
@@ -474,6 +588,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("AgencyFees")
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("agency_fees");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<string>("LocationLabel")
                         .HasColumnType("text")
@@ -530,11 +656,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasKey("ItemId")
                         .HasName("pk_property");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_property_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("property", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_property_cadence", "valuation_cadence in ('yearly','manual')");
 
                             t.HasCheckConstraint("ck_property_fees", "notary_fees >= 0 and agency_fees >= 0 and other_acquisition_costs >= 0");
+
+                            t.HasCheckConstraint("ck_property_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_property_purchase_price", "purchase_price > 0");
 
@@ -565,6 +698,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate?>("EndsOn")
                         .HasColumnType("date")
                         .HasColumnName("ends_on");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<string>("Label")
                         .IsRequired()
@@ -599,11 +744,18 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("PropertyItemId")
                         .HasDatabaseName("ix_property_tenancy_property_item_id");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_property_tenancy_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("property_tenancy", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_property_tenancy_amounts", "rent_monthly > 0 and charges_monthly >= 0 and (deposit is null or deposit > 0)");
 
                             t.HasCheckConstraint("ck_property_tenancy_dates", "ends_on is null or ends_on > starts_on");
+
+                            t.HasCheckConstraint("ck_property_tenancy_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
                         });
                 });
 #pragma warning restore 612, 618

@@ -38,6 +38,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_loan_total_payments", "total_payments between 1 and 600");
                 t.HasCheckConstraint("ck_loan_rounding_mode", "rounding_mode in ('half_up','truncate')");
                 t.HasCheckConstraint("ck_loan_first_period_mode", "first_period_mode in ('full','prorata_actual_365')");
+                t.HasCheckConstraint("ck_loan_import", ImportCheck);
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
@@ -53,6 +54,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_loan_phase_mode", "mode in ('annuity','deferred_partial','deferred_total')");
                 t.HasCheckConstraint("ck_loan_phase_rate_type", "rate_type in ('fixed','variable')");
                 t.HasCheckConstraint("ck_loan_phase_annual_rate", "annual_rate >= 0 and annual_rate < 1");
+                t.HasCheckConstraint("ck_loan_phase_import", ImportCheck);
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -65,7 +67,10 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         modelBuilder.Entity<LoanInsuranceRow>(e =>
         {
             e.ToTable("loan_insurance", t =>
-                t.HasCheckConstraint("ck_loan_insurance_mode", "mode in ('fixed_monthly','rate_on_initial','rate_on_remaining')"));
+            {
+                t.HasCheckConstraint("ck_loan_insurance_mode", "mode in ('fixed_monthly','rate_on_initial','rate_on_remaining')");
+                t.HasCheckConstraint("ck_loan_insurance_import", ImportCheck);
+            });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.MonthlyAmount).HasColumnType("numeric(19,4)");
@@ -79,6 +84,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             {
                 t.HasCheckConstraint("ck_loan_fee_kind", "kind in ('file','guarantee','early_repayment_penalty','renegotiation','other')");
                 t.HasCheckConstraint("ck_loan_fee_amount", "amount > 0");
+                t.HasCheckConstraint("ck_loan_fee_import", ImportCheck);
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -93,6 +99,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             {
                 t.HasCheckConstraint("ck_loan_event_effect", "effect in ('reduce_term','reduce_payment')");
                 t.HasCheckConstraint("ck_loan_event_amount", "amount > 0");
+                t.HasCheckConstraint("ck_loan_event_import", ImportCheck);
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -113,6 +120,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_property_cadence", "valuation_cadence in ('yearly','manual')");
                 t.HasCheckConstraint("ck_property_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
                 t.HasCheckConstraint("ck_property_rental_starts_on", "rental_starts_on is null or rental_starts_on >= purchase_date");
+                t.HasCheckConstraint("ck_property_import", ImportCheck);
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
@@ -134,6 +142,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_property_recurring_cost_amount", "amount > 0");
                 t.HasCheckConstraint("ck_property_recurring_cost_every", "every_count between 1 and 120 and every_unit in ('month','year')");
                 t.HasCheckConstraint("ck_property_recurring_cost_dates", "ends_on is null or ends_on > starts_on");
+                t.HasCheckConstraint("ck_property_recurring_cost_import", ImportCheck);
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -148,6 +157,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             {
                 t.HasCheckConstraint("ck_property_tenancy_amounts", "rent_monthly > 0 and charges_monthly >= 0 and (deposit is null or deposit > 0)");
                 t.HasCheckConstraint("ck_property_tenancy_dates", "ends_on is null or ends_on > starts_on");
+                t.HasCheckConstraint("ck_property_tenancy_import", ImportCheck);
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -158,12 +168,24 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             MapXmin(e.Property(x => x.Version));
         });
 
+        // Spec 3F1 §2: every table an import writes keeps the file id it came from, unique per importer (import-format.md §8);
+        // no foreign key to core.person across contexts (2B1a §3.2).
+        foreach (var entity in modelBuilder.Model.GetEntityTypes().Where(t => typeof(IImportMarked).IsAssignableFrom(t.ClrType)).ToList())
+        {
+            var builder = modelBuilder.Entity(entity.ClrType);
+            builder.Property(nameof(IImportMarked.ImportHash)).HasColumnType("char(64)");
+            builder.HasIndex(nameof(IImportMarked.ImportedBy), nameof(IImportMarked.ImportRef)).IsUnique().HasFilter("import_ref is not null");
+        }
+
         modelBuilder.MapAuditLog(ownedHere: false);
         ApplySnakeCase(modelBuilder);
     }
 
     private static void MapXmin(PropertyBuilder<uint> property)
         => property.HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+
+    /// <summary>A row is imported or it is not: ref, hash and importer come together (as investments.envelope).</summary>
+    private const string ImportCheck = "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)";
 
     private static void ApplySnakeCase(ModelBuilder modelBuilder)
     {

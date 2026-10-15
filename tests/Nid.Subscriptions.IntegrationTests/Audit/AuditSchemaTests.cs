@@ -63,7 +63,9 @@ public class AuditSchemaTests(PostgresFixture fixture)
         await using var core = PostgresFixture.NewCoreContext(connection);
         await using var subs = PostgresFixture.NewSubscriptionsContext(connection);
         await using var platform = PostgresFixture.NewPlatformContext(connection);
+        await using var estate = PostgresFixture.NewRealEstateContext(connection);
 
+        Assert.False(estate.Database.HasPendingModelChanges());
         Assert.False(core.Database.HasPendingModelChanges());
         Assert.False(subs.Database.HasPendingModelChanges());
         Assert.False(platform.Database.HasPendingModelChanges());
