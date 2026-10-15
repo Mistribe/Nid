@@ -17,7 +17,7 @@ namespace Nid.Subscriptions.IntegrationTests.BatchedReads;
 /// <summary>
 /// Batched reads spec §4, the permanent guard: each route issues as many SQL commands for 2N items as for N — no read per item.
 /// Every round adds, for A, a shared envelope with a value and a contribution, a shared property with an estimate, a planned
-/// cost and a tenancy, a loan linked to it, a monthly subscription and an income source with a phase: the same shapes each
+/// cost and a tenancy, a loan linked to it and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription and an income source with a phase: the same shapes each
 /// round, so every branch a route takes is taken alike for N and 2N.
 /// </summary>
 [Collection("postgres")]
@@ -34,6 +34,9 @@ public class CommandCountTests(PostgresFixture fixture)
     {
         var counter = new CommandCounter();
         await using var app = await NidApp.StartAsync(fixture, services => Count(services, counter));
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
+                .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], default); // 1 USD = 0.90 EUR
         for (var i = 0; i < N; i++)
             await RoundAsync(app, i);
         var once = await CommandsAsync(app, counter, route);
@@ -81,6 +84,15 @@ public class CommandCountTests(PostgresFixture fixture)
         var loan = Golden(app, $"Prêt {i}");
         loan["propertyId"] = property;
         await NewAsync(app, loan);
+        var dollars = Short(app, $"Prêt dollars {i}"); // converted at the stored rate
+        dollars["currency"] = "USD";
+        dollars["propertyId"] = property;
+        await NewAsync(app, dollars);
+
+        var closed = await app.NewEnvelopeAsync($"Clos {i}", app.AdultA, Visibility.Shared);
+        await PostAsync(app, $"/api/v1/investments/envelopes/{closed.Value}/valuations",
+            new { asOf = "2025-03-01", amount = Eur("500.00"), note = (string?)null });
+        await PostAsync(app, $"/api/v1/investments/envelopes/{closed.Value}/close", new { closedOn = "2025-06-01" }, HttpStatusCode.OK);
 
         await app.NewMonthlyAsync(app.AdultA, 10m + i);
         await app.NewIncomeSourceAsync($"Salaire {i}", Visibility.Shared, (app.AdultA, 10_000));
@@ -88,6 +100,6 @@ public class CommandCountTests(PostgresFixture fixture)
 
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 
-    private static async Task PostAsync(NidApp app, string route, object body)
-        => Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, route, body)).StatusCode);
+    private static async Task PostAsync(NidApp app, string route, object body, HttpStatusCode expected = HttpStatusCode.Created)
+        => Assert.Equal(expected, (await app.RawAsync(app.AdultA, HttpMethod.Post, route, body)).StatusCode);
 }
