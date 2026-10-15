@@ -281,7 +281,7 @@ describe('Import › report, confirmation and commit', () => {
     await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
 
     expect(await screen.findByRole('heading', { name: 'Rapport de validation' })).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /subscriptions/ })).toHaveTextContent('1');
+    expect(screen.getByRole('row', { name: /Abonnements/ })).toHaveTextContent('1');
     expect(screen.getByText('Aucune erreur ni avertissement.')).toBeInTheDocument();
     await expectNoAxeViolations(container);
 
@@ -348,6 +348,21 @@ describe('Import › report, confirmation and commit', () => {
     expect(await screen.findByRole('heading', { name: 'Avertissements (1)' })).toBeInTheDocument();
     expect(screen.getByText('No USD rate on 2024-01-05.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Importer' })).toBeInTheDocument();
+  });
+
+  it('names the real estate sections and the import’s own errors in French', async () => {
+    const bank = { severity: 'error' as const, code: 'realestate.import_bank_schedule', message: "The bank's table arrives in 3F2.", path: 'loans[0].schedule_source' };
+    const gap = { severity: 'error' as const, code: 'realestate.invalid_loan', message: 'Phases are numbered 1, 2, 3… without gap.', path: 'loan_phases[1].seq' };
+    const report = { state: 'invalid', sections: { properties: counts(2), loan_events: counts(1) }, issues: [bank, gap] };
+    server.use(...fakeImportServer({ sessions: [session({ state: 'invalid', report })] }).handlers);
+    const { container } = await renderApp(`/import/${SESSION_ID}`);
+
+    expect(await screen.findByRole('row', { name: /Biens/ })).toHaveTextContent('2');
+    expect(screen.getByRole('row', { name: /Remboursements anticipés/ })).toHaveTextContent('1');
+    expect(screen.getByText(/Le tableau d’amortissement de la banque ne s’importe pas encore/)).toBeInTheDocument();
+    expect(screen.queryByText("The bank's table arrives in 3F2.")).not.toBeInTheDocument();
+    expect(screen.getByText('Phases are numbered 1, 2, 3… without gap.')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 
   it('shows why a commit was not written', async () => {

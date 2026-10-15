@@ -244,7 +244,7 @@ La mensualité totale est la prochaine échéance assurance comprise ; le capita
 | `loan_insurances` | `id`, `loan`, `mode`, `monthly_amount?` (montant), `annual_rate?`, `starts_on`, `ends_on?`, `note?` |
 | `loan_fees` | `id`, `loan`, `kind`, `amount` (montant), `on_date`, `note?` |
 | `loan_events` | `id`, `loan`, `on_date`, `amount` (montant), `effect`, `note?` |
-| `loan_bank_schedule` | `id`, `loan`, `due_date`, `payment`, `interest`, `principal`, `insurance?`, `crd` : chaînes décimales dans la devise du prêt |
+| `loan_bank_schedule` | `id`, `loan`, `due_date`, `payment`, `interest`, `principal`, `insurance?`, `crd` : chaînes décimales dans la devise du prêt (3F2) |
 
 Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
 
@@ -280,6 +280,8 @@ Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
   ]
 }
 ```
+
+**Livré en 3F1** (`superpowers/specs/2026-10-15-realestate-import-export-design.md`) : `loans` à `loan_events`. `property` nomme un bien du même fichier ; `schedule_source` vaut `computed` ou manque : `bank` est refusé (`realestate.import_bank_schedule`) jusqu'à 3F2, qui livre `loan_bank_schedule` (refusée d'ici là, `import.section_not_supported`) ; `rounding_mode` vaut `half_up` et `first_period_mode` `full` par défaut ; `annual_rate` est une chaîne décimale (un nombre JSON est accepté). Chaque prêt est validé entier, comme à l'écran (§11) : phases 1, 2, 3… sans trou, dans n'importe quel ordre dans le fichier, prêt à taux zéro compris ; la première erreur est signalée sur la ligne du fichier qui l'apporte. Un remboursement anticipé n'a pas de champ pour sa pénalité : elle s'exporte comme un frais `early_repayment_penalty` et se réimporte sans lien. Un prêt lié à un bien que le lecteur ne peut pas lire s'exporte sans `property`. Modifier le contrat à l'écran garde la référence d'import de chaque phase (par son numéro) et de chaque assurance (par son rang).
 
 ## 11. Validation
 

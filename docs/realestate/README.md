@@ -169,6 +169,8 @@ Sections de `../import-format.md` définies par ce module (les `valuations` et `
 
 **`tenancies`** : `id`, `property` (référence), `label`, `starts_on`, `ends_on?`, `rent_monthly` (montant), `charges_monthly?` (montant), `deposit?` (montant), `note?`.
 
+**Livré en 3F1** (`superpowers/specs/2026-10-15-realestate-import-export-design.md`) : les trois sections ci-dessus. Montants `{ amount, currency }` dans la devise du bien ; `notary_fees`, `agency_fees`, `other_acquisition_costs` et `charges_monthly` valent 0 s'ils manquent, `valuation_cadence` `yearly`, `visibility` `shared` ; `surface_m2` est une chaîne décimale ; `every` vaut `{ count, unit }`, de 1 à 120 mois ou années. Une charge ou un bail nomme un bien du même fichier. Les erreurs du §11 s'appliquent à ce que le bien contient une fois l'import écrit ; un bien dont le fichier recule l'achat après un bail qu'il garde est refusé. Un flux de bien (section `flows` du Core) respecte la convention du §4 : `expense` ou `income`, avec une catégorie de sa nature (`realestate.invalid_category` sinon). L'export écrit chaque bien lisible, ses charges prévues et ses baux.
+
 ## 11. Validation
 
 **Erreurs** : `purchase_price` ≤ 0 ; `purchase_date` future ; `rental_starts_on` < `purchase_date` ; frais < 0 ; baux qui se chevauchent ; bail avant l'achat ; unité d'une charge récurrente autre que mois ou année ; montants ≤ 0.

@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30) et Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) sont définies ; les autres modules ajouteront les leurs.
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30), Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) et Immobilier (les huit sections de `realestate/README.md` §10 et `realestate/loans.md` §10) (3F1, 2026-10-15) sont définies ; `loan_bank_schedule` arrive en 3F2.
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -50,7 +50,7 @@ Un **seul format** sert à trois usages :
 | `subscriptions`, `billing_phases`, `purchases` | tableaux | Module Abonnements (§5.3 à §5.5) |
 | `envelopes` | tableau | Module Investments (`investments-data-model.md` §9) |
 | `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
-| `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) |
+| `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` refusée jusqu'en 3F2 (`import.section_not_supported`) |
 | `income_sources`, `income_phases` | tableaux | Module Revenus (`income-data-model.md` §9) |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
 
@@ -139,7 +139,7 @@ Le sens de chaque entité, l'algorithme de couverture et le calcul des coûts so
 
 ### 5.6 `valuations` et `flows` (Core)
 
-Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` nomme exactement une entité d'une section qui crée des éléments (`envelopes` aujourd'hui) ; une référence vers une autre section, ou vers rien, est une erreur.
+Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` nomme exactement une entité d'une section qui crée des éléments (`envelopes`, `income_sources`, `properties`, `loans`) ; une référence vers une autre section, ou vers rien, est une erreur.
 
 **`valuations`**
 
@@ -160,7 +160,7 @@ Sections communes à tous les modules qui suivent une valeur (`envelopes`, `prop
 | `occurred_on` | date | |
 | `kind` | string | `contribution`, `withdrawal`, `opening`, `income`, `expense` |
 | `amount` | montant | > 0 ; le sens vient du `kind` |
-| `category` | string? | Convention du module (`investments-data-model.md` §4, `realestate/README.md` §4) |
+| `category` | string? | Convention du module (`investments-data-model.md` §4, `realestate/README.md` §4) ; imposée pour un bien (§12bis, 3F1) |
 | `external_ref` | string? | Identifiant externe ; rend un réimport sans doublon |
 | `note` | string? | |
 
@@ -410,6 +410,15 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
   - **Phases d'une source qui reste terminée** : contrairement à l'API, l'import les écrit (vérifiées contre `ended_on` et coupées à cette date), pour que l'historique d'une source terminée fasse l'aller-retour.
   - **Avertissements** : `income.source_without_phase` (une source sans aucune phase) et `income.gap_soon` (une phase active qui s'achève dans les 60 jours sans successeur de même libellé).
   - **Revenu exceptionnel** : il passe par la section `flows` du Core (`kind: income`, `category: one_off`), sans section propre ; les sources du fichier alimentent le contexte d'import comme les enveloppes.
+- **Décisions prises en 3F1 (2026-10-15)** (détail et raisons : `superpowers/specs/2026-10-15-realestate-import-export-design.md`) :
+  - **Huit sections** du module Immobilier, dans cet ordre : `properties`, `property_recurring_costs`, `tenancies`, `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events` (`realestate/README.md` §10, `realestate/loans.md` §10). Une charge ou un bail nomme son bien (`property`), un prêt nomme son bien (`property`, facultatif), une phase, une assurance, un frais ou un remboursement anticipé nomme son prêt (`loan`) : toujours une entité **du même fichier**. Un montant est dans la devise de son bien ou de son prêt (`core.currency_mismatch` à `.currency` sinon) ; un taux est une chaîne décimale (un nombre JSON est accepté).
+  - **Règles des écrans**, sur ce que chaque bien ou prêt contient une fois l'import écrit (ses lignes stockées que le fichier ne nomme pas comprises) : baux sans chevauchement ni début avant l'achat, unité d'une charge prévue au mois ou à l'année, montants positifs, achat au plus tard aujourd'hui ; un prêt est vérifié entier (phases numérotées 1, 2, 3… sans trou dans n'importe quel ordre, assurances, frais, remboursements) par le moteur d'échéancier, et sa première erreur est signalée sur l'entité du fichier qui l'apporte, sinon sur le prêt.
+  - **`schedule_source`** : `computed` ou absent ; `bank` est refusé (`realestate.import_bank_schedule`) jusqu'à 3F2, qui apporte `loan_bank_schedule`.
+  - **Convention des flux** : un module déclare, pour les éléments qu'il possède, les catégories permises par nature de flux (`IFactConventions`). Un flux d'un bien hors convention (nature autre que `expense` ou `income`, catégorie absente ou hors de la liste de `realestate/README.md` §4) est une erreur `realestate.invalid_category` au chemin `flows[i].kind` ou `flows[i].category`. Les autres éléments (enveloppes, sources de revenus) ne changent pas.
+  - **Provenance** : chaque ligne importée garde `import_ref`, `import_hash` et `imported_by` (unique par importeur) ; une ligne remplacée garde son premier importeur. Les phases et les assurances gardent leur référence quand le contrat du prêt est réécrit, y compris depuis l'écran (par numéro de phase, par rang d'assurance) : réimporter le même fichier après une modification dans l'interface reste `unchanged`.
+  - **Export** : chacun exporte les biens et les prêts qu'il peut lire, triés par nom puis `id`, valeurs par défaut écrites (`notary_fees`, `agency_fees`, `other_acquisition_costs`, `charges_monthly` à `0.00`, `valuation_cadence`, `rounding_mode`, `first_period_mode`, `schedule_source: computed`) ; `id` dérivés `prop-`, `cost-`, `ten-`, `loan-`, `lp-`, `li-`, `fee-`, `ev-`. Un prêt lié à un bien que le lecteur ne peut pas lire est exporté **sans** `property` : le bien n'est pas dans le fichier et rien ne le révèle ; réimporter ce fichier perd le lien.
+  - **Pénalité d'un remboursement anticipé** : `loan_events` n'a pas de champ pour elle ; elle est exportée comme un frais `early_repayment_penalty` à la date du remboursement et réimportée comme un frais isolé (le coût reste, le lien est perdu).
+  - **Aucun avertissement** propre à l'import : ceux du bien (`visibility_mismatch`, `loan_other_currency`, `rental_without_tenancy`) restent sur sa fiche.
 
 ## 13. Questions ouvertes
 

@@ -28,7 +28,7 @@ test('imports a small nid.data file and finds its subscription', async ({ page }
 
   await page.getByRole('button', { name: "Commencer l'import" }).click();
   await expect(page.getByRole('heading', { name: 'Rapport de validation' })).toBeVisible();
-  await expect(page.getByRole('row', { name: /subscriptions/ })).toContainText('1');
+  await expect(page.getByRole('row', { name: /Abonnements/ })).toContainText('1');
 
   await page.getByRole('button', { name: 'Importer' }).click();
   await expect(page.getByRole('heading', { name: 'Import terminé' })).toBeVisible();
