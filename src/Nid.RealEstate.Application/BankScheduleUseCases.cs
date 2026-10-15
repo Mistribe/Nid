@@ -32,10 +32,14 @@ internal static class BankCheck
     /// <summary>A table holds 1 200 rows at most (the engine's limit): far fewer characters than this.</summary>
     public const int TextMax = 200_000;
 
+    /// <summary>The unreadable cells reported at most: a garbage paste within <see cref="TextMax"/> would otherwise answer megabytes.</summary>
+    public const int ErrorMax = 50;
+
     /// <summary>
     /// The pasted text read, then checked whole against the loan (spec 3F2 §2–§3). A refusal names <c>rows[i].column</c>, i the
-    /// line of the text (0-based, header and blank lines counted): every unreadable cell at once, else the first broken rule; an
-    /// empty table, a text too long, or a stored repayment or imposed payment the table makes impossible answer at <c>text</c>.
+    /// line of the text (0-based, header and blank lines counted): the unreadable cells at once (the first <see cref="ErrorMax"/>),
+    /// else the first broken rule; an empty table, a text too long, or a stored repayment or imposed payment the table makes
+    /// impossible answer at <c>text</c>.
     /// </summary>
     public static Result<IReadOnlyList<BankRow>> Read(string text, LoanTerms terms, LoanSchedule computed)
     {
@@ -43,8 +47,11 @@ internal static class BankCheck
             return Refuse(new Failure(LoanCodes.BankScheduleInvalid, $"A pasted table holds at most {TextMax} characters.", null), "text");
         var read = BankScheduleCsv.Read(text);
         if (read.Errors.Count > 0)
-            return Result.Failure<IReadOnlyList<BankRow>>(FieldErrors.Many(LoanCodes.BankScheduleInvalid, "Some lines of the table cannot be read.",
-                read.Errors.Select(e => new FieldError(e.Column.Length == 0 ? $"rows[{e.Line}]" : $"rows[{e.Line}].{e.Column}",
+            return Result.Failure<IReadOnlyList<BankRow>>(FieldErrors.Many(LoanCodes.BankScheduleInvalid,
+                read.Errors.Count > ErrorMax
+                    ? $"Some lines of the table cannot be read; the first {ErrorMax} of {read.Errors.Count} unreadable cells are listed."
+                    : "Some lines of the table cannot be read.",
+                read.Errors.Take(ErrorMax).Select(e => new FieldError(e.Column.Length == 0 ? $"rows[{e.Line}]" : $"rows[{e.Line}].{e.Column}",
                     LoanCodes.BankScheduleInvalid, e.Message)).ToList()));
         var rows = read.Rows.Select(r => r.Row).ToList();
         if (!BankSchedule.Merge(terms, computed, rows).TryGetFailure(out var refused))

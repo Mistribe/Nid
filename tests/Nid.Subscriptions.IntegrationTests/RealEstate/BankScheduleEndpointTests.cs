@@ -127,6 +127,38 @@ public class BankScheduleEndpointTests(PostgresFixture fixture)
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.required", "text"), await RefusalAsync(await PreviewRawAsync(app, id, new { })));
     }
 
+    /// <summary>A garbage paste within the 200 000 characters lists its first 50 unreadable cells, not a hundred thousand.</summary>
+    [Fact]
+    public async Task A_garbage_paste_lists_at_most_fifty_unreadable_cells()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAsync(app, Golden(app));
+
+        var response = await PreviewRawAsync(app, id, new { text = string.Concat(Enumerable.Repeat("a;b;c;d;e\n", 20_000)) });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var errors = (await JsonAsync(response)).GetProperty("errors").EnumerateArray().ToList();
+        Assert.Equal(50, errors.Count);
+        Assert.All(errors, e => Assert.Equal("realestate.bank_schedule_invalid", S(e, "code")));
+    }
+
+    /// <summary>All or nothing: a refused replacement leaves the stored table as it was.</summary>
+    [Fact]
+    public async Task A_refused_replacement_leaves_the_stored_table_intact()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAsync(app, Golden(app));
+        Assert.Equal(HttpStatusCode.OK, (await PutAsync(app, id, BankTable, await ContractVersionAsync(app, id))).StatusCode);
+        var before = await DetailAsync(app, id);
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.bank_schedule_invalid", "rows[1].dueDate"),
+            await RefusalAsync(await PutAsync(app, id, BankTable.Replace("15/11/2020", "pas une date"), await ContractVersionAsync(app, id))));
+
+        var after = await DetailAsync(app, id);
+        Assert.Equal(before.GetProperty("bankSchedule").GetRawText(), after.GetProperty("bankSchedule").GetRawText());
+        Assert.Equal(before.GetProperty("contract").GetProperty("version").GetUInt32(), after.GetProperty("contract").GetProperty("version").GetUInt32());
+    }
+
     [Fact]
     public async Task A_stale_version_conflicts_and_the_other_adult_compares_but_cannot_store()
     {
