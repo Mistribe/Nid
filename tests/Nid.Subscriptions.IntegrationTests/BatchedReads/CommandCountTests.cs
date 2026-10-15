@@ -1,0 +1,90 @@
+using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Contracts;
+using Nid.Core.Infrastructure.Persistence;
+using Nid.Income.Infrastructure.Persistence;
+using Nid.Investments.Infrastructure.Persistence;
+using Nid.Platform.Infrastructure.Persistence;
+using Nid.RealEstate.Infrastructure.Persistence;
+using Nid.Subscriptions.Infrastructure.Persistence;
+using Nid.TestSupport;
+using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
+using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
+
+namespace Nid.Subscriptions.IntegrationTests.BatchedReads;
+
+/// <summary>
+/// Batched reads spec §4, the permanent guard: each route issues as many SQL commands for 2N items as for N — no read per item.
+/// Every round adds, for A, a shared envelope with a value and a contribution, a shared property with an estimate, a planned
+/// cost and a tenancy, a loan linked to it, a monthly subscription and an income source with a phase: the same shapes each
+/// round, so every branch a route takes is taken alike for N and 2N.
+/// </summary>
+[Collection("postgres")]
+public class CommandCountTests(PostgresFixture fixture)
+{
+    private const int N = 2;
+
+    [Theory]
+    [InlineData("/api/v1/realestate/loans?scope=me")]
+    public async Task A_route_issues_as_many_commands_for_2N_items_as_for_N(string route)
+    {
+        var counter = new CommandCounter();
+        await using var app = await NidApp.StartAsync(fixture, services => Count(services, counter));
+        for (var i = 0; i < N; i++)
+            await RoundAsync(app, i);
+        var once = await CommandsAsync(app, counter, route);
+        for (var i = N; i < 2 * N; i++)
+            await RoundAsync(app, i);
+        var twice = await CommandsAsync(app, counter, route);
+
+        Assert.True(once > 0, "the counter saw no command: it is not registered");
+        Assert.Equal(once, twice);
+    }
+
+    private static void Count(IServiceCollection services, CommandCounter counter)
+    {
+        services.ConfigureDbContext<CoreDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<SubscriptionsDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<InvestmentsDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<IncomeDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<RealEstateDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<PlatformDbContext>(o => o.AddInterceptors(counter));
+    }
+
+    /// <summary>The route read once to warm it (query compilation, first-request work), then counted on a second read.</summary>
+    private static async Task<int> CommandsAsync(NidApp app, CommandCounter counter, string route)
+    {
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, route)).StatusCode);
+        counter.Reset();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, route)).StatusCode);
+        return counter.Count;
+    }
+
+    private static async Task RoundAsync(NidApp app, int i)
+    {
+        var envelope = await app.NewEnvelopeAsync($"Livret {i}", app.AdultA, Visibility.Shared);
+        await PostAsync(app, $"/api/v1/investments/envelopes/{envelope.Value}/valuations",
+            new { asOf = "2025-10-01", amount = Eur("1000.00"), note = (string?)null });
+        await PostAsync(app, $"/api/v1/investments/envelopes/{envelope.Value}/flows",
+            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("100.00") });
+
+        var property = await NewPropertyAsync(app, Home(app, $"Maison {i}"));
+        await PostAsync(app, $"{Properties}/{property}/valuations", new { asOf = "2025-06-01", amount = "290000" });
+        await PostAsync(app, $"{Properties}/{property}/recurring-costs",
+            new { category = "property_tax", amount = "1200", every = new { count = 1, unit = "year" }, startsOn = "2020-10-20" });
+        await PostAsync(app, $"{Properties}/{property}/tenancies",
+            new { label = "T2", startsOn = "2021-01-01", endsOn = "2025-12-01", rentMonthly = "900" });
+        var loan = Golden(app, $"Prêt {i}");
+        loan["propertyId"] = property;
+        await NewAsync(app, loan);
+
+        await app.NewMonthlyAsync(app.AdultA, 10m + i);
+        await app.NewIncomeSourceAsync($"Salaire {i}", Visibility.Shared, (app.AdultA, 10_000));
+    }
+
+    private static object Eur(string amount) => new { amount, currency = "EUR" };
+
+    private static async Task PostAsync(NidApp app, string route, object body)
+        => Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, route, body)).StatusCode);
+}
