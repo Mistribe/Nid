@@ -223,6 +223,9 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("envelopes", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("income_sources", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("income_phases", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("properties", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("property_recurring_costs", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("tenancies", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
 
