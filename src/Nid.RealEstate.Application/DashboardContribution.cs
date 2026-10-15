@@ -151,3 +151,68 @@ internal static class DashboardParts
     public static async Task<IReadOnlyList<Valuation>?> EstimatesAsync(IValuations valuations, ItemId property, CancellationToken ct)
         => (await valuations.SeriesAsync(property, PropertyReading.Everything, ct)).TryGetValue(out var series) ? series : null;
 }
+
+/// <summary>
+/// 3E1 spec §3: the visible loans still running this month — amortized, the payment and insurance of the first row due this
+/// month (nothing when none is); cash, every row due this month. A loan ended before this month counts nowhere.
+/// </summary>
+public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, ILoanStore loans) : ICommitmentsContribution
+{
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    {
+        var first = new LocalDate(today.Year, today.Month, 1);
+        var last = first.PlusMonths(1).PlusDays(-1);
+        var amortized = new Dictionary<Currency, decimal>();
+        var cash = new Dictionary<Currency, decimal>();
+        var count = 0;
+        foreach (var loan in await loans.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct))
+        {
+            if (await items.FindAsync(loan.ItemId, ct) is not { } item)
+                continue;
+            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var schedule = LoanReading.Schedule(terms);
+            if (LoanReading.EndOf(terms, schedule) < first)
+                continue;
+            count++;
+            var due = schedule.Rows.Where(r => r.DueDate >= first && r.DueDate <= last).ToList();
+            if (due.Count == 0)
+                continue;
+            DashboardParts.Add(amortized, terms.Currency, due[0].Payment + due[0].Insurance);
+            DashboardParts.Add(cash, terms.Currency, due.Sum(r => r.Payment + r.Insurance));
+        }
+        return Result.Success(new CommitmentsPart(CommitmentSources.Loans, count, amortized, cash));
+    }
+}
+
+/// <summary>
+/// 3E1 spec §3: the visible properties' planned costs — amortized, the monthly equivalents (3C2) of those running today; cash,
+/// the occurrences dated this month (a cost comes every month or more: at most one).
+/// </summary>
+public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry items, IPropertyStore properties) : ICommitmentsContribution
+{
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    {
+        var first = new LocalDate(today.Year, today.Month, 1);
+        var last = first.PlusMonths(1).PlusDays(-1);
+        var amortized = new Dictionary<Currency, decimal>();
+        var cash = new Dictionary<Currency, decimal>();
+        var count = 0;
+        foreach (var property in await properties.FindManyAsync(await visible.ForAsync(reader, scope, ct), ct))
+        {
+            if (await items.FindAsync(property.ItemId, ct) is not { } item)
+                continue;
+            var currency = LoanViews.CurrencyOf(item);
+            foreach (var cost in property.Costs.Select(c => c.Cost))
+            {
+                if (cost.StartsOn <= today && (cost.EndsOn is not { } end || today < end))
+                {
+                    count++;
+                    DashboardParts.Add(amortized, currency, PropertyMath.MonthlyEquivalent(cost));
+                }
+                if (PropertyMath.NextDueOn(cost, first) is { } due && due <= last)
+                    DashboardParts.Add(cash, currency, cost.Amount);
+            }
+        }
+        return Result.Success(new CommitmentsPart(CommitmentSources.PropertyCosts, count, amortized, cash));
+    }
+}
