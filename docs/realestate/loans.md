@@ -88,11 +88,11 @@ Lignes d'un tableau d'amortissement importé de la banque (§6).
 
 | Champ | Type | Remarques |
 |---|---|---|
-| `loan_item_id`, `due_date` | uuid, date | Clé primaire |
+| `id`, `loan_item_id`, `due_date` | uuid, uuid, date | Clé primaire `id` ; (`loan_item_id`, `due_date`) unique |
 | `payment`, `interest`, `principal` | numeric(19,4) | |
 | `insurance` | numeric(19,4)? | Si le tableau la détaille |
-| `crd` | numeric(19,4) | Capital restant dû après l'échéance |
-| `source_document_id`, `imported_at` | uuid, timestamptz | Provenance |
+| `crd` | numeric(19,4) | Capital restant dû juste après l’échéance, avant un remboursement anticipé daté de ce jour ou plus tard |
+| `import_ref`, `import_hash`, `imported_by` | text?, char(64)?, uuid? | Provenance d’un import, comme les autres tables (3F2) ; l’extraction depuis un document viendra à l’étape 4 |
 
 ## 3. Échéancier
 
@@ -180,6 +180,8 @@ Calculé en décimal exact : **200 000 € à 3,5 % sur 240 échéances**, une p
 - Le rapport est joint à la proposition `realestate.import_amortization` sous forme d'avertissement `schedule_mismatch`. L'utilisateur ajuste alors les paramètres du prêt (`rounding_mode`, `first_period_mode`, `payment_override`, phases) ou **accepte le tableau de la banque** comme référence.
 - L'extraction du tableau depuis un PDF suit la sécurité de l'ingestion (`../security/ai-ingestion.md`).
 
+**Livré en 3F2** (`superpowers/specs/2026-10-15-bank-schedule-design.md`) : le tableau se colle en CSV sur la fiche du crédit (section « Tableau de la banque » : séparateur `;`, tabulation ou `,` ; décimales à la virgule ou au point ; espaces des milliers ; dates `jj/mm/aaaa` ou `aaaa-mm-jj` ; colonnes date, mensualité hors assurance, intérêts, capital, assurance facultative, capital restant dû ; une première ligne de titres ignorée) ou arrive par la section d’import `loan_bank_schedule` (§10). « Comparer » (`POST /api/v1/realestate/loans/{id}/bank-schedule/preview`, lecture seule) lit et compare sans rien enregistrer ; `PUT …/bank-schedule` (avec la `version` du crédit) remplace le tableau entier sans changer la référence ; `DELETE …/bank-schedule?version=` le supprime et rend la référence au calcul ; `PATCH /loans/{id}` choisit `scheduleSource` (`computed` ou `bank`, `bank` refusé sans tableau : `realestate.bank_schedule_missing`). Avec `bank`, l’échéancier est celui de la banque jusqu’à sa dernière ligne (les lignes calculées le précèdent s’il commence plus tard), puis le calcul reprend depuis son capital restant dû, dans la phase de cette ligne et avec sa mensualité (une phase suivante s’ouvre comme d’habitude, l’assurance suit le contrat) ; tout ce qui lit un crédit suit — fiche, échéancier (lignes marquées « Banque »), valeur nette du bien, patrimoine et sa courbe, engagements, « À venir » ; la simulation d’un remboursement anticipé reste sur le calcul. Un remboursement anticipé daté entre deux lignes baisse le solde après la première, comme le moteur l’applique. `ScheduleDiff` compare chaque ligne à la ligne calculée de même date ; la fiche donne sa synthèse (`comparison` : écart maximal et sa date, première date où le capital restant dû s’écarte de plus de 1 €, écart cumulé d’intérêts, lignes au-delà de 0,05 €) dès qu’un tableau est enregistré, et l’avertissement `schedule_mismatch` quand le calcul est la référence et s’en écarte de plus de 1 €. Un tableau enregistré correspond toujours à son crédit : une modification du contrat ou d’un remboursement anticipé qu’il ne suivrait plus est refusée (`realestate.bank_schedule_invalid` sur `bankSchedule`) ; il faut d’abord le remplacer ou le supprimer.
+
 ## 7. Simulations
 
 Fonctions pures, **lecture seule** (portée `read`) : rien n'est écrit.
@@ -244,7 +246,7 @@ La mensualité totale est la prochaine échéance assurance comprise ; le capita
 | `loan_insurances` | `id`, `loan`, `mode`, `monthly_amount?` (montant), `annual_rate?`, `starts_on`, `ends_on?`, `note?` |
 | `loan_fees` | `id`, `loan`, `kind`, `amount` (montant), `on_date`, `note?` |
 | `loan_events` | `id`, `loan`, `on_date`, `amount` (montant), `effect`, `note?` |
-| `loan_bank_schedule` | `id`, `loan`, `due_date`, `payment`, `interest`, `principal`, `insurance?`, `crd` : chaînes décimales dans la devise du prêt (3F2) |
+| `loan_bank_schedule` | `id`, `loan`, `due_date`, `payment`, `interest`, `principal`, `insurance?`, `crd` : chaînes décimales dans la devise du prêt, écrites avec deux décimales (livrée en 3F2) |
 
 Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
 
@@ -281,7 +283,9 @@ Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
 }
 ```
 
-**Livré en 3F1** (`superpowers/specs/2026-10-15-realestate-import-export-design.md`) : `loans` à `loan_events`. `property` nomme un bien du même fichier ; `schedule_source` vaut `computed` ou manque : `bank` est refusé (`realestate.import_bank_schedule`) jusqu’à 3F2, qui livre `loan_bank_schedule` (refusée d’ici là, `import.section_not_supported`) ; `rounding_mode` vaut `half_up` et `first_period_mode` `full` par défaut ; `annual_rate` est une chaîne décimale (un nombre JSON est accepté). Chaque prêt est validé entier, comme à l’écran (§11) : phases 1, 2, 3… sans trou, dans n’importe quel ordre dans le fichier, prêt à taux zéro compris ; la première erreur est signalée sur la ligne du fichier qui l’apporte. Un remboursement anticipé n’a pas de champ pour sa pénalité : elle s’exporte comme un frais `early_repayment_penalty` et se réimporte sans lien. Un prêt lié à un bien que le lecteur ne peut pas lire s’exporte sans `property`. Modifier le contrat à l’écran garde la référence d’import de chaque phase (par son numéro) et de chaque assurance (par son rang) tant que leur nombre ne change pas ; sinon seules les lignes laissées identiques la gardent (`import-format.md` §12bis).
+**Livré en 3F1** (`superpowers/specs/2026-10-15-realestate-import-export-design.md`) : `loans` à `loan_events`. `property` nomme un bien du même fichier ; `schedule_source` vaut `computed`, `bank` (livré en 3F2, avec `loan_bank_schedule`, voir ci-dessous) ou manque ; `rounding_mode` vaut `half_up` et `first_period_mode` `full` par défaut ; `annual_rate` est une chaîne décimale (un nombre JSON est accepté). Chaque prêt est validé entier, comme à l’écran (§11) : phases 1, 2, 3… sans trou, dans n’importe quel ordre dans le fichier, prêt à taux zéro compris ; la première erreur est signalée sur la ligne du fichier qui l’apporte. Un remboursement anticipé n’a pas de champ pour sa pénalité : elle s’exporte comme un frais `early_repayment_penalty` et se réimporte sans lien. Un prêt lié à un bien que le lecteur ne peut pas lire s’exporte sans `property`. Modifier le contrat à l’écran garde la référence d’import de chaque phase (par son numéro) et de chaque assurance (par son rang) tant que leur nombre ne change pas ; sinon seules les lignes laissées identiques la gardent (`import-format.md` §12bis).
+
+**Livré en 3F2** (`superpowers/specs/2026-10-15-bank-schedule-design.md`) : la section `loan_bank_schedule` ; les lignes d’un prêt arrivent dans n’importe quel ordre, sont lues par date et le tableau entier est vérifié avec le prêt (§11), la première erreur sur la ligne du fichier qui l’apporte ; `schedule_source: bank` est accepté quand le prêt a des lignes de banque une fois l’import écrit (celles du fichier ou des lignes déjà enregistrées), sinon `realestate.bank_schedule_missing` ; l’export écrit `schedule_source` tel qu’il est enregistré et le tableau (`id` dérivé `lbs-`) ; un tableau remplacé à l’écran garde la référence d’import de chaque ligne par sa date.
 
 ## 11. Validation
 
@@ -292,7 +296,7 @@ Exemple : un prêt principal et un prêt à taux zéro sur un même bien.
 - `annual_rate` < 0 ou ≥ 1 ; mode inconnu ;
 - assurance : `fixed_monthly` sans `monthly_amount`, autres modes sans `annual_rate` ;
 - frais ≤ 0 ; événement d'un montant supérieur au capital restant dû à sa date ;
-- une ligne de banque dont la date ne correspond à aucune échéance de la même série.
+- un tableau de la banque (`realestate.bank_schedule_invalid`, sur `rows[i].colonne`, i la ligne du texte collé, titres et lignes vides comptés ; dans un fichier, sur la ligne de `loan_bank_schedule`) : aucune ligne ; une date qui n’est pas une échéance du calcul, des dates non croissantes ou une échéance manquante ; un montant négatif, à plus de deux décimales ou au-delà de 10¹² ; une mensualité différente des intérêts plus le capital (sauf une échéance de différé total qui ne paie rien) ; un capital restant dû qui remonte hors d’un différé total ; la banque comme référence sans tableau (`realestate.bank_schedule_missing`).
 
 **Avertissements** : `projection_uses_last_rate`, `schedule_mismatch`, `event_off_payment_date`, `exceeds_total_payments`, `override_ignored_after_early_repayment`, `visibility_mismatch` (bien et prêt).
 
