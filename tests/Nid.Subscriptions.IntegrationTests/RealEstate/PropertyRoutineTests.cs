@@ -202,7 +202,6 @@ public class PropertyRoutineTests(PostgresFixture fixture)
     [InlineData("outside the month", "flows[0].occurredOn", "realestate.invalid_property_field")]
     [InlineData("after today", "flows[0].occurredOn", "core.date_in_future")] // Review Focus #3
     [InlineData("negative flow", "flows[0].amount", "realestate.invalid_property_field")]
-    [InlineData("same flow twice", "flows[1]", "realestate.routine_duplicate")]
     [InlineData("no amount", "estimates[1].amount", "request.required")]
     public async Task A_refusal_names_its_field_and_nothing_is_written(string why, string path, string code)
     {
@@ -210,7 +209,6 @@ public class PropertyRoutineTests(PostgresFixture fixture)
         var first = await NewPropertyAsync(app, Home(app, "Premier"));
         var second = await NewPropertyAsync(app, Home(app, "Second"));
         var good = Estimate(first, "300000");
-        var tax = Flow(first, "expense", "property_tax", "2025-09-20", "1200");
         object body = why switch
         {
             "nothing" => new { on = "2025-09-30", estimates = Array.Empty<object>(), flows = Array.Empty<object>() },
@@ -225,7 +223,6 @@ public class PropertyRoutineTests(PostgresFixture fixture)
             // The current month: a cost due on the 20th, later than today, recorded as listed.
             "after today" => new { on = "2025-10-15", estimates = new[] { good }, flows = new[] { Flow(first, "expense", "property_tax", "2025-10-20", "1200") } },
             "negative flow" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { Flow(first, "expense", "property_tax", "2025-09-20", "-1") } },
-            "same flow twice" => new { on = "2025-09-30", estimates = new[] { good }, flows = new[] { tax, tax } },
             _ => new { on = "2025-09-30", estimates = new[] { good, new { property = second } } },
         };
 
@@ -233,6 +230,23 @@ public class PropertyRoutineTests(PostgresFixture fixture)
         var detail = await PropertyAsync(app, first);
         Assert.Empty(detail.GetProperty("valuations").EnumerateArray());
         Assert.Empty(detail.GetProperty("flows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Two_flows_of_one_category_on_one_date_are_both_recorded()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app, "Maison"));
+
+        var response = await RecordAsync(app, new
+        {
+            on = "2025-09-30",
+            flows = new[] { Flow(home, "expense", "energy", "2025-09-20", "80"), Flow(home, "expense", "energy", "2025-09-20", "60") },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var line = Assert.Single(Lines(await JsonAsync(response), "lines"));
+        Assert.Equal(["60.00", "80.00"], Lines(line, "flows").Select(f => S(f, "amount")).Order());
     }
 
     [Fact]

@@ -72,7 +72,6 @@ internal static class PropertyRoutine
             if (PropertyRules.Positive(estimate.Amount, $"estimates[{i}].amount") is { } amount)
                 return amount;
         }
-        var seen = new HashSet<(ItemId, string?, string?, LocalDate)>();
         for (var i = 0; i < command.Flows.Count; i++)
         {
             var flow = command.Flows[i];
@@ -88,8 +87,6 @@ internal static class PropertyRoutine
                 return Field(CoreFactCodes.DateInFuture, "A flow is not dated after today.", $"{path}.occurredOn");
             if (PropertyRules.Positive(flow.Amount, $"{path}.amount") is { } amount)
                 return amount;
-            if (!seen.Add((flow.Property, flow.Kind, flow.Category, flow.OccurredOn)))
-                return Field(PropertyCodes.RoutineDuplicate, "The same flow appears twice in a routine.", path);
         }
         return null;
     }

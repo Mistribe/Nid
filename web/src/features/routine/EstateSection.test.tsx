@@ -62,16 +62,17 @@ describe('the properties’ routine', () => {
 
   it('says « Déjà saisi ce mois-ci » in words beside its icon', async () => {
     serve(estateRoutine({ estimates: [estimate()], costs: [cost({ alreadyEntered: '1150.00' })] }));
-    await renderApp('/routine');
+    const { container } = await renderApp('/routine');
     const biens = await section();
 
     await waitFor(() => expect(within(biens).getByText('Déjà saisi ce mois-ci : 1 150,00 €')).toBeInTheDocument());
+    await expectNoAxeViolations(container);
   });
 
   it('sends the filled estimates and the ticked lines only; « Tout cocher » ticks its group', async () => {
     const posted: unknown[] = [];
     serve(september(), posted);
-    const { user } = await renderApp('/routine');
+    const { user, container } = await renderApp('/routine');
     const biens = await section();
 
     await user.type(await within(biens).findByLabelText('Estimation de Maison'), '300000,5');
@@ -85,12 +86,13 @@ describe('the properties’ routine', () => {
       estimates: [{ property: MAISON, amount: '300000.5' }],
       flows: [{ property: LOCATIF, kind: 'income', category: 'rent', occurredOn: '2025-09-01', amount: '950.00' }],
     });
+    await expectNoAxeViolations(container);
   });
 
   it('Enter moves to the next field and never submits', async () => {
     const posted: unknown[] = [];
     serve(september(), posted);
-    const { user } = await renderApp('/routine');
+    const { user, container } = await renderApp('/routine');
     const biens = await section();
 
     await user.click(await within(biens).findByLabelText('Estimation de Maison'));
@@ -99,6 +101,7 @@ describe('the properties’ routine', () => {
     await user.keyboard('{Enter}');
     await waitFor(() => expect(within(biens).getByLabelText('Montant : Taxe foncière de Maison')).toHaveFocus());
     expect(posted).toHaveLength(0);
+    await expectNoAxeViolations(container);
   });
 
   it('refuses a malformed amount before sending', async () => {
@@ -118,7 +121,7 @@ describe('the properties’ routine', () => {
   it('in the current month, refuses a line dated after today before sending, and sends it dated today', async () => { // Review Focus #3
     const posted: unknown[] = [];
     serve(estateRoutine({ on: '2025-10-15', estimates: [estimate()], costs: [cost({ dueOn: '2025-10-20' })] }), posted);
-    const { user } = await renderApp('/routine?on=2025-10-15');
+    const { user, container } = await renderApp('/routine?on=2025-10-15');
     const biens = await section();
 
     await user.click(await within(biens).findByLabelText('Taxe foncière de Maison'));
@@ -131,6 +134,7 @@ describe('the properties’ routine', () => {
     await user.click(within(biens).getByRole('button', { name: 'Enregistrer les biens' }));
     await waitFor(() => expect(posted).toHaveLength(1));
     expect(posted[0]).toMatchObject({ on: '2025-10-15', flows: [{ occurredOn: '2025-10-15' }] });
+    await expectNoAxeViolations(container);
   });
 
   it('places a server refusal under its own line', async () => {
@@ -180,22 +184,24 @@ describe('the properties’ routine', () => {
       costs: [cost({ amount: '1300.00' }), cost({ costId: INSURANCE, category: 'insurance', amount: '200.00', dueOn: '2025-09-20' })],
       rents: [rent()],
     }));
-    await renderApp('/routine');
+    const { container } = await renderApp('/routine');
     const again = await section();
 
     await waitFor(() => expect(within(again).getByLabelText('Loyer T2 de Locatif')).toBeChecked());
     expect(within(again).getByLabelText('Montant : Loyer T2 de Locatif')).toHaveValue('900');
     expect(within(again).getByLabelText('Montant : Taxe foncière de Maison')).toHaveValue('1300.00');
     expect(within(again).getByLabelText('Assurance de Maison')).not.toBeChecked();
+    await expectNoAxeViolations(container);
   });
 
   it('ignores a malformed draft', async () => {
     sessionStorage.setItem('routine-estate:2025-09-30', '{"estimates":[{"property":1}]}');
     serve(september());
-    await renderApp('/routine');
+    const { container } = await renderApp('/routine');
     const biens = await section();
 
     await waitFor(() => expect(within(biens).getByLabelText('Estimation de Maison')).toHaveValue(''));
+    await expectNoAxeViolations(container);
   });
 
   it('shows the recap, then « Annuler » voids every fact and brings the values back', async () => {
@@ -235,7 +241,7 @@ describe('the properties’ routine', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date(2025, 9, 15, 12));
     serve(september());
-    const { user } = await renderApp('/routine');
+    const { user, container } = await renderApp('/routine');
     const biens = await section();
     await user.type(await within(biens).findByLabelText('Estimation de Maison'), '300000');
     await user.click(within(biens).getByRole('button', { name: 'Enregistrer les biens' }));
@@ -244,6 +250,7 @@ describe('the properties’ routine', () => {
     act(() => { vi.advanceTimersByTime(10_000); });
     expect(within(biens).queryByRole('button', { name: 'Annuler' })).not.toBeInTheDocument();
     expect(within(biens).getByRole('status')).toHaveTextContent('Biens enregistrés.');
+    await expectNoAxeViolations(container);
   });
 
   it('without any property says there is nothing to enter and offers « Ajouter un bien »', async () => {
@@ -259,12 +266,13 @@ describe('the properties’ routine', () => {
 
   it('with nothing due says so and opens the other estimates', async () => {
     serve(estateRoutine({ estimates: [estimate({ due: false, lastAsOf: '2025-06-30' })] }));
-    await renderApp('/routine');
+    const { container } = await renderApp('/routine');
     const biens = await section();
 
     await waitFor(() => expect(within(biens).getByText('Rien à saisir pour vos biens ce mois-ci.')).toBeInTheDocument());
     expect(within(biens).getByText('Autres biens').closest('details')).toHaveAttribute('open');
     expect(within(biens).getByRole('button', { name: 'Enregistrer les biens' })).toBeDisabled();
+    await expectNoAxeViolations(container);
   });
 
   it('is not shown without the real estate module', async () => {
