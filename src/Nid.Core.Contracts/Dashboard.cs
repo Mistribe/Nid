@@ -73,6 +73,13 @@ public static class UpcomingKinds
     public const string SubscriptionExpiry = "subscription_expiry";
     public const string IncomePhaseEnd = "income_phase_end";
     public const string IncomeGapSoon = "income_gap_soon";
+
+    // 3E1 spec §4.
+    public const string LoanPhaseEnd = "loan_phase_end";
+    public const string LoanEnd = "loan_end";
+    public const string ValuationDue = "valuation_due";
+    public const string PropertyCostDue = "property_cost_due";
+    public const string TenancyEnd = "tenancy_end";
 }
 
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>

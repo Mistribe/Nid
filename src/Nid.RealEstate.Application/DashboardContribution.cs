@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
@@ -214,5 +215,58 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
             }
         }
         return Result.Success(new CommitmentsPart(CommitmentSources.PropertyCosts, count, amortized, cash));
+    }
+}
+
+/// <summary>
+/// 3E1 spec §4, over the visible loans and properties: a phase's end on the next phase's first payment (its rate or its deferral
+/// changes), the last payment, the day the latest estimate turns stale, each planned cost's next due date with its amount, and a
+/// tenancy's end.
+/// </summary>
+public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations)
+    : IUpcomingEvents
+{
+    public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+    {
+        var ids = await visible.ForAsync(reader, scope, ct);
+        var events = new List<UpcomingEvent>();
+        bool Within(LocalDate on) => on >= today && on <= until;
+
+        foreach (var loan in await loans.FindManyAsync(ids, ct))
+        {
+            if (await items.FindAsync(loan.ItemId, ct) is not { } item)
+                continue;
+            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var rows = LoanReading.Schedule(terms).Rows;
+            for (var i = 1; i < rows.Count; i++)
+                if (rows[i].PhaseSeq != rows[i - 1].PhaseSeq && Within(rows[i].DueDate))
+                    events.Add(new UpcomingEvent(rows[i].DueDate, UpcomingKinds.LoanPhaseEnd, loan.ItemId, "loans", item.DisplayName,
+                        rows[i - 1].PhaseSeq.ToString(CultureInfo.InvariantCulture), null));
+            if (rows.Count > 0 && Within(rows[^1].DueDate))
+                events.Add(new UpcomingEvent(rows[^1].DueDate, UpcomingKinds.LoanEnd, loan.ItemId, "loans", item.DisplayName, null, null));
+        }
+
+        foreach (var property in await properties.FindManyAsync(ids, ct))
+        {
+            if (await items.FindAsync(property.ItemId, ct) is not { } item)
+                continue;
+            var currency = LoanViews.CurrencyOf(item);
+            if (PropertyMath.StaleThreshold(property.Details.Cadence, property.Details.StaleAfterDays) is { } days
+                && (await valuations.LatestAsync(property.ItemId, today, ct)).TryGetValue(out var latest) && latest!.Value is { } estimate)
+            {
+                // The first day PropertyMath.At calls it stale (more than the threshold since its date). Once stale it is in « À faire ».
+                var due = estimate.AsOf.PlusDays(days + 1);
+                if (due > today && due <= until)
+                    events.Add(new UpcomingEvent(due, UpcomingKinds.ValuationDue, property.ItemId, "properties", item.DisplayName, null, null));
+            }
+            foreach (var cost in property.Costs.Select(c => c.Cost))
+                if (PropertyMath.NextDueOn(cost, today) is { } next && next <= until)
+                    events.Add(new UpcomingEvent(next, UpcomingKinds.PropertyCostDue, property.ItemId, "properties", item.DisplayName, cost.Category,
+                        PropertyFacts.MoneyOf(cost.Amount, currency)));
+            foreach (var tenancy in property.Tenancies.Select(t => t.Tenancy))
+                if (tenancy.EndsOn is { } ends && Within(ends))
+                    events.Add(new UpcomingEvent(ends, UpcomingKinds.TenancyEnd, property.ItemId, "properties", item.DisplayName, tenancy.Label, null));
+        }
+        return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
     }
 }
