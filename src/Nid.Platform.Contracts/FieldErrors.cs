@@ -25,6 +25,10 @@ public static class FieldErrors
             : new Failure(failure.Code, failure.Message,
                 new Dictionary<string, object?> { [Key] = new List<FieldError> { new(path, failure.Code, failure.Message) } });
 
+    /// <summary>One rule refusing several fields at once (every unreadable cell of a pasted table, spec 3F2 §3), under its own code.</summary>
+    public static Failure Many(string code, string message, IReadOnlyList<FieldError> errors)
+        => new(code, message, new Dictionary<string, object?> { [Key] = errors });
+
     public static IReadOnlyList<FieldError>? Of(Failure failure)
         => failure.Metadata is { } metadata && metadata.TryGetValue(Key, out var errors) ? errors as IReadOnlyList<FieldError> : null;
 }

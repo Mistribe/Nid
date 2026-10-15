@@ -51,6 +51,15 @@ internal static class LoanApi
         return body;
     }
 
+    /// <summary>
+    /// The golden case's first three payments (loans.md §4, from 2020-11-15) as a French spreadsheet copies them: a header, semicolons,
+    /// decimal commas, thousands after a non-breaking space.
+    /// </summary>
+    public const string BankTable = "Date;Échéance;Intérêts;Capital;Capital restant dû\n"
+                                    + "15/11/2020;1159,92;583,33;576,59;199 423,41\n"
+                                    + "15/12/2020;1159,92;581,65;578,27;198 845,14\n"
+                                    + "15/01/2021;1159,92;579,96;579,96;198 265,18\n";
+
     public static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
         => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
 

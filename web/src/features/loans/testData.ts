@@ -28,7 +28,7 @@ export const loanDetail = (over: Partial<LoanDetail> = {}): LoanDetail => ({
     currentPhaseSeq: 1, currentRate: '0.035', paymentsLeft: 229, nextPaymentOn: '2026-10-15', nextPaymentTotal: '1159.92',
     endDate: '2045-10-15', totalCost: '78380.66', costPaid: '6323.35', costRemaining: '72057.31',
   },
-  warnings: [], canWrite: true, ended: false, ...over,
+  warnings: [], canWrite: true, ended: false, scheduleSource: 'computed', bankSchedule: null, comparison: null, ...over,
 });
 
 /** `count` monthly rows from `first` (a 15th), every figure alike: the tests read dates, numbers and marks, not sums. */
@@ -39,7 +39,7 @@ export const rows = (first: string, count: number): LoanScheduleRow[] => {
     return {
       number: i + 1, dueDate: `${y + Math.floor(month / 12)}-${String((month % 12) + 1).padStart(2, '0')}-15`, phaseSeq: 1,
       annualRate: '0.035', payment: '1159.92', interest: '500.00', principal: '659.92', insurance: '0.00', balance: '150000.00',
-      earlyRepayment: null,
+      earlyRepayment: null, fromBank: false,
     };
   });
 };

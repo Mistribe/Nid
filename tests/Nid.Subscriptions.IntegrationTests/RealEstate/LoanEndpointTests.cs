@@ -294,6 +294,9 @@ public class LoanEndpointTests(PostgresFixture fixture)
             (HttpMethod.Post, $"{Loans}/{id}/repayments", new { onDate = "2025-03-15", amount = "1000", effect = "reduce_term" }),
             (HttpMethod.Put, $"{Loans}/{id}/repayments/{other}", new { onDate = "2025-03-15", amount = "1000", effect = "reduce_term", version = 1 }),
             (HttpMethod.Delete, $"{Loans}/{id}/repayments/{other}?version=1", null),
+            (HttpMethod.Post, $"{Loans}/{id}/bank-schedule/preview", new { text = BankTable }),
+            (HttpMethod.Put, $"{Loans}/{id}/bank-schedule", new { text = BankTable, version = 1 }),
+            (HttpMethod.Delete, $"{Loans}/{id}/bank-schedule?version=1", null),
         ];
     }
 }
