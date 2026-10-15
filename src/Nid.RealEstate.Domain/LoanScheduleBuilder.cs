@@ -17,9 +17,10 @@ public static class LoanScheduleBuilder
     public static Result<LoanSchedule> Build(LoanTerms t) => Guarded(t, []);
 
     /// <summary>
-    /// Spec 3F2 §2: the schedule after <paramref name="head"/> — rows already decided, the bank's last — calculated from the last
-    /// one's balance with the loan's phases: in that row's phase with its payment, a phase that opens later opening as always. An
-    /// early repayment dated before the payment after the head is in the head's balance already. The head leads the result.
+    /// Spec 3F2 §2: the schedule whose first rows are <paramref name="head"/> — rows already decided from payment 1, the bank's
+    /// last — then calculated from the last one's balance with the loan's phases. The loop runs over the head too, its figures in
+    /// place of the calculation's, so early repayments, the end a reduce-term one brings forward and the warnings evolve as in
+    /// <see cref="Build"/>; after the head the payment is the bank's last, unless a repayment or a phase recalculates it.
     /// </summary>
     internal static Result<LoanSchedule> Continue(LoanTerms t, IReadOnlyList<ScheduleRow> head) => Guarded(t, head);
 
@@ -47,10 +48,9 @@ public static class LoanScheduleBuilder
         for (var i = 0; i < phases.Count; i++) { starts[i] = next; next += phases[i].Phase.Payments ?? MaxRows + 1; }
         int? knownEnd = phases[^1].Phase.Payments is null ? null : next;
 
-        var rows = new List<ScheduleRow>(head);
+        var rows = new List<ScheduleRow>();
         var warnings = new List<ScheduleWarning>();
-        var from = head.Count > 0 ? head[^1].Number : 0; // the last row decided before the calculation
-        var balance = from > 0 ? head[^1].Balance : t.Principal;
+        var balance = t.Principal;
         var payment = 0m;
         var overrideActive = false;
         var termReduction = 0m; // reduce-term repayments made outside an annuity, kept out of the next annuity's payment
@@ -58,28 +58,18 @@ public static class LoanScheduleBuilder
         var projected = false;
         var exceeded = false;
         var end = t.TotalPayments; // the loan's last payment, brought forward by a reduce-term repayment in an annuity
-        if (from > 0)
-        {
-            // Spec 3F2 precision 3: the calculation resumes in the head's phase with its payment, so a reduce-term repayment the
-            // bank applied keeps the loan shorter. ponytail: a head ending on a prorated first payment hands on that payment, its
-            // extra interest included; resume from the phase's own payment if a bank ever ends its table there.
-            var at = PhaseAt(from, starts, knownEnd);
-            (current, projected, payment) = (at ?? -1, at is null, head[^1].Payment);
-            overrideActive = at is { } j && phases[j].Phase.Mode == PhaseMode.Annuity && phases[j].Phase.PaymentOverride is not null;
-        }
 
         var pending = t.Events.Select((e, i) => (Event: e, Index: i)).OrderBy(x => x.Event.OnDate).ToList();
-        if (from == 0)
-            foreach (var (e, index) in pending.Where(x => x.Event.OnDate < t.FirstPaymentDate))
-            {
-                if (e.Amount > balance) return Refuse(LoanCodes.EventAboveBalance, "An early repayment exceeds the remaining balance.", $"events[{index}].amount");
-                balance -= e.Amount;
-                warnings.Add(new ScheduleWarning(LoanWarnings.EventOffPaymentDate, 0));
-                if (e.Effect == RepaymentEffect.ReduceTerm) termReduction += e.Amount;
-            }
-        pending.RemoveAll(x => x.Event.OnDate < (from == 0 ? t.FirstPaymentDate : Due(t, from + 1)));
+        foreach (var (e, index) in pending.Where(x => x.Event.OnDate < t.FirstPaymentDate))
+        {
+            if (e.Amount > balance) return Refuse(LoanCodes.EventAboveBalance, "An early repayment exceeds the remaining balance.", $"events[{index}].amount");
+            balance -= e.Amount;
+            warnings.Add(new ScheduleWarning(LoanWarnings.EventOffPaymentDate, 0));
+            if (e.Effect == RepaymentEffect.ReduceTerm) termReduction += e.Amount;
+        }
+        pending.RemoveAll(x => x.Event.OnDate < t.FirstPaymentDate);
 
-        for (var k = from + 1; balance > 0m; k++)
+        for (var k = 1; balance > 0m || k <= head.Count; k++)
         {
             if (k > MaxRows) return Refuse(LoanCodes.ScheduleTooLong, $"The schedule would exceed {MaxRows} payments.", "phases");
             var due = Due(t, k);
@@ -150,6 +140,15 @@ public static class LoanScheduleBuilder
                     balance -= principal;
                     break;
             }
+            if (k <= head.Count)
+            {
+                // Spec 3F2 §2: a decided row's figures in place of the calculation's, its balance before the repayments applied below.
+                var h = head[k - 1];
+                (pay, interest, principal, balance) = (h.Payment, h.Interest, h.Principal, h.Balance + (h.EarlyRepayment ?? 0m));
+                // The next payment is the bank's; a prorated first payment's interest beyond a month's is not part of it.
+                if (mode == PhaseMode.Annuity && !settle)
+                    payment = k == 1 && t.FirstPeriod == FirstPeriod.ProrataActual365 ? pay - interest + monthly : pay;
+            }
             if (k > t.TotalPayments && !exceeded)
             {
                 exceeded = true;
@@ -190,7 +189,7 @@ public static class LoanScheduleBuilder
             }
             pending.RemoveAll(x => x.Event.OnDate < nextDue);
 
-            rows.Add(new ScheduleRow(k, due, seq, rate, pay, interest, principal, Insurance(t, due, before), balance, early));
+            rows.Add(k <= head.Count ? head[k - 1] : new ScheduleRow(k, due, seq, rate, pay, interest, principal, Insurance(t, due, before), balance, early));
         }
         if (pending.Count > 0) return Refuse(LoanCodes.EventAboveBalance, "An early repayment is dated after the loan is repaid.", $"events[{pending[0].Index}].amount");
         return Result.Success(new LoanSchedule(rows, warnings));

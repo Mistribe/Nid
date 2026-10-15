@@ -29,14 +29,38 @@ public class BankScheduleTests
         Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0.02m, RateType.Fixed, 12), new LoanPhase(2, PhaseMode.Annuity, 0.02m, RateType.Fixed)],
     };
 
-    [Theory]
-    [InlineData(1, 3)]   // the first three payments: the calculation resumes after them, the repayment on the 5th included
-    [InlineData(4, 6)]   // a table that starts later: the calculation's rows come first; the repayment falls inside the table
-    [InlineData(1, 60)]
-    [InlineData(1, 0)]   // 0: the whole table, nothing left to calculate
-    public void A_table_equal_to_the_calculation_gives_the_calculation_back_with_its_rows_marked(int from, int count)
+    /// <summary>The theory's loans: each a state the loop carries past a table's last row (review of Task 1).</summary>
+    private static LoanTerms Case(string loan) => loan switch
     {
-        var terms = Repaid();
+        "repaid" => Repaid(),
+        // The payment recalculated after a reduce-payment repayment on the table's last row.
+        "reduce-payment" => Loans.Golden() with { Events = [new EarlyRepayment(Due(3), 10_000m, RepaymentEffect.ReducePayment)] },
+        // The end a reduce-term repayment brings forward, kept into a phase that opens after the table.
+        "two-rates" => Loans.Golden() with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, 12), new LoanPhase(2, PhaseMode.Annuity, 0.036m, RateType.Fixed)],
+            Events = [new EarlyRepayment(Due(5), 10_000m, RepaymentEffect.ReduceTerm)],
+        },
+        // A reduce-term repayment during a deferral, kept out of the annuity's payment.
+        "deferred" => Deferred() with { Events = [new EarlyRepayment(Due(3), 1_000m, RepaymentEffect.ReduceTerm)] },
+        // An imposed payment below the annuity: the loan runs past its 240 payments, the warning on the 241st.
+        "extended" => Loans.Golden() with { Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.035m, RateType.Fixed, PaymentOverride: 1_100m)] },
+        _ => throw new ArgumentOutOfRangeException(nameof(loan)),
+    };
+
+    [Theory]
+    [InlineData("repaid", 1, 3)]   // the first three payments: the calculation resumes after them, the repayment on the 5th included
+    [InlineData("repaid", 4, 6)]   // a table that starts later: the calculation's rows come first; the repayment falls inside the table
+    [InlineData("repaid", 1, 60)]
+    [InlineData("repaid", 1, 0)]   // 0: the whole table, nothing left to calculate
+    [InlineData("reduce-payment", 1, 3)]
+    [InlineData("two-rates", 1, 6)]
+    [InlineData("deferred", 1, 4)]
+    [InlineData("extended", 1, 0)]
+    [InlineData("extended", 1, 200)]
+    public void A_table_equal_to_the_calculation_gives_the_calculation_back_with_its_rows_marked(string loan, int from, int count)
+    {
+        var terms = Case(loan);
         var computed = Build(terms);
         var rows = count == 0 ? computed.Rows.Count : count;
 
@@ -44,6 +68,7 @@ public class BankScheduleTests
 
         Assert.Equal(Figures(computed.Rows), Figures(merged.Rows));
         Assert.Equal(computed.Rows.Select(r => r.Number >= from && r.Number < from + rows), merged.Rows.Select(r => r.FromBank));
+        Assert.Equal(computed.Warnings, merged.Warnings);
     }
 
     [Fact]

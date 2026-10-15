@@ -40,10 +40,7 @@ public static class BankSchedule
             head.Add(new ScheduleRow(c.Number, b.DueDate, c.PhaseSeq, c.AnnualRate, b.Payment, b.Interest, b.Principal,
                 b.Insurance ?? c.Insurance, b.Crd - (early ?? 0m), early, FromBank: true));
         }
-        var continued = LoanScheduleBuilder.Continue(t, head);
-        if (!continued.TryGetValue(out var schedule))
-            return continued;
-        return Result.Success(new LoanSchedule(schedule!.Rows, [.. computed.Warnings.Where(w => w.Row < first), .. schedule.Warnings]));
+        return LoanScheduleBuilder.Continue(t, head);
     }
 
     /// <summary>
