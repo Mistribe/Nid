@@ -51,6 +51,8 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 **Livré en 2D2b** (2026-10-09) : courbe du patrimoine (valeur et versements cumulés, une fin de mois par point et aujourd’hui en dernier, sur 12 mois, 3 ans ou tout), avec sa vue en tableau ; un mois sans taux de change interrompt la courbe et nomme la devise. L’évolution depuis le 1er janvier n’utilise plus une valeur de départ plus ancienne que le seuil de péremption de l’enveloppe.
 
+**Livré en 3E1** (2026-10-14) : biens et crédits dans le patrimoine, la courbe, « À faire » et la répartition, devenue « Répartition par élément » (un crédit en négatif, chaque ligne vers sa fiche ; le graphique par personne n’est pas tracé quand une part est négative, le tableau la donne) ; engagements détaillés par source (« Abonnements · Crédits · Charges des biens »), « Aucun engagement » quand rien n’est engagé ; « À venir » ajoute les fins de phase et dernières échéances des crédits, les estimations à refaire, les charges prévues et les fins de bail ; « Voir les biens » et « Voir les crédits » quand l’immobilier est activé, « Ajouter un bien » dans l’accueil vide ; chaque lien n’apparaît que si son module est activé.
+
 - **Une seule requête** agrégée : `GET /api/v1/dashboard`, calculée par le serveur (tuiles et listes ; la courbe a sa route, `GET /api/v1/dashboard/net-worth`, rechargée seule au changement de période).
 - Une valeur inconnue s'affiche « inconnue », **jamais 0**.
 - Une valeur périmée (`../core-data-model.md` §5.2) est signalée : la tuile du patrimoine compte les « N valeurs à mettre à jour », chaque enveloppe ayant son propre seuil (spec 2D1 §7.2).

@@ -45,7 +45,8 @@ function RowTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyA
 /** dataviz.md §2: one stacked bar, one fixed colour per person, normalised by Recharts (`stackOffset="expand"`). */
 export function PeopleChart({ people }: { people: DashboardPerson[] }) {
   const { t } = useTranslation();
-  if (people.length === 0) return null;
+  // A person whose loans outweigh their share has a negative amount: a share of the whole cannot draw it; the table says it.
+  if (people.length === 0 || people.some((p) => p.amount.amount.startsWith('-'))) return null;
   const datum: Record<string, string | number> = { key: 'people', ...Object.fromEntries(people.map((p, i) => [`p${i}`, toPlot(p.amount.amount)])) };
   const config = Object.fromEntries(people.map((p, i) => [`p${i}`, { label: p.name, color: personColor(p.slot) }])) satisfies ChartConfig;
   return (

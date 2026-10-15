@@ -180,16 +180,23 @@ public class LeakBenchTests(PostgresFixture fixture)
                 expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 properties.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
 
-            // And the dashboard (2D2a): its envelope split lists exactly the visible open envelopes, and every item
-            // named in « À venir » or « À faire » is one this actor may read.
+            // And the dashboard (2D2a, 3E1): its split lists exactly the visible open envelopes, properties and loans (a private
+            // loan only in « me »), and every item named in « À venir » or « À faire » is one this actor may read.
             var dashboard = System.Text.Json.JsonDocument.Parse(await app.GetRawAsync(actor, $"/api/v1/dashboard?scope={scope}")).RootElement;
             Assert.Equal(
-                expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                expectedEnvelopes.Concat(expectedProperties).Concat(expectedLoans).Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 dashboard.GetProperty("envelopeSplit").EnumerateArray()
                     .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
             foreach (var section in new[] { "upcoming", "todo" })
             foreach (var entry in dashboard.GetProperty(section).EnumerateArray())
                 Assert.Contains(new ItemId(entry.GetProperty("id").GetGuid()), data.ExpectedReadable(actor));
+
+            // 3E1: each visible property twin's tax and tenancy end are in « À venir », and no other property's.
+            foreach (var kind in new[] { "property_cost_due", "tenancy_end" })
+                Assert.Equal(
+                    expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    dashboard.GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == kind)
+                        .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
         }
     }
 

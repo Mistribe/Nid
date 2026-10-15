@@ -161,6 +161,10 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ILoanStore, LoanStore>();
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<Nid.RealEstate.Application.PropertyReading>();
+        services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
+        services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
+        services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
+        services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.

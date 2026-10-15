@@ -1,9 +1,11 @@
 import { Link, useSearch } from '@tanstack/react-router';
 import { Clock } from 'lucide-react';
 import { lazy, Suspense, useId, type ReactNode } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { useSession } from '@/app/Providers';
 import type { RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
@@ -11,7 +13,7 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Direction } from '../investments/Figures';
 import { Todo, Upcoming } from './Agenda';
-import { DASHBOARD, type DashboardFigure, type DashboardView } from './api';
+import { DASHBOARD, type DashboardCommitmentSource, type DashboardFigure, type DashboardView } from './api';
 import { percent } from './format';
 import { EnvelopeSplit, Panel, PeopleSplit } from './Split';
 
@@ -50,11 +52,12 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
     return (
       <EmptyState title={t('dashboard.empty_title')} body={t('dashboard.empty_body')}
         action={(
-          <span className="flex flex-wrap justify-center gap-3">
-            <Link to="/investments/new" className="underline">{t('dashboard.add_envelope')}</Link>
-            <Link to="/subscriptions/new" className="underline">{t('dashboard.add_subscription')}</Link>
-            <Link to="/income/new" className="underline">{t('dashboard.add_income')}</Link>
-          </span>
+          <ModuleLinks className="flex flex-wrap justify-center gap-3" links={[
+            { module: 'investments', to: '/investments/new', label: t('dashboard.add_envelope') },
+            { module: 'realestate', to: '/properties/new', label: t('dashboard.add_property') },
+            { module: 'subscriptions', to: '/subscriptions/new', label: t('dashboard.add_subscription') },
+            { module: 'income', to: '/income/new', label: t('dashboard.add_income') },
+          ]} />
         )} />
     );
   return (
@@ -86,13 +89,32 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
   );
 }
 
-function Card({ title, to, link, children }: { title: string; to: '/investments' | '/subscriptions' | '/income'; link: string; children: ReactNode }) {
+type ModuleLink = {
+  module: string;
+  to: '/investments' | '/subscriptions' | '/income' | '/properties' | '/loans'
+    | '/investments/new' | '/properties/new' | '/subscriptions/new' | '/income/new';
+  label: string;
+};
+
+/** Spec 3E1 §3 and §5: each link only when its module is enabled. */
+function ModuleLinks({ links, className }: { links: ModuleLink[]; className: string }) {
+  const { capabilities } = useSession();
+  return (
+    <span className={className}>
+      {links.filter((l) => capabilities.modules.includes(l.module)).map((l) => (
+        <Link key={l.to} to={l.to} className="underline">{l.label}</Link>
+      ))}
+    </span>
+  );
+}
+
+function Card({ title, links, children }: { title: string; links: ModuleLink[]; children: ReactNode }) {
   const id = useId();
   return (
     <section aria-labelledby={id} className="flex flex-col gap-2 rounded-md border p-4">
       <h2 id={id} className="text-sm font-medium text-muted-foreground">{title}</h2>
       {children}
-      <Link to={to} className="mt-auto text-sm underline">{link}</Link>
+      <ModuleLinks className="mt-auto flex flex-wrap gap-x-3 text-sm" links={links} />
     </section>
   );
 }
@@ -107,7 +129,10 @@ function Big({ figure, unknown, unknownRate = 'dashboard.unknown_rate' }: { figu
 function NetWorth({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   return (
-    <Card title={t('dashboard.net_worth')} to="/investments" link={t('dashboard.see_investments')}>
+    <Card title={t('dashboard.net_worth')} links={[
+      { module: 'investments', to: '/investments', label: t('dashboard.see_investments') },
+      { module: 'realestate', to: '/properties', label: t('dashboard.see_properties') },
+    ]}>
       <Big figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} />
       {d.valuesAsOf ? <p className="text-sm text-muted-foreground">{t('dashboard.values_as_of', { date: formatLocalDate(d.valuesAsOf) })}</p> : null}
       {d.staleEnvelopes > 0 ? (
@@ -118,12 +143,27 @@ function NetWorth({ d }: { d: DashboardView }) {
   );
 }
 
+const SOURCES = ['subscriptions', 'loans', 'property_costs'] as const;
+
+/** Spec 3E1 §3: « Abonnements X · Crédits Y · Charges des biens Z », the server's amounts, only the sources it lists. */
+function sourcesText(t: TFunction, sources: DashboardCommitmentSource[]): string {
+  return sources.flatMap((s) => {
+    const k = SOURCES.find((x) => x === s.source);
+    return k && s.amortized ? [t(`dashboard.commitment_source.${k}`, { amount: formatMoney(s.amortized) })] : [];
+  }).join(' · ');
+}
+
 function Commitments({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   return (
-    <Card title={t('dashboard.commitments')} to="/subscriptions" link={t('dashboard.see_subscriptions')}>
-      <Big figure={d.commitments} unknown={t(d.subscriptions > 0 ? 'dashboard.commitments_none_this_month' : 'dashboard.commitments_none')} />
+    <Card title={t('dashboard.commitments')} links={[
+      { module: 'subscriptions', to: '/subscriptions', label: t('dashboard.see_subscriptions') },
+      { module: 'realestate', to: '/loans', label: t('dashboard.see_loans') },
+    ]}>
+      {/* A source the server lists counts items: with nothing due this month it is « aucun coût », not « aucun engagement ». */}
+      <Big figure={d.commitments} unknown={t(d.commitmentSources.length > 0 ? 'dashboard.commitments_none_this_month' : 'dashboard.commitments_none')} />
       {d.commitments.total ? <p className="text-sm text-muted-foreground">{t('dashboard.amortized_per_month')}</p> : null}
+      {d.commitments.total ? <p className="text-sm text-muted-foreground">{sourcesText(t, d.commitmentSources)}</p> : null}
       {d.cashThisMonth.total ? <p className="text-sm">{t('dashboard.cash_this_month', { amount: formatMoney(d.cashThisMonth.total) })}</p> : null}
       {d.committedPct != null ? <p className="text-sm">{t('dashboard.committed_share', { value: percent(d.committedPct) })}</p> : null}
     </Card>
@@ -134,7 +174,7 @@ function Income({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   const missing = d.income.missingCurrency ?? d.commitments.missingCurrency;
   return (
-    <Card title={t('dashboard.income')} to="/income" link={t('dashboard.see_income')}>
+    <Card title={t('dashboard.income')} links={[{ module: 'income', to: '/income', label: t('dashboard.see_income') }]}>
       <Big figure={d.income} unknown={t('dashboard.income_unknown')} />
       {d.income.total ? <p className="text-sm text-muted-foreground">{t('dashboard.smoothed_per_month')}</p> : null}
       <p className="text-sm">{d.margin ? t('dashboard.margin', { amount: formatMoney(d.margin) }) : d.incomeSources > 0 && missing ? t('dashboard.margin_unknown_rate', { code: missing }) : t('dashboard.margin_unknown')}</p>
@@ -146,7 +186,7 @@ function Change({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   const total = d.change.total;
   return (
-    <Card title={t('dashboard.change')} to="/investments" link={t('dashboard.see_investments')}>
+    <Card title={t('dashboard.change')} links={[{ module: 'investments', to: '/investments', label: t('dashboard.see_investments') }]}>
       {total ? (
         <p className="text-3xl font-semibold">
           <Direction amount={total}>

@@ -118,3 +118,44 @@ test('alice lets her property: a tenancy under way, a yearly property tax, and i
   await expect(figure('Loyers perçus sur 12 mois')).toContainText('10 800,00 €');
   await expect(figure('Rendement brut')).toContainText('3,84 %');
 });
+
+test('alice finds her property, her private loan and the next property tax on her dashboard', async ({ page }) => {
+  const stamp = Date.now();
+  const home = `Résidence ${stamp}`;
+  await signIn(page, 'alice', '/properties');
+  await createProperty(page, home, 'Oui, partagé');
+  const id = new URL(page.url()).pathname.split('/').pop()!;
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
+  const post = async (route: string, data: object) => {
+    const response = await page.request.post(`/api/v1/realestate/properties/${id}/${route}`, { headers: { 'X-Nid-Csrf': session.csrf }, data });
+    expect(response.status()).toBe(201);
+  };
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000);
+  // An estimate two days ago (never « in the future », whatever the server's timezone), through the API to keep the journey short.
+  await post('valuations', { asOf: day(-2).toISOString().slice(0, 10), amount: '290000' });
+  // A yearly tax first due three years before a day about twenty days ahead (moved on to a day <= 28, so every year has it): its next due date is in « À venir ».
+  const due = day(20);
+  while (due.getUTCDate() > 28) due.setUTCDate(due.getUTCDate() + 1);
+  const startsOn = new Date(Date.UTC(due.getUTCFullYear() - 3, due.getUTCMonth(), due.getUTCDate())).toISOString().slice(0, 10);
+  await post('recurring-costs', { category: 'property_tax', amount: '1200', every: { count: 1, unit: 'year' }, startsOn });
+
+  // Her loan, private, disbursed today: the 200 000 € borrowed are owed.
+  const loan = `Prêt ${stamp}`;
+  await page.goto('/loans/new');
+  await page.getByLabel('Nom', { exact: true }).fill(loan);
+  await page.getByRole('radio', { name: 'Non, privé' }).check();
+  await page.getByLabel('Bien financé').selectOption({ label: home });
+  await page.getByLabel('Capital emprunté').fill('200000');
+  await page.getByLabel('Taux annuel (%)').fill('3,5');
+  await page.getByLabel('Durée (mois)').fill('240');
+  await page.getByRole('button', { name: 'Créer le crédit' }).click();
+  await expect(page.getByRole('heading', { name: loan, level: 1 })).toBeVisible();
+
+  // « Moi »: her private loan is deducted there, never from the household's total.
+  await page.goto('/dashboard?scope=me');
+  const split = page.getByRole('region', { name: 'Répartition par élément' });
+  await expect(split.getByRole('row', { name: new RegExp(home) })).toContainText('290 000,00 €');
+  await expect(split.getByRole('row', { name: new RegExp(loan) })).toContainText('-200 000,00 €');
+  const upcoming = page.getByRole('region', { name: 'À venir' });
+  await expect(upcoming.getByRole('listitem').filter({ hasText: home })).toContainText('Taxe foncière');
+});

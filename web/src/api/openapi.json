@@ -10971,6 +10971,27 @@
           }
         }
       },
+      "DashboardCommitmentSourceView": {
+        "required": [
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "amortized": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "DashboardEnvelopeView": {
         "required": [
           "id",
@@ -11202,7 +11223,8 @@
           "envelopeSplit",
           "upcoming",
           "todo",
-          "envelopesWithoutStart"
+          "envelopesWithoutStart",
+          "commitmentSources"
         ],
         "type": "object",
         "properties": {
@@ -11314,6 +11336,12 @@
           "envelopesWithoutStart": {
             "type": "integer",
             "format": "int32"
+          },
+          "commitmentSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardCommitmentSourceView"
+            }
           }
         }
       },

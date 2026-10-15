@@ -27,8 +27,8 @@ describe('dashboard lists', () => {
     }));
     const { container, router, user } = await renderApp('/dashboard?scope=me');
 
-    const split = await section('Répartition par enveloppe');
-    const rows = within(within(split).getByRole('table', { name: 'Valeur de chaque enveloppe' })).getAllByRole('row');
+    const split = await section('Répartition par élément');
+    const rows = within(within(split).getByRole('table', { name: 'Valeur de chaque élément' })).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('PEA');
     expect(rows[1]).toHaveTextContent('25 000,00 €');
     expect(rows[1]).toHaveTextContent('30 septembre 2025');
@@ -49,8 +49,39 @@ describe('dashboard lists', () => {
     }));
     await renderApp('/dashboard');
 
-    expect(await section('Répartition par enveloppe')).toHaveTextContent('Inconnue : taux de change manquant (USD) · 100,00 $US');
+    expect(await section('Répartition par élément')).toHaveTextContent('Inconnue : taux de change manquant (USD) · 100,00 $US');
     expect(await section('Répartition par personne')).toHaveTextContent('Inconnue : taux de change manquant (USD)');
+  });
+
+  it('shows a property and a loan as lines of their own, the loan negative, each linked to its detail', async () => {
+    serve(dashboard({
+      envelopeSplit: [
+        envelope({ id: '00000000-0000-7000-8000-0000000000f1', module: 'properties', name: 'Maison',
+          value: { amount: '310000.00', currency: 'EUR' }, converted: { amount: '310000.00', currency: 'EUR' } }),
+        envelope({ id: '00000000-0000-7000-8000-0000000000f2', module: 'loans', name: 'Prêt travaux',
+          value: { amount: '-2000.00', currency: 'EUR' }, converted: { amount: '-2000.00', currency: 'EUR' }, asOf: '2025-10-15' }),
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const split = await section('Répartition par élément');
+    const table = within(split).getByRole('table', { name: 'Valeur de chaque élément' });
+    expect(within(table).getByRole('columnheader', { name: 'Élément' })).toBeInTheDocument();
+    const rows = within(table).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('310 000,00 €');
+    expect(rows[2]).toHaveTextContent('-2 000,00 €');
+    expect(within(split).getByRole('link', { name: 'Maison' })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1');
+    expect(within(split).getByRole('link', { name: 'Prêt travaux' })).toHaveAttribute('href', '/loans/00000000-0000-7000-8000-0000000000f2');
+    await expectNoAxeViolations(container);
+  });
+
+  it('links a property’s line of « À faire » to the property', async () => {
+    serve(dashboard({ todo: [todoItem({ kind: 'no_value', module: 'properties', id: '00000000-0000-7000-8000-0000000000f3', name: 'Terrain', on: null })] }));
+    const { container } = await renderApp('/dashboard');
+
+    expect(within(await section('À faire')).getByRole('link', { name: 'Saisir une première valeur pour Terrain' }))
+      .toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f3');
+    await expectNoAxeViolations(container);
   });
 
   it('shows each person’s share with their colour', async () => {
@@ -72,7 +103,7 @@ describe('dashboard lists', () => {
     serve(dashboard({ envelopes: 0, envelopeSplit: [], people: [] }));
     await renderApp('/dashboard');
     await section('Engagements');
-    expect(screen.queryByRole('region', { name: 'Répartition par enveloppe' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Répartition par élément' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Répartition par personne' })).not.toBeInTheDocument();
   });
 
@@ -94,6 +125,32 @@ describe('dashboard lists', () => {
     expect(items[1]).toHaveTextContent('Expire');
     expect(items[2]).toHaveTextContent('Fin de « CDD »');
     expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Employeur' })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000b1');
+    await expectNoAxeViolations(container);
+  });
+
+  it('says what each real estate event is, a planned cost by its category with its amount', async () => {
+    const property = { module: 'properties', id: '00000000-0000-7000-8000-0000000000f1', name: 'Maison' };
+    const loan = { module: 'loans', id: '00000000-0000-7000-8000-0000000000f2', name: 'Prêt travaux', amount: null };
+    serve(dashboard({
+      upcoming: [
+        event({ ...property, on: '2025-10-20', kind: 'property_cost_due', label: 'property_tax', amount: { amount: '1200.00', currency: 'EUR' } }),
+        event({ ...property, on: '2025-10-26', kind: 'valuation_due', amount: null }),
+        event({ ...loan, on: '2025-11-15', kind: 'loan_end' }),
+        event({ ...loan, on: '2025-11-15', kind: 'loan_phase_end', label: '1' }),
+        event({ ...property, on: '2025-12-01', kind: 'tenancy_end', label: 'T2 meublé', amount: null }),
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const items = within(await section('À venir')).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Taxe foncière');
+    expect(items[0]).toHaveTextContent('1 200,00 €');
+    expect(within(items[0] as HTMLElement).getByRole('link', { name: 'Maison' })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1');
+    expect(items[1]).toHaveTextContent('Estimation à refaire');
+    expect(items[2]).toHaveTextContent('Dernière échéance');
+    expect(within(items[2] as HTMLElement).getByRole('link', { name: 'Prêt travaux' })).toHaveAttribute('href', '/loans/00000000-0000-7000-8000-0000000000f2');
+    expect(items[3]).toHaveTextContent('Fin de la phase 1 : taux ou différé qui change');
+    expect(items[4]).toHaveTextContent('Fin du bail « T2 meublé »');
     await expectNoAxeViolations(container);
   });
 
