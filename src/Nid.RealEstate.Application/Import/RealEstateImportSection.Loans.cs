@@ -63,7 +63,12 @@ public sealed partial class RealEstateImportSection
             if (await ResolveItemAsync(plan, LoansSection, "loan", known.GetValueOrDefault(record.Id), parsed.Visibility, parsed.Owners, parsed.Currency, issues, ct))
                 loanPlans.Add(plan);
         }
-        var stored = await loans.FindManyAsync(loanPlans.Where(l => l.Mode != Mode.Created).Select(l => l.Id).ToList(), ct);
+        // Locked in id order before they are read, as the screens lock one (LoanCheck.LockAsync): at commit, no contract PUT, fee or
+        // repayment lands between the whole-loan check and the apply. A plain validate has no transaction: each lock ends with its statement.
+        var existing = loanPlans.Where(l => l.Mode != Mode.Created).Select(l => l.Id).OrderBy(i => i.Value).ToList();
+        foreach (var id in existing)
+            await loans.LockAsync(id, ct);
+        var stored = await loans.FindManyAsync(existing, ct);
         foreach (var plan in loanPlans.Where(l => l.Mode != Mode.Created))
             plan.Stored = stored.Single(s => s.ItemId == plan.Id);
         var byFileId = loanPlans.ToDictionary(l => l.FileId, StringComparer.Ordinal);

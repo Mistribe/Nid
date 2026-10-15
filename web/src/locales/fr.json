@@ -674,7 +674,7 @@
     "see_investments": "Voir les placements",
     "codes": {
       "realestate_import_bank_schedule": "Le tableau d’amortissement de la banque ne s’importe pas encore : retirez « schedule_source » ou mettez « computed », l’échéancier sera calculé.",
-      "realestate_invalid_category": "Ce flux sort des catégories d’un bien : une dépense ou un revenu, avec une catégorie de sa liste."
+      "realestate_invalid_category": "Ce type ou cette catégorie ne correspond pas à cette ligne."
     }
   },
   "admin": {

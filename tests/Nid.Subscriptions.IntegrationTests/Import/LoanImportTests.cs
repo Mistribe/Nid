@@ -123,6 +123,33 @@ public class LoanImportTests(PostgresFixture fixture)
         Assert.Equal([(1, "annuity", "0.03")], PhasesOf(await LoanAsync(app, "Prêt principal")));
     }
 
+    /// <summary>
+    /// Review Focus 1: deleting the first of two imported insurances in the app frees its file id — the second keeps its own, so the
+    /// same file again recreates the first instead of doubling the second.
+    /// </summary>
+    [Fact]
+    public async Task An_insurance_deleted_in_the_app_is_recreated_by_the_file_without_doubling_the_other()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var second = """{"id":"li-2","loan":"loan-main","mode":"rate_on_initial","annual_rate":"0.001","starts_on":"2021-11-15"}""";
+        var file = Loans(insurances: List(Insurance, second));
+        await CommitAsync(client, app, app.AdultA, file);
+        var main = await LoanIdAsync(app, "Prêt principal");
+        var body = LoanApi.Contract();
+        body["insurances"] = new[] { new { mode = "rate_on_initial", annualRate = "0.001", startsOn = "2021-11-15" } };
+        body["version"] = await LoanApi.ContractVersionAsync(app, main);
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{LoanApi.Loans}/{main}/contract", body);
+        Assert.True(put.IsSuccessStatusCode, await put.Content.ReadAsStringAsync());
+
+        var again = await CommitAsync(client, app, app.AdultA, file);
+
+        Assert.Equal(new CountsResponse(1, 1, 0), again.Report!.Sections["loan_insurances"]);
+        var insurances = (await LoanAsync(app, "Prêt principal")).GetProperty("contract").GetProperty("insurances").EnumerateArray()
+            .Select(i => (S(i, "annualRate"), S(i, "startsOn")));
+        Assert.Equal([("0.003", "2020-11-15"), ("0.001", "2021-11-15")], insurances);
+    }
+
     [Fact]
     public async Task Every_rule_is_reported_at_its_field()
     {

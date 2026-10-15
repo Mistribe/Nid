@@ -47,7 +47,13 @@ public sealed partial class RealEstateImportSection
                     parsed.Currency, issues, ct))
                 propertyPlans.Add(plan);
         }
-        var stored = await properties.FindManyAsync(propertyPlans.Where(p => p.Mode != Mode.Created).Select(p => p.Id).ToList(), ct);
+        // Locked in id order before they are read, as the screens lock one (PropertyCheck.LockAsync): at commit, validation runs on the
+        // commit's transaction, so no app write lands between the tenancy check and the apply. A plain validate has no transaction:
+        // each lock ends with its statement.
+        var existing = propertyPlans.Where(p => p.Mode != Mode.Created).Select(p => p.Id).OrderBy(i => i.Value).ToList();
+        foreach (var id in existing)
+            await properties.LockAsync(id, ct);
+        var stored = await properties.FindManyAsync(existing, ct);
         foreach (var plan in propertyPlans.Where(p => p.Mode != Mode.Created))
             plan.Stored = stored.Single(s => s.ItemId == plan.Id);
         var byFileId = propertyPlans.ToDictionary(p => p.FileId, StringComparer.Ordinal);
