@@ -37,12 +37,66 @@ public sealed class PropertyReading(
         foreach (var loan in await loans.FindLinkedAsync([property.ItemId], ct))
             if ((await policy.CheckAsync(reader, loan.ItemId, AccessKind.Read, ct)).IsSuccess && await items.FindAsync(loan.ItemId, ct) is { } loanItem)
                 readable.Add((loan, loanItem));
-        readable = readable.OrderBy(l => l.Item.DisplayName, French).ThenBy(l => l.Item.Id.Value).ToList();
 
         var currency = LoanViews.CurrencyOf(item);
-        var foreign = readable.Select(l => LoanViews.CurrencyOf(l.Item)).Where(c => c != currency).Distinct().ToList();
+        var foreign = Foreign(readable, currency);
         // Rates are per USD: the property's own quote is needed too (as the dashboard's reference).
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, currency], today, today, ct);
+        return Result.Success(Compose(property, item, values!, flowList!, readable, rates, today));
+    }
+
+    /// <summary>
+    /// Batched reads spec §3: <see cref="ReadAsync"/> for the list, in a fixed number of queries whatever the number of
+    /// properties — their facts as one block (refused as a whole when one cannot be read), their linked loans the reader can
+    /// read, and the rates once. Every property passed must be known to the registry.
+    /// </summary>
+    public async Task<Result<IReadOnlyDictionary<ItemId, PropertyRead>>> ReadManyAsync(
+        IReadOnlyList<(StoredProperty Property, ItemAccess Item)> properties, PersonId reader, LocalDate today, CancellationToken ct)
+    {
+        var ids = properties.Select(p => p.Property.ItemId).ToList();
+        var series = await valuations.SeriesManyAsync(ids, Everything, ct);
+        if (series.TryGetFailure(out var failure))
+            return Result.Failure<IReadOnlyDictionary<ItemId, PropertyRead>>(failure!);
+        var listed = await flows.ListManyAsync(ids, Everything, null, ct);
+        if (listed.TryGetFailure(out failure))
+            return Result.Failure<IReadOnlyDictionary<ItemId, PropertyRead>>(failure!);
+        series.TryGetValue(out var values);
+        listed.TryGetValue(out var flowLists);
+
+        var linked = await loans.FindLinkedAsync(ids, ct);
+        var readable = await policy.CheckManyAsync(reader, linked.Select(l => l.ItemId).ToList(), AccessKind.Read, ct);
+        var loanItems = await items.FindManyAsync(readable.ToList(), ct);
+        var byProperty = linked
+            .Where(l => loanItems.ContainsKey(l.ItemId))
+            .ToLookup(l => l.PropertyId!.Value, l => (Loan: l, Item: loanItems[l.ItemId]));
+
+        // One load for the list: the quotes of every property with a loan in another currency, with that property's own.
+        var quotes = new HashSet<Currency>();
+        foreach (var (property, item) in properties)
+        {
+            var currency = LoanViews.CurrencyOf(item);
+            var foreign = Foreign(byProperty[property.ItemId], currency);
+            if (foreign.Count > 0)
+                quotes.UnionWith([.. foreign, currency]);
+        }
+        var rates = quotes.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(quotes, today, today, ct);
+
+        return Result.Success<IReadOnlyDictionary<ItemId, PropertyRead>>(properties.ToDictionary(
+            p => p.Property.ItemId,
+            p => Compose(p.Property, p.Item, values![p.Property.ItemId], flowLists![p.Property.ItemId], byProperty[p.Property.ItemId], rates, today)));
+    }
+
+    /// <summary>The loans' currencies other than the property's: what its conversions need, besides its own quote.</summary>
+    private static IReadOnlyList<Currency> Foreign(IEnumerable<(StoredLoan Loan, ItemAccess Item)> loans, Currency currency)
+        => loans.Select(l => LoanViews.CurrencyOf(l.Item)).Where(c => c != currency).Distinct().ToList();
+
+    /// <summary>One property's read from its facts, its readable linked loans and the rates: the detail's and the list's.</summary>
+    private static PropertyRead Compose(
+        StoredProperty property, ItemAccess item, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flowList,
+        IEnumerable<(StoredLoan Loan, ItemAccess Item)> loans, RateTable rates, LocalDate today)
+    {
+        var currency = LoanViews.CurrencyOf(item);
+        var readable = loans.OrderBy(l => l.Item.DisplayName, French).ThenBy(l => l.Item.Id.Value).ToList();
         var linked = readable.Select(l =>
         {
             var loanCurrency = LoanViews.CurrencyOf(l.Item);
@@ -52,8 +106,8 @@ public sealed class PropertyReading(
                 LoanMath.At(terms, LoanReading.Schedule(terms), today), rate);
         }).ToList();
 
-        return Result.Success(new PropertyRead(values!, flowList!, readable.Select(l => l.Item).ToList(),
-            PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values!, flowList!, linked,
-                property.Tenancies.Select(t => t.Tenancy).ToList(), today)));
+        return new PropertyRead(values, flowList, readable.Select(l => l.Item).ToList(),
+            PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values, flowList, linked,
+                property.Tenancies.Select(t => t.Tenancy).ToList(), today));
     }
 }

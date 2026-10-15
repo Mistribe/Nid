@@ -85,8 +85,27 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             .Where(p => row.Owners.Select(o => o.PersonId).Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent, ct);
 
-        return new ItemAccess(
-            id,
+        return ToAccess(row, kinds);
+    }
+
+    public async Task<IReadOnlyDictionary<ItemId, ItemAccess>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return new Dictionary<ItemId, ItemAccess>();
+
+        var keys = ids.Select(i => i.Value).Distinct().ToList();
+        var rows = await db.Items.AsNoTracking().Include(i => i.Owners).Where(i => keys.Contains(i.Id)).ToListAsync(ct);
+        var owners = rows.SelectMany(r => r.Owners.Select(o => o.PersonId)).Distinct().ToList();
+        var kinds = await db.Persons.AsNoTracking()
+            .Where(p => owners.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Kind == "adult" ? PersonKind.Adult : PersonKind.Dependent, ct);
+
+        return rows.ToDictionary(r => new ItemId(r.Id), r => ToAccess(r, kinds));
+    }
+
+    private static ItemAccess ToAccess(ItemRow row, IReadOnlyDictionary<Guid, PersonKind> kinds)
+        => new(
+            new ItemId(row.Id),
             row.DisplayName,
             row.Visibility == "private" ? Visibility.Private : Visibility.Shared,
             row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList())
@@ -94,7 +113,6 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             ArchivedAt = row.ArchivedAt,
             Currency = row.Currency?.Trim()
         };
-    }
 
     public Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct) => SetArchivedAsync(id, at, ct);
 

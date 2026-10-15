@@ -25,6 +25,21 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons) :
             : Result.Failure(new UnauthorizedFailure("You can read this item but not change it.", null));
     }
 
+    public async Task<IReadOnlySet<ItemId>> CheckManyAsync(PersonId actor, IReadOnlyCollection<ItemId> ids, AccessKind kind, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+            return new HashSet<ItemId>();
+
+        var found = await items.FindManyAsync(ids, ct);
+        var adults = await persons.AdultIdsAsync(ct);
+        // CheckAsync's rule: a reader, and for a write a writer too; an unknown item is nobody's.
+        return found.Values
+            .Where(a => AccessRules.Readers(a.Visibility, a.Owners, adults).Contains(actor)
+                && (kind == AccessKind.Read || AccessRules.Writers(a.Visibility, a.Owners, adults).Contains(actor)))
+            .Select(a => a.Id)
+            .ToHashSet();
+    }
+
     public async Task<Result> CheckCreationAsync(PersonId actor, IReadOnlyList<OwnerShare> owners, CancellationToken ct)
     {
         // An owner nobody knows is treated as an adult, the conservative reading: the creation is then

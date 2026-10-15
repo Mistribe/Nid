@@ -57,20 +57,17 @@ public sealed class ListPropertiesHandler(
         var ids = await visible.ForAsync(person, query.Scope, ct);
         var today = await calendar.TodayAsync(ct);
 
-        var rows = new List<PropertySummary>();
-        foreach (var property in await properties.FindManyAsync(ids.ToList(), ct))
-        {
-            var item = await items.FindAsync(property.ItemId, ct);
-            if (item is null)
-                continue;
-            var read = await reading.ReadAsync(property, item, person, today, ct);
-            if (read.TryGetFailure(out var failure))
-                return Result.Failure<PropertyList>(failure!);
-            read.TryGetValue(out var r);
-            var canWrite = (await policy.CheckAsync(person, property.ItemId, AccessKind.Write, ct)).IsSuccess;
-            rows.Add(PropertyViews.Summary(item, property, r!.Figures, canWrite));
-        }
+        // Batched reads spec §3: the items, the figures and the write checks, each read once for the list.
+        var found = await properties.FindManyAsync(ids.ToList(), ct);
+        var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
+        var listed = found.Where(p => accesses.ContainsKey(p.ItemId)).Select(p => (Property: p, Item: accesses[p.ItemId])).ToList();
+        var read = await reading.ReadManyAsync(listed, person, today, ct);
+        if (read.TryGetFailure(out var failure))
+            return Result.Failure<PropertyList>(failure!);
+        read.TryGetValue(out var reads);
+        var writable = await policy.CheckManyAsync(person, listed.Select(l => l.Property.ItemId).ToList(), AccessKind.Write, ct);
 
+        var rows = listed.Select(l => PropertyViews.Summary(l.Item, l.Property, reads![l.Property.ItemId].Figures, writable.Contains(l.Property.ItemId)));
         // A stable order: the name alone ties on a duplicate (as the loans' list).
         return Result.Success(new PropertyList(rows.OrderBy(r => r.Name, French).ThenBy(r => r.Id.Value).ToList()));
     }

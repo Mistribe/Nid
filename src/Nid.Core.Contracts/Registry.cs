@@ -88,6 +88,12 @@ public interface IItemRegistry
     Task<ItemAccess?> FindAsync(ItemId id, CancellationToken ct);
 
     /// <summary>
+    /// Batched reads spec §2: <see cref="FindAsync"/> for many items in two queries whatever their number, each entry built as
+    /// <see cref="FindAsync"/> builds it; an unknown id is absent. A registry read: no access check.
+    /// </summary>
+    Task<IReadOnlyDictionary<ItemId, ItemAccess>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
+    /// <summary>
     /// 1F3b: an import's replacement of an item it created before. Same rules as a creation (OwnershipRules); the row is
     /// updated in place, its owners reconciled (removed, changed, added), so the audit keeps the previous values.
     /// </summary>
@@ -107,6 +113,12 @@ public interface IAccessPolicy
     /// <c>UnauthorizedFailure</c> when the actor can read but not write.
     /// </summary>
     Task<Result> CheckAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct);
+
+    /// <summary>
+    /// Batched reads spec §2: the ids among <paramref name="ids"/> for which <see cref="CheckAsync"/> succeeds, by the same
+    /// rule, in three queries whatever their number (<see cref="IItemRegistry.FindManyAsync"/> and one read of the adults).
+    /// </summary>
+    Task<IReadOnlySet<ItemId>> CheckManyAsync(PersonId actor, IReadOnlyCollection<ItemId> ids, AccessKind kind, CancellationToken ct);
 
     /// <summary>
     /// The creation rule of <c>authorization.md</c> §5: the actor is one of the owners, or every owner is a

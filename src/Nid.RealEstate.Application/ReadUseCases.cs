@@ -42,14 +42,22 @@ public sealed class ListLoansHandler(
         var ids = await visible.ForAsync(person, query.Scope, ct);
         var today = await calendar.TodayAsync(ct);
 
+        // Batched reads spec §3: the items, the write checks and the linked properties' names, each read once for the list.
+        var found = await loans.FindManyAsync(ids.ToList(), ct);
+        var loanIds = found.Select(l => l.ItemId).ToList();
+        var accesses = await items.FindManyAsync(loanIds, ct);
+        var writable = await policy.CheckManyAsync(person, loanIds, AccessKind.Write, ct);
+        // As LoanCheck.PropertyNameAsync: a linked property's name only when the reader can read it.
+        var readable = await policy.CheckManyAsync(person, found.Select(l => l.PropertyId).OfType<ItemId>().ToList(), AccessKind.Read, ct);
+        var properties = await items.FindManyAsync(readable.ToList(), ct);
+
         var rows = new List<LoanSummary>();
-        foreach (var loan in await loans.FindManyAsync(ids.ToList(), ct))
+        foreach (var loan in found)
         {
-            var item = await items.FindAsync(loan.ItemId, ct);
-            if (item is null)
+            if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
-            var canWrite = (await policy.CheckAsync(person, loan.ItemId, AccessKind.Write, ct)).IsSuccess;
-            var row = LoanViews.Summary(item, loan, today, canWrite, await LoanCheck.PropertyNameAsync(policy, items, person, loan.PropertyId, ct));
+            var propertyName = loan.PropertyId is { } property && properties.TryGetValue(property, out var linked) ? linked.DisplayName : null;
+            var row = LoanViews.Summary(item, loan, today, writable.Contains(loan.ItemId), propertyName);
             if (query.IncludeEnded || !row.Ended)
                 rows.Add(row);
         }

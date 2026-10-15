@@ -62,6 +62,13 @@ public interface IValuations
 
     /// <summary>Current values whose <c>as_of</c> is in <paramref name="range"/>, by <c>as_of</c>.</summary>
     Task<Result<IReadOnlyList<Valuation>>> SeriesAsync(ItemId item, DateRange range, CancellationToken ct);
+
+    /// <summary>
+    /// Batched reads spec §2: <see cref="SeriesAsync"/> for many items in a fixed number of queries; each item maps to what
+    /// <see cref="SeriesAsync"/> returns, in the same order (none: an empty list). Checked as a block: if one item cannot be read,
+    /// the whole call fails as <see cref="SeriesAsync"/> fails for it — callers pass visible items only.
+    /// </summary>
+    Task<Result<IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>>> SeriesManyAsync(IReadOnlyCollection<ItemId> items, DateRange range, CancellationToken ct);
 }
 
 /// <summary>
@@ -80,6 +87,14 @@ public interface IFlows
 
     /// <summary>Current flows in <paramref name="range"/>, by <c>occurred_on</c>, then creation, then id; all kinds when <paramref name="kinds"/> is null.</summary>
     Task<Result<IReadOnlyList<Flow>>> ListAsync(ItemId item, DateRange range, IReadOnlySet<FlowKind>? kinds, CancellationToken ct);
+
+    /// <summary>
+    /// Batched reads spec §2: <see cref="ListAsync"/> for many items in a fixed number of queries; each item maps to what
+    /// <see cref="ListAsync"/> returns, in the same order (none: an empty list). Checked as a block, as
+    /// <see cref="IValuations.SeriesManyAsync"/>.
+    /// </summary>
+    Task<Result<IReadOnlyDictionary<ItemId, IReadOnlyList<Flow>>>> ListManyAsync(
+        IReadOnlyCollection<ItemId> items, DateRange range, IReadOnlySet<FlowKind>? kinds, CancellationToken ct);
 
     /// <summary>Exact sum in the item's currency; zero in that currency when nothing matches.</summary>
     Task<Result<Money>> SumAsync(ItemId item, IReadOnlySet<FlowKind> kinds, DateRange range, CancellationToken ct);

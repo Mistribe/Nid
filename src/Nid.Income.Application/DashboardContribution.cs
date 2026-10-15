@@ -17,12 +17,12 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
     {
         var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
         var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
+        var accesses = await items.FindManyAsync(found.Select(s => s.ItemId).ToList(), ct); // batched reads spec §3
         var sums = new Dictionary<Currency, decimal>();
         var count = 0;
         foreach (var source in found)
         {
-            var item = await items.FindAsync(source.ItemId, ct);
-            if (item is null || item.ArchivedAt is not null)
+            if (!accesses.TryGetValue(source.ItemId, out var item) || item.ArchivedAt is not null)
                 continue;
             count++;
             var currency = SourceCheck.CurrencyOf(item);
@@ -39,11 +39,11 @@ public sealed class IncomeSourcesUpcoming(IVisibleItems visible, IItemRegistry i
     {
         var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
         var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
+        var accesses = await items.FindManyAsync(found.Select(s => s.ItemId).ToList(), ct); // batched reads spec §3
         var events = new List<UpcomingEvent>();
         foreach (var source in found)
         {
-            var item = await items.FindAsync(source.ItemId, ct);
-            if (item is null || item.ArchivedAt is not null)
+            if (!accesses.TryGetValue(source.ItemId, out var item) || item.ArchivedAt is not null)
                 continue;
             var list = bySource[source.ItemId].ToList();
             foreach (var phase in list)
