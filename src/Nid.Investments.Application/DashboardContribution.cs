@@ -17,6 +17,10 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
     {
         var ids = await visible.ForAsync(reader, scope, ct);
         var found = await envelopes.FindManyAsync(ids.ToList(), ct);
+        // Batched reads spec §3: the items and the facts read once for all. A block that cannot be read counts each envelope
+        // as one whose own facts cannot be read.
+        var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
+        var facts = await performance.FactsManyAsync(found, accesses, ct) ?? new Dictionary<ItemId, EnvelopePerformance.Facts>();
         var january1 = new LocalDate(today.Year, 1, 1);
         var values = new Dictionary<Currency, decimal>();
         var starts = new Dictionary<Currency, decimal>();
@@ -29,12 +33,12 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         foreach (var envelope in found)
         {
             count++;
-            var item = await items.FindAsync(envelope.ItemId, ct);
+            var item = accesses.GetValueOrDefault(envelope.ItemId);
             var name = item?.DisplayName ?? string.Empty;
             IReadOnlyList<OwnerShare> owners = item?.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList() ?? [];
             // Facts that cannot be read: counted as without value (the tile says "N enveloppes sans valeur"),
             // never skipped, so the total is never silently partial.
-            if (!(await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f))
+            if (!facts.TryGetValue(envelope.ItemId, out var f))
             {
                 withoutValue++;
                 holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners));
@@ -79,10 +83,13 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
     public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
     {
         var ids = await visible.ForAsync(reader, scope, includeArchived: true, ct);
+        var found = await envelopes.FindManyAsync(ids.ToList(), ct);
+        var facts = await performance.FactsManyAsync(found, await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct), ct)
+            ?? new Dictionary<ItemId, EnvelopePerformance.Facts>();
         var series = new List<(LocalDate? ClosedOn, IReadOnlyList<SeriesPointFigures> Readings)>();
-        foreach (var envelope in await envelopes.FindManyAsync(ids.ToList(), ct))
-            if ((await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f))
-                series.Add((f!.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency)));
+        foreach (var envelope in found)
+            if (facts.TryGetValue(envelope.ItemId, out var f))
+                series.Add((f.Envelope.ClosedOn, EnvelopeMath.Series(f.Values, f.Flows, f.Currency)));
 
         var points = new List<NetWorthPoint>();
         foreach (var date in dates)

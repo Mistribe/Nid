@@ -45,12 +45,14 @@ public sealed class SubscriptionsUpcoming(IVisibleItems visible, ISubscriptionSt
     {
         var horizon = Horizons.Resolve(today, null); // twelve months: past the 60-day window
         var events = new List<UpcomingEvent>();
-        foreach (var input in await store.LoadManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct))
+        var inputs = await store.LoadManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
+        var names = await items.FindManyAsync(inputs.Select(i => i.Subscription.Id).ToList(), ct); // batched reads spec §3
+        foreach (var input in inputs)
         {
             if (!SubscriptionTimeline.Build(input, today, horizon).TryGetValue(out var timeline))
                 continue; // as the list: a refused subscription is reported by its own detail
             var id = input.Subscription.Id;
-            var name = (await items.FindAsync(id, ct))?.DisplayName ?? string.Empty;
+            var name = names.GetValueOrDefault(id)?.DisplayName ?? string.Empty;
             // The first charge in the window of each long-cycle phase: a monthly phase charging first must not hide a yearly one after it.
             foreach (var first in timeline!.Charges
                          .Where(c => c.Date >= today && c.Date <= until)
