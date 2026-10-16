@@ -44,7 +44,7 @@ test('an adult creates a token, calls the API with it, and revokes it', async ({
   await outside.dispose();
 });
 
-// 4B: with a token made in the interface, an MCP client lists the persons; revoked, the token is refused.
+// 4B: with a token made in the interface, an MCP client lists the persons.
 test('an adult plugs an MCP client in with a token', async ({ page, playwright }) => {
   await signIn(page, 'alice', '/security');
   await expect(page.getByRole('region', { name: 'Brancher un assistant' })).toContainText('/mcp');

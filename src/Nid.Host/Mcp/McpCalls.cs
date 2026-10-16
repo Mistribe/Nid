@@ -16,15 +16,15 @@ public static class McpCalls
     public const string TooLarge = "Result too large: narrow the request.";
     public const string NotFound = "Not found.";
 
-    public static Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IRequest<T>> build, CancellationToken ct)
+    public static Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IQuery<T>> build, CancellationToken ct)
         where T : notnull
         => RunAsync<T, T>(services, build, view => view, ct);
 
     public static async Task<CallToolResult> RunAsync<T, TOut>(
-        IServiceProvider services, Func<IRequest<T>> build, Func<T, TOut> map, CancellationToken ct)
+        IServiceProvider services, Func<IQuery<T>> build, Func<T, TOut> map, CancellationToken ct)
         where T : notnull
     {
-        IRequest<T> request;
+        IQuery<T> request;
         try
         {
             request = build();

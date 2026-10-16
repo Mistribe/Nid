@@ -76,12 +76,12 @@ D'après les [bonnes pratiques de sécurité MCP](https://modelcontextprotocol.i
 
 | Risque | Mesures |
 |---|---|
-| **Injection indirecte** : l'assistant lit des libellés, notes ou champs issus de documents et se laisse manipuler | Écritures **en proposition par défaut** ; `write:direct` **déconseillé** pour un assistant qui lit du contenu non fiable (avertissement affiché à la création du jeton) ; champs texte issus de documents **marqués non fiables** et tronqués ; descriptions d'outils **statiques** |
+| **Injection indirecte** : l'assistant lit des libellés, notes ou champs issus de documents et se laisse manipuler | Écritures **en proposition par défaut** ; `write:direct` **déconseillé** pour un assistant qui lit du contenu non fiable (avertissement affiché à la création du jeton) ; champs texte issus de documents signalés comme **données, jamais comme instructions** par les descriptions des outils et les instructions du serveur, et un résultat de plus de 100 ko est refusé ; descriptions d'outils **statiques** |
 | **Agentivité excessive** | **Aucun outil destructif ou d'administration** : ni suppression, ni import, ni gestion de jetons, ni changement de visibilité ou de propriétaires, ni envoi d'email |
 | **Passage de jeton / député confus** | Les jetons ne valent **que pour Nid** ; aucun jeton d'un autre service n'est accepté ni relayé ; aucun proxy OAuth |
 | **Portées trop larges** | Portées minimales (`read`, `write`, `write:direct`), préréglage par défaut « Lecture + propositions » (`../identity-and-access/tokens-and-credentials.md` §1.3) |
 | **Détournement d'identifiant de session ou d'import** | Identifiants aléatoires sur 128 bits ; **appartenance vérifiée à chaque appel** (`404` sinon) |
-| **Fuite par réponses volumineuses** | Vues réduites, taille de réponse bornée |
+| **Fuite par réponses volumineuses** | JSON des vues REST, un résultat de plus de 100 ko est refusé (« réduisez la demande ») |
 | **Traçabilité** | Chaque appel audité (`via: mcp`, `token_id`) — **livré en 4B** (`mcp_tool_called`, enregistré avant l’exécution de l’outil ; un outil inconnu est tracé `unknown`, jamais le texte du client) |
 
 ## 7. Tests

@@ -116,6 +116,19 @@ public class McpToolTests(PostgresFixture fixture)
 
     // Review Focus 2.
     [Fact]
+    public async Task A_malformed_id_is_an_error_not_a_crash()
+    {
+        var (app, client) = await StartAsync(fixture);
+        await using (app) await using (client)
+        {
+            var result = await client.CallToolAsync("get_loan", new Dictionary<string, object?> { ["id"] = "abc" });
+            Assert.True(result.IsError);
+            // The SDK hides the binding detail: it names the tool, not the argument.
+            Assert.Equal("An error occurred invoking 'get_loan'.", McpHarness.TextOf(result));
+        }
+    }
+
+    [Fact]
     public async Task Another_adults_private_item_is_not_found_and_the_call_is_still_audited()
     {
         var (app, client) = await StartAsync(fixture);

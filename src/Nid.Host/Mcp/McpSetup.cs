@@ -33,6 +33,7 @@ public static class McpSetup
             {
                 // The SDK may run the call in its own scope: the actor goes in the scope the tool resolves from.
                 if (context.User is not { } user || TokenClaims.Read(user) is not { } token || context.Services is not { } services)
+                    // Defensive: the authorization policy already refuses a call without a token.
                     return McpCalls.Error("Authentication is required.");
 
                 services.GetRequiredService<IActorAccessor>().Current = Actor.Token(token.Person, token.TokenId, token.Scopes, ActorOrigin.Mcp);

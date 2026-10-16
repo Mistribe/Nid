@@ -219,7 +219,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 
 ## 8. Serveur MCP
 
-- Endpoint `/mcp`, transport Streamable HTTP, dans le même processus, avec le SDK C# officiel (`ModelContextProtocol.AspNetCore`). Mode sans session (par défaut, recommandé tant qu'il n'y a pas de requêtes serveur → client). Autorisation via les filtres d'autorisation du SDK, `MapMcp()` protégé par `RequireAuthorization()`.
+- Endpoint `/mcp`, transport Streamable HTTP, dans le même processus, avec le SDK C# officiel (`ModelContextProtocol.AspNetCore`). Mode sans session (par défaut, recommandé tant qu'il n'y a pas de requêtes serveur → client). Autorisation par une politique d’autorisation de l’hôte liée au schéma `nid-pat` (`/mcp` n’accepte qu’un jeton), appliquée à `MapMcp()` via `RequireAuthorization()`.
 - Les outils sont de **minces enveloppes** qui envoient les mêmes requêtes Synapse que REST : même pipeline, même `IAccessPolicy`, mêmes droits ; un élément privé reste privé. Outils enregistrés **explicitement** (`WithTools<T>()`), pas par scan (`WithToolsFromAssembly` est annoté `RequiresUnreferencedCode`).
 - **Lectures** (`net_worth`, `list_subscriptions`, `loan_schedule`, `envelope_performance`…) : chiffres calculés par les services déterministes, avec provenance. Le modèle ne calcule rien.
 - **Écritures** : par défaut, elles créent une `Proposal` dans la file de validation. Un jeton peut recevoir le scope `write:direct` quand l'utilisateur dicte lui-même la saisie. **Retenu par défaut.**
