@@ -17767,6 +17767,12 @@
           "version": {
             "type": "integer",
             "format": "uint32"
+          },
+          "targetName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -213,4 +213,18 @@ public class ProposalRouteTests(PostgresFixture fixture)
         await core.Items.Where(i => i.Id == item.Value)
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Visibility, "private"));
     }
+
+    [Fact]
+    public async Task Every_view_names_its_target()
+    {
+        await using var app = await StartAsync(fixture);
+        var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+
+        var submitted = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value)));
+        Assert.Equal("Netflix", submitted.GetProperty("targetName").GetString());
+        var listed = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items")[0];
+        Assert.Equal("Netflix", listed.GetProperty("targetName").GetString());
+        var detail = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{submitted.GetProperty("id").GetGuid()}"));
+        Assert.Equal("Netflix", detail.GetProperty("proposal").GetProperty("targetName").GetString());
+    }
 }
