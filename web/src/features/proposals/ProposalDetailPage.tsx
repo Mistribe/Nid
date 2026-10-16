@@ -119,7 +119,7 @@ function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown;
     resolver: kind ? zodResolver(kind.schema(t, original)) : undefined,
     defaultValues: kind?.toForm(original, preview),
   });
-  const errors = useSubmitErrors(form.setError, (path) => kind?.field(path));
+  const errors = useSubmitErrors(form.setError, (path) => kind?.field(path), (field) => kind?.message?.(t, field));
   // A 409 that is no race: the payload's own refusal (a reference already recorded), told in French.
   const [refusal, setRefusal] = useState<string | null>(null);
   const nothing = !!kind?.nothing?.(form.watch(), original);

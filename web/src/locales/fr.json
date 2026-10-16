@@ -504,6 +504,7 @@
     "request_payer": "Choisissez qui paie.",
     "request_visibility": "Choisissez partagé ou privé.",
     "subscriptions_phase_range": "La fin doit venir après le début.",
+    "subscriptions_phase_range_invoice": "Le nouveau prix doit commencer après le début de la phase en cours.",
     "subscriptions_max_cycles": "Le nombre de cycles doit être positif.",
     "subscriptions_price_negative": "Le prix ne peut pas être négatif.",
     "subscriptions_no_open_phase": "Aucun tarif n'est en cours à cette date : choisissez une date où l'abonnement a déjà un prix.",

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { z } from 'zod';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
+import type { FieldError } from '@/api/errors';
 import { trimAmount } from '../investments/entries/entries';
 import type { ProposalView } from './api';
 
@@ -24,6 +25,8 @@ export type KindUi = {
   toPayload: (values: FieldValues, original: unknown, preview: unknown) => unknown;
   /** The form field a server error path belongs to; anything else shows above the form. */
   field: (path: string) => string | undefined;
+  /** A server field error worded for this kind, when the shared `field_error.*` text does not fit it. */
+  message?: (t: TFunction, error: FieldError) => string | undefined;
   Fields: (props: { form: UseFormReturn<FieldValues>; original: unknown; preview: unknown }) => JSX.Element;
   link: (p: ProposalView) => LinkTarget;
   /** True when approving would record nothing: the approval is then disabled. */

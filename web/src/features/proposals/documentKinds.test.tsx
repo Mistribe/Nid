@@ -149,6 +149,21 @@ describe('Un bulletin de paie et une facture proposés', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { chargedOn: '2025-10-01', amount: { amount: '10.99', currency: 'EUR' } } }));
   });
 
+  it('says a refused invoice date must come after the current phase starts', async () => {
+    const p = invoice();
+    serve([p], { preview: invoicePreview });
+    server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
+      { status: 422, code: 'subscriptions.phase_range', title: 'x', errors: [{ path: 'payload.chargedOn', code: 'subscriptions.phase_range', message: 'x' }] },
+      { status: 422 })));
+    const { user, container } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+
+    expect(await screen.findByText('Le nouveau prix doit commencer après le début de la phase en cours.')).toBeInTheDocument();
+    expect(screen.getByLabelText('À partir du')).toHaveAttribute('aria-invalid', 'true');
+    await expectNoAxeViolations(container);
+  });
+
   it('sends no edit when a change is reverted', async () => {
     const p = invoice();
     const sent = serve([p], { preview: invoicePreview });
