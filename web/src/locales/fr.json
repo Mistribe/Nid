@@ -1791,7 +1791,28 @@
     "unknown_target": "Élément inconnu"
   },
   "proposal": {
-    "preview": { "title": "Comparaison", "current": "Valeur déjà enregistrée à cette date", "previous": "Valeur précédente", "proposed": "Valeur proposée", "none": "—" }
+    "back": "Retour à « À valider »",
+    "next": "Proposition suivante",
+    "target": "Élément",
+    "statement": "Relevé",
+    "warnings": "Avertissements",
+    "apply_failed": "L’application a échoué : {{message}}",
+    "preview": { "title": "Comparaison", "current": "Valeur déjà enregistrée à cette date", "previous": "Valeur précédente", "proposed": "Valeur proposée", "none": "—" },
+    "edit": { "title": "Valeur à enregistrer", "as_of": "Date", "amount": "Montant ({{currency}})", "note": "Note" },
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "reject_note": "Note (facultative)",
+    "reject_confirm": "Confirmer le rejet",
+    "cancel": "Annuler",
+    "approved": "Proposition approuvée.",
+    "rejected": "Proposition rejetée.",
+    "conflict": "Cette proposition a changé.",
+    "read_only": "Seul un adulte qui peut modifier cet élément peut décider.",
+    "unsupported": "Cette proposition ne peut plus être appliquée : rejetez-la.",
+    "unknown_kind": "Type de proposition inconnu : {{kind}}",
+    "decided_by": "Décidée le {{date}}",
+    "decision_note": "Note : {{note}}",
+    "open_target": "Voir l’élément"
   },
   "security": {
     "title": "Sécurité",

@@ -6,6 +6,7 @@ import type { ProposalsSearch, RootSearch } from '@/app/router';
 import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { PROPOSALS, type ProposalView } from './api';
+import { useAnnouncement } from './announce';
 import { groupBySource, kindOf, originText } from './kinds';
 
 const STATUSES = ['pending', 'approved', 'rejected'] as const;
@@ -17,10 +18,12 @@ export function ProposalsPage() {
   const search: RootSearch & ProposalsSearch = useSearch({ strict: false });
   const status = search.status ?? 'pending';
   const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
+  const { message } = useAnnouncement();
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t('proposals.title')}</h1>
+      <p role="status">{message}</p>
       <nav aria-label={t('proposals.tabs')} className="flex gap-2">
         {STATUSES.map((s) => (
           <Link key={s} to="/proposals" search={(prev) => ({ ...prev, status: s === 'pending' ? undefined : s })} replace
