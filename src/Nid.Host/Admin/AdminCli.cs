@@ -52,6 +52,7 @@ public static class AdminCli
                 "list-persons" => await run.ListAsync(),
                 "grant-admin" => await run.GrantAdminAsync(),
                 "revoke-sessions" => await run.RevokeSessionsAsync(),
+                "revoke-tokens" => await run.RevokeTokensAsync(),
                 "rebind-subject" => await run.RebindAsync(),
                 _ => 2,
             };
@@ -130,6 +131,24 @@ public static class AdminCli
             if (await ResolveAsync() is not { } person) return 1;
             return await InvokeAsync<AdultView>(new RevokeSessionsCommand(new PersonId(person.Id)), person,
                 _ => $"Les sessions de {Describe(person)} sont fermées.");
+        }
+
+        public async Task<int> RevokeTokensAsync()
+        {
+            if (await ResolveAsync() is not { } person) return 1;
+            if (person.Kind != "adult")
+            {
+                await console.Error.WriteLineAsync("Seul un adulte a des jetons d'accès.");
+                await RecordAsync("refused", PersonCodes.NotAnAdult, person);
+                return 1;
+            }
+            return await InvokeAsync<TokensRevokedView>(new RevokeTokensCommand(new PersonId(person.Id)), person,
+                revoked => revoked.Count switch
+                {
+                    0 => $"{Describe(person)} n'a aucun jeton actif : rien à faire.",
+                    1 => $"1 jeton révoqué pour {Describe(person)}.",
+                    var n => $"{n.ToString(System.Globalization.CultureInfo.InvariantCulture)} jetons révoqués pour {Describe(person)}.",
+                });
         }
 
         public async Task<int> RebindAsync()
