@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
-import { isUnseen, type Guide } from './guides';
+import { GUIDES, isUnseen, type Guide } from './guides';
 
 /**
  * Spec §4.2: a guide closed is seen at once locally, then saved. A failed save says nothing: the guide plays again at the
@@ -17,8 +17,12 @@ export function useMarkSeen(): (guide: Guide) => void {
   const save = $api.useMutation('patch', '/api/v1/core/me/preferences', { scope: { id: 'preferences' } });
 
   return (guide) => {
-    if (!isUnseen(guide, latest.current.guidesSeen)) return; // a replay from « ? » saves nothing
-    const guidesSeen = { ...latest.current.guidesSeen, [guide.id]: guide.version };
+    // An API older than the web has no guidesSeen (the two images deploy separately).
+    const seen = latest.current.guidesSeen ?? {};
+    if (!isUnseen(guide, seen)) return; // a replay from « ? » saves nothing
+    // A retired guide's id is dropped, or the map would creep up to the server's 32-entry cap.
+    const kept = Object.entries(seen).filter(([id]) => GUIDES.some((g) => g.id === id));
+    const guidesSeen = { ...Object.fromEntries(kept), [guide.id]: guide.version };
     latest.current = { ...latest.current, guidesSeen };
     setPreferences(latest.current);
     save.mutate({ body: { guidesSeen } });

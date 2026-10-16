@@ -11,7 +11,7 @@ export type AppLocation = Pick<Location, 'pathname' | 'search' | 'assign' | 'rel
 type SessionState = {
   session: Session;
   capabilities: Capabilities;
-  setPreferences: (preferences: Preferences) => void;
+  setPreferences: (preferences: Preferences | ((current: Preferences) => Preferences)) => void;
   signOut: () => Promise<void>;
   /** A full reload of the app, for the rare write whose effect the running app cannot reflect on its own (a self-demotion leaves capabilities stale). */
   reload: () => void;
@@ -35,7 +35,8 @@ export function Providers(props: {
   const value = useMemo<SessionState>(() => ({
     session,
     capabilities,
-    setPreferences: (preferences) => setSession((current) => ({ ...current, preferences })),
+    setPreferences: (preferences) => setSession((current) =>
+      ({ ...current, preferences: typeof preferences === 'function' ? preferences(current.preferences) : preferences })),
     signOut: async () => {
       const { response } = await api.fetchClient.POST('/auth/logout');
       if (!response.ok) return; // still signed in: leaving would pretend otherwise

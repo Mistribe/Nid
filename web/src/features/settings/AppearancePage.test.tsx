@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { aliceSession } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -208,6 +209,28 @@ describe('Réglages › Apparence', () => {
 
     await router.navigate({ to: '/loans' });
     expect(await screen.findByRole('dialog', { name: 'Crédits : premiers pas' })).toBeInTheDocument();
+  });
+
+  it('a theme save answered after a guide was marked seen keeps the guide seen', async () => {
+    const sent: Body[] = [];
+    const releases = queuePreferences(sent);
+    const { router, user } = await renderApp('/settings/appearance', { session: { ...aliceSession, preferences: { ...aliceSession.preferences, guidesSeen: {} } } });
+
+    await user.click(screen.getByRole('radio', { name: 'Sauge' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    await router.navigate({ to: '/loans' });
+    await user.click(within(await screen.findByRole('dialog', { name: 'Crédits : premiers pas' })).getByRole('button', { name: 'Passer' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    // The theme's response carries the guides as the server had them before the guide was closed.
+    releases[0]?.();
+    await waitFor(() => expect(sent).toHaveLength(2));
+    releases[1]?.();
+
+    await router.navigate({ to: '/settings/appearance' });
+    await router.navigate({ to: '/loans' });
+    await screen.findByRole('button', { name: 'Guide de cette page' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('has no accessibility violation', async () => {

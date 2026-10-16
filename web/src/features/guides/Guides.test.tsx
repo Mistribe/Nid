@@ -35,6 +35,8 @@ describe('the module guides', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Suivant' }));
     expect(within(dialog).getByText(`2 sur ${n}`)).toBeInTheDocument();
+    // A screen change is announced whole: count, title and text share one live region.
+    expect(within(dialog).getByText(`2 sur ${n}`).closest('[aria-live]')).toHaveTextContent(/Les phases.*Une phase est une période/);
 
     await user.click(within(dialog).getByRole('button', { name: 'Précédent' }));
     expect(within(dialog).getByText(`1 sur ${n}`)).toBeInTheDocument();
@@ -107,6 +109,18 @@ describe('the module guides', () => {
 
     await user.click(within(income).getByRole('button', { name: 'Passer' }));
     await waitFor(() => expect(bodies[1]).toEqual({ guidesSeen: { loans: 1, income: 1 } }));
+  });
+
+  it('drops a retired guide from the saved map', async () => {
+    const { bodies, user } = await render('/loans', { retired: 1, income: 1 });
+    await user.click(within(await loansGuide()).getByRole('button', { name: 'Passer' }));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { income: 1, loans: 1 } }]));
+  });
+
+  it('plays the guide against an API that has no guidesSeen yet', async () => {
+    const { bodies, user } = await render('/loans', undefined as unknown as Preferences['guidesSeen']);
+    await user.click(within(await loansGuide()).getByRole('button', { name: 'Passer' }));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 1 } }]));
   });
 
   it('a failed save says nothing and does not replay the guide in this session', async () => {

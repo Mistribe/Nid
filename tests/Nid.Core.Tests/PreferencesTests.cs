@@ -22,6 +22,7 @@ public class PreferencesTests
     [InlineData("")]
     [InlineData("a-theme-id-that-is-far-too-long-xyz")]
     [InlineData("sauge; color: red")]
+    [InlineData("sauge\n")]
     public void A_theme_is_a_short_lowercase_identifier(string theme)
     {
         var failure = Preferences.Default.Apply(new PreferencesChange(theme, null, null, null)).Fail();
@@ -72,6 +73,7 @@ public class PreferencesTests
     [InlineData("a-guide-id-that-is-far-too-long-xyz", 1)]
     [InlineData("loans", 0)]
     [InlineData("loans", 1000)]
+    [InlineData("loans\n", 1)]
     public void A_guide_is_a_short_lowercase_id_with_a_version_from_1_to_999(string id, int version)
         => Assert.Equal("core.preference_invalid",
             Preferences.Default.Apply(new PreferencesChange(null, null, null, new Dictionary<string, int> { [id] = version })).Fail().Code);

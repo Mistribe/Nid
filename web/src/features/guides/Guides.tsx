@@ -1,16 +1,20 @@
 import { useRouterState } from '@tanstack/react-router';
 import { CircleHelp } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps, type ComponentType } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { section } from '@/app/nav';
 import { useSession } from '@/app/Providers';
 import { Button } from '@/components/ui/button';
+import type { GuideIntro as Intro } from './GuideIntro';
 import { guideFor, isUnseen, type Guide } from './guides';
+import type { SpotTour as Tour } from './SpotTour';
 import { useMarkSeen } from './useMarkSeen';
 
-const GuideIntro = lazy(() => import('./GuideIntro').then((m) => ({ default: m.GuideIntro })));
-const SpotTour = lazy(() => import('./SpotTour').then((m) => ({ default: m.SpotTour })));
+// A chunk that fails to load shows no guide rather than throwing up through the Shell, which has no boundary.
+const none = () => ({ default: () => null });
+const GuideIntro = lazy<ComponentType<ComponentProps<typeof Intro>>>(() => import('./GuideIntro').then((m) => ({ default: m.GuideIntro }), none));
+const SpotTour = lazy<ComponentType<ComponentProps<typeof Tour>>>(() => import('./SpotTour').then((m) => ({ default: m.SpotTour }), none));
 
 /** Spec §4.2 and §4.5: plays a module's introduction once, and « ? » replays it. Sits in the Shell's header. */
 export function Guides() {
@@ -23,8 +27,10 @@ export function Guides() {
   const [state, setState] = useState<{ open: 'intro' | 'tour' | null; guide?: Guide }>({ open: null });
   const help = useRef<HTMLButtonElement>(null);
   // The section effect runs on a section change only; it reads the rest as it stands then.
-  const latest = useRef({ state, seen: session.preferences.guidesSeen, markSeen });
-  latest.current = { state, seen: session.preferences.guidesSeen, markSeen };
+  // An API older than the web has no guidesSeen (the two images deploy separately).
+  const seen = session.preferences.guidesSeen ?? {};
+  const latest = useRef({ state, seen, markSeen });
+  latest.current = { state, seen, markSeen };
 
   useEffect(() => {
     const { state, seen, markSeen } = latest.current;

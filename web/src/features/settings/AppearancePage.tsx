@@ -43,7 +43,8 @@ export function AppearancePage() {
     scope: { id: 'preferences' },
     onSuccess: (preferences, { body }) => {
       pending.current -= 1;
-      setPreferences(preferences);
+      // A guide marked seen while this save was in flight (this page may be gone) must not be undone by the older map.
+      setPreferences((local) => (body.guidesSeen === undefined ? { ...preferences, guidesSeen: local.guidesSeen } : preferences));
       // Only the last of a run of saves applies what the server confirmed and clears the
       // not-yet-confirmed choice: an earlier one settling first must not flash the page (or the
       // local copy theme-init.js reads) back to a value a queued save is about to change.

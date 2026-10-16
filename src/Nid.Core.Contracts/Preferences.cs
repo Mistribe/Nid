@@ -50,7 +50,8 @@ public sealed partial record Preferences(string Theme, string Mode, bool ChartPa
     private static Result<Preferences> Invalid(string message)
         => Result.Failure<Preferences>(new Failure("core.preference_invalid", message, null));
 
-    [GeneratedRegex("^[a-z][a-z0-9-]{0,31}$")]
+    // \z, not $: .NET's $ also matches before a final newline.
+    [GeneratedRegex(@"^[a-z][a-z0-9-]{0,31}\z")]
     private static partial Regex IdPattern();
 }
 
