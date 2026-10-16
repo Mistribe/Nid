@@ -493,6 +493,8 @@
     }
   },
   "field_error": {
+    "core_external_ref_taken": "Un mouvement est déjà enregistré avec cette référence : décochez-le.",
+    "core_external_ref_taken_movement": "Le mouvement {{n}} est déjà enregistré avec cette référence : décochez-le.",
     "request_required": "Ce champ est obligatoire.",
     "request_date": "Saisissez une date valide.",
     "request_amount": "Saisissez un montant comme 12,99, avec quatre décimales au plus.",
@@ -1817,6 +1819,7 @@
       "keep": "Mouvement {{n}} : {{date}}, {{kind}}, {{amount}}"
     },
     "approve": "Approuver",
+    "nothing_to_record": "Aucun mouvement n’est coché et le relevé n’a pas de valeur : il n’y aurait rien à enregistrer. Cochez un mouvement, ou rejetez la proposition.",
     "reject": "Rejeter",
     "reject_note": "Note (facultative)",
     "reject_confirm": "Confirmer le rejet",

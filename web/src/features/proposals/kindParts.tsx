@@ -26,6 +26,8 @@ export type KindUi = {
   field: (path: string) => string | undefined;
   Fields: (props: { form: UseFormReturn<FieldValues>; original: unknown; preview: unknown }) => JSX.Element;
   link: (p: ProposalView) => LinkTarget;
+  /** True when approving would record nothing: the approval is then disabled. */
+  nothing?: (values: FieldValues, original: unknown) => boolean;
 };
 
 export const input = 'rounded-md border px-3 py-2';

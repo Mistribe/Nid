@@ -47,6 +47,7 @@ describe('Un relevé proposé', () => {
     expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Déjà enregistré');
     expect(within(table).getByText('<b>Retrait</b>')).toBeInTheDocument();
     expect(container.querySelector('b')).toBeNull();
+    expect(screen.queryByText('Movement 1 is already recorded.')).toBeNull();
     expect(screen.getByRole('checkbox', { name: /Mouvement 1/ })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: /Mouvement 2/ })).toBeChecked();
     await expectNoAxeViolations(container);
@@ -112,7 +113,7 @@ describe('Un relevé proposé', () => {
     await user.click(await screen.findByRole('checkbox', { name: /Mouvement 1/ }));
     await user.click(screen.getByRole('button', { name: 'Approuver' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('This reference is already recorded: leave this movement out.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Le mouvement 1 est déjà enregistré avec cette référence : décochez-le.');
     expect(screen.queryByRole('button', { name: 'Recharger' })).toBeNull();
   });
 
@@ -134,5 +135,19 @@ describe('Un relevé proposé', () => {
     expect(await screen.findByText('Seul un adulte qui peut modifier cet élément peut décider.')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).toBeNull();
     await expectNoAxeViolations(container);
+  });
+
+  it('disables the approval when no value and no movement would be recorded', async () => {
+    const p = proposal({ kind: 'investments.record_statement', payload: { asOf: '2025-09-30', movements: [payload.movements[0]] } });
+    serve([p], { preview: { movements: [statementPreview.movements[0]] } });
+    const { user, container } = await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByText(/il n’y aurait rien à enregistrer/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approuver' })).toBeDisabled();
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('checkbox', { name: /Mouvement 1/ }));
+    expect(screen.getByRole('button', { name: 'Approuver' })).toBeEnabled();
+    expect(screen.queryByText(/il n’y aurait rien à enregistrer/)).toBeNull();
   });
 });
