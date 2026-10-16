@@ -1831,6 +1831,7 @@
     },
     "invoice": {
       "current": "Prix actuel",
+      "every": "Rythme actuel",
       "proposed": "Prix de la facture",
       "starts_on": "À partir du",
       "amount": "Prix ({{currency}})",

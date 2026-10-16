@@ -109,6 +109,7 @@ describe('Un bulletin de paie et une facture proposés', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Facture d’un abonnement' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Netflix' })).toHaveAttribute('href', `/subscriptions/${p.targetItemId}`);
     expect(screen.getByRole('row', { name: /Prix actuel/ })).toHaveTextContent(/9,99\s€/);
+    expect(screen.getByRole('row', { name: /Rythme actuel/ })).toHaveTextContent('1 mois');
     expect(screen.getByRole('row', { name: /Prix de la facture/ })).toHaveTextContent(/10,99\s€/);
     await expectNoAxeViolations(container);
 
@@ -118,6 +119,49 @@ describe('Un bulletin de paie et une facture proposés', () => {
     await user.click(screen.getByRole('button', { name: 'Approuver' }));
 
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { chargedOn: '2025-09-01', amount: { amount: '11.49', currency: 'EUR' } } }));
+  });
+
+  it('keeps the payload gross when only the net is edited', async () => {
+    const gross = { amount: '3100.00', currency: 'EUR' };
+    const p = proposal({ ...payslip(), payload: { ...payslipPayload, gross } });
+    const sent = serve([p], { preview: payslipPreview });
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    const net = await screen.findByLabelText('Net (EUR)');
+    await user.clear(net);
+    await user.type(net, '2410');
+    await user.click(screen.getByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: {
+      paidOn: '2025-09-28', phaseLabel: 'Salaire', net: { amount: '2410', currency: 'EUR' }, gross: { amount: '3100', currency: 'EUR' }, effectiveOn: '2025-09-01',
+    } }));
+  });
+
+  it('sends an edited invoice start date', async () => {
+    const p = invoice();
+    const sent = serve([p], { preview: invoicePreview });
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    await user.clear(await screen.findByLabelText('À partir du'));
+    await user.type(screen.getByLabelText('À partir du'), '2025-10-01');
+    await user.click(screen.getByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { chargedOn: '2025-10-01', amount: { amount: '10.99', currency: 'EUR' } } }));
+  });
+
+  it('sends no edit when a change is reverted', async () => {
+    const p = invoice();
+    const sent = serve([p], { preview: invoicePreview });
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    const price = await screen.findByLabelText('Prix (EUR)');
+    await user.clear(price);
+    await user.type(price, '12');
+    await user.clear(price);
+    await user.type(price, '10,99');
+    await user.click(screen.getByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1 }));
   });
 
   it('accepts a free subscription and refuses a negative price', async () => {

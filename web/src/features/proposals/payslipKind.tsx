@@ -9,7 +9,7 @@ import { Field } from '../subscriptions/edits/Field';
 import { Row, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 
 type Pay = { net: Money; gross?: Money | null };
-type PayslipPayload = Pay & { paidOn: string; phaseLabel: string; effectiveOn: string };
+type PayslipPayload = Pay & { paidOn: string; phaseLabel: string; effectiveOn?: string };
 type PayslipPreview = { expected: Pay | null; proposed: Pay | null; effectiveOn: string | null };
 type PayslipForm = { effectiveOn: string; net: string; gross: string };
 
@@ -70,14 +70,14 @@ export const payslip: KindUi = {
   }),
   toForm: (original) => {
     const o = asPayslip(original);
-    return { effectiveOn: o.effectiveOn, net: trimAmount(o.net.amount), gross: o.gross ? trimAmount(o.gross.amount) : '' };
+    return { effectiveOn: o.effectiveOn ?? '', net: trimAmount(o.net.amount), gross: o.gross ? trimAmount(o.gross.amount) : '' };
   },
   toPayload: (values, original) => {
     const v = values as PayslipForm;
     const o = asPayslip(original);
     const gross = v.gross.trim();
     const sameGross = o.gross ? sameAmount(gross, o.gross.amount) : gross === '';
-    if (v.effectiveOn === o.effectiveOn && sameAmount(v.net, o.net.amount) && sameGross) return null;
+    if (v.effectiveOn === (o.effectiveOn ?? '') && sameAmount(v.net, o.net.amount) && sameGross) return null;
     return {
       paidOn: o.paidOn, phaseLabel: o.phaseLabel, net: { amount: wireAmount(v.net), currency: o.net.currency },
       ...(gross ? { gross: { amount: wireAmount(gross), currency: o.net.currency } } : {}),

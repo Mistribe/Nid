@@ -6,10 +6,11 @@ import { formatMoney } from '@/components/Money';
 import { trimAmount } from '../investments/entries/entries';
 import { ISO_DATE } from '../subscriptions/edits/amount';
 import { Field } from '../subscriptions/edits/Field';
+import { durationText } from '../subscriptions/format';
 import { Row, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 
 type InvoicePayload = { chargedOn: string; amount: Money };
-type InvoicePreview = { current: { price: Money } | null; proposed: { price: Money } | null; startsOn: string | null };
+type InvoicePreview = { current: { price: Money; every: { count: number; unit: string } } | null; proposed: { price: Money } | null; startsOn: string | null };
 type InvoiceForm = { chargedOn: string; amount: string };
 
 const asInvoice = (payload: unknown) => payload as InvoicePayload;
@@ -30,6 +31,7 @@ function InvoicePreviewView({ preview }: { preview: unknown }) {
       <caption className="sr-only">{t('proposal.preview.title')}</caption>
       <tbody>
         <Row label={t('proposal.invoice.current')}>{shown(p.current?.price)}</Row>
+        {p.current ? <Row label={t('proposal.invoice.every')}>{durationText(t, p.current.every)}</Row> : null}
         <Row label={t('proposal.invoice.proposed')}>{shown(p.proposed?.price)}</Row>
         <Row label={t('proposal.invoice.starts_on')}>{p.startsOn ? formatLocalDate(p.startsOn) : t('proposal.preview.none')}</Row>
       </tbody>
