@@ -10693,6 +10693,13 @@
           },
           "via": {
             "type": "string"
+          },
+          "tokenId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

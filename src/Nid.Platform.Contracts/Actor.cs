@@ -51,6 +51,16 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     /// </summary>
     public bool IsAdmin { get; init; }
 
+    /// <summary>4A: the personal access token this actor authenticated with; null for a session, the system and the CLI.</summary>
+    public Guid? TokenId { get; init; }
+
+    /// <summary>A bearer token (tokens-and-credentials.md §1.4): its person, restricted to its scopes, never admin.</summary>
+    public static Actor Token(PersonId person, Guid tokenId, IReadOnlySet<string> scopes, ActorOrigin via)
+        => new(ActorKind.Person, person, via, scopes) { TokenId = tokenId };
+
+    /// <summary>Who a refused authentication is recorded as (spec 4A §5): nobody known, no scope, no role.</summary>
+    public static Actor Unidentified(ActorOrigin via) => new(ActorKind.System, null, via, new HashSet<string>());
+
     public static Actor Browser(PersonId person, bool isAdmin = false)
         => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes) { IsAdmin = isAdmin };
 

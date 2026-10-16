@@ -48,6 +48,7 @@ internal static class AuditDiff
             PersonId = actor.PersonId?.Value,
             Via = actor.Via.ToWire(),
             Scopes = actor.Scopes.Order(StringComparer.Ordinal).ToArray(),
+            TokenId = actor.TokenId,
             RequestId = Activity.Current?.TraceId.ToString(),
             Request = request,
             Entity = $"{entry.Metadata.GetSchema()}.{entry.Metadata.GetTableName()}",

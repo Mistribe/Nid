@@ -18,12 +18,15 @@ public static class SecurityEventNames
     public const string HouseholdSettingsChanged = "household_settings_changed";
     public const string AdminCommand = "admin_command";
     public const string SubjectRebound = "subject_rebound";
+    public const string TokenCreated = "token_created";
+    public const string TokenRevoked = "token_revoked";
+    public const string TokenAuthFailed = "token_auth_failed";
 
     /// <summary>What the admin area's security journal shows (spec §5.1): nothing about another adult's own sessions.</summary>
     public static IReadOnlySet<string> AdminJournal { get; } = new HashSet<string>
     {
         LoginRefused, AccessViolation, PersonPreregistered, PersonPreregistrationCancelled,
-        AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound,
+        AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
     };
 }
 

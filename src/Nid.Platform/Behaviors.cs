@@ -77,7 +77,7 @@ public sealed class AdminBehavior<TRequest, TResponse>(IActorAccessor accessor)
             : next(request, cancellationToken);
 }
 
-/// <summary>Reads need <c>read</c>, commands need <c>write</c>, and a request may declare more (<see cref="IRequiresScope"/>).</summary>
+/// <summary>Reads need <c>read</c>, commands need <c>write</c>, a request may declare more (<see cref="IRequiresScope"/>); a token never runs an <see cref="IBrowserOnly"/> request.</summary>
 public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
@@ -88,10 +88,15 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     public ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
+        var actor = accessor.Current!;
+        if (request is IBrowserOnly && actor.TokenId is not null)
+            return ValueTask.FromResult(Result.Failure<TResponse>(
+                new Failure(BrowserOnlyCodes.Required, "This action is only available from a browser session.", null)));
+
         var required = request is IRequiresScope declared
             ? declared.RequiredScope
             : request is ICommandMarker ? ScopeNames.Write : ScopeNames.Read;
-        return accessor.Current!.Has(required)
+        return actor.Has(required)
             ? next(request, cancellationToken)
             : ValueTask.FromResult(Result.Failure<TResponse>(new UnauthorizedFailure($"The '{required}' scope is required.", null)));
     }

@@ -10047,6 +10047,8 @@ export interface components {
             /** Format: uuid */
             personId?: null | string;
             via: string;
+            /** Format: uuid */
+            tokenId?: null | string;
         };
         BankRowView: {
             /** Format: date */

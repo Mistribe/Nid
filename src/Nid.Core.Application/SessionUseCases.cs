@@ -9,7 +9,7 @@ namespace Nid.Core.Application;
 public sealed record SessionsRevoked(Guid PersonId);
 
 /// <summary>"Déconnecter partout" for oneself (administration-and-audit.md §5, spec U16).</summary>
-public sealed record RevokeMySessionsCommand : ICommand<SessionsRevoked>, IRecordsSecurityEvent
+public sealed record RevokeMySessionsCommand : ICommand<SessionsRevoked>, IRecordsSecurityEvent, IBrowserOnly
 {
     public SecurityEvent EventFor(object response)
         => SecurityEvent.Of(SecurityEventNames.SessionRevoked, new PersonId(((SessionsRevoked)response).PersonId));

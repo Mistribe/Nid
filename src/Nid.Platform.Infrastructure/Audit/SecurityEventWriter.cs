@@ -29,8 +29,8 @@ public sealed partial class SecurityEventWriter(
         {
             await using var command = dataSource.CreateCommand("""
                 insert into platform.audit_log
-                  (id, at, category, action, actor_kind, person_id, via, scopes, request_id, request, item_ids, subject_person_id, data)
-                values ($1, $2, 'security', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                  (id, at, category, action, actor_kind, person_id, via, scopes, request_id, request, item_ids, subject_person_id, data, token_id)
+                values ($1, $2, 'security', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 """);
             command.Parameters.Add(new NpgsqlParameter { Value = Guid.CreateVersion7() });
             command.Parameters.Add(new NpgsqlParameter { Value = clock.GetCurrentInstant() });
@@ -44,6 +44,7 @@ public sealed partial class SecurityEventWriter(
             command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Items.Select(i => i.Value).ToArray() });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)securityEvent.Subject?.Value ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
             command.Parameters.Add(new NpgsqlParameter { Value = JsonSerializer.Serialize(securityEvent.Data), NpgsqlDbType = NpgsqlDbType.Jsonb });
+            command.Parameters.Add(new NpgsqlParameter { Value = (object?)actor.TokenId ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
             await command.ExecuteNonQueryAsync(bound.Token);
             return true;
         }

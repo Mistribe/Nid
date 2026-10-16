@@ -44,5 +44,5 @@ public sealed class AuditLogReader(PlatformDbContext db) : IAuditLog
 
     private static AuditRecord ToRecord(AuditEntryRow r) => new(
         r.Seq, r.At, r.Category, r.Action, r.ActorKind, r.PersonId, r.Via, r.Request, r.Entity, r.EntityKey,
-        r.ItemIds, r.SubjectPersonId, r.Data);
+        r.ItemIds, r.SubjectPersonId, r.Data, r.TokenId);
 }
