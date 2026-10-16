@@ -103,6 +103,12 @@ Objectif : moins de dix minutes (principe 2).
 
 **Livré en 4C2** (`superpowers/specs/2026-10-16-proposal-screens-design.md`) : la liste par statut et par relevé, la fiche avec la comparaison à l’état actuel, la modification en place, approuver / rejeter avec note, le passage à la suivante, le conflit et le rechargement, la lecture seule sans droit d’écriture ; sans la colonne PDF (extraction reportée) ; le compteur dans « À faire » et dans la routine.
 
+**Livré en 4D1** (`superpowers/specs/2026-10-16-mcp-write-tools-design.md`) : trois types de plus dans « À valider », chacun avec sa comparaison, son formulaire et son lien vers l’élément.
+- **Relevé d’une enveloppe** : comparaison de la valeur, tableau des mouvements, une case par mouvement ; un mouvement déjà enregistré arrive décoché, un mouvement décoché n’est pas enregistré ; un mouvement retrouvé par sa référence bancaire ne peut pas être recoché (le Core refuse une référence déjà prise, l’approbation est refusée à cette ligne). « Approuver » est désactivé quand rien ne serait enregistré (aucune valeur, aucun mouvement coché) : le bon geste est alors de rejeter.
+- **Bulletin de paie** : net et brut attendus contre ceux du bulletin, date d’effet modifiable.
+- **Facture d’un abonnement** : prix actuel contre celui de la facture, prix et date modifiables ; le prix peut être nul (un abonnement peut devenir gratuit).
+- Approuver une proposition devenue « conforme » (après modification) ne change rien et la décide approuvée sans référence appliquée.
+
 ## 7. Assistant d'import
 
 Orchestre le protocole de `../import-format.md` §11. L'identifiant de session est dans l'URL (`/import/:id`) ; la page Import liste les sessions récentes et permet la reprise.
