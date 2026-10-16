@@ -1810,7 +1810,7 @@
     "read_only": "Seul un adulte qui peut modifier cet élément peut décider.",
     "unsupported": "Cette proposition ne peut plus être appliquée : rejetez-la.",
     "unknown_kind": "Type de proposition inconnu : {{kind}}",
-    "decided_by": "Décidée le {{date}}",
+    "decided_by": "Décision de {{name}}",
     "decision_note": "Note : {{note}}",
     "open_target": "Voir l’élément"
   },

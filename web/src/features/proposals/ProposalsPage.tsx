@@ -18,7 +18,7 @@ export function ProposalsPage() {
   const search: RootSearch & ProposalsSearch = useSearch({ strict: false });
   const status = search.status ?? 'pending';
   const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
-  const { message } = useAnnouncement();
+  const message = useAnnouncement();
 
   return (
     <div className="space-y-4">

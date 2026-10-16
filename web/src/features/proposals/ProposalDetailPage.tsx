@@ -13,24 +13,34 @@ import { presentConflict, valueSchema, type ValueFormValues } from '../investmen
 import { Field } from '../subscriptions/edits/Field';
 import { Reload } from '../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
+import { PERSONS } from '../subscriptions/api';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
 import { groupBySource, kindOf, originText } from './kinds';
-import { useAnnouncement } from './announce';
+import { announce, useAnnouncement } from './announce';
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS: Record<string, keyof ValueFormValues> = {
   'payload.asOf': 'asOf', 'payload.amount.amount': 'amount', 'payload.amount.currency': 'amount', 'payload.note': 'note',
-  'editedPayload': 'amount',
+  'editedPayload': 'amount', // ProposalUseCases emits it when the edited payload is not an object
 };
 
 /** Spec 4C2 §4: one proposal — read, edit, decide, move on. */
 export function ProposalDetailPage() {
+  const { id } = useParams({ from: '/proposals/$id' });
+  const message = useAnnouncement(id);
+  return (
+    <div className="space-y-4">
+      <p role="status">{message}</p>
+      <Proposal id={id} />
+    </div>
+  );
+}
+
+function Proposal({ id }: { id: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const { id } = useParams({ from: '/proposals/$id' });
   const answer = $api.useQuery('get', PROPOSAL, { params: { path: { id } } });
   const pending = usePending();
-  const { message } = useAnnouncement();
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return null;
@@ -44,9 +54,8 @@ export function ProposalDetailPage() {
 
   return (
     <div className="space-y-4">
-      <p role="status">{message}</p>
       <Link to="/proposals" className="underline">{t('proposal.back')}</Link>
-      <h1 className="text-2xl font-semibold">{kind ? t(kind.label as 'proposals.kind.valuation') : t('proposal.unknown_kind', { kind: p.kind })}</h1>
+      <h1 className="text-2xl font-semibold">{kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind })}</h1>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt>{t('proposal.target')}</dt>
         <dd>{link ? <Link to={link.to} params={link.params} className="underline">{p.targetName ?? t('proposals.unknown_target')}</Link> : (p.targetName ?? t('proposals.unknown_target'))}</dd>
@@ -60,20 +69,25 @@ export function ProposalDetailPage() {
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}
       {!kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
-      {p.status !== 'pending' ? <Decided p={p} /> : !canDecide ? <p>{t('proposal.read_only')}</p>
-        : <Decide p={p} next={next} canApprove={!!kind && !unsupported} />}
-      {next && p.status === 'pending' ? <Link to="/proposals/$id" params={{ id: next.id }} className="underline">{t('proposal.next')}</Link> : null}
+      {p.status !== 'pending' ? <Decided p={p} target={link ?? null} /> : !canDecide ? <p>{t('proposal.read_only')}</p>
+        : <Decide key={`${p.id}:${p.version}`} p={p} next={next} canApprove={!!kind && !unsupported} />}
+      {next ? <Link to="/proposals/$id" params={{ id: next.id }} className="underline">{t('proposal.next')}</Link> : null}
       {unsupported ? <p>{t('proposal.unsupported')}</p> : null}
     </div>
   );
 }
 
-function Decided({ p }: { p: ProposalView }) {
+function Decided({ p, target }: { p: ProposalView; target: ReturnType<NonNullable<ReturnType<typeof kindOf>>['link']> | null }) {
   const { t } = useTranslation();
+  const { $api } = useApi();
+  const people = $api.useQuery('get', PERSONS).data;
+  const by = people?.find((x) => x.id === p.decidedByPersonId)?.displayName;
   return (
     <div className="space-y-1">
-      <p>{t('proposal.decided_by', { date: formatLocalDate((p.decidedAt ?? p.createdAt).slice(0, 10)) })}</p>
+      <p>{t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatLocalDate((p.decidedAt ?? p.createdAt).slice(0, 10)) })}</p>
+      {by ? <p>{t('proposal.decided_by', { name: by })}</p> : null}
       {p.decisionNote ? <p>{t('proposal.decision_note', { note: p.decisionNote })}</p> : null}
+      {target ? <Link to={target.to} params={target.params} className="underline">{t('proposal.open_target')}</Link> : null}
     </div>
   );
 }
@@ -83,7 +97,6 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { announce } = useAnnouncement();
   const kind = kindOf(p.kind);
   const original = p.editedPayload ?? p.payload;
   const form = useForm<ValueFormValues>({ resolver: zodResolver(valueSchema(t)), defaultValues: kind?.toForm(original) });
@@ -127,9 +140,9 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
         </form>
       ) : null}
       {rejecting ? (
-        <form className="space-y-2" onSubmit={(ev) => { ev.preventDefault(); reject.mutate(
+        <form className="space-y-2" onSubmit={(ev) => { ev.preventDefault(); errors.clear(); reject.mutate(
           { params: { path: { id: p.id } }, body: { version: p.version, ...(note.trim() ? { note: note.trim() } : {}) } },
-          { onSuccess: () => after(t('proposal.rejected')) }); }}>
+          { onSuccess: () => after(t('proposal.rejected')), onError: (er) => { if (toProblem(er).status !== 409) errors.onError(er); } }); }}>
           <Field label={t('proposal.reject_note')}>{(c) => <textarea {...c} value={note} onChange={(ev) => setNote(ev.target.value)} className={input} />}</Field>
           <div className="flex gap-2">
             <Button type="submit" disabled={reject.isPending}>{t('proposal.reject_confirm')}</Button>

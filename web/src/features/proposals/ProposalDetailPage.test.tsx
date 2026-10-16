@@ -18,6 +18,7 @@ function serve(items: ProposalView[], over: { canDecide?: boolean; preview?: unk
   let pending = [...items];
   const sent: { approve?: unknown; reject?: unknown } = {};
   server.use(
+    http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: 'a', kind: 'adult', displayName: 'Camille', email: null }])),
     http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: pending })),
     http.get('*/api/v1/core/proposals/:id', ({ params }) => {
       const p = items.find((i) => i.id === params.id)!;
@@ -132,22 +133,26 @@ describe('Une proposition', () => {
 
   // Review Focus 4.
   it('shows a decided proposal read only', async () => {
-    const p = proposal({ status: 'approved', decidedAt: '2026-10-16T09:00:00+00:00', decisionNote: 'OK' });
+    const p = proposal({ status: 'approved', decidedAt: '2026-10-16T09:00:00+00:00', decisionNote: 'OK', decidedByPersonId: 'a' });
     serve([p]);
-    await renderApp(`/proposals/${p.id}`);
+    const { container } = await renderApp(`/proposals/${p.id}`);
 
-    expect(await screen.findByText(/Décidée le/)).toBeInTheDocument();
+    expect(await screen.findByText(/Approuvée le/)).toBeInTheDocument();
+    expect(await screen.findByText('Décision de Camille')).toBeInTheDocument();
     expect(screen.getByText('Note : OK')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voir l’élément' })).toHaveAttribute('href', `/investments/${p.targetItemId}`);
     expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
+    await expectNoAxeViolations(container);
   });
 
   it('is read only without the right to decide', async () => {
     const p = proposal();
     serve([p], { canDecide: false });
-    await renderApp(`/proposals/${p.id}`);
+    const { container } = await renderApp(`/proposals/${p.id}`);
 
     expect(await screen.findByText('Seul un adulte qui peut modifier cet élément peut décider.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
+    await expectNoAxeViolations(container);
   });
 
   // Review Focus 1.
@@ -172,6 +177,73 @@ describe('Une proposition', () => {
 
     expect(await screen.findByText('Type de proposition inconnu : realestate.future_kind')).toBeInTheDocument();
     expect(screen.getByText('{"x":1}')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Rejeter' })).toBeInTheDocument();
+  });
+
+  it('does not carry one proposal’s form into another', async () => {
+    const a = proposal();
+    const b = proposal({ targetName: 'Assurance-vie', payload: { asOf: '2025-09-30', amount: { amount: '999.00', currency: 'EUR' } } });
+    const sent = serve([a, b]);
+    const { user, router } = await renderApp(`/proposals/${a.id}`);
+
+    await screen.findByLabelText('Montant (EUR)');
+    await user.click(screen.getByRole('link', { name: 'Proposition suivante' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${b.id}`));
+    await waitFor(() => expect(screen.getByLabelText('Montant (EUR)')).toHaveValue('999'));
+    await user.click(screen.getByRole('link', { name: 'Proposition suivante' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${a.id}`));
+    await waitFor(() => expect(screen.getByLabelText('Montant (EUR)')).toHaveValue('23500'));
+    await user.click(screen.getByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(sent.approve).toEqual({ version: 1 }));
+  });
+
+  it('tells a conflict on a rejection', async () => {
+    const p = proposal();
+    serve([p]);
+    server.use(http.post('*/api/v1/core/proposals/:id/reject', () =>
+      HttpResponse.json({ status: 409, code: 'core.proposal_decided', title: 'x' }, { status: 409 })));
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rejeter' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer le rejet' }));
+
+    expect(await screen.findByText('Cette proposition a changé.')).toBeInTheDocument();
+  });
+
+  it('shows a failed rejection', async () => {
+    const p = proposal();
+    serve([p]);
+    server.use(http.post('*/api/v1/core/proposals/:id/reject', () =>
+      HttpResponse.json({ status: 500, title: 'x' }, { status: 500 })));
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rejeter' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer le rejet' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('puts an amount refusal at the amount field', async () => {
+    const p = proposal();
+    serve([p]);
+    server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
+      { status: 422, code: 'core.invalid', title: 'x', errors: [{ path: 'payload.amount.amount', code: 'core.invalid', message: 'x' }] },
+      { status: 422 })));
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Montant (EUR)')).toHaveAttribute('aria-invalid', 'true'));
+  });
+
+  it('an unsupported payload version can only be rejected', async () => {
+    const p = proposal({ warnings: [{ code: 'payload_version_unsupported', severity: 'error', message: 'v9', field: null }] });
+    serve([p]);
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByText('Cette proposition ne peut plus être appliquée : rejetez-la.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Rejeter' })).toBeInTheDocument();
   });
