@@ -16,7 +16,7 @@ import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
 import { PERSONS } from '../subscriptions/api';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
 import { groupBySource, kindOf, originText } from './kinds';
-import { announce, useAnnouncement } from './announce';
+import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
 
 const input = 'rounded-md border px-3 py-2';
 const PATHS: Record<string, keyof ValueFormValues> = {
@@ -55,21 +55,21 @@ function Proposal({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <Link to="/proposals" className="underline">{t('proposal.back')}</Link>
-      <h1 className="text-2xl font-semibold">{kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind })}</h1>
+      <h1 tabIndex={-1} ref={focusHeading} className="text-2xl font-semibold">{kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind })}</h1>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt>{t('proposal.target')}</dt>
         <dd>{link ? <Link to={link.to} params={link.params} className="underline">{p.targetName ?? t('proposals.unknown_target')}</Link> : (p.targetName ?? t('proposals.unknown_target'))}</dd>
         {p.sourceLabel ? (<><dt>{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
       </dl>
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatLocalDate(p.createdAt.slice(0, 10)) })}</p>
-      {p.warnings.length > 0 ? (
+      {p.warnings.some((w) => w.code !== 'payload_version_unsupported') ? (
         <section aria-label={t('proposal.warnings')} className="rounded-md border p-3">
-          <ul>{p.warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
+          <ul>{p.warnings.filter((w) => w.code !== 'payload_version_unsupported').map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}
       {!kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
-      {p.status !== 'pending' ? <Decided p={p} target={link ?? null} /> : !canDecide ? <p>{t('proposal.read_only')}</p>
+      {p.status !== 'pending' ? <Decided p={p} target={p.status === 'approved' ? link ?? null : null} /> : !canDecide ? <p>{t('proposal.read_only')}</p>
         : <Decide key={`${p.id}:${p.version}`} p={p} next={next} canApprove={!!kind && !unsupported} />}
       {next ? <Link to="/proposals/$id" params={{ id: next.id }} className="underline">{t('proposal.next')}</Link> : null}
       {unsupported ? <p>{t('proposal.unsupported')}</p> : null}
@@ -103,9 +103,11 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
   const errors = useSubmitErrors(form.setError, (path) => PATHS[path]);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
-  const after = (done: string) => {
+  const after = (done: string, approved = false) => {
     announce(done);
-    void invalidateProposals(queryClient);
+    // An approval writes through the kind's handler, which may touch any screen's data.
+    void (approved ? queryClient.invalidateQueries() : invalidateProposals(queryClient));
+    if (next) focusNextHeading();
     void (next ? navigate({ to: '/proposals/$id', params: { id: next.id } }) : navigate({ to: '/proposals' }));
   };
   const approve = $api.useMutation('post', APPROVE);
@@ -116,7 +118,7 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
     errors.clear();
     const edited = kind?.toPayload(values, original) ?? null;
     approve.mutate({ params: { path: { id: p.id } }, body: { version: p.version, ...(edited ? { editedPayload: edited } : {}) } }, {
-      onSuccess: () => after(t('proposal.approved')),
+      onSuccess: () => after(t('proposal.approved'), true),
       onError: (e) => { if (toProblem(e).status !== 409) errors.onError(e); },
     });
   });
@@ -143,7 +145,7 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
         <form className="space-y-2" onSubmit={(ev) => { ev.preventDefault(); errors.clear(); reject.mutate(
           { params: { path: { id: p.id } }, body: { version: p.version, ...(note.trim() ? { note: note.trim() } : {}) } },
           { onSuccess: () => after(t('proposal.rejected')), onError: (er) => { if (toProblem(er).status !== 409) errors.onError(er); } }); }}>
-          <Field label={t('proposal.reject_note')}>{(c) => <textarea {...c} value={note} onChange={(ev) => setNote(ev.target.value)} className={input} />}</Field>
+          <Field label={t('proposal.reject_note')}>{(c) => <textarea {...c} autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} className={input} />}</Field>
           <div className="flex gap-2">
             <Button type="submit" disabled={reject.isPending}>{t('proposal.reject_confirm')}</Button>
             <Button type="button" variant="ghost" onClick={() => setRejecting(false)}>{t('proposal.cancel')}</Button>

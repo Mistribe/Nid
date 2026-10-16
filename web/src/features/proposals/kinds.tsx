@@ -77,11 +77,13 @@ export function originText(t: TFunction, via: string): string {
   return via === 'ui' || via === 'api' || via === 'mcp' ? t(`proposals.origin.${via}`) : via;
 }
 
-/** The list's groups: one per statement label, « Sans relevé » last, each newest first (the server's order is kept). */
+const newest = (items: ProposalView[]) => items.reduce((m, p) => (p.createdAt > m ? p.createdAt : m), '');
+
+/** The list's groups: one per statement label, the group with the newest proposal first (« Sans relevé » like any other), each newest first. */
 export function groupBySource(items: ProposalView[]): { label: string | null; items: ProposalView[] }[] {
   const groups = new Map<string | null, ProposalView[]>();
   for (const p of items) groups.set(p.sourceLabel ?? null, [...(groups.get(p.sourceLabel ?? null) ?? []), p]);
   return [...groups.entries()]
-    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : 0))
-    .map(([label, list]) => ({ label, items: list }));
+    .map(([label, list]) => ({ label, items: list }))
+    .sort((a, b) => newest(b.items).localeCompare(newest(a.items)));
 }

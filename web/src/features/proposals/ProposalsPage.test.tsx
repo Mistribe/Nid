@@ -29,6 +29,19 @@ describe('À valider', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('puts the group with the newest proposal first, « Sans relevé » included', async () => {
+    serve({ pending: [
+      proposal({ sourceLabel: 'Relevé ancien', createdAt: '2026-10-01T08:00:00+00:00' }),
+      proposal({ sourceLabel: null, createdAt: '2026-10-15T08:00:00+00:00' }),
+      proposal({ sourceLabel: 'Relevé récent', createdAt: '2026-10-10T08:00:00+00:00' }),
+    ] });
+    await renderApp('/proposals');
+
+    await screen.findByRole('region', { name: 'Relevé ancien' });
+    const names = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'));
+    expect(names.filter((n) => ['Sans relevé', 'Relevé récent', 'Relevé ancien'].includes(n ?? ''))).toEqual(['Sans relevé', 'Relevé récent', 'Relevé ancien']);
+  });
+
   it('says when nothing waits, and shows the decided ones on their tab', async () => {
     serve({ approved: [proposal({ status: 'approved', decidedAt: '2026-10-16T09:00:00+00:00' })] });
     const { user } = await renderApp('/proposals');
@@ -75,5 +88,6 @@ describe('À valider', () => {
     expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
     expect(within(nav).getByRole('link', { name: 'À valider' })).toBeInTheDocument();
+    expect(within(nav).queryByText('0')).toBeNull();
   });
 });

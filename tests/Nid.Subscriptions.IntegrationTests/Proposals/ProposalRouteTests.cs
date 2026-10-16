@@ -227,4 +227,19 @@ public class ProposalRouteTests(PostgresFixture fixture)
         var detail = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{submitted.GetProperty("id").GetGuid()}"));
         Assert.Equal("Netflix", detail.GetProperty("proposal").GetProperty("targetName").GetString());
     }
+
+    [Fact]
+    public async Task An_archived_envelope_keeps_its_name_on_the_views()
+    {
+        await using var app = await StartAsync(fixture);
+        var envelope = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var submitted = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(envelope.Value)));
+        // Closing an envelope archives its item.
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope.Value}/close", new { closedOn = "2025-09-30" })).EnsureSuccessStatusCode();
+
+        var listed = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items")[0];
+        Assert.Equal("PEA", listed.GetProperty("targetName").GetString());
+        var detail = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{submitted.GetProperty("id").GetGuid()}"));
+        Assert.Equal("PEA", detail.GetProperty("proposal").GetProperty("targetName").GetString());
+    }
 }

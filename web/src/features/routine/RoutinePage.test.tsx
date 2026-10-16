@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -36,6 +36,18 @@ describe('the routine', () => {
     await renderApp('/routine');
 
     expect(await screen.findByRole('link', { name: '1 proposition à valider' })).toHaveAttribute('href', '/proposals');
+  });
+
+  it('shows nothing about proposals when none wait', async () => {
+    serve(routine(lines()));
+    let served = false;
+    server.use(http.get('*/api/v1/core/proposals', () => { served = true; return HttpResponse.json({ items: [] }); }));
+    const { queryClient } = await renderApp('/routine');
+
+    await screen.findByRole('region', { name: 'À relever' });
+    await waitFor(() => expect(served).toBe(true));
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(screen.queryByRole('link', { name: /à valider/ })).toBeNull();
   });
 
   it('lists the due envelopes with last month’s value proposed, the others folded', async () => {

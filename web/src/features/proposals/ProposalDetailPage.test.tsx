@@ -1,6 +1,6 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -61,6 +61,38 @@ describe('Une proposition', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition approuvée.'));
   });
 
+  it('refreshes every query after an approval, only the proposals after a rejection', async () => {
+    const p = proposal();
+    const q = proposal({ targetName: 'Assurance-vie' });
+    serve([p, q]);
+    const { user, queryClient } = await renderApp(`/proposals/${p.id}`);
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith());
+
+    spy.mockClear();
+    await user.click(await screen.findByRole('button', { name: 'Rejeter' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer le rejet' }));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(spy).not.toHaveBeenCalledWith();
+  });
+
+  it('moves focus to the heading once a decision opens the next proposal, and to the note when rejecting', async () => {
+    const first = proposal();
+    const second = proposal({ targetName: 'Assurance-vie' });
+    serve([first, second]);
+    const { user, router } = await renderApp(`/proposals/${first.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rejeter' }));
+    expect(screen.getByLabelText('Note (facultative)')).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Annuler' }));
+    await user.click(screen.getByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${second.id}`));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
+  });
+
   it('sends the edited payload when the amount changed', async () => {
     const p = proposal();
     const sent = serve([p]);
@@ -101,6 +133,8 @@ describe('Une proposition', () => {
     await waitFor(() => expect(sent.reject).toEqual({ version: 1, note: 'Doublon' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/proposals'));
     expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
+    await waitFor(() => expect(within(nav).getByRole('link', { name: /À valider/ })).not.toHaveAccessibleName(/en attente/));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition rejetée.'));
   });
 
@@ -143,6 +177,15 @@ describe('Une proposition', () => {
     expect(screen.getByRole('link', { name: 'Voir l’élément' })).toHaveAttribute('href', `/investments/${p.targetItemId}`);
     expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
     await expectNoAxeViolations(container);
+  });
+
+  it('offers no link to the target of a rejected proposal', async () => {
+    const p = proposal({ status: 'rejected', decidedAt: '2026-10-16T09:00:00+00:00' });
+    serve([p]);
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByText(/Rejetée le/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Voir l’élément' })).toBeNull();
   });
 
   it('is read only without the right to decide', async () => {
@@ -246,5 +289,7 @@ describe('Une proposition', () => {
     expect(await screen.findByText('Cette proposition ne peut plus être appliquée : rejetez-la.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approuver' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Rejeter' })).toBeInTheDocument();
+    // The server's English message is not repeated next to the French line.
+    expect(screen.queryByText('v9')).toBeNull();
   });
 });
