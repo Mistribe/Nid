@@ -76,12 +76,12 @@ describe('Mes jetons', () => {
     await waitFor(() => expect(within(createdDialog).getByRole('status')).toHaveTextContent('Jeton copié.'));
   });
 
-  it('warns about prompt injection unless « Lecture seule » is chosen', async () => {
+  it('warns only when « Écriture directe » is chosen', async () => {
     server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
     const { user } = await renderApp('/security');
 
     await user.click(await screen.findByRole('button', { name: 'Créer un jeton' }));
-    expect(screen.getByText(/peut être manipulé par son contenu/)).toBeInTheDocument();
+    expect(screen.queryByText(/peut être manipulé par son contenu/)).toBeNull();
     await user.click(screen.getByRole('radio', { name: /Lecture seule/ }));
     expect(screen.queryByText(/peut être manipulé par son contenu/)).toBeNull();
     await user.click(screen.getByRole('radio', { name: /Écriture directe/ }));

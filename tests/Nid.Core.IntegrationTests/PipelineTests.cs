@@ -111,6 +111,21 @@ public class PipelineTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_command_requires_write_direct_and_write_alone_is_refused()
+    {
+        await using var provider = await ProviderAsync();
+        await using var scope = provider.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
+            Actor.Token(PersonId.New(), Guid.NewGuid(), new HashSet<string> { ScopeNames.Read, ScopeNames.Write }, ActorOrigin.Api);
+
+        var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CreateDependentCommand("Kid"));
+
+        Assert.True(result.TryGetFailure(out var failure));
+        Assert.IsType<UnauthorizedFailure>(failure);
+        Assert.Contains("write:direct", failure!.Message);
+    }
+
+    [Fact]
     public async Task A_read_only_actor_cannot_run_a_command()
     {
         await using var provider = await ProviderAsync();

@@ -26,13 +26,16 @@ public class BearerTokenTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var read = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Read);
         var propose = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Propose);
+        var direct = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Direct);
         var dependent = new { displayName = "Kid" };
 
         Assert.Equal(HttpStatusCode.OK, (await app.BearerAsync(read.Secret, HttpMethod.Get, Capabilities)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await app.BearerAsync(read.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", dependent)).StatusCode);
+        // 4C1: « Lecture + propositions » proposes; only « Écriture directe » writes.
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.BearerAsync(propose.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", dependent)).StatusCode);
         // A bearer POST needs no CSRF header.
-        Assert.True((await app.BearerAsync(propose.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", dependent)).IsSuccessStatusCode);
-        Assert.NotNull((await TokenRowsAsync(app)).Single(t => t.Id == propose.Token.Id).LastUsedAt);
+        Assert.True((await app.BearerAsync(direct.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", dependent)).IsSuccessStatusCode);
+        Assert.NotNull((await TokenRowsAsync(app)).Single(t => t.Id == direct.Token.Id).LastUsedAt);
     }
 
     [Fact]
@@ -122,7 +125,7 @@ public class BearerTokenTests(PostgresFixture fixture)
     public async Task A_write_made_with_a_token_is_audited_with_its_id_and_via_api()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var propose = await TokenRouteTests.CreateAsync(app, app.AdultA);
+        var propose = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Direct);
 
         (await app.BearerAsync(propose.Secret, HttpMethod.Post, "/api/v1/core/persons/dependents", new { displayName = "Kid" })).EnsureSuccessStatusCode();
 
