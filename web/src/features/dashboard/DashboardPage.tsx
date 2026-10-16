@@ -62,21 +62,22 @@ function Body({ data, error }: { data?: DashboardView; error: unknown }) {
     );
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div data-guide="dashboard.tiles" className="grid gap-4 md:grid-cols-2">
         <NetWorth d={data} />
         <Commitments d={data} />
         <Income d={data} />
         <Change d={data} />
       </div>
       {data.envelopes > 0 ? (
-        <Panel title={t('dashboard.curve.title')}>
+        <Panel title={t('dashboard.curve.title')} guide="dashboard.curve">
           <Suspense fallback={<div className="h-64 animate-pulse rounded-md border bg-muted" />}>
             <NetWorthCurve />
           </Suspense>
         </Panel>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-4">
+        {/* Both splits render nothing without an envelope: an empty column is no step. */}
+        <div data-guide={data.envelopeSplit.length > 0 ? 'dashboard.split' : undefined} className="space-y-4">
           <EnvelopeSplit d={data} chart={<Suspense fallback={null}><EnvelopeChart rows={data.envelopeSplit} /></Suspense>} />
           <PeopleSplit d={data} chart={data.people ? <Suspense fallback={null}><PeopleChart people={data.people} /></Suspense> : null} />
         </div>

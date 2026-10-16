@@ -36,3 +36,6 @@ export const allGuidesSeen = (): Preferences['guidesSeen'] => Object.fromEntries
 
 /** The value of a target's data-guide attribute. */
 export const targetOf = (g: Guide, target: string) => `${g.id}.${target}`;
+
+/** A tour step's element in the page, if it is there now. */
+export const findTarget = (g: Guide, target: string) => document.querySelector<HTMLElement>(`[data-guide="${targetOf(g, target)}"]`);

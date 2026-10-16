@@ -8,10 +8,10 @@ import { personColor } from './colors';
 import { percent } from './format';
 import { ItemLink } from './ItemLink';
 
-export function Panel({ title, children }: { title: string; children: ReactNode }) {
+export function Panel({ title, guide, children }: { title: string; guide?: string; children: ReactNode }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className="space-y-3 rounded-md border p-4">
+    <section aria-labelledby={id} data-guide={guide} className="space-y-3 rounded-md border p-4">
       <h2 id={id} className="text-sm font-medium text-muted-foreground">{title}</h2>
       {children}
     </section>
