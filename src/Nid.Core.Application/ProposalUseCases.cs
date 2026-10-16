@@ -181,6 +181,8 @@ public sealed class ApproveProposalHandler(
         if (handlers.Find(proposal.Kind) is not { } handler || handler.PayloadVersion != proposal.PayloadVersion)
             return Fail(ProposalCodes.VersionUnsupported, "This proposal's payload is no longer read: reject it.");
 
+        // Read before anything is written: a failing read then leaves no decision behind.
+        var names = await ProposalAccess.NamesAsync(items, [proposal.Target], ct);
         var payload = command.EditedPayload ?? proposal.Payload;
         if (ProposalAccess.Payload(payload, "editedPayload").TryGetFailure(out var notObject))
             return Result.Failure<ProposalView>(notObject!);
@@ -199,7 +201,6 @@ public sealed class ApproveProposalHandler(
                         command.EditedPayload is null ? null : valid.Payload, null, refs!, ct);
                     if (!decided.TryGetValue(out var stored))
                         return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
-                    var names = await ProposalAccess.NamesAsync(items, [stored!.Target], ct); // inside the scope: the registry shares its connection
                     await transaction.CommitAsync(ct);
                     return Result.Success(ProposalView.From(stored!, names(stored!.Target)));
                 }
@@ -246,10 +247,11 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        // Read before the decision is written: a failing read then leaves no decision behind.
+        var names = await ProposalAccess.NamesAsync(items, [found.Proposal.Target], ct);
         var decided = await store.DecideAsync(found.Proposal.Id, command.Version, ProposalStatus.Rejected, found.Me, null, note, [], ct);
         if (!decided.TryGetValue(out var stored))
             return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
-        var names = await ProposalAccess.NamesAsync(items, [stored!.Target], ct);
         return Result.Success(ProposalView.From(stored, names(stored.Target)));
     }
 }

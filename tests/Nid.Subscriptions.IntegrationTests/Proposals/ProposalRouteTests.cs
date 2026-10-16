@@ -47,7 +47,7 @@ public class ProposalRouteTests(PostgresFixture fixture)
         var approved = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = detail.GetProperty("proposal").GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
         var view = await JsonOf(approved);
-        Assert.Equal("approved", view.GetProperty("status").GetString());
+        Assert.Equal(("approved", "Netflix"), (view.GetProperty("status").GetString(), view.GetProperty("targetName").GetString()));
         Assert.Single(view.GetProperty("appliedRefs").EnumerateArray());
         Assert.Equal(app.AdultA.Value, view.GetProperty("decidedByPersonId").GetGuid());
     }
@@ -156,7 +156,8 @@ public class ProposalRouteTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
 
         var rejected = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/reject", new { version, note = "Doublon" }));
-        Assert.Equal(("rejected", "Doublon"), (rejected.GetProperty("status").GetString(), rejected.GetProperty("decisionNote").GetString()));
+        Assert.Equal(("rejected", "Doublon", "Netflix"),
+            (rejected.GetProperty("status").GetString(), rejected.GetProperty("decisionNote").GetString(), rejected.GetProperty("targetName").GetString()));
         Assert.Empty(rejected.GetProperty("appliedRefs").EnumerateArray());
 
         var again = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = rejected.GetProperty("version").GetUInt32() });
