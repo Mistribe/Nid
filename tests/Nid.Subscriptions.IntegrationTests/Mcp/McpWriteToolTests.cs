@@ -223,4 +223,50 @@ public class McpWriteToolTests(PostgresFixture fixture)
             new { version = proposal.GetProperty("version").GetUInt32() });
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    [Fact]
+    public async Task An_invoice_is_conforme_proposed_or_applied()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = (await app.NewMonthlyAsync(app.AdultA, 9.99m)).Value;
+        object Invoice(string amount, bool apply = false)
+            => new { subscriptionId = subscription, chargedOn = "2025-09-01", amount = new { amount, currency = "EUR" }, apply };
+        async Task<JsonElement> PhasesAsync()
+            => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{subscription}")).RootElement.GetProperty("phases");
+
+        await using (var propose = await ClientAsync(app, TokenPresets.Propose))
+        {
+            var same = await AnswerAsync(propose, "propose_invoice", Invoice("9.99"));
+            Assert.Equal("conforme", same.GetProperty("outcome").GetString());
+            Assert.Equal(9.99m, Amount(same.GetProperty("expected").GetProperty("price")));
+            Assert.Equal(0, await ProposalCountAsync(app));
+            Assert.Equal(1, (await PhasesAsync()).GetArrayLength());
+            Assert.Equal("proposed", (await AnswerAsync(propose, "propose_invoice", Invoice("10.99"))).GetProperty("outcome").GetString());
+        }
+
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        Assert.Equal("applied", (await AnswerAsync(direct, "propose_invoice", Invoice("10.49", apply: true))).GetProperty("outcome").GetString());
+        Assert.Contains((await PhasesAsync()).EnumerateArray(), p => p.GetProperty("startsOn").GetString() == "2025-09-01" && Amount(p.GetProperty("price")) == 10.49m);
+        Assert.Equal("conforme", (await AnswerAsync(direct, "propose_invoice", Invoice("10.49", apply: true))).GetProperty("outcome").GetString());
+    }
+
+    [Fact]
+    public async Task An_invoice_written_directly_is_refused_without_write_direct_and_a_propose_token_cannot_apply_a_proposal()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = (await app.NewMonthlyAsync(app.AdultA, 9.99m)).Value;
+        var amount = new { amount = "10.99", currency = "EUR" };
+
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var (error, text) = await CallAsync(propose, "propose_invoice", new { subscriptionId = subscription, chargedOn = "2025-09-01", amount, apply = true });
+        Assert.True(error);
+        Assert.Contains("write:direct", text);
+        Assert.Equal(0, await ProposalCountAsync(app));
+
+        var proposal = (await AnswerAsync(propose, "propose_invoice", new { subscriptionId = subscription, chargedOn = "2025-09-01", amount })).GetProperty("proposal");
+        var token = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Propose);
+        var response = await app.BearerAsync(token.Secret, HttpMethod.Post, $"{ProposalRouteTests.Proposals}/{proposal.GetProperty("id").GetGuid()}/approve",
+            new { version = proposal.GetProperty("version").GetUInt32() });
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

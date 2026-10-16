@@ -52,4 +52,16 @@ public sealed class WriteTools
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, new { paidOn, net, gross, phaseLabel }, sourceLabel, apply, ct);
+
+    [McpServerTool(Name = "propose_invoice", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("An invoice for one subscription, all taxes included. Nid compares it with the price on that date: the same, to the "
+        + "cent, answers 'conforme' and records nothing; otherwise the price changes from chargedOn. " + Rules)]
+    public static Task<CallToolResult> ProposeInvoice(IServiceProvider services,
+        [Description("The subscription's id (list_subscriptions).")] Guid subscriptionId,
+        [Description("The date charged, ISO (yyyy-mm-dd).")] string chargedOn,
+        [Description("The amount charged, all taxes included.")] MoneyArgument amount,
+        [Description("The document's name, e.g. 'Facture Netflix septembre 2025', 200 characters at most.")] string? sourceLabel = null,
+        [Description("true: write directly instead of proposing.")] bool apply = false,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, new { chargedOn, amount }, sourceLabel, apply, ct);
 }
