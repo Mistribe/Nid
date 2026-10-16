@@ -47,4 +47,20 @@ describe('Sécurité', () => {
     expect(location.reload).not.toHaveBeenCalled();
     expect(revoked).toBe(true);
   });
+
+  it('also revokes my tokens when I tick the box', async () => {
+    let body: unknown;
+    server.use(
+      http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
+      http.post('*/api/v1/core/me/revoke-sessions', async ({ request }) => { body = await request.json(); return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user, location } = await renderApp('/security');
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Révoquer aussi mes jetons d’accès' }));
+    await user.click(screen.getByRole('button', { name: 'Déconnecter partout' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    await expect.poll(() => location.assign.mock.calls.length).toBe(1);
+    expect(body).toEqual({ revokeTokens: true });
+  });
 });

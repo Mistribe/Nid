@@ -3,6 +3,7 @@ import { Ellipsis } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
+import { TokenBanner } from '@/features/security/TokenBanner';
 import { section, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
 
@@ -39,6 +40,7 @@ export function Shell() {
           <ScopeSwitch />
           <Button variant="ghost" onClick={() => void signOut()}>{t('shell.sign_out')}</Button>
         </header>
+        <TokenBanner />
         <main className="flex-1 p-4">
           <Outlet />
         </main>

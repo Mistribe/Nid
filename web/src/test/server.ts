@@ -7,6 +7,8 @@ import { aliceSessionResponse, allCapabilities } from './fixtures';
 export const handlers = [
   http.get('*/auth/session', () => HttpResponse.json(aliceSessionResponse)),
   http.get('*/api/v1/platform/capabilities', () => HttpResponse.json(allCapabilities)),
+  // The shell's token banner reads the list (4A).
+  http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
   http.get('*/api/v1/dashboard/net-worth', () => HttpResponse.json(netWorth([]))),

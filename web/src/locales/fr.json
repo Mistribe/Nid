@@ -860,6 +860,9 @@
     "household_settings_changed": "Réglages du foyer modifiés",
     "admin_command": "Commande de secours",
     "subject_rebound": "Identité rattachée",
+    "token_created": "Jeton créé",
+    "token_revoked": "Jeton révoqué",
+    "token_auth_failed": "Jeton refusé",
     "unknown": "Événement {{name}}"
   },
   "investments": {
@@ -1675,6 +1678,42 @@
     "sessions_title": "Mes sessions",
     "revoke": "Déconnecter partout",
     "revoke_confirm": "Toutes vos sessions seront fermées, celle-ci comprise : vous devrez vous reconnecter.",
-    "sso_reminder": "Se déconnecter de Nid ne ferme pas votre session auprès du fournisseur d'identité : fermez-la depuis son portail sur un appareil partagé."
+    "sso_reminder": "Se déconnecter de Nid ne ferme pas votre session auprès du fournisseur d'identité : fermez-la depuis son portail sur un appareil partagé.",
+    "revoke_tokens": "Révoquer aussi mes jetons d’accès",
+    "tokens": {
+      "title": "Mes jetons",
+      "intro": "Un jeton d’accès permet à un assistant, comme Claude, de lire Nid ou d’y proposer des saisies à votre place. Il n’a jamais plus de droits que vous.",
+      "empty": "Aucun jeton pour l’instant.",
+      "create": "Créer un jeton",
+      "name": "Nom",
+      "preset_label": "Droits",
+      "expires": "Expire le",
+      "last_used": "Dernière utilisation",
+      "never_used": "Jamais",
+      "status_label": "État",
+      "status": { "active": "Actif", "expired": "Expiré", "revoked": "Révoqué" },
+      "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe" },
+      "preset_hint": {
+        "read": "L’assistant consulte vos données, sans rien modifier.",
+        "propose": "L’assistant consulte et propose des saisies, que vous validez.",
+        "direct": "L’assistant écrit directement, sans validation."
+      },
+      "direct_warning": "À réserver aux saisies que vous dictez vous-même : un assistant qui lit un document ou un email peut être manipulé par son contenu et écrire à votre place.",
+      "expiry_label": "Durée de validité",
+      "expiry": { "30": "30 jours", "90": "90 jours", "365": "1 an" },
+      "submit": "Créer",
+      "cancel": "Annuler",
+      "created_title": "Votre nouveau jeton",
+      "created_once": "Copiez-le maintenant : il ne sera plus jamais affiché.",
+      "copy": "Copier",
+      "copied": "Jeton copié.",
+      "done": "J’ai copié le jeton",
+      "revoke": "Révoquer",
+      "revoke_confirm": "Ce jeton cessera de fonctionner immédiatement.",
+      "revoked": "Jeton révoqué.",
+      "limit_reached": "Vous avez déjà 10 jetons actifs : révoquez-en un avant d’en créer un autre.",
+      "banner": "Un jeton d’accès expire bientôt.",
+      "banner_link": "Voir mes jetons"
+    }
   }
 }
