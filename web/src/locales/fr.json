@@ -1788,8 +1788,12 @@
     "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
-    "kind": { "valuation": "Valeur d’une enveloppe" },
-    "summary": { "valuation": "{{name}} — valeur au {{date}} : {{amount}}" },
+    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe" },
+    "summary": {
+      "valuation": "{{name}} — valeur au {{date}} : {{amount}}",
+      "statement_one": "{{name}} — relevé au {{date}} ({{count}} mouvement)",
+      "statement_other": "{{name}} — relevé au {{date}} ({{count}} mouvements)"
+    },
     "unknown_target": "Élément inconnu"
   },
   "proposal": {
@@ -1800,7 +1804,18 @@
     "warnings": "Avertissements",
     "apply_failed": "L’application a échoué : {{message}}",
     "preview": { "title": "Comparaison", "current": "Valeur déjà enregistrée à cette date", "previous": "Valeur précédente", "proposed": "Valeur proposée", "none": "—" },
-    "edit": { "title": "Valeur à enregistrer", "as_of": "Date", "amount": "Montant ({{currency}})", "note": "Note" },
+    "edit": { "title": "À enregistrer", "as_of": "Date", "amount": "Montant ({{currency}})", "note": "Note" },
+    "movements": {
+      "title": "Mouvements du relevé",
+      "on": "Date",
+      "kind": "Type",
+      "label": "Libellé",
+      "amount": "Montant",
+      "state": "État",
+      "recorded": "Déjà enregistré",
+      "keep_legend": "Mouvements à enregistrer",
+      "keep": "Mouvement {{n}} : {{date}}, {{kind}}, {{amount}}"
+    },
     "approve": "Approuver",
     "reject": "Rejeter",
     "reject_note": "Note (facultative)",

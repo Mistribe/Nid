@@ -108,4 +108,14 @@ describe('À valider', () => {
     expect(within(nav).getByRole('link', { name: 'À valider' })).toBeInTheDocument();
     expect(within(nav).queryByText('0')).toBeNull();
   });
+
+  it('summarises a statement by its date and its movement count', async () => {
+    serve({ pending: [proposal({ kind: 'investments.record_statement', payload: {
+      asOf: '2025-09-30', movements: [
+        { on: '2025-09-05', kind: 'contribution', amount: '150.00' }, { on: '2025-09-12', kind: 'withdrawal', amount: '60.00' },
+      ] } })] });
+    await renderApp('/proposals');
+
+    expect(await screen.findByRole('link', { name: /PEA — relevé au 30 sept\. 2025 \(2 mouvements\)/ })).toBeInTheDocument();
+  });
 });
