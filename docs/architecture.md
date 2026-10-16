@@ -288,7 +288,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
   - dédoublonnage : même empreinte en attente renvoyée (`200`), même `(kind, cible, subject_key)` avec un autre payload : l’ancienne passe à `superseded` (`201`) ;
   - routes `/api/v1/core/proposals` (soumettre, lister, détail avec aperçu et `canDecide`, approuver, rejeter) ; décider est réservé au navigateur et exige l’écriture sur la cible ;
   - l’approbation exécute `Validate`, `Apply` et la décision dans **une seule transaction** `IUnitOfWork`, avec contrôle `xmin` ; en cas d’échec, retour arrière puis avertissement `apply_failed` ajouté à la ligne encore en attente (aussi lorsqu’un handler lève une exception, qui est alors relancée), et l’erreur est renvoyée ;
-  - deux approbations simultanées n’appliquent qu’une fois : la perdante reçoit `core.fact_conflict` (409) ;
+  - deux approbations simultanées n’appliquent qu’une fois : la perdante reçoit un 409 (`core.proposal_decided`, `core.proposal_conflict` ou `core.fact_conflict` selon le moment) ;
   - premier type : `investments.record_valuation` (aperçu `current`, `previous`, `proposed` ; une valeur à la même date est remplacée).
 
 ### 9.6 Déclencheurs
