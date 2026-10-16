@@ -144,6 +144,17 @@ public class AdminCliTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Revoke_tokens_of_a_person_without_token_records_no_token_revoked()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var run = await CliAsync(app, terminal: false, args: ["revoke-tokens", "--person", app.AdultB.Value.ToString()]);
+
+        Assert.Equal(0, run.Exit);
+        Assert.Empty(await SecurityEventTests.EventsAsync(app, SecurityEventNames.TokenRevoked));
+    }
+
+    [Fact]
     public async Task Revoking_a_dependents_tokens_is_refused_in_french()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -13,10 +13,10 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
 {
     public async Task<Result<NewToken>> CreateAsync(PersonId person, string name, string preset, int? expiresInDays, CancellationToken ct)
     {
-        var trimmed = name.Trim();
+        var trimmed = name?.Trim() ?? "";
         if (trimmed.Length is 0 or > TokenLimits.NameMax)
             return Refuse(TokenCodes.NameInvalid, "A token's name is 1 to 80 characters.", "name");
-        if (TokenPresets.ScopesOf(preset) is null)
+        if (preset is null || TokenPresets.ScopesOf(preset) is null)
             return Refuse(TokenCodes.PresetUnknown, "The preset is read, propose or direct.", "preset");
         var days = expiresInDays ?? TokenLimits.DefaultDays;
         if (days is < 1 or > TokenLimits.MaxDays)

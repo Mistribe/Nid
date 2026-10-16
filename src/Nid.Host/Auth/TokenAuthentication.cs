@@ -88,29 +88,23 @@ public sealed class TokenAuthenticationHandler(
         if (credential is null || !TokenFormat.Matches(token, credential.Hash) || credential.RevokedAt is not null
             || credential.ExpiresAt <= clock.GetCurrentInstant()
             || person is null || person.Kind != PersonKind.Adult || person.IsPending)
-            return await FailAsync(readable ? prefix : null);
+            return await FailAsync(readable ? prefix : null, credential?.Person);
 
         await tokens.TouchAsync(credential.Id, Context.RequestAborted);
         return AuthenticateResult.Success(new AuthenticationTicket(TokenClaims.Create(credential), TokenAuthentication.Scheme));
     }
 
     /// <summary>Never says why: an unknown, revoked or expired token look the same from outside.</summary>
-    private async Task<AuthenticateResult> FailAsync(string? prefix)
+    private async Task<AuthenticateResult> FailAsync(string? prefix, PersonId? subject)
     {
         if (gate.Fail(TokenAuthentication.ClientAddress(Context)))
         {
             var data = new Dictionary<string, string>();
             if (prefix is not null) data["prefix"] = prefix;
             var via = Request.Path.StartsWithSegments("/mcp") ? ActorOrigin.Mcp : ActorOrigin.Api;
-            await events.RecordAsync(new SecurityEvent(SecurityEventNames.TokenAuthFailed, null, [], data), Actor.Unidentified(via), Context.RequestAborted);
+            await events.RecordAsync(new SecurityEvent(SecurityEventNames.TokenAuthFailed, subject, [], data), Actor.Unidentified(via), Context.RequestAborted);
         }
         return AuthenticateResult.Fail("Invalid token.");
-    }
-
-    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
-    {
-        Response.StatusCode = StatusCodes.Status401Unauthorized;
-        return Task.CompletedTask;
     }
 }
 

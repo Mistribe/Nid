@@ -83,7 +83,11 @@ public class BearerTokenTests(PostgresFixture fixture)
         var failures = await SecurityEventTests.EventsAsync(app, SecurityEventNames.TokenAuthFailed);
         Assert.Single(failures); // one per (IP, minute) — the fixed clock never leaves the minute
         Assert.Equal(("system", "api"), (failures[0].ActorKind, failures[0].Via));
-        Assert.DoesNotContain(valid.Secret[17..], failures[0].Data);
+        // The first failure is the revoked token's: its prefix matched a row, so the event names its owner (and no secret).
+        Assert.DoesNotContain(revoked.Secret[17..], failures[0].Data);
+        Assert.Contains(revoked.Token.Prefix, failures[0].Data);
+        Assert.Equal(app.AdultA.Value, failures[0].SubjectPersonId);
+        Assert.Contains(await SecurityEventTests.EventsAsync(app, SecurityEventNames.TokenAuthFailed), e => e.SubjectPersonId == app.AdultA.Value);
     }
 
     // Review Focus 5.

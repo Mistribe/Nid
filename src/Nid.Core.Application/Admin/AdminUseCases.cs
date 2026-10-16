@@ -47,8 +47,8 @@ public sealed record TokensRevokedView(Guid PersonId, int Count);
 /// <summary>The rescue for a person's tokens (spec 4A §9): run by `nid admin revoke-tokens`.</summary>
 public sealed record RevokeTokensCommand(PersonId Person) : ICommand<TokensRevokedView>, IAdminOnly, IRecordsSecurityEvent
 {
-    public SecurityEvent EventFor(object response)
-        => new(SecurityEventNames.TokenRevoked, Person, [],
+    public SecurityEvent? EventFor(object response)
+        => ((TokensRevokedView)response).Count == 0 ? null : new(SecurityEventNames.TokenRevoked, Person, [],
             new Dictionary<string, string> { ["count"] = ((TokensRevokedView)response).Count.ToString(System.Globalization.CultureInfo.InvariantCulture) });
 }
 

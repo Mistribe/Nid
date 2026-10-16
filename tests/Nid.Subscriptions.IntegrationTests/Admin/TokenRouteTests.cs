@@ -72,6 +72,13 @@ public class TokenRouteTests(PostgresFixture fixture)
         var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>(Json);
         Assert.Equal("name", problem.GetProperty("errors")[0].GetProperty("path").GetString());
 
+        foreach (var (body, path) in new (object, string)[] { (new { }, "name"), (new { name = "x" }, "preset") })
+        {
+            var missing = await app.RawAsync(app.AdultA, HttpMethod.Post, Tokens, body);
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, missing.StatusCode);
+            Assert.Equal(path, (await missing.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("errors")[0].GetProperty("path").GetString());
+        }
+
         for (var i = 0; i < 10; i++)
             await CreateAsync(app, app.AdultA);
         var eleventh = await app.RawAsync(app.AdultA, HttpMethod.Post, Tokens, new { name = "x", preset = "read" });
