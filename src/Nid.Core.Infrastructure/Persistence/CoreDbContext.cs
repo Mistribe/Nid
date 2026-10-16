@@ -18,6 +18,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<ValuationRow> Valuations => Set<ValuationRow>();
     public DbSet<FlowRow> Flows => Set<FlowRow>();
     public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
+    public DbSet<ProposalRow> Proposals => Set<ProposalRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +71,28 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.Prefix).IsUnique();
             e.HasIndex(x => x.PersonId);
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProposalRow>(e =>
+        {
+            e.ToTable("proposal", t =>
+            {
+                t.HasCheckConstraint("ck_proposal_status", "status in ('pending','approved','rejected','superseded')");
+                t.HasCheckConstraint("ck_proposal_created_via", "created_via in ('ui','api','mcp')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Payload).HasColumnType("jsonb");
+            e.Property(x => x.EditedPayload).HasColumnType("jsonb");
+            e.Property(x => x.Warnings).HasColumnType("jsonb");
+            e.Property(x => x.Fingerprint).HasColumnType("char(64)");
+            e.Property(x => x.AppliedRefs).HasDefaultValueSql("'{}'");
+            e.HasIndex(x => x.Fingerprint).IsUnique().HasFilter("status = 'pending'");
+            e.HasIndex(x => new { x.Kind, x.TargetItemId, x.SubjectKey }).HasFilter("status = 'pending'");
+            e.HasIndex(x => new { x.TargetItemId, x.Status });
+            e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.TargetItemId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.ForPersonId).OnDelete(DeleteBehavior.Restrict);
+            MapXmin(e.Property(x => x.Version));
         });
 
         modelBuilder.Entity<ItemRow>(e =>

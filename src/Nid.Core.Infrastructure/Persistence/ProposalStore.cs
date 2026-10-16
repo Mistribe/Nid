@@ -1,0 +1,123 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
+using Nid.Core.Contracts;
+using Nid.Platform.Canonical;
+using Npgsql;
+using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
+
+namespace Nid.Core.Infrastructure.Persistence;
+
+/// <summary>core-data-model.md §7 on <c>core.proposal</c> (spec 4C1 §2–§4).</summary>
+public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalStore
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public static string Fingerprint(string kind, ItemId target, JsonElement payload)
+        => Rfc8785.Hash(JsonSerializer.SerializeToElement(new JsonObject
+        {
+            ["kind"] = kind, ["target"] = target.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()),
+        }));
+
+    public async Task<SubmitOutcome> SubmitAsync(NewProposal p, CancellationToken ct)
+    {
+        var fingerprint = Fingerprint(p.Kind, p.Target, p.Payload);
+        await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
+        // One submission at a time per target: deduplication and supersession read then write.
+        await db.Database.ExecuteSqlAsync($"select 1 from core.item where id = {p.Target.Value} for update", ct);
+
+        var same = await db.Proposals.AsNoTracking().SingleOrDefaultAsync(r => r.Fingerprint == fingerprint && r.Status == "pending", ct);
+        if (same is not null)
+            return new SubmitOutcome(ToStored(same), false);
+
+        var row = new ProposalRow
+        {
+            Id = Guid.CreateVersion7(), Module = p.Module, Kind = p.Kind, TargetItemId = p.Target.Value, ForPersonId = p.Person.Value,
+            SubjectKey = p.SubjectKey, Payload = p.Payload.GetRawText(), PayloadVersion = p.PayloadVersion,
+            Warnings = JsonSerializer.Serialize(p.Warnings, Json), Status = "pending", Fingerprint = fingerprint,
+            CreatedVia = p.CreatedVia, TokenId = p.TokenId, CreatedByPersonId = p.Person.Value, SourceLabel = p.SourceLabel,
+            CreatedAt = clock.GetCurrentInstant(),
+        };
+        if (p.SubjectKey is not null)
+            foreach (var older in await db.Proposals.Where(r => r.Kind == p.Kind && r.TargetItemId == p.Target.Value
+                         && r.SubjectKey == p.SubjectKey && r.Status == "pending").ToListAsync(ct))
+            {
+                older.Status = "superseded";
+                older.SupersededById = row.Id;
+            }
+
+        db.Proposals.Add(row);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // A concurrent identical submission won the unique partial index: answer with its row.
+            db.ChangeTracker.Clear();
+            var winner = await db.Proposals.AsNoTracking().SingleAsync(r => r.Fingerprint == fingerprint && r.Status == "pending", ct);
+            return new SubmitOutcome(ToStored(winner), false);
+        }
+        if (transaction is not null) await transaction.CommitAsync(ct);
+        return new SubmitOutcome(ToStored(row), true);
+    }
+
+    public async Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct)
+        => await db.Proposals.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id, ct) is { } row ? ToStored(row) : null;
+
+    public async Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, ProposalStatus status, CancellationToken ct)
+    {
+        var ids = targets.Select(t => t.Value).ToArray();
+        var wire = Wire(status);
+        return (await db.Proposals.AsNoTracking().Where(r => ids.Contains(r.TargetItemId) && r.Status == wire)
+            .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).ToListAsync(ct)).Select(ToStored).ToList();
+    }
+
+    public async Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by,
+        JsonElement? editedPayload, string? note, IReadOnlyList<Guid> appliedRefs, CancellationToken ct)
+    {
+        var row = await db.Proposals.SingleOrDefaultAsync(r => r.Id == id, ct);
+        if (row is null)
+            return Result.Failure<StoredProposal>(new NotFoundFailure("proposal", id.ToString()));
+        if (row.Status != "pending")
+            return Result.Failure<StoredProposal>(new Failure(ProposalCodes.Decided, "This proposal was already decided or replaced.", null));
+        if (row.Version != version)
+            return Result.Failure<StoredProposal>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+
+        row.Status = Wire(to);
+        row.DecidedByPersonId = by.Value;
+        row.DecidedAt = clock.GetCurrentInstant();
+        row.DecisionNote = note;
+        row.EditedPayload = editedPayload?.GetRawText();
+        row.AppliedRefs = [.. appliedRefs];
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return Result.Failure<StoredProposal>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+        }
+        return Result.Success(ToStored(row));
+    }
+
+    public Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct)
+    {
+        var item = JsonSerializer.Serialize(new[] { warning }, Json);
+        return db.Database.ExecuteSqlAsync($"update core.proposal set warnings = warnings || {item}::jsonb where id = {id}", ct);
+    }
+
+    private static string Wire(ProposalStatus status) => status.ToString().ToLowerInvariant();
+
+    private static StoredProposal ToStored(ProposalRow r) => new(
+        r.Id, r.Module, r.Kind, new ItemId(r.TargetItemId), new PersonId(r.ForPersonId), r.SubjectKey,
+        JsonDocument.Parse(r.Payload).RootElement.Clone(), r.PayloadVersion,
+        r.EditedPayload is null ? null : JsonDocument.Parse(r.EditedPayload).RootElement.Clone(),
+        JsonSerializer.Deserialize<List<ProposalWarning>>(r.Warnings, Json) ?? [],
+        Enum.Parse<ProposalStatus>(r.Status, ignoreCase: true), r.SupersededById, r.CreatedVia, r.TokenId,
+        new PersonId(r.CreatedByPersonId), r.SourceLabel, r.CreatedAt,
+        r.DecidedByPersonId is { } d ? new PersonId(d) : null, r.DecidedAt, r.DecisionNote, r.AppliedRefs, r.Version);
+}

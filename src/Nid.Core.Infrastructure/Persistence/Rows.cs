@@ -128,3 +128,30 @@ public sealed class PersonalAccessTokenRow
     public Instant? LastUsedAt { get; set; }
     public Instant? RevokedAt { get; set; }
 }
+
+public sealed class ProposalRow
+{
+    public Guid Id { get; set; }
+    public string Module { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public Guid TargetItemId { get; set; }
+    public Guid ForPersonId { get; set; }
+    public string? SubjectKey { get; set; }
+    public string Payload { get; set; } = "{}";
+    public int PayloadVersion { get; set; }
+    public string? EditedPayload { get; set; }
+    public string Warnings { get; set; } = "[]";
+    public string Status { get; set; } = "pending";
+    public string Fingerprint { get; set; } = "";
+    public Guid? SupersededById { get; set; }
+    public string CreatedVia { get; set; } = "";
+    public Guid? TokenId { get; set; }
+    public Guid CreatedByPersonId { get; set; }
+    public string? SourceLabel { get; set; }
+    public Instant CreatedAt { get; set; }
+    public Guid? DecidedByPersonId { get; set; }
+    public Instant? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public Guid[] AppliedRefs { get; set; } = [];
+    public uint Version { get; set; }
+}
