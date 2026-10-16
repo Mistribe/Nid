@@ -107,7 +107,7 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
     public Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct)
     {
         var item = JsonSerializer.Serialize(new[] { warning }, Json);
-        return db.Database.ExecuteSqlAsync($"update core.proposal set warnings = warnings || {item}::jsonb where id = {id}", ct);
+        return db.Database.ExecuteSqlAsync($"update core.proposal set warnings = warnings || {item}::jsonb where id = {id} and status = 'pending'", ct);
     }
 
     private static string Wire(ProposalStatus status) => status.ToString().ToLowerInvariant();

@@ -167,5 +167,54 @@ public class ValuationProposalTests(PostgresFixture fixture)
 
         Assert.Single(answers, a => a.StatusCode == HttpStatusCode.OK);
         Assert.Single(answers, a => a.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.UnprocessableEntity);
-        Assert.Single(await ValuesAsync(app, envelope), v => v.Amount == "23500.0000");    }
+        Assert.Single(await ValuesAsync(app, envelope), v => v.Amount == "23500.0000");
+        var after = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{ProposalRouteTests.Proposals}/{proposal.GetProperty("id").GetGuid()}"))).GetProperty("proposal");
+        Assert.Equal("approved", after.GetProperty("status").GetString());
+        Assert.DoesNotContain(after.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == ProposalCodes.ApplyFailed);
+    }
+
+    /// <summary>Raw bodies (`{target}` stands for the envelope): what a client can send that no record serializes.</summary>
+    [Theory]
+    [InlineData("""{"targetItemId":"{target}","payload":{"asOf":"2025-09-30","amount":{"amount":"1.00","currency":"EUR"}}}""")]
+    [InlineData("""{"kind":"","targetItemId":"{target}","payload":{"asOf":"2025-09-30","amount":{"amount":"1.00","currency":"EUR"}}}""")]
+    [InlineData("""{"kind":"investments.record_valuation","targetItemId":"{target}"}""")]
+    [InlineData("""{"kind":"investments.record_valuation","targetItemId":"{target}","payload":[]}""")]
+    [InlineData("""{"kind":"investments.record_valuation","targetItemId":"{target}","payload":"x"}""")]
+    [InlineData("""{"kind":"investments.record_valuation","targetItemId":"{target}","payload":null}""")]
+    [InlineData("""{"kind":"investments.record_valuation","targetItemId":"{target}","payload":{"asOf":"2025-09-30","amount":{"amount":"1.00","currency":"EUR"},"x":1e400}}""")]
+    public async Task Hostile_submissions_are_refused_or_cleaned_never_a_500(string raw)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals,
+            JsonDocument.Parse(raw.Replace("{target}", envelope.ToString())).RootElement);
+
+        Assert.True((int)response.StatusCode < 500, $"{raw}: {response.StatusCode}");
+        if (response.IsSuccessStatusCode)
+            Assert.False((await JsonOf(response)).GetProperty("payload").TryGetProperty("x", out _));
+    }
+
+    [Fact]
+    public async Task An_unknown_field_is_not_stored_and_does_not_defeat_deduplication()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var first = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, new
+        {
+            kind = Kind, targetItemId = envelope, payload = new { asOf = "2025-09-30", amount = new { amount = "23500.00", currency = "EUR" }, junk = "à ignorer" },
+        }));
+        var again = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, new
+        {
+            kind = Kind, targetItemId = envelope, payload = new { asOf = "2025-09-30", amount = new { amount = "23500.00", currency = "EUR" }, other = 1 },
+        });
+
+        var stored = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{ProposalRouteTests.Proposals}/{first.GetProperty("id").GetGuid()}")))
+            .GetProperty("proposal").GetProperty("payload");
+        Assert.False(stored.TryGetProperty("junk", out _));
+        Assert.Equal("23500.00", stored.GetProperty("amount").GetProperty("amount").GetString());
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(first.GetProperty("id").GetGuid(), (await JsonOf(again)).GetProperty("id").GetGuid());
+    }
 }

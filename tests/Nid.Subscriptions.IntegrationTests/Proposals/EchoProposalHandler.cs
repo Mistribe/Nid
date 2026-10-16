@@ -6,7 +6,7 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>
-/// A kind for the queue's own tests: `{ subject, refuse?, applyFails?, applyThrows? }`. Validation refuses when `refuse` is true;
+/// A kind for the queue's own tests: `{ subject, note?, refuse?, applyFails?, applyThrows? }`. Validation refuses when `refuse` is true;
 /// application fails when `applyFails` is true, throws when `applyThrows` is true, else returns one new id.
 /// </summary>
 public sealed class EchoProposalHandler : IProposalHandler
@@ -20,7 +20,19 @@ public sealed class EchoProposalHandler : IProposalHandler
         => Task.FromResult(payload.TryGetProperty("refuse", out var r) && r.ValueKind == JsonValueKind.True
             ? Result.Failure<ProposalCheck>(new Failure("test.refused", "Refused by the test handler.", null))
             : Result.Success(new ProposalCheck(payload.TryGetProperty("subject", out var s) ? s.GetString() : null,
-                [new ProposalWarning("test.note", "info", "Echoed.")])));
+                [new ProposalWarning("test.note", "info", "Echoed.")], Known(payload))));
+
+    private static readonly string[] Fields = ["subject", "note", "refuse", "applyFails", "applyThrows"];
+
+    /// <summary>Its known fields only, as a real handler normalizes.</summary>
+    private static JsonElement Known(JsonElement payload)
+    {
+        var known = new System.Text.Json.Nodes.JsonObject();
+        foreach (var field in Fields)
+            if (payload.TryGetProperty(field, out var value))
+                known[field] = System.Text.Json.Nodes.JsonNode.Parse(value.GetRawText());
+        return JsonSerializer.SerializeToElement(known);
+    }
 
     public Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
         => Task.FromResult(JsonSerializer.SerializeToElement(new { proposed = payload }));

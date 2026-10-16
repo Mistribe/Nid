@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
@@ -12,7 +13,7 @@ public sealed class ProposalHandlers(IEnumerable<IProposalHandler> handlers)
 {
     private readonly Dictionary<string, IProposalHandler> byKind = handlers.ToDictionary(h => h.Kind, StringComparer.Ordinal);
 
-    public IProposalHandler? Find(string kind) => byKind.GetValueOrDefault(kind);
+    public IProposalHandler? Find(string? kind) => kind is null ? null : byKind.GetValueOrDefault(kind);
 }
 
 public sealed record ProposalView(
@@ -74,6 +75,12 @@ internal static class ProposalAccess
         return Result.Success((proposal, me));
     }
 
+    /// <summary>A handler reads an object; anything else (absent, null, array, scalar) is refused before it runs.</summary>
+    public static Result Payload(JsonElement payload, string path)
+        => payload.ValueKind == JsonValueKind.Object
+            ? Result.Success()
+            : Result.Failure(FieldErrors.At(new Failure(FieldErrors.ShapeCode, "A JSON object is required.", null), path));
+
     public static Result Text(string? value, int max, string path)
         => value is not null && (value.Trim().Length == 0 || value.Trim().Length > max)
             ? Result.Failure(FieldErrors.At(new Failure("request.invalid", $"1 to {max} characters.", null), path))
@@ -93,13 +100,15 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
             return Result.Failure<SubmittedProposal>(invalid!);
         if (handlers.Find(command.Kind) is not { } handler)
             return Result.Failure<SubmittedProposal>(new Failure(ProposalCodes.KindUnknown, $"'{command.Kind}' is not a proposal kind.", null));
+        if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
+            return Result.Failure<SubmittedProposal>(notObject!);
 
         var checkedPayload = await handler.ValidateAsync(command.ItemId, command.Payload, ct);
         if (!checkedPayload.TryGetValue(out var check))
             return Result.Failure<SubmittedProposal>(checkedPayload.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check!.SubjectKey,
-            command.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
+            check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
         return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal), outcome.Created));
     }
 }
@@ -129,7 +138,8 @@ public sealed class GetProposalHandler(IProposalStore store, IAccessPolicy polic
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalDetail>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
-        var canDecide = (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).IsSuccess && proposal.Status == ProposalStatus.Pending;
+        var canDecide = (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).IsSuccess && proposal.Status == ProposalStatus.Pending
+            && accessor.Current?.TokenId is null; // deciding is browser-only
         var handler = handlers.Find(proposal.Kind);
         if (handler is null || handler.PayloadVersion != proposal.PayloadVersion)
             return Result.Success(new ProposalDetail(ProposalView.From(proposal, proposal.Status == ProposalStatus.Pending
@@ -142,7 +152,8 @@ public sealed class GetProposalHandler(IProposalStore store, IAccessPolicy polic
 
 [RequestHandler<ApproveProposalCommand, ProposalView>]
 public sealed class ApproveProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IUnitOfWork unitOfWork)
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IUnitOfWork unitOfWork,
+    ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
@@ -159,17 +170,21 @@ public sealed class ApproveProposalHandler(
             return Fail(ProposalCodes.VersionUnsupported, "This proposal's payload is no longer read: reject it.");
 
         var payload = command.EditedPayload ?? proposal.Payload;
+        if (ProposalAccess.Payload(payload, "editedPayload").TryGetFailure(out var notObject))
+            return Result.Failure<ProposalView>(notObject!);
         Failure? refused = null;
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
             var check = await handler.ValidateAsync(proposal.Target, payload, ct);
-            if (!check.TryGetFailure(out refused))
+            if (check.TryGetValue(out var valid))
             {
-                var applied = await handler.ApplyAsync(proposal.Target, payload, ct);
+                // Applied and kept normalized, as a submission is.
+                var applied = await handler.ApplyAsync(proposal.Target, valid!.Payload, ct);
                 if (applied.TryGetValue(out var refs))
                 {
-                    var decided = await store.DecideAsync(proposal.Id, command.Version, ProposalStatus.Approved, me, command.EditedPayload, null, refs!, ct);
+                    var decided = await store.DecideAsync(proposal.Id, command.Version, ProposalStatus.Approved, me,
+                        command.EditedPayload is null ? null : valid.Payload, null, refs!, ct);
                     if (!decided.TryGetValue(out var stored))
                         return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
                     await transaction.CommitAsync(ct);
@@ -177,11 +192,21 @@ public sealed class ApproveProposalHandler(
                 }
                 applied.TryGetFailure(out refused);
             }
+            else
+                check.TryGetFailure(out refused);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // Rolled back (the scope was disposed on the way out): the type only, the text may carry internals; the 500 stays.
-            await WarnAsync(proposal.Id, e.GetType().Name, "The application threw.", ct);
+            try
+            {
+                await WarnAsync(proposal.Id, e.GetType().Name, "The application threw.", ct);
+            }
+            catch (Exception warnFailed) when (warnFailed is not OperationCanceledException)
+            {
+                // The original exception is the one to surface.
+                logger.LogWarning(warnFailed, "Could not add apply_failed to proposal {ProposalId}", proposal.Id);
+            }
             throw;
         }
 
@@ -202,12 +227,13 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(RejectProposalCommand command, CancellationToken ct = default)
     {
-        if (ProposalAccess.Text(command.Note, 500, "note").TryGetFailure(out var invalid))
+        var note = string.IsNullOrWhiteSpace(command.Note) ? null : command.Note.Trim();
+        if (ProposalAccess.Text(note, 500, "note").TryGetFailure(out var invalid))
             return Result.Failure<ProposalView>(invalid!);
         var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        var decided = await store.DecideAsync(found.Proposal.Id, command.Version, ProposalStatus.Rejected, found.Me, null, command.Note?.Trim(), [], ct);
+        var decided = await store.DecideAsync(found.Proposal.Id, command.Version, ProposalStatus.Rejected, found.Me, null, note, [], ct);
         return decided.Map(p => ProposalView.From(p));
     }
 }

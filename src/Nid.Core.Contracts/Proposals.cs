@@ -9,8 +9,11 @@ public enum ProposalStatus { Pending, Approved, Rejected, Superseded }
 
 public sealed record ProposalWarning(string Code, string Severity, string Message, string? Field = null);
 
-/// <summary>What a handler's validation keeps: the business key (deduplication) and the warnings.</summary>
-public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings);
+/// <summary>
+/// What a handler's validation keeps: the business key (deduplication), the warnings and the payload normalized to its
+/// known fields — what is fingerprinted, stored and applied, never the client's raw JSON.
+/// </summary>
+public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload);
 
 public sealed record NewProposal(
     string Module, string Kind, ItemId Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
@@ -50,7 +53,7 @@ public interface IProposalStore
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,
         string? note, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
 
-    /// <summary>Appends one warning in its own write (after a rolled-back approval).</summary>
+    /// <summary>Appends one warning in its own write (after a rolled-back approval), to a row still pending only.</summary>
     Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct);
 }
 
@@ -64,7 +67,7 @@ public interface IProposalHandler
     string Kind { get; }
     int PayloadVersion { get; }
 
-    /// <summary>Against the current state: a failure refuses (field errors at <c>payload.*</c>), warnings are kept.</summary>
+    /// <summary>Against the current state (<paramref name="payload"/> is a JSON object): a failure refuses (field errors at <c>payload.*</c>), warnings are kept.</summary>
     Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct);
 
     /// <summary>The current state next to the proposed one, for the decider.</summary>

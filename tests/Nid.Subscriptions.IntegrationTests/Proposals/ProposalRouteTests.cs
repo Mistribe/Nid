@@ -98,6 +98,7 @@ public class ProposalRouteTests(PostgresFixture fixture)
         var proposal = await JsonOf(await app.BearerAsync(direct.Secret, HttpMethod.Post, Proposals, Echo(item.Value)));
         var id = proposal.GetProperty("id").GetGuid();
         var version = proposal.GetProperty("version").GetUInt32();
+        Assert.False((await JsonOf(await app.BearerAsync(direct.Secret, HttpMethod.Get, $"{Proposals}/{id}"))).GetProperty("canDecide").GetBoolean());
 
         foreach (var action in new[] { "approve", "reject" })
         {
@@ -160,6 +161,20 @@ public class ProposalRouteTests(PostgresFixture fixture)
 
         var again = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = rejected.GetProperty("version").GetUInt32() });
         Assert.Equal((HttpStatusCode.Conflict, ProposalCodes.Decided), (again.StatusCode, (await JsonOf(again)).GetProperty("code").GetString()));
+    }
+
+    [Fact]
+    public async Task A_blank_reject_note_is_no_note()
+    {
+        await using var app = await StartAsync(fixture);
+        var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        var proposal = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value)));
+
+        var rejected = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{proposal.GetProperty("id").GetGuid()}/reject",
+            new { version = proposal.GetProperty("version").GetUInt32(), note = "  " });
+
+        Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await JsonOf(rejected)).GetProperty("decisionNote").ValueKind);
     }
 
     [Fact]

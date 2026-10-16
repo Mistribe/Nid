@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
@@ -42,7 +43,7 @@ public sealed class ValuationProposal(
             return Field(CoreFactCodes.CurrencyMismatch, "The amount is not in the envelope's currency.", "payload.amount.currency");
         if (p.AsOf > await calendar.TodayAsync(ct))
             return Field(CoreFactCodes.DateInFuture, "A value is dated today or before.", "payload.asOf");
-        return Result.Success(new ProposalCheck(Iso(p.AsOf), []));
+        return Result.Success(new ProposalCheck(Iso(p.AsOf), [], Normalized(p)));
     }
 
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -69,6 +70,14 @@ public sealed class ValuationProposal(
 
     private static object? View(Valuation? v) => v is null ? null : new { asOf = Iso(v.AsOf), amount = AmountView.From(v.Value) };
 
+    /// <summary>The known fields only: what is fingerprinted and stored.</summary>
+    private static JsonElement Normalized(Parsed p)
+    {
+        var body = new JsonObject { ["asOf"] = Iso(p.AsOf), ["amount"] = JsonSerializer.SerializeToNode(AmountView.From(p.Amount), Json) };
+        if (p.Note is not null) body["note"] = p.Note;
+        return JsonSerializer.SerializeToElement(body);
+    }
+
     private static Result<Parsed> Parse(JsonElement payload)
     {
         Body? body;
@@ -76,7 +85,7 @@ public sealed class ValuationProposal(
         {
             body = payload.Deserialize<Body>(Json);
         }
-        catch (JsonException)
+        catch (Exception e) when (e is JsonException or InvalidOperationException) // InvalidOperationException: an undefined element
         {
             body = null;
         }
