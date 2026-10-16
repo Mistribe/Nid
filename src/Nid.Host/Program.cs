@@ -46,6 +46,8 @@ var fxOptions = builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new F
 builder.Services.AddSingleton(fxOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Catalog").Get<CatalogOptions>() ?? new CatalogOptions());
+// Parsed here so a bad setting stops the host at startup (spec 4D1 D6).
+builder.Services.AddSingleton(Nid.Income.Application.PayslipTolerance.Parse(builder.Configuration["Income:PayslipTolerance"]));
 builder.Services.AddSingleton(builder.Configuration.GetSection("Assets").Get<AssetOptions>() ?? new AssetOptions());
 var connectionString = builder.Configuration.GetConnectionString("nid")
     ?? (generatingOpenApi ? "Host=openapi-generation" : throw new InvalidOperationException("ConnectionStrings:nid is not configured."));

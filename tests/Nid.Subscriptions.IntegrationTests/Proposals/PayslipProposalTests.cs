@@ -225,4 +225,94 @@ public class PayslipProposalTests(PostgresFixture fixture)
 
         Assert.Equal(HttpStatusCode.Conflict, (await PostAsync(app, Payslip(source, "2400.00"))).StatusCode);
     }
+
+    [Fact]
+    public async Task A_payslip_just_applied_sent_again_is_conforme()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase());
+        var proposal = await SubmitAsync(app, Payslip(source, "2400.00"));
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, proposal)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, Payslip(source, "2400.00"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task In_the_phase_s_first_month_a_matching_payslip_is_conforme_and_a_different_one_is_refused_at_paidOn()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(startsOn: "2025-09-01"));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, Payslip(source, "2300.00"))).StatusCode);
+        var refused = await PostAsync(app, Payslip(source, "2400.00"));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("payload.paidOn", await FirstPathAsync(refused));
+    }
+
+    [Fact]
+    public async Task A_currency_other_than_the_source_s_is_refused_at_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase());
+
+        foreach (var (net, gross, path) in new[] { ("USD", "EUR", "payload.net.currency"), ("EUR", "USD", "payload.gross.currency") })
+        {
+            var refused = await PostAsync(app, new
+            {
+                kind = Kind, targetItemId = source,
+                payload = new { paidOn = "2025-09-28", net = new { amount = "2400.00", currency = net }, gross = new { amount = "3000.00", currency = gross } },
+            });
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+            Assert.Equal(path, await FirstPathAsync(refused));
+        }
+    }
+
+    [Fact]
+    public async Task A_named_label_with_no_running_phase_is_refused_at_phaseLabel()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase());
+
+        var refused = await PostAsync(app, Payslip(source, "2400.00", phaseLabel: "Prime"));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("payload.phaseLabel", await FirstPathAsync(refused));
+    }
+
+    [Fact]
+    public async Task A_quarterly_phase_changes_from_the_payment_date_of_its_month()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(startsOn: "2025-01-15", months: 3));
+
+        var proposal = await SubmitAsync(app, Payslip(source, "2400.00", paidOn: "2025-07-20"));
+
+        Assert.Equal("2025-07-15", proposal.GetProperty("payload").GetProperty("effectiveOn").GetString());
+    }
+
+    [Fact]
+    public async Task A_phase_started_on_the_31st_changes_on_the_last_day_of_february()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(startsOn: "2025-01-31"));
+
+        var proposal = await SubmitAsync(app, Payslip(source, "2400.00", paidOn: "2025-02-27"));
+
+        Assert.Equal("2025-02-28", proposal.GetProperty("payload").GetProperty("effectiveOn").GetString());
+    }
+
+    [Theory]
+    [InlineData(null, "0.02")]
+    [InlineData("0", "0")]
+    [InlineData("0.5", "0.5")]
+    public void The_tolerance_setting_is_parsed(string? setting, string ratio)
+        => Assert.Equal(decimal.Parse(ratio, CultureInfo.InvariantCulture), Nid.Income.Application.PayslipTolerance.Parse(setting).Ratio);
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("-0.1")]
+    [InlineData("0,02")]
+    [InlineData("two percent")]
+    public void A_bad_tolerance_setting_is_a_configuration_error(string setting)
+        => Assert.Contains("Income:PayslipTolerance", Assert.Throws<InvalidOperationException>(() => Nid.Income.Application.PayslipTolerance.Parse(setting)).Message);
 }

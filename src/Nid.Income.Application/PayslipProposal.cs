@@ -14,7 +14,16 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Income.Application;
 
 /// <summary>Spec 4D1 D6: a net within this ratio of the expected net is « conforme » (setting <c>Income:PayslipTolerance</c>, default 0.02).</summary>
-public sealed record PayslipTolerance(decimal Ratio);
+public sealed record PayslipTolerance(decimal Ratio)
+{
+    /// <summary>The setting's text (null: the default); a value outside 0 &lt;= x &lt; 1, or not an invariant decimal, is a configuration error.</summary>
+    public static PayslipTolerance Parse(string? setting)
+        => setting is null
+            ? new(0.02m)
+            : decimal.TryParse(setting, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var ratio) && ratio is >= 0 and < 1
+                ? new(ratio)
+                : throw new InvalidOperationException($"Income:PayslipTolerance must be a decimal with a point, at least 0 and below 1 (got '{setting}').");
+}
 
 /// <summary>
 /// Spec 4D1 §3: `{ paidOn, phaseLabel, net, gross?, effectiveOn }` on an income source; subject key: the label and the month
@@ -36,35 +45,37 @@ public sealed class PayslipProposal(
 
     private sealed record Parsed(LocalDate PaidOn, string? PhaseLabel, Money Net, Money? Gross, LocalDate? EffectiveOn);
 
-    private sealed record Resolved(IncomePhase Phase, LocalDate EffectiveOn);
-
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))
             return Result.Failure<ProposalCheck>(FailureOf(parsed));
-        var resolved = await ResolveAsync(target, p!, ct);
-        if (!resolved.TryGetValue(out var r))
-            return Result.Failure<ProposalCheck>(FailureOf(resolved));
+        var found = await FindPhaseAsync(target, p!, ct);
+        if (!found.TryGetValue(out var phase))
+            return Result.Failure<ProposalCheck>(FailureOf(found));
 
-        var phase = r!.Phase;
         var expected = phase.NetAmount.Amount;
         var sameNet = Math.Abs(p!.Net.Amount - expected) <= tolerance.Ratio * expected;
         var sameGross = p.Gross is not { } gross || phase.GrossAmount is not { } expectedGross || gross.Amount == expectedGross.Amount;
-        JsonElement? conforme = sameNet && sameGross
-            ? JsonSerializer.SerializeToElement(new { expected = Pay(phase.NetAmount, phase.GrossAmount), given = Pay(p.Net, p.Gross) }, Json)
-            : null;
-        var key = $"{phase.Label}:{p.PaidOn.ToString("yyyy-MM", CultureInfo.InvariantCulture)}";
-        return Result.Success(new ProposalCheck(key, [], Normalized(p with { PhaseLabel = phase.Label, EffectiveOn = r.EffectiveOn }), conforme));
+        var key = $"{phase!.Label}:{p.PaidOn.ToString("yyyy-MM", CultureInfo.InvariantCulture)}";
+        // Compare first: a matching payslip needs no effective date (so one in the phase's first month, or sent twice, is « conforme »).
+        if (sameNet && sameGross)
+            return Result.Success(new ProposalCheck(key, [], Normalized(p with { PhaseLabel = phase.Label }),
+                JsonSerializer.SerializeToElement(new { expected = Pay(phase.NetAmount, phase.GrossAmount), given = Pay(p.Net, p.Gross) }, Json)));
+        var on = EffectiveOn(phase, p);
+        if (!on.TryGetValue(out var effectiveOn))
+            return Result.Failure<ProposalCheck>(FailureOf(on));
+        return Result.Success(new ProposalCheck(key, [], Normalized(p with { PhaseLabel = phase.Label, EffectiveOn = effectiveOn }), null));
     }
 
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
-        if (!Parse(payload).TryGetValue(out var p) || !(await ResolveAsync(target, p!, ct)).TryGetValue(out var r))
+        if (!Parse(payload).TryGetValue(out var p) || !(await FindPhaseAsync(target, p!, ct)).TryGetValue(out var phase))
             return JsonSerializer.SerializeToElement(new { expected = (object?)null, proposed = (object?)null, effectiveOn = (string?)null });
         return JsonSerializer.SerializeToElement(new
         {
-            expected = Pay(r!.Phase.NetAmount, r.Phase.GrossAmount), proposed = Pay(p!.Net, p.Gross), effectiveOn = Iso(r.EffectiveOn),
+            expected = Pay(phase!.NetAmount, phase.GrossAmount), proposed = Pay(p!.Net, p.Gross),
+            effectiveOn = EffectiveOn(phase, p).TryGetValue(out var on) ? Iso(on) : null,
         }, Json);
     }
 
@@ -73,45 +84,51 @@ public sealed class PayslipProposal(
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(parsed));
-        var resolved = await ResolveAsync(target, p!, ct);
-        if (!resolved.TryGetValue(out var r))
-            return Result.Failure<IReadOnlyList<Guid>>(FailureOf(resolved));
+        var found = await FindPhaseAsync(target, p!, ct);
+        if (!found.TryGetValue(out var phase))
+            return Result.Failure<IReadOnlyList<Guid>>(FailureOf(found));
+        var on = EffectiveOn(phase!, p!);
+        if (!on.TryGetValue(out var effectiveOn))
+            return Result.Failure<IReadOnlyList<Guid>>(FailureOf(on));
         // The cadence, the note and (when the payslip prints none) the gross stay the replaced phase's.
         var changed = await invoker.InvokeAsync(
-            new ChangeIncomePhaseCommand(target, r!.Phase.Label, r.EffectiveOn, p!.Net, null, p.Gross ?? r.Phase.GrossAmount, r.Phase.Note), ct);
+            new ChangeIncomePhaseCommand(target, phase!.Label, effectiveOn, p!.Net, null, p.Gross ?? phase.GrossAmount, phase.Note), ct);
         return changed.Map(id => (IReadOnlyList<Guid>)[id]);
     }
 
-    /// <summary>The phase running on `paidOn` (named, or the only one) and the date the change takes effect.</summary>
-    private async Task<Result<Resolved>> ResolveAsync(ItemId target, Parsed p, CancellationToken ct)
+    /// <summary>The phase running on `paidOn`: the named one, or the only one.</summary>
+    private async Task<Result<IncomePhase>> FindPhaseAsync(ItemId target, Parsed p, CancellationToken ct)
     {
         var loaded = await OpenSource.LoadAsync(sources, items, phases, target, ct);
         if (!loaded.TryGetValue(out var source))
-            return Result.Failure<Resolved>(FailureOf(loaded));
+            return Result.Failure<IncomePhase>(FailureOf(loaded));
         if (p.Net.Currency != source.Currency)
-            return Field<Resolved>(CoreFactCodes.CurrencyMismatch, "The net is not in the source's currency.", "payload.net.currency");
+            return Field<IncomePhase>(CoreFactCodes.CurrencyMismatch, "The net is not in the source's currency.", "payload.net.currency");
         if (p.Gross is { } gross && gross.Currency != source.Currency)
-            return Field<Resolved>(CoreFactCodes.CurrencyMismatch, "The gross is not in the source's currency.", "payload.gross.currency");
+            return Field<IncomePhase>(CoreFactCodes.CurrencyMismatch, "The gross is not in the source's currency.", "payload.gross.currency");
 
         var running = source.Phases.Where(x => IncomeMath.IsActive(x, p.PaidOn) && (p.PhaseLabel is null || x.Label == p.PhaseLabel)).ToList();
         if (running.Count == 0)
             return p.PhaseLabel is null
-                ? Field<Resolved>(IncomeCodes.NoRunningPhase, "No phase runs on that date.", "payload.paidOn")
-                : Field<Resolved>(IncomeCodes.NoRunningPhase, $"No '{p.PhaseLabel}' phase runs on that date.", "payload.phaseLabel");
+                ? Field<IncomePhase>(IncomeCodes.NoRunningPhase, "No phase runs on that date.", "payload.paidOn")
+                : Field<IncomePhase>(IncomeCodes.NoRunningPhase, $"No '{p.PhaseLabel}' phase runs on that date.", "payload.phaseLabel");
         if (running.Count > 1)
-            return Field<Resolved>(FieldErrors.ShapeCode, "Several phases run on that date: name one.", "payload.phaseLabel");
-        var phase = running[0];
+            return Field<IncomePhase>(FieldErrors.ShapeCode, "Several phases run on that date: name one.", "payload.phaseLabel");
+        return Result.Success(running[0]);
+    }
 
-        // The rule of ChangeIncomePhaseCommand: a change takes effect on a payment date of the phase, after its start.
+    /// <summary>The date the change takes effect: the edit's, or the month's payment date; the rule of ChangeIncomePhaseCommand.</summary>
+    private static Result<LocalDate> EffectiveOn(IncomePhase phase, Parsed p)
+    {
         if (p.EffectiveOn is { } chosen)
             return chosen > phase.StartsOn && IncomeMath.Occurrences(phase, chosen, chosen.PlusDays(1)).Any()
-                ? Result.Success(new Resolved(phase, chosen))
-                : Field<Resolved>(IncomeCodes.InvalidPhase, "A change takes effect on a payment date of the phase, after its start.", "payload.effectiveOn");
+                ? Result.Success(chosen)
+                : Field<LocalDate>(IncomeCodes.InvalidPhase, "A change takes effect on a payment date of the phase, after its start.", "payload.effectiveOn");
         var month = new LocalDate(p.PaidOn.Year, p.PaidOn.Month, 1);
         var expectedOn = IncomeMath.Occurrences(phase, month, month.PlusMonths(1)).Select(o => (LocalDate?)o.On).FirstOrDefault();
         return expectedOn is { } on && on > phase.StartsOn
-            ? Result.Success(new Resolved(phase, on))
-            : Field<Resolved>(IncomeCodes.InvalidPhase, "No payment of this phase is expected that month after its start.", "payload.paidOn");
+            ? Result.Success(on)
+            : Field<LocalDate>(IncomeCodes.InvalidPhase, "No payment of this phase is expected that month after its start.", "payload.paidOn");
     }
 
     private static object Pay(Money net, Money? gross)
@@ -126,7 +143,8 @@ public sealed class PayslipProposal(
         };
         if (p.Gross is { } gross)
             body["gross"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(gross), Json);
-        body["effectiveOn"] = Iso(p.EffectiveOn!.Value);
+        if (p.EffectiveOn is { } effectiveOn)
+            body["effectiveOn"] = Iso(effectiveOn);
         return JsonSerializer.SerializeToElement(body);
     }
 

@@ -158,9 +158,6 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
-        // Read when first resolved, so a test host's settings apply (spec 4D1 D6).
-        services.AddSingleton(sp => new Nid.Income.Application.PayslipTolerance(
-            sp.GetRequiredService<IConfiguration>().GetValue("Income:PayslipTolerance", 0.02m)));
 
         services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
