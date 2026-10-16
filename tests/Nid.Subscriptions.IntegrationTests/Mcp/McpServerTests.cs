@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using ModelContextProtocol;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Nid.Core.Contracts;
@@ -99,6 +100,22 @@ public class McpServerTests(PostgresFixture fixture)
         var called = Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.McpToolCalled));
         Assert.Equal(("mcp", read.Token.Id, app.AdultA.Value), (called.Via, called.TokenId!.Value, called.SubjectPersonId!.Value));
         Assert.Equal("""{"tool":"list_persons"}""", JsonDocument.Parse(called.Data).RootElement.GetRawText().Replace(" ", ""));
+    }
+
+    // Task review: the audit row never carries client text (SecurityEvent.Data holds identifiers only).
+    [Fact]
+    public async Task An_unknown_tool_is_audited_without_its_name()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var read = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Read);
+        await using var client = await McpHarness.ClientAsync(app, read.Secret);
+
+        var call = () => client.CallToolAsync(new string('x', 5000), new Dictionary<string, object?>()).AsTask();
+        var refused = await Record.ExceptionAsync(call);
+
+        Assert.IsType<McpProtocolException>(refused);
+        var called = Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.McpToolCalled));
+        Assert.Equal("""{"tool":"unknown"}""", JsonDocument.Parse(called.Data).RootElement.GetRawText().Replace(" ", ""));
     }
 
     // Review Focus 5.

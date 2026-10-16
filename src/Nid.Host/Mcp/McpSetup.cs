@@ -1,5 +1,6 @@
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 using Nid.Host.Auth;
 using Nid.Platform.Contracts;
 
@@ -36,9 +37,10 @@ public static class McpSetup
 
                 services.GetRequiredService<IActorAccessor>().Current = Actor.Token(token.Person, token.TokenId, token.Scopes, ActorOrigin.Mcp);
                 // Before the tool runs: a refused or failing call is still a call (plan precision 4).
+                // The matched tool's own name, never the client's text: Data holds identifiers only.
+                var tool = context.MatchedPrimitive is McpServerTool matched ? matched.ProtocolTool.Name : "unknown";
                 await services.GetRequiredService<ISecurityEvents>().RecordAsync(
-                    new SecurityEvent(SecurityEventNames.McpToolCalled, token.Person, [],
-                        new Dictionary<string, string> { ["tool"] = context.Params?.Name ?? "" }), ct);
+                    new SecurityEvent(SecurityEventNames.McpToolCalled, token.Person, [], new Dictionary<string, string> { ["tool"] = tool }), ct);
                 return await next(context, ct);
             }))
             .WithTools<PersonTools>();
