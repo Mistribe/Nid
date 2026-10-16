@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -36,7 +36,7 @@ describe('Mes jetons', () => {
         return HttpResponse.json({ token: token(), secret: SECRET }, { status: 201 });
       }),
     );
-    const { user, container } = await renderApp('/security');
+    const { user, container, queryClient } = await renderApp('/security');
 
     await user.click(await screen.findByRole('button', { name: 'Créer un jeton' }));
     const dialog = screen.getByRole('dialog', { name: 'Créer un jeton' });
@@ -51,6 +51,8 @@ describe('Mes jetons', () => {
 
     await user.click(within(created).getByRole('button', { name: 'J’ai copié le jeton' }));
     await waitFor(() => expect(screen.queryByText(SECRET)).toBeNull());
+    // The secret does not linger in the mutation cache either.
+    await waitFor(() => expect(JSON.stringify(queryClient.getMutationCache().getAll().map((m) => m.state.data))).not.toContain(SECRET));
   });
 
   // Review Focus 4: what is copied is exactly the secret.
@@ -74,15 +76,29 @@ describe('Mes jetons', () => {
     await waitFor(() => expect(within(createdDialog).getByRole('status')).toHaveTextContent('Jeton copié.'));
   });
 
-  it('warns when « Écriture directe » is chosen', async () => {
+  it('warns about prompt injection unless « Lecture seule » is chosen', async () => {
     server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
     const { user } = await renderApp('/security');
 
     await user.click(await screen.findByRole('button', { name: 'Créer un jeton' }));
+    expect(screen.getByText(/peut être manipulé par son contenu/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Lecture seule/ }));
     expect(screen.queryByText(/peut être manipulé par son contenu/)).toBeNull();
     await user.click(screen.getByRole('radio', { name: /Écriture directe/ }));
-
     expect(screen.getByText(/peut être manipulé par son contenu/)).toBeInTheDocument();
+  });
+
+  it('says the name is too long in French', async () => {
+    server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
+    const { user } = await renderApp('/security');
+
+    await user.click(await screen.findByRole('button', { name: 'Créer un jeton' }));
+    expect(screen.getByLabelText('Nom')).toHaveAttribute('maxlength', '80');
+    // maxLength stops typing: paste-like input is set directly to reach the schema.
+    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'x'.repeat(81) } });
+    await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+    expect(await screen.findByText('80 caractères au plus.')).toBeInTheDocument();
   });
 
   it('says so when ten tokens are already active', async () => {

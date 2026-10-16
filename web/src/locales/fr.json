@@ -1682,10 +1682,11 @@
     "revoke_tokens": "Révoquer aussi mes jetons d’accès",
     "tokens": {
       "title": "Mes jetons",
-      "intro": "Un jeton d’accès permet à un assistant, comme Claude, de lire Nid ou d’y proposer des saisies à votre place. Il n’a jamais plus de droits que vous.",
+      "intro": "Un jeton d’accès permet à un assistant, comme Claude, de lire Nid ou d’y écrire à votre place. Il n’a jamais plus de droits que vous.",
       "empty": "Aucun jeton pour l’instant.",
       "create": "Créer un jeton",
       "name": "Nom",
+      "name_too_long": "80 caractères au plus.",
       "preset_label": "Droits",
       "expires": "Expire le",
       "last_used": "Dernière utilisation",
@@ -1695,10 +1696,10 @@
       "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe" },
       "preset_hint": {
         "read": "L’assistant consulte vos données, sans rien modifier.",
-        "propose": "L’assistant consulte et propose des saisies, que vous validez.",
+        "propose": "L’assistant consulte et saisit pour vous ; ses saisies passeront par une validation dès que la file de validation sera disponible.",
         "direct": "L’assistant écrit directement, sans validation."
       },
-      "direct_warning": "À réserver aux saisies que vous dictez vous-même : un assistant qui lit un document ou un email peut être manipulé par son contenu et écrire à votre place.",
+      "direct_warning": "Un assistant qui lit un document ou un email peut être manipulé par son contenu et écrire à votre place : ne lui confiez que ce que vous acceptez de lui voir saisir.",
       "expiry_label": "Durée de validité",
       "expiry": { "30": "30 jours", "90": "90 jours", "365": "1 an" },
       "submit": "Créer",

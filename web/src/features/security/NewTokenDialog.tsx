@@ -26,12 +26,14 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState(false);
 
   const schema = z.object({
-    name: z.string().trim().min(1, t('edit.required')).max(80),
+    name: z.string().trim().min(1, t('edit.required')).max(80, t('security.tokens.name_too_long')),
     preset: z.enum(['read', 'propose', 'direct']),
     expiresInDays: z.coerce.number(),
   });
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: '', preset: 'propose' as Preset, expiresInDays: 90 } });
+  // gcTime 0: the response (with the secret) leaves the mutation cache as soon as nothing observes it.
   const create = $api.useMutation('post', TOKENS, {
+    gcTime: 0,
     onSuccess: (created) => {
       setSecret(created.secret);
       void queryClient.invalidateQueries({ queryKey: ['get', TOKENS] });
@@ -70,7 +72,7 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
             ? <p role="alert">{t('security.tokens.limit_reached')}</p>
             : problem ? <ProblemMessage problem={present(problem)} /> : null}
           <Field label={t('security.tokens.name')} error={form.formState.errors.name?.message}>
-            {(c) => <input {...c} {...form.register('name')} className={input} />}
+            {(c) => <input {...c} {...form.register('name')} maxLength={80} className={input} />}
           </Field>
           <fieldset className="space-y-2">
             <legend className="font-medium">{t('security.tokens.preset_label')}</legend>
@@ -84,7 +86,7 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
               </label>
             ))}
           </fieldset>
-          {preset === 'direct' ? <p role="note" className="rounded-md border p-2">{t('security.tokens.direct_warning')}</p> : null}
+          {preset !== 'read' ? <p role="note" className="rounded-md border p-2">{t('security.tokens.direct_warning')}</p> : null}
           <fieldset className="space-y-2">
             <legend className="font-medium">{t('security.tokens.expiry_label')}</legend>
             {EXPIRIES.map((days) => (
