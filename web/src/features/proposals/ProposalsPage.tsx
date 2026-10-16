@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -15,23 +15,22 @@ export function ProposalsPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const search: RootSearch & ProposalsSearch = useSearch({ strict: false });
-  const navigate = useNavigate();
   const status = search.status ?? 'pending';
   const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t('proposals.title')}</h1>
-      <div role="tablist" aria-label={t('proposals.tabs')} className="flex gap-2">
+      <nav aria-label={t('proposals.tabs')} className="flex gap-2">
         {STATUSES.map((s) => (
-          <button key={s} role="tab" type="button" aria-selected={s === status}
-            className={s === status ? 'border-b-2 border-primary px-3 py-2 font-semibold' : 'px-3 py-2'}
-            onClick={() => void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'pending' ? undefined : s }), replace: true })}>
+          <Link key={s} to="/proposals" search={(prev) => ({ ...prev, status: s === 'pending' ? undefined : s })} replace
+            aria-current={s === status ? 'page' : undefined}
+            className={s === status ? 'border-b-2 border-primary px-3 py-2 font-semibold' : 'px-3 py-2'}>
             {t(`proposals.tab.${s}`)}
-          </button>
+          </Link>
         ))}
-      </div>
-      <div role="tabpanel">
+      </nav>
+      <div>
         {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
         {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
         {answer.data ? groupBySource(answer.data.items).map((group) => <Group key={group.label ?? ''} label={group.label} items={group.items} />) : null}

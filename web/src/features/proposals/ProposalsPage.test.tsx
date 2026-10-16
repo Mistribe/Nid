@@ -34,9 +34,11 @@ describe('À valider', () => {
     const { user } = await renderApp('/proposals');
 
     expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Approuvées' }));
+    expect(screen.getByRole('link', { name: 'En attente' })).toHaveAttribute('aria-current', 'page');
+    await user.click(screen.getByRole('link', { name: 'Approuvées' }));
     expect(await screen.findByText(/Approuvée le/)).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Rejetées' }));
+    expect(screen.getByRole('link', { name: 'Approuvées' })).toHaveAttribute('aria-current', 'page');
+    await user.click(screen.getByRole('link', { name: 'Rejetées' }));
     expect(await screen.findByText('Aucune proposition rejetée.')).toBeInTheDocument();
   });
 
@@ -68,9 +70,10 @@ describe('À valider', () => {
 
   it('shows no count when nothing waits', async () => {
     serve({ pending: [] });
-    await renderApp('/dashboard');
+    await renderApp('/proposals');
 
-    const nav = await screen.findByRole('navigation', { name: 'Navigation principale' });
-    expect(await within(nav).findByRole('link', { name: 'À valider' })).toBeInTheDocument();
+    expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
+    expect(within(nav).getByRole('link', { name: 'À valider' })).toBeInTheDocument();
   });
 });
