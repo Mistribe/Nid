@@ -28,6 +28,8 @@ public class McpWriteToolTests(PostgresFixture fixture)
         return JsonDocument.Parse(text).RootElement;
     }
 
+    private static decimal Amount(JsonElement money) => decimal.Parse(money.GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+
     private static async Task<int> ProposalCountAsync(NidApp app)
         => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, ProposalRouteTests.Proposals)).RootElement.GetProperty("items").GetArrayLength();
 
@@ -171,5 +173,54 @@ public class McpWriteToolTests(PostgresFixture fixture)
         Assert.Equal("payload.movements[0]", Assert.Single(applied.GetProperty("skipped").EnumerateArray()).GetProperty("field").GetString());
         var flows = (await ProposalKindHelpers.EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray();
         Assert.Equal(2, flows.Count(f => f.GetProperty("occurredOn").GetString() == "2025-09-05"));
+    }
+
+    [Fact]
+    public async Task A_payslip_is_conforme_proposed_or_applied()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await McpSeed.IncomeSourceAsync(app, app.AdultA); // « Salaire », 2 300 € net a month from 2025-01-01
+        object Payslip(string net, bool apply = false)
+            => new { incomeSourceId = source, paidOn = "2025-09-28", net = new { amount = net, currency = "EUR" }, sourceLabel = "Bulletin septembre", apply };
+
+        await using (var propose = await ClientAsync(app, TokenPresets.Propose))
+        {
+            var same = await AnswerAsync(propose, "propose_payslip", Payslip("2290.00"));
+            Assert.Equal("conforme", same.GetProperty("outcome").GetString());
+            Assert.Equal(2300m, Amount(same.GetProperty("expected").GetProperty("net")));
+            Assert.Equal(2290m, Amount(same.GetProperty("given").GetProperty("net")));
+            Assert.Equal(0, await ProposalCountAsync(app));
+
+            var raise = await AnswerAsync(propose, "propose_payslip", Payslip("2400.00"));
+            Assert.Equal("proposed", raise.GetProperty("outcome").GetString());
+            Assert.Equal("2025-09-01", raise.GetProperty("proposal").GetProperty("payload").GetProperty("effectiveOn").GetString());
+        }
+
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        Assert.Equal("applied", (await AnswerAsync(direct, "propose_payslip", Payslip("2450.00", apply: true))).GetProperty("outcome").GetString());
+        var phases = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source}")).RootElement.GetProperty("phases");
+        Assert.Contains(phases.EnumerateArray(), p => p.GetProperty("startsOn").GetString() == "2025-09-01" && Amount(p.GetProperty("netAmount")) == 2450m);
+    }
+
+    [Fact]
+    public async Task A_payslip_written_directly_is_refused_without_write_direct_and_a_propose_token_cannot_apply_a_proposal()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await McpSeed.IncomeSourceAsync(app, app.AdultA);
+        var body = new { incomeSourceId = source, paidOn = "2025-09-28", net = new { amount = "2400.00", currency = "EUR" }, apply = true };
+
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var (error, text) = await CallAsync(propose, "propose_payslip", body);
+        Assert.True(error);
+        Assert.Contains("write:direct", text);
+        Assert.Equal(0, await ProposalCountAsync(app));
+
+        // A token with the propose scope cannot approve either: the REST route needs `apply`.
+        var proposed = await AnswerAsync(propose, "propose_payslip", new { incomeSourceId = source, paidOn = "2025-09-28", net = new { amount = "2400.00", currency = "EUR" } });
+        var proposal = proposed.GetProperty("proposal");
+        var token = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Propose);
+        var response = await app.BearerAsync(token.Secret, HttpMethod.Post, $"{ProposalRouteTests.Proposals}/{proposal.GetProperty("id").GetGuid()}/approve",
+            new { version = proposal.GetProperty("version").GetUInt32() });
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

@@ -16,7 +16,7 @@ public class McpToolTests(PostgresFixture fixture)
     [
         "get_dashboard", "get_envelope", "get_envelope_performance", "get_income_source", "get_loan", "get_loan_schedule",
         "get_net_worth_history", "get_property", "get_property_routine", "get_routine", "get_subscription", "list_envelopes",
-        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_statement", "simulate_early_repayment",
+        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_payslip", "propose_statement", "simulate_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)

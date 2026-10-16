@@ -37,4 +37,19 @@ public sealed class WriteTools
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, new { asOf, value, movements }, sourceLabel, apply, ct);
+
+    [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "
+        + "and with the same gross when both are known, it answers 'conforme' and records nothing; otherwise the expected pay "
+        + "changes from that month's payment date. " + Rules)]
+    public static Task<CallToolResult> ProposePayslip(IServiceProvider services,
+        [Description("The income source's id (list_income_sources).")] Guid incomeSourceId,
+        [Description("The payment date printed on the payslip, ISO (yyyy-mm-dd).")] string paidOn,
+        [Description("The net paid.")] MoneyArgument net,
+        [Description("The gross, if printed.")] MoneyArgument? gross = null,
+        [Description("The period's label (get_income_source), needed when several run at once.")] string? phaseLabel = null,
+        [Description("The document's name, e.g. 'Bulletin de paie septembre 2025', 200 characters at most.")] string? sourceLabel = null,
+        [Description("true: write directly instead of proposing.")] bool apply = false,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, new { paidOn, net, gross, phaseLabel }, sourceLabel, apply, ct);
 }
