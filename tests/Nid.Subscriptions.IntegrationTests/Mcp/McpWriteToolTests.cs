@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using Microsoft.EntityFrameworkCore;
@@ -31,8 +30,6 @@ public class McpWriteToolTests(PostgresFixture fixture)
 
     private static async Task<int> ProposalCountAsync(NidApp app)
         => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, ProposalRouteTests.Proposals)).RootElement.GetProperty("items").GetArrayLength();
-
-    private static decimal Amount(JsonElement money) => decimal.Parse(money.GetProperty("amount").GetString()!, CultureInfo.InvariantCulture);
 
     private static object Statement(Guid envelope, bool apply = false) => new
     {
@@ -152,9 +149,27 @@ public class McpWriteToolTests(PostgresFixture fixture)
         });
 
         Assert.True(error);
-        Assert.Contains("payload.movements[1]", text);
-        var detail = await ProposalKindTests.EnvelopeAsync(app, envelope);
+        Assert.Contains("payload.movements[1].amount:", text); // the Core's own field
+        var detail = await ProposalKindHelpers.EnvelopeAsync(app, envelope);
         Assert.DoesNotContain(detail.GetProperty("flows").EnumerateArray(), f => f.GetProperty("occurredOn").GetString() == "2025-09-05");
         Assert.DoesNotContain(detail.GetProperty("valuations").EnumerateArray(), v => v.GetProperty("amount").GetProperty("amount").GetString() == "23500.0000");
+    }
+
+    // Review fix 1, direct write.
+    [Fact]
+    public async Task A_direct_write_of_two_identical_lines_with_one_recorded_writes_the_other()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await ProposalKindHelpers.RecordFlowAsync(app, envelope, new { occurredOn = "2025-09-05", kind = "contribution", amount = new { amount = "150.00", currency = "EUR" } });
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        var line = new { on = "2025-09-05", kind = "contribution", amount = "150.00" };
+
+        var applied = await AnswerAsync(direct, "propose_statement", new { envelopeId = envelope, asOf = "2025-09-30", movements = new[] { line, line }, apply = true });
+
+        Assert.Equal(1, applied.GetProperty("appliedRefs").GetArrayLength());
+        Assert.Equal("payload.movements[0]", Assert.Single(applied.GetProperty("skipped").EnumerateArray()).GetProperty("field").GetString());
+        var flows = (await ProposalKindHelpers.EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray();
+        Assert.Equal(2, flows.Count(f => f.GetProperty("occurredOn").GetString() == "2025-09-05"));
     }
 }

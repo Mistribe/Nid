@@ -111,7 +111,7 @@ public sealed class StatementProposal(
             // The line's text is the flow's note; the bank's reference its external reference (deduplication).
             var flow = await invoker.InvokeAsync(new RecordFlowCommand(target, new FlowDraft(m.On, m.Kind, amount, null, m.Ref, m.Label)), ct);
             if (!flow.TryGetValue(out var flowId))
-                return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(FailureOf(flow), $"payload.movements[{i}]"));
+                return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(FailureOf(flow), CoreField(FailureOf(flow), $"payload.movements[{i}]")));
             applied.Add(flowId);
         }
         if (p.Value is { } value)
@@ -130,10 +130,18 @@ public sealed class StatementProposal(
         var listed = await flows.ListAsync(target, EnvelopeCheck.Everything, null, ct);
         if (!listed.TryGetValue(out var existing))
             return Result.Failure<Mark[]>(FailureOf(listed));
-        return Result.Success(movements.Select(m => m.Ref is { } reference
-            ? existing!.Any(f => f.ExternalRef == reference) ? Mark.Reference : Mark.None
-            : existing!.Any(f => f.OccurredOn == m.On && EnvelopeWire.FlowWire(f.Kind) == m.Kind && f.Amount.Amount == m.Amount) ? Mark.Match : Mark.None)
-            .ToArray());
+        // Without a reference, by count: the n-th identical line is recorded only if at least n identical flows exist.
+        var available = existing!.GroupBy(f => (f.OccurredOn, Kind: EnvelopeWire.FlowWire(f.Kind), f.Amount.Amount)).ToDictionary(g => g.Key, g => g.Count());
+        return Result.Success(movements.Select(m =>
+        {
+            if (m.Ref is { } reference)
+                return existing!.Any(f => f.ExternalRef == reference) ? Mark.Reference : Mark.None;
+            var key = (m.On, m.Kind, m.Amount);
+            if (!available.TryGetValue(key, out var left) || left == 0)
+                return Mark.None;
+            available[key] = left - 1;
+            return Mark.Match;
+        }).ToArray());
     }
 
     /// <summary>The known fields only: what is fingerprinted and stored.</summary>
@@ -228,6 +236,10 @@ public sealed class StatementProposal(
             ? Result.Failure<Parsed>(FieldErrors.Shape(errors))
             : Result.Success(new Parsed(asOf, value, movements, body!.Note, excluded));
     }
+
+    /// <summary>The Core's own refused field (`amount`) under the movement, else the movement.</summary>
+    private static string CoreField(Failure failure, string at)
+        => failure.Metadata is { } m && m.TryGetValue("field", out var field) && field is string name ? $"{at}.{name}" : at;
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 

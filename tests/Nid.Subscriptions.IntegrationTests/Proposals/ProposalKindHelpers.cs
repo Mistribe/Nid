@@ -7,7 +7,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>The REST helpers the proposal-kind tests (statement, payslip, invoice) share: submit, read, approve, edit.</summary>
-internal static class ProposalKindTests
+internal static class ProposalKindHelpers
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

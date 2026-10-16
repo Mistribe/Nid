@@ -1,11 +1,9 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.IntegrationTests.Mcp;
 using Nid.TestSupport;
-using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindTests;
+using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
 
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
@@ -14,7 +12,6 @@ namespace Nid.Subscriptions.IntegrationTests.Proposals;
 public class StatementProposalTests(PostgresFixture fixture)
 {
     private const string Kind = "investments.record_statement";
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private static Dictionary<string, object?> Movement(
         string on = "2025-09-05", string kind = "contribution", string amount = "150.00", string? label = "Versement", string? reference = null)
@@ -142,5 +139,20 @@ public class StatementProposalTests(PostgresFixture fixture)
         var old = (await ReadAsync(app, first)).GetProperty("proposal");
         Assert.Equal("superseded", old.GetProperty("status").GetString());
         Assert.Equal(second.GetProperty("id").GetGuid(), old.GetProperty("supersededById").GetGuid());
+    }
+
+    // Review fix 1: matched by count, not per line.
+    [Fact]
+    public async Task Two_identical_lines_with_one_recorded_flow_leave_one_to_write()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await RecordFlowAsync(app, envelope, new { occurredOn = "2025-09-05", kind = "contribution", amount = new { amount = "150.00", currency = "EUR" } });
+
+        var proposal = await SubmitAsync(app, Statement(envelope, [Movement(), Movement()], value: null));
+        Assert.Equal("payload.movements[0]", Assert.Single(proposal.GetProperty("warnings").EnumerateArray()).GetProperty("field").GetString());
+        Assert.Equal(1, (await JsonOf(await ApproveAsync(app, proposal))).GetProperty("appliedRefs").GetArrayLength());
+        var flows = (await EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray();
+        Assert.Equal(2, flows.Count(f => f.GetProperty("occurredOn").GetString() == "2025-09-05"));
     }
 }
