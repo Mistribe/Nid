@@ -39,7 +39,7 @@
 | Écriture directe | `read`, `write`, `write:direct` | Saisie dictée par l'utilisateur lui-même |
 
 - `write:direct` inclut `write`, qui inclut `read`.
-- **Expiration** obligatoire : 90 jours par défaut, 365 au plus. Email 7 jours avant. **10 jetons actifs** au maximum par personne.
+- **Expiration** obligatoire : 90 jours par défaut, 365 au plus. Avertissement 7 jours avant, affiché dans l’interface (remplace l’email prévu au départ, voir « Livré en 4A »). **10 jetons actifs** au maximum par personne.
 
 **Livré en 4A** (2026-10-16, `superpowers/specs/2026-10-16-personal-access-tokens-design.md`) :
 

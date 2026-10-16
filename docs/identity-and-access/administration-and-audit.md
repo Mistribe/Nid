@@ -119,5 +119,5 @@ Dans l'interface, pour chaque adulte :
 | Événement | Canal |
 |---|---|
 | `access_violation` | Email « critique » aux deux adultes — **reporté** : attend un canal de notification (`INotificationChannel`), hors périmètre de 1F3a (U14) |
-| Jeton proche de l'expiration | Email à son propriétaire, 7 jours avant — étape 4 |
+| Jeton proche de l'expiration | Affiché dans « Mes jetons » et dans un bandeau, 7 jours avant, sans email (pas encore de canal d’envoi) — livré en 4A |
 | Échecs d'authentification répétés | Métrique et journal ; pas d'email en v1 |
