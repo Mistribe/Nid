@@ -10,4 +10,11 @@ internal static class ResultAssertions
         Assert.True(result.TryGetValue(out var value), result.ToString());
         return value!;
     }
+
+    /// <summary>Returns the failure of a failed result, or fails the test.</summary>
+    public static UnambitiousFx.Functional.Failures.Failure Fails<T>(this Result<T> result) where T : notnull
+    {
+        Assert.True(result.TryGetFailure(out var failure), "Expected a failure.");
+        return failure!;
+    }
 }

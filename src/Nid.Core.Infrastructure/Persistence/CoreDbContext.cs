@@ -17,6 +17,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<FxSyncRunRow> FxSyncRuns => Set<FxSyncRunRow>();
     public DbSet<ValuationRow> Valuations => Set<ValuationRow>();
     public DbSet<FlowRow> Flows => Set<FlowRow>();
+    public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +54,22 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             // ix_person_adult_email (unique on lower(email) among adults) is an expression index: created by the
             // AdminArea migration in SQL, EF Core has no model for it.
             MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<PersonalAccessTokenRow>(e =>
+        {
+            e.ToTable("personal_access_token", t =>
+            {
+                t.HasCheckConstraint("ck_personal_access_token_expiry", "expires_at > created_at");
+                t.HasCheckConstraint("ck_personal_access_token_scopes",
+                    "scopes = '{read}'::text[] or scopes = '{read,write}'::text[] or scopes = '{read,write,write:direct}'::text[]");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.TokenHash).HasColumnType("char(64)");
+            e.HasIndex(x => x.Prefix).IsUnique();
+            e.HasIndex(x => x.PersonId);
+            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ItemRow>(e =>

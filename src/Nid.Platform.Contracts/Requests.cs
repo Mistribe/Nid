@@ -55,3 +55,15 @@ public static class AdminCodes
     /// <summary>Written <c>admin_required</c> in the documentation; HTTP 403.</summary>
     public const string Required = "platform.admin_required";
 }
+
+/// <summary>
+/// Only a browser session may run it (spec 4A §4.2): managing tokens, « Déconnecter partout », the import. A token is
+/// refused at the scope stage with <see cref="BrowserOnlyCodes.Required"/>, whatever its scopes.
+/// </summary>
+public interface IBrowserOnly;
+
+public static class BrowserOnlyCodes
+{
+    /// <summary>HTTP 403.</summary>
+    public const string Required = "platform.browser_only";
+}

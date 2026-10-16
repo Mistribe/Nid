@@ -145,4 +145,29 @@ public class PipelineTests(PostgresFixture postgres)
         Assert.True(list.TryGetValue(out var persons));
         Assert.Equal(2, persons.Count);
     }
+
+    [Fact]
+    public async Task A_browser_only_request_is_refused_to_a_token_and_runs_for_a_session()
+    {
+        await using var provider = await ProviderAsync();
+        var person = PersonId.New();
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current =
+                Actor.Token(person, Guid.NewGuid(), new HashSet<string> { ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect }, ActorOrigin.Api);
+            var refused = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new RevokeMySessionsCommand());
+            Assert.True(refused.TryGetFailure(out var failure));
+            Assert.Equal(BrowserOnlyCodes.Required, failure!.Code);
+        }
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(person);
+            var ran = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new RevokeMySessionsCommand());
+            // The person does not exist in this database: the handler ran and answered not found, past the scope stage.
+            Assert.True(ran.TryGetFailure(out var notFound));
+            Assert.NotEqual(BrowserOnlyCodes.Required, notFound!.Code);
+        }
+    }
 }

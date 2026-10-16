@@ -6,9 +6,9 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform.Import;
 
-public sealed record ValidateImportCommand(Guid SessionId, bool Replace = false) : ICommand<ImportSessionView>, IDirectWrite;
+public sealed record ValidateImportCommand(Guid SessionId, bool Replace = false) : ICommand<ImportSessionView>, IDirectWrite, IBrowserOnly;
 
-public sealed record CommitImportCommand(Guid SessionId, bool Replace = false) : ICommand<ImportSessionView>, IDirectWrite;
+public sealed record CommitImportCommand(Guid SessionId, bool Replace = false) : ICommand<ImportSessionView>, IDirectWrite, IBrowserOnly;
 
 /// <summary>60 s by default (§11.5): past it, everything is abandoned and the import is too large to run at once.</summary>
 internal static class Bounded

@@ -127,6 +127,45 @@ public class AdminCliTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Revoke_tokens_revokes_every_active_token_and_says_how_many()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await TokenRouteTests.CreateAsync(app, app.AdultB);
+        await TokenRouteTests.CreateAsync(app, app.AdultB);
+
+        var run = await CliAsync(app, terminal: false, args: ["revoke-tokens", "--person", app.AdultB.Value.ToString()]);
+
+        Assert.Equal(0, run.Exit);
+        Assert.Contains("2 jetons révoqués", run.Out);
+        Assert.All(await app.GetAsync<List<TokenRouteTests.Token>>(app.AdultB, TokenRouteTests.Tokens), t => Assert.Equal("revoked", t.Status));
+        Assert.Equal("revoke-tokens", (await LastCommandAsync(app))["command"]);
+        var revoked = Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.TokenRevoked));
+        Assert.Equal(app.AdultB.Value, revoked.SubjectPersonId);
+    }
+
+    [Fact]
+    public async Task Revoke_tokens_of_a_person_without_token_records_no_token_revoked()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var run = await CliAsync(app, terminal: false, args: ["revoke-tokens", "--person", app.AdultB.Value.ToString()]);
+
+        Assert.Equal(0, run.Exit);
+        Assert.Empty(await SecurityEventTests.EventsAsync(app, SecurityEventNames.TokenRevoked));
+    }
+
+    [Fact]
+    public async Task Revoking_a_dependents_tokens_is_refused_in_french()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var run = await CliAsync(app, terminal: false, args: ["revoke-tokens", "--person", app.Dependent.Value.ToString()]);
+
+        Assert.Equal(1, run.Exit);
+        Assert.Contains("Seul un adulte a des jetons", run.Error);
+    }
+
+    [Fact]
     public async Task Rebind_subject_records_both_subjects_in_admin_command()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -296,7 +335,7 @@ public class AdminCliTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var run = await CliAsync(app, args: ["--help"]);
         Assert.Equal(0, run.Exit);
-        foreach (var command in new[] { "list-persons", "grant-admin", "revoke-sessions", "rebind-subject" })
+        foreach (var command in new[] { "list-persons", "grant-admin", "revoke-sessions", "revoke-tokens", "rebind-subject" })
             Assert.Contains(command, run.Out);
     }
 

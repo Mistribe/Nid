@@ -6,7 +6,7 @@ namespace Nid.Platform.Audit;
 /// <summary>One line of the log as Platform reads it.</summary>
 public sealed record AuditRecord(
     long Seq, Instant At, string Category, string Action, string ActorKind, Guid? PersonId, string Via, string? Request,
-    string? Entity, string? EntityKey, IReadOnlyList<Guid> ItemIds, Guid? SubjectPersonId, string Data);
+    string? Entity, string? EntityKey, IReadOnlyList<Guid> ItemIds, Guid? SubjectPersonId, string Data, Guid? TokenId);
 
 public interface IAuditLog
 {

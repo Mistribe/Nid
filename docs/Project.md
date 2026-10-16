@@ -312,7 +312,7 @@ Ordre indicatif, à ajuster selon nos priorités. Chaque étape doit être utili
 | **1. Noyau + Abonnements** | Propriétaires, montants, valorisations, flux ; module Abonnements complet ; reprise du JSON existant | Vision claire de tous les abonnements et de leur coût réel |
 | **2. Placements et Revenus** | Enveloppes, valorisations mensuelles, versements ; gain en € et en % ; sources de revenu et périodes ; premier tableau de bord (patrimoine, engagements, revenus et marge, évolution) | Savoir ce qui rapporte et ce qu'il reste après les engagements |
 | **3. Immobilier et crédits** | Biens, crédits, phases, assurance, tableau d'amortissement, valeur nette, coût réel | Comprendre les mensualités et le vrai patrimoine net |
-| **4. Automatisation IA** | Serveur MCP de l'application ; extraction des relevés, factures et tableaux d'amortissement ; file de validation | Réduire la routine mensuelle à une validation |
+| **4. Assistant MCP** | Serveur MCP de l'application et jetons d'accès ; un assistant lit les relevés, bulletins, factures et tableaux d'amortissement et les propose ; file de validation (l'extraction par un modèle exécuté par Nid est reportée, `roadmap.md`) | Réduire la routine mensuelle à une validation |
 | **5. Synchronisation bancaire** | Comptes courants et livrets via DSP2 ; rapprochement avec les abonnements attendus | Détection automatique des prélèvements, hausses de prix, oublis |
 | **6. Approfondissements** | Rendement annualisé (TRI), détail par ligne, simulations de crédit avancées, cartes de crédit en argent, autres modules | Analyse plus fine selon les besoins |
 

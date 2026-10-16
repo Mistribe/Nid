@@ -78,6 +78,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<CoreDbContext>>();
         services.AddScoped<IPersonRegistry, PersonRegistry>();
+        services.AddScoped<IPersonalAccessTokens, PersonalAccessTokenStore>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
@@ -95,6 +96,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
+        services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
         services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults

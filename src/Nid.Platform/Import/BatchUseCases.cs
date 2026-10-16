@@ -9,7 +9,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Platform.Import;
 
 public sealed record PutBatchCommand(Guid SessionId, string Section, int Index, string Hash, JsonElement Entities)
-    : ICommand<BatchView>, IDirectWrite;
+    : ICommand<BatchView>, IDirectWrite, IBrowserOnly;
 
 /// <summary><paramref name="Accepted"/> false: the batch had errors and was not staged; its slot is still free.</summary>
 public sealed record BatchView(string Section, int Index, int Count, bool Accepted, IReadOnlyList<ImportIssue> Issues);

@@ -8,13 +8,13 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Platform.Import;
 
 public sealed record StartImportCommand(string Format, int Version, IReadOnlyDictionary<string, PersonId> Adults)
-    : ICommand<ImportSessionView>, IDirectWrite;
+    : ICommand<ImportSessionView>, IDirectWrite, IBrowserOnly;
 
-public sealed record GetImportQuery(Guid SessionId) : IQuery<ImportSessionView>, IDirectWrite;
+public sealed record GetImportQuery(Guid SessionId) : IQuery<ImportSessionView>, IDirectWrite, IBrowserOnly;
 
-public sealed record ListImportsQuery : IQuery<IReadOnlyList<ImportSessionView>>, IDirectWrite;
+public sealed record ListImportsQuery : IQuery<IReadOnlyList<ImportSessionView>>, IDirectWrite, IBrowserOnly;
 
-public sealed record CancelImportCommand(Guid SessionId) : ICommand<ImportSessionView>, IDirectWrite;
+public sealed record CancelImportCommand(Guid SessionId) : ICommand<ImportSessionView>, IDirectWrite, IBrowserOnly;
 
 /// <summary>An import belongs to a person: the session, its report and what it writes are theirs.</summary>
 public static class ImportActor

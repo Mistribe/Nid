@@ -42,6 +42,16 @@ public sealed record RevokeSessionsCommand(PersonId Person) : ICommand<AdultView
     public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.SessionRevoked, Person);
 }
 
+public sealed record TokensRevokedView(Guid PersonId, int Count);
+
+/// <summary>The rescue for a person's tokens (spec 4A §9): run by `nid admin revoke-tokens`.</summary>
+public sealed record RevokeTokensCommand(PersonId Person) : ICommand<TokensRevokedView>, IAdminOnly, IRecordsSecurityEvent
+{
+    public SecurityEvent? EventFor(object response)
+        => ((TokensRevokedView)response).Count == 0 ? null : new(SecurityEventNames.TokenRevoked, Person, [],
+            new Dictionary<string, string> { ["count"] = ((TokensRevokedView)response).Count.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+}
+
 public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, IAdminOnly;
 
 public sealed record UpdateHouseholdSettingsCommand(int? MaxAdults, string? ReferenceCurrency)
@@ -94,6 +104,18 @@ public sealed class RevokeSessionsHandler(IPersonRegistry persons) : IRequestHan
 {
     public async ValueTask<Result<AdultView>> HandleAsync(RevokeSessionsCommand command, CancellationToken ct = default)
         => (await persons.RevokeSessionsAsync(command.Person, ct)).Map(AdultView.From);
+}
+
+[RequestHandler<RevokeTokensCommand, TokensRevokedView>]
+public sealed class RevokeTokensHandler(IPersonRegistry persons, IPersonalAccessTokens tokens) : IRequestHandler<RevokeTokensCommand, TokensRevokedView>
+{
+    public async ValueTask<Result<TokensRevokedView>> HandleAsync(RevokeTokensCommand command, CancellationToken ct = default)
+    {
+        var person = await persons.FindAsync(command.Person, ct);
+        if (person is null || person.Kind != PersonKind.Adult)
+            return Result.Failure<TokensRevokedView>(new UnambitiousFx.Functional.Failures.NotFoundFailure("person", command.Person.ToString()));
+        return Result.Success(new TokensRevokedView(command.Person.Value, await tokens.RevokeAllAsync(command.Person, ct)));
+    }
 }
 
 [RequestHandler<GetHouseholdSettingsQuery, HouseholdSettingsView>]
