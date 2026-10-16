@@ -224,6 +224,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 - **Lectures** (`net_worth`, `list_subscriptions`, `loan_schedule`, `envelope_performance`…) : chiffres calculés par les services déterministes, avec provenance. Le modèle ne calcule rien.
 - **Écritures** : par défaut, elles créent une `Proposal` dans la file de validation. Un jeton peut recevoir le scope `write:direct` quand l'utilisateur dicte lui-même la saisie. **Retenu par défaut.**
 - Authentification : **jeton d'accès personnel** révocable, avec portées `read`, `write`, `write:direct` (`identity-and-access/tokens-and-credentials.md`). OAuth via Authelia écarté en v1.
+- **Livré en 4B** : SDK `ModelContextProtocol.AspNetCore` 2.2.0 (révision 2026-07-28, compatible `initialize`), sans session, `/mcp` réservé aux jetons, 18 outils de lecture qui rendent le JSON des routes REST, un filtre d’appel unique (acteur `via: mcp`, événement `mcp_tool_called`), résultat borné à 100 ko.
 - Le MCP **client** (messagerie, stockage de documents) vit dans les workers d'ingestion, pas dans le cœur.
 
 ## 9. Ingestion, jobs et file de validation

@@ -82,7 +82,7 @@ D'après les [bonnes pratiques de sécurité MCP](https://modelcontextprotocol.i
 | **Portées trop larges** | Portées minimales (`read`, `write`, `write:direct`), préréglage par défaut « Lecture + propositions » (`../identity-and-access/tokens-and-credentials.md` §1.3) |
 | **Détournement d'identifiant de session ou d'import** | Identifiants aléatoires sur 128 bits ; **appartenance vérifiée à chaque appel** (`404` sinon) |
 | **Fuite par réponses volumineuses** | Vues réduites, taille de réponse bornée |
-| **Traçabilité** | Chaque appel audité (`via: mcp`, `token_id`) |
+| **Traçabilité** | Chaque appel audité (`via: mcp`, `token_id`) — **livré en 4B** (`mcp_tool_called`, enregistré avant l’exécution de l’outil ; un outil inconnu est tracé `unknown`, jamais le texte du client) |
 
 ## 7. Tests
 
