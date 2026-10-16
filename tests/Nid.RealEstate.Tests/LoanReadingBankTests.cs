@@ -43,6 +43,27 @@ public class LoanReadingBankTests
         Assert.Equal(LoanReading.Amount(Golden.Rows[5].Balance - 100m), LoanViews.Summary(Loans.Item(), WithTable(ScheduleSource.Bank), on, true).RemainingBalance);
     }
 
+    /// <summary>A table the engine no longer fits (an engine change, never a write) reads the calculation and warns, instead of failing every reader.</summary>
+    [Fact]
+    public void A_stored_table_that_no_longer_fits_reads_the_calculation_and_warns()
+    {
+        var moved = Loans.Golden() with { FirstPaymentDate = Loans.First.PlusDays(5) };
+        var loan = Loans.Stored(terms: moved) with
+        {
+            Source = ScheduleSource.Bank, Bank = Table().Select(b => new StoredBankRow(Guid.CreateVersion7(), b)).ToList(),
+        };
+        var on = Loans.First.PlusMonths(5).PlusDays(10);
+
+        var detail = LoanViews.Detail(Loans.Item(), loan, on, canWrite: true);
+
+        var computed = Loans.Ok(LoanScheduleBuilder.Build(moved));
+        Assert.Equal(LoanReading.Amount(computed.Rows[5].Balance), detail.Figures.Balance);
+        Assert.Contains(detail.Warnings, w => w.Code == LoanWarnings.BankScheduleUnfit);
+        Assert.Equal(detail.Figures.Balance, LoanViews.Summary(Loans.Item(), loan, on, true).RemainingBalance);
+        Assert.DoesNotContain(LoanViews.Detail(Loans.Item(), WithTable(ScheduleSource.Bank), on, true).Warnings,
+            w => w.Code == LoanWarnings.BankScheduleUnfit);
+    }
+
     [Fact]
     public void A_write_the_stored_table_no_longer_fits_is_refused_at_bankSchedule()
     {

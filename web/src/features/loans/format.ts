@@ -11,7 +11,7 @@ export const ROUNDINGS = ['half_up', 'truncate'] as const;
 export const FIRST_PERIODS = ['full', 'prorata_actual_365'] as const;
 export const FEE_KINDS = ['file', 'guarantee', 'early_repayment_penalty', 'renegotiation', 'other'] as const;
 export const EFFECTS = ['reduce_term', 'reduce_payment'] as const;
-export const WARNINGS = ['projection_uses_last_rate', 'exceeds_total_payments', 'event_off_payment_date', 'override_ignored_after_early_repayment'] as const;
+export const WARNINGS = ['projection_uses_last_rate', 'exceeds_total_payments', 'event_off_payment_date', 'override_ignored_after_early_repayment', 'bank_schedule_unfit'] as const;
 
 const known = <T extends string>(values: readonly T[], value: string): T | undefined => values.find((v) => v === value);
 

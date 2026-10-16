@@ -25,16 +25,15 @@ internal static class LoanReading
 
     /// <summary>
     /// Spec 3F2 §2: the schedule every reader of a loan reads — the engine's, or, with the bank as the reference, the bank's rows
-    /// then the calculation from its last remaining balance. A stored table always fits its loan (<see cref="Build"/>).
+    /// then the calculation from its last remaining balance. Every write keeps a stored table fitting its loan (<see cref="Build"/>);
+    /// one an engine change no longer fits reads the calculation, and the detail warns (<see cref="LoanWarnings.BankScheduleUnfit"/>).
     /// </summary>
     public static LoanSchedule Schedule(LoanTerms terms, StoredLoan loan)
     {
         var computed = Computed(terms);
         if (loan.Source != ScheduleSource.Bank || loan.Bank.Count == 0)
             return computed;
-        return BankSchedule.Merge(terms, computed, BankRows(loan)).TryGetValue(out var merged)
-            ? merged!
-            : throw new InvalidOperationException("A stored bank table no longer fits its loan.");
+        return BankSchedule.Merge(terms, computed, BankRows(loan)).TryGetValue(out var merged) ? merged! : computed;
     }
 
     /// <summary>

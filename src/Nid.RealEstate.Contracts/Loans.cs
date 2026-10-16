@@ -113,4 +113,7 @@ public static class LoanWarnings
 
     /// <summary>Spec 3F2 §4: the calculation is the reference and drifts from the stored bank table by more than 1.</summary>
     public const string ScheduleMismatch = "schedule_mismatch";
+
+    /// <summary>The bank is the reference but its stored table no longer fits the loan (an engine change): the calculation is read instead.</summary>
+    public const string BankScheduleUnfit = "bank_schedule_unfit";
 }
