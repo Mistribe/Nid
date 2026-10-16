@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
-using Nid.Subscriptions.IntegrationTests.Audit;
 using Nid.Subscriptions.IntegrationTests.Admin;
+using Nid.Subscriptions.IntegrationTests.Audit;
 using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
@@ -273,5 +273,24 @@ public class ProposalRouteTests(PostgresFixture fixture)
         var denied = Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied));
         Assert.Equal((app.AdultB.Value, "GetProposalQuery"), (denied.PersonId!.Value, denied.Request));
         Assert.Equal([hidden.Value], denied.ItemIds);
+    }
+
+    /// <summary>A reader who is not a writer of the target: the decision is refused (not hidden) and recorded as a write denial.</summary>
+    [Fact]
+    public async Task A_decision_refused_by_the_targets_write_rights_is_recorded_as_a_write_denial()
+    {
+        await using var app = await StartAsync(fixture);
+        var shared = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        var proposal = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(shared.Value)));
+        var id = proposal.GetProperty("id").GetGuid();
+
+        var refused = await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = proposal.GetProperty("version").GetUInt32() });
+        Assert.NotEqual(HttpStatusCode.NotFound, refused.StatusCode);
+        Assert.False(refused.IsSuccessStatusCode);
+
+        var denied = Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied));
+        Assert.Equal(app.AdultB.Value, denied.PersonId!.Value);
+        Assert.Equal([shared.Value], denied.ItemIds);
+        Assert.Contains("\"write\"", denied.Data);
     }
 }

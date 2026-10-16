@@ -10,9 +10,9 @@ using Nid.Host.Api;
 using Nid.Platform;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
-using Nid.Subscriptions.IntegrationTests.Audit;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.IntegrationTests.Audit;
 using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 
@@ -974,5 +974,17 @@ public class LeakBenchTests(PostgresFixture fixture)
         var denied = await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied);
         foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"] })
             Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value));
+
+        // A's decisions on B's proposals: 404, still pending, and a refusal recorded for the target (one per minute, so by `read`).
+        foreach (var id in data.Proposals["P-B"])
+        {
+            Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/core/proposals/{id}/approve", new { version = 0 })).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/core/proposals/{id}/reject", new { version = 0 })).StatusCode);
+            var detail = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, $"/api/v1/core/proposals/{id}")).RootElement;
+            Assert.Equal("pending", detail.GetProperty("proposal").GetProperty("status").GetString());
+        }
+        denied = await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied);
+        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"] })
+            Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value) && e.Data.Contains("\"read\""));
     }
 }
