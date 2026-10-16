@@ -1273,7 +1273,8 @@
       "event_off_payment_date": "Remboursement daté hors échéance (appliqué après l’échéance {{n}})",
       "event_before_first_payment": "Remboursement daté avant la première échéance",
       "override_ignored_after_early_repayment": "Mensualité imposée ignorée après le remboursement de l’échéance {{n}}",
-      "schedule_mismatch": "Le calcul s’écarte du tableau de la banque à partir du {{date}}"
+      "schedule_mismatch": "Le calcul s’écarte du tableau de la banque à partir du {{date}}",
+      "bank_schedule_unfit": "Le tableau de la banque ne correspond plus à ce crédit : le calcul sert de référence. Remplacez ou supprimez le tableau."
     },
     "figures": "Aujourd’hui",
     "balance": "Capital restant dû",

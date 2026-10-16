@@ -52,7 +52,8 @@ function serve(initial: LoanDetail = loanDetail(), refusals: Refusals = {}) {
   return { sent };
 }
 
-const region = () => screen.findByRole('region', { name: 'Tableau de la banque' });
+// The section is lazy: under the full suite's load its first render can outlast findBy's default second.
+const region = () => screen.findByRole('region', { name: 'Tableau de la banque' }, { timeout: 5000 });
 const pasteForm = () => screen.getByRole('form', { name: 'Tableau de la banque à comparer' });
 
 describe('the bank’s table', () => {
@@ -112,6 +113,16 @@ describe('the bank’s table', () => {
     expect(lines[1]).toHaveTextContent('Une ligne compte 5 ou 6 colonnes');
     expect(within(pasteForm()).getByLabelText('Tableau copié')).toHaveAttribute('aria-invalid', 'true');
     expect(within(pasteForm()).queryByRole('button', { name: 'Enregistrer le tableau' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('warns when the stored table no longer fits the loan', async () => {
+    serve(withTable({ scheduleSource: 'bank', warnings: [{ code: 'bank_schedule_unfit', row: 0 }] }));
+    const { container } = await renderApp(`/loans/${LOAN}`);
+
+    const warnings = within(await screen.findByRole('list', { name: 'Avertissements' })).getAllByRole('listitem');
+    expect(warnings[0]).toHaveTextContent('Le tableau de la banque ne correspond plus à ce crédit : le calcul sert de référence. Remplacez ou supprimez le tableau.');
+    await region();
     await expectNoAxeViolations(container);
   });
 

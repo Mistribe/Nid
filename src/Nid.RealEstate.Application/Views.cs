@@ -112,6 +112,8 @@ internal static class LoanViews
         var warnings = WarningsOf(schedule);
         if (loan.Source == ScheduleSource.Computed && diff?.Summary.DivergesOn is { } on)
             warnings.Add(new LoanWarningView(LoanWarnings.ScheduleMismatch, computed!.Rows.First(r => r.DueDate == on).Number));
+        if (loan.Source == ScheduleSource.Bank && bank.Count > 0 && !schedule.Rows.Any(r => r.FromBank))
+            warnings.Add(new LoanWarningView(LoanWarnings.BankScheduleUnfit, 0));
         var fees = loan.Fees.OrderBy(f => f.Fee.OnDate).ThenBy(f => f.Id)
             .Select(f => new LoanFeeView(f.Id, LoanWire.Of(f.Fee.Kind), Amount(f.Fee.Amount), f.Fee.OnDate, f.Note,
                 loan.Repayments.FirstOrDefault(r => r.FeeId == f.Id)?.Id, f.Version))
