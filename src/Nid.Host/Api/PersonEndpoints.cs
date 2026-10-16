@@ -42,12 +42,28 @@ public static class PersonEndpoints
                 .ToHttp(p => p))
             .Returns<Preferences>();
 
-        // "Déconnecter partout" for oneself (administration-and-audit.md §5, 1F3a spec U16). The success branch
-        // is written explicitly: ToHttp's Results.Json(null, statusCode: 204) would still write a JSON body,
-        // which a 204 must not carry.
-        api.MapPost("/me/revoke-sessions", async (IInvoker invoker, CancellationToken ct) =>
+        // "Déconnecter partout" for oneself (administration-and-audit.md §5, 1F3a spec U16); 4A: `revokeTokens` revokes
+        // the tokens too. The success branch is written explicitly: ToHttp's Results.Json(null, statusCode: 204) would
+        // still write a JSON body, which a 204 must not carry.
+        api.MapPost("/me/revoke-sessions", async (RevokeSessionsBody? body, IInvoker invoker, CancellationToken ct) =>
         {
-            var result = await invoker.InvokeAsync(new RevokeMySessionsCommand(), ct);
+            var result = await invoker.InvokeAsync(new RevokeMySessionsCommand(body?.RevokeTokens ?? false), ct);
+            return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+        }).ReturnsNoContent();
+
+        // Spec 4A §6: « Mes jetons », browser sessions only (IBrowserOnly).
+        api.MapGet("/me/tokens", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListMyTokensQuery(), ct)).ToHttp(t => t))
+            .Returns<IReadOnlyList<TokenView>>();
+
+        api.MapPost("/me/tokens", async (NewTokenBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new CreateTokenCommand(body.Name, body.Preset, body.ExpiresInDays), ct))
+                    .ToHttp(t => t, StatusCodes.Status201Created))
+            .Returns<CreatedTokenView>(StatusCodes.Status201Created);
+
+        api.MapDelete("/me/tokens/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+        {
+            var result = await invoker.InvokeAsync(new RevokeMyTokenCommand(id), ct);
             return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
         }).ReturnsNoContent();
 
@@ -117,6 +133,7 @@ public static class ResultHttp
             UnauthenticatedFailure => StatusCodes.Status401Unauthorized,
             _ when failure.Code == AdminCodes.Required => StatusCodes.Status403Forbidden,
             _ when failure.Code == BrowserOnlyCodes.Required => StatusCodes.Status403Forbidden,
+            _ when failure.Code == TokenCodes.LimitReached => StatusCodes.Status409Conflict,
             _ when failure.Code == "ERROR" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,
@@ -148,3 +165,7 @@ public static class ResultHttp
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }
+
+public sealed record RevokeSessionsBody(bool RevokeTokens);
+
+public sealed record NewTokenBody(string Name, string Preset, int? ExpiresInDays);
