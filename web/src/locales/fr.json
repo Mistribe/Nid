@@ -1710,7 +1710,7 @@
         "figures": { "title": "Valeur et gain", "body": "Ici se lisent la dernière valeur, les versements nets et le gain, avant fiscalité. Les « Frais payés » et les « Revenus perçus » hors de l’enveloppe sont comptés à part." },
         "evolution": { "title": "Évolution", "body": "La courbe place la valeur face aux versements nets. Elle apparaît à partir de deux valeurs, et un tableau est proposé en alternative." },
         "enter": { "title": "Saisir", "body": "Cette section réunit le formulaire d’une valeur et celui d’un flux, versement ou retrait. Une valeur saisie à une date déjà connue remplace l’ancienne." },
-        "history": { "title": "Valeurs et flux", "body": "Ces tableaux listent chaque valeur donnée et chaque flux : versement, retrait, frais, revenu. Vous pouvez corriger une ligne." }
+        "history": { "title": "Valeurs", "body": "Ce tableau liste chaque valeur donnée, avec sa date et sa note. Vous pouvez corriger une ligne. Les flux, versements, retraits, frais et revenus, ont leur tableau juste en dessous." }
       }
     },
     "income": {
@@ -1739,7 +1739,7 @@
         "figures": { "title": "Aujourd’hui", "body": "Capital restant dû, prochaine échéance et « Taux actuel » avec sa phase. « Coût à ce jour » additionne intérêts, assurance et frais déjà payés ; « Coût à venir » ce qu’il reste à payer." },
         "simulation": { "title": "Simuler un remboursement anticipé", "body": "Saisissez une date, un montant et une pénalité éventuelle : la simulation compare les deux effets possibles sans rien enregistrer." },
         "bank": { "title": "Tableau de la banque", "body": "Importez ici le tableau de votre banque pour le comparer au calcul. Vous pouvez ensuite le choisir comme référence, le remplacer ou le supprimer." },
-        "schedule": { "title": "Échéancier", "body": "Une ligne par année, avec ses échéances, ses remboursements anticipés et le capital restant dû au 31 décembre. Ouvrez une année pour voir ses mois." }
+        "schedule": { "title": "Échéancier", "body": "L’année suffit pour suivre un crédit : le capital restant dû au 31 décembre dit ce que vous devez encore en fin d’année, et sa baisse d’une année à l’autre montre ce que vos échéances remboursent vraiment, hors intérêts et assurance." }
       }
     },
     "routine": {
