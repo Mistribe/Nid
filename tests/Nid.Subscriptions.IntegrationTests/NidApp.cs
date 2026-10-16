@@ -190,6 +190,20 @@ public sealed class NidApp : IAsyncDisposable
         return await client.SendAsync(request);
     }
 
+    /// <summary>
+    /// A request authenticated by a personal access token (4A), with no CSRF header. <paramref name="withSessionOf"/>
+    /// also sends that person's test session, to check that the token alone decides (Review Focus 1).
+    /// </summary>
+    public async Task<HttpResponseMessage> BearerAsync(string token, HttpMethod method, string url, object? body = null, PersonId? withSessionOf = null)
+    {
+        using var client = withSessionOf is { } person ? ClientFor(person) : factory.CreateClient();
+        using var request = new HttpRequestMessage(method, url);
+        request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
+        if (body is not null)
+            request.Content = JsonContent.Create(body, options: Json);
+        return await client.SendAsync(request);
+    }
+
     /// <summary>Like <see cref="RawAsync"/>, with a body sent exactly as given.</summary>
     public async Task<HttpResponseMessage> RawTextAsync(PersonId actor, HttpMethod method, string url, string json)
     {

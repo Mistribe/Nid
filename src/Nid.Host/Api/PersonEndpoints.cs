@@ -85,7 +85,13 @@ public sealed class ActorFilter(IActorAccessor accessor, IPersonRegistry persons
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var http = context.HttpContext;
-        if (SessionClaims.ReadPersonId(http.User) is { } id && await persons.FindAsync(id, http.RequestAborted) is { } person)
+        if (TokenClaims.Read(http.User) is { } token)
+        {
+            // The handler already checked the token and its person (spec 4A §3); a token is never admin.
+            var via = http.Request.Path.StartsWithSegments("/mcp") ? ActorOrigin.Mcp : ActorOrigin.Api;
+            accessor.Current = Actor.Token(token.Person, token.TokenId, token.Scopes, via);
+        }
+        else if (SessionClaims.ReadPersonId(http.User) is { } id && await persons.FindAsync(id, http.RequestAborted) is { } person)
             accessor.Current = Actor.Browser(person.Id, person.IsAdmin);
 
         return await next(context);

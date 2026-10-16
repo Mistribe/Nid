@@ -27,10 +27,18 @@ public static class AuthenticationSetup
 
         services.AddAuthentication(o =>
             {
-                o.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                // 4A: a bearer token is chosen per request; everything else stays the cookie's.
+                o.DefaultScheme = TokenAuthentication.Policy;
                 // API calls get a plain 401 from the cookie scheme; only /auth/login challenges the identity provider.
                 o.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                // The OIDC callback signs in to the cookie whatever headers it carries.
+                o.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             })
+            .AddPolicyScheme(TokenAuthentication.Policy, TokenAuthentication.Policy, policy =>
+                policy.ForwardDefaultSelector = context => TokenAuthentication.IsBearer(context.Request)
+                    ? TokenAuthentication.Scheme
+                    : CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddScheme<AuthenticationSchemeOptions, TokenAuthenticationHandler>(TokenAuthentication.Scheme, _ => { })
             .AddCookie(cookie =>
             {
                 cookie.Cookie.Name = "__Host-nid";

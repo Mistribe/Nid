@@ -33,6 +33,10 @@ public sealed class IntegrationTestAuthenticationHandler(
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        // 4A: a bearer token is authenticated by the real scheme, as in production.
+        if (TokenAuthentication.IsBearer(Request))
+            return await Context.AuthenticateAsync(TokenAuthentication.Scheme);
+
         if (Request.Headers.TryGetValue(IntegrationTestGate.ActorHeader, out var raw) && Guid.TryParse(raw, out var id))
         {
             var person = await persons.FindAsync(new PersonId(id), Context.RequestAborted);

@@ -16,7 +16,9 @@ public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (SafeMethods.Contains(context.Request.Method) || !RequiresCsrf(context.Request.Path))
+        // 4A: a bearer request carries no ambient credential: a cross-site page cannot forge one (spec §3), and the
+        // cookie never authenticates it (the "nid" policy scheme), so a bad token answers 401, not this 403.
+        if (SafeMethods.Contains(context.Request.Method) || !RequiresCsrf(context.Request.Path) || TokenAuthentication.IsBearer(context.Request))
         {
             await next(context);
             return;

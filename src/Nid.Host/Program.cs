@@ -54,6 +54,7 @@ if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Ena
     builder.Services.AddNidJobs(connectionString, fxOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
+builder.Services.AddTokenRateLimiter();
 builder.Services.AddNidDataProtection(builder.Configuration);
 builder.Services.AddNidHealth();
 // Never set in production: swaps the default scheme so IntegrationTestAuthenticationHandler — which reads
@@ -98,7 +99,9 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
 app.MapDefaultEndpoints();
 app.MapNidHealth();
 app.UseForwardedHeaders();
+app.UseMiddleware<TokenFailureGateMiddleware>();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 app.MapAuth();
