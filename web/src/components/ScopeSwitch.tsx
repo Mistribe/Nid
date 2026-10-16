@@ -12,7 +12,7 @@ export function ScopeSwitch() {
   const current = search.scope === 'me' ? 'me' : 'household';
 
   return (
-    <fieldset className="flex rounded-md border border-input p-0.5">
+    <fieldset data-guide="dashboard.scope" className="flex rounded-md border border-input p-0.5">
       <legend className="sr-only">{t('scope.label')}</legend>
       {SCOPES.map((scope) => (
         <label

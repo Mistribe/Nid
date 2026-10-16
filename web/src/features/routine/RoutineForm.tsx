@@ -136,7 +136,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   return (
     <form noValidate onKeyDown={onKeyDown} onSubmit={(ev) => void submit(ev)} className="space-y-4">
       {problem ? <ProblemMessage problem={problem} /> : null}
-      <section aria-label={t('routine.due')} className="space-y-1">
+      <section aria-label={t('routine.due')} data-guide="routine.due" className="space-y-1">
         <h2 className="text-lg font-semibold">{t('routine.due')}</h2>
         {due.length === 0 ? <p className="text-muted-foreground">{t('routine.all_done', { month })}</p> : <ul className="divide-y">{due.map(row)}</ul>}
       </section>
@@ -146,7 +146,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
           <ul className="divide-y">{others.map(row)}</ul>
         </details>
       ) : null}
-      <Button type="submit" disabled={count === 0 || save.isPending}>
+      <Button type="submit" disabled={count === 0 || save.isPending} data-guide="routine.save">
         {t('routine.save')}
       </Button>
     </form>

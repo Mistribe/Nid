@@ -9,7 +9,7 @@ describe('createApi', () => {
     server.use(
       http.patch('*/api/v1/core/me/preferences', ({ request }) => {
         seen.patch = request.headers.get(CSRF_HEADER);
-        return HttpResponse.json({ theme: 'sauge', mode: 'system', chartPatterns: false });
+        return HttpResponse.json({ theme: 'sauge', mode: 'system', chartPatterns: false, guidesSeen: {} });
       }),
       http.get('*/api/v1/platform/capabilities', ({ request }) => {
         seen.get = request.headers.get(CSRF_HEADER);

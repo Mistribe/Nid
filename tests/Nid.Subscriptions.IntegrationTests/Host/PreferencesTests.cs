@@ -23,6 +23,49 @@ public class PreferencesTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_new_session_carries_no_guide_seen()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var session = await app.GetAsync<JsonElement>(app.AdultA, "/auth/session");
+
+        var guides = session.GetProperty("preferences").GetProperty("guidesSeen");
+        Assert.Equal(JsonValueKind.Object, guides.ValueKind);
+        Assert.Empty(guides.EnumerateObject());
+    }
+
+    [Fact]
+    public async Task Guides_seen_are_saved_replaced_and_reset()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        async Task<JsonElement> Guides() => (await app.GetAsync<JsonElement>(app.AdultA, "/auth/session")).GetProperty("preferences").GetProperty("guidesSeen");
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { guidesSeen = new { dashboard = 1 } })).EnsureSuccessStatusCode();
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { guidesSeen = new { dashboard = 1, loans = 1 } })).EnsureSuccessStatusCode();
+        var both = await Guides();
+        Assert.Equal(1, both.GetProperty("dashboard").GetInt32());
+        Assert.Equal(1, both.GetProperty("loans").GetInt32());
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { theme = "sauge" })).EnsureSuccessStatusCode();
+        Assert.Equal(2, (await Guides()).EnumerateObject().Count());
+
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { guidesSeen = new { } })).EnsureSuccessStatusCode();
+        Assert.Empty((await Guides()).EnumerateObject());
+    }
+
+    [Fact]
+    public async Task An_invalid_guide_is_refused_with_its_code()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences",
+            new { guidesSeen = new Dictionary<string, int> { ["Loans"] = 1 } });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("core.preference_invalid", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task A_change_is_merged_saved_and_read_back_by_the_next_session()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -60,7 +103,7 @@ public class PreferencesTests(PostgresFixture fixture)
             await command.ExecuteNonQueryAsync();
         }
 
-        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { theme = "ardoise" })).EnsureSuccessStatusCode();
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", new { theme = "ardoise", guidesSeen = new { loans = 2 } })).EnsureSuccessStatusCode();
 
         await using var read = new NpgsqlConnection(app.ConnectionString);
         await read.OpenAsync();
@@ -69,6 +112,7 @@ public class PreferencesTests(PostgresFixture fixture)
         using var stored = JsonDocument.Parse((string)(await select.ExecuteScalarAsync())!);
         Assert.Equal("never", stored.RootElement.GetProperty("ai_cloud_default").GetString());
         Assert.Equal("ardoise", stored.RootElement.GetProperty("theme").GetString());
+        Assert.Equal(2, stored.RootElement.GetProperty("guides_seen").GetProperty("loans").GetInt32());
     }
 
     [Fact]

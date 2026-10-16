@@ -24,7 +24,7 @@ export function EstateSection({ on }: { on: string }) {
   const quiet = view !== undefined && !view.estimates.some((e) => e.due) && view.costs.length === 0 && view.rents.length === 0;
 
   return (
-    <section aria-labelledby={headingId} className="space-y-4 border-t pt-4">
+    <section aria-labelledby={headingId} data-guide="routine.estate" className="space-y-4 border-t pt-4">
       <h2 id={headingId} className="text-xl font-semibold">{t('routine_estate.title')}</h2>
       {answer.error && !view ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {view && quiet && !saved ? (

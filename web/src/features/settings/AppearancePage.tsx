@@ -6,10 +6,11 @@ import { useSession } from '@/app/Providers';
 import type { Preferences } from '@/app/session';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from '@/app/theme';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
 
-type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns'>>;
+type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns' | 'guidesSeen'>>;
 
 /** The latest choice the person made, applied locally, that the server hasn't confirmed yet. */
 type Choice = { theme: ThemeId; mode: Mode };
@@ -28,6 +29,7 @@ export function AppearancePage() {
   // show it: they follow the SAVED preferences (pessimistic writes, frontend/architecture.md §6),
   // only the page's look follows the choice at once.
   const [desired, setDesired] = useState<Choice | null>(null);
+  const [replayed, setReplayed] = useState(false);
   const pending = useRef(0);
 
   const savedTheme = resolveTheme(session.preferences.theme);
@@ -39,9 +41,11 @@ export function AppearancePage() {
     // Same-scope mutations run one after another, in the order they were started, so two
     // overlapping saves can never resolve out of order (design review, Ruling T10a).
     scope: { id: 'preferences' },
-    onSuccess: (preferences) => {
+    onSuccess: (preferences, { body }) => {
       pending.current -= 1;
-      setPreferences(preferences);
+      // The guides are local first (a reset in `change`, a guide closed in useMarkSeen): a guide marked seen while this
+      // save was in flight (this page may be gone) must not be undone by the older map this response carries.
+      setPreferences((local) => ({ ...preferences, guidesSeen: local.guidesSeen }));
       // Only the last of a run of saves applies what the server confirmed and clears the
       // not-yet-confirmed choice: an earlier one settling first must not flash the page (or the
       // local copy theme-init.js reads) back to a value a queued save is about to change.
@@ -55,6 +59,7 @@ export function AppearancePage() {
         setDesired(null);
         setProblem(null);
       }
+      setReplayed(body.guidesSeen !== undefined);
     },
     onError: (error) => {
       pending.current -= 1;
@@ -70,8 +75,12 @@ export function AppearancePage() {
   });
 
   const change = (body: Change) => {
+    setReplayed(false);
     setProblem(null);
     pending.current += 1;
+    // ponytail: a reset that then fails stays local, so the guides replay this session anyway — what the person asked.
+    const { guidesSeen } = body;
+    if (guidesSeen) setPreferences((local) => ({ ...local, guidesSeen }));
     save.mutate({ body });
   };
 
@@ -152,6 +161,12 @@ export function AppearancePage() {
         />
         {t('settings.appearance.chart_patterns')}
       </label>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">{t('guides.settings.title')}</h2>
+        <Button variant="outline" onClick={() => change({ guidesSeen: {} })}>{t('guides.settings.replay_all')}</Button>
+        <p role="status">{replayed ? t('guides.settings.replayed') : null}</p>
+      </section>
     </div>
   );
 }

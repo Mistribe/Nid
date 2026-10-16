@@ -15800,7 +15800,8 @@
         "required": [
           "theme",
           "mode",
-          "chartPatterns"
+          "chartPatterns",
+          "guidesSeen"
         ],
         "type": "object",
         "properties": {
@@ -15812,6 +15813,13 @@
           },
           "chartPatterns": {
             "type": "boolean"
+          },
+          "guidesSeen": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         }
       },
@@ -15835,6 +15843,16 @@
               "null",
               "boolean"
             ]
+          },
+          "guidesSeen": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         },
         "additionalProperties": false

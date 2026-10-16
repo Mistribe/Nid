@@ -153,7 +153,11 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         return Preferences.FromStored(
             node["theme"]?.GetValueKind() == JsonValueKind.String ? node["theme"]!.GetValue<string>() : null,
             node["mode"]?.GetValueKind() == JsonValueKind.String ? node["mode"]!.GetValue<string>() : null,
-            node["chart_patterns"]?.GetValueKind() is JsonValueKind.True or JsonValueKind.False ? node["chart_patterns"]!.GetValue<bool>() : null);
+            node["chart_patterns"]?.GetValueKind() is JsonValueKind.True or JsonValueKind.False ? node["chart_patterns"]!.GetValue<bool>() : null,
+            node["guides_seen"] is JsonObject guides
+                ? guides.Where(g => g.Value?.GetValueKind() == JsonValueKind.Number && g.Value.AsValue().TryGetValue<int>(out _))
+                    .ToDictionary(g => g.Key, g => g.Value!.GetValue<int>())
+                : null);
     }
 
     public async Task SavePreferencesAsync(PersonId id, Preferences preferences, CancellationToken ct)
@@ -163,6 +167,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         node["theme"] = preferences.Theme;
         node["mode"] = preferences.Mode;
         node["chart_patterns"] = preferences.ChartPatterns;
+        node["guides_seen"] = new JsonObject(preferences.GuidesSeen.Select(g => KeyValuePair.Create(g.Key, (JsonNode?)JsonValue.Create(g.Value))));
         row.Preferences = node.ToJsonString();
         await db.SaveChangesAsync(ct);
     }

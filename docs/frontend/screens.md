@@ -12,6 +12,7 @@
 - **Administration** n'apparaît (barre latérale sur bureau, page « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer. Le choix Foyer / Moi est conservé par tous les liens internes et par « Retour » (2D2a).
+- **Guides** : chaque module a un guide d’introduction (« Accueil : premiers pas », « Abonnements : premiers pas », etc.), une boîte de dialogue qui se joue d’elle-même à la première visite du module, avec « Passer » ; le bouton « Guide de cette page » (« ? », dans l’en-tête) le rejoue à tout moment. Sur quatre pages (Accueil, une enveloppe, un crédit, la routine), l’introduction se prolonge par une visite à l’écran (« Me montrer à l’écran ») qui désigne les éléments de la page ; tout changement de route y met fin. Le « déjà vu » est gardé par adulte sur le serveur (préférence `guidesSeen`, un numéro de version par guide) : un guide vu ne se rejoue pas sur un autre appareil, et un guide dont le texte change de version se rejoue une fois. Spécification : `../superpowers/specs/2026-10-16-module-guides-design.md`.
 
 ## 2. Écrans
 
@@ -136,6 +137,7 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 | Section | Contenu |
 |---|---|
 | **Apparence** | Mode (système, clair, sombre), **thème** (quatre jeux de couleurs), « Motifs dans les graphiques » (`design-system.md` §7) |
+| **Guides** | « Revoir tous les guides » : efface le « déjà vu » ; chaque guide se rejoue à la prochaine visite de son module |
 | Foyer | Fuseau, langue |
 | Personnes | Ajouter un enfant (`dependent`) |
 | Notifications | Préférences par type (`../architecture.md` §15) |

@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -9,6 +9,7 @@ import { LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Section } from '../income/Section';
 import { ENVELOPE } from './api';
 import { ValueChart } from './chart/ValueChart';
 import { PeriodPerformance } from './period/PeriodPerformance';
@@ -163,7 +164,7 @@ export function EnvelopeDetailPage() {
           onReopened={(message) => { setStatusAnnouncement(message); setLandOn('enter'); }} />
       ) : null}
 
-      <Section title={t('envelope.figures')}>
+      <Section title={t('envelope.figures')} guide="investments.figures">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           <dt>{t('envelope.value')}</dt>
           <dd>
@@ -221,7 +222,7 @@ export function EnvelopeDetailPage() {
         ) : null}
       </Section>
 
-      <Section title={t('envelope.evolution')}>
+      <Section title={t('envelope.evolution')} guide="investments.evolution">
         <ValueChart envelopeId={detail.id} currency={detail.currency} />
       </Section>
 
@@ -230,7 +231,7 @@ export function EnvelopeDetailPage() {
       </Section>
 
       {writable ? (
-        <Section title={t('envelope.enter')} headingRef={enterHeadingRef}>
+        <Section title={t('envelope.enter')} headingRef={enterHeadingRef} guide="investments.enter">
           <div className="grid gap-6 md:grid-cols-2">
             <ValueForm envelope={detail} />
             <FlowForm envelope={detail} openingRequest={openingRequest} />
@@ -250,7 +251,7 @@ export function EnvelopeDetailPage() {
       {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
       {closeOpen ? <CloseDialog envelope={detail} onClose={() => closeClose()} onDone={closeClose} /> : null}
 
-      <Section title={t('envelope.values')} headingRef={valuesHeadingRef} announcement={valuesAnnouncement}>
+      <Section title={t('envelope.values')} headingRef={valuesHeadingRef} announcement={valuesAnnouncement} guide="investments.history">
         <table className="w-full text-sm" aria-label={t('envelope.values_table')}>
           <thead>
             <tr>
@@ -324,18 +325,5 @@ export function EnvelopeDetailPage() {
         </Section>
       ) : null}
     </article>
-  );
-}
-
-function Section({ title, headingRef, announcement, children }: {
-  title: string; headingRef?: RefObject<HTMLHeadingElement | null>; announcement?: string; children: ReactNode;
-}) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-lg font-semibold">{title}</h2>
-      {announcement !== undefined ? <p role="status" aria-live="polite">{announcement}</p> : null}
-      {children}
-    </section>
   );
 }

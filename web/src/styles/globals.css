@@ -64,6 +64,13 @@
   body { @apply bg-background text-foreground; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 }
 
+/* The tour's ring (module guides spec §4.4): unlayered, so it beats a button's `outline-none`; `ring` on `background` is
+   checked at 3:1 in every theme and mode by themes/contrast.test.ts. */
+[data-guide-active] { outline: 3px solid var(--ring); outline-offset: 4px; scroll-margin-top: 1rem; }
+/* The tour scrolls its target to the top, clear of the card at the bottom: room below lets the page's last targets get
+   there too. */
+body:has([data-guide-active]) main { padding-bottom: 100dvh; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

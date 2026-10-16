@@ -78,7 +78,7 @@ export function LoanDetailPage() {
               ))}
             </ul>
           ) : null}
-          <Section title={t('loan_detail.figures')}><LoanFigures loan={loan} /></Section>
+          <Section title={t('loan_detail.figures')} guide="loans.figures"><LoanFigures loan={loan} /></Section>
           {loan.ended ? null : <SimulationSection loan={loan} onRecord={loan.canWrite ? record : undefined} />}
           <Section title={t('loan_detail.contract')}>
             {loan.canWrite ? <Link to="/loans/$id/contract" params={{ id: loan.id }} className="text-sm underline">{t('loan_detail.edit_contract')}</Link> : null}
@@ -89,7 +89,7 @@ export function LoanDetailPage() {
           <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('loan_bank.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />}>
             <BankScheduleSection loan={loan} />
           </Suspense>
-          <Section title={t('loan_detail.schedule.title')}><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
+          <Section title={t('loan_detail.schedule.title')} guide="loans.schedule"><Schedule id={loan.id} currency={loan.currency} nextPaymentOn={loan.figures.nextPaymentOn} /></Section>
           {loan.canWrite ? (
             <Section title={t('loan_detail.settings.title')} announcement={settingsAnnouncement}>
               <SettingsForm loan={loan} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />

@@ -25,7 +25,7 @@ function EventText({ e }: { e: DashboardEvent }) {
 export function Upcoming({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   return (
-    <Panel title={t('dashboard.upcoming.title')}>
+    <Panel title={t('dashboard.upcoming.title')} guide="dashboard.upcoming">
       <p className="text-xs text-muted-foreground">{t('dashboard.upcoming.window')}</p>
       {d.upcoming.length === 0 ? <p className="text-muted-foreground">{t('dashboard.upcoming.empty')}</p> : (
         <ul className="space-y-2 text-sm">
@@ -58,7 +58,7 @@ function TodoText({ item }: { item: DashboardTodo }) {
 export function Todo({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   return (
-    <Panel title={t('dashboard.todo.title')}>
+    <Panel title={t('dashboard.todo.title')} guide="dashboard.todo">
       {d.todo.length === 0 ? <p className="text-muted-foreground">{t('dashboard.todo.empty')}</p> : (
         <ul className="space-y-2 text-sm">
           {d.todo.map((item) => (

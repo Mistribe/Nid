@@ -15,6 +15,7 @@ Object.defineProperty(window, 'matchMedia', {
 
 // jsdom has no layout, so it has nothing to scroll; the router calls this on every navigation.
 window.scrollTo = () => {};
+Element.prototype.scrollIntoView = () => {};
 
 // jsdom has no modal dialog: open and close are enough for the tests; focus trapping and Escape are the browser's.
 HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.open = true; };

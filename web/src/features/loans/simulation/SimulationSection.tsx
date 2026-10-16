@@ -80,7 +80,7 @@ export function SimulationSection({ loan, onRecord }: { loan: LoanDetail; onReco
   ];
 
   return (
-    <Section title={t('loan_simulation.title')} announcement={announcement}>
+    <Section title={t('loan_simulation.title')} announcement={announcement} guide="loans.simulation">
       <p className="text-sm text-muted-foreground">{t('loan_simulation.help')}</p>
       {problem ? <ProblemMessage problem={problem} /> : null}
       <form noValidate onSubmit={(ev) => void submit(ev)} className="flex flex-wrap items-end gap-3">

@@ -119,7 +119,7 @@ public static class RequestCatalogue
         new(typeof(CreateDependentCommand), false, (_, _) => new CreateDependentCommand("bench-dependent")),
         new(typeof(ProvisionAdultCommand), false, (_, _) => new ProvisionAdultCommand("bench-subject", "bench", null)),
         new(typeof(UpdatePreferencesCommand), false,
-            (_, _) => new UpdatePreferencesCommand(new PreferencesChange("sauge", null, null))),
+            (_, _) => new UpdatePreferencesCommand(new PreferencesChange("sauge", null, null, null))),
         new(typeof(GetCapabilitiesQuery), false, (_, _) => new GetCapabilitiesQuery()),
 
         new(typeof(CollectDailyFxRatesCommand), false, (_, _) => new CollectDailyFxRatesCommand()),

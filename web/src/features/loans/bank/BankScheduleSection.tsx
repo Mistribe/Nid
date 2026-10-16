@@ -50,7 +50,7 @@ export function BankScheduleSection({ loan }: { loan: LoanDetail }) {
   const table = loan.bankSchedule;
 
   return (
-    <Section title={t('loan_bank.title')} headingRef={headingRef} announcement={announcement}>
+    <Section title={t('loan_bank.title')} headingRef={headingRef} announcement={announcement} guide="loans.bank">
       {table ? (
         <>
           <p>{t('loan_bank.period', { first: formatLocalDate(table.firstDueOn), last: formatLocalDate(table.lastDueOn), count: table.rows.length })}</p>
