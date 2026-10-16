@@ -382,8 +382,8 @@ Toutes les opérations passent par `IAccessPolicy`. Côté application, les écr
 | `IValuations` | `Record` (crée ou remplace la valeur d'une date), `Void`, `Latest(item, on)`, `Series(item, range)` |
 | `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `Sum(item, kinds, range)` (somme déterministe pour les modules) |
 | `IDocuments` | `Register`, `Link(item)`, `Open` (flux du contenu), `Archive` |
-| `IProposals` | `Submit`, `Edit`, `Approve`, `Reject`, `ListPending(person)` |
-| `IProposalHandler<TPayload>` | Implémenté par chaque module : `Validate`, `Preview`, `Apply` |
+| `IProposalStore` | Livré en 4C1 : `Submit`, `Find`, `List`, `Decide`, `AddWarning`. Pas d’`Edit` séparé avant 4C2 : la modification se fait à l’approbation (`editedPayload`) |
+| `IProposalHandler` | Non générique, implémenté par chaque module : `Validate`, `Preview`, `Apply` |
 | `IFx` | `Convert(money, to, on)` |
 
 ## 10. Contraintes et index (récapitulatif)

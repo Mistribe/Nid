@@ -138,7 +138,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 
 | Module | Possède | Expose (Contracts) | Dépend de |
 |---|---|---|---|
-| **Core** | `Person` (`adult` lié au `sub` OIDC, ou `dependent` sans connexion), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Document`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposals` | rien |
+| **Core** | `Person` (`adult` lié au `sub` OIDC, ou `dependent` sans connexion), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Document`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposalStore` | rien |
 | **Subscriptions** | `Subscription`, `BillingPhase`, `Purchase`, `Grant`, caches dérivés `CoveragePeriod`/`Charge` | Contributions au tableau de bord (coût mensuel réel/amorti, échéances), charges attendues | Core |
 | **Investments** | `Envelope` (PEA, assurance-vie, PER, livret…) ; valorisations et flux via Core | Gain €/%, TRI plus tard, contribution au patrimoine | Core |
 | **Income** | `IncomeSource`, `IncomePhase` ; revenus exceptionnels via les flux du Core | Revenus mensuels lissés, part engagée, marge (`IIncomeContribution`, `IIncomeSummary`) | Core |
@@ -279,14 +279,15 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 - Champs : `kind`, `target_item_id?`, `payload` + version, `status` (`pending` / `approved` / `rejected` / `superseded`), `source`, `document_id`, `job_id`, `warnings`, `decided_by/at`, payload **original et édité** conservés.
 - **Visibilité héritée** de l'élément cible ; pour un nouvel élément, le propriétaire est celui qui a déposé le document. Une proposition sur un élément privé n'apparaît que chez son propriétaire.
 - **Dédoublonnage** par empreinte `(kind, cible, hash du payload)`. Une nouvelle proposition remplace (`superseded`) une ancienne en attente sur la même cible et la même période.
-- **Contrat de handler** `IProposalHandler<TPayload>` : `Validate` (problèmes), `Preview` (diff contre l'état actuel), `Apply` (écriture idempotente dans **une transaction** avec le changement de statut et l'audit).
+- Livré en 4C1 : ni document ni job, et le contrat de handler n’est pas générique (`core-data-model.md` §7.6).
+- **Contrat de handler** `IProposalHandler` : `Validate` (problèmes), `Preview` (diff contre l'état actuel), `Apply` (écriture idempotente dans **une transaction** avec le changement de statut et l'audit).
 - **Jamais d'auto-approbation.** Les propositions en attente sont rappelées dans le résumé mensuel, sans expiration silencieuse.
 - Interface : boîte de réception avec le PDF à côté, valeurs extraites, diff et avertissements.
 - **Livré en 4C1** (serveur, sans écran) :
   - table `core.proposal` ; soumission par `SubmitProposalCommand` (portée `write`), empreinte = SHA-256 de la forme RFC 8785 de `{kind, target, payload}` ;
   - dédoublonnage : même empreinte en attente renvoyée (`200`), même `(kind, cible, subject_key)` avec un autre payload : l’ancienne passe à `superseded` (`201`) ;
   - routes `/api/v1/core/proposals` (soumettre, lister, détail avec aperçu et `canDecide`, approuver, rejeter) ; décider est réservé au navigateur et exige l’écriture sur la cible ;
-  - l’approbation exécute `Validate`, `Apply` et la décision dans **une seule transaction** `IUnitOfWork`, avec contrôle `xmin` ; en cas d’échec, retour arrière puis avertissement `apply_failed` ajouté à la ligne encore en attente, et l’erreur est renvoyée ;
+  - l’approbation exécute `Validate`, `Apply` et la décision dans **une seule transaction** `IUnitOfWork`, avec contrôle `xmin` ; en cas d’échec, retour arrière puis avertissement `apply_failed` ajouté à la ligne encore en attente (aussi lorsqu’un handler lève une exception, qui est alors relancée), et l’erreur est renvoyée ;
   - deux approbations simultanées n’appliquent qu’une fois : la perdante reçoit `core.fact_conflict` (409) ;
   - premier type : `investments.record_valuation` (aperçu `current`, `previous`, `proposed` ; une valeur à la même date est remplacée).
 
