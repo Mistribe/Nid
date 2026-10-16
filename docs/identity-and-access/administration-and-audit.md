@@ -50,7 +50,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 ## 3. Commandes d'administration (CLI)
 
-La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé) et pour les identifiants de worker. Elle s'exécute dans le conteneur `nid-api` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `grant-admin`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject` et `grant-admin`. `revoke-tokens` et les commandes de workers attendent l'étape 4.
+La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé) et pour les identifiants de worker. Elle s'exécute dans le conteneur `nid-api` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `grant-admin`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject` et `grant-admin`. `revoke-tokens` est livrée en 4A ; les commandes de workers attendent l'étape 4.
 
 | Commande | Usage |
 |---|---|
@@ -58,7 +58,7 @@ La zone admin couvre l'administration courante. La CLI reste le **recours de sec
 | `grant-admin --person <nom ou id>` | Rendre un adulte admin, par exemple quand l'unique admin a perdu son accès |
 | `list-persons` | Lister les personnes (identifiant, type, état, admin) |
 | `revoke-sessions --person` | Incrémenter `session_epoch` |
-| `revoke-tokens --person` | Révoquer tous les jetons d'accès personnels |
+| `revoke-tokens --person` | Révoquer tous les jetons d'accès personnels (livré en 4A) |
 | `create-worker --name --job-types` | Créer un identifiant de worker ; affiche le secret une fois |
 | `rotate-worker`, `revoke-worker` | Rotation et révocation |
 
@@ -74,7 +74,7 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 | `person_id` | La personne concernée |
 | `via` | `ui`, `api`, `mcp`, `job`, `import`, `admin-cli` |
 | `scopes` | Portées de l'acteur |
-| `token_id?` | Jeton utilisé (arrive à l'étape 4 avec les jetons) |
+| `token_id?` | Jeton utilisé (livré en 4A) |
 | `on_behalf_of?` | Personne au nom de qui agit une tâche (arrive à l'étape 4) |
 | `request_id` | Corrélation avec les traces |
 
@@ -86,8 +86,9 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 | `login_refused` | `sub` inconnu et aucun adulte en attente avec cet email (`not_registered`) — livré en 1F3a |
 | `session_revoked` | « Déconnecter partout », par soi-même ou par un admin — livré en 1F3a ; par `nid admin revoke-sessions` depuis 1F4 |
 | `subject_rebound` | `nid admin rebind-subject` : un adulte rattaché à un nouveau `sub` (donnée `had_subject`) — 1F4 |
-| `token_created`, `token_revoked`, `token_expired` | Cycle de vie des jetons — étape 4 |
-| `token_auth_failed` | Échec d'authentification par jeton (fréquence limitée) — étape 4 |
+| `token_created`, `token_revoked` | Cycle de vie des jetons — livrés en 4A |
+| `token_expired` | Abandonné (4A) : la liste « Mes jetons » montre les jetons expirés |
+| `token_auth_failed` | Échec d'authentification par jeton (fréquence limitée) — livré en 4A |
 | `access_denied` | `403` ou `404` sur un élément — livré en 1F3a |
 | `access_violation` | La garde de sortie a bloqué une réponse (`authorization.md` §7) — livré en 1F3a |
 | `admin_command` | Chaque exécution d'une commande `nid admin`, réussie ou refusée : commande, résultat, personne visée, paramètres sans secret — 1F4 |
@@ -108,8 +109,8 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 
 Dans l'interface, pour chaque adulte :
 
-- **Mes jetons** : créer (nom, préréglage, expiration), révoquer. Attend l'étape 4 (jetons d'accès personnels).
-- **Mes sessions** : « déconnecter partout » (livré en 1F3a, sur soi-même ; l'option de révoquer aussi les jetons attend l'étape 4).
+- **Mes jetons** : créer (nom, préréglage, expiration), révoquer. Livré en 4A.
+- **Mes sessions** : « déconnecter partout » (livré en 1F3a, sur soi-même ; révoque aussi les jetons sur demande depuis 4A).
 - **Mes derniers événements de sécurité** (livré en 1F3a).
 - Un rappel : la déconnexion de Nid ne ferme pas la session Authelia (`authentication.md` §6).
 

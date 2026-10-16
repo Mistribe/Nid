@@ -41,6 +41,17 @@
 - `write:direct` inclut `write`, qui inclut `read`.
 - **Expiration** obligatoire : 90 jours par défaut, 365 au plus. Email 7 jours avant. **10 jetons actifs** au maximum par personne.
 
+**Livré en 4A** (2026-10-16, `superpowers/specs/2026-10-16-personal-access-tokens-design.md`) :
+
+- Pas d’événement `token_expired` : la liste « Mes jetons » montre les jetons expirés.
+- Faute de canal d’email, l’expiration proche (7 jours) s’affiche dans l’interface : dans « Mes jetons » et dans un bandeau.
+- Les jetons révoqués ou expirés **restent en base**.
+- Un jeton n’atteint ni `/auth/*`, ni la gestion des jetons, ni « Déconnecter partout », ni l’import (marqueur `IBrowserOnly`, `403 platform.browser_only`).
+- Un jeton porte **ses propres types de revendications** (`nid:token_person`, `nid:token_id`, `nid:token_scope`), jamais ceux de la session.
+- Les échecs d’authentification sont limités par adresse (20 en 10 minutes, `429`) et au plus un `token_auth_failed` est journalisé par adresse et par minute.
+- Précisions d’exécution : la forme du jeton est vérifiée avec une ancre `\z` (un `$` acceptait un saut de ligne final) ; l’exemption du CSRF dépend de la présence d’un en-tête `Bearer nid_pat_` (la requête est authentifiée par le jeton seul : se fonder sur les revendications faisait répondre `403` au lieu de `401` à un mauvais jeton sur un `POST`) ; le schéma de connexion par défaut reste le cookie (le retour OIDC ne doit jamais ouvrir de session sur le schéma des jetons) ; la route `/security` est chargée à la demande (budget du JavaScript initial).
+- `/mcp` arrive avec 4B (§1.4).
+
 ### 1.4 Utilisation et droits
 
 - `Authorization: Bearer nid_pat_…` sur `/mcp` et `/api`. L'acteur est la personne du jeton ; `via` vaut `mcp` sur `/mcp`, `api` ailleurs.
