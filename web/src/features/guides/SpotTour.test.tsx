@@ -71,6 +71,7 @@ describe('the on-screen tour', () => {
 
     const card = await screen.findByRole('dialog', { name: 'Aujourd’hui' });
     expect(within(card).getByText('1 sur 4')).toBeInTheDocument();
+    expect(card).toHaveAccessibleDescription(/^1 sur 4 Capital restant dû/);
     expect(card).not.toHaveAttribute('aria-modal');
     await waitFor(() => expect(target('loans.figures')).toHaveAttribute('data-guide-active'));
     await waitFor(() => expect(card).toHaveFocus());
@@ -114,7 +115,7 @@ describe('the on-screen tour', () => {
     serveLoan();
     const reduced = await startTour(`/loans/${LOAN}`, '/loans', loanReady);
     await screen.findByRole('dialog', { name: 'Aujourd’hui' });
-    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' }));
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' }));
     reduced.unmount();
 
     reduce.mockRestore();
@@ -122,7 +123,7 @@ describe('the on-screen tour', () => {
     serveLoan();
     await startTour(`/loans/${LOAN}`, '/loans', loanReady);
     await screen.findByRole('dialog', { name: 'Aujourd’hui' });
-    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' }));
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' }));
   });
 
   it('ends on Escape and on a route change', async () => {
@@ -134,6 +135,17 @@ describe('the on-screen tour', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(active()).toHaveLength(0);
     escaped.unmount();
+
+    // Spec §4.4: Escape ends the tour wherever the focus is, here on the page after a click on the ringed section.
+    serveLoan();
+    const outside = await startTour(`/loans/${LOAN}`, '/loans', loanReady);
+    await screen.findByRole('dialog', { name: 'Aujourd’hui' });
+    await waitFor(() => expect(active()).toHaveLength(1));
+    await outside.user.click(active()[0]!);
+    expect(screen.getByRole('dialog')).not.toHaveFocus();
+    await outside.user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    outside.unmount();
 
     serveLoan();
     const moved = await startTour(`/loans/${LOAN}`, '/loans', loanReady);

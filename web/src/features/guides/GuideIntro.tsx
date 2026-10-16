@@ -21,9 +21,12 @@ export function GuideIntro({ guide, onClose, onShow }: { guide: Guide; onClose: 
     <ModalDialog title={t('guides.common.title', { module })} onClose={onClose}>
       {() => (
         <>
-          <p aria-live="polite" className="text-sm text-muted-foreground">{t('guides.common.step', { n: step, total: guide.screens })}</p>
-          <h3 className="font-semibold">{t(`${screen}.title`)}</h3>
-          <p>{t(`${screen}.body`)}</p>
+          {/* One live region for the screen: a change reads out its count, title and text, not the count alone. */}
+          <div aria-live="polite" className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t('guides.common.step', { n: step, total: guide.screens })}</p>
+            <h3 className="font-semibold">{t(`${screen}.title`)}</h3>
+            <p>{t(`${screen}.body`)}</p>
+          </div>
           {last && !shown && guide.hint ? <p>{t(`guides.${guide.id}.hint` as 'guides.loans.hint')}</p> : null}
           <div className="flex flex-wrap justify-between gap-2">
             <Button variant="ghost" onClick={onClose}>{t('guides.common.skip')}</Button>
