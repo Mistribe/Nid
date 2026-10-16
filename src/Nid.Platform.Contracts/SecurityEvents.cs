@@ -22,6 +22,9 @@ public static class SecurityEventNames
     public const string TokenRevoked = "token_revoked";
     public const string TokenAuthFailed = "token_auth_failed";
 
+    /// <summary>4B: one per MCP tool call (spec §4); not in the admin journal — an adult's own reads.</summary>
+    public const string McpToolCalled = "mcp_tool_called";
+
     /// <summary>What the admin area's security journal shows (spec §5.1): nothing about another adult's own sessions.</summary>
     public static IReadOnlySet<string> AdminJournal { get; } = new HashSet<string>
     {

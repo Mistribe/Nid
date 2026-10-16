@@ -69,6 +69,26 @@
 
 Le client MCP envoie le jeton en en-tête `Authorization: Bearer …` vers `{PUBLIC_URL}/mcp`. Aucun flux OAuth ni enregistrement de client n'est nécessaire.
 
+Avec Claude Code :
+
+```bash
+claude mcp add --transport http nid {PUBLIC_URL}/mcp --header "Authorization: Bearer <jeton>"
+```
+
+Claude Code range cette configuration dans la portée `local` par défaut (propre à l’utilisateur et au projet, hors du dépôt). Pour partager la configuration d’un projet, le fichier `.mcp.json` lit le jeton dans l’environnement ; **ne jamais committer un jeton** :
+
+```json
+{
+  "mcpServers": {
+    "nid": {
+      "type": "http",
+      "url": "{PUBLIC_URL}/mcp",
+      "headers": { "Authorization": "Bearer ${NID_TOKEN}" }
+    }
+  }
+}
+```
+
 ## 3. Identifiants des workers
 
 Les workers d'ingestion appellent l'API interne (`../architecture.md` §9.3) avec des identifiants de service, distincts des jetons personnels.

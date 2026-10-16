@@ -70,7 +70,7 @@ public static class PersonEndpoints
         return routes;
     }
 
-    private static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email);
+    internal static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email);
 }
 
 /// <summary>

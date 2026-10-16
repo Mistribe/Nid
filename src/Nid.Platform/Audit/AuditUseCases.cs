@@ -44,6 +44,7 @@ public static class SecurityEventViews
         [SecurityEventNames.TokenCreated] = ["preset"],
         [SecurityEventNames.TokenRevoked] = ["count"],
         [SecurityEventNames.TokenAuthFailed] = ["prefix"],
+        [SecurityEventNames.McpToolCalled] = ["tool"],
     };
 
     public static SecurityEventView From(AuditRecord r)
