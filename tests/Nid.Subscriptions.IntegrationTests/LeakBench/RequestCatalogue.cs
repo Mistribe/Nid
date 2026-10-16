@@ -152,6 +152,7 @@ public static class RequestCatalogue
         new(typeof(RevokeMyTokenCommand), false, (_, _) => new RevokeMyTokenCommand(Guid.NewGuid())),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
+        new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
         new(typeof(ListProposalsQuery), false, (_, _) => new ListProposalsQuery(null)),
         new(typeof(GetProposalQuery), false, (_, _) => new GetProposalQuery(Guid.NewGuid())),
         new(typeof(ApproveProposalCommand), false, (_, _) => new ApproveProposalCommand(Guid.NewGuid(), 0, null)),

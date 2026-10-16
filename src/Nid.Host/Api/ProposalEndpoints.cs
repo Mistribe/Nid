@@ -22,12 +22,15 @@ public static class ProposalEndpoints
         api.MapPost("", async (SubmitProposalBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var result = await invoker.InvokeAsync(new SubmitProposalCommand(body.Kind, new ItemId(body.TargetItemId), body.Payload, body.SourceLabel), ct);
-                return result.TryGetValue(out var submitted)
-                    ? Results.Json(submitted!.Proposal, statusCode: submitted.Created ? StatusCodes.Status201Created : StatusCodes.Status200OK)
-                    : result.ToHttp(s => s.Proposal);
+                if (!result.TryGetValue(out var submitted))
+                    return result.ToHttp(s => s.Proposal);
+                return submitted!.Proposal is null
+                    ? Results.NoContent() // spec 4D1 D3: the document matches what Nid expects, nothing is created
+                    : Results.Json(submitted.Proposal, statusCode: submitted.Created ? StatusCodes.Status201Created : StatusCodes.Status200OK);
             })
             .Returns<ProposalView>(StatusCodes.Status201Created)
-            .Produces<ProposalView>(StatusCodes.Status200OK); // a deduplicated submission
+            .Produces<ProposalView>(StatusCodes.Status200OK) // a deduplicated submission
+            .Produces(StatusCodes.Status204NoContent); // a conforme document
 
         api.MapGet("", async (string? status, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ListProposalsQuery(status), ct)).ToHttp(list => list))

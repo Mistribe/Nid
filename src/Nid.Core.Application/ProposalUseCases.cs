@@ -29,9 +29,10 @@ public sealed record ProposalView(
         p.DecisionNote, p.AppliedRefs, p.Version, targetName);
 }
 
-public sealed record SubmittedProposal(ProposalView Proposal, bool Created) : IExposesItems
+/// <summary><see cref="Proposal"/> is null when the document matches what Nid expects (<see cref="Conforme"/>, spec 4D1 D3): nothing was stored.</summary>
+public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Proposal.TargetItemId)];
+    public IEnumerable<ItemId> ExposedItems() => Proposal is null ? [] : [new ItemId(Proposal.TargetItemId)];
 }
 
 public sealed record ProposalList(IReadOnlyList<ProposalView> Items) : IExposesItems
@@ -58,6 +59,18 @@ public sealed record GetProposalQuery(Guid Id) : IQuery<ProposalDetail>;
 public sealed record ApproveProposalCommand(Guid Id, uint Version, JsonElement? EditedPayload) : ICommand<ProposalView>, IBrowserOnly;
 
 public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) : ICommand<ProposalView>, IBrowserOnly;
+
+/// <summary>
+/// Spec 4D1 §5: a document written directly — the kind's validation then its application in one unit of work, as the
+/// token's actor; no proposal row (the write log records the module's rows).
+/// </summary>
+public sealed record ApplyDirectCommand(string Kind, ItemId ItemId, JsonElement Payload) : ICommand<DirectWrite>, IItemScoped, IDirectWrite
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>`applied` with what was written and what was left out as already recorded, or `conforme` with nothing written.</summary>
+public sealed record DirectWrite(string Outcome, IReadOnlyList<Guid> AppliedRefs, IReadOnlyList<ProposalWarning> Skipped, JsonElement? Conforme);
 
 internal static class ProposalAccess
 {
@@ -114,7 +127,10 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
         if (!checkedPayload.TryGetValue(out var check))
             return Result.Failure<SubmittedProposal>(checkedPayload.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
-        var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check!.SubjectKey,
+        if (check!.Conforme is { } conforme)
+            return Result.Success(new SubmittedProposal(null, false, conforme));
+
+        var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
         var names = await ProposalAccess.NamesAsync(items, [outcome.Proposal.Target], ct);
         return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal, names(outcome.Proposal.Target)), outcome.Created));
@@ -253,5 +269,31 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         if (!decided.TryGetValue(out var stored))
             return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
         return Result.Success(ProposalView.From(stored, names(stored.Target)));
+    }
+}
+
+[RequestHandler<ApplyDirectCommand, DirectWrite>]
+public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork unitOfWork) : IRequestHandler<ApplyDirectCommand, DirectWrite>
+{
+    public async ValueTask<Result<DirectWrite>> HandleAsync(ApplyDirectCommand command, CancellationToken ct = default)
+    {
+        if (handlers.Find(command.Kind) is not { } handler)
+            return Result.Failure<DirectWrite>(new Failure(ProposalCodes.KindUnknown, $"'{command.Kind}' is not a proposal kind.", null));
+        if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
+            return Result.Failure<DirectWrite>(notObject!);
+
+        // Every early return skips the commit and so rolls back whatever the application wrote: never commit after a refusal.
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        var check = await handler.ValidateAsync(command.ItemId, command.Payload, ct);
+        if (!check.TryGetValue(out var valid))
+            return Result.Failure<DirectWrite>(check.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+        if (valid!.Conforme is { } conforme)
+            return Result.Success(new DirectWrite("conforme", [], [], conforme));
+        var applied = await handler.ApplyAsync(command.ItemId, valid.Payload, ct);
+        if (!applied.TryGetValue(out var refs))
+            return Result.Failure<DirectWrite>(applied.TryGetFailure(out var failed) ? failed! : throw new InvalidOperationException());
+        await transaction.CommitAsync(ct);
+        return Result.Success(new DirectWrite("applied", refs!,
+            valid.Warnings.Where(w => w.Code == ProposalCodes.AlreadyRecorded).ToList(), null));
     }
 }

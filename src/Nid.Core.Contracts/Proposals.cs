@@ -11,9 +11,10 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 
 /// <summary>
 /// What a handler's validation keeps: the business key (deduplication), the warnings and the payload normalized to its
-/// known fields — what is fingerprinted, stored and applied, never the client's raw JSON.
+/// known fields — what is fingerprinted, stored and applied, never the client's raw JSON. <paramref name="Conforme"/>
+/// (spec 4D1 D3), when set, is <c>{ expected, given }</c>: the document matches what Nid expects and nothing is created.
 /// </summary>
-public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload);
+public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null);
 
 public sealed record NewProposal(
     string Module, string Kind, ItemId Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
@@ -37,6 +38,9 @@ public static class ProposalCodes
     /// <summary>Warning codes.</summary>
     public const string ApplyFailed = "apply_failed";
     public const string PayloadVersionUnsupported = "payload_version_unsupported";
+
+    /// <summary>4D1: a statement's movement Nid already holds (same reference, or same date, kind and amount).</summary>
+    public const string AlreadyRecorded = "already_recorded";
 }
 
 public interface IProposalStore

@@ -243,4 +243,18 @@ public class ProposalRouteTests(PostgresFixture fixture)
         var detail = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{submitted.GetProperty("id").GetGuid()}"));
         Assert.Equal("PEA", detail.GetProperty("proposal").GetProperty("targetName").GetString());
     }
+
+    /// <summary>Spec 4D1 D3: a document that matches what Nid expects creates nothing.</summary>
+    [Fact]
+    public async Task A_conforme_document_creates_nothing_and_answers_no_content()
+    {
+        await using var app = await StartAsync(fixture);
+        var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals,
+            new { kind = EchoProposalHandler.KindName, targetItemId = item.Value, payload = new { subject = "s1", conforme = true } });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty((await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items").EnumerateArray());
+    }
 }

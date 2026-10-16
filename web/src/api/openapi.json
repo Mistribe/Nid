@@ -731,6 +731,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           }
         }
       },
