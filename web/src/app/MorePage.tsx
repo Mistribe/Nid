@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { visibleNav } from './nav';
 import { useSession } from './Providers';
 
@@ -16,6 +17,7 @@ export function MorePage() {
             <Link to={item.to} className="flex min-h-11 items-center gap-3 px-4 py-3 hover:bg-accent">
               <item.icon aria-hidden="true" className="size-5" />
               <span>{t(item.label)}</span>
+              {item.to === '/proposals' ? <PendingBadge /> : null}
             </Link>
           </li>
         ))}

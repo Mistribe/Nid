@@ -47,7 +47,7 @@ public class ProposalRouteTests(PostgresFixture fixture)
         var approved = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = detail.GetProperty("proposal").GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
         var view = await JsonOf(approved);
-        Assert.Equal("approved", view.GetProperty("status").GetString());
+        Assert.Equal(("approved", "Netflix"), (view.GetProperty("status").GetString(), view.GetProperty("targetName").GetString()));
         Assert.Single(view.GetProperty("appliedRefs").EnumerateArray());
         Assert.Equal(app.AdultA.Value, view.GetProperty("decidedByPersonId").GetGuid());
     }
@@ -156,7 +156,8 @@ public class ProposalRouteTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
 
         var rejected = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/reject", new { version, note = "Doublon" }));
-        Assert.Equal(("rejected", "Doublon"), (rejected.GetProperty("status").GetString(), rejected.GetProperty("decisionNote").GetString()));
+        Assert.Equal(("rejected", "Doublon", "Netflix"),
+            (rejected.GetProperty("status").GetString(), rejected.GetProperty("decisionNote").GetString(), rejected.GetProperty("targetName").GetString()));
         Assert.Empty(rejected.GetProperty("appliedRefs").EnumerateArray());
 
         var again = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = rejected.GetProperty("version").GetUInt32() });
@@ -212,5 +213,34 @@ public class ProposalRouteTests(PostgresFixture fixture)
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         await core.Items.Where(i => i.Id == item.Value)
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Visibility, "private"));
+    }
+
+    [Fact]
+    public async Task Every_view_names_its_target()
+    {
+        await using var app = await StartAsync(fixture);
+        var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+
+        var submitted = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value)));
+        Assert.Equal("Netflix", submitted.GetProperty("targetName").GetString());
+        var listed = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items")[0];
+        Assert.Equal("Netflix", listed.GetProperty("targetName").GetString());
+        var detail = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{submitted.GetProperty("id").GetGuid()}"));
+        Assert.Equal("Netflix", detail.GetProperty("proposal").GetProperty("targetName").GetString());
+    }
+
+    [Fact]
+    public async Task An_archived_envelope_keeps_its_name_on_the_views()
+    {
+        await using var app = await StartAsync(fixture);
+        var envelope = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var submitted = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(envelope.Value)));
+        // Closing an envelope archives its item.
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope.Value}/close", new { closedOn = "2025-09-30" })).EnsureSuccessStatusCode();
+
+        var listed = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items")[0];
+        Assert.Equal("PEA", listed.GetProperty("targetName").GetString());
+        var detail = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{submitted.GetProperty("id").GetGuid()}"));
+        Assert.Equal("PEA", detail.GetProperty("proposal").GetProperty("targetName").GetString());
     }
 }

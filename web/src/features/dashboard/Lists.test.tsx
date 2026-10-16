@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -9,6 +9,16 @@ import { dashboard, envelope, event, person, todoItem } from './testData';
 
 function serve(body: DashboardView) {
   server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(body)));
+}
+
+/** Serves `count` pending proposals; resolves once the dashboard has fetched and settled them. */
+function servePending(count: number) {
+  let served = false;
+  server.use(http.get('*/api/v1/core/proposals', () => { served = true; return HttpResponse.json({ items: Array.from({ length: count }, (_, i) => ({ id: String(i) })) }); }));
+  return async (client: { isFetching: () => number }) => {
+    await waitFor(() => expect(served).toBe(true));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+  };
 }
 
 const section = (name: string) => screen.findByRole('region', { name });
@@ -173,8 +183,33 @@ describe('dashboard lists', () => {
 
   it('says when nothing is coming and nothing is to do', async () => {
     serve(dashboard());
-    await renderApp('/dashboard');
+    const settled = servePending(0);
+    const { queryClient } = await renderApp('/dashboard');
     expect(await section('À venir')).toHaveTextContent('Rien dans les 60 prochains jours.');
-    expect(await section('À faire')).toHaveTextContent('Rien à faire pour l’instant.');
+    await settled(queryClient);
+    const todo = await section('À faire');
+    expect(todo).toHaveTextContent('Rien à faire pour l’instant.');
+    expect(within(todo).queryByRole('link', { name: /à valider/ })).toBeNull();
+  });
+
+  it('shows the proposals line alone, without the empty text', async () => {
+    serve(dashboard());
+    const settled = servePending(1);
+    const { queryClient } = await renderApp('/dashboard');
+
+    const todo = await section('À faire');
+    expect(await within(todo).findByRole('link', { name: '1 proposition à valider' })).toHaveAttribute('href', '/proposals');
+    await settled(queryClient);
+    expect(todo).not.toHaveTextContent('Rien à faire pour l’instant.');
+  });
+
+  it('says how many proposals wait, first in « À faire »', async () => {
+    serve(dashboard({ todo: [todoItem()] }));
+    server.use(http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [{ id: '1' }, { id: '2' }] })));
+    await renderApp('/dashboard');
+
+    const todo = await section('À faire');
+    const first = (await within(todo).findAllByRole('listitem'))[0]!;
+    expect(await within(first).findByRole('link', { name: '2 propositions à valider' })).toHaveAttribute('href', '/proposals');
   });
 });

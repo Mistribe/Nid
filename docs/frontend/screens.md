@@ -7,7 +7,7 @@
 
 ## 1. Navigation
 
-- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Biens, Crédits, Routine, Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). La boîte de validation (étape 4) y prendra sa place avec son badge.
+- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Biens, Crédits, Routine, Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). L’entrée « À valider » (boîte de validation, 4C2) vient après « Routine » : dans la barre latérale et dans « Plus » sur mobile, avec son badge du nombre de propositions en attente.
 - **Bureau** : barre latérale avec toutes les entrées d’un coup (celles des onglets et celles de « Plus ») ; « Crédits » y est depuis 3B1, « Biens » juste avant depuis 3D1.
 - **Administration** n'apparaît (barre latérale sur bureau, page « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
@@ -100,6 +100,8 @@ Objectif : moins de dix minutes (principe 2).
 - Chaque proposition affiche sa **provenance** (`ProvenanceBadge`) et son document.
 - Visionneuse PDF : pdf.js chargé à la demande (décision F10, non revérifiée).
 - Une proposition sur un élément privé n'apparaît que chez son propriétaire (`../identity-and-access/authorization.md` §5).
+
+**Livré en 4C2** (`superpowers/specs/2026-10-16-proposal-screens-design.md`) : la liste par statut et par relevé, la fiche avec la comparaison à l’état actuel, la modification en place, approuver / rejeter avec note, le passage à la suivante, le conflit et le rechargement, la lecture seule sans droit d’écriture ; sans la colonne PDF (extraction reportée) ; le compteur dans « À faire » et dans la routine.
 
 ## 7. Assistant d'import
 

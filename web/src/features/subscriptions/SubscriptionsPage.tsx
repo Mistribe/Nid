@@ -29,7 +29,7 @@ export function SubscriptionsPage() {
   const answer = $api.useQuery('get', LIST, { params: { query: { scope } } });
 
   const setSearch = (change: SubscriptionsSearch) =>
-    void navigate({ to: '.', search: (prev: RootSearch & SubscriptionsSearch) => ({ ...prev, ...change }), replace: true });
+    void navigate({ to: '.', search: (prev) => ({ ...prev, ...change }), replace: true });
 
   const offered = labelsInUse(answer.data?.items ?? []);
   const active = labelsOf(search.label).filter((key) => offered.some((label) => label.key === key));

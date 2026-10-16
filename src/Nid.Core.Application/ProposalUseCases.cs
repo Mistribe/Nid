@@ -20,13 +20,13 @@ public sealed record ProposalView(
     Guid Id, string Kind, Guid TargetItemId, string Status, JsonElement Payload, JsonElement? EditedPayload, int PayloadVersion,
     IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, DateTimeOffset CreatedAt,
     Guid CreatedByPersonId, Guid? SupersededById, DateTimeOffset? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
-    IReadOnlyList<Guid> AppliedRefs, uint Version)
+    IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName)
 {
-    public static ProposalView From(StoredProposal p, IReadOnlyList<ProposalWarning>? extra = null) => new(
+    public static ProposalView From(StoredProposal p, string? targetName, IReadOnlyList<ProposalWarning>? extra = null) => new(
         p.Id, p.Kind, p.Target.Value, p.Status.ToString().ToLowerInvariant(), p.Payload, p.EditedPayload, p.PayloadVersion,
         extra is null ? p.Warnings : [.. p.Warnings, .. extra], p.SubjectKey, p.SourceLabel, p.CreatedVia,
         p.CreatedAt.ToDateTimeOffset(), p.CreatedBy.Value, p.SupersededById, p.DecidedAt?.ToDateTimeOffset(), p.DecidedBy?.Value,
-        p.DecisionNote, p.AppliedRefs, p.Version);
+        p.DecisionNote, p.AppliedRefs, p.Version, targetName);
 }
 
 public sealed record SubmittedProposal(ProposalView Proposal, bool Created) : IExposesItems
@@ -61,6 +61,13 @@ public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) 
 
 internal static class ProposalAccess
 {
+    /// <summary>Spec 4C2 D2: the targets' names, in one registry read whatever the list's length.</summary>
+    public static async Task<Func<ItemId, string?>> NamesAsync(IItemRegistry items, IEnumerable<ItemId> targets, CancellationToken ct)
+    {
+        var found = await items.FindManyAsync(targets.Distinct().ToList(), ct);
+        return id => found.TryGetValue(id, out var item) ? item.DisplayName : null;
+    }
+
     /// <summary>The proposal, if the actor may <paramref name="access"/> its target: unreadable answers not found (authorization.md §6).</summary>
     public static async Task<Result<(StoredProposal Proposal, PersonId Me)>> LoadAsync(
         IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, Guid id, AccessKind access, CancellationToken ct)
@@ -88,7 +95,7 @@ internal static class ProposalAccess
 }
 
 [RequestHandler<SubmitProposalCommand, SubmittedProposal>]
-public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalStore store, IActorAccessor accessor)
+public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalStore store, IActorAccessor accessor, IItemRegistry items)
     : IRequestHandler<SubmitProposalCommand, SubmittedProposal>
 {
     public async ValueTask<Result<SubmittedProposal>> HandleAsync(SubmitProposalCommand command, CancellationToken ct = default)
@@ -109,12 +116,13 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
 
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check!.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
-        return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal), outcome.Created));
+        var names = await ProposalAccess.NamesAsync(items, [outcome.Proposal.Target], ct);
+        return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal, names(outcome.Proposal.Target)), outcome.Created));
     }
 }
 
 [RequestHandler<ListProposalsQuery, ProposalList>]
-public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems visible, IActorAccessor accessor)
+public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems visible, IActorAccessor accessor, IItemRegistry items)
     : IRequestHandler<ListProposalsQuery, ProposalList>
 {
     public async ValueTask<Result<ProposalList>> HandleAsync(ListProposalsQuery query, CancellationToken ct = default)
@@ -124,12 +132,15 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
         if (!Enum.TryParse<ProposalStatus>(query.Status ?? "pending", ignoreCase: true, out var status) || !Enum.IsDefined(status))
             return Result.Failure<ProposalList>(FieldErrors.At(new Failure("request.invalid", "pending, approved, rejected or superseded.", null), "status"));
         var targets = await visible.ForAsync(me, VisibilityScope.Me, includeArchived: true, ct);
-        return Result.Success(new ProposalList((await store.ListAsync(targets, status, ct)).Select(p => ProposalView.From(p)).ToList()));
+        var stored = await store.ListAsync(targets, status, ct);
+        var names = await ProposalAccess.NamesAsync(items, stored.Select(p => p.Target), ct);
+        return Result.Success(new ProposalList(stored.Select(p => ProposalView.From(p, names(p.Target))).ToList()));
     }
 }
 
 [RequestHandler<GetProposalQuery, ProposalDetail>]
-public sealed class GetProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers)
+public sealed class GetProposalHandler(
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IItemRegistry items)
     : IRequestHandler<GetProposalQuery, ProposalDetail>
 {
     public async ValueTask<Result<ProposalDetail>> HandleAsync(GetProposalQuery query, CancellationToken ct = default)
@@ -140,20 +151,21 @@ public sealed class GetProposalHandler(IProposalStore store, IAccessPolicy polic
         var (proposal, me) = found;
         var canDecide = (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).IsSuccess && proposal.Status == ProposalStatus.Pending
             && accessor.Current?.TokenId is null; // deciding is browser-only
+        var names = await ProposalAccess.NamesAsync(items, [proposal.Target], ct);
         var handler = handlers.Find(proposal.Kind);
         if (handler is null || handler.PayloadVersion != proposal.PayloadVersion)
-            return Result.Success(new ProposalDetail(ProposalView.From(proposal, proposal.Status == ProposalStatus.Pending
+            return Result.Success(new ProposalDetail(ProposalView.From(proposal, names(proposal.Target), proposal.Status == ProposalStatus.Pending
                 ? [new ProposalWarning(ProposalCodes.PayloadVersionUnsupported, "error", "This proposal can only be rejected.")] : null), null, canDecide));
         var preview = proposal.Status == ProposalStatus.Pending
             ? await handler.PreviewAsync(proposal.Target, proposal.EditedPayload ?? proposal.Payload, ct) : (JsonElement?)null;
-        return Result.Success(new ProposalDetail(ProposalView.From(proposal), preview, canDecide));
+        return Result.Success(new ProposalDetail(ProposalView.From(proposal, names(proposal.Target)), preview, canDecide));
     }
 }
 
 [RequestHandler<ApproveProposalCommand, ProposalView>]
 public sealed class ApproveProposalHandler(
     IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IUnitOfWork unitOfWork,
-    ILogger<ApproveProposalHandler> logger)
+    IItemRegistry items, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
@@ -169,6 +181,8 @@ public sealed class ApproveProposalHandler(
         if (handlers.Find(proposal.Kind) is not { } handler || handler.PayloadVersion != proposal.PayloadVersion)
             return Fail(ProposalCodes.VersionUnsupported, "This proposal's payload is no longer read: reject it.");
 
+        // Read before anything is written: a failing read then leaves no decision behind.
+        var names = await ProposalAccess.NamesAsync(items, [proposal.Target], ct);
         var payload = command.EditedPayload ?? proposal.Payload;
         if (ProposalAccess.Payload(payload, "editedPayload").TryGetFailure(out var notObject))
             return Result.Failure<ProposalView>(notObject!);
@@ -188,7 +202,7 @@ public sealed class ApproveProposalHandler(
                     if (!decided.TryGetValue(out var stored))
                         return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
                     await transaction.CommitAsync(ct);
-                    return Result.Success(ProposalView.From(stored!));
+                    return Result.Success(ProposalView.From(stored!, names(stored!.Target)));
                 }
                 applied.TryGetFailure(out refused);
             }
@@ -222,7 +236,7 @@ public sealed class ApproveProposalHandler(
 }
 
 [RequestHandler<RejectProposalCommand, ProposalView>]
-public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor)
+public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IItemRegistry items)
     : IRequestHandler<RejectProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(RejectProposalCommand command, CancellationToken ct = default)
@@ -233,7 +247,11 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        // Read before the decision is written: a failing read then leaves no decision behind.
+        var names = await ProposalAccess.NamesAsync(items, [found.Proposal.Target], ct);
         var decided = await store.DecideAsync(found.Proposal.Id, command.Version, ProposalStatus.Rejected, found.Me, null, note, [], ct);
-        return decided.Map(p => ProposalView.From(p));
+        if (!decided.TryGetValue(out var stored))
+            return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
+        return Result.Success(ProposalView.From(stored, names(stored.Target)));
     }
 }

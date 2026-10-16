@@ -12266,6 +12266,7 @@ export interface components {
             appliedRefs: string[];
             /** Format: uint32 */
             version: number;
+            targetName?: null | string;
         };
         ProposalWarning: {
             code: string;

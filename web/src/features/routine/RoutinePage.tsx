@@ -7,6 +7,7 @@ import { useSession } from '@/app/Providers';
 import type { RootSearch, RoutineSearch } from '@/app/router';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { monthLabel } from '../income/expected/months';
+import { PendingLine } from '../proposals/PendingLine';
 import { todayIso } from '../subscriptions/today';
 import { ROUTINE, type RoutineRecap } from './api';
 import { defaultRoutineDate } from './dates';
@@ -40,6 +41,7 @@ export function RoutinePage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t('routine.title', { month: monthText })}</h1>
+      <PendingLine />
       <label className="flex items-center gap-2 text-sm">
         <span>{t('routine.date')}</span>
         <input type="date" value={on} max={today} className="rounded-md border px-3 py-2"

@@ -50,6 +50,9 @@ export type IncomeDetailSearch = { expected?: 'year' | 'next_year' };
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5); anything but `1` is dropped. */
 export type LoansSearch = { ended?: 1 };
 
+/** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
+export type ProposalsSearch = { status?: 'approved' | 'rejected' };
+
 export function homePath(capabilities: Capabilities): '/dashboard' | '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('core')) return '/dashboard';
   if (capabilities.modules.includes('subscriptions')) return '/subscriptions';
@@ -259,6 +262,20 @@ const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/s
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
 const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', component: MorePage });
 
+const proposalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/proposals',
+  validateSearch: (search: Record<string, unknown>): ProposalsSearch =>
+    search.status === 'approved' || search.status === 'rejected' ? { status: search.status } : {},
+  component: lazyRouteComponent(() => import('@/features/proposals/ProposalsPage'), 'ProposalsPage'),
+});
+
+const proposalDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/proposals/$id',
+  component: lazyRouteComponent(() => import('@/features/proposals/ProposalDetailPage'), 'ProposalDetailPage'),
+});
+
 const forbiddenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forbidden', component: ForbiddenPage });
 
 /** The admin area is routed for admins only; the server refuses anyway (authorization.md §6). */
@@ -285,7 +302,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
 import { Guides } from '@/features/guides/Guides';
+import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { TokenBanner } from '@/features/security/TokenBanner';
 import { section, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
@@ -26,6 +27,7 @@ export function Shell() {
     <Link key={item.to} to={item.to} className={style} activeProps={{ 'aria-current': 'page', className: 'font-semibold' }}>
       <item.icon aria-hidden="true" className="size-5 shrink-0" />
       <span className="max-w-full truncate">{t(item.label)}</span>
+      {item.to === '/proposals' ? <PendingBadge /> : null}
     </Link>
   );
 
@@ -54,6 +56,7 @@ export function Shell() {
         <Link to="/more" aria-current={inMore ? 'page' : undefined} className={inMore ? `${TAB} font-semibold` : TAB}>
           <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
           <span className="max-w-full truncate">{t('nav.more')}</span>
+          {more.some((item) => item.to === '/proposals') ? <PendingBadge /> : null}
         </Link>
       </nav>
     </div>

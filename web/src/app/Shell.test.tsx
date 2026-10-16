@@ -14,7 +14,7 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Biens', 'Crédits', 'Routine', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(links).toEqual(['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Biens', 'Crédits', 'Routine', 'À valider', 'Import', 'Export', 'Sécurité', 'Réglages']);
   });
 
   it('offers Export even where import is disabled', async () => {
@@ -141,7 +141,7 @@ describe('the shell', () => {
   it('lists the other sections on /more, Administration for an admin only', async () => {
     const { container } = await renderApp('/more');
     const list = await screen.findByRole('list', { name: 'Autres sections' });
-    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['Biens', 'Crédits', 'Routine', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['Biens', 'Crédits', 'Routine', 'À valider', 'Import', 'Export', 'Sécurité', 'Réglages']);
     await expectNoAxeViolations(container);
   });
 

@@ -1,0 +1,68 @@
+import { Link, useSearch } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
+import { present, toProblem } from '@/api/errors';
+import type { ProposalsSearch, RootSearch } from '@/app/router';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { formatInstantDay } from '@/features/admin/format';
+import { PROPOSALS, type ProposalView } from './api';
+import { useAnnouncement } from './announce';
+import { groupBySource, kindOf, originText } from './kinds';
+
+const STATUSES = ['pending', 'approved', 'rejected'] as const;
+
+/** Spec 4C2 §3: the proposals by status, grouped by statement. */
+export function ProposalsPage() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const search: RootSearch & ProposalsSearch = useSearch({ strict: false });
+  const status = search.status ?? 'pending';
+  const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
+  const message = useAnnouncement();
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold">{t('proposals.title')}</h1>
+      <p role="status">{message}</p>
+      <nav aria-label={t('proposals.tabs')} className="flex gap-2">
+        {STATUSES.map((s) => (
+          <Link key={s} to="/proposals" search={(prev) => ({ ...prev, status: s === 'pending' ? undefined : s })} replace
+            aria-current={s === status ? 'page' : undefined}
+            className={s === status ? 'border-b-2 border-primary px-3 py-2 font-semibold' : 'px-3 py-2'}>
+            {t(`proposals.tab.${s}`)}
+          </Link>
+        ))}
+      </nav>
+      <div>
+        {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
+        {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 animate-pulse rounded-md border bg-muted" /> : null}
+        {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
+        {answer.data ? groupBySource(answer.data.items).map((group) => <Group key={JSON.stringify(group.label)} label={group.label} items={group.items} />) : null}
+      </div>
+    </div>
+  );
+}
+
+function Group({ label, items }: { label: string | null; items: ProposalView[] }) {
+  const { t } = useTranslation();
+  const name = label ?? t('proposals.no_source');
+  return (
+    <section aria-label={name} className="space-y-2">
+      <h2 className="text-lg font-semibold">{name}</h2>
+      <ul className="divide-y rounded-md border">
+        {items.map((p) => (
+          <li key={p.id} className="px-4 py-3">
+            <Link to="/proposals/$id" params={{ id: p.id }} className="underline">
+              {kindOf(p.kind)?.summary(t, p) ?? t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') })}
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              {p.status === 'pending'
+                ? t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })
+                : t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatInstantDay(p.decidedAt ?? p.createdAt) })}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
