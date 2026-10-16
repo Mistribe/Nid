@@ -2,7 +2,12 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Nid.Core.Application;
+using Nid.Core.Contracts;
+using Nid.Income.Application;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using UnambitiousFx.Functional.Failures;
 using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
 
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
@@ -253,6 +258,50 @@ public class PayslipProposalTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, Payslip(source, "2400.00"))).StatusCode);
     }
 
+    // Final fix 1: a phase paid on the 30th, a payslip dated the 28th — once its pay is applied, the same payslip is « conforme ».
+    [Fact]
+    public async Task A_payslip_dated_before_the_payment_day_approved_then_sent_again_is_conforme()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(startsOn: "2025-01-30", net: "2000"));
+        var proposal = await SubmitAsync(app, Payslip(source, "2100.00"));
+        Assert.Equal("2025-09-30", proposal.GetProperty("payload").GetProperty("effectiveOn").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, proposal)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, Payslip(source, "2100.00"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_payslip_dated_before_the_payment_day_applied_twice_is_conforme_the_second_time()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(startsOn: "2025-01-30", net: "2000"));
+        var command = new ApplyDirectCommand(Kind, new ItemId(source),
+            JsonSerializer.SerializeToElement(new { paidOn = "2025-09-28", net = new { amount = "2100.00", currency = "EUR" } }));
+
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out var first));
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out var second));
+
+        Assert.Equal(("applied", "conforme"), (first!.Outcome, second!.Outcome));
+        Assert.Equal(2, (await PhasesAsync(app, source)).Count);
+    }
+
+    // Final fix 6: the change-phase command's own fields, answered at the payslip's payload paths.
+    [Theory]
+    [InlineData("effectiveOn", "payload.effectiveOn")]
+    [InlineData("label", "payload.phaseLabel")]
+    [InlineData("startsOn", "payload.effectiveOn")]
+    [InlineData("netAmount", "payload")]
+    [InlineData(null, "payload")]
+    public void A_change_phase_field_becomes_a_payload_path(string? field, string expected)
+    {
+        var failure = new Failure("income.invalid_phase", "Refused.", field is null ? null : new Dictionary<string, object?> { ["field"] = field });
+
+        var error = Assert.Single(FieldErrors.Of(PayslipProposal.AtPayload(failure))!);
+
+        Assert.Equal((expected, "income.invalid_phase"), (error.Path, error.Code));
+    }
+
     [Fact]
     public async Task In_the_phase_s_first_month_a_matching_payslip_is_conforme_and_a_different_one_is_refused_at_paidOn()
     {
@@ -322,7 +371,7 @@ public class PayslipProposalTests(PostgresFixture fixture)
     [InlineData("0", "0")]
     [InlineData("0.5", "0.5")]
     public void The_tolerance_setting_is_parsed(string? setting, string ratio)
-        => Assert.Equal(decimal.Parse(ratio, CultureInfo.InvariantCulture), Nid.Income.Application.PayslipTolerance.Parse(setting).Ratio);
+        => Assert.Equal(decimal.Parse(ratio, CultureInfo.InvariantCulture), PayslipTolerance.Parse(setting).Ratio);
 
     [Theory]
     [InlineData("1")]
@@ -330,5 +379,5 @@ public class PayslipProposalTests(PostgresFixture fixture)
     [InlineData("0,02")]
     [InlineData("two percent")]
     public void A_bad_tolerance_setting_is_a_configuration_error(string setting)
-        => Assert.Contains("Income:PayslipTolerance", Assert.Throws<InvalidOperationException>(() => Nid.Income.Application.PayslipTolerance.Parse(setting)).Message);
+        => Assert.Contains("Income:PayslipTolerance", Assert.Throws<InvalidOperationException>(() => PayslipTolerance.Parse(setting)).Message);
 }

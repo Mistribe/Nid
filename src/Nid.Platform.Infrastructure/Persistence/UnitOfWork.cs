@@ -78,6 +78,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
     private sealed class Savepoint(UnitOfWork owner, DbTransaction transaction, string name) : ITransactionScope
     {
         private bool released;
+        private bool disposed;
 
         public async Task CommitAsync(CancellationToken ct)
         {
@@ -87,6 +88,10 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
 
         public async ValueTask DisposeAsync()
         {
+            // A second rollback to the savepoint would undo what the outer scope wrote since; the depth would go negative.
+            if (disposed)
+                return;
+            disposed = true;
             try
             {
                 if (!released)

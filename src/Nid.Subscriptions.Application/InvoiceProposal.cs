@@ -31,7 +31,7 @@ public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) 
 
     private sealed record Parsed(LocalDate ChargedOn, Money Amount);
 
-    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))

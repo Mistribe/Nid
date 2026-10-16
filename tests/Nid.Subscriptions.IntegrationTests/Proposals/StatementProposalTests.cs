@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Subscriptions.IntegrationTests.Mcp;
 using Nid.TestSupport;
 using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
@@ -116,6 +119,7 @@ public class StatementProposalTests(PostgresFixture fixture)
                      (Statement(envelope, many), "payload.movements"),
                      (Statement(envelope, [Movement(reference: "R-1"), Movement(on: "2025-09-06", reference: "R-1")]), "payload.movements[1].ref"),
                      (Statement(envelope, [Movement(label: new string('x', 201))]), "payload.movements[0].label"),
+                     (Statement(envelope, [Movement(reference: "R\u00011")]), "payload.movements[0].ref"),
                      (Statement(envelope, [], currency: "USD"), "payload.value.currency"),
                      (Statement(envelope, [], value: null), "payload.movements"),
                      (Statement(envelope, [], asOf: "2025-10-16"), "payload.asOf"),
@@ -155,4 +159,98 @@ public class StatementProposalTests(PostgresFixture fixture)
         var flows = (await EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray();
         Assert.Equal(2, flows.Count(f => f.GetProperty("occurredOn").GetString() == "2025-09-05"));
     }
+
+    // Final fix 2: a split statement keeps one asOf per part, never the same twice (a same asOf supersedes).
+    [Fact]
+    public async Task Too_many_movements_are_refused_with_how_to_split_them()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals,
+            Statement(envelope, [.. Enumerable.Range(0, 201).Select(i => Movement(amount: $"{i + 1}.00"))]));
+
+        var message = (await JsonOf(refused)).GetProperty("errors")[0].GetProperty("message").GetString();
+        Assert.Contains("by date", message);
+        Assert.Contains("its last movement's date", message);
+        Assert.Contains("never send the same asOf twice", message);
+    }
+
+    // Final fix 3: `excluded` is an edit only; a submitter cannot pre-set it.
+    [Fact]
+    public async Task A_submitted_excluded_is_ignored_and_a_recorded_line_stays_left_out()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await RecordFlowAsync(app, envelope, new { occurredOn = "2025-09-05", kind = "contribution", amount = new { amount = "150.00", currency = "EUR" } });
+
+        var proposal = await SubmitAsync(app, new
+        {
+            kind = Kind, targetItemId = envelope,
+            payload = new { asOf = "2025-09-30", movements = new[] { Movement(), Movement(on: "2025-09-12", amount: "60.00") }, excluded = Array.Empty<int>() },
+        });
+
+        Assert.False(proposal.GetProperty("payload").TryGetProperty("excluded", out _));
+        Assert.Equal(1, (await JsonOf(await ApproveAsync(app, proposal))).GetProperty("appliedRefs").GetArrayLength());
+        Assert.Single((await EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray(), f => f.GetProperty("occurredOn").GetString() == "2025-09-05");
+    }
+
+    // Final fix 4: everything already recorded, the same value on asOf → « conforme ».
+    [Fact]
+    public async Task An_approved_statement_sent_again_is_conforme()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var body = Statement(envelope, [Movement(reference: "R-1"), Movement(on: "2025-09-12", amount: "60.00")]);
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, await SubmitAsync(app, body))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, body)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals,
+            Statement(envelope, [Movement(reference: "R-1")], value: "23600.00"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_statement_applied_twice_is_conforme_the_second_time_and_its_value_is_not_written_again()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var command = new ApplyDirectCommand(Kind, new ItemId(envelope), JsonSerializer.SerializeToElement(new
+        {
+            asOf = "2025-09-30", value = new { amount = "23500.00", currency = "EUR" }, movements = new[] { Movement(), Movement() },
+        }));
+
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out var first));
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out var second));
+
+        Assert.Equal(("applied", 3, "conforme"), (first!.Outcome, first.AppliedRefs.Count, second!.Outcome));
+        Assert.Empty(second.AppliedRefs);
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        Assert.Equal(1, await core.Valuations.CountAsync(v => v.ItemId == envelope && v.AsOf == new NodaTime.LocalDate(2025, 9, 30)));
+    }
+
+    // Final fix 8: a flow a reference matched is that line's; it cannot also be an identical line's without one.
+    [Fact]
+    public async Task A_flow_matched_by_its_reference_does_not_also_match_a_line_without_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await RecordFlowAsync(app, envelope, new { occurredOn = "2025-09-05", kind = "contribution", amount = new { amount = "150.00", currency = "EUR" }, externalRef = "R-1" });
+
+        var proposal = await SubmitAsync(app, Statement(envelope, [Movement(reference: "R-1"), Movement()], value: null));
+
+        Assert.Equal("payload.movements[0]", Assert.Single(proposal.GetProperty("warnings").EnumerateArray()).GetProperty("field").GetString());
+        Assert.Equal(1, (await JsonOf(await ApproveAsync(app, proposal))).GetProperty("appliedRefs").GetArrayLength());
+        Assert.Equal(2, (await EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray().Count(f => f.GetProperty("occurredOn").GetString() == "2025-09-05"));
+    }
+
+    // Final fix 5: the Core's field names, as the statement's.
+    [Theory]
+    [InlineData("external_ref", "payload.movements[2].ref")]
+    [InlineData("note", "payload.movements[2].label")]
+    [InlineData("amount", "payload.movements[2].amount")]
+    [InlineData(null, "payload.movements[2]")]
+    public void A_core_field_becomes_the_movement_s_field(string? field, string expected)
+        => Assert.Equal(expected, StatementProposal.CoreField(
+            new UnambitiousFx.Functional.Failures.Failure(CoreFactCodes.InvalidFact, "Refused.", field is null ? null : new Dictionary<string, object?> { ["field"] = field }),
+            "payload.movements[2]"));
 }

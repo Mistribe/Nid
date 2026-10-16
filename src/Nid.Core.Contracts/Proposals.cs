@@ -71,8 +71,11 @@ public interface IProposalHandler
     string Kind { get; }
     int PayloadVersion { get; }
 
-    /// <summary>Against the current state (<paramref name="payload"/> is a JSON object): a failure refuses (field errors at <c>payload.*</c>), warnings are kept.</summary>
-    Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct);
+    /// <summary>
+    /// Against the current state (<paramref name="payload"/> is a JSON object): a failure refuses (field errors at <c>payload.*</c>), warnings are kept.
+    /// <paramref name="edited"/>: the payload is an approval's edit, so the fields only an edit may set (a statement's `excluded`) are kept; a submitter's are dropped.
+    /// </summary>
+    Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct);
 
     /// <summary>The current state next to the proposed one, for the decider.</summary>
     Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct);

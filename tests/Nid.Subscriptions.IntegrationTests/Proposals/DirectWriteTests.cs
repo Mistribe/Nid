@@ -15,7 +15,7 @@ namespace Nid.Subscriptions.IntegrationTests.Proposals;
 [Collection("postgres")]
 public class DirectWriteTests(PostgresFixture fixture)
 {
-    private static readonly HashSet<string> Direct = [ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect];
+    internal static readonly HashSet<string> Direct = [ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect];
 
     private static Task<NidApp> StartAsync(PostgresFixture fixture)
         => NidApp.StartAsync(fixture, services => services.AddScoped<IProposalHandler, EchoProposalHandler>());
@@ -24,7 +24,7 @@ public class DirectWriteTests(PostgresFixture fixture)
         => new(EchoProposalHandler.KindName, item, JsonSerializer.SerializeToElement(payload));
 
     /// <summary>As a token holding <paramref name="scopes"/>, through the real pipeline.</summary>
-    private static async Task<Result<DirectWrite>> AsTokenAsync(NidApp app, IReadOnlySet<string> scopes, ApplyDirectCommand command)
+    internal static async Task<Result<DirectWrite>> AsTokenAsync(NidApp app, IReadOnlySet<string> scopes, ApplyDirectCommand command)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Token(app.AdultA, Guid.NewGuid(), scopes, ActorOrigin.Mcp);

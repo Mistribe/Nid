@@ -15,7 +15,8 @@ namespace Nid.Investments.Application;
 /// <summary>
 /// Spec 4D1 §2: `{ asOf, value?, movements[{ on, kind, amount, label?, ref? }], note?, excluded? }` on an envelope; subject
 /// key: the date. A movement Nid already holds (same reference, or without one the same date, kind and amount) is warned
-/// and, unless an edit's `excluded` says otherwise, left out when applied.
+/// and, unless an edit's `excluded` says otherwise, left out when applied. `excluded` is an approval's edit only (D5): a
+/// submitter's is dropped. Nothing left to write and the value already recorded on `asOf` (or none given): « conforme ».
 /// </summary>
 public sealed class StatementProposal(
     IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar, IValuations valuations, IFlows flows, IInvoker invoker)
@@ -41,11 +42,13 @@ public sealed class StatementProposal(
 
     private enum Mark { None, Match, Reference }
 
-    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))
             return Result.Failure<ProposalCheck>(FailureOf(parsed));
+        if (!edited)
+            p = p! with { Excluded = null };
         var loaded = await EnvelopeCheck.LoadAsync(envelopes, items, target, ct);
         if (!loaded.TryGetValue(out var envelope))
             return Result.Failure<ProposalCheck>(FailureOf(loaded));
@@ -59,7 +62,7 @@ public sealed class StatementProposal(
             if (p.Movements[i].On > p.AsOf)
                 return Field(FieldErrors.ShapeCode, "A movement is dated on or before the statement.", $"payload.movements[{i}].on");
 
-        var marked = await RecordedAsync(target, p.Movements, ct);
+        var marked = await RecordedAsync(target, p.Movements, p.Excluded, ct);
         if (!marked.TryGetValue(out var marks))
             return Result.Failure<ProposalCheck>(FailureOf(marked));
         if (p.Excluded is { } excluded)
@@ -70,15 +73,36 @@ public sealed class StatementProposal(
         var warnings = Enumerable.Range(0, p.Movements.Count).Where(i => marks![i] != Mark.None)
             .Select(i => new ProposalWarning(ProposalCodes.AlreadyRecorded, "info", $"Movement {i + 1} is already recorded.", $"payload.movements[{i}]"))
             .ToList();
-        return Result.Success(new ProposalCheck(Iso(p.AsOf), warnings, Normalized(p)));
+        var conforme = Enumerable.Range(0, p.Movements.Count).Any(i => Writes(p, marks!, i)) ? null : await ConformeAsync(target, p, marks!, ct);
+        return Result.Success(new ProposalCheck(Iso(p.AsOf), warnings, Normalized(p), conforme));
     }
+
+    /// <summary>With no movement to write: `{ expected, given }` when the value is the one recorded on `asOf` (or none is given), else null.</summary>
+    private async Task<JsonElement?> ConformeAsync(ItemId target, Parsed p, Mark[] marks, CancellationToken ct)
+    {
+        Valuation? recorded = null;
+        if (p.Value is { } value)
+        {
+            recorded = (await valuations.LatestAsync(target, p.AsOf, ct)).TryGetValue(out var latest) && latest!.Value is { } v && v.AsOf == p.AsOf ? v : null;
+            if (recorded?.Value.Amount != value.Amount)
+                return null;
+        }
+        return JsonSerializer.SerializeToElement(new
+        {
+            expected = new { value = recorded is null ? null : AmountView.From(recorded.Value), recorded = marks.Count(m => m != Mark.None) },
+            given = new { value = AmountView.From(p.Value), movements = p.Movements.Count },
+        }, Json);
+    }
+
+    /// <summary>Whether applying writes movement <paramref name="i"/>: the edit's choice, else whatever Nid does not hold yet.</summary>
+    private static bool Writes(Parsed p, Mark[] marks, int i) => p.Excluded is { } excluded ? !excluded.Contains(i) : marks[i] == Mark.None;
 
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         if (!Parse(payload).TryGetValue(out var p))
             return JsonSerializer.SerializeToElement(new { value = (object?)null, movements = Array.Empty<object>() });
         var currency = (await items.FindAsync(target, ct))?.Currency ?? "";
-        var marks = (await RecordedAsync(target, p!.Movements, ct)).TryGetValue(out var m) ? m! : new Mark[p.Movements.Count];
+        var marks = (await RecordedAsync(target, p!.Movements, p.Excluded, ct)).TryGetValue(out var m) ? m! : new Mark[p.Movements.Count];
         return JsonSerializer.SerializeToElement(new
         {
             value = p.Value is { } v ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, v, ct) : null,
@@ -94,7 +118,7 @@ public sealed class StatementProposal(
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(parsed));
-        var marked = await RecordedAsync(target, p!.Movements, ct);
+        var marked = await RecordedAsync(target, p!.Movements, p.Excluded, ct);
         if (!marked.TryGetValue(out var marks))
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(marked));
         var currency = (await items.FindAsync(target, ct))?.Currency;
@@ -102,7 +126,7 @@ public sealed class StatementProposal(
         var applied = new List<Guid>();
         for (var i = 0; i < p.Movements.Count; i++)
         {
-            if (p.Excluded is { } excluded ? excluded.Contains(i) : marks![i] != Mark.None)
+            if (!Writes(p, marks!, i))
                 continue;
             var m = p.Movements[i];
             if (!Money.TryParse(Text(m.Amount), currency, out var amount))
@@ -125,23 +149,30 @@ public sealed class StatementProposal(
     }
 
     /// <summary>Each movement against the envelope's current flows, read once.</summary>
-    private async Task<Result<Mark[]>> RecordedAsync(ItemId target, IReadOnlyList<Movement> movements, CancellationToken ct)
+    private async Task<Result<Mark[]>> RecordedAsync(ItemId target, IReadOnlyList<Movement> movements, IReadOnlyList<int>? excluded, CancellationToken ct)
     {
         var listed = await flows.ListAsync(target, EnvelopeCheck.Everything, null, ct);
         if (!listed.TryGetValue(out var existing))
             return Result.Failure<Mark[]>(FailureOf(listed));
-        // Without a reference, by count: the n-th identical line is recorded only if at least n identical flows exist.
-        var available = existing!.GroupBy(f => (f.OccurredOn, Kind: EnvelopeWire.FlowWire(f.Kind), f.Amount.Amount)).ToDictionary(g => g.Key, g => g.Count());
-        return Result.Success(movements.Select(m =>
+        var marks = new Mark[movements.Count];
+        var references = movements.Select(m => m.Ref).OfType<string>().ToHashSet();
+        for (var i = 0; i < movements.Count; i++)
+            if (movements[i].Ref is { } reference)
+                marks[i] = existing!.Any(f => f.ExternalRef == reference) ? Mark.Reference : Mark.None;
+        // Without a reference, by count: the n-th identical line is recorded only if at least n identical flows exist. A flow
+        // a line's reference matched is that line's, never also another's; an excluded line counts last, never taking an included one's.
+        var available = existing!.Where(f => f.ExternalRef is not { } r || !references.Contains(r))
+            .GroupBy(f => (f.OccurredOn, Kind: EnvelopeWire.FlowWire(f.Kind), f.Amount.Amount)).ToDictionary(g => g.Key, g => g.Count());
+        foreach (var i in Enumerable.Range(0, movements.Count).Where(i => movements[i].Ref is null).OrderBy(i => excluded?.Contains(i) == true))
         {
-            if (m.Ref is { } reference)
-                return existing!.Any(f => f.ExternalRef == reference) ? Mark.Reference : Mark.None;
-            var key = (m.On, m.Kind, m.Amount);
-            if (!available.TryGetValue(key, out var left) || left == 0)
-                return Mark.None;
-            available[key] = left - 1;
-            return Mark.Match;
-        }).ToArray());
+            var key = (movements[i].On, movements[i].Kind, movements[i].Amount);
+            if (available.TryGetValue(key, out var left) && left > 0)
+            {
+                available[key] = left - 1;
+                marks[i] = Mark.Match;
+            }
+        }
+        return Result.Success(marks);
     }
 
     /// <summary>The known fields only: what is fingerprinted and stored.</summary>
@@ -198,7 +229,8 @@ public sealed class StatementProposal(
         var raw = body?.Movements ?? [];
         var movements = new List<Movement>();
         if (raw.Count > MaxMovements)
-            Error("payload.movements", $"{MaxMovements} movements at most: split the statement.");
+            Error("payload.movements", $"{MaxMovements} movements at most: split the statement by date, each part with its own asOf (an "
+                + "earlier part's asOf is its last movement's date); never send the same asOf twice, as it replaces the earlier part.");
         else
             for (var i = 0; i < raw.Count; i++)
             {
@@ -220,6 +252,8 @@ public sealed class StatementProposal(
                     Error($"{at}.label", "200 characters at most.");
                 if (reference is { Length: > 100 })
                     Error($"{at}.ref", "100 characters at most.");
+                else if (reference is not null && reference.Any(char.IsControl))
+                    Error($"{at}.ref", "No control character.");
                 else if (reference is not null && movements.Any(x => x.Ref == reference))
                     Error($"{at}.ref", "Each reference appears once in a statement.");
                 movements.Add(new Movement(on, m?.Kind ?? "", amount, label, reference));
@@ -237,9 +271,11 @@ public sealed class StatementProposal(
             : Result.Success(new Parsed(asOf, value, movements, body!.Note, excluded));
     }
 
-    /// <summary>The Core's own refused field (`amount`) under the movement, else the movement.</summary>
-    private static string CoreField(Failure failure, string at)
-        => failure.Metadata is { } m && m.TryGetValue("field", out var field) && field is string name ? $"{at}.{name}" : at;
+    /// <summary>The Core's own refused field under the movement, by the payload's name (`external_ref` is `ref`, `note` is `label`), else the movement.</summary>
+    public static string CoreField(Failure failure, string at)
+        => failure.Metadata is { } m && m.TryGetValue("field", out var field) && field is string name
+            ? $"{at}.{name switch { "external_ref" => "ref", "note" => "label", _ => name }}"
+            : at;
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 

@@ -33,9 +33,9 @@ public class McpWriteToolTests(PostgresFixture fixture)
     private static async Task<int> ProposalCountAsync(NidApp app)
         => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, ProposalRouteTests.Proposals)).RootElement.GetProperty("items").GetArrayLength();
 
-    private static object Statement(Guid envelope, bool apply = false) => new
+    private static object Statement(Guid envelope, bool apply = false, string value = "23500.00") => new
     {
-        envelopeId = envelope, asOf = "2025-09-30", value = new { amount = "23500.00", currency = "EUR" },
+        envelopeId = envelope, asOf = "2025-09-30", value = new { amount = value, currency = "EUR" },
         movements = new[] { new { on = "2025-09-05", kind = "contribution", amount = "150.00", label = "Versement", @ref = "R-1" } },
         sourceLabel = "Relevé PEA septembre", apply,
     };
@@ -64,13 +64,26 @@ public class McpWriteToolTests(PostgresFixture fixture)
         await using var direct = await ClientAsync(app, TokenPresets.Direct);
         var applied = await AnswerAsync(direct, "propose_statement", Statement(envelope, apply: true));
         Assert.Equal(("applied", 2), (applied.GetProperty("outcome").GetString(), applied.GetProperty("appliedRefs").GetArrayLength()));
-        var again = await AnswerAsync(direct, "propose_statement", Statement(envelope, apply: true));
-        Assert.Equal(1, again.GetProperty("appliedRefs").GetArrayLength()); // the value again; the movement left out
+        // Final fix 4: the same statement again records nothing.
+        Assert.Equal("conforme", (await AnswerAsync(direct, "propose_statement", Statement(envelope, apply: true))).GetProperty("outcome").GetString());
+        var again = await AnswerAsync(direct, "propose_statement", Statement(envelope, apply: true, value: "23600.00"));
+        Assert.Equal(1, again.GetProperty("appliedRefs").GetArrayLength()); // the new value; the movement left out
         Assert.Equal(("payload.movements[0]", ProposalCodes.AlreadyRecorded),
             (again.GetProperty("skipped")[0].GetProperty("field").GetString(), again.GetProperty("skipped")[0].GetProperty("code").GetString()));
         var flows = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/investments/envelopes/{envelope}")).RootElement.GetProperty("flows");
         Assert.Single(flows.EnumerateArray(), f => f.GetProperty("externalRef").GetString() == "R-1");
         Assert.Equal(1, await ProposalCountAsync(app));
+    }
+
+    // Final fix 2: a write answer echoes its input (bounded per field); the result limit is the read tools'.
+    [Fact]
+    public async Task A_write_answer_is_never_refused_as_too_large()
+    {
+        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Mcp:MaxResultBytes"] = "10" });
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+
+        Assert.Equal("proposed", (await AnswerAsync(propose, "propose_statement", Statement(envelope))).GetProperty("outcome").GetString());
     }
 
     // Review Focus 3.

@@ -29,7 +29,7 @@ public sealed class ValuationProposal(
 
     private sealed record Parsed(LocalDate AsOf, Money Amount, string? Note);
 
-    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))

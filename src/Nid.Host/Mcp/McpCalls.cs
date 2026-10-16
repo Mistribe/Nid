@@ -69,16 +69,16 @@ public static class McpCalls
             if (!written.TryGetValue(out var write))
                 return Refusal(written.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
             return write!.Conforme is { } same
-                ? Answer(services, Conforme(same))
-                : Answer(services, new { outcome = "applied", appliedRefs = write.AppliedRefs, skipped = write.Skipped });
+                ? Answer(services, Conforme(same), limited: false)
+                : Answer(services, new { outcome = "applied", appliedRefs = write.AppliedRefs, skipped = write.Skipped }, limited: false);
         }
 
         var submitted = await invoker.InvokeAsync(new SubmitProposalCommand(kind, new ItemId(target), body, sourceLabel), ct);
         if (!submitted.TryGetValue(out var outcome))
             return Refusal(submitted.TryGetFailure(out var rejected) ? rejected! : throw new InvalidOperationException());
         return outcome!.Proposal is null
-            ? Answer(services, Conforme(outcome.Conforme!.Value))
-            : Answer(services, new { outcome = "proposed", created = outcome.Created, proposal = outcome.Proposal });
+            ? Answer(services, Conforme(outcome.Conforme!.Value), limited: false)
+            : Answer(services, new { outcome = "proposed", created = outcome.Created, proposal = outcome.Proposal }, limited: false);
     }
 
     private static object Conforme(JsonElement same)
@@ -97,11 +97,12 @@ public static class McpCalls
         return Error($"Refused: {failure.Code}. {detail}");
     }
 
-    private static CallToolResult Answer<TOut>(IServiceProvider services, TOut value)
+    /// <summary>A read's result above <c>Mcp:MaxResultBytes</c> is refused whole; a write's answer (<paramref name="limited"/> false) only echoes its input, bounded per field, and is never refused after the write.</summary>
+    private static CallToolResult Answer<TOut>(IServiceProvider services, TOut value, bool limited = true)
     {
         var json = JsonSerializer.Serialize(value, services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions);
         var limit = services.GetRequiredService<IConfiguration>().GetValue("Mcp:MaxResultBytes", 102_400);
-        return System.Text.Encoding.UTF8.GetByteCount(json) > limit
+        return limited && System.Text.Encoding.UTF8.GetByteCount(json) > limit
             ? Error(TooLarge)
             : new CallToolResult { Content = [new TextContentBlock { Text = json }] };
     }

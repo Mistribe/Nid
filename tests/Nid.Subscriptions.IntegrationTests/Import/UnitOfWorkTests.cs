@@ -103,6 +103,30 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         Assert.Equal([1, 3], await ProbedAsync(app));
     }
 
+    // Final fix 9: a savepoint disposed twice rolls back once; a second rollback would undo the outer scope's later writes.
+    [Fact]
+    public async Task An_inner_scope_disposed_twice_does_nothing_the_second_time()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ProbeAsync(app);
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+            var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+            await using var outer = await unitOfWork.BeginAsync(default);
+            var inner = await unitOfWork.BeginAsync(default);
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)");
+            await inner.DisposeAsync();
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (2)");
+            await inner.DisposeAsync();
+            Assert.Equal(0, (int)unitOfWork.GetType().GetField("depth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(unitOfWork)!);
+            await outer.CommitAsync(default);
+        }
+
+        Assert.Equal([2], await ProbedAsync(app));
+    }
+
     /// <summary>A table of its own, created outside any unit of work.</summary>
     private static async Task ProbeAsync(NidApp app)
     {

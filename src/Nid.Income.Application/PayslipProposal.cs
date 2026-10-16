@@ -45,7 +45,7 @@ public sealed class PayslipProposal(
 
     private sealed record Parsed(LocalDate PaidOn, string? PhaseLabel, Money Net, Money? Gross, LocalDate? EffectiveOn);
 
-    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var p))
@@ -93,10 +93,15 @@ public sealed class PayslipProposal(
         // The cadence, the note and (when the payslip prints none) the gross stay the replaced phase's.
         var changed = await invoker.InvokeAsync(
             new ChangeIncomePhaseCommand(target, phase!.Label, effectiveOn, p!.Net, null, p.Gross ?? phase.GrossAmount, phase.Note), ct);
-        return changed.Map(id => (IReadOnlyList<Guid>)[id]);
+        return changed.TryGetValue(out var id)
+            ? Result.Success<IReadOnlyList<Guid>>([id])
+            : Result.Failure<IReadOnlyList<Guid>>(AtPayload(FailureOf(changed)));
     }
 
-    /// <summary>The phase running on `paidOn`: the named one, or the only one.</summary>
+    /// <summary>
+    /// The phase running on `paidOn` (the named one, or the only one), as it runs on the month's expected payment date: a
+    /// payslip dated before that date, once its change is applied there, is compared with the phase that continues it.
+    /// </summary>
     private async Task<Result<IncomePhase>> FindPhaseAsync(ItemId target, Parsed p, CancellationToken ct)
     {
         var loaded = await OpenSource.LoadAsync(sources, items, phases, target, ct);
@@ -114,7 +119,13 @@ public sealed class PayslipProposal(
                 : Field<IncomePhase>(IncomeCodes.NoRunningPhase, $"No '{p.PhaseLabel}' phase runs on that date.", "payload.phaseLabel");
         if (running.Count > 1)
             return Field<IncomePhase>(FieldErrors.ShapeCode, "Several phases run on that date: name one.", "payload.phaseLabel");
-        return Result.Success(running[0]);
+        var phase = running[0];
+        var month = new LocalDate(p.PaidOn.Year, p.PaidOn.Month, 1);
+        // Its cadence regardless of its end: a phase changed on its payment date ends on that very date.
+        var expectedOn = IncomeMath.Occurrences(phase with { EndsOn = null }, month, month.PlusMonths(1)).Select(o => (LocalDate?)o.On).FirstOrDefault();
+        return Result.Success(expectedOn is { } on
+            ? source.Phases.FirstOrDefault(x => x.Label == phase.Label && IncomeMath.IsActive(x, on)) ?? phase
+            : phase);
     }
 
     /// <summary>The date the change takes effect: the edit's, or the month's payment date; the rule of ChangeIncomePhaseCommand.</summary>
@@ -130,6 +141,15 @@ public sealed class PayslipProposal(
             ? Result.Success(on)
             : Field<LocalDate>(IncomeCodes.InvalidPhase, "No payment of this phase is expected that month after its start.", "payload.paidOn");
     }
+
+    /// <summary>The change-phase command's own field as the payload's: `effectiveOn` and `startsOn` are `effectiveOn`, `label` the phase's label, anything else the payload.</summary>
+    public static Failure AtPayload(Failure failure)
+        => FieldErrors.At(failure, failure.Metadata is { } m && m.TryGetValue("field", out var field) ? field switch
+        {
+            "effectiveOn" or "startsOn" => "payload.effectiveOn",
+            "label" => "payload.phaseLabel",
+            _ => "payload",
+        } : "payload");
 
     private static object Pay(Money net, Money? gross)
         => new { net = IncomeMoneyView.From(net), gross = gross is { } g ? IncomeMoneyView.From(g) : null };

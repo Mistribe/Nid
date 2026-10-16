@@ -134,7 +134,7 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
         if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
             return Result.Failure<SubmittedProposal>(notObject!);
 
-        var checkedPayload = await handler.ValidateAsync(command.ItemId, command.Payload, ct);
+        var checkedPayload = await handler.ValidateAsync(command.ItemId, command.Payload, edited: false, ct);
         if (!checkedPayload.TryGetValue(out var check))
             return Result.Failure<SubmittedProposal>(checkedPayload.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
@@ -217,7 +217,7 @@ public sealed class ApproveProposalHandler(
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
-            var check = await handler.ValidateAsync(proposal.Target, payload, ct);
+            var check = await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
             if (check.TryGetValue(out var valid))
             {
                 // Applied and kept normalized, as a submission is.
@@ -298,7 +298,7 @@ public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork un
 
         // Every early return skips the commit and so rolls back whatever the application wrote: never commit after a refusal.
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var check = await handler.ValidateAsync(command.ItemId, command.Payload, ct);
+        var check = await handler.ValidateAsync(command.ItemId, command.Payload, edited: false, ct);
         if (!check.TryGetValue(out var valid))
             return Result.Failure<DirectWrite>(check.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
         if (valid!.Conforme is { } conforme)

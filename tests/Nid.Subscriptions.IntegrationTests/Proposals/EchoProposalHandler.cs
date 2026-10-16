@@ -16,7 +16,7 @@ public sealed class EchoProposalHandler : IProposalHandler
     public string Kind => KindName;
     public int PayloadVersion => 1;
 
-    public Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    public Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
         => Task.FromResult(payload.TryGetProperty("refuse", out var r) && r.ValueKind == JsonValueKind.True
             ? Result.Failure<ProposalCheck>(new Failure("test.refused", "Refused by the test handler.", null))
             : Result.Success(new ProposalCheck(payload.TryGetProperty("subject", out var s) ? s.GetString() : null,
