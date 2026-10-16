@@ -11,7 +11,7 @@ function acceptPreferences(sent: Body[]) {
   server.use(http.patch('*/api/v1/core/me/preferences', async ({ request }) => {
     const body = (await request.json()) as Body;
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
-    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
+    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
 }
 
@@ -22,7 +22,7 @@ function queuePreferences(sent: Body[]) {
     const body = (await request.json()) as Body;
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
     await new Promise<void>((resolve) => releases.push(resolve));
-    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
+    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
   return releases;
 }
@@ -37,7 +37,7 @@ function queuePreferencesFailingFirst(sent: Body[]) {
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
     await new Promise<void>((resolve) => releases.push(resolve));
     if (mine === 0) return HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-03' }, { status: 500 });
-    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, ...body });
+    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
   return releases;
 }

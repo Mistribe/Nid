@@ -42,7 +42,7 @@ describe('bootstrap', () => {
 
   it('applies the server preferences, remembers them, and renders the app', async () => {
     server.use(http.get('*/auth/session', () => HttpResponse.json({
-      ...aliceSessionResponse, preferences: { theme: 'sauge', mode: 'dark', chartPatterns: false },
+      ...aliceSessionResponse, preferences: { theme: 'sauge', mode: 'dark', chartPatterns: false, guidesSeen: {} },
     })));
     localStorage.setItem('nid.theme', 'terre'); // an older local copy: the server wins
     const root = document.body.appendChild(document.createElement('div'));

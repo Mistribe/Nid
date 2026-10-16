@@ -22,7 +22,7 @@ public static class PersonEndpoints
 
     /// <summary>A key nobody reads is refused rather than silently dropped (400, like any unreadable body).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record PreferencesBody(string? Theme, string? Mode, bool? ChartPatterns);
+    public sealed record PreferencesBody(string? Theme, string? Mode, bool? ChartPatterns, Dictionary<string, int>? GuidesSeen);
 
     public static IEndpointRouteBuilder MapPersonEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -38,7 +38,7 @@ public static class PersonEndpoints
             .Returns<PersonDto>(StatusCodes.Status201Created);
 
         api.MapPatch("/me/preferences", async (PreferencesBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new UpdatePreferencesCommand(new PreferencesChange(body.Theme, body.Mode, body.ChartPatterns)), ct))
+            => (await invoker.InvokeAsync(new UpdatePreferencesCommand(new PreferencesChange(body.Theme, body.Mode, body.ChartPatterns, body.GuidesSeen)), ct))
                 .ToHttp(p => p))
             .Returns<Preferences>();
 

@@ -7,7 +7,7 @@ export const aliceSession: Session = {
   person: { id: '01926b9e-0000-7000-8000-00000000000a', name: 'Alice Dev', kind: 'adult' },
   csrf: 'csrf-alice',
   sessionEpoch: 0,
-  preferences: { theme: 'neutre', mode: 'system', chartPatterns: false },
+  preferences: { theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {} },
 };
 
 export const aliceSessionResponse: SessionResponse = { authenticated: true, ...aliceSession };

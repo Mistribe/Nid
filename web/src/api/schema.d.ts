@@ -11175,11 +11175,17 @@ export interface components {
             theme: string;
             mode: string;
             chartPatterns: boolean;
+            guidesSeen: {
+                [key: string]: number;
+            };
         };
         PreferencesBody: {
             theme?: null | string;
             mode?: null | string;
             chartPatterns?: null | boolean;
+            guidesSeen?: null | {
+                [key: string]: number;
+            };
         };
         PreRegisterBody: {
             displayName: string;
