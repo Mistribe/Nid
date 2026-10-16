@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -41,6 +41,8 @@ function queuePreferencesFailingFirst(sent: Body[]) {
   }));
   return releases;
 }
+
+beforeAll(() => import('@/features/guides/GuideIntro'));
 
 const html = () => document.documentElement;
 
@@ -191,6 +193,21 @@ describe('Réglages › Apparence', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Motifs dans les graphiques' }));
 
     await waitFor(() => expect(sent).toEqual([{ chartPatterns: true, csrf: 'csrf-alice' }]));
+  });
+
+  it('resets every guide', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { container, router, user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('button', { name: 'Revoir tous les guides' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Les guides se rejoueront à votre prochaine visite de chaque module.');
+    expect(sent).toEqual([{ guidesSeen: {}, csrf: 'csrf-alice' }]);
+    await expectNoAxeViolations(container);
+
+    await router.navigate({ to: '/loans' });
+    expect(await screen.findByRole('dialog', { name: 'Crédits : premiers pas' })).toBeInTheDocument();
   });
 
   it('has no accessibility violation', async () => {
