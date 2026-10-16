@@ -79,6 +79,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<CoreDbContext>>();
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IPersonalAccessTokens, PersonalAccessTokenStore>();
+        services.AddScoped<IProposalStore, ProposalStore>();
+        services.AddScoped<Nid.Core.Application.ProposalHandlers>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
@@ -142,6 +144,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
+        services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
 
         services.AddDbContext<IncomeDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

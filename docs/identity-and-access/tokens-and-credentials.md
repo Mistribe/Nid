@@ -35,8 +35,8 @@
 | Préréglage | Portées | Usage |
 |---|---|---|
 | Lecture seule | `read` | Consultation par un assistant |
-| **Lecture + propositions** (défaut) | `read`, `write` | Un assistant qui propose, l'humain valide |
-| Écriture directe | `read`, `write`, `write:direct` | Saisie dictée par l'utilisateur lui-même |
+| **Lecture + propositions** (défaut) | `read`, `write` | Un assistant qui soumet des propositions (`write`) et ne peut plus écrire directement ; l’humain valide |
+| Écriture directe | `read`, `write`, `write:direct` | Seul préréglage qui écrit directement : saisie dictée par l'utilisateur lui-même |
 
 - `write:direct` inclut `write`, qui inclut `read`.
 - **Expiration** obligatoire : 90 jours par défaut, 365 au plus. Avertissement 7 jours avant, affiché dans l’interface (remplace l’email prévu au départ, voir « Livré en 4A »). **10 jetons actifs** au maximum par personne.

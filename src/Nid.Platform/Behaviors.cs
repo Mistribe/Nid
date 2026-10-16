@@ -77,7 +77,7 @@ public sealed class AdminBehavior<TRequest, TResponse>(IActorAccessor accessor)
             : next(request, cancellationToken);
 }
 
-/// <summary>Reads need <c>read</c>, commands need <c>write</c>, a request may declare more (<see cref="IRequiresScope"/>); a token never runs an <see cref="IBrowserOnly"/> request.</summary>
+/// <summary>Reads need <c>read</c>; commands need <c>write:direct</c> unless they declare less (<see cref="IRequiresScope"/> — the proposal submission asks <c>write</c>); a token never runs an <see cref="IBrowserOnly"/> request.</summary>
 public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
@@ -95,7 +95,7 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
 
         var required = request is IRequiresScope declared
             ? declared.RequiredScope
-            : request is ICommandMarker ? ScopeNames.Write : ScopeNames.Read;
+            : request is ICommandMarker ? ScopeNames.WriteDirect : ScopeNames.Read;
         return actor.Has(required)
             ? next(request, cancellationToken)
             : ValueTask.FromResult(Result.Failure<TResponse>(new UnauthorizedFailure($"The '{required}' scope is required.", null)));

@@ -86,7 +86,7 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
               </label>
             ))}
           </fieldset>
-          {preset !== 'read' ? <p role="note" className="rounded-md border p-2">{t('security.tokens.direct_warning')}</p> : null}
+          {preset === 'direct' ? <p role="note" className="rounded-md border p-2">{t('security.tokens.direct_warning')}</p> : null}
           <fieldset className="space-y-2">
             <legend className="font-medium">{t('security.tokens.expiry_label')}</legend>
             {EXPIRIES.map((days) => (

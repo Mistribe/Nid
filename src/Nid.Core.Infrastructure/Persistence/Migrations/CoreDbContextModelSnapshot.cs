@@ -511,6 +511,138 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ProposalRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.PrimitiveCollection<Guid[]>("AppliedRefs")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("applied_refs")
+                        .HasDefaultValueSql("'{}'");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_person_id");
+
+                    b.Property<string>("CreatedVia")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_via");
+
+                    b.Property<Instant?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by_person_id");
+
+                    b.Property<string>("DecisionNote")
+                        .HasColumnType("text")
+                        .HasColumnName("decision_note");
+
+                    b.Property<string>("EditedPayload")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("edited_payload");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasColumnType("char(64)")
+                        .HasColumnName("fingerprint");
+
+                    b.Property<Guid>("ForPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("for_person_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("module");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<int>("PayloadVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("payload_version");
+
+                    b.Property<string>("SourceLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("source_label");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SubjectKey")
+                        .HasColumnType("text")
+                        .HasColumnName("subject_key");
+
+                    b.Property<Guid?>("SupersededById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("superseded_by_id");
+
+                    b.Property<Guid>("TargetItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_item_id");
+
+                    b.Property<Guid?>("TokenId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("token_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("Warnings")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("warnings");
+
+                    b.HasKey("Id")
+                        .HasName("pk_proposal");
+
+                    b.HasIndex("Fingerprint")
+                        .IsUnique()
+                        .HasDatabaseName("ix_proposal_fingerprint")
+                        .HasFilter("status = 'pending'");
+
+                    b.HasIndex("ForPersonId")
+                        .HasDatabaseName("ix_proposal_for_person_id");
+
+                    b.HasIndex("TargetItemId", "Status")
+                        .HasDatabaseName("ix_proposal_target_item_id_status");
+
+                    b.HasIndex("Kind", "TargetItemId", "SubjectKey")
+                        .HasDatabaseName("ix_proposal_kind_target_item_id_subject_key")
+                        .HasFilter("status = 'pending'");
+
+                    b.ToTable("proposal", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_proposal_created_via", "created_via in ('ui','api','mcp')");
+
+                            t.HasCheckConstraint("ck_proposal_status", "status in ('pending','approved','rejected','superseded')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -770,6 +902,23 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_personal_access_token_person_person_id");
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ProposalRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
+                        .WithMany()
+                        .HasForeignKey("ForPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_proposal_person_for_person_id");
+
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
+                        .WithMany()
+                        .HasForeignKey("TargetItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_proposal_item_target_item_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>

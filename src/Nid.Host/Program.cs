@@ -108,6 +108,7 @@ app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 app.MapAuth();
 app.MapPersonEndpoints();
+app.MapProposalEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();

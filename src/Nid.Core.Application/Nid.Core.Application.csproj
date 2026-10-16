@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Core.Domain\Nid.Core.Domain.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

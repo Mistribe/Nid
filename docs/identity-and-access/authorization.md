@@ -43,12 +43,11 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 | Requête | Exige |
 |---|---|
 | Requête de lecture | `read` |
-| Commande | `write` |
-| Exécution **directe** d'une commande | `write:direct` |
+| Commande directe (par défaut, toute commande) | `write:direct` |
+| Soumission d’une proposition (`SubmitProposalCommand`) | `write` |
 
 - `write:direct` inclut `write`, qui inclut `read`.
-- Sans `write:direct`, une commande marquée `IProposable` est **convertie en `Proposal`** : le contrôle d'accès de l'étape 4 s'applique comme pour une écriture directe. Cette règle porte la décision D10 (`../architecture.md` §3).
-- Une commande non proposable sans `write:direct` est refusée : `403 insufficient_scope`.
+- **Règle explicite** (D10, `../architecture.md` §3) : toute commande exige `write:direct`, sauf `SubmitProposalCommand` qui exige `write`. Une commande directe sans `write:direct` est refusée : `403 insufficient_scope`. Il n’y a pas de conversion automatique en `Proposal` : l’assistant soumet une proposition, une personne la valide depuis le navigateur.
 
 ## 4. Marqueurs de requête
 
