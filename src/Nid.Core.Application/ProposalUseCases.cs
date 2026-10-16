@@ -210,7 +210,10 @@ public sealed class ApproveProposalHandler(
             if (check.TryGetValue(out var valid))
             {
                 // Applied and kept normalized, as a submission is.
-                var applied = await handler.ApplyAsync(proposal.Target, valid!.Payload, ct);
+                // A payload that now matches what Nid expects (« conforme ») has nothing to apply: approved, nothing written.
+                var applied = valid!.Conforme is not null
+                    ? Result.Success<IReadOnlyList<Guid>>([])
+                    : await handler.ApplyAsync(proposal.Target, valid.Payload, ct);
                 if (applied.TryGetValue(out var refs))
                 {
                     var decided = await store.DecideAsync(proposal.Id, command.Version, ProposalStatus.Approved, me,

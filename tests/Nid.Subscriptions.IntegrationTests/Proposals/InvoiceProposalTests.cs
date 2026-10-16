@@ -147,4 +147,70 @@ public class InvoiceProposalTests(PostgresFixture fixture)
         Assert.Equal("superseded", old.GetProperty("status").GetString());
         Assert.Equal(second.GetProperty("id").GetGuid(), old.GetProperty("supersededById").GetGuid());
     }
+
+    private static async Task ChangePriceDirectlyAsync(NidApp app, ItemId subscription, string amount, string startsOn = "2025-09-01")
+        => (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{subscription.Value}/price-changes",
+            new { startsOn, price = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();
+
+    [Fact]
+    public async Task A_phase_that_charged_all_its_cycles_is_not_open()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewSubscriptionAsync("Trois mois", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{subscription.Value}/phases", new
+        {
+            startsOn = "2025-01-01", price = new { amount = "9.99", currency = "EUR" }, every = new { count = 1, unit = "month" },
+            maxCycles = 3, payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+        foreach (var amount in new[] { "9.99", "10.99" })
+            await AssertRefusedAtAsync(await PostAsync(app, Invoice(subscription.Value, amount)), "payload.chargedOn", "subscriptions.no_open_phase");
+    }
+
+    [Fact]
+    public async Task Approving_a_proposal_now_conforme_decides_it_and_writes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewMonthlyAsync(app.AdultA, 9.99m);
+        var proposal = await SubmitAsync(app, Invoice(subscription.Value, "10.99"));
+        await ChangePriceDirectlyAsync(app, subscription, "10.99");
+
+        var approved = await ApproveAsync(app, proposal);
+
+        Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+        var view = await JsonOf(approved);
+        Assert.Equal("approved", view.GetProperty("status").GetString());
+        Assert.Equal(0, view.GetProperty("appliedRefs").GetArrayLength());
+        Assert.Equal(2, (await PhasesAsync(app, subscription)).Count);
+    }
+
+    [Fact]
+    public async Task An_edit_back_to_the_current_price_is_approved_without_a_new_phase()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewMonthlyAsync(app.AdultA, 9.99m);
+        var proposal = await SubmitAsync(app, Invoice(subscription.Value, "10.99"));
+
+        var approved = await ApproveAsync(app, proposal, System.Text.Json.Nodes.JsonNode.Parse(
+            """{ "chargedOn": "2025-01-01", "amount": { "amount": "9.99", "currency": "EUR" } }"""));
+
+        Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+        Assert.Equal(0, (await JsonOf(approved)).GetProperty("appliedRefs").GetArrayLength());
+        Assert.Single(await PhasesAsync(app, subscription));
+    }
+
+    [Fact]
+    public async Task An_invalid_edit_is_refused_at_its_path_and_the_proposal_stays_pending()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewMonthlyAsync(app.AdultA, 9.99m);
+        var proposal = await SubmitAsync(app, Invoice(subscription.Value, "10.99"));
+
+        var refused = await ApproveAsync(app, proposal, System.Text.Json.Nodes.JsonNode.Parse(
+            """{ "chargedOn": "2025-01-01", "amount": { "amount": "11.00", "currency": "EUR" } }"""));
+
+        await AssertRefusedAtAsync(refused, "payload.chargedOn", "subscriptions.phase_range");
+        Assert.Equal("pending", (await ReadAsync(app, proposal)).GetProperty("proposal").GetProperty("status").GetString());
+        Assert.Single(await PhasesAsync(app, subscription));
+    }
 }

@@ -72,12 +72,27 @@ public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) 
         if (!parsed.TryGetValue(out var p))
             return Result.Failure<IReadOnlyList<Guid>>(parsed.TryGetFailure(out var unreadable) ? unreadable! : throw new InvalidOperationException());
         var changed = await invoker.InvokeAsync(new ChangePriceCommand(target, p!.ChargedOn, p.Amount, null, null, null, null), ct);
-        return changed.Map(id => (IReadOnlyList<Guid>)[id.Value]);
+        return changed.TryGetValue(out var id)
+            ? Result.Success((IReadOnlyList<Guid>)[id.Value])
+            : Result.Failure<IReadOnlyList<Guid>>(AtPayload(changed.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException()));
     }
 
-    /// <summary>The phase open on <paramref name="on"/>, as ChangePriceHandler finds it.</summary>
-    private static BillingPhase? OpenOn(SubscriptionInput input, LocalDate on)
-        => input.Phases.FirstOrDefault(x => x.StartsOn <= on && (x.EndsOn is null || x.EndsOn > on));
+    /// <summary>The command's own field paths, as the payload's: `startsOn` is `chargedOn`, `price` the amount, anything else the payload.</summary>
+    public static Failure AtPayload(Failure failure)
+    {
+        static string Path(string path) => path switch
+        {
+            "startsOn" => "payload.chargedOn",
+            "price" => "payload.amount.amount",
+            _ => "payload",
+        };
+        return FieldErrors.Of(failure) is { Count: > 0 } errors
+            ? FieldErrors.Many(failure.Code, failure.Message, [.. errors.Select(e => e with { Path = Path(e.Path) })])
+            : FieldErrors.At(failure, "payload");
+    }
+
+    /// <summary>The phase open on <paramref name="on"/>, by ChangePriceHandler's own rule (a phase that charged all its cycles is not open).</summary>
+    private static BillingPhase? OpenOn(SubscriptionInput input, LocalDate on) => ChangePriceHandler.OpenPhase(input, on)?.Open;
 
     private static JsonElement Normalized(Parsed p)
         => JsonSerializer.SerializeToElement(new JsonObject

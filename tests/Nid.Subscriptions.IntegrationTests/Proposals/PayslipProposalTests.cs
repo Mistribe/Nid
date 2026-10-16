@@ -227,6 +227,22 @@ public class PayslipProposalTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Approving_a_payslip_whose_pay_was_applied_meanwhile_decides_it_and_adds_no_phase()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase());
+        var proposal = await SubmitAsync(app, Payslip(source, "2400.00"));
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{source}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-09-01", netAmount = new { amount = "2400.00", currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var approved = await ApproveAsync(app, proposal);
+
+        Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+        Assert.Equal("approved", (await JsonOf(approved)).GetProperty("status").GetString());
+        Assert.Equal(2, (await PhasesAsync(app, source)).Count);
+    }
+
+    [Fact]
     public async Task A_payslip_just_applied_sent_again_is_conforme()
     {
         await using var app = await NidApp.StartAsync(fixture);
