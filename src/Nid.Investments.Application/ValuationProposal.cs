@@ -47,13 +47,18 @@ public sealed class ValuationProposal(
     }
 
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
+        => Parse(payload).TryGetValue(out var p)
+            ? JsonSerializer.SerializeToElement(await CompareAsync(valuations, target, p!.AsOf, p.Amount, ct), Json)
+            : JsonSerializer.SerializeToElement(new { current = (object?)null, previous = (object?)null, proposed = (object?)null });
+
+    /// <summary>The value already recorded at that date, the one before it, and the proposed one (shared with the statement).</summary>
+    internal static async Task<object> CompareAsync(IValuations valuations, ItemId target, LocalDate asOf, Money proposed, CancellationToken ct)
     {
-        if (!Parse(payload).TryGetValue(out var p))
-            return JsonSerializer.SerializeToElement(new { current = (object?)null, previous = (object?)null, proposed = (object?)null });
-        var atDate = await LatestAsync(target, p!.AsOf, ct);
-        var current = atDate?.AsOf == p.AsOf ? atDate : null;
-        var previous = current is null ? atDate : await LatestAsync(target, p.AsOf.PlusDays(-1), ct);
-        return JsonSerializer.SerializeToElement(new { current = View(current), previous = View(previous), proposed = new { asOf = Iso(p.AsOf), amount = AmountView.From(p.Amount) } }, Json);
+        async Task<Valuation?> LatestAsync(LocalDate on) => (await valuations.LatestAsync(target, on, ct)).TryGetValue(out var latest) ? latest!.Value : null;
+        var atDate = await LatestAsync(asOf);
+        var current = atDate?.AsOf == asOf ? atDate : null;
+        var previous = current is null ? atDate : await LatestAsync(asOf.PlusDays(-1));
+        return new { current = View(current), previous = View(previous), proposed = new { asOf = Iso(asOf), amount = AmountView.From(proposed) } };
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -64,9 +69,6 @@ public sealed class ValuationProposal(
         var recorded = await invoker.InvokeAsync(new RecordValuationCommand(target, p!.AsOf, p.Amount, p.Note), ct);
         return recorded.Map(id => (IReadOnlyList<Guid>)[id]);
     }
-
-    private async Task<Valuation?> LatestAsync(ItemId target, LocalDate on, CancellationToken ct)
-        => (await valuations.LatestAsync(target, on, ct)).TryGetValue(out var latest) ? latest!.Value : null;
 
     private static object? View(Valuation? v) => v is null ? null : new { asOf = Iso(v.AsOf), amount = AmountView.From(v.Value) };
 

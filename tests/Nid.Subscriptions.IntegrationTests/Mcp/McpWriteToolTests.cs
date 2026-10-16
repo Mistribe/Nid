@@ -1,0 +1,160 @@
+using System.Globalization;
+using System.Text.Json;
+using ModelContextProtocol.Client;
+using Microsoft.EntityFrameworkCore;
+using Nid.Core.Contracts;
+using Nid.Subscriptions.IntegrationTests.Admin;
+using Nid.Subscriptions.IntegrationTests.Proposals;
+using Nid.TestSupport;
+
+namespace Nid.Subscriptions.IntegrationTests.Mcp;
+
+/// <summary>Spec 4D1 §5–§6: the write tools end to end — conforme, proposed, applied, refused.</summary>
+[Collection("postgres")]
+public class McpWriteToolTests(PostgresFixture fixture)
+{
+    private static async Task<McpClient> ClientAsync(NidApp app, string preset)
+        => await McpHarness.ClientAsync(app, (await TokenRouteTests.CreateAsync(app, app.AdultA, preset)).Secret);
+
+    private static async Task<(bool Error, string Text)> CallAsync(McpClient client, string tool, object args)
+    {
+        var result = await client.CallToolAsync(tool, JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(args))!);
+        return (result.IsError == true, McpHarness.TextOf(result));
+    }
+
+    private static async Task<JsonElement> AnswerAsync(McpClient client, string tool, object args)
+    {
+        var (error, text) = await CallAsync(client, tool, args);
+        Assert.False(error, text);
+        return JsonDocument.Parse(text).RootElement;
+    }
+
+    private static async Task<int> ProposalCountAsync(NidApp app)
+        => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, ProposalRouteTests.Proposals)).RootElement.GetProperty("items").GetArrayLength();
+
+    private static decimal Amount(JsonElement money) => decimal.Parse(money.GetProperty("amount").GetString()!, CultureInfo.InvariantCulture);
+
+    private static object Statement(Guid envelope, bool apply = false) => new
+    {
+        envelopeId = envelope, asOf = "2025-09-30", value = new { amount = "23500.00", currency = "EUR" },
+        movements = new[] { new { on = "2025-09-05", kind = "contribution", amount = "150.00", label = "Versement", @ref = "R-1" } },
+        sourceLabel = "Relevé PEA septembre", apply,
+    };
+
+    // Review Focus 1.
+    [Fact]
+    public async Task A_statement_is_proposed_once_then_applied_directly_skipping_what_is_recorded()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        await using (var propose = await ClientAsync(app, TokenPresets.Propose))
+        {
+            var first = await AnswerAsync(propose, "propose_statement", Statement(envelope));
+            Assert.Equal(("proposed", true), (first.GetProperty("outcome").GetString(), first.GetProperty("created").GetBoolean()));
+            Assert.Equal("investments.record_statement", first.GetProperty("proposal").GetProperty("kind").GetString());
+            Assert.False((await AnswerAsync(propose, "propose_statement", Statement(envelope))).GetProperty("created").GetBoolean());
+
+            // D2: refused, never silently turned into a proposal.
+            var (error, text) = await CallAsync(propose, "propose_statement", Statement(envelope, apply: true));
+            Assert.True(error);
+            Assert.Contains("write:direct", text);
+        }
+        Assert.Equal(1, await ProposalCountAsync(app));
+
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        var applied = await AnswerAsync(direct, "propose_statement", Statement(envelope, apply: true));
+        Assert.Equal(("applied", 2), (applied.GetProperty("outcome").GetString(), applied.GetProperty("appliedRefs").GetArrayLength()));
+        var again = await AnswerAsync(direct, "propose_statement", Statement(envelope, apply: true));
+        Assert.Equal(1, again.GetProperty("appliedRefs").GetArrayLength()); // the value again; the movement left out
+        Assert.Equal(("payload.movements[0]", ProposalCodes.AlreadyRecorded),
+            (again.GetProperty("skipped")[0].GetProperty("field").GetString(), again.GetProperty("skipped")[0].GetProperty("code").GetString()));
+        var flows = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/investments/envelopes/{envelope}")).RootElement.GetProperty("flows");
+        Assert.Single(flows.EnumerateArray(), f => f.GetProperty("externalRef").GetString() == "R-1");
+        Assert.Equal(1, await ProposalCountAsync(app));
+    }
+
+    // Review Focus 3.
+    [Fact]
+    public async Task A_refused_field_is_named_by_its_path_and_nothing_is_proposed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+
+        var (error, text) = await CallAsync(propose, "propose_statement", new
+        {
+            envelopeId = envelope, asOf = "2025-09-30",
+            movements = new[]
+            {
+                new { on = "2025-09-05", kind = "contribution", amount = "150.00" },
+                new { on = "2025-09-06", kind = "contribution", amount = "1 234,56" },
+            },
+        });
+
+        Assert.True(error);
+        Assert.StartsWith("Refused: request.invalid.", text);
+        Assert.Contains("payload.movements[1].amount:", text);
+        Assert.Equal(0, await ProposalCountAsync(app));
+    }
+
+    [Fact]
+    public async Task A_read_token_cannot_propose_and_another_adults_private_item_is_not_found()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var hidden = await app.NewEnvelopeAsync("Privé", app.AdultB, Visibility.Private);
+        var body = new { envelopeId = hidden.Value, asOf = "2025-09-30", value = new { amount = "1.00", currency = "EUR" } };
+
+        await using (var read = await ClientAsync(app, TokenPresets.Read))
+        {
+            var (error, text) = await CallAsync(read, "propose_statement", body);
+            Assert.True(error);
+            Assert.Contains("'write' scope", text);
+        }
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        Assert.Equal((true, "Not found."), await CallAsync(propose, "propose_statement", body));
+    }
+
+    /// <summary>Task 2's review (a): what a direct write records is attributed to the token that wrote it.</summary>
+    [Fact]
+    public async Task A_direct_writes_flows_and_valuation_are_in_the_write_log_with_the_tokens_id()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var token = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Direct);
+        await using (var client = await McpHarness.ClientAsync(app, token.Secret))
+            Assert.Equal("applied", (await AnswerAsync(client, "propose_statement", Statement(envelope, apply: true))).GetProperty("outcome").GetString());
+
+        await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        var lines = await platform.AuditLog.Where(r => r.Category == "write" && r.Action == "insert" && r.TokenId == token.Token.Id).ToListAsync();
+        Assert.Contains(lines, l => l.Entity!.Contains("flow", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(lines, l => l.Entity!.Contains("valuation", StringComparison.OrdinalIgnoreCase));
+        Assert.All(lines, l => Assert.Equal(("mcp", app.AdultA.Value), (l.Via, l.PersonId!.Value)));
+    }
+
+    /// <summary>Task 2's review (b): a refusal after a first movement was written leaves no flow and no valuation.</summary>
+    [Fact]
+    public async Task A_direct_write_refused_after_a_first_movement_leaves_nothing_written()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+
+        var (error, text) = await CallAsync(direct, "propose_statement", new
+        {
+            envelopeId = envelope, asOf = "2025-09-30", value = new { amount = "23500.00", currency = "EUR" },
+            movements = new[]
+            {
+                new { on = "2025-09-05", kind = "contribution", amount = "150.00" },
+                new { on = "2025-09-06", kind = "contribution", amount = "1000000000000000.00" }, // beyond the Core's bound
+            },
+            apply = true,
+        });
+
+        Assert.True(error);
+        Assert.Contains("payload.movements[1]", text);
+        var detail = await ProposalKindTests.EnvelopeAsync(app, envelope);
+        Assert.DoesNotContain(detail.GetProperty("flows").EnumerateArray(), f => f.GetProperty("occurredOn").GetString() == "2025-09-05");
+        Assert.DoesNotContain(detail.GetProperty("valuations").EnumerateArray(), v => v.GetProperty("amount").GetProperty("amount").GetString() == "23500.0000");
+    }
+}
