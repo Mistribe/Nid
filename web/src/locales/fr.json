@@ -1790,11 +1790,13 @@
     "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
-    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe" },
+    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement" },
     "summary": {
       "valuation": "{{name}} — valeur au {{date}} : {{amount}}",
       "statement_one": "{{name}} — relevé au {{date}} ({{count}} mouvement)",
-      "statement_other": "{{name}} — relevé au {{date}} ({{count}} mouvements)"
+      "statement_other": "{{name}} — relevé au {{date}} ({{count}} mouvements)",
+      "payslip": "{{name}} — bulletin du {{date}} : net {{amount}}",
+      "invoice": "{{name}} — facture du {{date}} : {{amount}}"
     },
     "unknown_target": "Élément inconnu"
   },
@@ -1817,6 +1819,22 @@
       "recorded": "Déjà enregistré",
       "keep_legend": "Mouvements à enregistrer",
       "keep": "Mouvement {{n}} : {{date}}, {{kind}}, {{amount}}"
+    },
+    "payslip": {
+      "expected_net": "Net attendu",
+      "proposed_net": "Net du bulletin",
+      "expected_gross": "Brut attendu",
+      "proposed_gross": "Brut du bulletin",
+      "effective_on": "À partir du",
+      "net": "Net ({{currency}})",
+      "gross": "Brut ({{currency}}, facultatif)"
+    },
+    "invoice": {
+      "current": "Prix actuel",
+      "proposed": "Prix de la facture",
+      "starts_on": "À partir du",
+      "amount": "Prix ({{currency}})",
+      "amount_format": "Saisissez un montant de 0 ou plus, comme 10,99."
     },
     "approve": "Approuver",
     "nothing_to_record": "Aucun mouvement n’est coché et le relevé n’a pas de valeur : il n’y aurait rien à enregistrer. Cochez un mouvement, ou rejetez la proposition.",

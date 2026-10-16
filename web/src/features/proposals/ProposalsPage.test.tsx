@@ -118,4 +118,15 @@ describe('À valider', () => {
 
     expect(await screen.findByRole('link', { name: /PEA — relevé au 30 sept\. 2025 \(2 mouvements\)/ })).toBeInTheDocument();
   });
+
+  it('summarises a payslip and an invoice', async () => {
+    serve({ pending: [
+      proposal({ kind: 'income.change_pay', targetName: 'Salaire', payload: { paidOn: '2025-09-28', phaseLabel: 'Salaire', net: { amount: '2400.00', currency: 'EUR' }, effectiveOn: '2025-09-01' } }),
+      proposal({ kind: 'subscriptions.change_price', targetName: 'Netflix', payload: { chargedOn: '2025-09-01', amount: { amount: '10.99', currency: 'EUR' } } }),
+    ] });
+    await renderApp('/proposals');
+
+    expect(await screen.findByRole('link', { name: /Salaire — bulletin du 28 sept\. 2025 : net 2\s400,00\s€/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Netflix — facture du 1 sept\. 2025 : 10,99\s€/ })).toBeInTheDocument();
+  });
 });
