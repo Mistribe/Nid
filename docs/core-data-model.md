@@ -305,6 +305,13 @@ Le payload d'origine est **toujours conservé** ; le payload appliqué est `edit
 - Une proposition en attente dont la `payload_version` n'est plus gérée par le module reste consultable avec l'avertissement `payload_version_unsupported` et ne peut qu'être rejetée.
 - Les propositions décidées sont conservées (audit, lien vers le document). Aucune expiration automatique ; les propositions en attente apparaissent dans le résumé mensuel.
 
+### 7.6 Livré en 4C1
+
+Table `core.proposal`, handlers de module et routes `/api/v1/core/proposals` (`architecture.md` §9.5). Deux écarts assumés par rapport au §7.1 :
+
+- **D6** : pas de document ni de job : `document_id` et `job_id` ne sont pas créés (l’extraction viendra plus tard) ; la provenance est `created_via`, `token_id?`, `created_by_person_id` et un `source_label` facultatif.
+- **D7** : pas de `proposal_id` sur la valorisation créée par une approbation : `applied_refs` de la proposition porte son identifiant, ce qui suffit à la retrouver.
+
 ## 8. Taux de change
 
 ### 8.1 Table `fx_rate`
