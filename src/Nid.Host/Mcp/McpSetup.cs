@@ -43,7 +43,12 @@ public static class McpSetup
                     new SecurityEvent(SecurityEventNames.McpToolCalled, token.Person, [], new Dictionary<string, string> { ["tool"] = tool }), ct);
                 return await next(context, ct);
             }))
-            .WithTools<PersonTools>();
+            .WithTools<PersonTools>()
+            .WithTools<DashboardTools>()
+            .WithTools<SubscriptionTools>()
+            .WithTools<InvestmentTools>()
+            .WithTools<IncomeTools>()
+            .WithTools<RealEstateTools>();
         return services;
     }
 
