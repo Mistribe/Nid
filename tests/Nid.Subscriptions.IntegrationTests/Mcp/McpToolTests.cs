@@ -58,6 +58,12 @@ public class McpToolTests(PostgresFixture fixture)
         await using (app) await using (client)
         {
             var a = app.AdultA;
+            var subscription = await app.NewSubscriptionAsync("Netflix", a, Visibility.Shared);
+            var envelope = await McpSeed.EnvelopeAsync(app, a);
+            await McpSeed.IncomeSourceAsync(app, a);
+            var loan = await McpSeed.LoanAsync(app, a);
+            await McpSeed.PropertyAsync(app, a);
+
             SameJson(await app.GetRawAsync(a, "/api/v1/dashboard?scope=household"), await CallAsync(client, "get_dashboard", new { scope = "household" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/dashboard/net-worth?scope=me&period=3y"), await CallAsync(client, "get_net_worth_history", new { scope = "me", period = "3y" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/routine?on=2025-10-01"), await CallAsync(client, "get_routine", new { on = "2025-10-01" }));
@@ -67,6 +73,15 @@ public class McpToolTests(PostgresFixture fixture)
             SameJson(await app.GetRawAsync(a, "/api/v1/income/sources"), await CallAsync(client, "list_income_sources"));
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/loans?ended=true"), await CallAsync(client, "list_loans", new { ended = true }));
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/properties"), await CallAsync(client, "list_properties"));
+            SameJson(await app.GetRawAsync(a, "/api/v1/subscriptions?from=2025-09-01&to=2025-09-30&horizon=2026-01-01"),
+                await CallAsync(client, "list_subscriptions", new { from = "2025-09-01", to = "2025-09-30", horizon = "2026-01-01" }));
+            SameJson(await app.GetRawAsync(a, $"/api/v1/subscriptions/{subscription.Value}?from=2025-09-01&to=2025-09-30&horizon=2026-01-01"),
+                await CallAsync(client, "get_subscription", new { id = subscription.Value, from = "2025-09-01", to = "2025-09-30", horizon = "2026-01-01" }));
+
+            // The comparisons above cover data, not empty lists.
+            Assert.Contains(envelope.ToString(), await CallAsync(client, "list_envelopes", new { scope = "household" }));
+            Assert.Contains(loan.ToString(), await CallAsync(client, "list_loans"));
+            Assert.Contains(subscription.Value.ToString(), await CallAsync(client, "list_subscriptions"));
         }
     }
 
