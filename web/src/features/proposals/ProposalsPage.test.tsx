@@ -1,0 +1,76 @@
+import { screen, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import { proposal } from './testData';
+
+const serve = (byStatus: Record<string, unknown[]>) =>
+  server.use(http.get('*/api/v1/core/proposals', ({ request }) =>
+    HttpResponse.json({ items: byStatus[new URL(request.url).searchParams.get('status') ?? 'pending'] ?? [] })));
+
+describe('À valider', () => {
+  beforeAll(async () => { await import('./ProposalsPage'); });
+
+  it('groups the pending proposals by statement and summarises each', async () => {
+    serve({ pending: [
+      proposal({ sourceLabel: 'Relevé PEA septembre' }),
+      proposal({ targetName: 'Assurance-vie', payload: { asOf: '2025-09-30', amount: { amount: '1200.50', currency: 'EUR' } }, sourceLabel: null, createdVia: 'api' }),
+    ] });
+    const { container } = await renderApp('/proposals');
+
+    const statement = await screen.findByRole('region', { name: 'Relevé PEA septembre' });
+    expect(within(statement).getByRole('link', { name: /PEA — valeur au 30 sept\. 2025 : 23\s500,00\s€/ })).toBeInTheDocument();
+    expect(statement).toHaveTextContent('par l’assistant (MCP)');
+    const none = screen.getByRole('region', { name: 'Sans relevé' });
+    expect(none).toHaveTextContent('Assurance-vie');
+    expect(none).toHaveTextContent('par l’API');
+    await expectNoAxeViolations(container);
+  });
+
+  it('says when nothing waits, and shows the decided ones on their tab', async () => {
+    serve({ approved: [proposal({ status: 'approved', decidedAt: '2026-10-16T09:00:00+00:00' })] });
+    const { user } = await renderApp('/proposals');
+
+    expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Approuvées' }));
+    expect(await screen.findByText(/Approuvée le/)).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Rejetées' }));
+    expect(await screen.findByText('Aucune proposition rejetée.')).toBeInTheDocument();
+  });
+
+  // Review Focus 1.
+  it('shows a hostile label and note as plain text', async () => {
+    serve({ pending: [proposal({ sourceLabel: '<img src=x onerror=alert(1)> **gras**' })] });
+    const { container } = await renderApp('/proposals');
+
+    expect(await screen.findByRole('region', { name: '<img src=x onerror=alert(1)> **gras**' })).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  // Review Focus 5.
+  it('an unknown kind is listed under its raw name', async () => {
+    serve({ pending: [proposal({ kind: 'realestate.future_kind', payload: { x: 1 } })] });
+    await renderApp('/proposals');
+
+    expect(await screen.findByRole('link', { name: /realestate\.future_kind/ })).toBeInTheDocument();
+  });
+
+  it('counts the pending proposals in the navigation, and shows nothing at zero', async () => {
+    serve({ pending: [proposal(), proposal()] });
+    await renderApp('/dashboard');
+
+    const nav = await screen.findByRole('navigation', { name: 'Navigation principale' });
+    expect(await within(nav).findByText('2')).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: /À valider/ })).toHaveAccessibleName(/2 en attente/);
+  });
+
+  it('shows no count when nothing waits', async () => {
+    serve({ pending: [] });
+    await renderApp('/dashboard');
+
+    const nav = await screen.findByRole('navigation', { name: 'Navigation principale' });
+    expect(await within(nav).findByRole('link', { name: 'À valider' })).toBeInTheDocument();
+  });
+});
