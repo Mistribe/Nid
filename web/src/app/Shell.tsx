@@ -35,7 +35,7 @@ export function Shell() {
         {items.map((item) => link(item))}
       </nav>
       <div className="flex min-h-dvh flex-col pb-16 md:pb-0">
-        <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 md:gap-4">
           <p className="font-semibold md:invisible">{t('app.name')}</p>
           <ScopeSwitch />
           <div className="flex items-center gap-2">

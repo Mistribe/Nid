@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Root } from 'react-dom/client';
+import { allGuidesSeen } from '@/features/guides/guides';
 import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSessionResponse, signedOutResponse } from '@/test/fixtures';
 import { server } from '@/test/server';
@@ -42,7 +43,7 @@ describe('bootstrap', () => {
 
   it('applies the server preferences, remembers them, and renders the app', async () => {
     server.use(http.get('*/auth/session', () => HttpResponse.json({
-      ...aliceSessionResponse, preferences: { theme: 'sauge', mode: 'dark', chartPatterns: false, guidesSeen: {} },
+      ...aliceSessionResponse, preferences: { theme: 'sauge', mode: 'dark', chartPatterns: false, guidesSeen: allGuidesSeen() },
     })));
     localStorage.setItem('nid.theme', 'terre'); // an older local copy: the server wins
     const root = document.body.appendChild(document.createElement('div'));

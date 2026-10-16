@@ -9,6 +9,9 @@ for (const width of [320, 375, 414]) {
     const tabs = alice.getByRole('navigation', { name: 'Onglets' });
     for (const name of ['Accueil', 'Abonnements', 'Placements', 'Revenus', 'Plus'])
       await expect(tabs.getByRole('link', { name })).toBeInViewport({ ratio: 1 });
+    // The header wraps rather than push « Se déconnecter » off a narrow screen.
+    await expect(alice.getByRole('button', { name: 'Se déconnecter' })).toBeInViewport({ ratio: 1 });
+    expect(await alice.evaluate('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
 
     await tabs.getByRole('link', { name: 'Plus' }).click();
     await expect(alice.getByRole('heading', { name: 'Plus', level: 1 })).toBeVisible();

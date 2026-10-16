@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NAV } from '@/app/nav';
 import { ModalDialog } from '@/components/ModalDialog';
@@ -9,6 +9,7 @@ import type { Guide } from './guides';
 export function GuideIntro({ guide, onClose, onShow }: { guide: Guide; onClose: () => void; onShow?: () => void }) {
   const { t } = useTranslation();
   const [step, setStep] = useState(1);
+  const main = useRef<HTMLButtonElement>(null);
   const module = t(NAV.find((item) => item.to === guide.section)!.label);
   // i18next types its keys; every guide's screens share loans' shape (guides.test.ts checks they exist).
   const screen = `guides.${guide.id}.screens.${step}` as 'guides.loans.screens.1';
@@ -24,10 +25,10 @@ export function GuideIntro({ guide, onClose, onShow }: { guide: Guide; onClose: 
           <div className="flex flex-wrap justify-between gap-2">
             <Button variant="ghost" onClick={onClose}>{t('guides.common.skip')}</Button>
             <div className="flex flex-wrap gap-2">
-              {step > 1 ? <Button variant="outline" onClick={() => setStep(step - 1)}>{t('guides.common.previous')}</Button> : null}
-              {!last ? <Button onClick={() => setStep(step + 1)}>{t('guides.common.next')}</Button> : null}
+              {/* Back on screen 1 « Précédent » goes: the focus moves to the main button, which never unmounts. */}
+              {step > 1 ? <Button variant="outline" onClick={() => { if (step === 2) main.current?.focus(); setStep(step - 1); }}>{t('guides.common.previous')}</Button> : null}
               {last && onShow ? <Button variant="outline" onClick={onShow}>{t('guides.common.show')}</Button> : null}
-              {last ? <Button onClick={onClose}>{t('guides.common.start')}</Button> : null}
+              <Button ref={main} onClick={last ? onClose : () => setStep(step + 1)}>{t(last ? 'guides.common.start' : 'guides.common.next')}</Button>
             </div>
           </div>
         </>

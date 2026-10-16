@@ -40,6 +40,26 @@ describe('the module guides', () => {
     expect(within(dialog).getByText(`1 sur ${n}`)).toBeInTheDocument();
   });
 
+  it('keeps the focus on the main button from screen to screen', async () => {
+    const { bodies, user } = await render('/loans', {});
+    const dialog = await loansGuide();
+    const main = within(dialog).getByRole('button', { name: 'Suivant' });
+
+    main.focus();
+    for (let i = 1; i < n; i++) await user.keyboard('{Enter}');
+    expect(within(dialog).getByText(`${n} sur ${n}`)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Commencer' })).toHaveFocus();
+
+    within(dialog).getByRole('button', { name: 'Précédent' }).focus();
+    for (let i = 1; i < n; i++) await user.keyboard('{Enter}');
+    expect(within(dialog).getByText(`1 sur ${n}`)).toBeInTheDocument();
+    expect(main).toHaveFocus();
+
+    for (let i = 1; i <= n; i++) await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 1 } }]));
+  });
+
   it('does not play a guide already seen, and plays it again after a version bump', async () => {
     const seen = await render('/loans', allGuidesSeen());
     await screen.findByRole('button', { name: 'Guide de cette page' });
@@ -105,7 +125,7 @@ describe('the module guides', () => {
   });
 
   it('« ? » replays a seen guide and gives the focus back', async () => {
-    const { bodies, user } = await render('/loans', allGuidesSeen());
+    const { bodies, queryClient, user } = await render('/loans', allGuidesSeen());
     const help = await screen.findByRole('button', { name: 'Guide de cette page' });
 
     await user.click(help);
@@ -113,6 +133,8 @@ describe('the module guides', () => {
 
     await waitFor(() => expect(help).toHaveFocus());
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // A save would be in the mutation cache at once, before its request lands.
+    expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
     expect(bodies).toEqual([]);
   });
 
