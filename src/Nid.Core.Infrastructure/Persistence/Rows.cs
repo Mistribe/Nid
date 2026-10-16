@@ -114,3 +114,17 @@ public sealed class FlowRow
     public Instant? RetiredAt { get; set; }
     public uint Version { get; set; }
 }
+
+public sealed class PersonalAccessTokenRow
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public string Name { get; set; } = "";
+    public string Prefix { get; set; } = "";
+    public string TokenHash { get; set; } = "";
+    public string[] Scopes { get; set; } = [];
+    public Instant CreatedAt { get; set; }
+    public Instant ExpiresAt { get; set; }
+    public Instant? LastUsedAt { get; set; }
+    public Instant? RevokedAt { get; set; }
+}

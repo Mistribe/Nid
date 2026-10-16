@@ -177,6 +177,10 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("subject_person_id");
 
+                    b.Property<Guid?>("TokenId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("token_id");
+
                     b.Property<string>("Via")
                         .IsRequired()
                         .HasColumnType("text")

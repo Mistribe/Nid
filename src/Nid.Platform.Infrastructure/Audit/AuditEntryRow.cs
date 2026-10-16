@@ -18,6 +18,9 @@ public sealed class AuditEntryRow
     public Guid? PersonId { get; set; }
     public string Via { get; set; } = "";
     public string[] Scopes { get; set; } = [];
+
+    /// <summary>4A: the personal access token the actor used; null for a session, the system and the CLI.</summary>
+    public Guid? TokenId { get; set; }
     public string? RequestId { get; set; }
     public string? Request { get; set; }
     public string? Entity { get; set; }

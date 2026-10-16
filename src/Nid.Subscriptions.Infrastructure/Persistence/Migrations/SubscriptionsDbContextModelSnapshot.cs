@@ -72,8 +72,10 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
 
                     b.PrimitiveCollection<Guid[]>("ItemIds")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid[]")
-                        .HasColumnName("item_ids");
+                        .HasColumnName("item_ids")
+                        .HasDefaultValueSql("'{}'");
 
                     b.Property<Guid?>("PersonId")
                         .HasColumnType("uuid")
@@ -95,6 +97,10 @@ namespace Nid.Subscriptions.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("SubjectPersonId")
                         .HasColumnType("uuid")
                         .HasColumnName("subject_person_id");
+
+                    b.Property<Guid?>("TokenId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("token_id");
 
                     b.Property<string>("Via")
                         .IsRequired()
