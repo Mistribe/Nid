@@ -18,7 +18,9 @@ public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions
     {
         // 4A: a bearer request carries no ambient credential: a cross-site page cannot forge one (spec §3), and the
         // cookie never authenticates it (the "nid" policy scheme), so a bad token answers 401, not this 403.
-        if (SafeMethods.Contains(context.Request.Method) || !RequiresCsrf(context.Request.Path) || TokenAuthentication.IsBearer(context.Request))
+        // 4B: only on the API; /auth/logout always keeps its check (a bearer header must not spare a cookie POST).
+        if (SafeMethods.Contains(context.Request.Method) || !RequiresCsrf(context.Request.Path)
+            || (TokenAuthentication.IsBearer(context.Request) && context.Request.Path.StartsWithSegments("/api")))
         {
             await next(context);
             return;

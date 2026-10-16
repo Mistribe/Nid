@@ -863,6 +863,7 @@
     "token_created": "Jeton créé",
     "token_revoked": "Jeton révoqué",
     "token_auth_failed": "Jeton refusé",
+    "mcp_tool_called": "Lecture par l’assistant",
     "unknown": "Événement {{name}}"
   },
   "investments": {
@@ -1827,6 +1828,14 @@
       "limit_reached": "Vous avez déjà 10 jetons actifs : révoquez-en un avant d’en créer un autre.",
       "banner": "Un jeton d’accès expire bientôt.",
       "banner_link": "Voir mes jetons"
+    },
+    "mcp": {
+      "title": "Brancher un assistant",
+      "intro": "Un assistant compatible MCP, comme Claude, lit vos chiffres dans Nid avec un de vos jetons d’accès.",
+      "address": "Adresse du serveur MCP",
+      "command_label": "Avec Claude Code",
+      "token_placeholder": "<votre jeton>",
+      "advice": "Choisissez un jeton « Lecture seule » : l’assistant ne peut encore que consulter vos données."
     }
   }
 }

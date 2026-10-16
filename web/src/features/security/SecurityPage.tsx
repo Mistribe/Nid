@@ -7,6 +7,7 @@ import { ConfirmAction } from '@/components/ConfirmAction';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { formatInstant } from '@/features/admin/format';
 import { eventLabel, viaLabel } from './eventLabel';
+import { McpHelp } from './McpHelp';
 import { TokensSection } from './TokensSection';
 
 /** screens.md "Sécurité" (administration-and-audit.md §5): my events, signing out everywhere, and my tokens (4A). */
@@ -36,6 +37,8 @@ export function SecurityPage() {
       </section>
 
       <TokensSection />
+
+      <McpHelp />
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">{t('security.events_title')}</h2>

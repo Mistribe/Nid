@@ -173,6 +173,17 @@ public class BearerTokenTests(PostgresFixture fixture)
         Assert.DoesNotContain(logs.Messages, m => m.Contains("Bearer nid_pat_", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task A_bearer_header_does_not_spare_a_cookie_post_to_auth_logout_its_csrf_check()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var read = await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Read);
+
+        var response = await app.BearerAsync(read.Secret, HttpMethod.Post, "/auth/logout", withSessionOf: app.AdultA);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static async Task<string?> CodeOf(HttpResponseMessage response)
         => (await response.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("code").GetString();
 
