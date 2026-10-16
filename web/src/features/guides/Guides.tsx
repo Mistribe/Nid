@@ -48,7 +48,10 @@ export function Guides() {
   const end = () => {
     // The dialog must be gone before « ? » can take the focus back.
     flushSync(() => setState({ open: null }));
-    help.current?.focus();
+    // Back to « ? » at the top by a scroll, not the jump a plain focus() makes from deep in the page after a tour.
+    help.current?.focus({ preventScroll: true });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    help.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   };
   const close = (closed: Guide) => { markSeen(closed); end(); };
   // B itself never marks a guide: A, which leads to it, counts as seen once B starts.

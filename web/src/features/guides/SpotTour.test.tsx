@@ -84,11 +84,17 @@ describe('the on-screen tour', () => {
     await user.click(within(card).getByRole('button', { name: 'Suivant' }));
     await user.click(within(card).getByRole('button', { name: 'Suivant' }));
     expect(within(card).getByText('4 sur 4')).toBeInTheDocument();
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
     await user.click(within(card).getByRole('button', { name: 'Terminer' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(active()).toHaveLength(0);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Guide de cette page' })).toHaveFocus());
+    const help = screen.getByRole('button', { name: 'Guide de cette page' });
+    await waitFor(() => expect(help).toHaveFocus());
+    // Back to « ? » by a scroll rather than focus()'s jump.
+    expect(scroll.mock.contexts.at(-1)).toBe(help);
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest', behavior: 'smooth' });
+    scroll.mockRestore();
   });
 
   it('hides « Me montrer à l’écran » and gives the hint on an empty page', async () => {
@@ -143,6 +149,11 @@ describe('the on-screen tour', () => {
     await waitFor(() => expect(active()).toHaveLength(1));
     await outside.user.click(active()[0]!);
     expect(screen.getByRole('dialog')).not.toHaveFocus();
+    // An Escape a dialog opened from the page already handled (ModalDialog prevents its default) leaves the tour alone.
+    const handled = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    handled.preventDefault();
+    active()[0]!.dispatchEvent(handled);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     await outside.user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     outside.unmount();

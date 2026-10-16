@@ -233,6 +233,30 @@ describe('Réglages › Apparence', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('a guide closed while a reset is in flight stays seen', async () => {
+    const sent: Body[] = [];
+    const releases = queuePreferences(sent);
+    const { router, user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('button', { name: 'Revoir tous les guides' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    // The reset is local at once: the guide plays before the server has answered.
+    await router.navigate({ to: '/loans' });
+    await user.click(within(await screen.findByRole('dialog', { name: 'Crédits : premiers pas' })).getByRole('button', { name: 'Passer' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    // The reset's response carries the empty map from before the guide was closed.
+    releases[0]?.();
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toEqual({ guidesSeen: { loans: 1 }, csrf: 'csrf-alice' });
+    releases[1]?.();
+
+    await router.navigate({ to: '/settings/appearance' });
+    await router.navigate({ to: '/loans' });
+    await screen.findByRole('button', { name: 'Guide de cette page' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('has no accessibility violation', async () => {
     const { container } = await renderApp('/settings/appearance');
     await expectNoAxeViolations(container);

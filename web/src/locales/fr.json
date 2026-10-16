@@ -1739,7 +1739,7 @@
         "figures": { "title": "Aujourd’hui", "body": "Capital restant dû, prochaine échéance et « Taux actuel » avec sa phase. « Coût à ce jour » additionne intérêts, assurance et frais déjà payés ; « Coût à venir » ce qu’il reste à payer." },
         "simulation": { "title": "Simuler un remboursement anticipé", "body": "Saisissez une date, un montant et une pénalité éventuelle : la simulation compare les deux effets possibles sans rien enregistrer." },
         "bank": { "title": "Tableau de la banque", "body": "Importez ici le tableau de votre banque pour le comparer au calcul. Vous pouvez ensuite le choisir comme référence, le remplacer ou le supprimer." },
-        "schedule": { "title": "Échéancier", "body": "L’année suffit pour suivre un crédit : le capital restant dû au 31 décembre dit ce que vous devez encore en fin d’année, et sa baisse d’une année à l’autre montre ce que vos échéances remboursent vraiment, hors intérêts et assurance." }
+        "schedule": { "title": "Échéancier", "body": "L’année suffit pour suivre un crédit : le capital restant dû au 31 décembre dit ce que vous devez encore en fin d’année, et sa baisse d’une année à l’autre montre le capital vraiment remboursé, échéances et remboursements anticipés compris, hors intérêts et assurance." }
       }
     },
     "routine": {

@@ -30,9 +30,10 @@ export function SpotTour({ guide, onEnd }: { guide: Guide; onEnd: () => void }) 
     return () => target.removeAttribute('data-guide-active');
   }, [guide, step]);
 
-  // The card is not modal: the focus may be anywhere in the page, and Escape still ends the tour.
+  // The card is not modal: the focus may be anywhere in the page, and Escape still ends the tour — unless a dialog or a
+  // popover opened from the page already took that Escape for itself.
   useEffect(() => {
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onEnd(); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) onEnd(); };
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
   }, [onEnd]);

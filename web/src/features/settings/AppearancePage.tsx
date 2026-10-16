@@ -43,8 +43,9 @@ export function AppearancePage() {
     scope: { id: 'preferences' },
     onSuccess: (preferences, { body }) => {
       pending.current -= 1;
-      // A guide marked seen while this save was in flight (this page may be gone) must not be undone by the older map.
-      setPreferences((local) => (body.guidesSeen === undefined ? { ...preferences, guidesSeen: local.guidesSeen } : preferences));
+      // The guides are local first (a reset in `change`, a guide closed in useMarkSeen): a guide marked seen while this
+      // save was in flight (this page may be gone) must not be undone by the older map this response carries.
+      setPreferences((local) => ({ ...preferences, guidesSeen: local.guidesSeen }));
       // Only the last of a run of saves applies what the server confirmed and clears the
       // not-yet-confirmed choice: an earlier one settling first must not flash the page (or the
       // local copy theme-init.js reads) back to a value a queued save is about to change.
@@ -77,6 +78,9 @@ export function AppearancePage() {
     setReplayed(false);
     setProblem(null);
     pending.current += 1;
+    // ponytail: a reset that then fails stays local, so the guides replay this session anyway — what the person asked.
+    const { guidesSeen } = body;
+    if (guidesSeen) setPreferences((local) => ({ ...local, guidesSeen }));
     save.mutate({ body });
   };
 
