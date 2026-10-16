@@ -124,6 +124,25 @@ public class ProposalRouteTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_throwing_application_is_rethrown_and_leaves_the_proposal_pending_with_a_warning()
+    {
+        await using var app = await StartAsync(fixture);
+        var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        var proposal = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals,
+            new { kind = EchoProposalHandler.KindName, targetItemId = item.Value, payload = new { subject = "s1", applyThrows = true } }));
+        var id = proposal.GetProperty("id").GetGuid();
+
+        // The test server rethrows what Kestrel answers as a 500: the exception is not swallowed.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{id}/approve",
+            new { version = proposal.GetProperty("version").GetUInt32() }));
+
+        var after = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}/{id}"))).GetProperty("proposal");
+        Assert.Equal("pending", after.GetProperty("status").GetString());
+        var warning = Assert.Single(after.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == ProposalCodes.ApplyFailed);
+        Assert.DoesNotContain("The test handler threw.", warning.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Rejecting_keeps_the_note_and_a_decided_proposal_cannot_be_decided_again()
     {
         await using var app = await StartAsync(fixture);

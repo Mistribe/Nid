@@ -160,8 +160,9 @@ public sealed class ApproveProposalHandler(
 
         var payload = command.EditedPayload ?? proposal.Payload;
         Failure? refused = null;
-        await using (var transaction = await unitOfWork.BeginAsync(ct))
+        try
         {
+            await using var transaction = await unitOfWork.BeginAsync(ct);
             var check = await handler.ValidateAsync(proposal.Target, payload, ct);
             if (!check.TryGetFailure(out refused))
             {
@@ -177,11 +178,20 @@ public sealed class ApproveProposalHandler(
                 applied.TryGetFailure(out refused);
             }
         }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Rolled back (the scope was disposed on the way out): the type only, the text may carry internals; the 500 stays.
+            await WarnAsync(proposal.Id, e.GetType().Name, "The application threw.", ct);
+            throw;
+        }
 
         // Rolled back above (the scope was disposed without a commit): the warning is the only trace, in its own write.
-        await store.AddWarningAsync(proposal.Id, new ProposalWarning(ProposalCodes.ApplyFailed, "error", $"{refused!.Code}: {refused.Message}"), ct);
+        await WarnAsync(proposal.Id, refused!.Code, refused.Message, ct);
         return Result.Failure<ProposalView>(refused);
     }
+
+    private Task WarnAsync(Guid id, string code, string message, CancellationToken ct)
+        => store.AddWarningAsync(id, new ProposalWarning(ProposalCodes.ApplyFailed, "error", $"{code}: {message}"), ct);
 
     private static Result<ProposalView> Fail(string code, string message) => Result.Failure<ProposalView>(new Failure(code, message, null));
 }

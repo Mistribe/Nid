@@ -6,8 +6,8 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>
-/// A kind for the queue's own tests: `{ subject, refuse?, applyFails? }`. Validation refuses when `refuse` is true;
-/// application fails when `applyFails` is true, else returns one new id.
+/// A kind for the queue's own tests: `{ subject, refuse?, applyFails?, applyThrows? }`. Validation refuses when `refuse` is true;
+/// application fails when `applyFails` is true, throws when `applyThrows` is true, else returns one new id.
 /// </summary>
 public sealed class EchoProposalHandler : IProposalHandler
 {
@@ -26,7 +26,9 @@ public sealed class EchoProposalHandler : IProposalHandler
         => Task.FromResult(JsonSerializer.SerializeToElement(new { proposed = payload }));
 
     public Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
-        => Task.FromResult(payload.TryGetProperty("applyFails", out var f) && f.ValueKind == JsonValueKind.True
+        => payload.TryGetProperty("applyThrows", out var t) && t.ValueKind == JsonValueKind.True
+            ? throw new InvalidOperationException("The test handler threw.")
+            : Task.FromResult(payload.TryGetProperty("applyFails", out var f) && f.ValueKind == JsonValueKind.True
             ? Result.Failure<IReadOnlyList<Guid>>(new Failure("test.apply_failed", "The test handler failed to apply.", null))
             : Result.Success<IReadOnlyList<Guid>>([Guid.CreateVersion7()]));
 }
