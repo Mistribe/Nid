@@ -31,6 +31,13 @@ afterEach(() => { sessionStorage.clear(); vi.useRealTimers(); });
 beforeAll(async () => { await import('./RoutinePage'); }, 30_000);
 
 describe('the routine', () => {
+  it('says how many proposals wait, above the routine', async () => {
+    server.use(http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [{ id: '1' }] })));
+    await renderApp('/routine');
+
+    expect(await screen.findByRole('link', { name: '1 proposition à valider' })).toHaveAttribute('href', '/proposals');
+  });
+
   it('lists the due envelopes with last month’s value proposed, the others folded', async () => {
     serve(routine(lines()));
     const { container } = await renderApp('/routine');

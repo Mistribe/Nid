@@ -177,4 +177,14 @@ describe('dashboard lists', () => {
     expect(await section('À venir')).toHaveTextContent('Rien dans les 60 prochains jours.');
     expect(await section('À faire')).toHaveTextContent('Rien à faire pour l’instant.');
   });
+
+  it('says how many proposals wait, first in « À faire »', async () => {
+    serve(dashboard({ todo: [todoItem()] }));
+    server.use(http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [{ id: '1' }, { id: '2' }] })));
+    await renderApp('/dashboard');
+
+    const todo = await section('À faire');
+    const first = (await within(todo).findAllByRole('listitem'))[0]!;
+    expect(await within(first).findByRole('link', { name: '2 propositions à valider' })).toHaveAttribute('href', '/proposals');
+  });
 });

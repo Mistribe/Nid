@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
+import { PendingLine } from '../proposals/PendingLine';
+import { usePendingCount } from '../proposals/api';
 import { categoryText } from '../properties/format';
 import type { DashboardEvent, DashboardTodo, DashboardView } from './api';
 import { ItemLink } from './ItemLink';
@@ -54,13 +56,15 @@ function TodoText({ item }: { item: DashboardTodo }) {
   }
 }
 
-/** Spec §3: what needs doing; the month's routine (2E) and proposals (stage 4) join later. */
+/** Spec §3: what needs doing; the month's routine (2E); the proposals waiting (4C2). */
 export function Todo({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
+  const pending = usePendingCount() ?? 0;
   return (
     <Panel title={t('dashboard.todo.title')} guide="dashboard.todo">
-      {d.todo.length === 0 ? <p className="text-muted-foreground">{t('dashboard.todo.empty')}</p> : (
+      {d.todo.length === 0 && pending === 0 ? <p className="text-muted-foreground">{t('dashboard.todo.empty')}</p> : (
         <ul className="space-y-2 text-sm">
+          {pending > 0 ? <li><PendingLine /></li> : null}
           {d.todo.map((item) => (
             <li key={`${item.kind}-${item.id}-${item.label ?? ''}`}>
               <ItemLink module={item.module} id={item.id}><TodoText item={item} /></ItemLink>
