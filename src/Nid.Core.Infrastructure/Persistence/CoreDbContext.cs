@@ -46,6 +46,15 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
                     "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
                 t.HasCheckConstraint("ck_person_admin", "kind = 'adult' or not is_admin");
             });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Preferences).HasColumnType("jsonb");
+            e.Property(x => x.IsAdmin).HasDefaultValue(false);
+            e.HasIndex(x => x.OidcSubject).IsUnique().HasFilter("oidc_subject is not null");
+            // ix_person_adult_email (unique on lower(email) among adults) is an expression index: created by the
+            // AdminArea migration in SQL, EF Core has no model for it.
+            MapXmin(e.Property(x => x.Version));
+        });
 
         modelBuilder.Entity<PersonalAccessTokenRow>(e =>
         {
@@ -61,15 +70,6 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.Prefix).IsUnique();
             e.HasIndex(x => x.PersonId);
             e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
-        });
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).ValueGeneratedNever();
-            e.Property(x => x.Preferences).HasColumnType("jsonb");
-            e.Property(x => x.IsAdmin).HasDefaultValue(false);
-            e.HasIndex(x => x.OidcSubject).IsUnique().HasFilter("oidc_subject is not null");
-            // ix_person_adult_email (unique on lower(email) among adults) is an expression index: created by the
-            // AdminArea migration in SQL, EF Core has no model for it.
-            MapXmin(e.Property(x => x.Version));
         });
 
         modelBuilder.Entity<ItemRow>(e =>
