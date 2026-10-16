@@ -93,6 +93,22 @@ describe('Une proposition', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
   });
 
+  it('moves focus to the heading when the next proposal was already open (cached)', async () => {
+    const first = proposal();
+    const second = proposal({ targetName: 'Assurance-vie' });
+    serve([first, second]);
+    const { user, router } = await renderApp(`/proposals/${first.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Proposition suivante' }));
+    expect(await screen.findByRole('link', { name: 'Assurance-vie' })).toBeInTheDocument();
+    await router.navigate({ to: '/proposals/$id', params: { id: first.id } });
+    expect(await screen.findByRole('link', { name: 'PEA' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${second.id}`));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
+  });
+
   it('sends the edited payload when the amount changed', async () => {
     const p = proposal();
     const sent = serve([p]);

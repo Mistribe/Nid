@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -41,6 +41,10 @@ function Proposal({ id }: { id: string }) {
   const { $api } = useApi();
   const answer = $api.useQuery('get', PROPOSAL, { params: { path: { id } } });
   const pending = usePending();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const shown = answer.data?.proposal.id;
+  // Keyed on the shown proposal, not the h1's mount: a cached next proposal keeps the same h1.
+  useEffect(() => focusHeading(heading.current), [shown]);
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   if (!answer.data) return null;
@@ -55,7 +59,7 @@ function Proposal({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <Link to="/proposals" className="underline">{t('proposal.back')}</Link>
-      <h1 tabIndex={-1} ref={focusHeading} className="text-2xl font-semibold">{kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind })}</h1>
+      <h1 tabIndex={-1} ref={heading}className="text-2xl font-semibold">{kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind })}</h1>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt>{t('proposal.target')}</dt>
         <dd>{link ? <Link to={link.to} params={link.params} className="underline">{p.targetName ?? t('proposals.unknown_target')}</Link> : (p.targetName ?? t('proposals.unknown_target'))}</dd>
