@@ -81,17 +81,28 @@ internal static class ProposalAccess
         return id => found.TryGetValue(id, out var item) ? item.DisplayName : null;
     }
 
-    /// <summary>The proposal, if the actor may <paramref name="access"/> its target: unreadable answers not found (authorization.md §6).</summary>
+    /// <summary>
+    /// The proposal, if the actor may <paramref name="access"/> its target: unreadable answers not found (authorization.md §6).
+    /// A refusal by the target's rights is recorded as `access_denied` (spec 4D1 D9); an unknown id is not.
+    /// </summary>
     public static async Task<Result<(StoredProposal Proposal, PersonId Me)>> LoadAsync(
-        IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, Guid id, AccessKind access, CancellationToken ct)
+        IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, Guid id, AccessKind access, CancellationToken ct)
     {
         if (accessor.Current?.PersonId is not { } me)
             return Result.Failure<(StoredProposal, PersonId)>(new UnauthorizedFailure("A person decides proposals.", null));
         var proposal = await store.FindAsync(id, ct);
-        if (proposal is null || (await policy.CheckAsync(me, proposal.Target, AccessKind.Read, ct)).TryGetFailure(out _))
+        if (proposal is null)
             return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
+        if ((await policy.CheckAsync(me, proposal.Target, AccessKind.Read, ct)).TryGetFailure(out _))
+        {
+            await denials.RecordAsync(me, proposal.Target, "read", ct);
+            return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
+        }
         if (access == AccessKind.Write && (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).TryGetFailure(out var denied))
+        {
+            await denials.RecordAsync(me, proposal.Target, "write", ct);
             return Result.Failure<(StoredProposal, PersonId)>(denied!);
+        }
         return Result.Success((proposal, me));
     }
 
@@ -156,12 +167,12 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
 
 [RequestHandler<GetProposalQuery, ProposalDetail>]
 public sealed class GetProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IItemRegistry items)
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IItemRegistry items)
     : IRequestHandler<GetProposalQuery, ProposalDetail>
 {
     public async ValueTask<Result<ProposalDetail>> HandleAsync(GetProposalQuery query, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, query.Id, AccessKind.Read, ct);
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, query.Id, AccessKind.Read, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalDetail>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
@@ -180,13 +191,13 @@ public sealed class GetProposalHandler(
 
 [RequestHandler<ApproveProposalCommand, ProposalView>]
 public sealed class ApproveProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IUnitOfWork unitOfWork,
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IUnitOfWork unitOfWork,
     IItemRegistry items, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
@@ -255,7 +266,7 @@ public sealed class ApproveProposalHandler(
 }
 
 [RequestHandler<RejectProposalCommand, ProposalView>]
-public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IItemRegistry items)
+public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, IItemRegistry items)
     : IRequestHandler<RejectProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(RejectProposalCommand command, CancellationToken ct = default)
@@ -263,7 +274,7 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         var note = string.IsNullOrWhiteSpace(command.Note) ? null : command.Note.Trim();
         if (ProposalAccess.Text(note, 500, "note").TryGetFailure(out var invalid))
             return Result.Failure<ProposalView>(invalid!);
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         // Read before the decision is written: a failing read then leaves no decision behind.

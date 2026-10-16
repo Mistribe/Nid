@@ -63,3 +63,13 @@ public interface IRecordsSecurityEvent
 {
     SecurityEvent? EventFor(object response);
 }
+
+/// <summary>
+/// Spec U12: one <c>access_denied</c> per (actor, item, minute) — the item-access behavior's refusals and, from 4D1, a
+/// proposal read or decision refused by its target's rights.
+/// </summary>
+public interface IAccessDenials
+{
+    /// <summary><paramref name="access"/> is <c>read</c>, <c>write</c> or <c>create</c>; <paramref name="item"/> is null for a creation.</summary>
+    Task RecordAsync(PersonId person, ItemId? item, string access, CancellationToken ct);
+}

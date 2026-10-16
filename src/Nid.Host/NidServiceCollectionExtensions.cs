@@ -98,6 +98,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
+        services.AddScoped<IAccessDenials, AccessDenials>();
         services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
         services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate"]));
 

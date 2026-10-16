@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.IntegrationTests.Audit;
 using Nid.Subscriptions.IntegrationTests.Admin;
 using Nid.TestSupport;
 
@@ -256,5 +257,21 @@ public class ProposalRouteTests(PostgresFixture fixture)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty((await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items").EnumerateArray());
+    }
+
+    /// <summary>Spec 4D1 D9: a proposal read refused by its target's rights is recorded as ItemAccessBehavior records one; still 404.</summary>
+    [Fact]
+    public async Task A_proposal_read_refused_by_its_target_is_recorded_as_access_denied()
+    {
+        await using var app = await StartAsync(fixture);
+        var hidden = await app.NewSubscriptionAsync("Privé", app.AdultA, Visibility.Private);
+        var id = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(hidden.Value)))).GetProperty("id").GetGuid();
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Get, $"{Proposals}/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Get, $"{Proposals}/{Guid.NewGuid()}")).StatusCode);
+
+        var denied = Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied));
+        Assert.Equal((app.AdultB.Value, "GetProposalQuery"), (denied.PersonId!.Value, denied.Request));
+        Assert.Equal([hidden.Value], denied.ItemIds);
     }
 }

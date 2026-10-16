@@ -154,7 +154,7 @@ public static class RequestCatalogue
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
         new(typeof(ListProposalsQuery), false, (_, _) => new ListProposalsQuery(null)),
-        new(typeof(GetProposalQuery), false, (_, _) => new GetProposalQuery(Guid.NewGuid())),
+        new(typeof(GetProposalQuery), false, (data, _) => new GetProposalQuery(data.Proposals["P-B"][2])),
         new(typeof(ApproveProposalCommand), false, (_, _) => new ApproveProposalCommand(Guid.NewGuid(), 0, null)),
         new(typeof(RejectProposalCommand), false, (_, _) => new RejectProposalCommand(Guid.NewGuid(), 0, null)),
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
