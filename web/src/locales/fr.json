@@ -1777,6 +1777,8 @@
   "proposals": {
     "title": "À valider",
     "tabs": "Statut",
+    "loading": "Chargement des propositions",
+    "unknown_summary": "{{kind}} — {{target}}",
     "tab": { "pending": "En attente", "approved": "Approuvées", "rejected": "Rejetées" },
     "empty": { "pending": "Rien à valider pour l’instant.", "approved": "Aucune proposition approuvée.", "rejected": "Aucune proposition rejetée." },
     "no_source": "Sans relevé",

@@ -5,7 +5,7 @@ import { signIn } from './session';
 test('alice approves a value an assistant proposed', async ({ page, playwright }) => {
   const name = `PEA ${Date.now()}`;
   await signIn(page, 'alice', '/investments/new');
-  await page.getByLabel('Nom').fill(name);
+  await page.getByLabel('Nom', { exact: true }).fill(name);
   await page.getByLabel('Type').selectOption('pea');
   await page.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();

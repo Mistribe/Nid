@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
-import { formatLocalDate } from '@/components/LocalDate';
+import { formatInstantDay } from '@/features/admin/format';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { presentConflict, valueSchema, type ValueFormValues } from '../investments/entries/entries';
@@ -65,7 +65,7 @@ function Proposal({ id }: { id: string }) {
         <dd>{link ? <Link to={link.to} params={link.params} className="underline">{p.targetName ?? t('proposals.unknown_target')}</Link> : (p.targetName ?? t('proposals.unknown_target'))}</dd>
         {p.sourceLabel ? (<><dt>{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
       </dl>
-      <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatLocalDate(p.createdAt.slice(0, 10)) })}</p>
+      <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
       {p.warnings.some((w) => w.code !== 'payload_version_unsupported') ? (
         <section aria-label={t('proposal.warnings')} className="rounded-md border p-3">
           <ul>{p.warnings.filter((w) => w.code !== 'payload_version_unsupported').map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
@@ -88,7 +88,7 @@ function Decided({ p, target }: { p: ProposalView; target: ReturnType<NonNullabl
   const by = people?.find((x) => x.id === p.decidedByPersonId)?.displayName;
   return (
     <div className="space-y-1">
-      <p>{t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatLocalDate((p.decidedAt ?? p.createdAt).slice(0, 10)) })}</p>
+      <p>{t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatInstantDay(p.decidedAt ?? p.createdAt) })}</p>
       {by ? <p>{t('proposal.decided_by', { name: by })}</p> : null}
       {p.decisionNote ? <p>{t('proposal.decision_note', { note: p.decisionNote })}</p> : null}
       {target ? <Link to={target.to} params={target.params} className="underline">{t('proposal.open_target')}</Link> : null}

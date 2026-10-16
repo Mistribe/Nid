@@ -1,5 +1,5 @@
-import { screen, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { screen, waitFor, within } from '@testing-library/react';
+import { delay, http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
@@ -79,6 +79,24 @@ describe('À valider', () => {
     const nav = await screen.findByRole('navigation', { name: 'Navigation principale' });
     expect(await within(nav).findByText('2')).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: /À valider/ })).toHaveAccessibleName(/2 en attente/);
+  });
+
+  it('counts them on the phone’s « Plus » tab and on /more', async () => {
+    serve({ pending: [proposal(), proposal()] });
+    await renderApp('/more');
+
+    const tabs = screen.getByRole('navigation', { name: 'Onglets' });
+    await waitFor(() => expect(within(tabs).getByRole('link', { name: /Plus/ })).toHaveAccessibleName(/2 en attente/));
+    const list = await screen.findByRole('list', { name: 'Autres sections' });
+    expect(within(list).getByRole('link', { name: /À valider/ })).toHaveAccessibleName(/2 en attente/);
+  });
+
+  it('shows the list loading while a status is read', async () => {
+    serve({ pending: [] });
+    server.use(http.get('*/api/v1/core/proposals', async () => { await delay('infinite'); return HttpResponse.json({ items: [] }); }));
+    await renderApp('/proposals');
+
+    expect(await screen.findByRole('status', { name: 'Chargement des propositions' })).toHaveAttribute('aria-busy', 'true');
   });
 
   it('shows no count when nothing waits', async () => {

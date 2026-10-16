@@ -56,6 +56,7 @@ export function Shell() {
         <Link to="/more" aria-current={inMore ? 'page' : undefined} className={inMore ? `${TAB} font-semibold` : TAB}>
           <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
           <span className="max-w-full truncate">{t('nav.more')}</span>
+          {more.some((item) => item.to === '/proposals') ? <PendingBadge /> : null}
         </Link>
       </nav>
     </div>

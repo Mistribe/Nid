@@ -61,6 +61,21 @@ describe('Une proposition', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition approuvée.'));
   });
 
+  it('says a decision once: the next proposal opened by hand shows no old announcement', async () => {
+    const [a, b, c] = [proposal(), proposal({ targetName: 'Assurance-vie' }), proposal({ targetName: 'Livret' })];
+    serve([a, b, c]);
+    const { user, router } = await renderApp(`/proposals/${a.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/proposals/${b.id}`));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Proposition approuvée.'));
+
+    await user.click(screen.getByRole('link', { name: 'Proposition suivante' }));
+    await waitFor(() => expect(router.state.location.pathname).not.toBe(`/proposals/${b.id}`));
+    expect(await screen.findByRole('link', { name: 'Livret' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('status')).toBeEmptyDOMElement());
+  });
+
   it('refreshes every query after an approval, only the proposals after a rejection', async () => {
     const p = proposal();
     const q = proposal({ targetName: 'Assurance-vie' });

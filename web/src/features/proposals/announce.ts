@@ -11,13 +11,15 @@ export const resetAnnouncement = () => { pending = ''; refocus = false; };
 export const focusNextHeading = () => { refocus = true; };
 export const focusHeading = (el: HTMLElement | null) => { if (el && refocus) { refocus = false; el.focus(); } };
 
-/** The status region's text: empty at mount, filled once from the store after mount or when `key` changes, then consumed. */
+/** The status region's text: emptied at mount and whenever `key` changes, then filled once from the store, which it consumes. */
 export function useAnnouncement(key?: string) {
   const [message, setMessage] = useState('');
   useEffect(() => {
+    setMessage('');
     if (!pending) return;
-    setMessage(pending);
-    pending = '';
+    // Filled a moment after the emptying: the same message twice in a row is read again.
+    const fill = setTimeout(() => { setMessage(pending); pending = ''; }, 100);
+    return () => clearTimeout(fill);
   }, [key]);
   return message;
 }

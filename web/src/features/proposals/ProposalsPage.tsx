@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { ProposalsSearch, RootSearch } from '@/app/router';
-import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { formatInstantDay } from '@/features/admin/format';
 import { PROPOSALS, type ProposalView } from './api';
 import { useAnnouncement } from './announce';
 import { groupBySource, kindOf, originText } from './kinds';
@@ -35,8 +35,9 @@ export function ProposalsPage() {
       </nav>
       <div>
         {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
+        {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 animate-pulse rounded-md border bg-muted" /> : null}
         {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
-        {answer.data ? groupBySource(answer.data.items).map((group) => <Group key={group.label ?? ''} label={group.label} items={group.items} />) : null}
+        {answer.data ? groupBySource(answer.data.items).map((group) => <Group key={JSON.stringify(group.label)} label={group.label} items={group.items} />) : null}
       </div>
     </div>
   );
@@ -52,12 +53,12 @@ function Group({ label, items }: { label: string | null; items: ProposalView[] }
         {items.map((p) => (
           <li key={p.id} className="px-4 py-3">
             <Link to="/proposals/$id" params={{ id: p.id }} className="underline">
-              {kindOf(p.kind)?.summary(t, p) ?? `${p.kind} — ${p.targetName ?? t('proposals.unknown_target')}`}
+              {kindOf(p.kind)?.summary(t, p) ?? t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') })}
             </Link>
             <p className="text-sm text-muted-foreground">
               {p.status === 'pending'
-                ? t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatLocalDate(p.createdAt.slice(0, 10)) })
-                : t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatLocalDate((p.decidedAt ?? p.createdAt).slice(0, 10)) })}
+                ? t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })
+                : t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatInstantDay(p.decidedAt ?? p.createdAt) })}
             </p>
           </li>
         ))}
