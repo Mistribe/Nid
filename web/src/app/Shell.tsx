@@ -3,6 +3,7 @@ import { Ellipsis } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Button } from '@/components/ui/button';
+import { Guides } from '@/features/guides/Guides';
 import { section, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
 
@@ -37,7 +38,10 @@ export function Shell() {
         <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
           <p className="font-semibold md:invisible">{t('app.name')}</p>
           <ScopeSwitch />
-          <Button variant="ghost" onClick={() => void signOut()}>{t('shell.sign_out')}</Button>
+          <div className="flex items-center gap-2">
+            <Guides />
+            <Button variant="ghost" onClick={() => void signOut()}>{t('shell.sign_out')}</Button>
+          </div>
         </header>
         <main className="flex-1 p-4">
           <Outlet />

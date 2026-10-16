@@ -1,5 +1,6 @@
 import type { components } from '@/api/schema';
 import type { Session } from '@/app/session';
+import { allGuidesSeen } from '@/features/guides/guides';
 
 type SessionResponse = components['schemas']['SessionResponse'];
 
@@ -7,7 +8,7 @@ export const aliceSession: Session = {
   person: { id: '01926b9e-0000-7000-8000-00000000000a', name: 'Alice Dev', kind: 'adult' },
   csrf: 'csrf-alice',
   sessionEpoch: 0,
-  preferences: { theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {} },
+  preferences: { theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: allGuidesSeen() },
 };
 
 export const aliceSessionResponse: SessionResponse = { authenticated: true, ...aliceSession };
