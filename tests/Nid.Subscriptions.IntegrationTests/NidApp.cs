@@ -190,6 +190,9 @@ public sealed class NidApp : IAsyncDisposable
         return await client.SendAsync(request);
     }
 
+    /// <summary>A client of the test host with no actor header and no cookie (4B: the MCP client brings its own token).</summary>
+    public HttpClient CreateHttpClient() => factory.CreateClient();
+
     /// <summary>
     /// A request authenticated by a personal access token (4A), with no CSRF header. <paramref name="withSessionOf"/>
     /// also sends that person's test session, to check that the token alone decides (Review Focus 1).

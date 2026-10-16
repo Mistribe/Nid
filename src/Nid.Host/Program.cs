@@ -7,6 +7,7 @@ using Nid.Host.Admin;
 using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Host.Jobs;
+using Nid.Host.Mcp;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
@@ -55,6 +56,7 @@ if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Ena
 
 builder.Services.AddNidAuthentication(builder.Configuration);
 builder.Services.AddTokenRateLimiter();
+builder.Services.AddNidMcp();
 builder.Services.AddNidDataProtection(builder.Configuration);
 builder.Services.AddNidHealth();
 // Never set in production: swaps the default scheme so IntegrationTestAuthenticationHandler — which reads
@@ -117,6 +119,7 @@ app.MapPlatformEndpoints();
 app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();
+app.MapNidMcp();
 app.Run();
 return 0;
 
