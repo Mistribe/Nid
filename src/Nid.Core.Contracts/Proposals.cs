@@ -59,7 +59,7 @@ public interface IProposalStore
 
 /// <summary>
 /// One per proposal kind, in its module (spec 4C1 D3). Payloads travel as JSON; the handler parses its own type.
-/// <see cref="ApplyAsync"/> runs inside the decision's transaction and must not open an <c>IUnitOfWork</c>.
+/// <see cref="ApplyAsync"/> runs inside the decision's (or the direct write's) transaction; a command it sends may open its own <c>IUnitOfWork</c>, which joins that transaction under a savepoint.
 /// </summary>
 public interface IProposalHandler
 {

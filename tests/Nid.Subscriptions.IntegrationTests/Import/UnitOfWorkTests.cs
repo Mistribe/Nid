@@ -47,15 +47,73 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         Assert.True(await subs.Subscriptions.AnyAsync(s => s.ItemId == id.Value));
     }
 
+    /// <summary>Spec 4D1 §5: an inner scope joins the outer one; only the outer commit makes its writes durable.</summary>
     [Fact]
-    public async Task A_second_scope_inside_the_first_is_refused()
+    public async Task A_scope_inside_another_joins_it_and_lasts_only_if_the_outer_commits()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await using var scope = app.Services.CreateAsyncScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+        await ProbeAsync(app);
 
-        await using var outer = await unitOfWork.BeginAsync(default);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.BeginAsync(default));
+        foreach (var outerCommits in new[] { false, true })
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+            var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+            await using (var outer = await unitOfWork.BeginAsync(default))
+            {
+                await using (var inner = await unitOfWork.BeginAsync(default))
+                {
+                    await core.Database.ExecuteSqlRawAsync(outerCommits
+                        ? "insert into nest_probe (id) values (2)"
+                        : "insert into nest_probe (id) values (1)");
+                    await inner.CommitAsync(default);
+                }
+                if (outerCommits)
+                    await outer.CommitAsync(default);
+            }
+        }
+
+        Assert.Equal([2], await ProbedAsync(app));
+    }
+
+    // Review Focus 5.
+    [Fact]
+    public async Task An_inner_scope_disposed_without_a_commit_undoes_only_its_own_writes()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ProbeAsync(app);
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+            var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+            await using var outer = await unitOfWork.BeginAsync(default);
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)");
+            await using (var abandoned = await unitOfWork.BeginAsync(default))
+                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (2)");
+            // The next inner scope opens cleanly after one rolled back.
+            await using (var again = await unitOfWork.BeginAsync(default))
+            {
+                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (3)");
+                await again.CommitAsync(default);
+            }
+            await outer.CommitAsync(default);
+        }
+
+        Assert.Equal([1, 3], await ProbedAsync(app));
+    }
+
+    /// <summary>A table of its own, created outside any unit of work.</summary>
+    private static async Task ProbeAsync(NidApp app)
+    {
+        await using var setup = PostgresFixture.NewCoreContext(app.ConnectionString);
+        await setup.Database.ExecuteSqlRawAsync("create table nest_probe (id int)");
+    }
+
+    private static async Task<List<int>> ProbedAsync(NidApp app)
+    {
+        await using var read = PostgresFixture.NewCoreContext(app.ConnectionString);
+        return await read.Database.SqlQueryRaw<int>("select id as \"Value\" from nest_probe order by id").ToListAsync();
     }
 
     /// <summary>
