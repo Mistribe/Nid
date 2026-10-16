@@ -80,6 +80,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IPersonalAccessTokens, PersonalAccessTokenStore>();
         services.AddScoped<IProposalStore, ProposalStore>();
+        services.AddScoped<Nid.Core.Application.ProposalHandlers>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
