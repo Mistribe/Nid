@@ -22,6 +22,8 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
 {
     private DbTransaction? open;
     private int depth;
+    // An inner scope could not roll back to its savepoint: its writes may still be in the transaction, so it must not commit.
+    private bool poisoned;
 
     public async Task<ITransactionScope> BeginAsync(CancellationToken ct)
     {
@@ -102,7 +104,8 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
                     }
                     catch
                     {
-                        // The exception already unwinding is the one to surface; the outer scope rolls back anyway.
+                        // The exception already unwinding is the one to surface; the outer commit is refused instead.
+                        owner.poisoned = true;
                     }
                 }
             }
@@ -124,6 +127,8 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
             // Set before awaiting: a serialization failure, a deferred constraint, or a dropped connection can
             // all make this throw, but Npgsql still marks the transaction completed the moment a commit is
             // attempted — DisposeAsync must know not to roll back, whether the attempt succeeded or not.
+            if (owner.poisoned)
+                throw new InvalidOperationException("An inner unit of work could not roll back to its savepoint; nothing is committed.");
             commitAttempted = true;
             await transaction.CommitAsync(ct);
             committed = true;
@@ -156,6 +161,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
                     await participant.EnlistAsync(null, CancellationToken.None);
                 await transaction.DisposeAsync();
                 owner.open = null;
+                owner.poisoned = false;
             }
         }
     }

@@ -44,11 +44,10 @@ public sealed class StatementProposal(
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
-        var parsed = Parse(payload);
+        // `excluded` is an approval's edit only (D5): a submission's is ignored, never refused.
+        var parsed = Parse(payload, readExcluded: edited);
         if (!parsed.TryGetValue(out var p))
             return Result.Failure<ProposalCheck>(FailureOf(parsed));
-        if (!edited)
-            p = p! with { Excluded = null };
         var loaded = await EnvelopeCheck.LoadAsync(envelopes, items, target, ct);
         if (!loaded.TryGetValue(out var envelope))
             return Result.Failure<ProposalCheck>(FailureOf(loaded));
@@ -84,7 +83,8 @@ public sealed class StatementProposal(
         if (p.Value is { } value)
         {
             recorded = (await valuations.LatestAsync(target, p.AsOf, ct)).TryGetValue(out var latest) && latest!.Value is { } v && v.AsOf == p.AsOf ? v : null;
-            if (recorded?.Value.Amount != value.Amount)
+            // A note given with the value travels with it: another note is a change to record, not the same document.
+            if (recorded?.Value.Amount != value.Amount || (p.Note is { } note && note.Trim() != recorded.Note?.Trim()))
                 return null;
         }
         return JsonSerializer.SerializeToElement(new
@@ -195,7 +195,7 @@ public sealed class StatementProposal(
         return JsonSerializer.SerializeToElement(body);
     }
 
-    private static Result<Parsed> Parse(JsonElement payload)
+    private static Result<Parsed> Parse(JsonElement payload, bool readExcluded = true)
     {
         Body? body;
         try
@@ -263,7 +263,7 @@ public sealed class StatementProposal(
             Error("payload.movements", "A value or at least one movement is required.");
         if (body?.Note is { Length: > 500 })
             Error("payload.note", "500 characters at most.");
-        var excluded = body?.Excluded?.Distinct().Order().ToList();
+        var excluded = readExcluded ? body?.Excluded?.Distinct().Order().ToList() : null;
         if (excluded is not null && excluded.Any(x => x < 0 || x >= raw.Count))
             Error("payload.excluded", "The indexes of the statement's movements.");
         return errors.Count > 0

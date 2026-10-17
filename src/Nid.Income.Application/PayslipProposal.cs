@@ -137,9 +137,13 @@ public sealed class PayslipProposal(
                 : Field<LocalDate>(IncomeCodes.InvalidPhase, "A change takes effect on a payment date of the phase, after its start.", "payload.effectiveOn");
         var month = new LocalDate(p.PaidOn.Year, p.PaidOn.Month, 1);
         var expectedOn = IncomeMath.Occurrences(phase, month, month.PlusMonths(1)).Select(o => (LocalDate?)o.On).FirstOrDefault();
-        return expectedOn is { } on && on > phase.StartsOn
+        if (expectedOn is not { } on)
+            return Field<LocalDate>(IncomeCodes.InvalidPhase, "This phase expects no payment that month.", "payload.paidOn");
+        return on > phase.StartsOn
             ? Result.Success(on)
-            : Field<LocalDate>(IncomeCodes.InvalidPhase, "No payment of this phase is expected that month after its start.", "payload.paidOn");
+            : Field<LocalDate>(IncomeCodes.InvalidPhase,
+                "That month's payment is the first of the current phase (a change already took effect then): "
+                + "a different pay can only start from a later payment.", "payload.paidOn");
     }
 
     /// <summary>The change-phase command's own field as the payload's: `effectiveOn` and `startsOn` are `effectiveOn`, `label` the phase's label, anything else the payload.</summary>
