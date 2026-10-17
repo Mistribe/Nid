@@ -175,6 +175,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
         services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
+        services.AddScoped<IProposalHandler, Nid.RealEstate.Application.AmortizationProposal>();
         services.AddSingleton<IFactConventions, Nid.RealEstate.Application.RealEstateFactConventions>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the

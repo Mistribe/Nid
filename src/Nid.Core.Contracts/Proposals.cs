@@ -13,8 +13,11 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 /// What a handler's validation keeps: the business key (deduplication), the warnings and the payload normalized to its
 /// known fields — what is fingerprinted, stored and applied, never the client's raw JSON. <paramref name="Conforme"/>
 /// (spec 4D1 D3), when set, is <c>{ expected, given }</c>: the document matches what Nid expects and nothing is created.
+/// <paramref name="Summary"/> (spec 4D2 §2), when set, is what the assistant's `proposed` and `applied` answers add: the bank
+/// table's comparison.
 /// </summary>
-public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null);
+public sealed record ProposalCheck(
+    string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null, JsonElement? Summary = null);
 
 public sealed record NewProposal(
     string Module, string Kind, ItemId Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
