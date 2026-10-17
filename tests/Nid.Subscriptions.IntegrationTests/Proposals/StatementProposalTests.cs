@@ -195,6 +195,22 @@ public class StatementProposalTests(PostgresFixture fixture)
         Assert.Single((await EnvelopeAsync(app, envelope)).GetProperty("flows").EnumerateArray(), f => f.GetProperty("occurredOn").GetString() == "2025-09-05");
     }
 
+    [Fact]
+    public async Task A_submitted_excluded_out_of_range_is_ignored_not_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var submitted = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, new
+        {
+            kind = Kind, targetItemId = envelope,
+            payload = new { asOf = "2025-09-30", movements = new[] { Movement() }, excluded = new[] { 7, -1 } },
+        });
+
+        Assert.Equal(HttpStatusCode.Created, submitted.StatusCode);
+        Assert.False((await JsonOf(submitted)).GetProperty("payload").TryGetProperty("excluded", out _));
+    }
+
     // Final fix 4: everything already recorded, the same value on asOf → « conforme ».
     [Fact]
     public async Task An_approved_statement_sent_again_is_conforme()
@@ -207,6 +223,22 @@ public class StatementProposalTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, body)).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals,
             Statement(envelope, [Movement(reference: "R-1")], value: "23600.00"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_same_value_with_another_note_is_not_conforme()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        object WithNote(string note) => new
+        {
+            kind = Kind, targetItemId = envelope,
+            payload = new { asOf = "2025-09-30", value = new { amount = "23500.00", currency = "EUR" }, movements = Array.Empty<object>(), note },
+        };
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, await SubmitAsync(app, WithNote("Relevé de septembre")))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, WithNote("Relevé de septembre"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalRouteTests.Proposals, WithNote("Relevé corrigé"))).StatusCode);
     }
 
     [Fact]

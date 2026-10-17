@@ -535,6 +535,7 @@
     "income_unknown_cadence": "Choisissez une fréquence : de chaque mois à tous les 12 mois, ou chaque année.",
     "income_invalid_source": "Cette valeur n’est pas acceptée.",
     "income_invalid_phase": "Cette valeur n’est pas acceptée.",
+    "income_invalid_phase_payslip": "Le nouveau salaire doit prendre effet à une date de paie de la phase en cours, après son début.",
     "income_phase_overlap": "Une autre période de ce libellé couvre déjà une partie de ces dates.",
     "income_phase_conflict": "Cette période a changé entre-temps : rechargez la page.",
     "income_source_ended": "Cette source de revenu est terminée.",

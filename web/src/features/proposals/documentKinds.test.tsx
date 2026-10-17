@@ -99,6 +99,7 @@ describe('Un bulletin de paie et une facture proposés', () => {
     await user.click(await screen.findByRole('button', { name: 'Approuver' }));
 
     await waitFor(() => expect(screen.getByLabelText('À partir du')).toHaveAttribute('aria-invalid', 'true'));
+    expect(screen.getByText('Le nouveau salaire doit prendre effet à une date de paie de la phase en cours, après son début.')).toBeInTheDocument();
   });
 
   it('compares an invoice with the current price and sends an edited price', async () => {

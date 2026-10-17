@@ -127,6 +127,34 @@ public class UnitOfWorkTests(PostgresFixture fixture)
         Assert.Equal([2], await ProbedAsync(app));
     }
 
+    // An inner scope that cannot roll back to its savepoint may leave its writes behind: the outer commit is refused.
+    [Fact]
+    public async Task An_inner_scope_that_cannot_roll_back_makes_the_outer_commit_fail_then_the_next_unit_of_work_starts_clean()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ProbeAsync(app);
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
+            var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
+            await using (var outer = await unitOfWork.BeginAsync(default))
+            {
+                var inner = await unitOfWork.BeginAsync(default);
+                await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)");
+                await core.Database.ExecuteSqlRawAsync("release savepoint uow_1"); // the rollback to it now fails
+                await inner.DisposeAsync();
+                await Assert.ThrowsAsync<InvalidOperationException>(() => outer.CommitAsync(default));
+            }
+
+            await using var next = await unitOfWork.BeginAsync(default);
+            await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (3)");
+            await next.CommitAsync(default);
+        }
+
+        Assert.Equal([3], await ProbedAsync(app));
+    }
+
     /// <summary>A table of its own, created outside any unit of work.</summary>
     private static async Task ProbeAsync(NidApp app)
     {
