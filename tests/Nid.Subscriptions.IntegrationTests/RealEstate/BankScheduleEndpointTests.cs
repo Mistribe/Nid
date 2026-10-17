@@ -1,7 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
+using Nid.RealEstate.Application;
+using Nid.RealEstate.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
 
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
@@ -201,5 +205,33 @@ public class BankScheduleEndpointTests(PostgresFixture fixture)
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.bank_schedule_invalid", "amount"),
             await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Loans}/{id}/repayments",
                 new { onDate = "2020-12-01", amount = "1000", effect = "reduce_term" })));
+    }
+
+    /// <summary>Spec 4D2 §3: rows given as data are checked and stored as a pasted table is; the bank is the reference only when asked.</summary>
+    [Fact]
+    public async Task Rows_given_as_data_are_stored_as_a_pasted_table_and_may_become_the_reference()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAsync(app, Golden(app));
+        var loan = new ItemId(id);
+        IReadOnlyList<BankRow> rows =
+        [
+            new(new LocalDate(2020, 11, 15), 1159.92m, 583.33m, 576.59m, null, 199_423.41m),
+            new(new LocalDate(2020, 12, 15), 1159.92m, 581.65m, 578.27m, null, 198_845.14m),
+            new(new LocalDate(2021, 1, 15), 1159.92m, 579.96m, 579.96m, null, 198_265.18m),
+        ];
+
+        var (_, gap) = await app.InvokeAsync(app.AdultA, new ReplaceBankRowsCommand(loan, [rows[0], rows[2]], MakeReference: true));
+        Assert.Equal(("realestate.bank_schedule_invalid", "rows[1].dueDate"), (gap!.Code, FieldErrors.Of(gap)![0].Path));
+        Assert.Equal(JsonValueKind.Null, (await DetailAsync(app, id)).GetProperty("bankSchedule").ValueKind);
+
+        var (_, kept) = await app.InvokeAsync(app.AdultA, new ReplaceBankRowsCommand(loan, rows, MakeReference: false));
+        Assert.Null(kept);
+        var stored = await DetailAsync(app, id);
+        Assert.Equal(("computed", 3), (S(stored, "scheduleSource"), stored.GetProperty("bankSchedule").GetProperty("rows").GetArrayLength()));
+
+        var (_, chosen) = await app.InvokeAsync(app.AdultA, new ReplaceBankRowsCommand(loan, rows, MakeReference: true));
+        Assert.Null(chosen);
+        Assert.Equal("bank", S(await DetailAsync(app, id), "scheduleSource"));
     }
 }

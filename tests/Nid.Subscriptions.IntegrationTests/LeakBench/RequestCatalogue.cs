@@ -336,6 +336,8 @@ public static class RequestCatalogue
         new(typeof(PreviewBankScheduleQuery), true, (_, item) => new PreviewBankScheduleQuery(item, BenchTable)),
         // Version 1 is never a row's xmin: an allowed writer meets realestate.loan_conflict, never an access refusal.
         new(typeof(ReplaceBankScheduleCommand), true, (_, item) => new ReplaceBankScheduleCommand(item, BenchTable, 1)),
+        // 4D2: a proposal's rows; dated on no bench loan's due date, so an allowed writer meets realestate.bank_schedule_invalid, never a write.
+        new(typeof(ReplaceBankRowsCommand), true, (_, item) => new ReplaceBankRowsCommand(item, [BenchRow], false)),
         new(typeof(DeleteBankScheduleCommand), true, (_, item) => new DeleteBankScheduleCommand(item, 1)),
 
         new(typeof(ListPropertiesQuery), false, (_, _) => new ListPropertiesQuery(VisibilityScope.Me)),
@@ -372,6 +374,9 @@ public static class RequestCatalogue
 
     /// <summary>One row of a bank's table, as pasted: it may not fit a bench loan — the bench checks access, not merits.</summary>
     private const string BenchTable = "15/02/2025;84,25;0,83;83,42;916,58";
+
+    /// <summary>A bank row on 2025-02-16: the bench loans fall due on the 15th, so it never fits one.</summary>
+    private static BankRow BenchRow => new(new LocalDate(2025, 2, 16), 84.25m, 0.83m, 83.42m, null, 916.58m);
 
     /// <summary>A rental bought 100 000 on 2020-01-15, nothing else.</summary>
     private static PropertyDetails BenchProperty => new(PropertyType.Rental, new LocalDate(2020, 1, 15), 100_000m, 0m, 0m, 0m,
