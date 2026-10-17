@@ -1,6 +1,7 @@
 using System.Text.Json;
 using NodaTime;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.Contracts;
 
@@ -13,8 +14,11 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 /// What a handler's validation keeps: the business key (deduplication), the warnings and the payload normalized to its
 /// known fields — what is fingerprinted, stored and applied, never the client's raw JSON. <paramref name="Conforme"/>
 /// (spec 4D1 D3), when set, is <c>{ expected, given }</c>: the document matches what Nid expects and nothing is created.
+/// <paramref name="Summary"/> (spec 4D2 §2), when set, is what the assistant's `proposed` and `applied` answers add: the bank
+/// table's comparison.
 /// </summary>
-public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null);
+public sealed record ProposalCheck(
+    string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null, JsonElement? Summary = null);
 
 public sealed record NewProposal(
     string Module, string Kind, ItemId Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
@@ -76,6 +80,9 @@ public interface IProposalHandler
     /// <paramref name="edited"/>: the payload is an approval's edit, so the fields only an edit may set (a statement's `excluded`) are kept; a submitter's are dropped.
     /// </summary>
     Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct);
+
+    /// <summary>An approval's edit refused against the submitted payload (a kind whose only edit is a flag keeps its rows); null: allowed.</summary>
+    Failure? RefuseEdit(JsonElement submitted, JsonElement edited) => null;
 
     /// <summary>The current state next to the proposed one, for the decider.</summary>
     Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct);

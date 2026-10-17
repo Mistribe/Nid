@@ -972,7 +972,7 @@ public class LeakBenchTests(PostgresFixture fixture)
         foreach (var id in data.Proposals["P-B"])
             Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/core/proposals/{id}")).StatusCode);
         var denied = await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied);
-        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"] })
+        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"], data.Loans["P-B"] })
             Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value));
 
         // A's decisions on B's proposals: 404, still pending, and a refusal recorded for the target (one per minute, so by `read`).
@@ -984,7 +984,7 @@ public class LeakBenchTests(PostgresFixture fixture)
             Assert.Equal("pending", detail.GetProperty("proposal").GetProperty("status").GetString());
         }
         denied = await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied);
-        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"] })
+        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"], data.Loans["P-B"] })
             Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value) && e.Data.Contains("\"read\""));
     }
 }

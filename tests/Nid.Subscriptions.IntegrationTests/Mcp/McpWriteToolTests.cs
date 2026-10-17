@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.IntegrationTests.Admin;
 using Nid.Subscriptions.IntegrationTests.Proposals;
+using Nid.Subscriptions.IntegrationTests.RealEstate;
 using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Mcp;
@@ -281,5 +282,80 @@ public class McpWriteToolTests(PostgresFixture fixture)
         var response = await app.BearerAsync(token.Secret, HttpMethod.Post, $"{ProposalRouteTests.Proposals}/{proposal.GetProperty("id").GetGuid()}/approve",
             new { version = proposal.GetProperty("version").GetUInt32() });
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    private static object[] BankRows(string thirdCrd = "198265.18") =>
+    [
+        new { dueDate = "2020-11-15", payment = "1159.92", interest = "583.33", principal = "576.59", crd = "199423.41" },
+        new { dueDate = "2020-12-15", payment = "1159.92", interest = "581.65", principal = "578.27", crd = "198845.14" },
+        new { dueDate = "2021-01-15", payment = "1159.92", interest = "579.96", principal = "579.96", crd = thirdCrd },
+    ];
+
+    // Review Focus 3.
+    [Fact]
+    public async Task A_bank_table_is_proposed_with_its_comparison_then_applied_then_conforme()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await McpSeed.LoanAsync(app, app.AdultA);
+        object Table(bool apply = false, string thirdCrd = "198265.18")
+            => new { loanId = loan, rows = BankRows(thirdCrd), sourceLabel = "Tableau d’amortissement", apply };
+
+        await using (var propose = await ClientAsync(app, TokenPresets.Propose))
+        {
+            var proposed = await AnswerAsync(propose, "propose_amortization", Table(thirdCrd: "197265.18"));
+            Assert.Equal(("proposed", "realestate.import_amortization"),
+                (proposed.GetProperty("outcome").GetString(), proposed.GetProperty("proposal").GetProperty("kind").GetString()));
+            var summary = proposed.GetProperty("summary");
+            Assert.Equal(("2021-01-15", "1000.00"), (summary.GetProperty("divergesOn").GetString(), summary.GetProperty("maxGap").GetString()));
+
+            var (error, text) = await CallAsync(propose, "propose_amortization", Table(apply: true));
+            Assert.True(error);
+            Assert.Contains("write:direct", text);
+        }
+
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        var applied = await AnswerAsync(direct, "propose_amortization", Table(apply: true));
+        Assert.Equal(("applied", loan, "0.00"), (applied.GetProperty("outcome").GetString(), applied.GetProperty("appliedRefs")[0].GetGuid(),
+            applied.GetProperty("summary").GetProperty("maxGap").GetString()));
+        Assert.Equal("bank", LoanApi.S(await LoanApi.DetailAsync(app, loan), "scheduleSource"));
+
+        var same = await AnswerAsync(direct, "propose_amortization", Table(apply: true));
+        Assert.Equal(("conforme", 3, "2021-01-15"), (same.GetProperty("outcome").GetString(),
+            same.GetProperty("expected").GetProperty("count").GetInt32(), same.GetProperty("given").GetProperty("to").GetString()));
+    }
+
+    [Fact]
+    public async Task A_refused_row_of_a_bank_table_is_named_by_its_path_and_nothing_is_proposed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await McpSeed.LoanAsync(app, app.AdultA);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var french = BankRows();
+        french[1] = new { dueDate = "2020-12-15", payment = "1159,92", interest = "581.65", principal = "578.27", crd = "198845.14" };
+
+        var (error, text) = await CallAsync(propose, "propose_amortization", new { loanId = loan, rows = french });
+        Assert.True(error);
+        Assert.StartsWith("Refused: request.invalid.", text);
+        Assert.Contains("payload.rows[1].payment:", text);
+
+        (error, text) = await CallAsync(propose, "propose_amortization", new { loanId = loan, rows = BankRows().Where((_, k) => k != 1).ToArray() });
+        Assert.True(error);
+        Assert.StartsWith("Refused: realestate.bank_schedule_invalid.", text);
+        Assert.Contains("payload.rows[1].dueDate:", text);
+        Assert.Equal(0, await ProposalCountAsync(app));
+    }
+
+    // Controller ruling P3: an amount sent as a JSON number is a tool error, and nothing is stored.
+    [Fact]
+    public async Task A_row_amount_sent_as_a_json_number_is_a_tool_error_and_creates_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await McpSeed.LoanAsync(app, app.AdultA);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        object[] rows = [new { dueDate = "2020-11-15", payment = 1159.92, interest = "583.33", principal = "576.59", crd = "199423.41" }];
+
+        var (error, _) = await CallAsync(propose, "propose_amortization", new { loanId = loan, rows });
+        Assert.True(error);
+        Assert.Equal(0, await ProposalCountAsync(app));
     }
 }

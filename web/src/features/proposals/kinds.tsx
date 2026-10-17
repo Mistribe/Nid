@@ -7,6 +7,7 @@ import { trimAmount, valueSchema, type ValueFormValues } from '../investments/en
 import { Field } from '../subscriptions/edits/Field';
 import type { ProposalView } from './api';
 import { ValueComparison, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import { amortization } from './amortizationKind';
 import { invoice } from './invoiceKind';
 import { payslip } from './payslipKind';
 import { statement } from './statementKind';
@@ -64,6 +65,7 @@ const KINDS: Record<string, KindUi> = {
   'investments.record_statement': statement,
   'income.change_pay': payslip,
   'subscriptions.change_price': invoice,
+  'realestate.import_amortization': amortization,
 };
 
 export const kindOf = (kind: string): KindUi | undefined => KINDS[kind];

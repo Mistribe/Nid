@@ -109,6 +109,8 @@ Objectif : moins de dix minutes (principe 2).
 - **Facture d’un abonnement** : prix actuel contre celui de la facture, prix et date modifiables ; le prix peut être nul (un abonnement peut devenir gratuit).
 - Approuver une proposition devenue « conforme » (après modification) ne change rien et la décide approuvée sans référence appliquée.
 
+**Livré en 4D2** (`superpowers/specs/2026-10-17-mcp-amortization-table-design.md`) : le type « Tableau d’amortissement » : la période, la synthèse de la comparaison avec le calcul (celle de la fiche du crédit), la référence actuelle, les trois premières et les trois dernières lignes (une ligne de séparation marque les lignes omises), et la case « Faire de ce tableau la référence », cochée par défaut, absente quand le tableau de la banque est déjà la référence. Les lignes ne se modifient pas : un tableau faux se rejette et l’assistant en envoie un corrigé. L’écart au calcul est dit en français par la synthèse, jamais par la phrase du serveur. Une approbation refusée (le crédit a changé) affiche un texte français, jamais la phrase du serveur.
+
 ## 7. Assistant d'import
 
 Orchestre le protocole de `../import-format.md` §11. L'identifiant de session est dans l'URL (`/import/:id`) ; la page Import liste les sessions récentes et permet la reprise.

@@ -1,17 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { aMonthAgo, plusMonths } from './dates';
 import { signIn } from './session';
-
-/** A calendar date a month before today (yyyy-mm-dd), its day kept below 29 so the month after has it. */
-function aMonthAgo(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, Math.min(now.getDate(), 28))).toISOString().slice(0, 10);
-}
-
-/** The ISO date `k` months after `iso`; its day is below 29 (`aMonthAgo`), so every month has it. */
-function plusMonths(iso: string, k: number): string {
-  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1 + k, d)).toISOString().slice(0, 10);
-}
 
 /** yyyy-mm-dd as a French spreadsheet writes it: dd/mm/yyyy. */
 const french = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;

@@ -68,21 +68,26 @@ public static class McpCalls
             var written = await invoker.InvokeAsync(new ApplyDirectCommand(kind, new ItemId(target), body), ct);
             if (!written.TryGetValue(out var write))
                 return Refusal(written.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
-            return write!.Conforme is { } same
-                ? Answer(services, Conforme(same), limited: false)
-                : Answer(services, new { outcome = "applied", appliedRefs = write.AppliedRefs, skipped = write.Skipped }, limited: false);
+            return Answer(services, write!.Conforme is { } same ? Conforme(same) : Applied(write), limited: false);
         }
 
         var submitted = await invoker.InvokeAsync(new SubmitProposalCommand(kind, new ItemId(target), body, sourceLabel), ct);
         if (!submitted.TryGetValue(out var outcome))
             return Refusal(submitted.TryGetFailure(out var rejected) ? rejected! : throw new InvalidOperationException());
-        return outcome!.Proposal is null
-            ? Answer(services, Conforme(outcome.Conforme!.Value), limited: false)
-            : Answer(services, new { outcome = "proposed", created = outcome.Created, proposal = outcome.Proposal }, limited: false);
+        return Answer(services, outcome!.Proposal is null ? Conforme(outcome.Conforme!.Value) : Proposed(outcome), limited: false);
     }
 
     private static object Conforme(JsonElement same)
         => new { outcome = "conforme", expected = same.GetProperty("expected"), given = same.GetProperty("given") };
+
+    /// <summary>4D1's shapes; `summary` (spec 4D2 §2, the bank table's comparison) only for a kind that gives one.</summary>
+    private static object Applied(DirectWrite w) => w.Summary is { } summary
+        ? new { outcome = "applied", appliedRefs = w.AppliedRefs, skipped = w.Skipped, summary }
+        : new { outcome = "applied", appliedRefs = w.AppliedRefs, skipped = w.Skipped };
+
+    private static object Proposed(SubmittedProposal s) => s.Summary is { } summary
+        ? new { outcome = "proposed", created = s.Created, proposal = s.Proposal, summary }
+        : new { outcome = "proposed", created = s.Created, proposal = s.Proposal };
 
     /// <summary>Not found and unauthorized stay « Not found. »; any other refusal names its code, then each field (`payload.movements[3].amount: …`) or its message.</summary>
     private static CallToolResult Refusal(Failure failure)

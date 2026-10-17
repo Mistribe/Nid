@@ -29,8 +29,11 @@ public sealed record ProposalView(
         p.DecisionNote, p.AppliedRefs, p.Version, targetName);
 }
 
-/// <summary><see cref="Proposal"/> is null when the document matches what Nid expects (<see cref="Conforme"/>, spec 4D1 D3): nothing was stored.</summary>
-public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null) : IExposesItems
+/// <summary>
+/// <see cref="Proposal"/> is null when the document matches what Nid expects (<see cref="Conforme"/>, spec 4D1 D3): nothing was stored.
+/// <see cref="Summary"/> is the kind's own addition to the assistant's answer (spec 4D2 §2), or null.
+/// </summary>
+public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null, JsonElement? Summary = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Proposal is null ? [] : [new ItemId(Proposal.TargetItemId)];
 }
@@ -69,8 +72,9 @@ public sealed record ApplyDirectCommand(string Kind, ItemId ItemId, JsonElement 
     public AccessKind Access => AccessKind.Write;
 }
 
-/// <summary>`applied` with what was written and what was left out as already recorded, or `conforme` with nothing written.</summary>
-public sealed record DirectWrite(string Outcome, IReadOnlyList<Guid> AppliedRefs, IReadOnlyList<ProposalWarning> Skipped, JsonElement? Conforme);
+/// <summary>`applied` with what was written and what was left out as already recorded, or `conforme` with nothing written; <c>Summary</c> as <see cref="SubmittedProposal"/>'s.</summary>
+public sealed record DirectWrite(
+    string Outcome, IReadOnlyList<Guid> AppliedRefs, IReadOnlyList<ProposalWarning> Skipped, JsonElement? Conforme, JsonElement? Summary = null);
 
 internal static class ProposalAccess
 {
@@ -144,7 +148,7 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
         var names = await ProposalAccess.NamesAsync(items, [outcome.Proposal.Target], ct);
-        return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal, names(outcome.Proposal.Target)), outcome.Created));
+        return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal, names(outcome.Proposal.Target)), outcome.Created, null, check.Summary));
     }
 }
 
@@ -217,7 +221,9 @@ public sealed class ApproveProposalHandler(
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
-            var check = await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
+            var check = command.EditedPayload is not null && handler.RefuseEdit(proposal.Payload, payload) is { } notEditable
+                ? Result.Failure<ProposalCheck>(notEditable)
+                : await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
             if (check.TryGetValue(out var valid))
             {
                 // Applied and kept normalized, as a submission is.
@@ -308,6 +314,6 @@ public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork un
             return Result.Failure<DirectWrite>(applied.TryGetFailure(out var failed) ? failed! : throw new InvalidOperationException());
         await transaction.CommitAsync(ct);
         return Result.Success(new DirectWrite("applied", refs!,
-            valid.Warnings.Where(w => w.Code == ProposalCodes.AlreadyRecorded).ToList(), null));
+            valid.Warnings.Where(w => w.Code == ProposalCodes.AlreadyRecorded).ToList(), null, valid.Summary));
     }
 }

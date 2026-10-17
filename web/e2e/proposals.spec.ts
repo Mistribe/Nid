@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './session';
+import { aMonthAgo, plusMonths } from './dates';
+import { proposeToken, signIn } from './session';
 
 // 4C2: a token proposes a value; alice sees the badge, approves it, and the envelope shows it.
 test('alice approves a value an assistant proposed', async ({ page, playwright }) => {
@@ -11,13 +12,7 @@ test('alice approves a value an assistant proposed', async ({ page, playwright }
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const envelope = page.url().split('/').pop()!;
 
-  // A « Lecture + propositions » token, created through the API with the session's CSRF token.
-  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
-  const created = await page.request.post('/api/v1/core/me/tokens', {
-    headers: { 'X-Nid-Csrf': session.csrf }, data: { name: `E2E ${Date.now()}`, preset: 'propose', expiresInDays: 30 },
-  });
-  expect(created.ok()).toBe(true);
-  const secret = ((await created.json()) as { secret: string }).secret;
+  const secret = await proposeToken(page);
 
   const outside = await playwright.request.newContext({ baseURL: 'https://nid.localtest.me', ignoreHTTPSErrors: true });
   const today = new Date().toISOString().slice(0, 10);
@@ -49,12 +44,7 @@ test('alice approves a statement an assistant proposed, leaving one movement out
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const envelope = page.url().split('/').pop()!;
 
-  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
-  const created = await page.request.post('/api/v1/core/me/tokens', {
-    headers: { 'X-Nid-Csrf': session.csrf }, data: { name: `E2E ${Date.now()}`, preset: 'propose', expiresInDays: 30 },
-  });
-  expect(created.ok()).toBe(true);
-  const secret = ((await created.json()) as { secret: string }).secret;
+  const secret = await proposeToken(page);
 
   const outside = await playwright.request.newContext({ baseURL: 'https://nid.localtest.me', ignoreHTTPSErrors: true });
   const today = new Date().toISOString().slice(0, 10);
@@ -85,4 +75,48 @@ test('alice approves a statement an assistant proposed, leaving one movement out
   await expect(page.getByText('12 345,67', { exact: false }).first()).toBeVisible();
   await expect(page.getByText('111,11', { exact: false }).first()).toBeVisible();
   await expect(page.getByText('222,22', { exact: false })).toHaveCount(0);
+});
+
+// 4D2: a token proposes a loan's bank table (loans.md §4's first two payments); alice keeps « Faire de ce tableau la référence » and approves; the schedule reads the bank's rows.
+test('alice approves the bank’s table an assistant proposed, as the loan’s reference', async ({ page, playwright }) => {
+  const name = `Prêt ${Date.now()}`;
+  const disbursed = aMonthAgo();
+  await signIn(page, 'alice', '/loans/new');
+  await page.getByLabel('Nom', { exact: true }).fill(name);
+  await page.getByRole('radio', { name: 'Non, privé' }).check();
+  await page.getByLabel('Capital emprunté').fill('200000');
+  await page.getByLabel('Taux annuel (%)').fill('3,5');
+  await page.getByLabel('Durée (mois)').fill('240');
+  await page.getByLabel('Date de déblocage').fill(disbursed);
+  await page.getByRole('button', { name: 'Créer le crédit' }).click();
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+  const loan = page.url().split('/').pop()!;
+
+  const secret = await proposeToken(page);
+
+  const outside = await playwright.request.newContext({ baseURL: 'https://nid.localtest.me', ignoreHTTPSErrors: true });
+  const submitted = await outside.post('/api/v1/core/proposals', {
+    headers: { Authorization: `Bearer ${secret}` },
+    data: {
+      kind: 'realestate.import_amortization', targetItemId: loan, sourceLabel: 'Tableau E2E 4D2',
+      payload: {
+        rows: [
+          { dueDate: plusMonths(disbursed, 1), payment: '1159.92', interest: '583.33', principal: '576.59', crd: '199423.41' },
+          { dueDate: plusMonths(disbursed, 2), payment: '1159.92', interest: '581.65', principal: '578.27', crd: '198845.14' },
+        ],
+      },
+    },
+  });
+  expect(submitted.status()).toBe(201);
+  await outside.dispose();
+
+  await page.goto('/proposals');
+  await page.getByRole('region', { name: 'Tableau E2E 4D2' }).getByRole('link', { name: new RegExp(name) }).click();
+  await expect(page.getByText('Les deux concordent (écarts d’arrondi seulement).')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Faire de ce tableau la référence' })).toBeChecked();
+  await page.getByRole('button', { name: 'Approuver' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Proposition approuvée.' })).toBeVisible();
+
+  await page.goto(`/loans/${loan}`);
+  await expect(page.getByRole('table', { name: 'Échéancier par année' }).getByText('Banque').first()).toBeVisible();
 });

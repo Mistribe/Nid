@@ -33,6 +33,12 @@ function refusalText(t: TFunction, error: unknown): string {
   return knownConflictMessage(t, problem.code) ?? t('problem.unexpected');
 }
 
+/** An `apply_failed` warning reads `<code>: <server sentence>`: its code in French when known, never the server's English. */
+function applyFailedText(t: TFunction, message: string): string {
+  const reason = knownConflictMessage(t, message.split(':')[0]?.trim());
+  return reason ? t('proposal.apply_failed', { message: reason }) : t('proposal.apply_failed', { context: 'unknown' });
+}
+
 /** Spec 4C2 §4: one proposal — read, edit, decide, move on. */
 export function ProposalDetailPage() {
   const { id } = useParams({ from: '/proposals/$id' });
@@ -62,8 +68,8 @@ function Proposal({ id }: { id: string }) {
   const order = groupBySource(pending ?? []).flatMap((g) => g.items);
   const at = order.findIndex((i) => i.id === p.id);
   const next = order[at + 1] ?? order.find((i) => i.id !== p.id) ?? null;
-  // already_recorded is told by the table's state column and the checkbox hint, in French.
-  const hidden = ['payload_version_unsupported', 'already_recorded'];
+  // already_recorded is told by the table's state column and the checkbox hint; schedule_mismatch by the comparison — both in French.
+  const hidden = ['payload_version_unsupported', 'already_recorded', 'schedule_mismatch'];
   const unsupported = p.warnings.some((w) => w.code === 'payload_version_unsupported');
   const warnings = p.warnings.filter((w) => !hidden.includes(w.code));
   const link = kind?.link(p);
@@ -80,7 +86,7 @@ function Proposal({ id }: { id: string }) {
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
       {warnings.length > 0 ? (
         <section aria-label={t('proposal.warnings')} className="rounded-md border p-3">
-          <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
+          <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? applyFailedText(t, w.message) : w.message}</li>)}</ul>
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}
@@ -146,7 +152,9 @@ function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown;
       onError: (e) => {
         if (isRace(e)) return;
         const problem = toProblem(e);
-        if (problem.status === 409) setRefusal(refusalText(t, e));
+        const own = kind.refusal?.(t, problem);
+        if (own) setRefusal(own);
+        else if (problem.status === 409) setRefusal(refusalText(t, e));
         else errors.onError(e);
       },
     });

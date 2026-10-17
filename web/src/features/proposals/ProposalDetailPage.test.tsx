@@ -208,9 +208,21 @@ describe('Une proposition', () => {
     serve([p]);
     const { container } = await renderApp(`/proposals/${p.id}`);
 
-    expect(await screen.findByText('L’application a échoué : <b>boom</b>')).toBeInTheDocument();
+    expect(await screen.findByText('L’application a échoué ; la proposition reste en attente.')).toBeInTheDocument();
+    expect(screen.queryByText(/boom/)).toBeNull();
     expect(screen.getByLabelText('Note')).toHaveValue('<img src=x onerror=alert(1)>');
     expect(container.querySelector('img, b')).toBeNull();
+  });
+
+  it('tells a known apply failure in French, never with the server’s sentence', async () => {
+    const p = proposal({
+      warnings: [{ code: 'apply_failed', severity: 'error', message: 'subscriptions.phase_range: The price change starts after the open phase.', field: null }],
+    });
+    serve([p]);
+    await renderApp(`/proposals/${p.id}`);
+
+    expect(await screen.findByText('L’application a échoué : La fin doit venir après le début.')).toBeInTheDocument();
+    expect(screen.queryByText(/The price change/)).toBeNull();
   });
 
   // Review Focus 5.

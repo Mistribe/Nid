@@ -17,6 +17,15 @@ public sealed record StatementMovement(
     [property: Description("The line's text as printed, 200 characters at most.")] string? Label,
     [property: Description("The bank's reference for the line, if printed, 100 characters at most.")] string? Ref);
 
+/// <summary>One row of a bank's amortisation table, as printed (spec 4D2 §2, 3F2's <c>BankRow</c>).</summary>
+public sealed record AmortizationRow(
+    [property: Description("The due date, ISO (yyyy-mm-dd).")] string? DueDate,
+    [property: Description("The payment without insurance, a decimal string with a point, e.g. '1159.92'.")] string? Payment,
+    [property: Description("The interest, a decimal string with a point.")] string? Interest,
+    [property: Description("The principal repaid, a decimal string with a point.")] string? Principal,
+    [property: Description("The insurance, only if the table gives it, a decimal string with a point.")] string? Insurance,
+    [property: Description("The remaining balance right after the payment (capital restant dû), a decimal string with a point.")] string? Crd);
+
 /// <summary>Spec 4D1 D1: one tool per document; a proposal by default, a direct write with `apply` and `write:direct` (D2).</summary>
 [McpServerToolType]
 public sealed class WriteTools
@@ -64,4 +73,18 @@ public sealed class WriteTools
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, new { chargedOn, amount }, sourceLabel, apply, ct);
+
+    [McpServerTool(Name = "propose_amortization", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description("A bank's amortisation table for one loan: every row as printed, in date order, 1200 rows at most, the whole table in "
+        + "one call. Nid checks it against the loan and compares it with its own schedule; the answer's summary gives the largest gap "
+        + "and the date the remaining balance diverges by more than 1, to tell the adult. The same table already the loan's reference "
+        + "answers 'conforme'. Approved, it replaces the stored table and, unless the adult says otherwise, becomes the loan's "
+        + "reference; applied directly, it becomes the reference. " + Rules)]
+    public static Task<CallToolResult> ProposeAmortization(IServiceProvider services,
+        [Description("The loan's id (list_loans).")] Guid loanId,
+        [Description("Every row of the table, as printed: payment excludes insurance; crd is the balance after the payment.")] AmortizationRow[] rows,
+        [Description("The document's name, e.g. 'Tableau d’amortissement prêt maison', 200 characters at most.")] string? sourceLabel = null,
+        [Description("true: write directly instead of proposing.")] bool apply = false,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "realestate.import_amortization", loanId, new { rows }, sourceLabel, apply, ct);
 }
