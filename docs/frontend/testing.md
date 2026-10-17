@@ -22,7 +22,7 @@
 
 ## 2. Scénarios E2E
 
-L'environnement de test lance le compose applicatif avec un **Authelia de test à deux utilisateurs**. En étape 1, les
+L'environnement de test lance le compose applicatif avec un **Pocket ID de test** (clé d'API jetable ; utilisateurs `alice` administratrice, `bob`, `carol` sans accès). Pocket ID n'authentifie que par passkey : les parcours ouvrent sa session par son API (un jeton à usage unique par utilisateur, échangé une fois dans `e2e/global-setup.ts`, car Pocket ID limite ces échanges à environ cinq par minute), puis passent par le vrai flux OIDC (`e2e/session.ts`). En étape 1, les
 parcours tournent en local contre la pile Aspire (`pnpm --dir web e2e`), pas en CI (web design §7).
 
 - Connexion, session expirée, déconnexion (et purge du cache hors ligne).

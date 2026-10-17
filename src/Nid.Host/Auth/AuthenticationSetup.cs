@@ -62,14 +62,13 @@ public static class AuthenticationSetup
                 oidc.CallbackPath = "/auth/callback";
                 oidc.SaveTokens = false;
                 oidc.MapInboundClaims = false;
-                // Authelia serves profile and email through userinfo, not the ID token; it announces pushed
-                // authorization requests that the handler would use and fail (client authentication), so they stay off.
-                oidc.GetClaimsFromUserInfoEndpoint = true;
-                oidc.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
+                // The identity provider puts name, email and the groups in the ID token; the groups decide who may
+                // use Nid and who administers it (identity-and-access/authentication.md §5).
                 oidc.Scope.Clear();
                 oidc.Scope.Add("openid");
                 oidc.Scope.Add("profile");
                 oidc.Scope.Add("email");
+                oidc.Scope.Add("groups");
                 if (options.TrustAnyIdentityProviderCertificate)
                     oidc.BackchannelHttpHandler = new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true };
                 oidc.Events.OnTicketReceived = ProvisionAndReplacePrincipal;
@@ -109,21 +108,23 @@ public static class AuthenticationSetup
         var email = claims.FindFirst("email")?.Value;
 
         var services = context.HttpContext.RequestServices;
-        var result = await services.GetRequiredService<OidcSignIn>().CompleteAsync(subject, name, email, context.HttpContext.RequestAborted);
+        var groups = claims.FindAll("groups").Select(c => c.Value).ToList();
+        var result = await services.GetRequiredService<OidcSignIn>().CompleteAsync(subject, name, email, groups, context.HttpContext.RequestAborted);
 
         if (!result.TryGetValue(out var person))
         {
             result.TryGetFailure(out var failure);
-            if (failure?.Code != PersonCodes.NotRegistered)
+            if (!OidcSignIn.IsRefusal(failure))
             {
                 // Anything else (a database hiccup, a bug) is a real sign-in failure: it must not be mistaken for
-                // "ask an administrator", which promises the identity only needs pre-registering.
+                // a refusal, which tells the person to ask an administrator.
                 context.Fail("Sign-in could not be completed.");
                 return;
             }
 
-            // Not registered: the page tells the person to ask an administrator, with the email Nid received so
-            // the administrator can match it (authentication.md §5). The web page renders it as text.
+            // Refused (not in the access group, the household full, an email another adult holds): the page tells the
+            // person to ask an administrator, with the email Nid received so the administrator can match it
+            // (authentication.md §5). The web page renders it as text.
             context.HandleResponse();
             context.Response.Redirect(email is null ? "/login-refused" : "/login-refused?email=" + Uri.EscapeDataString(email));
             return;

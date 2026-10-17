@@ -20,14 +20,14 @@
 
 | Réseau | Membres | Accès Internet |
 |---|---|---|
-| `edge` | Proxy de l'hébergeur, `nid-web`, Authelia (le navigateur doit l'atteindre) | Non (`internal: true`) ; le proxy garde ses propres réseaux |
+| `edge` | Proxy de l'hébergeur, `nid-web`, Pocket ID (le navigateur doit l'atteindre) | Non (`internal: true`) ; le proxy garde ses propres réseaux |
 | `app` | `nid-web`, `nid-api` (sous-réseau fixe, seule source d'en-têtes `X-Forwarded-*` acceptés par `nid-api`) | Non (`internal: true`) |
 | `data` | `nid-api`, Postgres | Non (`internal: true`) |
 | `egress` | `nid-api` ; `backup` seulement avec la surcouche `compose.backup-remote.yaml` (dépôt distant, 1F2) | **Oui** : le seul chemin vers Internet |
 | `workers` | `nid-api` (API interne et passerelle LLM), workers, Ollama | **Non** |
 
 - **`nid-api` est le seul composant applicatif qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3). Le service `backup` ne sort que si l'hébergeur ajoute la surcouche du dépôt distant, et seulement vers ce dépôt (1F2).
-- Postgres, Ollama, Authelia et l'API interne **ne publient aucun port**.
+- Postgres, Ollama, Pocket ID et l'API interne **ne publient aucun port**.
 - Ollama n'a **pas d'authentification native** : le réseau `workers` tient lieu d'authentification.
 
 ## 3. Secrets
@@ -50,7 +50,7 @@ Voir aussi `../architecture.md` §11.
 | Chiffrement | restic, chiffré |
 | **Mot de passe restic** | **Hors** du volume sauvegardé |
 | Copie distante | En **ajout seulement** quand la cible le permet (verrouillage d'objets) |
-| Contenu | Base, documents, **clés Data Protection**, configuration Authelia |
+| Contenu | Base, documents, **clés Data Protection**, base de Pocket ID (copie à chaud) et `deploy/secrets/` (dont la clé qui chiffre ses clés de signature) |
 | Sensibilité | La sauvegarde est **aussi sensible que la production** : elle contient tout, dont les clés qui déchiffrent les secrets |
 | Test de restauration | Scripté, **au moins chaque trimestre**, dans un compose jetable : `deploy/restore.sh --verify`. En CI, une restauration complète après sinistre simulé, session comprise (1F2) |
 | Droits du service `backup` | Root avec `DAC_READ_SEARCH` (lire des fichiers de quatre propriétaires), `DAC_OVERRIDE` et `CHOWN` (écrire le dépôt local, dossier de l'utilisateur hôte, puis le lui rendre), sources et système de fichiers racine en lecture seule, donc ces deux capacités n'atteignent que `/repo` et `/tmp`, réseau `data` seul ; la restauration (`backup-restore`) a `CHOWN`, `DAC_OVERRIDE`, `FOWNER` et ne tourne qu'à la demande |

@@ -31,7 +31,7 @@
 
 | Adversaire | Périmètre |
 |---|---|
-| Attaquant réseau, si l'hébergeur expose l'application | Oui, derrière Authelia |
+| Attaquant réseau, si l'hébergeur expose l'application | Oui, derrière Pocket ID (passkeys) |
 | **Auteur d'un document piégé** (PDF déposé, contenu non fiable) | **Oui, priorité** |
 | **Assistant IA manipulé** (injection indirecte par les données lues via le MCP) | **Oui, priorité** |
 | Fournisseur de LLM cloud (conditions, rétention, entraînement) | Oui, traité par la politique et le consentement |
@@ -46,7 +46,7 @@
 ```
 Internet ── proxy hébergeur ──┬─ nid-web (statique)
                               └─ nid-api ──┬─ Postgres, volume documents       [interne]
-Navigateur ──cookie──────────────►│        ├─ Authelia (OIDC)                  [interne]
+Navigateur ──cookie──────────────►│        ├─ Pocket ID (OIDC)                 [interne]
 Client MCP ──jeton personnel─────►│        ├─ API interne ── workers ── Ollama [interne, sans Internet]
                                            └─ sortie : SubTracker-Data, SMTP,
                                               fournisseurs LLM (par la passerelle)
@@ -82,7 +82,7 @@ Voir `../architecture.md` §3.
 - **L'hébergeur voit tout** : accès à la base, aux sauvegardes, aux journaux (`../identity-and-access/administration-and-audit.md` §1).
 - Un faux chiffre **plausible** peut être approuvé par distraction : atténué (diff, anomalies), pas éliminé.
 - Un appareil déverrouillé ou volé avec session active.
-- La compromission d'Authelia donne l'accès à Nid.
+- La compromission de Pocket ID donne l'accès à Nid, et le rôle admin : qui administre Pocket ID décide des groupes `nid-users` et `nid-admins`.
 - Une extraction erronée mais cohérente.
 - Le **masquage** avant envoi cloud n'est pas garanti.
 - Ce qui part chez un fournisseur cloud y reste selon sa rétention.

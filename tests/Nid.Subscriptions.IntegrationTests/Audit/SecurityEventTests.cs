@@ -131,19 +131,15 @@ public class SecurityEventTests(PostgresFixture fixture)
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/admin/users/{app.AdultB.Value}/admin", new { isAdmin = true })).EnsureSuccessStatusCode();
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/admin/users/{app.AdultB.Value}/admin", new { isAdmin = false })).EnsureSuccessStatusCode();
         (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/admin/users/{app.AdultB.Value}/revoke-sessions")).EnsureSuccessStatusCode();
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { maxAdults = 3 })).EnsureSuccessStatusCode();
         var added = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/admin/users", new { displayName = "Carol", email = "carol@example.test" });
         added.EnsureSuccessStatusCode();
         var carol = JsonDocument.Parse(await added.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
         (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/admin/users/{carol}")).EnsureSuccessStatusCode();
-        // Refused (the last active admin cannot be demoted): no event.
-        Assert.False((await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/admin/users/{app.AdultA.Value}/admin", new { isAdmin = false })).IsSuccessStatusCode);
+        // Refused (the adult is active): no event.
+        Assert.False((await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/admin/users/{app.AdultB.Value}")).IsSuccessStatusCode);
 
-        Assert.Equal(app.AdultB.Value, Assert.Single(await EventsAsync(app, "admin_granted")).SubjectPersonId!.Value);
-        Assert.Equal(app.AdultB.Value, Assert.Single(await EventsAsync(app, "admin_revoked")).SubjectPersonId!.Value);
         Assert.Equal(app.AdultB.Value, Assert.Single(await EventsAsync(app, "session_revoked")).SubjectPersonId!.Value);
         Assert.Equal(carol, Assert.Single(await EventsAsync(app, "person_preregistered")).SubjectPersonId!.Value);
         Assert.Equal(carol, Assert.Single(await EventsAsync(app, "person_preregistration_cancelled")).SubjectPersonId!.Value);

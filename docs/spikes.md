@@ -32,7 +32,8 @@
 | 10 | Échéancier de prêt en `decimal` C# | **Oui**, avec une règle de formule | Oui |
 | 11 | TRI en flottant à la frontière | **Oui** (14,25 %) | Oui |
 | 12 | `xmin`, index unique partiel, `= ANY`, `numeric` | **Oui**, avec un piège d'arrondi | Oui |
-| 13 | Flux OIDC avec Authelia | **Oui, avec 3 réglages non évidents** (§8) | Oui |
+| 13 | Flux OIDC avec Authelia (remplacé par Pocket ID, ligne 14) | **Oui, avec 3 réglages non évidents** (§8) | Oui |
+| 14 | Flux OIDC avec Pocket ID et claim `groups` | **Oui**, sans réglage particulier du handler (§9septies) | Oui |
 
 ## 3. Synapse
 
@@ -94,6 +95,8 @@
 - **TRI** : 14,25 % sur l'exemple du PEA, recherche de racine en `double` à la frontière du calcul.
 
 ## 8. Flux OIDC avec Authelia
+
+> **Historique** : Authelia a été remplacé par Pocket ID avant tout déploiement ; le flux de Pocket ID est au §9septies. Les réglages ci-dessous (`client_secret_post`, PAR désactivé, claims par `userinfo`) ne valent plus.
 
 **Exécuté** : Authelia 4.39.28 et Caddy (`tls internal`) en conteneurs, domaines `auth.localtest.me` et `nid.localtest.me` (résolus vers 127.0.0.1, HTTPS obligatoire), application ASP.NET Core minimale sur le poste (`Microsoft.AspNetCore.Authentication.OpenIdConnect` 10.0, `X-Forwarded-*` de confiance). Connexion scriptée avec curl : découverte, autorisation, premier facteur, retour, cookie de session, `/whoami`.
 
@@ -279,6 +282,26 @@ tests d'intégration de la Tâche 4 (`CatalogIconSyncTests`) avec un double de l
 **Conclusion** : referme le contrôle réel demandé par la conception §9 (« Un contrôle réel contre les 17 URL
 d'icônes réelles ») et par le plan. Les valeurs observées correspondent exactement à celles notées en écrivant le
 plan (2026-09-25) : 15 récupérées, 2 refusées, aucune redirection.
+
+## 9septies. Flux OIDC avec Pocket ID (2026-10-17, Pocket ID 2.18.0)
+
+**Exécuté** : Pocket ID `ghcr.io/pocket-id/pocket-id:v2` (conteneur jetable, `APP_URL=http://localhost:1411`, `STATIC_API_KEY`), trois utilisateurs (`alice` dans `nid-users` et `nid-admins`, `bob` dans `nid-users`, `carol` sans groupe), un client confidentiel restreint au groupe `nid-users`, PKCE `S256`. Deux parcours : (1) code d'autorisation obtenu dans un vrai navigateur (Playwright, Edge) puis échangé avec `client_secret_post` ; (2) une application ASP.NET Core minimale (`Microsoft.AspNetCore.Authentication.OpenIdConnect` 10.0.8, `MapInboundClaims = false`, `UsePkce = true`) qui lit les claims, avec les réglages par défaut du handler, avec PAR désactivé, et avec `GetClaimsFromUserInfoEndpoint = true`. Le montage n'est pas dans ce dépôt.
+
+| Question | Résultat |
+|---|---|
+| Claim `groups` | Avec le scope `groups`, un **tableau de noms** (`["nid-users","nid-admins"]`), dans l'**ID token et dans `userinfo`**. Le handler ASP.NET en fait un claim `groups` par valeur : `User.FindAll("groups")`, sans `ClaimActions` |
+| `name`, `email`, `preferred_username` | **Dans l'ID token** (contrairement à Authelia) : `GetClaimsFromUserInfoEndpoint` n'est plus nécessaire (l'activer ne gêne pas) |
+| `sub` | L'identifiant de l'utilisateur, un UUID, stable |
+| Restriction par groupe | Un utilisateur hors des groupes autorisés est refusé **par Pocket ID** (« You are not allowed to access this service », `oidc_access_denied` côté API). Aucun code n'est émis |
+| Authentification au endpoint de jetons | `client_secret_post` et `client_secret_basic` annoncés ; `client_secret_post` essayé avec succès |
+| PAR | Annoncé (`pushed_authorization_request_endpoint`), **non obligatoire** ; le handler ASP.NET avec ses réglages par défaut **réussit** : `PushedAuthorizationBehavior.Disable` n'est pas nécessaire |
+| Déconnexion | `end_session_endpoint` annoncé ; `backchannel_logout_supported: true`, et le client porte un `backchannelLogoutURL`. **Non exécuté** : à vérifier (avec `SaveTokens = false`, il n'y a pas d'`id_token_hint`) |
+| Enregistrement dynamique de clients | Pas de `registration_endpoint` : même limite qu'Authelia pour le MCP |
+| `state` | Au moins 8 caractères (le handler ASP.NET en génère davantage) |
+
+**Pour l'automatisation des tests de bout en bout** : l'écran de connexion de Pocket ID n'accepte que les passkeys, mais l'API (`X-API-KEY`) crée un jeton d'accès à usage unique (`POST /api/users/{id}/one-time-access-token`), qui s'échange contre le cookie de session (`POST /api/one-time-access-token/{token}`). Ce cookie, ajouté au contexte Playwright (`addCookies`), suffit pour atteindre `/authorize` sans mot de passe ni passkey. Le formulaire « Login Code » de l'interface restait désactivé sous Playwright : on passe par l'API. Utilisateurs, groupes et clients se créent aussi par l'API (`/api/users`, `/api/user-groups`, `/api/oidc/clients`, `PUT /api/oidc/clients/{id}/allowed-user-groups`, `POST /api/oidc/clients/{id}/secrets`).
+
+**Conclusion** : le flux fonctionne avec le handler tel quel, et les groupes sortent sous la forme que le plan de migration attend (`superpowers/plans/2026-10-17-pocket-id-migration.md`). Reste non vérifié : la déconnexion fédérée et la déconnexion par canal arrière, qui répondrait à « pas de révocation poussée ».
 
 ## 10. Vecteurs à conserver pour les tests réels
 

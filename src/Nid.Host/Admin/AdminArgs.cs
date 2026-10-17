@@ -8,7 +8,6 @@ public static class AdminArgs
     private static readonly Dictionary<string, (string[] Required, string Summary, string Usage)> Commands = new(StringComparer.Ordinal)
     {
         ["list-persons"] = ([], "Lister les personnes (identifiant, type, état, admin, sub rattaché).", "nid admin list-persons"),
-        ["grant-admin"] = (["person"], "Rendre un adulte admin (confirmation demandée).", "nid admin grant-admin --person <id|email|nom> [--yes]"),
         ["revoke-sessions"] = (["person"], "Fermer toutes les sessions d'un adulte.", "nid admin revoke-sessions --person <id|email|nom>"),
         ["revoke-tokens"] = (["person"], "Révoquer tous les jetons d'accès actifs d'un adulte.", "nid admin revoke-tokens --person <id|email|nom>"),
         ["rebind-subject"] = (["person", "sub"], "Rattacher un adulte à un nouveau sub OIDC ; ferme ses sessions (confirmation demandée).",

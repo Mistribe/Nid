@@ -50,7 +50,6 @@ public static class AdminCli
             return parsed.Command switch
             {
                 "list-persons" => await run.ListAsync(),
-                "grant-admin" => await run.GrantAdminAsync(),
                 "revoke-sessions" => await run.RevokeSessionsAsync(),
                 "revoke-tokens" => await run.RevokeTokensAsync(),
                 "rebind-subject" => await run.RebindAsync(),
@@ -110,20 +109,6 @@ public static class AdminCli
             await console.Out.WriteAsync(Table(persons));
             await RecordAsync("ok", null, null);
             return 0;
-        }
-
-        public async Task<int> GrantAdminAsync()
-        {
-            if (await ResolveAsync() is not { } person) return 1;
-            if (person.IsAdmin)
-            {
-                await console.Out.WriteLineAsync($"{Describe(person)} est déjà admin : rien à faire.");
-                await RecordAsync("unchanged", null, person);
-                return 0;
-            }
-            if (!await ConfirmAsync($"Rendre {Describe(person)} admin.", person)) return 1;
-            return await InvokeAsync<AdultView>(new SetAdminCommand(new PersonId(person.Id), true), person,
-                _ => $"{Describe(person)} est maintenant admin.");
         }
 
         public async Task<int> RevokeSessionsAsync()
@@ -199,8 +184,7 @@ public static class AdminCli
                     var other = (await PersonsAsync()).FirstOrDefault(p => p.Id.ToString() == holder);
                     return other is null ? "Ce sub appartient déjà à une autre personne." : $"Ce sub appartient déjà à {other.DisplayName} ({other.Id}).";
                 case PersonCodes.SubjectInvalid: return "Un sub fait de 1 à 255 caractères.";
-                case PersonCodes.NotAnAdult: return "Seul un adulte peut recevoir ce rôle ou ce rattachement.";
-                case PersonCodes.LastAdmin: return "Au moins un admin qui s'est déjà connecté doit rester.";
+                case PersonCodes.NotAnAdult: return "Seul un adulte peut recevoir ce rattachement.";
                 default:
                     return failure is NotFoundFailure
                         ? "Personne introuvable, ou sans session. Seul un adulte a des sessions."

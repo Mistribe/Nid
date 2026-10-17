@@ -142,7 +142,6 @@ public static class RequestCatalogue
         new(typeof(ListAdultsQuery), false, (_, _) => new ListAdultsQuery()),
         new(typeof(PreRegisterAdultCommand), false, (_, _) => new PreRegisterAdultCommand("bench-adult", "bench@example.test")),
         new(typeof(DeletePendingAdultCommand), false, (_, _) => new DeletePendingAdultCommand(PersonId.New())),
-        new(typeof(SetAdminCommand), false, (data, _) => new SetAdminCommand(data.App.AdultB, false)),
         new(typeof(RevokeSessionsCommand), false, (data, _) => new RevokeSessionsCommand(data.App.AdultB)),
         new(typeof(ListAllPersonsQuery), false, (_, _) => new ListAllPersonsQuery()),
         new(typeof(RebindSubjectCommand), false, (data, _) => new RebindSubjectCommand(data.App.AdultB, "bench-sub")),

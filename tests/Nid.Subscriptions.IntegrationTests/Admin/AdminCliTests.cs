@@ -63,53 +63,54 @@ public class AdminCliTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Grant_admin_with_yes_makes_the_adult_admin_found_by_email_in_any_case()
+    public async Task Rebind_subject_finds_the_adult_by_email_in_any_case()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await SetPersonAsync(app, app.AdultB, email: "bob@example.test");
 
-        var run = await CliAsync(app, args: ["grant-admin", "--person", "BOB@Example.TEST", "--yes"]);
+        var run = await CliAsync(app, args: ["rebind-subject", "--person", "BOB@Example.TEST", "--sub", "fresh-sub-b", "--yes"]);
 
         Assert.Equal(0, run.Exit);
-        Assert.True((await PersonAsync(app, app.AdultB)).IsAdmin);
+        Assert.Equal("fresh-sub-b", (await PersonAsync(app, app.AdultB)).Subject);
         var logged = await LastCommandAsync(app);
-        Assert.Equal(("grant-admin", "ok", app.AdultB.Value.ToString()), (logged["command"], logged["outcome"], logged["person"]));
-        Assert.Equal("admin-cli", Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.AdminGranted)).Via);
+        Assert.Equal(("rebind-subject", "ok", app.AdultB.Value.ToString()), (logged["command"], logged["outcome"], logged["person"]));
+        Assert.Equal("admin-cli", Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.SubjectRebound)).Via);
     }
 
     // Review Focus 1: no terminal and no --yes, or another answer than "oui", changes nothing and is still recorded.
     [Theory]
     [InlineData("", false, "admin_cli.confirmation_required")]
     [InlineData("non\n", true, "admin_cli.declined")]
-    public async Task Grant_admin_without_a_confirmation_changes_nothing(string input, bool terminal, string code)
+    public async Task Rebind_subject_without_a_confirmation_changes_nothing(string input, bool terminal, string code)
     {
         await using var app = await NidApp.StartAsync(fixture);
+        var before = await PersonAsync(app, app.AdultB);
 
-        var run = await CliAsync(app, input, terminal, "grant-admin", "--person", app.AdultB.Value.ToString());
+        var run = await CliAsync(app, input, terminal, "rebind-subject", "--person", app.AdultB.Value.ToString(), "--sub", "fresh-sub-b");
 
         Assert.Equal(1, run.Exit);
-        Assert.False((await PersonAsync(app, app.AdultB)).IsAdmin);
+        Assert.Equal(before, await PersonAsync(app, app.AdultB));
         var logged = await LastCommandAsync(app);
         Assert.Equal(("refused", code), (logged["outcome"], logged["code"]));
     }
 
     [Fact]
-    public async Task Grant_admin_asks_and_goes_on_with_oui()
+    public async Task Rebind_subject_asks_and_goes_on_with_oui()
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        var run = await CliAsync(app, "oui\n", true, "grant-admin", "--person", app.AdultB.Value.ToString());
+        var run = await CliAsync(app, "oui\n", true, "rebind-subject", "--person", app.AdultB.Value.ToString(), "--sub", "fresh-sub-b");
 
         Assert.Equal(0, run.Exit);
         Assert.Contains("Tapez oui pour confirmer", run.Out);
-        Assert.True((await PersonAsync(app, app.AdultB)).IsAdmin);
+        Assert.Equal("fresh-sub-b", (await PersonAsync(app, app.AdultB)).Subject);
     }
 
     [Fact]
-    public async Task Grant_admin_refuses_a_dependent()
+    public async Task Rebind_subject_refuses_a_dependent()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var run = await CliAsync(app, args: ["grant-admin", "--person", app.Dependent.Value.ToString(), "--yes"]);
+        var run = await CliAsync(app, args: ["rebind-subject", "--person", app.Dependent.Value.ToString(), "--sub", "fresh-sub", "--yes"]);
         Assert.Equal(1, run.Exit);
         Assert.Equal("refused", (await LastCommandAsync(app))["outcome"]);
     }
@@ -225,7 +226,6 @@ public class AdminCliTests(PostgresFixture fixture)
 
     [Theory]
     [InlineData("fly")]
-    [InlineData("grant-admin")]
     [InlineData("rebind-subject", "--person", "x")]
     [InlineData("revoke-sessions", "--person")]
     public async Task Usage_errors_exit_two_with_the_help(params string[] args)
@@ -244,21 +244,21 @@ public class AdminCliTests(PostgresFixture fixture)
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        await CliAsync(app, args: ["grant-admin", "--person", app.AdultB.Value.ToString(), "--yes"]);
+        await CliAsync(app, args: ["rebind-subject", "--person", app.AdultB.Value.ToString(), "--sub", "fresh-sub-b", "--yes"]);
 
         Assert.Equal(1, await CommandsLogged(app));
-        Assert.Equal("SetAdminCommand", Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.AdminGranted)).Request);
+        Assert.Equal("RebindSubjectCommand", Assert.Single(await SecurityEventTests.EventsAsync(app, SecurityEventNames.SubjectRebound)).Request);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         var write = await platform.AuditLog.Where(r => r.Category == "write" && r.Via == "admin-cli").ToListAsync();
         Assert.NotEmpty(write);
-        Assert.All(write, r => Assert.Equal("SetAdminCommand", r.Request));
+        Assert.All(write, r => Assert.Equal("RebindSubjectCommand", r.Request));
     }
 
     [Fact]
     public async Task A_usage_error_records_nothing()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await CliAsync(app, args: ["grant-admin"]);
+        await CliAsync(app, args: ["rebind-subject"]);
         Assert.Equal(0, await CommandsLogged(app));
     }
 
@@ -335,7 +335,7 @@ public class AdminCliTests(PostgresFixture fixture)
         await using var app = await NidApp.StartAsync(fixture);
         var run = await CliAsync(app, args: ["--help"]);
         Assert.Equal(0, run.Exit);
-        foreach (var command in new[] { "list-persons", "grant-admin", "revoke-sessions", "revoke-tokens", "rebind-subject" })
+        foreach (var command in new[] { "list-persons", "revoke-sessions", "revoke-tokens", "rebind-subject" })
             Assert.Contains(command, run.Out);
     }
 
@@ -350,10 +350,12 @@ public class AdminCliTests(PostgresFixture fixture)
             await platform.Database.ExecuteSqlRawAsync(
                 "delete from platform.__ef_migrations_history where \"MigrationId\" = (select max(\"MigrationId\") from platform.__ef_migrations_history)");
 
-        var run = await CliAsync(app, args: ["grant-admin", "--person", app.AdultB.Value.ToString(), "--yes"]);
+        var before = await PersonAsync(app, app.AdultB);
+
+        var run = await CliAsync(app, args: ["rebind-subject", "--person", app.AdultB.Value.ToString(), "--sub", "fresh-sub-b", "--yes"]);
 
         Assert.Equal(1, run.Exit);
         Assert.Contains("démarrez d'abord nid-api", run.Error);
-        Assert.False((await PersonAsync(app, app.AdultB)).IsAdmin);
+        Assert.Equal(before, await PersonAsync(app, app.AdultB));
     }
 }

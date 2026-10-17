@@ -12,8 +12,6 @@ public static class AdminEndpoints
 {
     public sealed record PreRegisterBody(string DisplayName, string Email);
 
-    public sealed record SetAdminBody(bool IsAdmin);
-
     /// <summary>A key nobody reads is refused rather than silently dropped (400), like the preferences body.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record HouseholdBody(int? MaxAdults, string? ReferenceCurrency);
@@ -38,10 +36,6 @@ public static class AdminEndpoints
                 => (await invoker.InvokeAsync(new DeletePendingAdultCommand(new PersonId(id)), ct))
                     .ToHttp(person => new PersonIdResponse(person.Value)))
             .Returns<PersonIdResponse>();
-
-        api.MapPut("/users/{id:guid}/admin", async (Guid id, SetAdminBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new SetAdminCommand(new PersonId(id), body.IsAdmin), ct)).ToHttp(adult => adult))
-            .Returns<AdultView>();
 
         api.MapPost("/users/{id:guid}/revoke-sessions", async (Guid id, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new RevokeSessionsCommand(new PersonId(id)), ct)).ToHttp(adult => adult))

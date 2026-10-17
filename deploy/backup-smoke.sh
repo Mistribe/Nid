@@ -47,8 +47,9 @@ in_backup "$R dump latest /tmp/stage/manifest.json | jq -e '
 listing=$(in_backup "$R ls latest")
 grep -qx '/source/deploy/secrets/csrf_key' <<<"$listing" || fail "deploy/secrets/ not in the snapshot"
 if grep -q 'restic_password' <<<"$listing"; then fail "the restic password is in the snapshot"; fi
-if grep -q '^/authelia' <<<"$listing"; then fail "Authelia's live base is in the snapshot"; fi
-echo "ok: a backup holds the database, Authelia, the keys, the assets and deploy/, not the restic password"
+if grep -q '^/pocket-id' <<<"$listing"; then fail "Pocket ID's live base is in the snapshot"; fi
+grep -q 'pocket-id.sqlite3' <<<"$listing" || fail "Pocket ID's hot copy is not in the snapshot"
+echo "ok: a backup holds the database, Pocket ID, the keys, the assets and deploy/, not the restic password"
 
 # Review Focus 1: a failed run is named, touches no repository, and the next good run clears it.
 before=$(snapshots)
@@ -125,19 +126,19 @@ echo "ok: a failed --verify says why and leaves nothing behind"
 scratch() {
   docker run --rm --network none -v "$PWD/backups":/repo -v "$PWD/backup-secrets":/run/backup-secrets:ro \
     -v nid-scratch-keys:/target/volumes/dataprotection-keys -v nid-scratch-assets:/target/volumes/assets \
-    -v nid-scratch-authelia:/target/volumes/authelia -v nid-scratch-deploy:/target/deploy \
+    -v nid-scratch-pocket-id:/target/volumes/pocket-id -v nid-scratch-deploy:/target/deploy \
     -e NID_HOST_UID=4242 -e NID_HOST_GID=4242 "$@"
 }
 id=$(scratch nid-backup:local snapshot-id)
 scratch nid-backup:local restore-files "$id"
-owners=$(scratch --entrypoint stat nid-backup:local -c '%u' /target/deploy/authelia /target/deploy/secrets | sort -u)
-[ "$owners" = 4242 ] || fail "deploy/ folders not given to the host user: $owners"
+owners=$(scratch --entrypoint stat nid-backup:local -c '%u' /target/deploy/secrets /target/deploy/.env | sort -u)
+[ "$owners" = 4242 ] || fail "deploy/ files not given to the host user: $owners"
 scratch --entrypoint touch nid-backup:local /target/volumes/dataprotection-keys/key-00000000-0000-0000-0000-000000000000.xml
 scratch nid-backup:local check-keys "$id" >/dev/null || fail "a key added after the restore failed the check"
 scratch --entrypoint sh nid-backup:local -c \
   'rm "$(ls /target/volumes/dataprotection-keys/key-*.xml | grep -v key-00000000 | head -1)"'
 if scratch nid-backup:local check-keys "$id" >/dev/null 2>&1; then fail "a key of the backup went missing unnoticed"; fi
-docker volume rm nid-scratch-keys nid-scratch-assets nid-scratch-authelia nid-scratch-deploy >/dev/null
+docker volume rm nid-scratch-keys nid-scratch-assets nid-scratch-pocket-id nid-scratch-deploy >/dev/null
 echo "ok: restored deploy/ folders belong to the host user; the key check wants the backup's keys, not an exact count"
 
 # The guard: the running installation holds data.
@@ -149,7 +150,7 @@ echo "ok: restore.sh refuses an installation that holds data"
 playwright e2e/backup.smoke.ts --grep "before"
 backup backup-now
 "${REMOTE[@]}" down -v --remove-orphans
-rm -rf secrets .env authelia/configuration.yml authelia/users.yml
+rm -rf secrets .env
 ./restore.sh
 "${COMPOSE[@]}" up -d --wait --wait-timeout 180
 api_ready
@@ -158,7 +159,7 @@ echo "ok: after a disaster, a backup restores into a new stack with its sessions
 
 # Review Focus 3: owners and modes, and deploy/ still the host user's.
 [ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c '%u %a' /k)" = "1654 700" ] || fail "keys folder"
-[ "$(docker run --rm -v nid_authelia:/a busybox:1.37 stat -c '%u' /a/db.sqlite3)" = "8000" ] || fail "Authelia base"
+[ "$(docker run --rm -v nid_pocket-id:/a busybox:1.37 stat -c '%u' /a/pocket-id.db)" = "65532" ] || fail "Pocket ID base"
 [ "$(stat -c '%a' secrets 2>/dev/null || stat -f '%Lp' secrets)" = "700" ] || fail "deploy/secrets/ mode"
 [ -O secrets/csrf_key ] && [ -O .env ] || fail "deploy/ files not owned by the host user"
 # Final review: the backup settings the README puts in .env survive a rerun of setup.sh.

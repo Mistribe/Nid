@@ -61,7 +61,7 @@ fx_rate (indépendante)
 |---|---|---|
 | `id` | uuid | |
 | `kind` | text | `adult` (peut se connecter) ou `dependent` (enfant du foyer, sans connexion) |
-| `oidc_subject` | text?, unique | `sub` fourni par Authelia. Vide pour un `dependent`, et pour un `adult` **en attente** (pré-enregistré, pas encore connecté) |
+| `oidc_subject` | text?, unique | `sub` fourni par le fournisseur d'identité (Pocket ID : l'identifiant de la personne). Vide pour un `dependent`, et pour un `adult` **en attente** (pré-enregistré, pas encore connecté) |
 | `display_name` | text | Repris des claims OIDC pour un `adult`, saisi pour un `dependent` |
 | `email` | text? | Saisi au pré-enregistrement, puis repris des claims OIDC ; clé de rattachement d'un adulte en attente, unique sans tenir compte de la casse parmi les `adult` ; vide pour un `dependent` |
 | `is_admin` | bool | Rôle technique (`identity-and-access/administration-and-audit.md` §2). Faux pour un `dependent` ; au moins un `adult` admin dès qu'un adulte existe |
@@ -123,8 +123,8 @@ Appliquée par `IAccessPolicy` (règles de `Project.md` §5.1) à l'API, au tabl
 
 ### 4.4 Amorçage des utilisateurs
 
-- Authelia est la source des identités. À la **toute première** connexion OIDC (base sans adulte), Core crée la `person` de type `adult` depuis les claims (`sub`, nom, email), avec `is_admin = true`.
-- Les adultes suivants sont **pré-enregistrés** par un admin (nom, email, `oidc_subject` vide : « en attente ») puis rattachés à leur première connexion par l'email. Une identité sans adulte en attente correspondant est refusée (`../identity-and-access/authentication.md` §5).
+- Le fournisseur d'identité est la source des identités, de l'accès (groupe `nid-users`) et du rôle admin (groupe `nid-admins`, recalculé à chaque connexion dans `is_admin`). À la première connexion d'un `sub` inconnu, Core rattache l'adulte en attente de même email ou crée la `person` de type `adult` depuis les claims (`sub`, nom, email), dans la limite du plafond du foyer (`identity-and-access/authentication.md` §5).
+- Un admin peut **pré-enregistrer** un adulte (nom, email, `oidc_subject` vide : « en attente »), par exemple pour lui attribuer des éléments avant sa première connexion ; il est rattaché à sa première connexion par l'email. Sans pré-enregistrement, la première connexion crée l'adulte. Un email déjà porté par un autre `sub` est refusé (`../identity-and-access/authentication.md` §5).
 - Le nombre d'adultes, en attente compris, est plafonné par `household_settings.max_adults` (2 par défaut, réglable dans la zone admin).
 - Les `dependent` sont créés par un adulte dans l'interface (un nom suffit), sans connexion.
 

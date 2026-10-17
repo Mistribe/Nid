@@ -12,7 +12,7 @@ public class PersonRegistryTests(PostgresFixture postgres)
         => result.TryGetFailure(out var failure) ? failure!.Code : null;
 
     [Fact]
-    public async Task The_first_login_creates_an_admin_adult_and_the_household_settings()
+    public async Task The_first_login_creates_an_adult_and_the_household_settings_and_is_not_an_admin_by_default()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
@@ -20,8 +20,33 @@ public class PersonRegistryTests(PostgresFixture postgres)
         var result = await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default);
 
         Assert.True(result.TryGetValue(out var person));
-        Assert.Equal((PersonKind.Adult, true, false), (person.Kind, person.IsAdmin, person.IsPending));
+        Assert.Equal((PersonKind.Adult, false, false), (person.Kind, person.IsAdmin, person.IsPending));
         Assert.Equal(1, db.HouseholdSettings.Count());
+    }
+
+    [Fact]
+    public async Task The_admin_role_is_the_identity_providers_and_follows_it_at_every_login()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+
+        Assert.True((await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: true, default)).Ok().IsAdmin);
+        Assert.True((await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: true, default)).Ok().IsAdmin);
+        // The only admin loses the group: the provider decides, nothing here keeps them an admin.
+        Assert.False((await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: false, default)).Ok().IsAdmin);
+        Assert.True((await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: true, default)).Ok().IsAdmin);
+        Assert.Single(db.Persons);
+    }
+
+    [Fact]
+    public async Task FindBySubject_returns_the_bound_adult_and_nothing_for_an_unknown_subject()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        var alice = (await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: true, default)).Ok();
+
+        Assert.Equal(alice.Id, (await registry.FindBySubjectAsync("sub-a", default))!.Id);
+        Assert.Null(await registry.FindBySubjectAsync("sub-x", default));
     }
 
     [Fact]
@@ -53,16 +78,47 @@ public class PersonRegistryTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task An_unknown_identity_is_refused_once_an_adult_exists()
+    public async Task An_unknown_identity_the_provider_let_through_becomes_an_adult_under_the_cap()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default);
+
+        var newcomer = await registry.ProvisionAdultAsync("sub-b", "Bob", "bob@example.test", isAdmin: true, default);
+
+        Assert.True(newcomer.TryGetValue(out var bob));
+        Assert.Equal(("Bob", "bob@example.test", true, false), (bob.DisplayName, bob.Email, bob.IsAdmin, bob.IsPending));
+        Assert.Equal(2, db.Persons.Count());
+    }
+
+    [Fact]
+    public async Task A_new_adult_beyond_the_cap_is_refused_and_nothing_is_written()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
         await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
+        await registry.ProvisionAdultAsync("sub-b", "Bob", null, default);
 
-        var stranger = await registry.ProvisionAdultAsync("sub-x", "Mallory", "mallory@example.test", default);
+        Assert.Equal(PersonCodes.AdultCap, Code(await registry.ProvisionAdultAsync("sub-c", "Carol", null, default)));
+        Assert.Equal(2, db.Persons.Count());
 
-        Assert.Equal(PersonCodes.NotRegistered, Code(stranger));
+        await db.HouseholdSettings.ExecuteUpdateAsync(s => s.SetProperty(x => x.MaxAdults, 3));
+        Assert.True((await registry.ProvisionAdultAsync("sub-c", "Carol", null, default)).IsSuccess);
+    }
+
+    [Fact]
+    public async Task An_email_another_adult_holds_under_another_subject_is_refused_not_taken_over()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default);
+
+        // The same person with a new subject (the provider was reinstalled), or someone else: an admin rebinds.
+        var result = await registry.ProvisionAdultAsync("sub-new", "Alice", "ALICE@example.test", isAdmin: true, default);
+
+        Assert.Equal(PersonCodes.EmailTaken, Code(result));
         Assert.Single(db.Persons);
+        Assert.Equal("sub-a", db.Persons.Single().OidcSubject);
     }
 
     [Fact]
@@ -75,20 +131,26 @@ public class PersonRegistryTests(PostgresFixture postgres)
         Assert.True((await registry.PreRegisterAdultAsync(" Bob ", " bob@example.test ", default)).TryGetValue(out var pending));
         Assert.Equal(("Bob", "bob@example.test", true, false), (pending.DisplayName, pending.Email, pending.IsPending, pending.IsAdmin));
 
-        Assert.True((await registry.ProvisionAdultAsync("sub-b", "Bob B.", "BOB@Example.test", default)).TryGetValue(out var bound));
-        Assert.Equal((pending.Id, "Bob B.", false), (bound.Id, bound.DisplayName, bound.IsPending));
+        Assert.True((await registry.ProvisionAdultAsync("sub-b", "Bob B.", "BOB@Example.test", isAdmin: true, default)).TryGetValue(out var bound));
+        Assert.Equal((pending.Id, "Bob B.", false, true), (bound.Id, bound.DisplayName, bound.IsPending, bound.IsAdmin));
         Assert.Equal(2, db.Persons.Count());
     }
 
     [Fact]
-    public async Task Without_an_email_claim_no_pending_adult_is_bound()
+    public async Task Without_an_email_claim_no_pending_adult_is_bound_and_a_new_adult_is_created()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
         await registry.ProvisionAdultAsync("sub-a", "Alice", null, default);
         await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default);
+        await db.HouseholdSettings.ExecuteUpdateAsync(s => s.SetProperty(x => x.MaxAdults, 3));
 
-        Assert.Equal(PersonCodes.NotRegistered, Code(await registry.ProvisionAdultAsync("sub-b", "Bob", null, default)));
+        var anonymous = (await registry.ProvisionAdultAsync("sub-b", "Bob", null, default)).Ok();
+
+        Assert.False(anonymous.IsPending);
+        Assert.Null(anonymous.Email);
+        Assert.Equal(3, db.Persons.Count());
+        Assert.Single(db.Persons, p => p.OidcSubject == null);
     }
 
     [Fact]
@@ -118,7 +180,7 @@ public class PersonRegistryTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Simultaneous_first_logins_make_exactly_one_admin()
+    public async Task Simultaneous_first_logins_never_exceed_the_cap()
     {
         var connectionString = await postgres.NewConnectionStringAsync();
 
@@ -126,15 +188,15 @@ public class PersonRegistryTests(PostgresFixture postgres)
         {
             await using var db = PostgresFixture.NewCoreContext(connectionString);
             return await new PersonRegistry(db, PostgresFixture.Clock)
-                .ProvisionAdultAsync($"sub-{i}", $"Person {i}", $"person{i}@example.test", default);
+                .ProvisionAdultAsync($"sub-{i}", $"Person {i}", $"person{i}@example.test", isAdmin: i == 0, default);
         });
         var results = await Task.WhenAll(attempts);
 
-        Assert.Single(results, r => r.IsSuccess);
-        Assert.Equal(5, results.Count(r => Code(r) == PersonCodes.NotRegistered));
+        Assert.Equal(2, results.Count(r => r.IsSuccess));
+        Assert.Equal(4, results.Count(r => Code(r) == PersonCodes.AdultCap));
         await using var probe = PostgresFixture.NewCoreContext(connectionString);
-        Assert.Equal(1, await probe.Persons.CountAsync(p => p.Kind == "adult" && p.IsAdmin));
-        Assert.Equal(1, await probe.Persons.CountAsync(p => p.Kind == "adult"));
+        Assert.Equal(2, await probe.Persons.CountAsync(p => p.Kind == "adult"));
+        Assert.Equal(1, await probe.HouseholdSettings.CountAsync());
     }
 
     [Fact]
@@ -155,7 +217,7 @@ public class PersonRegistryTests(PostgresFixture postgres)
     private static async Task<(PersonRegistry Registry, PersonInfo Admin, PersonInfo Pending)> HouseholdAsync(CoreDbContext db)
     {
         var registry = new PersonRegistry(db, PostgresFixture.Clock);
-        var admin = (await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", default)).Ok();
+        var admin = (await registry.ProvisionAdultAsync("sub-a", "Alice", "alice@example.test", isAdmin: true, default)).Ok();
         var pending = (await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default)).Ok();
         return (registry, admin, pending);
     }
@@ -184,58 +246,6 @@ public class PersonRegistryTests(PostgresFixture postgres)
             [new OwnerShare(pending.Id, 10_000)]), default)).Ok();
 
         Assert.Equal(PersonCodes.PersonActive, Code(await registry.DeletePendingAdultAsync(pending.Id, default)));
-    }
-
-    [Fact]
-    public async Task The_last_active_admin_cannot_be_demoted_and_a_dependent_cannot_be_promoted()
-    {
-        await using var db = await postgres.NewDatabaseAsync();
-        var (registry, admin, pending) = await HouseholdAsync(db);
-        var kid = (await registry.CreateDependentAsync("Kid", default)).Ok();
-
-        Assert.Equal(PersonCodes.LastAdmin, Code(await registry.SetAdminAsync(admin.Id, false, default)));
-        // A pending admin cannot act yet: it does not keep the household administered.
-        Assert.True((await registry.SetAdminAsync(pending.Id, true, default)).Ok().IsAdmin);
-        Assert.Equal(PersonCodes.LastAdmin, Code(await registry.SetAdminAsync(admin.Id, false, default)));
-        Assert.Equal(PersonCodes.NotAnAdult, Code(await registry.SetAdminAsync(kid.Id, true, default)));
-    }
-
-    [Fact]
-    public async Task An_admin_can_step_down_once_another_active_admin_exists()
-    {
-        await using var db = await postgres.NewDatabaseAsync();
-        var (registry, admin, pending) = await HouseholdAsync(db);
-        await registry.ProvisionAdultAsync("sub-b", "Bob", "bob@example.test", default);
-        await registry.SetAdminAsync(pending.Id, true, default);
-
-        var demoted = (await registry.SetAdminAsync(admin.Id, false, default)).Ok();
-
-        Assert.False(demoted.IsAdmin);
-    }
-
-    [Fact]
-    public async Task Two_simultaneous_demotions_leave_one_active_admin()
-    {
-        var connectionString = await postgres.NewConnectionStringAsync();
-        PersonId alice, bob;
-        await using (var db = PostgresFixture.NewCoreContext(connectionString))
-        {
-            var registry = new PersonRegistry(db, PostgresFixture.Clock);
-            alice = (await registry.ProvisionAdultAsync("sub-a", "Alice", null, default)).Ok().Id;
-            bob = (await registry.PreRegisterAdultAsync("Bob", "bob@example.test", default)).Ok().Id;
-            await registry.ProvisionAdultAsync("sub-b", "Bob", "bob@example.test", default);
-            await registry.SetAdminAsync(bob, true, default);
-        }
-
-        var results = await Task.WhenAll(new[] { alice, bob }.Select(async id =>
-        {
-            await using var db = PostgresFixture.NewCoreContext(connectionString);
-            return await new PersonRegistry(db, PostgresFixture.Clock).SetAdminAsync(id, false, default);
-        }));
-
-        Assert.Single(results, r => r.IsSuccess);
-        await using var probe = PostgresFixture.NewCoreContext(connectionString);
-        Assert.Equal(1, await probe.Persons.CountAsync(p => p.IsAdmin));
     }
 
     [Fact]

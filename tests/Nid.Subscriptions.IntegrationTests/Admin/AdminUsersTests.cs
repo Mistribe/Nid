@@ -25,12 +25,12 @@ public class AdminUsersTests(PostgresFixture fixture)
         => (await response.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("code").GetString();
 
     /// <summary>What the OIDC callback does at a first sign-in (AuthenticationSetup.ProvisionAndReplacePrincipal).</summary>
-    private static async Task<bool> SignInAsync(NidApp app, string subject, string name, string? email)
+    private static async Task<bool> SignInAsync(NidApp app, string subject, string name, string? email, bool isAdmin = false)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var result = await scope.ServiceProvider.GetRequiredService<IInvoker>()
-            .InvokeAsync(new ProvisionAdultCommand(subject, name, email));
+            .InvokeAsync(new ProvisionAdultCommand(subject, name, email, isAdmin));
         return result.IsSuccess;
     }
 
@@ -57,7 +57,6 @@ public class AdminUsersTests(PostgresFixture fixture)
                      (HttpMethod.Get, Users, null),
                      (HttpMethod.Post, Users, new { displayName = "Carol", email = "carol@example.test" }),
                      (HttpMethod.Delete, $"{Users}/{app.AdultA.Value}", null),
-                     (HttpMethod.Put, $"{Users}/{app.AdultB.Value}/admin", new { isAdmin = true }),
                      (HttpMethod.Post, $"{Users}/{app.AdultA.Value}/revoke-sessions", null),
                      (HttpMethod.Get, Household, null),
                      (HttpMethod.Patch, Household, new { maxAdults = 5 }),
@@ -92,16 +91,14 @@ public class AdminUsersTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task A_pending_adult_promoted_to_admin_is_admin_once_bound_at_first_sign_in()
+    public async Task A_pending_adult_is_an_admin_once_bound_when_the_identity_provider_says_so()
     {
         await using var app = await NidApp.StartAsync(fixture);
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { maxAdults = 3 })).EnsureSuccessStatusCode();
         var pending = (await (await app.RawAsync(app.AdultA, HttpMethod.Post, Users,
             new { displayName = "Carol", email = "carol@example.test" })).Content.ReadFromJsonAsync<Adult>(Json))!;
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Users}/{pending.Id}/admin", new { isAdmin = true }))
-            .EnsureSuccessStatusCode();
 
-        Assert.True(await SignInAsync(app, "sub-c", "Carol C.", "carol@example.test"));
+        Assert.True(await SignInAsync(app, "sub-c", "Carol C.", "carol@example.test", isAdmin: true));
 
         var adults = await app.GetAsync<List<Adult>>(app.AdultA, Users);
         Assert.Contains(adults, a => a.Id == pending.Id && a.Status == "active" && a.IsAdmin);
@@ -141,15 +138,13 @@ public class AdminUsersTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task A_demotion_takes_effect_at_the_next_request()
+    public async Task A_demotion_at_sign_in_takes_effect_at_the_next_request_of_every_session()
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        var last = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Users}/{app.AdultA.Value}/admin", new { isAdmin = false });
-        Assert.Equal((HttpStatusCode.UnprocessableEntity, PersonCodes.LastAdmin), (last.StatusCode, await CodeOf(last)));
-
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Users}/{app.AdultB.Value}/admin", new { isAdmin = true })).EnsureSuccessStatusCode();
-        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Users}/{app.AdultA.Value}/admin", new { isAdmin = false })).EnsureSuccessStatusCode();
+        // The identity provider took Alice out of the admin group and put Bob in it; both signed in again.
+        Assert.True(await SignInAsync(app, "sub-b", "Bob", null, isAdmin: true));
+        Assert.True(await SignInAsync(app, "sub-a", "Alice", null, isAdmin: false));
 
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultA, HttpMethod.Get, Users)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Get, Users)).StatusCode);

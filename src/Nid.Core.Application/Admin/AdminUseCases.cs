@@ -5,7 +5,10 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Admin;
 
-/// <summary>An adult as the admin area shows it (administration-and-audit.md §2.2): no item, no amount.</summary>
+/// <summary>
+/// An adult as the admin area shows it (administration-and-audit.md §2.2): no item, no amount. <c>IsAdmin</c> is the
+/// identity provider's answer at the adult's last sign-in; Nid does not edit it.
+/// </summary>
 public sealed record AdultView(Guid Id, string DisplayName, string? Email, string Status, bool IsAdmin)
 {
     public static AdultView From(PersonInfo person)
@@ -29,12 +32,6 @@ public sealed record PreRegisterAdultCommand(string DisplayName, string Email) :
 public sealed record DeletePendingAdultCommand(PersonId Person) : ICommand<PersonId>, IAdminOnly, IRecordsSecurityEvent
 {
     public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.PersonPreregistrationCancelled, Person);
-}
-
-public sealed record SetAdminCommand(PersonId Person, bool IsAdmin) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
-{
-    public SecurityEvent EventFor(object response)
-        => SecurityEvent.Of(IsAdmin ? SecurityEventNames.AdminGranted : SecurityEventNames.AdminRevoked, Person);
 }
 
 public sealed record RevokeSessionsCommand(PersonId Person) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
@@ -90,13 +87,6 @@ public sealed class DeletePendingAdultHandler(IPersonRegistry persons) : IReques
         var deleted = await persons.DeletePendingAdultAsync(command.Person, ct);
         return deleted.TryGetFailure(out var failure) ? Result.Failure<PersonId>(failure!) : Result.Success(command.Person);
     }
-}
-
-[RequestHandler<SetAdminCommand, AdultView>]
-public sealed class SetAdminHandler(IPersonRegistry persons) : IRequestHandler<SetAdminCommand, AdultView>
-{
-    public async ValueTask<Result<AdultView>> HandleAsync(SetAdminCommand command, CancellationToken ct = default)
-        => (await persons.SetAdminAsync(command.Person, command.IsAdmin, ct)).Map(AdultView.From);
 }
 
 [RequestHandler<RevokeSessionsCommand, AdultView>]

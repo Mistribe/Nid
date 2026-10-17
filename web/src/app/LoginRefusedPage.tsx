@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { loginUrl } from './session';
 
 /**
- * The identity provider let the person in, Nid did not: nobody pre-registered their email (authentication.md §5).
+ * The identity provider authenticated the person, Nid refused them: not in the access group, the household full, or an
+ * email another adult holds (authentication.md §5).
  * The email comes from the address bar, so it is shown as text only — React escapes it.
  */
 export function LoginRefusedPage({ email }: { email: string | null }) {

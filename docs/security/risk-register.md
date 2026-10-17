@@ -67,8 +67,9 @@
 | APP-12 | Emails exposant des montants | Faible | Emails sans montants par défaut | 2 | Faible |
 | APP-13 | Données tierces empoisonnées (taux, catalogue) | Moyenne | Bornes, commit épinglé, suggestions seulement | 1 | Faible |
 | APP-14 | Divulgation par erreurs ou journaux | Faible | Problem Details, journaux sans données | 1 | Aucun |
-| APP-15 | Compromission d'Authelia | Élevée | Hors application ; double facteur recommandé | 1 | Accepté |
+| APP-15 | Compromission de Pocket ID (accès et rôle admin) | Élevée | Hors application ; passkeys uniquement ; client réservé au groupe `nid-users`, contrôle du groupe aussi côté Nid | 1 | Accepté |
 | APP-16 | Revenu visible de l'autre adulte contre le gré du titulaire | Moyenne | Question explicite à la création, visibilité privée possible, revenus dans le banc anti-fuite | 2 | Faible |
+| APP-17 | Retrait d'un accès ou d'un rôle admin sans effet immédiat : pas de révocation poussée | Moyenne | Un rôle admin retiré ne l'est qu'à la prochaine connexion ; « Déconnecter partout » ferme les sessions ; déconnexion par canal arrière possible, non faite | 1 | Accepté |
 
 ## 6. Risques d'infrastructure
 

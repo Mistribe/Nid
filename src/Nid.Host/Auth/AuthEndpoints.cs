@@ -21,7 +21,7 @@ public static class AuthEndpoints
         {
             if (SessionClaims.ReadPersonId(http.User) is { } person)
                 await events.RecordAsync(SecurityEvent.Of(SecurityEventNames.Logout, person), Actor.Browser(person), http.RequestAborted);
-            // Only Nid's cookie is removed: Authelia has no standard logout, its own session stays open.
+            // Only Nid's cookie is removed: the identity provider's own session stays open (authentication.md §6).
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.NoContent();
         })

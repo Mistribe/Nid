@@ -37,7 +37,9 @@ public static class SecurityEventViews
     /// <summary>The details each event may show. Everything else in <c>data</c> stays in the table for the host.</summary>
     private static readonly Dictionary<string, string[]> Shown = new()
     {
-        [SecurityEventNames.LoginRefused] = ["subject"],
+        [SecurityEventNames.LoginRefused] = ["subject", "reason"],
+        [SecurityEventNames.AdminGranted] = ["source"],
+        [SecurityEventNames.AdminRevoked] = ["source"],
         [SecurityEventNames.AccessDenied] = ["access"],
         [SecurityEventNames.AccessViolation] = ["request"],
         [SecurityEventNames.HouseholdSettingsChanged] = ["fields"],

@@ -42,11 +42,16 @@ public enum AccessKind
 public interface IPersonRegistry
 {
     /// <summary>
-    /// Signs in an OIDC identity (identity-and-access/authentication.md §5): a known subject is refreshed; with no
-    /// adult yet, the identity becomes the first adult and admin; otherwise it binds the pending adult whose email
-    /// matches, ignoring case, or fails with <see cref="PersonCodes.NotRegistered"/>.
+    /// Signs in an OIDC identity the identity provider let through (identity-and-access/authentication.md §5). The
+    /// provider is the source of truth for <paramref name="isAdmin"/>: a known subject is refreshed and takes it; an
+    /// unknown one binds the pending adult whose email matches, ignoring case; otherwise a new adult is created, unless
+    /// the cap is reached (<see cref="PersonCodes.AdultCap"/>) or another adult already has that email under another
+    /// subject (<see cref="PersonCodes.EmailTaken"/>: <c>rebind-subject</c> is the way to move an adult to a new subject).
     /// </summary>
-    Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, CancellationToken ct);
+    Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, bool isAdmin, CancellationToken ct);
+
+    /// <summary>The adult bound to this OIDC subject, <c>null</c> when none is.</summary>
+    Task<PersonInfo?> FindBySubjectAsync(string oidcSubject, CancellationToken ct);
 
     /// <summary>An admin adds an adult who will be recognised by email at their first sign-in. Pending adults count against the cap.</summary>
     Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct);
@@ -67,9 +72,6 @@ public interface IPersonRegistry
 
     /// <summary>Removes an adult who has not signed in and owns nothing (<see cref="PersonCodes.PersonActive"/> otherwise).</summary>
     Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct);
-
-    /// <summary>Promotes or demotes an adult; at least one admin who has signed in always remains (<see cref="PersonCodes.LastAdmin"/>).</summary>
-    Task<Result<PersonInfo>> SetAdminAsync(PersonId id, bool isAdmin, CancellationToken ct);
 
     /// <summary>
     /// Binds an adult to a new OIDC subject and ends their sessions in the same write (1F4 design §3). A subject held by

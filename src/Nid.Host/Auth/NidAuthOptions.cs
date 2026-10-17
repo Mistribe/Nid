@@ -11,6 +11,12 @@ public sealed class NidAuthOptions
     public string ClientId { get; set; } = "nid";
     public string ClientSecret { get; set; } = "";
 
+    /// <summary>The identity provider's group whose members may use Nid; a sign-in without it is refused.</summary>
+    public string AccessGroup { get; set; } = "nid-users";
+
+    /// <summary>The identity provider's group whose members administer Nid; recomputed at every sign-in.</summary>
+    public string AdminGroup { get; set; } = "nid-admins";
+
     /// <summary>Secret used to derive CSRF tokens. At least 32 characters.</summary>
     public string CsrfKey { get; set; } = "";
 

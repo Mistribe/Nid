@@ -22,8 +22,8 @@ La confidentialité des éléments privés vaut **entre les deux adultes, pas co
 | Règle | Détail |
 |---|---|
 | Porteur | `person.is_admin` (schéma `core`) |
-| Premier utilisateur | La première `person` créée (base sans adulte) est admin (`authentication.md` §5) |
-| Plusieurs admins | Un admin promeut ou rétrograde un autre adulte, y compris en attente ; **le dernier admin ne peut pas être rétrogradé** (`core.last_admin`) — « dernier admin » compte seulement les admins **actifs** : rétrograder le dernier admin actif est refusé même s'il existe un admin en attente, qui ne peut agir avant sa première connexion |
+| Source | Le groupe admin du fournisseur d'identité (`nid-admins`), recopié à chaque connexion ; aucun adulte n'est admin d'office (`authentication.md` §5) |
+| Plusieurs admins | Possible : tous ceux que le groupe désigne. Nid ne promeut ni ne rétrograde personne : la zone admin **montre** le rôle ; un rôle retiré dans le fournisseur d'identité prend effet à la prochaine connexion de la personne, et à la requête suivante de ses sessions ouvertes une fois la base à jour. Le changement est journalisé (`admin_granted` / `admin_revoked`) |
 | Périmètre | Technique seulement : n'élargit jamais `Readers` ni `Writers` (`authorization.md` §1) |
 | Canal | La session navigateur seulement ; un jeton d'accès personnel n'est jamais admin (principe 5) |
 | Contrôle | Marqueur `IAdminOnly`, étape « Admin » du pipeline, `403 platform.admin_required` (`authorization.md` §2 et §4) |
@@ -35,7 +35,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 | Section | Contenu | API |
 |---|---|---|
-| **Utilisateurs** | Adultes (en attente ou actifs, admin ou non) ; pré-enregistrer un adulte (nom, email) ; annuler un adulte en attente (`DELETE /admin/users/{id}` répond `200 { id }`) ; promouvoir, rétrograder ; « déconnecter partout » un adulte (incrémente son `session_epoch` ; `POST /admin/users/{id}/revoke-sessions` répond `200` avec l'adulte) | `GET/POST /admin/users`, `DELETE /admin/users/{id}`, `PUT /admin/users/{id}/admin`, `POST /admin/users/{id}/revoke-sessions` |
+| **Utilisateurs** | Adultes (en attente ou actifs, admin ou non) ; pré-enregistrer un adulte (nom, email) ; annuler un adulte en attente (`DELETE /admin/users/{id}` répond `200 { id }`) ; « déconnecter partout » un adulte (incrémente son `session_epoch` ; `POST /admin/users/{id}/revoke-sessions` répond `200` avec l'adulte) | `GET/POST /admin/users`, `DELETE /admin/users/{id}`, `POST /admin/users/{id}/revoke-sessions` |
 | **Foyer** | Plafond d'adultes (`max_adults`, au moins 1 et au moins le nombre d'adultes), devise de référence | `GET/PATCH /admin/household` |
 | **Taux de change** | Saisie manuelle, synchronisation à la demande, journal des collectes | `/api/v1/core/fx-rates` (écritures et journal réservés aux admins ; la lecture des taux reste ouverte) |
 | **Tâches planifiées** | Jobs Quartz : dernière et prochaine exécution, état | `GET /admin/jobs` |
@@ -50,12 +50,11 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 ## 3. Commandes d'administration (CLI)
 
-La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé) et pour les identifiants de worker. Elle s'exécute dans le conteneur `nid-api` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `grant-admin`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject` et `grant-admin`. `revoke-tokens` est livrée en 4A ; les commandes de workers attendent l'étape 4.
+La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé) et pour les identifiants de worker. Elle s'exécute dans le conteneur `nid-api` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject`. `revoke-tokens` est livrée en 4A ; les commandes de workers attendent l'étape 4.
 
 | Commande | Usage |
 |---|---|
 | `rebind-subject --person <nom ou id> --sub <nouveau>` | Rattacher un adulte à un nouvel `sub` OIDC (`authentication.md` §5) |
-| `grant-admin --person <nom ou id>` | Rendre un adulte admin, par exemple quand l'unique admin a perdu son accès |
 | `list-persons` | Lister les personnes (identifiant, type, état, admin) |
 | `revoke-sessions --person` | Incrémenter `session_epoch` |
 | `revoke-tokens --person` | Révoquer tous les jetons d'accès personnels (livré en 4A) |
@@ -83,7 +82,7 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 | Événement | Quand |
 |---|---|
 | `login`, `logout` | Ouverture et fin de session — livré en 1F3a |
-| `login_refused` | `sub` inconnu et aucun adulte en attente avec cet email (`not_registered`) — livré en 1F3a |
+| `login_refused` | Connexion refusée : hors du groupe d'accès, foyer au plafond ou email déjà porté par un autre `sub` (donnée `reason`) — livré en 1F3a, `reason` depuis la migration vers Pocket ID |
 | `session_revoked` | « Déconnecter partout », par soi-même ou par un admin — livré en 1F3a ; par `nid admin revoke-sessions` depuis 1F4 |
 | `subject_rebound` | `nid admin rebind-subject` : un adulte rattaché à un nouveau `sub` (donnée `had_subject`) — 1F4 |
 | `token_created`, `token_revoked` | Cycle de vie des jetons — livrés en 4A |
@@ -93,7 +92,7 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 | `access_violation` | La garde de sortie a bloqué une réponse (`authorization.md` §7) — livré en 1F3a |
 | `admin_command` | Chaque exécution d'une commande `nid admin`, réussie ou refusée : commande, résultat, personne visée, paramètres sans secret — 1F4 |
 | `person_preregistered`, `person_preregistration_cancelled` | Un admin ajoute ou retire un adulte en attente — livré en 1F3a |
-| `admin_granted`, `admin_revoked` | Promotion ou rétrogradation — livré en 1F3a |
+| `admin_granted`, `admin_revoked` | Le rôle admin d'un adulte change à sa connexion, selon le groupe admin du fournisseur d'identité (donnée `source: identity_provider`) |
 | `household_settings_changed` | Plafond d'adultes ou devise de référence modifiés — livré en 1F3a |
 
 ### 4.2 Visibilité
@@ -112,7 +111,7 @@ Dans l'interface, pour chaque adulte :
 - **Mes jetons** : créer (nom, préréglage, expiration), révoquer. Livré en 4A.
 - **Mes sessions** : « déconnecter partout » (livré en 1F3a, sur soi-même ; révoque aussi les jetons sur demande depuis 4A).
 - **Mes derniers événements de sécurité** (livré en 1F3a).
-- Un rappel : la déconnexion de Nid ne ferme pas la session Authelia (`authentication.md` §6).
+- Un rappel : la déconnexion de Nid ne ferme pas la session de Pocket ID (`authentication.md` §6).
 
 ## 6. Alertes
 

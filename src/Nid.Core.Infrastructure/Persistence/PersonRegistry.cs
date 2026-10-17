@@ -14,50 +14,68 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
     internal const long ProvisioningLockKey = 0x4E49_4401; // "NID" + 1
 
     public async Task<Result<PersonInfo>> ProvisionAdultAsync(
-        string oidcSubject, string displayName, string? email, CancellationToken ct)
+        string oidcSubject, string displayName, string? email, bool isAdmin, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await LockAsync(ct);
+
+        var address = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
 
         var existing = await db.Persons.SingleOrDefaultAsync(p => p.OidcSubject == oidcSubject, ct);
         if (existing is not null)
         {
             existing.DisplayName = displayName;
+            existing.IsAdmin = isAdmin;
             // A claim that now carries another adult's email must not break the unique index: keep the old one.
-            if (email is null || !await EmailTakenAsync(email, existing.Id, ct))
-                existing.Email = email?.Trim();
+            if (address is null || !await EmailTakenAsync(address, existing.Id, ct))
+                existing.Email = address;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return Result.Success(ToInfo(existing));
         }
 
-        if (!await db.Persons.AnyAsync(p => p.Kind == "adult", ct))
-        {
-            // The first person to sign in administers the household (administration-and-audit.md §2.1).
-            var first = NewAdult(oidcSubject, displayName, email?.Trim(), isAdmin: true);
-            db.Persons.Add(first);
-            if (!await db.HouseholdSettings.AnyAsync(ct))
-                db.HouseholdSettings.Add(new HouseholdSettingsRow());
-            await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            return Result.Success(ToInfo(first));
-        }
-
-        var normalized = email?.Trim().ToLowerInvariant();
+        var normalized = address?.ToLowerInvariant();
         var pending = normalized is null
             ? null
             : await db.Persons.SingleOrDefaultAsync(
                 p => p.Kind == "adult" && p.OidcSubject == null && p.Email != null && p.Email.ToLower() == normalized, ct);
-        if (pending is null)
-            return Fail(PersonCodes.NotRegistered, "No administrator has added this person to the household.");
+        if (pending is not null)
+        {
+            pending.OidcSubject = oidcSubject;
+            pending.DisplayName = displayName;
+            pending.Email = address;
+            pending.IsAdmin = isAdmin;
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Result.Success(ToInfo(pending));
+        }
 
-        pending.OidcSubject = oidcSubject;
-        pending.DisplayName = displayName;
-        pending.Email = email!.Trim();
+        // Another adult already has this email under another subject: the same person whose subject changed, or someone
+        // else. Not for a sign-in to decide: an admin rebinds the subject (1F4).
+        if (address is not null && await EmailTakenAsync(address, null, ct))
+            return Fail(PersonCodes.EmailTaken, "Another adult already has this email address.");
+
+        var cap = await CapAsync(ct);
+        if (await db.Persons.CountAsync(p => p.Kind == "adult", ct) >= cap)
+            return Fail(PersonCodes.AdultCap, $"This household is limited to {cap} adults.");
+
+        var created = NewAdult(oidcSubject, displayName, address, isAdmin);
+        db.Persons.Add(created);
+        if (!await db.HouseholdSettings.AnyAsync(ct))
+            db.HouseholdSettings.Add(new HouseholdSettingsRow());
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        return Result.Success(ToInfo(pending));
+        return Result.Success(ToInfo(created));
     }
+
+    public async Task<PersonInfo?> FindBySubjectAsync(string oidcSubject, CancellationToken ct)
+    {
+        var row = await db.Persons.AsNoTracking().SingleOrDefaultAsync(p => p.OidcSubject == oidcSubject, ct);
+        return row is null ? null : ToInfo(row);
+    }
+
+    private async Task<int> CapAsync(CancellationToken ct)
+        => await db.HouseholdSettings.Select(s => (int?)s.MaxAdults).FirstOrDefaultAsync(ct) ?? new HouseholdSettingsRow().MaxAdults;
 
     public async Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct)
     {
@@ -72,7 +90,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
         if (await EmailTakenAsync(address, null, ct))
             return Fail(PersonCodes.EmailTaken, "Another adult already has this email address.");
-        var cap = await db.HouseholdSettings.Select(s => (int?)s.MaxAdults).FirstOrDefaultAsync(ct) ?? new HouseholdSettingsRow().MaxAdults;
+        var cap = await CapAsync(ct);
         if (await db.Persons.CountAsync(p => p.Kind == "adult", ct) >= cap)
             return Fail(PersonCodes.AdultCap, $"This household is limited to {cap} adults.");
 
@@ -93,7 +111,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
             p => p.Kind == "adult" && p.Email != null && p.Email.ToLower() == normalized && (except == null || p.Id != except.Value), ct);
     }
 
-    /// <summary>Only what the binding needs: one '@' with something on each side, no space. Authelia owns the real address.</summary>
+    /// <summary>Only what the binding needs: one '@' with something on each side, no space. The identity provider owns the real address.</summary>
     private static bool LooksLikeEmail(string value)
     {
         var at = value.IndexOf('@');
@@ -204,27 +222,6 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return Result.Success();
-    }
-
-    public async Task<Result<PersonInfo>> SetAdminAsync(PersonId id, bool isAdmin, CancellationToken ct)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        // Two admins demoting each other at once must not both see "another admin remains".
-        await LockAsync(ct);
-
-        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
-        if (row is null)
-            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
-        if (row.Kind != "adult")
-            return Fail(PersonCodes.NotAnAdult, "Only an adult can be an administrator.");
-        if (row.IsAdmin && !isAdmin && row.OidcSubject is not null
-            && await db.Persons.CountAsync(p => p.IsAdmin && p.OidcSubject != null, ct) == 1)
-            return Fail(PersonCodes.LastAdmin, "The household needs at least one administrator who has signed in.");
-
-        row.IsAdmin = isAdmin;
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return Result.Success(ToInfo(row));
     }
 
     public async Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct)

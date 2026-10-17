@@ -5,7 +5,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application;
 
-public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email) : ICommand<PersonInfo>;
+/// <summary><paramref name="IsAdmin"/>: whether the identity provider put this adult in the admin group.</summary>
+public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email, bool IsAdmin = false) : ICommand<PersonInfo>;
 
 public sealed record CreateDependentCommand(string DisplayName) : ICommand<PersonInfo>;
 
@@ -15,7 +16,7 @@ public sealed record ListPersonsQuery : IQuery<IReadOnlyList<PersonInfo>>;
 public sealed class ProvisionAdultHandler(IPersonRegistry persons) : IRequestHandler<ProvisionAdultCommand, PersonInfo>
 {
     public async ValueTask<Result<PersonInfo>> HandleAsync(ProvisionAdultCommand command, CancellationToken ct = default)
-        => await persons.ProvisionAdultAsync(command.OidcSubject, command.DisplayName, command.Email, ct);
+        => await persons.ProvisionAdultAsync(command.OidcSubject, command.DisplayName, command.Email, command.IsAdmin, ct);
 }
 
 [RequestHandler<CreateDependentCommand, PersonInfo>]

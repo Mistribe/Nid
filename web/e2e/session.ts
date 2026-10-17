@@ -1,20 +1,27 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 // The e2e project cannot import src/ (the « @/ » alias is not resolved here), so ids are listed with version 999: seen whatever the guide's version.
 const GUIDE_IDS = ['dashboard', 'subscriptions', 'investments', 'income', 'properties', 'loans', 'routine', 'import', 'export'];
-const PASSWORD = 'Nid-Dev-User-1!'; // deploy/dev/setup.sh: throwaway development users
+// Pocket ID only knows passkeys at its sign-in screen, so the journeys sign in the way docs/spikes.md section 9septies found:
+// global-setup.ts opens each user's Pocket ID session once (a one-time access token from the identity provider's API, a throwaway
+// static key, development and smoke only; Pocket ID limits those exchanges to about five a minute) and leaves the cookies in
+// NID_IDP_SESSIONS. With them in the browser context, /auth/login goes through the real OIDC flow without a prompt (the Nid
+// client skips consent). The users and the client come from deploy/local/bootstrap-pocket-id.mjs.
+function identityProviderSession(user: string) {
+  const sessions = JSON.parse(process.env.NID_IDP_SESSIONS ?? '{}') as Record<string, Parameters<BrowserContext['addCookies']>[0]>;
+  const cookies = sessions[user];
+  if (!cookies) throw new Error(`signIn: no identity provider session for ${user}: web/e2e/global-setup.ts did not run, or ${user} is not one of its users`);
+  return cookies;
+}
 
 /**
- * Signs in through the real OIDC flow and Authelia's portal, then lands on `path` with every guide marked seen, so no introduction covers the journeys.
+ * Signs in through the real OIDC flow with the user's Pocket ID session already in the browser context (see above), then lands on `path` with every guide marked seen, so no introduction covers the journeys.
  * `path` is waited for as given: a page, never `/`, which redirects to a home that depends on the modules.
  */
 export async function signIn(page: Page, user: 'alice' | 'bob', path: string): Promise<void> {
   if (path === '/') throw new Error('signIn: `/` redirects to the home page, so it is never reached; name the page, e.g. /dashboard');
+  await page.context().addCookies(identityProviderSession(user));
   await page.goto(`/auth/login?returnUrl=${encodeURIComponent(path)}`);
-  await page.waitForURL(/auth\.localtest\.me/);
-  await page.locator('#username-textfield').fill(user);
-  await page.locator('#password-textfield').fill(PASSWORD);
-  await page.locator('#sign-in-button').click();
   await page.waitForURL((url) => url.hostname === 'nid.localtest.me' && url.pathname + url.search === path);
   const { csrf } = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
   const response = await page.request.patch('/api/v1/core/me/preferences', { headers: { 'X-Nid-Csrf': csrf }, data: { guidesSeen: Object.fromEntries(GUIDE_IDS.map((id) => [id, 999])) } });

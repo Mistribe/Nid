@@ -4,7 +4,7 @@
 
 auth.localtest.me {
   tls internal
-  reverse_proxy authelia:9091
+  reverse_proxy pocket-id:1411
 }
 
 nid.localtest.me {

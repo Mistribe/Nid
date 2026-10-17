@@ -110,9 +110,9 @@ ok "$(tool check-database "$id")"
 c up -d --wait --wait-timeout 300
 [ "$(c exec -T nid-web wget -qO- http://nid-api:8080/health/ready)" = Healthy ] || die "nid-api n'est pas prêt"
 ok "nid-api est prêt"
-[ "$(docker inspect --format '{{.State.Health.Status}}' "$(c ps -q authelia)")" = healthy ] ||
-  die "Authelia ne lit pas sa base restaurée"
-ok "Authelia lit sa base restaurée"
+[ "$(docker inspect --format '{{.State.Health.Status}}' "$(c ps -q pocket-id)")" = healthy ] ||
+  die "Pocket ID ne lit pas sa base restaurée"
+ok "Pocket ID lit sa base restaurée"
 ok "$(tool check-keys "$id")"
 
 if [ "$VERIFY" = 1 ]; then echo "Sauvegarde $id vérifiée : elle se restaure."; else echo "Restauration de $id terminée."; fi

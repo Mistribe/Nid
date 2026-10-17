@@ -37,7 +37,7 @@ Hors périmètre :
 | D3 | Base **PostgreSQL** | Décidé |
 | D4 | Hébergement **Docker Compose** sur un serveur maison / mini PC | Décidé |
 | D5 | **Monolithe modulaire** | Décidé |
-| D6 | Authentification par **OIDC externe, Authelia** | Décidé |
+| D6 | Authentification par **OIDC externe, Pocket ID** : l'accès à Nid et le rôle admin viennent des **groupes** du fournisseur (`nid-users`, `nid-admins`), appliqués à chaque connexion. Choisi à la place d'Authelia, retenu d'abord : un foyer qui accumule des services veut un endroit où voir les utilisateurs, leurs groupes et ce que chaque groupe atteint, sur un standard (claim OIDC `groups`) que les autres services reprennent ; Pocket ID le donne dans un conteneur léger (SQLite, passkeys, groupes, accès par client). Revue : `spikes.md` §9septies | Décidé |
 | D7 | Extraction de documents : **port pluggable** ; local (Ollama) par défaut, fournisseurs cloud sur opt-in (D23, D24) | Décidé |
 | D8 | Jobs domaine en **Quartz.NET in-process** ; jobs d'ingestion en **workers conteneurisés** via table de jobs | Décidé (frontière) ; Quartz **retenu par défaut** |
 | D9 | Registre **`Item` central** dans Core pour propriété et visibilité | **Retenu par défaut** |
@@ -47,7 +47,7 @@ Hors périmètre :
 | D13 | **Générateurs de sources en priorité** (JSON, Synapse, endpoints, EF, logs…) ; **Native AOT non visé** (§4.3) | Décidé |
 | D14 | Frontière : requêtes Synapse aux points d'entrée et événements entre modules ; interfaces `Contracts` pour les lectures inter-modules et points d'extension | **Retenu par défaut** |
 | D15 | Visibilité respectée par **filtrage applicatif** (pipeline, garde de sortie) et banc anti-fuite en CI ; pas de Row-Level Security | Décidé |
-| D16 | Authentification MCP et automatisations par **jetons d'accès personnels** en v1 ; OAuth via Authelia écarté (pas d'enregistrement dynamique de clients) | Décidé |
+| D16 | Authentification MCP et automatisations par **jetons d'accès personnels** en v1 ; OAuth via le fournisseur d'identité écarté (pas d'enregistrement dynamique de clients) | Décidé |
 | D17 | Import et export **orchestrés par le navigateur**, sessions d'import en lots avec staging côté serveur, **aucune tâche de fond** (`import-format.md` §11) | Décidé |
 | D18 | **Thèmes** : quatre jeux de couleurs curés, préférence par personne côté serveur (`frontend/design-system.md` §7) | Décidé |
 | D19 | Sources d'ingestion : **dépôt manuel seulement en v1** ; emails et banque à l'étape 4 ou 5, avec revue de risque préalable (`security/`) | Décidé |
@@ -56,7 +56,7 @@ Hors périmètre :
 | D22 | Emails **sans montants** par défaut | Décidé |
 | D23 | Fournisseurs LLM multiples : offres gratuites éligibles, puis local, puis payant **avec accord** ; local par défaut ; consentement à chaque dépôt ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`) | Décidé |
 | D24 | **Passerelle LLM** dans `nid-api` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
-| D25 | **Aspire** (`Nid.AppHost`) orchestre la pile de **développement local** : API, frontend Vite, PostgreSQL, Authelia, proxy TLS. Le déploiement reste Docker Compose (D4) ; Aspire n'est ni déployé ni requis en production (§10.3) | Décidé |
+| D25 | **Aspire** (`Nid.AppHost`) orchestre la pile de **développement local** : API, frontend Vite, PostgreSQL, Pocket ID, proxy TLS. Le déploiement reste Docker Compose (D4) ; Aspire n'est ni déployé ni requis en production (§10.3) | Décidé |
 
 ## 4. Stack et topologie
 
@@ -72,7 +72,7 @@ Hors périmètre :
 | Sérialisation JSON | `System.Text.Json` en **source generation** | Un `JsonSerializerContext` par module (§5.5) |
 | Frontend | React, TypeScript strict, Vite, Tailwind v4 + shadcn/ui, TanStack Query, client API généré | PWA, hors ligne limité au tableau de bord ; détail dans `frontend/` |
 | Base | PostgreSQL | Un schéma par module |
-| Authentification | Authelia (OIDC), l'application est cliente OIDC | SPA via BFF, cookie de session |
+| Authentification | Pocket ID (OIDC), l'application est cliente OIDC | SPA via BFF, cookie de session ; accès et rôle admin par les groupes |
 | Jobs domaine | Quartz.NET in-process, magasin persistant Postgres | Voir §9 |
 | Workers | Conteneurs, techno libre (Python pour l'extraction) | Voir §9 |
 | LLM | Ollama (local) et fournisseurs cloud optionnels (Gemini, OpenAI, Anthropic), derrière la passerelle LLM | Local par défaut ; voir `ingestion/llm-providers.md` |
@@ -89,7 +89,7 @@ Hors périmètre :
         └──> nid-api   (.NET : API + BFF + MCP + Quartz)
                 │  ▲
    OIDC ◄───────┘  │ API interne (port séparé, non routé par le proxy)
-   Authelia        │
+   Pocket ID       │
                    ├── nid-worker-* (conteneurs d'ingestion)
                    ├── postgres
                    ├── volume documents
@@ -223,7 +223,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 - Les outils sont de **minces enveloppes** qui envoient les mêmes requêtes Synapse que REST : même pipeline, même `IAccessPolicy`, mêmes droits ; un élément privé reste privé. Outils enregistrés **explicitement** (`WithTools<T>()`), pas par scan (`WithToolsFromAssembly` est annoté `RequiresUnreferencedCode`).
 - **Lectures** (`net_worth`, `list_subscriptions`, `loan_schedule`, `envelope_performance`…) : chiffres calculés par les services déterministes, avec provenance. Le modèle ne calcule rien.
 - **Écritures** : par défaut, elles créent une `Proposal` dans la file de validation (commande de soumission, portée `write`). Un jeton peut recevoir le scope `write:direct` quand l'utilisateur dicte lui-même la saisie : seul ce scope exécute une commande directe. **Retenu par défaut.**
-- Authentification : **jeton d'accès personnel** révocable, avec portées `read`, `write`, `write:direct` (`identity-and-access/tokens-and-credentials.md`). OAuth via Authelia écarté en v1.
+- Authentification : **jeton d'accès personnel** révocable, avec portées `read`, `write`, `write:direct` (`identity-and-access/tokens-and-credentials.md`). OAuth via le fournisseur d'identité écarté en v1.
 - **Livré en 4B** : SDK `ModelContextProtocol.AspNetCore` 2.2.0 (révision 2026-07-28, compatible `initialize`), sans session, `/mcp` réservé aux jetons, 18 outils de lecture qui rendent le JSON des routes REST, un filtre d’appel unique (acteur `via: mcp`, événement `mcp_tool_called`), résultat borné à 100 ko.
 - Le MCP **client** (messagerie, stockage de documents) vit dans les workers d'ingestion, pas dans le cœur.
 
@@ -316,7 +316,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 | `nid-api` | API + BFF + MCP + Quartz | oui |
 | `nid-web` | SPA statique ; relaie `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (origine unique, 1F1) | oui |
 | `postgres` | Base | oui |
-| `authelia` | OIDC | oui |
+| `pocket-id` | OIDC | oui |
 | `nid-worker-*` | Workers d'ingestion | à la carte |
 | `ollama` | LLM local | optionnel (avec les workers d'extraction) |
 | `backup` | restic chiffré ; dépôt local `deploy/backups/`, dépôt distant optionnel (1F2) | oui |
@@ -324,8 +324,8 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 - Configuration par variables d'environnement et secrets Docker (fichiers). Aucun secret dans l'image ni dans le dépôt.
 - Images multi-architecture (amd64/arm64), utilisateur non-root, système de fichiers en lecture seule sauf volumes, healthchecks.
 - **Migrations** EF Core par module, appliquées au démarrage de `nid-api` sous verrou advisory Postgres. Migrations rétro-compatibles (expand/contract) pour permettre un retour arrière d'image.
-- Volumes : `pgdata`, `authelia`, `dataprotection-keys` (clés Data Protection de `nid-api`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/`, la configuration d'Authelia et `deploy/.env`.
-- Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et configuration d'Authelia), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
+- Volumes : `pgdata`, `pocket-id` (sa base SQLite et ses images), `dataprotection-keys` (clés Data Protection de `nid-api`), `assets` (icônes des fournisseurs, 1C2c), puis `documents` à l'étape 4. Tous couverts par la sauvegarde (1F2), avec `deploy/secrets/` (dont la clé de chiffrement de Pocket ID) et `deploy/.env`.
+- Livré en 1F1 : `deploy/compose.yaml`, `deploy/setup.sh` (secrets et `.env`, puis le secret du client OIDC une fois créé dans Pocket ID), `deploy/README.md` pour l'hébergeur ; images construites depuis le dépôt (`src/Nid.Host/Dockerfile`, `web/Dockerfile`), sans publication sur un registre.
 - Mises à jour : tags d'image épinglés, procédure documentée (sauvegarde → pull → up). Pas de mise à jour automatique.
 
 ### 10.2 Hypothèses envers l'hébergeur
@@ -335,7 +335,7 @@ Le reverse proxy, le TLS et l'accès externe sont fournis par l'hébergeur, hors
 - HTTPS terminé en amont ;
 - en-têtes `X-Forwarded-*` de confiance (liste de proxys configurable) ;
 - une URL publique configurable (`PUBLIC_URL`) utilisée pour les redirections OIDC, les liens des emails et le manifeste PWA ;
-- **une seule origine** : le proxy de l'hébergeur envoie tout `nid.<domaine>` à `nid-web`, qui relaie lui-même `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (1F1) ; `auth.<domaine>` va à `authelia`. L'hébergeur a donc **deux cibles** et aucun routage par préfixe. Même nom d'hôte pour l'interface et l'API (cookie de session du BFF, pas de CORS) ;
+- **une seule origine** : le proxy de l'hébergeur envoie tout `nid.<domaine>` à `nid-web`, qui relaie lui-même `/api`, `/auth`, `/mcp` et `/health` vers `nid-api` (1F1) ; `auth.<domaine>` va à `pocket-id`. L'hébergeur a donc **deux cibles** et aucun routage par préfixe. Même nom d'hôte pour l'interface et l'API (cookie de session du BFF, pas de CORS) ;
 - un accès sortant HTTPS vers le dépôt `SubTracker-Data` (taux de change et catalogue de fournisseurs) et vers l'historique de la Banque centrale européenne (`www.ecb.europa.eu`, taux de change depuis 1999), URL configurable, miroir ou dossier local possibles. Sans lui, les taux se saisissent à la main et les fournisseurs sont créés à la main.
 
 Un exemple de reverse proxy peut figurer dans `deploy/`, à titre optionnel.
@@ -347,12 +347,13 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 | Ressource | Nature | Rôle |
 |---|---|---|
 | `postgres` | conteneur (`AddPostgres`, volume de données, base `nid`) | Base ; chaîne de connexion injectée dans `nid-api` |
-| `authelia` | conteneur (configuration montée en lecture seule depuis `deploy/dev/authelia`) | OIDC de développement, trois utilisateurs jetables |
+| `pocket-id` | conteneur (`v2.18.0`, volume `nid-dev-pocket-id`, clé d'API jetable) | OIDC de développement |
+| `pocket-id-bootstrap` | processus jetable (`deploy/local/bootstrap-pocket-id.mjs`) | Crée les groupes, trois utilisateurs jetables (`alice` admin, `bob`, `carol` sans accès) et le client de Nid ; écrit son secret dans `.data/secrets`, que `nid-api` lit comme secret « un fichier par clé » |
 | `nid-api` | projet .NET (`Nid.Host`), port fixe 5080 non proxifié | API + BFF ; attend `postgres` ; migrations au démarrage |
 | `nid-web` | application Vite (`/web`, `AddViteApp`) | Rechargement à chaud du frontend |
 | `caddy` | conteneur | Proxy TLS mono-origine : `/api`, `/auth`, `/mcp`, `/health` vers `nid-api`, le reste vers `nid-web` ; reproduit §10.2 |
 
-- **Pourquoi un proxy en développement** : Authelia n'accepte que le HTTPS et refuse `localhost` comme domaine de cookie ; la pile répond donc sur `https://nid.localtest.me` et `https://auth.localtest.me` (`identity-and-access/authentication.md`). Le proxy garantit aussi la mono-origine du BFF (pas de CORS).
+- **Pourquoi un proxy en développement** : Pocket ID veut le HTTPS et un nom d'hôte propre pour ses passkeys (`APP_URL`) ; la pile répond donc sur `https://nid.localtest.me` et `https://auth.localtest.me` (`identity-and-access/authentication.md`). Le proxy garantit aussi la mono-origine du BFF (pas de CORS).
 - **Tableau de bord Aspire** : journaux, traces et métriques OpenTelemetry de tous les services au même endroit ; il tient lieu de backend OTLP local (§12). Les projets .NET référencent `Nid.ServiceDefaults` (OpenTelemetry, health checks, résilience HTTP) ; les `/health/*` de §12 en font partie.
 - **Secrets** : les secrets de développement sont des paramètres Aspire (`AddParameter`, `secret: true`, user-secrets) ou les fichiers jetables générés par `deploy/dev/setup.sh`. Rien ne part en production.
 - **Tests d'intégration** : ils gardent Testcontainers (§13), indépendants de l'AppHost. `Aspire.Hosting.Testing` reste possible plus tard pour les E2E Playwright, qui démarreraient alors la même pile.
@@ -362,7 +363,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 ## 11. Sauvegarde et export
 
 - **restic**, chiffré, règle 3-2-1 : cible locale + cible distante au choix de l'hébergeur (S3, SFTP, autre disque).
-- Contenu : dump Postgres (`pg_dump` cohérent, pas de copie à chaud du répertoire de données) + volume `documents` + clés Data Protection + configuration Authelia. **Sans les clés Data Protection, les jetons bancaires chiffrés sont perdus.**
+- Contenu : dump Postgres (`pg_dump` cohérent, pas de copie à chaud du répertoire de données) + volume `documents` + clés Data Protection + base de Pocket ID (copie à chaud) + `deploy/secrets/`. **Sans les clés Data Protection, les jetons bancaires chiffrés sont perdus.**
 - **Test de restauration** documenté et scripté (restauration dans un compose jetable).
 - Alerte email si la sauvegarde échoue ou dépasse N jours. **Pas encore** : elle attend un canal d'envoi ; en attendant, le service `backup` devient `unhealthy` (1F2).
 - Livré en 1F2 (`superpowers/specs/2026-09-26-backup-design.md`) : service `backup` (chaque nuit à 03:30, rétention 7 quotidiennes, 4 hebdomadaires, 12 mensuelles, `restic check` le dimanche), un instantané par sauvegarde avec un manifeste (lignes par table, migrations, clés), dépôt local `deploy/backups/`, dépôt distant par la surcouche `compose.backup-remote.yaml`, y compris en ajout seulement ; `deploy/restore.sh`, réel (refuse une installation qui a des données) ou `--verify` dans un projet jetable. Le mot de passe restic reste hors de la sauvegarde.
@@ -373,7 +374,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 
 - Logs structurés JSON, **sans données financières** (montants et libellés masqués hors niveau debug).
 - OpenTelemetry : traces API ↔ workers ; métriques (durée des jobs, propositions en attente, âge de la dernière sauvegarde, âge des consentements bancaires). Export OTLP optionnel vers ce que l'hébergeur fournit ; sans backend, logs des conteneurs et page d'état dans l'interface.
-- `/health/live` (le processus) et `/health/ready` (le processus et la base), dans tous les environnements, réponse `Healthy` ou `Unhealthy` sans détail (1F1). La joignabilité d'Authelia est visible dans Administration › Système, pas dans `/health/ready` : une panne du fournisseur d'identité ne doit pas faire redémarrer l'API.
+- `/health/live` (le processus) et `/health/ready` (le processus et la base), dans tous les environnements, réponse `Healthy` ou `Unhealthy` sans détail (1F1). La joignabilité de Pocket ID est visible dans Administration › Système, pas dans `/health/ready` : une panne du fournisseur d'identité ne doit pas faire redémarrer l'API.
 
 ## 13. Stratégie de tests
 
@@ -385,7 +386,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 | **Intégration** | Testcontainers Postgres : handlers, migrations, `IAccessPolicy` (matrice privé / partagé / multi-propriétaires × lecture / écriture). |
 | **Banc anti-fuite** | Jeu de données mixte, toutes les requêtes exécutées en tant que chaque adulte, tests de propriétés sur `Readers` / `Writers`, test de la garde de sortie. Bloquant en CI (`identity-and-access/access-tests.md`). |
 | **Sécurité** | SSRF du `SafeHttpClient`, injection de formules CSV, uploads, import malveillant, corpus de PDF piégés, égress des workers, politique de la passerelle LLM (offres inéligibles, consentement, budget), clés jamais exposées (`security/ai-ingestion.md` §7, `security/application.md` §9). |
-| **Frontend** | Lint (dont l'interdiction d'arithmétique sur les montants), tests de composants, E2E avec un Authelia de test, accessibilité, contraste de tous les thèmes, validation de la palette de graphiques, budgets de taille (`frontend/testing.md`). |
+| **Frontend** | Lint (dont l'interdiction d'arithmétique sur les montants), tests de composants, E2E avec un Pocket ID de test (sessions ouvertes par son API, `frontend/testing.md`), accessibilité, contraste de tous les thèmes, validation de la palette de graphiques, budgets de taille (`frontend/testing.md`). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
 | **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure ni à Synapse ; toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
 | **Extraction** | Jeu d'évaluation de relevés, mesuré hors CI standard (précision par champ). |
@@ -405,7 +406,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 /workers/{extract-python,…}
 /contracts/jobs/…        (schémas JSON versionnés)
 /deploy/compose          (compose de référence, exemples d'environnement)
-/deploy/dev              (configuration Authelia et Caddy de développement, setup.sh, smoke.sh ; lancés par Nid.AppHost)
+/deploy/dev              (configuration Caddy de développement ; lancé par Nid.AppHost avec Pocket ID)
 /docs                    (Project.md, subscription-data-model.md, architecture.md, adr/)
 /tests/…
 ```
@@ -458,8 +459,8 @@ Au moment de la vérification : version 2.0.1 publiée le 13/08/2026, environ 3 
 - Cible distante de la sauvegarde : choix de l'hébergeur.
 - Fournisseurs LLM : SDK officiels ou appels HTTP directs ; choix des modèles après le jeu d'évaluation ; revérification des conditions des fournisseurs (`ingestion/llm-providers.md` §14).
 - Revue de risque avant IMAP, email et banque (`security/README.md` §9).
-- OAuth via Authelia pour le MCP : à revoir si un client utilisé refuse le jeton statique (`identity-and-access/tokens-and-credentials.md` §5).
-- Flux OIDC avec Authelia **exécuté de bout en bout** (`spikes.md` §8) : `client_secret_post`, PAR désactivé et `GetClaimsFromUserInfoEndpoint = true` sont nécessaires ; `name` et `email` ne sortent que par `userinfo`.
+- OAuth via le fournisseur d'identité pour le MCP : à revoir si un client utilisé refuse le jeton statique (`identity-and-access/tokens-and-credentials.md` §5).
+- Flux OIDC avec Pocket ID **exécuté de bout en bout** (`spikes.md` §9septies) : le handler ASP.NET fonctionne avec ses réglages par défaut ; `groups`, `name` et `email` sont dans l'ID token. Non vérifiés : la déconnexion fédérée (`end_session_endpoint`) et la déconnexion par canal arrière.
 
 ## 17. Vérifications faites lors de la rédaction
 

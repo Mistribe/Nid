@@ -51,7 +51,7 @@ Générateur d'éléments respectant les invariants du Core (`../core-data-model
 - Un adulte ne peut jamais s'ajouter comme propriétaire à l'élément de l'autre (`ChangeOwners`).
 - Passer `private` → `shared` puis `shared` → `private` (propriétaire unique) rend un élément à l'état initial du point de vue des lecteurs.
 - Les totaux du foyer ne dépendent d'aucun élément privé.
-- `Readers` et `Writers` ne dépendent pas de `is_admin` : promouvoir ou rétrograder un adulte ne change aucun résultat.
+- `Readers` et `Writers` ne dépendent pas de `is_admin` : qu'un adulte gagne ou perde le groupe admin à sa connexion ne change aucun résultat.
 
 ## 5. Garde de sortie
 

@@ -78,8 +78,12 @@ run_once() {
   pg_dump --host=postgres --username=nid --dbname=nid --format=custom --file="$STAGE/database.pgdump"
   postgres=$(( $(psql --host=postgres --username=nid --dbname=nid -Atc 'show server_version_num') / 10000 ))
 
-  step authelia
-  sqlite3 "file:/authelia/db.sqlite3?mode=ro" ".backup '$STAGE/authelia.sqlite3'"
+  step pocket-id
+  # Pocket ID's base is SQLite in WAL mode: a hot copy through the backup API, never the live files. Its uploads are
+  # plain files; its signing keys live in the base, encrypted with the key in deploy/secrets/.
+  sqlite3 "file:/pocket-id/pocket-id.db?mode=ro" ".backup '$STAGE/pocket-id.sqlite3'"
+  mkdir -p "$STAGE/pocket-id-uploads"
+  if [ -d /pocket-id/uploads ]; then cp -R /pocket-id/uploads/. "$STAGE/pocket-id-uploads/"; fi
 
   step manifest
   pg_restore --data-only --file=- "$STAGE/database.pgdump" > /tmp/data.sql
@@ -93,7 +97,7 @@ run_once() {
     --argjson postgres "$postgres" --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg restic "$(restic version | cut -d ' ' -f 2)" '
     {format: 1, created_at: $created, postgres_major: $postgres, restic_version: $restic,
-     parts: ["database", "authelia", "dataprotection-keys", "assets", "deploy"],
+     parts: ["database", "pocket-id", "dataprotection-keys", "assets", "deploy"],
      migrations: $migrations[0], row_counts: $rows[0], dataprotection_keys: $keys,
      dataprotection_key_files: $key_files[0]}' > "$STAGE/manifest.json"
 
@@ -164,24 +168,24 @@ restore_files() {
   jq -e '.format == 1' "$out/tmp/stage/manifest.json" >/dev/null || die "l'instantané $1 n'a pas de manifeste lisible"
   replace_folder "$out/source/volumes/dataprotection-keys" /target/volumes/dataprotection-keys 1654:1654 700
   replace_folder "$out/source/volumes/assets" /target/volumes/assets 1654:1654 755
-  find /target/volumes/authelia -mindepth 1 -delete
-  cp "$out/tmp/stage/authelia.sqlite3" /target/volumes/authelia/db.sqlite3
-  chown -R 8000:8000 /target/volumes/authelia
-  chmod 600 /target/volumes/authelia/db.sqlite3
+  find /target/volumes/pocket-id -mindepth 1 -delete
+  cp "$out/tmp/stage/pocket-id.sqlite3" /target/volumes/pocket-id/pocket-id.db
+  mkdir -p /target/volumes/pocket-id/uploads
+  cp -a "$out/tmp/stage/pocket-id-uploads/." /target/volumes/pocket-id/uploads/
+  chown -R 65532:65532 /target/volumes/pocket-id
+  chmod 600 /target/volumes/pocket-id/pocket-id.db
+  chmod 700 /target/volumes/pocket-id/uploads
   # deploy/ goes back to the host user, so deploy/setup.sh can still rewrite it.
   host=${NID_HOST_UID:?}:${NID_HOST_GID:?}
-  mkdir -p /target/deploy/secrets /target/deploy/authelia
+  mkdir -p /target/deploy/secrets
   find /target/deploy/secrets -mindepth 1 -delete
   cp -a "$out/source/deploy/secrets/." /target/deploy/secrets/
-  cp "$out/source/deploy/authelia/configuration.yml" "$out/source/deploy/authelia/users.yml" /target/deploy/authelia/
   cp "$out/source/deploy/.env" /target/deploy/.env
   chown -R "$host" /target/deploy/secrets
   # The folders too: in --verify they sit in restore.sh's work folder, which the host user must be able to remove.
-  chown "$host" /target/deploy/authelia /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml \
-    /target/deploy/.env
+  chown "$host" /target/deploy/.env
   chmod 700 /target/deploy/secrets
-  chmod 644 /target/deploy/secrets/* /target/deploy/authelia/configuration.yml /target/deploy/authelia/users.yml \
-    /target/deploy/.env
+  chmod 644 /target/deploy/secrets/* /target/deploy/.env
   rm -rf "$out"
 }
 

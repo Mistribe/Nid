@@ -116,6 +116,6 @@ Les workers d'ingestion appellent l'API interne (`../architecture.md` §9.3) ave
 
 ## 5. OAuth pour le MCP : écarté en v1
 
-- Authelia n'implémente **pas l'enregistrement dynamique de clients** (RFC 7591/7592) : chaque client MCP devrait être déclaré à la main dans Authelia, avec des jetons d'accès signés (`access_token_signed_response_alg`).
-- Le jeton statique fonctionne avec tous les clients MCP, sans configuration côté Authelia.
-- **Voie ouverte** si un client refuse le bearer statique : le SDK MCP C# permet de déclarer les métadonnées de ressource protégée et de valider des JWT ; il faudrait un client Authelia dédié par client MCP. À revoir à ce moment-là.
+- Pocket ID n'annonce **pas d'enregistrement dynamique de clients** (RFC 7591/7592) : chaque client MCP devrait être déclaré à la main dans Pocket ID, avec des jetons d'accès que Nid saurait valider.
+- Le jeton statique fonctionne avec tous les clients MCP, sans configuration côté fournisseur d'identité.
+- **Voie ouverte** si un client refuse le bearer statique : le SDK MCP C# permet de déclarer les métadonnées de ressource protégée et de valider des JWT ; il faudrait un client Pocket ID dédié par client MCP. À revoir à ce moment-là.

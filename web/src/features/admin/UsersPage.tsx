@@ -15,12 +15,12 @@ type Adult = components['schemas']['AdultView'];
 const USERS = '/api/v1/admin/users';
 const HOUSEHOLD = '/api/v1/admin/household';
 
-/** screens.md §12, Utilisateurs: who may join the household, and who administers it. */
+/** screens.md §12, Utilisateurs: the household's adults. Access and the admin role come from the identity provider's groups. */
 export function UsersPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const { session, reload } = useSession();
+  const { session } = useSession();
   const [problem, setProblem] = useState<Presentation | null>(null);
   const adults = $api.useQuery('get', USERS);
   const household = $api.useQuery('get', HOUSEHOLD);
@@ -35,7 +35,6 @@ export function UsersPage() {
   };
   const add = $api.useMutation('post', USERS, settle);
   const remove = $api.useMutation('delete', '/api/v1/admin/users/{id}', settle);
-  const setAdmin = $api.useMutation('put', '/api/v1/admin/users/{id}/admin', settle);
   const revoke = $api.useMutation('post', '/api/v1/admin/users/{id}/revoke-sessions', settle);
 
   const title = t('admin.users.title');
@@ -43,7 +42,6 @@ export function UsersPage() {
   if (loadError) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(loadError))} /></AdminFrame>;
   if (!adults.data || !household.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
 
-  const activeAdmins = adults.data.filter((adult) => adult.isAdmin && adult.status === 'active').length;
   const capReached = household.data.adultCount >= household.data.maxAdults;
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -62,7 +60,6 @@ export function UsersPage() {
   };
 
   const row = (adult: Adult) => {
-    const isLastAdmin = adult.isAdmin && adult.status === 'active' && activeAdmins === 1;
     const isSelf = adult.id === session.person.id;
     const target = { params: { path: { id: adult.id } } };
     return (
@@ -72,27 +69,6 @@ export function UsersPage() {
         <td className="py-2 pr-4">{t(adult.status === 'pending' ? 'admin.users.pending' : 'admin.users.active')}</td>
         <td className="py-2 pr-4">{adult.isAdmin ? t('admin.users.admin') : null}</td>
         <td className="flex flex-col items-start gap-2 py-2">
-          {adult.isAdmin ? (
-            <>
-              <ConfirmAction
-                label={t('admin.users.demote')}
-                confirmation={t('admin.users.demote_confirm', { name: adult.displayName })}
-                disabled={isLastAdmin}
-                pending={setAdmin.isPending}
-                // Demoting oneself leaves the running app's capabilities stale (the session cookie still says
-                // admin): a full reload picks up the server's fresh answer instead of a client patch.
-                onConfirm={() => setAdmin.mutate({ ...target, body: { isAdmin: false } }, isSelf ? { onSuccess: reload } : undefined)}
-              />
-              {isLastAdmin ? <p className="text-sm text-muted-foreground">{t('admin.users.last_admin')}</p> : null}
-            </>
-          ) : (
-            <ConfirmAction
-              label={t('admin.users.promote')}
-              confirmation={t('admin.users.promote_confirm', { name: adult.displayName })}
-              pending={setAdmin.isPending}
-              onConfirm={() => setAdmin.mutate({ ...target, body: { isAdmin: true } })}
-            />
-          )}
           {adult.status === 'pending' ? (
             <ConfirmAction
               label={t('admin.users.cancel_invitation')}
@@ -130,6 +106,7 @@ export function UsersPage() {
           <tbody>{adults.data.map(row)}</tbody>
         </table>
       </div>
+      <p className="max-w-prose text-sm text-muted-foreground">{t('admin.users.managed_hint')}</p>
 
       <form onSubmit={submit} className="max-w-md space-y-3">
         <h2 className="text-lg font-semibold">{t('admin.users.add_title')}</h2>

@@ -1,19 +1,20 @@
 # Déployer Nid
 
 Ce dossier contient le **compose de référence** de Nid : la seule forme livrée (`../docs/architecture.md` §10). Il lance
-cinq services : `postgres`, `authelia` (le fournisseur d'identité), `nid-api` (l'API), `nid-web` (l'interface, qui
+cinq services : `postgres`, `pocket-id` (le fournisseur d'identité), `nid-api` (l'API), `nid-web` (l'interface, qui
 relaie aussi l'API sur la même origine) et `backup` (la sauvegarde chiffrée, §6).
 
 ## 1. Prérequis
 
 - Docker avec compose v2, `openssl` et `bash` sur l'hôte.
-- **Deux noms d'hôte sous un même domaine parent**, par exemple `nid.example.org` et `auth.example.org` : le cookie
-  d'Authelia couvre ce domaine parent.
+- **Deux noms d'hôte**, par exemple `nid.example.org` et `auth.example.org`.
+- **Des passkeys** : Pocket ID n'authentifie que par passkey (empreinte, clé de sécurité, gestionnaire de mots de passe). Chaque
+  adulte doit pouvoir en créer une, sur un appareil qui voit `https://auth.<domaine>`.
 - **Un reverse proxy TLS** fourni par l'hébergeur (Caddy, Traefik, nginx…). Nid ne termine pas le TLS lui-même.
 - Un accès sortant HTTPS pour `nid-api` (catalogue de fournisseurs et taux de change). Sans lui, Nid fonctionne, mais
   les fournisseurs et les taux se saisissent à la main. `nid-api` est **le seul service qui sort** : tous les autres
   réseaux du compose sont internes.
-- **`nid-api` doit joindre `https://auth.<domaine>` depuis l'intérieur.** Pour la connexion, il appelle Authelia à
+- **`nid-api` doit joindre `https://auth.<domaine>` depuis l'intérieur.** Pour la connexion, il appelle Pocket ID à
   son adresse publique (découverte, jeton, profil). Si votre routeur ne sait pas renvoyer vers lui-même le trafic
   destiné à votre adresse publique (« NAT loopback »), ou si votre DNS diffère à l'intérieur, la connexion échoue.
   Dans ce cas, faites résoudre ce nom vers votre proxy depuis `nid-api`, par exemple avec un fichier
@@ -27,22 +28,39 @@ relaie aussi l'API sur la même origine) et `backup` (la sauvegarde chiffrée, �
 
 ## 2. Installer
 
+L'installation se fait en deux temps, parce que Pocket ID choisit lui-même le secret du client de Nid et ne le montre
+qu'une fois :
+
 ```bash
-deploy/setup.sh
+deploy/setup.sh                                          # noms d'hôte, secrets, .env
+docker compose -f deploy/compose.yaml up -d pocket-id    # d'abord Pocket ID seul
+```
+
+Branchez le proxy (§3), puis **ouvrez tout de suite `https://auth.<domaine>/setup`** : la première personne qui y arrive
+crée l'administrateur de Pocket ID et sa passkey. Ne publiez pas l'adresse avant de l'avoir fait. Puis, dans Pocket ID :
+
+1. créez deux groupes : **`nid-users`** (qui peut entrer dans Nid) et **`nid-admins`** (qui administre Nid) ;
+2. créez un client OIDC « Nid » : redirection `https://nid.<domaine>/auth/callback`, déconnexion
+   `https://nid.<domaine>/signed-out`, PKCE activé, consentement ignoré (« Skip consent »), **réservé au groupe `nid-users`** ;
+3. créez les adultes du foyer, chacun dans `nid-users`, et l'administrateur de Nid aussi dans `nid-admins` ;
+4. copiez l'identifiant et le secret du client, et rendez-les à Nid :
+
+```bash
+deploy/setup.sh --oidc-client-id <identifiant> --oidc-client-secret <secret>
 docker compose -f deploy/compose.yaml up -d --build
 ```
 
-`setup.sh` demande les deux noms d'hôte et le premier utilisateur (identifiant, nom affiché, email, mot de passe). Il
-génère :
+`setup.sh` génère :
 
-- tous les secrets, dans `deploy/secrets/` : un fichier par secret, dans un dossier fermé (`0700`), jamais versionné ;
-- la configuration d'Authelia (`deploy/authelia/configuration.yml`, `users.yml`) ;
+- tous les secrets, dans `deploy/secrets/` : un fichier par secret, dans un dossier fermé (`0700`), jamais versionné,
+  dont la clé de chiffrement de Pocket ID ;
 - le fichier `deploy/.env` ;
 - le mot de passe de la sauvegarde, `deploy/backup-secrets/restic_password`, et le dossier `deploy/backups/`. Le script
   affiche ce mot de passe une fois : **notez-le hors de cette machine** (§6).
 
-Vous pouvez le relancer : **il ne remplace jamais un secret existant**. Il réécrit seulement la configuration qui
-découle de vos réponses.
+Vous pouvez le relancer : **il ne remplace jamais un secret existant**, sauf le secret du client quand vous le donnez avec
+`--oidc-client-secret`. Les noms de groupe `nid-users` et `nid-admins` sont des valeurs par défaut : pour d'autres noms,
+définissez `Auth__AccessGroup` et `Auth__AdminGroup` pour `nid-api` dans un `deploy/compose.override.yaml`.
 
 ## 3. Brancher le proxy
 
@@ -52,7 +70,7 @@ vient du nom du projet compose ; ce réseau est interne, votre proxy garde ses p
 | Nom public | Cible |
 |---|---|
 | `nid.<domaine>` | `nid-web:8080` (HTTP) |
-| `auth.<domaine>` | `authelia:9091` (HTTP) |
+| `auth.<domaine>` | `pocket-id:1411` (HTTP) |
 
 Le proxy doit **fixer lui-même** `X-Forwarded-Proto`, `X-Forwarded-Host` et `X-Forwarded-For`, en écrasant ce que le
 client envoie. Caddy et Traefik le font par défaut ; nginx non (voir l'exemple ci-dessous). Le routage de `/api`,
@@ -65,7 +83,7 @@ nid.example.org {
 	reverse_proxy nid-web:8080
 }
 auth.example.org {
-	reverse_proxy authelia:9091
+	reverse_proxy pocket-id:1411
 }
 ```
 
@@ -78,7 +96,7 @@ http:
     auth: { rule: "Host(`auth.example.org`)", service: auth, tls: {} }
   services:
     nid: { loadBalancer: { servers: [{ url: "http://nid-web:8080" }] } }
-    auth: { loadBalancer: { servers: [{ url: "http://authelia:9091" }] } }
+    auth: { loadBalancer: { servers: [{ url: "http://pocket-id:1411" }] } }
 ```
 
 **Proxy dans un autre projet compose** : déclarez le réseau comme externe dans ce projet-là.
@@ -99,14 +117,14 @@ services:
   nid-web:
     ports: ["127.0.0.1:8080:8080"]
     networks: [edge, app, published]
-  authelia:
-    ports: ["127.0.0.1:9091:9091"]
+  pocket-id:
+    ports: ["127.0.0.1:1411:1411"]
     networks: [edge, published]
 networks:
   published: {}
 ```
 
-Avec nginx sur l'hôte, pour `nid.example.org` (même chose pour Authelia sur le port 9091) :
+Avec nginx sur l'hôte, pour `nid.example.org` (même chose pour Pocket ID sur le port 1411) :
 
 ```nginx
 location / {
@@ -122,17 +140,29 @@ Le sous-réseau interne `172.30.10.0/24` est fixé par le compose : s'il chevauc
 `docker compose up` refuse de démarrer avec « Pool overlaps ».
 
 **Essai sur un poste**, sans proxy : `deploy/compose.local.yaml` ajoute un Caddy à certificats locaux sur
-`nid.localtest.me` et `auth.localtest.me`. `deploy/smoke.sh` fait l'essai complet (préparation, démarrage, parcours
-Playwright) ; ce script est jetable, ne le lancez pas sur une installation réelle.
+`nid.localtest.me` et `auth.localtest.me`. `deploy/smoke.sh` fait l'essai complet (préparation, démarrage, utilisateurs et client de Pocket ID par son API,
+parcours Playwright) ; ce script est jetable, ne le lancez pas sur une installation réelle.
 
-## 4. Premier utilisateur et adultes suivants
+## 4. Qui entre dans Nid, et qui l'administre
 
-- **Premier adulte** : la première personne qui se connecte devient adulte et admin.
-- **Adulte suivant** :
-  1. ajoutez-le dans Authelia, en complétant `deploy/authelia/users.yml`. Hachez son mot de passe avec
-     `docker run --rm authelia/authelia:4.39 authelia crypto hash generate argon2 --password '…'`. Puis redémarrez
-     avec `docker compose -f deploy/compose.yaml restart authelia` ;
-  2. pré-enregistrez-le avec le même email dans Nid, dans Administration › Utilisateurs.
+**Pocket ID décide**, par les groupes de la personne, appliqués à chaque connexion :
+
+- **`nid-users`** : l'accès. Hors de ce groupe, Pocket ID refuse la connexion (le client lui est réservé), et Nid la
+  refuse aussi si le groupe manque dans la réponse.
+- **`nid-admins`** : l'administration de Nid (utilisateurs, foyer, tâches, système). Elle ne donne aucun droit sur
+  les éléments des autres. Retirer quelqu'un du groupe lui retire le rôle à sa **prochaine connexion** : ses sessions
+  ouvertes gardent leur droit d'accès jusqu'à leur fin (30 jours au plus) ou jusqu'à « Déconnecter partout »
+  (Administration › Utilisateurs).
+
+Nid crée l'adulte à sa première connexion, dans la limite du plafond du foyer (2 par défaut, réglable dans Administration ›
+Foyer). Aucun adulte n'est admin d'office : tant que personne n'est dans `nid-admins`, personne n'administre Nid, et c'est
+Pocket ID qu'il faut corriger. Administration › Utilisateurs montre les adultes et leur rôle, sans le modifier.
+
+Pré-enregistrer un adulte (nom et email) reste possible : cela permet de lui attribuer des éléments avant sa première
+connexion (un import, par exemple). Sa première connexion avec cet email le rattache.
+
+**Un adulte dont l'identité change** (Pocket ID réinstallé, compte recréé) est refusé : son email est déjà celui d'un
+adulte de Nid, rattaché à l'ancien identifiant. Rattachez-le au nouveau avec `nid admin rebind-subject` (§8).
 
 ## 5. Mettre à jour
 
@@ -154,8 +184,9 @@ mise à jour de Nid les fait évoluer.
 Chaque nuit à 03:30 (réglable : `NID_BACKUP_AT` et `TZ` dans `deploy/.env`), le service `backup` fait **un instantané
 restic chiffré** qui contient tout ce qu'il faut pour repartir :
 
-- la base (`pg_dump`), la base d'Authelia (copie à chaud), les clés Data Protection et les icônes des fournisseurs ;
-- `deploy/secrets/`, la configuration d'Authelia (`configuration.yml`, `users.yml`) et `deploy/.env` ;
+- la base (`pg_dump`), la base de Pocket ID (copie à chaud de sa base SQLite, et ses images), les clés Data Protection et
+  les icônes des fournisseurs ;
+- `deploy/secrets/` (dont la clé de chiffrement de Pocket ID, sans laquelle sa base est illisible) et `deploy/.env` ;
 - un manifeste : nombre de lignes par table, migrations de la base, nombre de clés.
 
 Le dépôt local est `deploy/backups/` (réglable : `NID_BACKUP_DIR`). C'est un dossier de l'hôte et non un volume Docker :
@@ -225,9 +256,13 @@ deploy/restore.sh --verify                  # depuis le dépôt local
 deploy/restore.sh --verify --from remote    # depuis le dépôt distant
 ```
 
+Pocket ID se pose un verrou d'instance dans sa base : restauré à partir d'un instantané de moins d'une minute, il refuse de
+démarrer le temps que le verrou expire. Le compose le relance tout seul (`restart: unless-stopped`) et `restore.sh`
+attend jusqu'à cinq minutes.
+
 Le script restaure le dernier instantané (ou `--snapshot <id>`) dans un projet jetable, `nid-restore-test`, sans port
 publié ni accès sortant. Il vérifie que chaque table a autant de lignes que dans la sauvegarde, que `nid-api` est prêt,
-qu'Authelia lit sa base et que les clés Data Protection ont été reprises. Puis il supprime tout. Il ne touche pas votre
+que Pocket ID lit sa base et que les clés Data Protection ont été reprises. Puis il supprime tout. Il ne touche pas votre
 installation. `--compose-file <chemin absolu>` ajoute un fichier compose à la restauration, par exemple un
 `extra_hosts` pour joindre le dépôt distant (comme §1 pour `nid-api`).
 
@@ -239,7 +274,7 @@ Sur une machine neuve, avec les prérequis du §1 :
 2. Remettez `deploy/backup-secrets/restic_password` (et les fichiers du dépôt distant) ; pour le dépôt local,
    remettez aussi `deploy/backups/`.
 3. `deploy/restore.sh` (ou `deploy/restore.sh --from remote`). Il vérifie d'abord que la sauvegarde s'ouvre et que
-   le code la connaît, puis remet `deploy/secrets/`, la configuration, les
+   le code la connaît, puis remet `deploy/secrets/`, `deploy/.env`, les
    volumes et la base, démarre la pile et fait les mêmes vérifications que `--verify`.
 4. Branchez le proxy (§3).
 
@@ -252,9 +287,9 @@ d'abord `git pull`.
 | Fichier | Rôle | Changer |
 |---|---|---|
 | `postgres_password`, `nid_connection_string` | Accès à la base | Pas par le script. Changez le mot de passe dans Postgres, puis les deux fichiers. |
-| `oidc_client_secret` | Secret du client `nid` chez Authelia | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `authelia` et `nid-api`. |
+| `oidc_client_secret` | Secret du client de Nid dans Pocket ID | Dans Pocket ID, ajoutez un secret au client (l'ancien reste valable), passez-le à `setup.sh --oidc-client-secret`, redémarrez `nid-api`, puis supprimez l'ancien secret dans Pocket ID. |
 | `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid-api`. Les pages ouvertes devront être rechargées. |
-| `authelia_session`, `authelia_storage`, `authelia_jwt`, `authelia_hmac`, `authelia_jwks` | Secrets d'Authelia | Voir la documentation d'Authelia. **Changer `authelia_storage` rend sa base illisible.** |
+| `pocket_id_encryption_key` | Chiffre les clés de signature de Pocket ID dans sa base | **Ne la changez pas à la main : sa base deviendrait illisible.** Pour la renouveler, utilisez la commande `encryption-key-rotate` de Pocket ID (sa documentation), puis remplacez le fichier. |
 | `backup-secrets/restic_password` | Ouvre la sauvegarde ; hors de la sauvegarde | Jamais en supprimant le fichier : `restic key add` puis `restic key remove` (§6). |
 | `backup-secrets/remote_repository`, `remote_password`, `remote_credentials` | Dépôt distant | Changez le fichier, puis `backup-now`. |
 
@@ -264,27 +299,27 @@ rendra illisibles les secrets que Nid chiffrera plus tard. Elles font partie de 
 ## 8. Commandes de secours
 
 La zone admin couvre l'administration courante. `nid admin` sert quand elle ne suffit plus : plus aucun admin ne peut se
-connecter, ou Authelia a été réinstallé et l'identité (`sub`) d'un adulte a changé. Les commandes passent par les mêmes
+connecter, ou Pocket ID a été réinstallé et l'identité (`sub`) d'un adulte a changé. Les commandes passent par les mêmes
 règles que l'interface, et chacune est enregistrée : les admins la voient dans Administration › Journal de sécurité,
 avec l'origine « Ligne de commande ».
 
 ```bash
 docker compose -f deploy/compose.yaml exec nid-api nid admin list-persons
-docker compose -f deploy/compose.yaml exec nid-api nid admin grant-admin --person alice@example.org
 docker compose -f deploy/compose.yaml exec nid-api nid admin revoke-sessions --person alice@example.org
 docker compose -f deploy/compose.yaml exec nid-api nid admin rebind-subject --person alice@example.org --sub <nouveau sub>
 ```
 
 - `--person` accepte un identifiant (voir `list-persons`), un email (la casse ne compte pas) ou un nom affiché exact.
   Si plusieurs personnes correspondent, la commande refuse et les liste : relancez avec l'identifiant.
-- `grant-admin` et `rebind-subject` demandent de taper `oui` ; `--yes` s'en passe, par exemple dans un script. Sans
+- `rebind-subject` demande de taper `oui` ; `--yes` s'en passe, par exemple dans un script. Sans
   terminal (`exec -T`) et sans `--yes`, elles refusent sans rien changer.
-- `rebind-subject` ferme aussi les sessions de l'adulte. Le nouveau `sub` est un identifiant opaque d'Authelia : faites
-  tenter une connexion à l'adulte, que Nid refuse, puis lisez le `sub` de ce refus :
+- `rebind-subject` ferme aussi les sessions de l'adulte. Le nouveau `sub` est l'identifiant de la personne dans Pocket ID (un UUID, visible dans la
+  page de la personne). Sinon, faites tenter une connexion à l'adulte : Nid la refuse (email déjà rattaché) et note le `sub`
+  de ce refus :
 
   ```bash
   docker compose -f deploy/compose.yaml exec -T postgres psql -U nid -d nid -c \
-    "select at, data->>'subject' as sub from platform.audit_log where action = 'login_refused' order by seq desc limit 5"
+    "select at, data->>'subject' as sub, data->>'reason' as reason from platform.audit_log where action = 'login_refused' order by seq desc limit 5"
   ```
 - **Si l'API ne démarre pas**, lancez la commande dans un conteneur à part, sans `nid` (le point d'entrée de l'image
   est déjà l'hôte) : `docker compose -f deploy/compose.yaml run --rm nid-api admin list-persons`.
