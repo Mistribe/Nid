@@ -18,15 +18,6 @@ public sealed class UpdatePreferencesHandler(IActorAccessor actor, IPersonRegist
         if (actor.Current?.PersonId is not { } person)
             return Result.Failure<Preferences>(new UnauthorizedFailure("Preferences belong to a signed-in person.", null));
 
-        var current = await persons.PreferencesAsync(person, ct);
-        if (current is null)
-            return Result.Failure<Preferences>(new NotFoundFailure("person", person.ToString()));
-
-        var applied = current.Apply(command.Change);
-        if (!applied.TryGetValue(out var updated))
-            return applied;
-
-        await persons.SavePreferencesAsync(person, updated, ct);
-        return Result.Success(updated);
+        return await persons.UpdatePreferencesAsync(person, command.Change, ct);
     }
 }

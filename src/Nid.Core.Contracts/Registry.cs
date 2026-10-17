@@ -62,8 +62,8 @@ public interface IPersonRegistry
     /// <summary>The person's preferences, defaults filled in; <c>null</c> when the person does not exist.</summary>
     Task<Preferences?> PreferencesAsync(PersonId id, CancellationToken ct);
 
-    /// <summary>Writes the three keys it owns and keeps every other key of the stored object.</summary>
-    Task SavePreferencesAsync(PersonId id, Preferences preferences, CancellationToken ct);
+    /// <summary>Applies the change to the stored preferences under the person's row lock, writes the keys it owns and keeps every other key of the stored object.</summary>
+    Task<Result<Preferences>> UpdatePreferencesAsync(PersonId id, PreferencesChange change, CancellationToken ct);
 
     /// <summary>Removes an adult who has not signed in and owns nothing (<see cref="PersonCodes.PersonActive"/> otherwise).</summary>
     Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct);
