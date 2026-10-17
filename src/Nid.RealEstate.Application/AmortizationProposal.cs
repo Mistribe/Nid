@@ -27,7 +27,7 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
     public string Kind => "realestate.import_amortization";
     public int PayloadVersion => 1;
 
-    private sealed record Body(List<RowBody?>? Rows, bool? MakeReference);
+    private sealed record Body(List<RowBody?>? Rows, JsonElement? MakeReference);
 
     private sealed record RowBody(string? DueDate, string? Payment, string? Interest, string? Principal, string? Insurance, string? Crd);
 
@@ -200,9 +200,17 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
                 rows.Add(new BankRow(due, payment!.Value, interest!.Value, principal!.Value, insurance, crd!.Value));
         }
         // A garbage table answers its first cells, not thousands (as a pasted one, 3F2).
-        return errors.Count > 0
-            ? Shape([.. errors.Take(BankCheck.ErrorMax)])
-            : Result.Success(new Parsed(rows, readMakeReference ? body.MakeReference : null));
+        if (errors.Count > 0)
+            return Shape([.. errors.Take(BankCheck.ErrorMax)]);
+        // Read leniently: ignored whatever its type unless an edit, where only true/false are accepted.
+        bool? make = null;
+        if (readMakeReference && body.MakeReference is { ValueKind: not JsonValueKind.Null } m)
+        {
+            if (m.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                return Shape([new FieldError("payload.makeReference", FieldErrors.ShapeCode, "true or false.")]);
+            make = m.GetBoolean();
+        }
+        return Result.Success(new Parsed(rows, make));
     }
 
     private static Result<Parsed> Shape(IReadOnlyList<FieldError> errors) => Result.Failure<Parsed>(FieldErrors.Shape(errors));

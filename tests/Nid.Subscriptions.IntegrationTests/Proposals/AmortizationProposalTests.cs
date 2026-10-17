@@ -258,4 +258,66 @@ public class AmortizationProposalTests(PostgresFixture fixture)
         Assert.Equal(("applied", loan), (write!.Outcome, Assert.Single(write.AppliedRefs)));
         Assert.Equal("bank", LoanApi.S(await LoanApi.DetailAsync(app, loan), "scheduleSource")); // the submitter's `false` is dropped
     }
+
+    [Fact]
+    public async Task A_makeReference_that_is_not_a_boolean_is_ignored_on_submit_and_refused_on_an_edit()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await LoanApi.NewAsync(app, LoanApi.Golden(app));
+
+        var proposal = await SubmitAsync(app, new
+        {
+            kind = Kind, targetItemId = loan, sourceLabel = "t", payload = new { rows = GoldenRows(), makeReference = "no" },
+        });
+        Assert.False(proposal.GetProperty("payload").TryGetProperty("makeReference", out _));
+
+        var edited = JsonNode.Parse(proposal.GetProperty("payload").GetRawText())!;
+        edited["makeReference"] = "yes";
+        await AssertRefusedAtAsync(await ApproveAsync(app, proposal, edited), "payload.makeReference", "request.invalid");
+        Assert.Equal("pending", (await ReadAsync(app, proposal)).GetProperty("proposal").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task A_direct_write_sent_twice_is_conforme_the_second_time()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await LoanApi.NewAsync(app, LoanApi.Golden(app));
+        var command = new ApplyDirectCommand(Kind, new ItemId(loan), JsonSerializer.SerializeToElement(new { rows = GoldenRows() }));
+
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out var first));
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out var second));
+
+        Assert.Equal(("applied", "conforme"), (first!.Outcome, second!.Outcome));
+        Assert.Empty(second.AppliedRefs);
+    }
+
+    [Fact]
+    public async Task Approving_a_table_that_became_conforme_writes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await LoanApi.NewAsync(app, LoanApi.Golden(app));
+        var proposal = await SubmitAsync(app, Table(loan, GoldenRows()));
+        var command = new ApplyDirectCommand(Kind, new ItemId(loan), JsonSerializer.SerializeToElement(new { rows = GoldenRows() }));
+        Assert.True((await DirectWriteTests.AsTokenAsync(app, DirectWriteTests.Direct, command)).TryGetValue(out _));
+
+        var approved = await ApproveAsync(app, proposal);
+
+        Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+        Assert.Empty((await JsonOf(approved)).GetProperty("appliedRefs").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task A_five_row_preview_shows_three_first_and_two_last_rows()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await LoanApi.NewAsync(app, LoanApi.Golden(app));
+        var five = GoldenRows();
+        five.Add(R("2021-02-15", "1159.92", "578.27", "581.65", "197683.53"));
+        five.Add(R("2021-03-15", "1159.92", "576.58", "583.34", "197100.19"));
+
+        var preview = (await ReadAsync(app, await SubmitAsync(app, Table(loan, five)))).GetProperty("preview");
+
+        Assert.Equal(["2020-11-15", "2020-12-15", "2021-01-15"], preview.GetProperty("first").EnumerateArray().Select(r => r.GetProperty("dueDate").GetString()));
+        Assert.Equal(["2021-02-15", "2021-03-15"], preview.GetProperty("last").EnumerateArray().Select(r => r.GetProperty("dueDate").GetString()));
+    }
 }
