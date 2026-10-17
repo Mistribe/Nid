@@ -4,8 +4,12 @@ import { expect, type Page } from '@playwright/test';
 const GUIDE_IDS = ['dashboard', 'subscriptions', 'investments', 'income', 'properties', 'loans', 'routine', 'import', 'export'];
 const PASSWORD = 'Nid-Dev-User-1!'; // deploy/dev/setup.sh: throwaway development users
 
-/** Signs in through the real OIDC flow and Authelia's portal, then lands on `path` with every guide marked seen, so no introduction covers the journeys. */
-export async function signIn(page: Page, user: 'alice' | 'bob', path = '/'): Promise<void> {
+/**
+ * Signs in through the real OIDC flow and Authelia's portal, then lands on `path` with every guide marked seen, so no introduction covers the journeys.
+ * `path` is waited for as given: a page, never `/`, which redirects to a home that depends on the modules.
+ */
+export async function signIn(page: Page, user: 'alice' | 'bob', path: string): Promise<void> {
+  if (path === '/') throw new Error('signIn: `/` redirects to the home page, so it is never reached; name the page, e.g. /dashboard');
   await page.goto(`/auth/login?returnUrl=${encodeURIComponent(path)}`);
   await page.waitForURL(/auth\.localtest\.me/);
   await page.locator('#username-textfield').fill(user);
