@@ -28,3 +28,14 @@ export async function cancelActiveImports(page: Page): Promise<void> {
     expect(response.ok()).toBe(true);
   }
 }
+
+/** A « Lecture + propositions » token for the signed-in person; the ones earlier runs left are revoked first (a person holds 10 active tokens at most). */
+export async function proposeToken(page: Page): Promise<string> {
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
+  const headers = { 'X-Nid-Csrf': session.csrf };
+  const tokens = (await (await page.request.get('/api/v1/core/me/tokens')).json()) as Array<{ id: string; name: string }>;
+  for (const old of tokens.filter((t) => t.name.startsWith('E2E '))) await page.request.delete(`/api/v1/core/me/tokens/${old.id}`, { headers });
+  const created = await page.request.post('/api/v1/core/me/tokens', { headers, data: { name: `E2E ${Date.now()}`, preset: 'propose', expiresInDays: 30 } });
+  expect(created.ok()).toBe(true);
+  return ((await created.json()) as { secret: string }).secret;
+}
