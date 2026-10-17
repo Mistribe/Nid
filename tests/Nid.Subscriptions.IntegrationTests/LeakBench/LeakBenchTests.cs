@@ -12,6 +12,7 @@ using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.IntegrationTests.Audit;
 using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 
@@ -954,4 +955,36 @@ public class LeakBenchTests(PostgresFixture fixture)
             + (expected
                 ? "carries ItemIds the output guard would never be handed."
                 : "carries none, and flagging it would train the next author to ignore this test."));
+
+    /// <summary>4D1 D9: a private item's proposals reach its owner only, and the other adult's refused read is recorded.</summary>
+    [Fact]
+    public async Task A_private_items_proposals_reach_its_owner_only_and_a_refused_read_is_recorded()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+
+        var mine = await app.GetRawAsync(app.AdultB, "/api/v1/core/proposals");
+        Assert.All(data.Proposals["P-B"], id => Assert.Contains(id.ToString(), mine)); // positive control
+        var theirs = await app.GetRawAsync(app.AdultA, "/api/v1/core/proposals");
+        Assert.All(data.Proposals["P-B"], id => Assert.DoesNotContain(id.ToString(), theirs));
+        Assert.DoesNotContain(MixedDataset.PrivateLabelB, theirs, StringComparison.Ordinal);
+
+        foreach (var id in data.Proposals["P-B"])
+            Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/core/proposals/{id}")).StatusCode);
+        var denied = await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied);
+        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"] })
+            Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value));
+
+        // A's decisions on B's proposals: 404, still pending, and a refusal recorded for the target (one per minute, so by `read`).
+        foreach (var id in data.Proposals["P-B"])
+        {
+            Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/core/proposals/{id}/approve", new { version = 0 })).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/core/proposals/{id}/reject", new { version = 0 })).StatusCode);
+            var detail = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, $"/api/v1/core/proposals/{id}")).RootElement;
+            Assert.Equal("pending", detail.GetProperty("proposal").GetProperty("status").GetString());
+        }
+        denied = await SecurityEventTests.EventsAsync(app, SecurityEventNames.AccessDenied);
+        foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"] })
+            Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value) && e.Data.Contains("\"read\""));
+    }
 }

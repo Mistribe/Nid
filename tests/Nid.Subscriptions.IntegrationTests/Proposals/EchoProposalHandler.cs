@@ -6,7 +6,7 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>
-/// A kind for the queue's own tests: `{ subject, note?, refuse?, applyFails?, applyThrows? }`. Validation refuses when `refuse` is true;
+/// A kind for the queue's own tests: `{ subject, note?, refuse?, applyFails?, applyThrows?, conforme? }`. Validation refuses when `refuse` is true;
 /// application fails when `applyFails` is true, throws when `applyThrows` is true, else returns one new id.
 /// </summary>
 public sealed class EchoProposalHandler : IProposalHandler
@@ -16,13 +16,16 @@ public sealed class EchoProposalHandler : IProposalHandler
     public string Kind => KindName;
     public int PayloadVersion => 1;
 
-    public Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct)
+    public Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
         => Task.FromResult(payload.TryGetProperty("refuse", out var r) && r.ValueKind == JsonValueKind.True
             ? Result.Failure<ProposalCheck>(new Failure("test.refused", "Refused by the test handler.", null))
             : Result.Success(new ProposalCheck(payload.TryGetProperty("subject", out var s) ? s.GetString() : null,
-                [new ProposalWarning("test.note", "info", "Echoed.")], Known(payload))));
+                [new ProposalWarning("test.note", "info", "Echoed.")], Known(payload),
+                payload.TryGetProperty("conforme", out var c) && c.ValueKind == JsonValueKind.True
+                    ? JsonSerializer.SerializeToElement(new { expected = Known(payload), given = Known(payload) })
+                    : null)));
 
-    private static readonly string[] Fields = ["subject", "note", "refuse", "applyFails", "applyThrows"];
+    private static readonly string[] Fields = ["subject", "note", "refuse", "applyFails", "applyThrows", "conforme"];
 
     /// <summary>Its known fields only, as a real handler normalizes.</summary>
     private static JsonElement Known(JsonElement payload)

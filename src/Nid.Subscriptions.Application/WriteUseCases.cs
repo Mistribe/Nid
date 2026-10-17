@@ -249,30 +249,40 @@ public sealed record ChangePriceCommand(
 [RequestHandler<ChangePriceCommand, BillingPhaseId>]
 public sealed class ChangePriceHandler(ISubscriptionStore store, IUnitOfWork unitOfWork) : IRequestHandler<ChangePriceCommand, BillingPhaseId>
 {
+    /// <summary>
+    /// The phase open on <paramref name="on"/> with the cycles it charged before then (null without a limit); none when no phase
+    /// covers the date or the phase charged all its cycles. A cycle limit is shared out, never dropped (final review): the closed
+    /// phase keeps the cycles it charged before the change, the new one the rest.
+    /// </summary>
+    public static (BillingPhase Open, int? Spent)? OpenPhase(SubscriptionInput input, LocalDate on)
+    {
+        var open = input.Phases.FirstOrDefault(p => p.StartsOn <= on && (p.EndsOn is null || p.EndsOn > on));
+        if (open is null)
+            return null;
+        int? spent = null;
+        if (open.MaxCycles is { } limit)
+        {
+            var before = SubscriptionTimeline.Build(input, on, on);
+            spent = before.TryGetValue(out var walked)
+                ? walked!.Charges.Count(c => c.Origin is ChargeOrigin.FromPhase f && f.PhaseId == open.Id && c.Date < on)
+                : 0;
+            if (spent >= limit)
+                return null;
+        }
+        return (open, spent);
+    }
+
     public async ValueTask<Result<BillingPhaseId>> HandleAsync(ChangePriceCommand command, CancellationToken ct = default)
     {
         var input = await store.LoadAsync(command.ItemId, ct);
         if (input is null)
             return Result.Failure<BillingPhaseId>(new NotFoundFailure("subscription", command.ItemId.ToString()));
 
-        var open = input.Phases.FirstOrDefault(p => p.StartsOn <= command.StartsOn && (p.EndsOn is null || p.EndsOn > command.StartsOn));
-        if (open is null)
+        if (OpenPhase(input, command.StartsOn) is not { } found)
             return Refuse("subscriptions.no_open_phase", "No phase is open on this date: add a phase instead.");
+        var (open, spent) = found;
         if (command.StartsOn <= open.StartsOn)
             return Refuse("subscriptions.phase_range", "A price change starts after the phase it replaces.");
-
-        // A cycle limit is shared out, never dropped (final review): the closed phase keeps the cycles it charged before
-        // the change, the new one the rest; a phase that charged them all is over, whatever its dates say.
-        int? spent = null;
-        if (open.MaxCycles is { } limit)
-        {
-            var before = SubscriptionTimeline.Build(input, command.StartsOn, command.StartsOn);
-            spent = before.TryGetValue(out var walked)
-                ? walked!.Charges.Count(c => c.Origin is ChargeOrigin.FromPhase f && f.PhaseId == open.Id && c.Date < command.StartsOn)
-                : 0;
-            if (spent >= limit)
-                return Refuse("subscriptions.no_open_phase", "No phase is open on this date: add a phase instead.");
-        }
 
         var every = command.Every ?? open.Every;
         var next = new BillingPhase(

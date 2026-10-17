@@ -49,7 +49,8 @@ public static class McpSetup
             .WithTools<SubscriptionTools>()
             .WithTools<InvestmentTools>()
             .WithTools<IncomeTools>()
-            .WithTools<RealEstateTools>();
+            .WithTools<RealEstateTools>()
+            .WithTools<WriteTools>();
         return services;
     }
 

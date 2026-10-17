@@ -20,18 +20,19 @@ public sealed class DbContextParticipant<TContext>(TContext context) : ITransact
 
 public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransactionParticipant> participants) : IUnitOfWork
 {
-    private bool active;
+    private DbTransaction? open;
+    private int depth;
 
     public async Task<ITransactionScope> BeginAsync(CancellationToken ct)
     {
-        if (active)
-            throw new InvalidOperationException("A unit of work is already open in this request; nesting is not supported.");
+        if (open is not null)
+            return await JoinAsync(open, ct);
 
         if (shared.Connection.State != ConnectionState.Open)
             await shared.Connection.OpenAsync(ct);
 
         var transaction = await shared.Connection.BeginTransactionAsync(ct);
-        active = true;
+        open = transaction;
         var enlisted = new List<ITransactionParticipant>();
         try
         {
@@ -53,11 +54,63 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
 
             try { await transaction.RollbackAsync(CancellationToken.None); } catch { /* best effort */ }
             await transaction.DisposeAsync();
-            active = false;
+            open = null;
             throw;
         }
 
         return new Scope(this, transaction, enlisted);
+    }
+
+    /// <summary>
+    /// Spec 4D1 §5: a command run inside another's unit of work (an approval, a direct write) joins it under a savepoint.
+    /// Committing releases the savepoint; disposing without a commit rolls back to it; the outer scope decides what lasts.
+    /// </summary>
+    private async Task<ITransactionScope> JoinAsync(DbTransaction transaction, CancellationToken ct)
+    {
+        var name = $"uow_{depth + 1}";
+        await transaction.SaveAsync(name, ct);
+        depth++;
+        return new Savepoint(this, transaction, name);
+    }
+
+    // ponytail: rolling back to a savepoint leaves the rows saved under it tracked by the contexts; every caller today then
+    // fails its outer unit of work too. Detach them here if a caller ever goes on after an inner failure.
+    private sealed class Savepoint(UnitOfWork owner, DbTransaction transaction, string name) : ITransactionScope
+    {
+        private bool released;
+        private bool disposed;
+
+        public async Task CommitAsync(CancellationToken ct)
+        {
+            await transaction.ReleaseAsync(name, ct);
+            released = true;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            // A second rollback to the savepoint would undo what the outer scope wrote since; the depth would go negative.
+            if (disposed)
+                return;
+            disposed = true;
+            try
+            {
+                if (!released)
+                {
+                    try
+                    {
+                        await transaction.RollbackAsync(name);
+                    }
+                    catch
+                    {
+                        // The exception already unwinding is the one to surface; the outer scope rolls back anyway.
+                    }
+                }
+            }
+            finally
+            {
+                owner.depth--;
+            }
+        }
     }
 
     private sealed class Scope(UnitOfWork owner, DbTransaction transaction, IReadOnlyList<ITransactionParticipant> enlisted)
@@ -102,7 +155,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
                 foreach (var participant in enlisted)
                     await participant.EnlistAsync(null, CancellationToken.None);
                 await transaction.DisposeAsync();
-                owner.active = false;
+                owner.open = null;
             }
         }
     }

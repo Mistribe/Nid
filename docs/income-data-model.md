@@ -120,6 +120,8 @@ Le module implémente `IProposalHandler` pour :
 
 Clé de dédoublonnage (`subject_key`) : `label` et `effective_on`, ou la date du flux.
 
+**Livré en 4D1** : un bulletin de paie corrige le revenu attendu (`income.change_pay`, `{ paidOn, phaseLabel, net, gross?, effectiveOn }`, clé `<phaseLabel>:<yyyy-MM de paidOn>`). La comparaison vient en premier : un net à 2 % près du net attendu (réglage `Income:PayslipTolerance`, validé au démarrage : 0 ≤ x < 1) et un brut égal au centime, quand les deux sont connus, sont « conformes » et ne créent rien. Sinon la période change à la date de paiement attendue du mois (calculée comme `GetIncomeExpectedQuery`), avec la cadence et la note de la période remplacée ; un montant différent dans le premier mois de la période ou dans un mois sans paiement est refusé à `paidOn`. Un bulletin sans brut garde le brut de la période (absent signifie non imprimé, pas zéro). Aucun montant « reçu » n’est enregistré.
+
 ## 9. Sections d'import
 
 Sections de `import-format.md` (les `flows` sont celles du Core, `import-format.md` §5.6).

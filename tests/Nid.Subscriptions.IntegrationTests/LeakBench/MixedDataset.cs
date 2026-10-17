@@ -1,5 +1,8 @@
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Investments.Application;
+using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
@@ -42,9 +45,9 @@ public sealed class MixedDataset
     private MixedDataset(
         NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
         IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
-        IReadOnlyDictionary<string, ItemId> properties)
+        IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals)
     {
-        (App, Items, Envelopes, IncomeSources, Loans, Properties) = (app, items, envelopes, incomeSources, loans, properties);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties, Proposals) = (app, items, envelopes, incomeSources, loans, properties, proposals);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -78,6 +81,12 @@ public sealed class MixedDataset
 
     /// <summary>The property twin of each row (3C1): same §2 name, label, owners and visibility. The property requests run against these.</summary>
     public IReadOnlyDictionary<string, ItemId> Properties { get; }
+
+    /// <summary>
+    /// 4D1 D9: one pending proposal of each kind (valuation, statement, payslip, invoice) on each private row's twins, keyed
+    /// "P-A" and "P-B", their texts carrying the row's label: the textual scan catches one shown to the other adult.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<Guid>> Proposals { get; }
 
     public ItemId this[string name] => Items[name];
 
@@ -170,7 +179,36 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {row.Name}'s loan failed: {refused.Code}");
         }
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties);
+        // Through the store, as SeedPurchaseGrantingToAsync bypasses the pipeline: the subscription twins have no phase, so an
+        // invoice would not validate. The pending rows are what the bench reads.
+        var proposals = new Dictionary<string, IReadOnlyList<Guid>>();
+        foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
+            proposals[name] = await SeedProposalsAsync(app, owner, label, envelopes[name], incomeSources[name], items[name]);
+
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, proposals);
+    }
+
+    private static async Task<IReadOnlyList<Guid>> SeedProposalsAsync(
+        NidApp app, PersonId owner, string label, ItemId envelope, ItemId source, ItemId subscription)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System; // audited rows need an actor (1F3a U4)
+        var store = scope.ServiceProvider.GetRequiredService<IProposalStore>();
+        var ids = new List<Guid>();
+        foreach (var (module, kind, target, key, json) in new (string, string, ItemId, string, string)[]
+                 {
+                     ("investments", "investments.record_valuation", envelope, "2025-09-30",
+                         $$"""{"asOf":"2025-09-30","amount":{"amount":"1500.00","currency":"EUR"},"note":"{{label}}"}"""),
+                     ("investments", "investments.record_statement", envelope, "2025-09-29",
+                         $$"""{"asOf":"2025-09-29","movements":[{"on":"2025-09-01","kind":"contribution","amount":"100.00","label":"{{label}}"}]}"""),
+                     ("income", "income.change_pay", source, "Salaire:2025-09",
+                         """{"paidOn":"2025-09-30","phaseLabel":"Salaire","net":{"amount":"1100.00","currency":"EUR"},"effectiveOn":"2025-09-01"}"""),
+                     ("subscriptions", "subscriptions.change_price", subscription, "2025-09-30",
+                         """{"chargedOn":"2025-09-30","amount":{"amount":"12.00","currency":"EUR"}}"""),
+                 })
+            ids.Add((await store.SubmitAsync(new NewProposal(module, kind, target, owner, key, JsonDocument.Parse(json).RootElement.Clone(),
+                1, [], "mcp", null, label), CancellationToken.None)).Proposal.Id);
+        return ids;
     }
 
     /// <summary>The §2 name of an item, for a failure message that says which row went wrong.</summary>

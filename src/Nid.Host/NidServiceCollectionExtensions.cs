@@ -98,6 +98,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportAudit, ImportAuditLog>();
         services.AddScoped<Nid.Host.Auth.OidcSignIn>();
         services.AddSingleton<AccessDeniedThrottle>();
+        services.AddScoped<IAccessDenials, AccessDenials>();
         services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
         services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate"]));
 
@@ -145,6 +146,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
+        services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
 
         services.AddDbContext<IncomeDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -156,6 +158,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
+        services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
+        services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
 
         services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

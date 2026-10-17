@@ -1,48 +1,35 @@
 import type { TFunction } from 'i18next';
-import type { JSX } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
-import { trimAmount } from '../investments/entries/entries';
+import { trimAmount, valueSchema, type ValueFormValues } from '../investments/entries/entries';
+import { Field } from '../subscriptions/edits/Field';
 import type { ProposalView } from './api';
+import { ValueComparison, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import { invoice } from './invoiceKind';
+import { payslip } from './payslipKind';
+import { statement } from './statementKind';
 
-type Money = { amount: string; currency: string };
-type Dated = { asOf: string; amount: Money };
-type ValuationPayload = Dated & { note?: string | null };
-export type ValuationForm = { asOf: string; amount: string; note: string };
+export type { KindUi } from './kindParts';
 
-export type KindUi = {
-  /** An i18n key. */
-  label: 'proposals.kind.valuation';
-  summary: (t: TFunction, p: ProposalView) => string;
-  Preview: (props: { preview: unknown }) => JSX.Element;
-  toForm: (payload: unknown) => ValuationForm;
-  /** The payload to send as `editedPayload`, or null when nothing really changed (Review Focus 3). */
-  toPayload: (values: ValuationForm, original: unknown) => unknown;
-  link: (p: ProposalView) => { to: '/investments/$id'; params: { id: string } } | null;
+type ValuationPayload = { asOf: string; amount: Money; note?: string | null };
+
+const asValuation = (payload: unknown) => payload as ValuationPayload;
+
+const VALUATION_FIELDS: Record<string, keyof ValueFormValues> = {
+  'payload.asOf': 'asOf', 'payload.amount.amount': 'amount', 'payload.amount.currency': 'amount', 'payload.note': 'note',
+  'editedPayload': 'amount', // ProposalUseCases emits it when the edited payload is not an object
 };
 
-const asValuation = (payload: unknown): ValuationPayload => payload as ValuationPayload;
-
-function ValuationPreview({ preview }: { preview: unknown }) {
+function ValuationFields({ form, original }: { form: UseFormReturn<FieldValues>; original: unknown }) {
   const { t } = useTranslation();
-  const p = preview as { current?: Dated | null; previous?: Dated | null; proposed: Dated };
-  const row = (label: string, v: Dated | null | undefined) => (
-    <tr className="border-b">
-      <th scope="row" className="py-2 pr-4 text-left font-normal">{label}</th>
-      <td className="py-2 pr-4">{v ? formatLocalDate(v.asOf) : t('proposal.preview.none')}</td>
-      <td className="py-2 text-right">{v ? formatMoney(v.amount) : ''}</td>
-    </tr>
-  );
   return (
-    <table className="w-full">
-      <caption className="sr-only">{t('proposal.preview.title')}</caption>
-      <tbody>
-        {row(t('proposal.preview.current'), p.current)}
-        {row(t('proposal.preview.previous'), p.previous)}
-        {row(t('proposal.preview.proposed'), p.proposed)}
-      </tbody>
-    </table>
+    <>
+      <Field label={t('proposal.edit.as_of')} error={errorOf(form, 'asOf')}>{(c) => <input type="date" {...c} {...form.register('asOf')} className={input} />}</Field>
+      <Field label={t('proposal.edit.amount', { currency: asValuation(original).amount.currency })} error={errorOf(form, 'amount')}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={input} />}</Field>
+      <Field label={t('proposal.edit.note')} error={errorOf(form, 'note')}>{(c) => <input {...c} {...form.register('note')} className={input} />}</Field>
+    </>
   );
 }
 
@@ -54,22 +41,30 @@ const valuation: KindUi = {
       name: p.targetName ?? t('proposals.unknown_target'), date: formatLocalDate(v.asOf, 'short'), amount: formatMoney(v.amount),
     });
   },
-  Preview: ValuationPreview,
+  Preview: ValueComparison,
+  schema: (t) => valueSchema(t),
   toForm: (payload) => {
     const v = asValuation(payload);
     return { asOf: v.asOf, amount: trimAmount(v.amount.amount), note: v.note ?? '' };
   },
   toPayload: (values, original) => {
+    const v = values as ValueFormValues;
     const o = asValuation(original);
-    const amount = values.amount.replace(',', '.');
-    const same = values.asOf === o.asOf && trimAmount(amount) === trimAmount(o.amount.amount) && values.note.trim() === (o.note ?? '').trim();
-    if (same) return null;
-    return { asOf: values.asOf, amount: { amount, currency: o.amount.currency }, ...(values.note.trim() ? { note: values.note.trim() } : {}) };
+    const note = v.note.trim();
+    if (v.asOf === o.asOf && sameAmount(v.amount, o.amount.amount) && note === (o.note ?? '').trim()) return null;
+    return { asOf: v.asOf, amount: { amount: wireAmount(v.amount), currency: o.amount.currency }, ...(note ? { note } : {}) };
   },
+  field: (path) => VALUATION_FIELDS[path],
+  Fields: ValuationFields,
   link: (p) => ({ to: '/investments/$id', params: { id: p.targetItemId } }),
 };
 
-const KINDS: Record<string, KindUi> = { 'investments.record_valuation': valuation };
+const KINDS: Record<string, KindUi> = {
+  'investments.record_valuation': valuation,
+  'investments.record_statement': statement,
+  'income.change_pay': payslip,
+  'subscriptions.change_price': invoice,
+};
 
 export const kindOf = (kind: string): KindUi | undefined => KINDS[kind];
 

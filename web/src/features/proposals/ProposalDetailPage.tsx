@@ -2,27 +2,36 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { knownConflictMessage } from '../subscriptions/fieldErrors';
 import { formatInstantDay } from '@/features/admin/format';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { presentConflict, valueSchema, type ValueFormValues } from '../investments/entries/entries';
+import { presentConflict } from '../investments/entries/entries';
 import { Field } from '../subscriptions/edits/Field';
 import { Reload } from '../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
 import { PERSONS } from '../subscriptions/api';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
+import { input, type KindUi, type LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
 import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
 
-const input = 'rounded-md border px-3 py-2';
-const PATHS: Record<string, keyof ValueFormValues> = {
-  'payload.asOf': 'asOf', 'payload.amount.amount': 'amount', 'payload.amount.currency': 'amount', 'payload.note': 'note',
-  'editedPayload': 'amount', // ProposalUseCases emits it when the edited payload is not an object
-};
+/** A decision that lost a race: reload (any other 409, such as a reference already recorded, is the payload's own refusal). */
+const RACES = ['core.proposal_conflict', 'core.proposal_decided', 'core.fact_conflict', 'income.phase_conflict'];
+const isRace = (error: unknown) => RACES.includes(toProblem(error).code ?? '');
+
+/** The payload's own refusal in French, naming the movement when the 409 points at one; never empty. */
+function refusalText(t: TFunction, error: unknown): string {
+  const problem = toProblem(error);
+  const index = problem.errors?.map((e) => /^payload\.movements\[(\d+)\]\.ref$/.exec(e.path)?.[1]).find((i) => i !== undefined);
+  if (problem.code === 'core.external_ref_taken' && index !== undefined) return t('field_error.core_external_ref_taken', { context: 'movement', n: Number(index) + 1 });
+  return knownConflictMessage(t, problem.code) ?? t('problem.unexpected');
+}
 
 /** Spec 4C2 §4: one proposal — read, edit, decide, move on. */
 export function ProposalDetailPage() {
@@ -53,7 +62,10 @@ function Proposal({ id }: { id: string }) {
   const order = groupBySource(pending ?? []).flatMap((g) => g.items);
   const at = order.findIndex((i) => i.id === p.id);
   const next = order[at + 1] ?? order.find((i) => i.id !== p.id) ?? null;
+  // already_recorded is told by the table's state column and the checkbox hint, in French.
+  const hidden = ['payload_version_unsupported', 'already_recorded'];
   const unsupported = p.warnings.some((w) => w.code === 'payload_version_unsupported');
+  const warnings = p.warnings.filter((w) => !hidden.includes(w.code));
   const link = kind?.link(p);
 
   return (
@@ -66,22 +78,22 @@ function Proposal({ id }: { id: string }) {
         {p.sourceLabel ? (<><dt>{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
       </dl>
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
-      {p.warnings.some((w) => w.code !== 'payload_version_unsupported') ? (
+      {warnings.length > 0 ? (
         <section aria-label={t('proposal.warnings')} className="rounded-md border p-3">
-          <ul>{p.warnings.filter((w) => w.code !== 'payload_version_unsupported').map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
+          <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}
       {!kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
       {p.status !== 'pending' ? <Decided p={p} target={p.status === 'approved' ? link ?? null : null} /> : !canDecide ? <p>{t('proposal.read_only')}</p>
-        : <Decide key={`${p.id}:${p.version}`} p={p} next={next} canApprove={!!kind && !unsupported} />}
+        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} />}
       {next ? <Link to="/proposals/$id" params={{ id: next.id }} className="underline">{t('proposal.next')}</Link> : null}
       {unsupported ? <p>{t('proposal.unsupported')}</p> : null}
     </div>
   );
 }
 
-function Decided({ p, target }: { p: ProposalView; target: ReturnType<NonNullable<ReturnType<typeof kindOf>>['link']> | null }) {
+function Decided({ p, target }: { p: ProposalView; target: LinkTarget | null }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const people = $api.useQuery('get', PERSONS).data;
@@ -96,15 +108,21 @@ function Decided({ p, target }: { p: ProposalView; target: ReturnType<NonNullabl
   );
 }
 
-function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView | null; canApprove: boolean }) {
+function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown; next: ProposalView | null; kind: KindUi | null }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const kind = kindOf(p.kind);
   const original = p.editedPayload ?? p.payload;
-  const form = useForm<ValueFormValues>({ resolver: zodResolver(valueSchema(t)), defaultValues: kind?.toForm(original) });
-  const errors = useSubmitErrors(form.setError, (path) => PATHS[path]);
+  // The kind's own form (spec 4D1 §5); a proposal that can only be rejected mounts an empty one (hooks run unconditionally).
+  const form = useForm<FieldValues>({
+    resolver: kind ? zodResolver(kind.schema(t, original)) : undefined,
+    defaultValues: kind?.toForm(original, preview),
+  });
+  const errors = useSubmitErrors(form.setError, (path) => kind?.field(path), (field) => kind?.message?.(t, field));
+  // A 409 that is no race: the payload's own refusal (a reference already recorded), told in French.
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const nothing = !!kind?.nothing?.(form.watch(), original);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
   const after = (done: string, approved = false) => {
@@ -116,19 +134,24 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
   };
   const approve = $api.useMutation('post', APPROVE);
   const reject = $api.useMutation('post', REJECT);
-  const conflict = [approve.error, reject.error].find((e) => e && toProblem(e).status === 409);
+  const conflict = [approve.error, reject.error].find((e) => e && isRace(e));
 
   const submit = form.handleSubmit((values) => {
+    if (!kind) return;
     errors.clear();
-    const edited = kind?.toPayload(values, original) ?? null;
+    setRefusal(null);
+    const edited = kind.toPayload(values, original, preview);
     approve.mutate({ params: { path: { id: p.id } }, body: { version: p.version, ...(edited ? { editedPayload: edited } : {}) } }, {
       onSuccess: () => after(t('proposal.approved'), true),
-      onError: (e) => { if (toProblem(e).status !== 409) errors.onError(e); },
+      onError: (e) => {
+        if (isRace(e)) return;
+        const problem = toProblem(e);
+        if (problem.status === 409) setRefusal(refusalText(t, e));
+        else errors.onError(e);
+      },
     });
   });
 
-  const currency = (original as { amount?: { currency?: string } }).amount?.currency ?? '';
-  const e = form.formState.errors;
   return (
     <div className="space-y-3">
       {conflict ? (
@@ -136,19 +159,22 @@ function Decide({ p, next, canApprove }: { p: ProposalView; next: ProposalView |
           <ProblemMessage problem={{ ...presentConflict(t, conflict), detail: t('proposal.conflict') }} />
           <Reload onReload={() => invalidateProposals(queryClient)} />
         </>
-      ) : errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
-      {canApprove ? (
+      ) : refusal !== null ? <div role="alert" className="rounded-md border border-destructive p-3">{refusal}</div>
+        : errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
+      {kind ? (
         <form noValidate className="space-y-3" aria-label={t('proposal.edit.title')} onSubmit={(ev) => void submit(ev)}>
-          <Field label={t('proposal.edit.as_of')} error={e.asOf?.message}>{(c) => <input type="date" {...c} {...form.register('asOf')} className={input} />}</Field>
-          <Field label={t('proposal.edit.amount', { currency })} error={e.amount?.message}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={input} />}</Field>
-          <Field label={t('proposal.edit.note')} error={e.note?.message}>{(c) => <input {...c} {...form.register('note')} className={input} />}</Field>
-          <Button type="submit" disabled={approve.isPending}>{t('proposal.approve')}</Button>
+          <kind.Fields form={form} original={original} preview={preview} />
+          {nothing ? <p id="nothing-to-record">{t('proposal.nothing_to_record')}</p> : null}
+          <Button type="submit" disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button>
         </form>
       ) : null}
       {rejecting ? (
-        <form className="space-y-2" onSubmit={(ev) => { ev.preventDefault(); errors.clear(); reject.mutate(
+        <form className="space-y-2" onSubmit={(ev) => { ev.preventDefault(); errors.clear(); setRefusal(null); reject.mutate(
           { params: { path: { id: p.id } }, body: { version: p.version, ...(note.trim() ? { note: note.trim() } : {}) } },
-          { onSuccess: () => after(t('proposal.rejected')), onError: (er) => { if (toProblem(er).status !== 409) errors.onError(er); } }); }}>
+          { onSuccess: () => after(t('proposal.rejected')), onError: (er) => {
+            if (isRace(er)) return;
+            if (toProblem(er).status === 409) setRefusal(refusalText(t, er)); else errors.onError(er);
+          } }); }}>
           <Field label={t('proposal.reject_note')}>{(c) => <textarea {...c} autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} className={input} />}</Field>
           <div className="flex gap-2">
             <Button type="submit" disabled={reject.isPending}>{t('proposal.reject_confirm')}</Button>

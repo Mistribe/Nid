@@ -29,9 +29,10 @@ public sealed record ProposalView(
         p.DecisionNote, p.AppliedRefs, p.Version, targetName);
 }
 
-public sealed record SubmittedProposal(ProposalView Proposal, bool Created) : IExposesItems
+/// <summary><see cref="Proposal"/> is null when the document matches what Nid expects (<see cref="Conforme"/>, spec 4D1 D3): nothing was stored.</summary>
+public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Proposal.TargetItemId)];
+    public IEnumerable<ItemId> ExposedItems() => Proposal is null ? [] : [new ItemId(Proposal.TargetItemId)];
 }
 
 public sealed record ProposalList(IReadOnlyList<ProposalView> Items) : IExposesItems
@@ -59,6 +60,18 @@ public sealed record ApproveProposalCommand(Guid Id, uint Version, JsonElement? 
 
 public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) : ICommand<ProposalView>, IBrowserOnly;
 
+/// <summary>
+/// Spec 4D1 §5: a document written directly — the kind's validation then its application in one unit of work, as the
+/// token's actor; no proposal row (the write log records the module's rows).
+/// </summary>
+public sealed record ApplyDirectCommand(string Kind, ItemId ItemId, JsonElement Payload) : ICommand<DirectWrite>, IItemScoped, IDirectWrite
+{
+    public AccessKind Access => AccessKind.Write;
+}
+
+/// <summary>`applied` with what was written and what was left out as already recorded, or `conforme` with nothing written.</summary>
+public sealed record DirectWrite(string Outcome, IReadOnlyList<Guid> AppliedRefs, IReadOnlyList<ProposalWarning> Skipped, JsonElement? Conforme);
+
 internal static class ProposalAccess
 {
     /// <summary>Spec 4C2 D2: the targets' names, in one registry read whatever the list's length.</summary>
@@ -68,17 +81,28 @@ internal static class ProposalAccess
         return id => found.TryGetValue(id, out var item) ? item.DisplayName : null;
     }
 
-    /// <summary>The proposal, if the actor may <paramref name="access"/> its target: unreadable answers not found (authorization.md §6).</summary>
+    /// <summary>
+    /// The proposal, if the actor may <paramref name="access"/> its target: unreadable answers not found (authorization.md §6).
+    /// A refusal by the target's rights is recorded as `access_denied` (spec 4D1 D9); an unknown id is not.
+    /// </summary>
     public static async Task<Result<(StoredProposal Proposal, PersonId Me)>> LoadAsync(
-        IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, Guid id, AccessKind access, CancellationToken ct)
+        IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, Guid id, AccessKind access, CancellationToken ct)
     {
         if (accessor.Current?.PersonId is not { } me)
             return Result.Failure<(StoredProposal, PersonId)>(new UnauthorizedFailure("A person decides proposals.", null));
         var proposal = await store.FindAsync(id, ct);
-        if (proposal is null || (await policy.CheckAsync(me, proposal.Target, AccessKind.Read, ct)).TryGetFailure(out _))
+        if (proposal is null)
             return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
+        if ((await policy.CheckAsync(me, proposal.Target, AccessKind.Read, ct)).TryGetFailure(out _))
+        {
+            await denials.RecordAsync(me, proposal.Target, "read", ct);
+            return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
+        }
         if (access == AccessKind.Write && (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).TryGetFailure(out var denied))
+        {
+            await denials.RecordAsync(me, proposal.Target, "write", ct);
             return Result.Failure<(StoredProposal, PersonId)>(denied!);
+        }
         return Result.Success((proposal, me));
     }
 
@@ -110,11 +134,14 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
         if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
             return Result.Failure<SubmittedProposal>(notObject!);
 
-        var checkedPayload = await handler.ValidateAsync(command.ItemId, command.Payload, ct);
+        var checkedPayload = await handler.ValidateAsync(command.ItemId, command.Payload, edited: false, ct);
         if (!checkedPayload.TryGetValue(out var check))
             return Result.Failure<SubmittedProposal>(checkedPayload.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
-        var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check!.SubjectKey,
+        if (check!.Conforme is { } conforme)
+            return Result.Success(new SubmittedProposal(null, false, conforme));
+
+        var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
         var names = await ProposalAccess.NamesAsync(items, [outcome.Proposal.Target], ct);
         return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal, names(outcome.Proposal.Target)), outcome.Created));
@@ -140,12 +167,12 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
 
 [RequestHandler<GetProposalQuery, ProposalDetail>]
 public sealed class GetProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IItemRegistry items)
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IItemRegistry items)
     : IRequestHandler<GetProposalQuery, ProposalDetail>
 {
     public async ValueTask<Result<ProposalDetail>> HandleAsync(GetProposalQuery query, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, query.Id, AccessKind.Read, ct);
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, query.Id, AccessKind.Read, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalDetail>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
@@ -164,13 +191,13 @@ public sealed class GetProposalHandler(
 
 [RequestHandler<ApproveProposalCommand, ProposalView>]
 public sealed class ApproveProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IUnitOfWork unitOfWork,
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IUnitOfWork unitOfWork,
     IItemRegistry items, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
@@ -190,11 +217,14 @@ public sealed class ApproveProposalHandler(
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
-            var check = await handler.ValidateAsync(proposal.Target, payload, ct);
+            var check = await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
             if (check.TryGetValue(out var valid))
             {
                 // Applied and kept normalized, as a submission is.
-                var applied = await handler.ApplyAsync(proposal.Target, valid!.Payload, ct);
+                // A payload that now matches what Nid expects (« conforme ») has nothing to apply: approved, nothing written.
+                var applied = valid!.Conforme is not null
+                    ? Result.Success<IReadOnlyList<Guid>>([])
+                    : await handler.ApplyAsync(proposal.Target, valid.Payload, ct);
                 if (applied.TryGetValue(out var refs))
                 {
                     var decided = await store.DecideAsync(proposal.Id, command.Version, ProposalStatus.Approved, me,
@@ -236,7 +266,7 @@ public sealed class ApproveProposalHandler(
 }
 
 [RequestHandler<RejectProposalCommand, ProposalView>]
-public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IItemRegistry items)
+public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, IItemRegistry items)
     : IRequestHandler<RejectProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(RejectProposalCommand command, CancellationToken ct = default)
@@ -244,7 +274,7 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         var note = string.IsNullOrWhiteSpace(command.Note) ? null : command.Note.Trim();
         if (ProposalAccess.Text(note, 500, "note").TryGetFailure(out var invalid))
             return Result.Failure<ProposalView>(invalid!);
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, command.Id, AccessKind.Write, ct);
+        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         // Read before the decision is written: a failing read then leaves no decision behind.
@@ -253,5 +283,31 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         if (!decided.TryGetValue(out var stored))
             return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
         return Result.Success(ProposalView.From(stored, names(stored.Target)));
+    }
+}
+
+[RequestHandler<ApplyDirectCommand, DirectWrite>]
+public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork unitOfWork) : IRequestHandler<ApplyDirectCommand, DirectWrite>
+{
+    public async ValueTask<Result<DirectWrite>> HandleAsync(ApplyDirectCommand command, CancellationToken ct = default)
+    {
+        if (handlers.Find(command.Kind) is not { } handler)
+            return Result.Failure<DirectWrite>(new Failure(ProposalCodes.KindUnknown, $"'{command.Kind}' is not a proposal kind.", null));
+        if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
+            return Result.Failure<DirectWrite>(notObject!);
+
+        // Every early return skips the commit and so rolls back whatever the application wrote: never commit after a refusal.
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        var check = await handler.ValidateAsync(command.ItemId, command.Payload, edited: false, ct);
+        if (!check.TryGetValue(out var valid))
+            return Result.Failure<DirectWrite>(check.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+        if (valid!.Conforme is { } conforme)
+            return Result.Success(new DirectWrite("conforme", [], [], conforme));
+        var applied = await handler.ApplyAsync(command.ItemId, valid.Payload, ct);
+        if (!applied.TryGetValue(out var refs))
+            return Result.Failure<DirectWrite>(applied.TryGetFailure(out var failed) ? failed! : throw new InvalidOperationException());
+        await transaction.CommitAsync(ct);
+        return Result.Success(new DirectWrite("applied", refs!,
+            valid.Warnings.Where(w => w.Code == ProposalCodes.AlreadyRecorded).ToList(), null));
     }
 }

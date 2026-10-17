@@ -16,7 +16,7 @@ public class McpToolTests(PostgresFixture fixture)
     [
         "get_dashboard", "get_envelope", "get_envelope_performance", "get_income_source", "get_loan", "get_loan_schedule",
         "get_net_worth_history", "get_property", "get_property_routine", "get_routine", "get_subscription", "list_envelopes",
-        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "simulate_early_repayment",
+        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -40,14 +40,14 @@ public class McpToolTests(PostgresFixture fixture)
         => Assert.Equal(JsonDocument.Parse(rest).RootElement.ToString(), JsonDocument.Parse(mcp).RootElement.ToString());
 
     [Fact]
-    public async Task The_tool_list_is_exactly_the_eighteen_read_tools()
+    public async Task The_tool_list_is_the_read_tools_and_the_write_tools()
     {
         var (app, client) = await StartAsync(fixture);
         await using (app) await using (client)
         {
             var tools = await client.ListToolsAsync();
             Assert.Equal(Expected, tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
-            Assert.All(tools, t => Assert.True(t.ProtocolTool.Annotations?.ReadOnlyHint));
+            Assert.All(tools.Where(t => !McpServerTests.IsWrite(t.Name)), t => Assert.True(t.ProtocolTool.Annotations?.ReadOnlyHint));
         }
     }
 

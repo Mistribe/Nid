@@ -6,7 +6,10 @@ namespace Nid.Platform.Contracts;
 /// </summary>
 public interface IUnitOfWork
 {
-    /// <summary>Opens the transaction. A second call while one is open throws: nesting is not supported.</summary>
+    /// <summary>
+    /// Opens the transaction or, while one is open in this request, a savepoint inside it (spec 4D1 §5): the inner scope's
+    /// commit releases the savepoint, its disposal without a commit rolls back to it, and only the outermost commit lasts.
+    /// </summary>
     Task<ITransactionScope> BeginAsync(CancellationToken ct);
 }
 

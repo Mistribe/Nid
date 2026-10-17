@@ -41,7 +41,7 @@ Hors périmètre :
 | D7 | Extraction de documents : **port pluggable** ; local (Ollama) par défaut, fournisseurs cloud sur opt-in (D23, D24) | Décidé |
 | D8 | Jobs domaine en **Quartz.NET in-process** ; jobs d'ingestion en **workers conteneurisés** via table de jobs | Décidé (frontière) ; Quartz **retenu par défaut** |
 | D9 | Registre **`Item` central** dans Core pour propriété et visibilité | **Retenu par défaut** |
-| D10 | Écritures MCP : **proposition par défaut**, écriture directe via la portée `write:direct`. **Propositions explicites** (décidé 2026-10-16) : une commande « soumettre une proposition » exige `write` ; toute commande directe exige `write:direct` ; le comportement `IProposable` est abandonné | Décidé |
+| D10 | Écritures MCP : **proposition par défaut**, écriture directe via la portée `write:direct`. **Propositions explicites** (décidé 2026-10-16) : une commande « soumettre une proposition » exige `write` ; toute commande directe exige `write:direct` ; le comportement `IProposable` est abandonné. **Outils d’écriture MCP** (4D1) : un par usage, `ApplyDirectCommand` (`IDirectWrite`, `write:direct`) pour l’écriture directe, « conforme » sans écriture | Décidé |
 | D11 | Accès externe : **hors scope**, choix de l'hébergeur | Décidé |
 | D12 | CQRS avec **Synapse** (`UnambitiousFx.Synapse` + générateur), résultats en `Result<T>` (`UnambitiousFx.Functional`) | Décidé |
 | D13 | **Générateurs de sources en priorité** (JSON, Synapse, endpoints, EF, logs…) ; **Native AOT non visé** (§4.3) | Décidé |
@@ -170,7 +170,7 @@ Bibliothèque : `UnambitiousFx.Synapse` et `UnambitiousFx.Synapse.Generator` (MI
   - Synapse : points d'entrée (API REST, outils MCP, jobs Quartz, application des propositions) et événements entre modules.
   - Interfaces `Contracts` : lectures synchrones inter-modules et points d'extension à plusieurs fournisseurs (`IAccessPolicy`, `IVisibleItems`, `INetWorthContribution`…). Un fan-out n'est pas une requête unique, et `IAccessPolicy` est sur le chemin critique.
 - **`Domain` ne référence pas Synapse** : fonctions pures, remplaçables sans toucher aux règles métier.
-- **MCP** : les outils envoient les mêmes requêtes, donc traversent le même pipeline. Un jeton « Lecture + propositions » (`write`) ne peut pas exécuter une commande directe (`write:direct`) : il soumet une proposition explicite (`SubmitProposalCommand`), validée ensuite par une personne depuis le navigateur. Le comportement `IProposable` (conversion automatique d’une commande en proposition) est abandonné (D10).
+- **MCP** : les outils envoient les mêmes requêtes, donc traversent le même pipeline. Un jeton « Lecture + propositions » (`write`) ne peut pas exécuter une commande directe (`write:direct`) : il soumet une proposition explicite (`SubmitProposalCommand`), validée ensuite par une personne depuis le navigateur. Le comportement `IProposable` (conversion automatique d’une commande en proposition) est abandonné (D10). Les outils d’écriture (`propose_statement`, `propose_payslip`, `propose_invoice`, 4D1) sont un par usage : sans `apply` ils soumettent une proposition, avec `apply: true` (`write:direct`) ils passent par `ApplyDirectCommand` (`IDirectWrite`), jamais transformés en proposition. Un document déjà « conforme » à l’état actuel ne crée rien. Une unité de travail ouverte dans une autre la rejoint par un point de sauvegarde (`IUnitOfWork`) : seule la validation de la plus externe rend les écritures durables.
 
 ### 5.5 Générateurs de sources
 

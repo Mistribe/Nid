@@ -108,7 +108,7 @@ public sealed class ScopeBehavior<TRequest, TResponse>(IActorAccessor accessor)
 /// owners it names — the one access rule of §5 that cannot be expressed as a check on an existing item.
 /// </summary>
 public sealed class ItemAccessBehavior<TRequest, TResponse>(
-    IActorAccessor accessor, IAccessPolicy policy, ISecurityEvents events, AccessDeniedThrottle throttle)
+    IActorAccessor accessor, IAccessPolicy policy, IAccessDenials denials)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
@@ -127,7 +127,7 @@ public sealed class ItemAccessBehavior<TRequest, TResponse>(
             var check = await policy.CheckAsync(person, scoped.ItemId, scoped.Access, cancellationToken);
             if (check.TryGetFailure(out var failure))
             {
-                await DeniedAsync(person, scoped.ItemId, scoped.Access.ToString().ToLowerInvariant(), cancellationToken);
+                await denials.RecordAsync(person, scoped.ItemId, scoped.Access.ToString().ToLowerInvariant(), cancellationToken);
                 return Result.Failure<TResponse>(failure!);
             }
         }
@@ -137,25 +137,11 @@ public sealed class ItemAccessBehavior<TRequest, TResponse>(
             var check = await policy.CheckCreationAsync(person, creating.Owners, cancellationToken);
             if (check.TryGetFailure(out var failure))
             {
-                await DeniedAsync(person, null, "create", cancellationToken);
+                await denials.RecordAsync(person, null, "create", cancellationToken);
                 return Result.Failure<TResponse>(failure!);
             }
         }
 
         return await next(request, cancellationToken);
-    }
-
-    private async Task DeniedAsync(PersonId person, ItemId? item, string access, CancellationToken ct)
-    {
-        var key = item?.Value ?? Guid.Empty;
-        if (!throttle.ShouldRecord(person.Value, key))
-            return;
-        var recorded = await events.RecordAsync(new SecurityEvent(
-            SecurityEventNames.AccessDenied, person, item is { } id ? [id] : [],
-            new Dictionary<string, string> { ["access"] = access }), ct);
-        // The minute's slot was spent on a refusal that never made it to the table: give it back, so the next
-        // refusal in the same minute is not silently swallowed too (Important #1).
-        if (!recorded)
-            throttle.Forget(person.Value, key);
     }
 }

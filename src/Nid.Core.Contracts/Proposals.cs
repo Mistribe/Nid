@@ -11,9 +11,10 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 
 /// <summary>
 /// What a handler's validation keeps: the business key (deduplication), the warnings and the payload normalized to its
-/// known fields — what is fingerprinted, stored and applied, never the client's raw JSON.
+/// known fields — what is fingerprinted, stored and applied, never the client's raw JSON. <paramref name="Conforme"/>
+/// (spec 4D1 D3), when set, is <c>{ expected, given }</c>: the document matches what Nid expects and nothing is created.
 /// </summary>
-public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload);
+public sealed record ProposalCheck(string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null);
 
 public sealed record NewProposal(
     string Module, string Kind, ItemId Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
@@ -37,6 +38,9 @@ public static class ProposalCodes
     /// <summary>Warning codes.</summary>
     public const string ApplyFailed = "apply_failed";
     public const string PayloadVersionUnsupported = "payload_version_unsupported";
+
+    /// <summary>4D1: a statement's movement Nid already holds (same reference, or same date, kind and amount).</summary>
+    public const string AlreadyRecorded = "already_recorded";
 }
 
 public interface IProposalStore
@@ -59,7 +63,7 @@ public interface IProposalStore
 
 /// <summary>
 /// One per proposal kind, in its module (spec 4C1 D3). Payloads travel as JSON; the handler parses its own type.
-/// <see cref="ApplyAsync"/> runs inside the decision's transaction and must not open an <c>IUnitOfWork</c>.
+/// <see cref="ApplyAsync"/> runs inside the decision's (or the direct write's) transaction; a command it sends may open its own <c>IUnitOfWork</c>, which joins that transaction under a savepoint.
 /// </summary>
 public interface IProposalHandler
 {
@@ -67,8 +71,11 @@ public interface IProposalHandler
     string Kind { get; }
     int PayloadVersion { get; }
 
-    /// <summary>Against the current state (<paramref name="payload"/> is a JSON object): a failure refuses (field errors at <c>payload.*</c>), warnings are kept.</summary>
-    Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, CancellationToken ct);
+    /// <summary>
+    /// Against the current state (<paramref name="payload"/> is a JSON object): a failure refuses (field errors at <c>payload.*</c>), warnings are kept.
+    /// <paramref name="edited"/>: the payload is an approval's edit, so the fields only an edit may set (a statement's `excluded`) are kept; a submitter's are dropped.
+    /// </summary>
+    Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct);
 
     /// <summary>The current state next to the proposed one, for the decider.</summary>
     Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct);
