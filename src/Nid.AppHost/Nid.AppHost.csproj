@@ -7,6 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
+    <!-- Pins the transitive MessagePack to a patched version (Directory.Packages.props). -->
+    <PackageReference Include="MessagePack" />
     <ProjectReference Include="..\Nid.Host\Nid.Host.csproj" />
   </ItemGroup>
 </Project>
