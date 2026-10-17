@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './session';
+import { revokeTokens, signIn } from './session';
 
 // 1F3a spec §9 test 9: sign in, see it, sign out everywhere, land signed out.
 test('an adult sees their sign-in and signs out everywhere', async ({ page }) => {
@@ -47,6 +47,8 @@ test('an adult creates a token, calls the API with it, and revokes it', async ({
 // 4B: with a token made in the interface, an MCP client lists the persons.
 test('an adult plugs an MCP client in with a token', async ({ page, playwright }) => {
   await signIn(page, 'alice', '/security');
+  await revokeTokens(page, 'MCP '); // this test never revokes its token: earlier runs' would fill the 10 allowed
+  await page.reload();
   await expect(page.getByRole('region', { name: 'Brancher un assistant' })).toContainText('/mcp');
 
   await page.getByRole('button', { name: 'Créer un jeton' }).click();

@@ -29,13 +29,20 @@ export async function cancelActiveImports(page: Page): Promise<void> {
   }
 }
 
-/** A « Lecture + propositions » token for the signed-in person; the ones earlier runs left are revoked first (a person holds 10 active tokens at most). */
-// Assumes serial runs (proposals.spec.ts is not parallel); delete responses are left unchecked on purpose (an already-revoked token may 404).
-export async function proposeToken(page: Page): Promise<string> {
+/** Revokes the signed-in person's tokens whose name starts with `prefix`: earlier runs leave theirs, and a person holds 10 active tokens at most. */
+// Each prefix belongs to one spec file, whose tests run serially; delete responses are left unchecked on purpose (an already-revoked token may 404).
+export async function revokeTokens(page: Page, prefix: string): Promise<void> {
   const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
   const headers = { 'X-Nid-Csrf': session.csrf };
   const tokens = (await (await page.request.get('/api/v1/core/me/tokens')).json()) as Array<{ id: string; name: string }>;
-  for (const old of tokens.filter((t) => t.name.startsWith('E2E '))) await page.request.delete(`/api/v1/core/me/tokens/${old.id}`, { headers });
+  for (const old of tokens.filter((t) => t.name.startsWith(prefix))) await page.request.delete(`/api/v1/core/me/tokens/${old.id}`, { headers });
+}
+
+/** A « Lecture + propositions » token for the signed-in person, made after revoking the ones earlier runs left. */
+export async function proposeToken(page: Page): Promise<string> {
+  await revokeTokens(page, 'E2E ');
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
+  const headers = { 'X-Nid-Csrf': session.csrf };
   const created = await page.request.post('/api/v1/core/me/tokens', { headers, data: { name: `E2E ${Date.now()}`, preset: 'propose', expiresInDays: 30 } });
   expect(created.ok()).toBe(true);
   return ((await created.json()) as { secret: string }).secret;

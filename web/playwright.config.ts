@@ -12,5 +12,9 @@ export default defineConfig({
     ignoreHTTPSErrors: true, // Caddy's local certificate authority
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: '**/export.spec.ts' },
+    // The export reads alice's data from end to end: it runs once the other journeys stopped writing to it.
+    { name: 'quiet', use: { ...devices['Desktop Chrome'] }, testMatch: '**/export.spec.ts', dependencies: ['chromium'] },
+  ],
 });
