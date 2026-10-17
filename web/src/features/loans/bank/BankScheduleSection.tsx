@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Presentation } from '@/api/errors';
@@ -74,7 +74,7 @@ export function BankScheduleSection({ loan }: { loan: LoanDetail }) {
 }
 
 /** The server's summary of the comparison (spec 3F2 §2) in words; the thresholds in the loan's currency. Nothing is computed here. */
-function Comparison({ currency, comparison: c }: { currency: string; comparison: LoanComparison }) {
+export function Comparison({ currency, comparison: c }: { currency: string; comparison: LoanComparison }) {
   const { t } = useTranslation();
   const threshold = money(currency, '1');
   const rounding = money(currency, '0.05');
@@ -216,7 +216,7 @@ function PasteForm({ loan, onDone }: { loan: LoanDetail; onDone: (message?: stri
 }
 
 /** The rows as the server read them: dates and amounts formatted, nothing computed. */
-function PreviewRows({ rows, currency }: { rows: BankRow[]; currency: string }) {
+export function PreviewRows({ rows, currency, gap }: { rows: BankRow[]; currency: string; gap?: { after: number; count: number } }) {
   const { t } = useTranslation();
   const m = (amount: string) => money(currency, amount);
   return (
@@ -233,15 +233,18 @@ function PreviewRows({ rows, currency }: { rows: BankRow[]; currency: string }) 
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.dueDate} className="border-t">
-              <td className="px-2 py-1"><LocalDate value={r.dueDate} /></td>
-              <td className={num}>{m(r.payment)}</td>
-              <td className={num}>{m(r.interest)}</td>
-              <td className={num}>{m(r.principal)}</td>
-              <td className={num}>{r.insurance ? m(r.insurance) : null}</td>
-              <td className={num}>{m(r.crd)}</td>
-            </tr>
+          {rows.map((r, i) => (
+            <Fragment key={r.dueDate}>
+              {gap && i === gap.after ? <tr className="border-t"><td colSpan={COLUMNS.length} className="px-2 py-1 text-center">{t('loan_bank.omitted', { count: gap.count })}</td></tr> : null}
+              <tr className="border-t">
+                <td className="px-2 py-1"><LocalDate value={r.dueDate} /></td>
+                <td className={num}>{m(r.payment)}</td>
+                <td className={num}>{m(r.interest)}</td>
+                <td className={num}>{m(r.principal)}</td>
+                <td className={num}>{r.insurance ? m(r.insurance) : null}</td>
+                <td className={num}>{m(r.crd)}</td>
+              </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>

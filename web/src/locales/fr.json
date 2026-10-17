@@ -1446,6 +1446,8 @@
     "title": "Tableau de la banque",
     "loading": "Chargement du tableau de la banque",
     "none": "Aucun tableau de la banque enregistré.",
+    "omitted_one": "… {{count}} échéance …",
+    "omitted_other": "… {{count}} échéances …",
     "import": "Importer le tableau de la banque",
     "replace": "Remplacer le tableau",
     "delete": "Supprimer le tableau",
@@ -1792,13 +1794,15 @@
     "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
-    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement" },
+    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement" },
     "summary": {
       "valuation": "{{name}} — valeur au {{date}} : {{amount}}",
       "statement_one": "{{name}} — relevé au {{date}} ({{count}} mouvement)",
       "statement_other": "{{name}} — relevé au {{date}} ({{count}} mouvements)",
       "payslip": "{{name}} — bulletin du {{date}} : net {{amount}}",
-      "invoice": "{{name}} — facture du {{date}} : {{amount}}"
+      "invoice": "{{name}} — facture du {{date}} : {{amount}}",
+      "amortization_one": "{{name}} — tableau de la banque, {{count}} échéance",
+      "amortization_other": "{{name}} — tableau de la banque, {{count}} échéances"
     },
     "unknown_target": "Élément inconnu"
   },
@@ -1838,6 +1842,11 @@
       "starts_on": "À partir du",
       "amount": "Prix ({{currency}})",
       "amount_format": "Saisissez un montant de 0 ou plus, comme 10,99."
+    },
+    "amortization": {
+      "make_reference": "Faire de ce tableau la référence",
+      "stays_bank": "Le tableau de la banque reste la référence de ce crédit.",
+      "refused": "Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour."
     },
     "approve": "Approuver",
     "nothing_to_record": "Aucun mouvement n’est coché et le relevé n’a pas de valeur : il n’y aurait rien à enregistrer. Cochez un mouvement, ou rejetez la proposition.",

@@ -129,4 +129,13 @@ describe('À valider', () => {
     expect(await screen.findByRole('link', { name: /Salaire — bulletin du 28 sept\. 2025 : net 2\s400,00\s€/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Netflix — facture du 1 sept\. 2025 : 10,99\s€/ })).toBeInTheDocument();
   });
+
+  it('summarises a bank’s table by its loan and its row count', async () => {
+    serve({ pending: [proposal({ kind: 'realestate.import_amortization', targetName: 'Prêt maison', payload: { rows: [
+      { dueDate: '2020-11-15', payment: '1159.92', interest: '583.33', principal: '576.59', crd: '199423.41' },
+    ] } })] });
+    await renderApp('/proposals');
+
+    expect(await screen.findByRole('link', { name: /Prêt maison — tableau de la banque, 1 échéance/ })).toBeInTheDocument();
+  });
 });

@@ -62,8 +62,8 @@ function Proposal({ id }: { id: string }) {
   const order = groupBySource(pending ?? []).flatMap((g) => g.items);
   const at = order.findIndex((i) => i.id === p.id);
   const next = order[at + 1] ?? order.find((i) => i.id !== p.id) ?? null;
-  // already_recorded is told by the table's state column and the checkbox hint, in French.
-  const hidden = ['payload_version_unsupported', 'already_recorded'];
+  // already_recorded is told by the table's state column and the checkbox hint; schedule_mismatch by the comparison — both in French.
+  const hidden = ['payload_version_unsupported', 'already_recorded', 'schedule_mismatch'];
   const unsupported = p.warnings.some((w) => w.code === 'payload_version_unsupported');
   const warnings = p.warnings.filter((w) => !hidden.includes(w.code));
   const link = kind?.link(p);
@@ -146,7 +146,9 @@ function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown;
       onError: (e) => {
         if (isRace(e)) return;
         const problem = toProblem(e);
-        if (problem.status === 409) setRefusal(refusalText(t, e));
+        const own = kind.refusal?.(t, problem);
+        if (own) setRefusal(own);
+        else if (problem.status === 409) setRefusal(refusalText(t, e));
         else errors.onError(e);
       },
     });

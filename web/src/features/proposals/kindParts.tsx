@@ -5,18 +5,18 @@ import { useTranslation } from 'react-i18next';
 import type { z } from 'zod';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
-import type { FieldError } from '@/api/errors';
+import type { FieldError, Problem } from '@/api/errors';
 import { trimAmount } from '../investments/entries/entries';
 import type { ProposalView } from './api';
 
 export type Money = { amount: string; currency: string };
 
-export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscriptions/$id'; params: { id: string } };
+export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscriptions/$id' | '/loans/$id'; params: { id: string } };
 
 /** Spec 4D1 §5: what a kind brings to « À valider ». Each kind reads its own payload and preview. */
 export type KindUi = {
   /** An i18n key. */
-  label: `proposals.kind.${'valuation' | 'statement' | 'payslip' | 'invoice'}`;
+  label: `proposals.kind.${'valuation' | 'statement' | 'payslip' | 'invoice' | 'amortization'}`;
   summary: (t: TFunction, p: ProposalView) => string;
   Preview: (props: { preview: unknown }) => JSX.Element;
   schema: (t: TFunction, original: unknown) => z.ZodType<FieldValues, FieldValues>;
@@ -27,6 +27,8 @@ export type KindUi = {
   field: (path: string) => string | undefined;
   /** A server field error worded for this kind, when the shared `field_error.*` text does not fit it. */
   message?: (t: TFunction, error: FieldError) => string | undefined;
+  /** The French text of a refused approval of this kind, when the server's own sentence must not be shown. */
+  refusal?: (t: TFunction, problem: Problem) => string | undefined;
   Fields: (props: { form: UseFormReturn<FieldValues>; original: unknown; preview: unknown }) => JSX.Element;
   link: (p: ProposalView) => LinkTarget;
   /** True when approving would record nothing: the approval is then disabled. */
