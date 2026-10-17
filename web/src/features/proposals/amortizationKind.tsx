@@ -68,9 +68,13 @@ export const amortization: KindUi = {
   },
   field: () => undefined,
   // The rows are the bank's: whatever the server refuses at them (3F2's rules, a repayment the table makes impossible) is one French sentence.
-  refusal: (t, problem) => (problem.code === 'realestate.bank_schedule_invalid'
-    || problem.errors?.some((e) => e.code === 'realestate.bank_schedule_invalid' || e.path.startsWith('payload.rows'))
-    ? t('proposal.amortization.refused') : undefined),
+  refusal: (t, problem) => {
+    const rowError = problem.errors?.find((e) => e.code === 'realestate.bank_schedule_invalid' || e.path.startsWith('payload.rows'));
+    if (problem.code !== 'realestate.bank_schedule_invalid' && !rowError) return undefined;
+    // The first refused row, numbered from 1 as the bank prints it.
+    const k = /^payload\.rows\[(\d+)\]/.exec(rowError?.path ?? '')?.[1];
+    return k === undefined ? t('proposal.amortization.refused') : t('proposal.amortization.refused', { context: 'row', n: Number(k) + 1 });
+  },
   Fields: AmortizationFields,
   link: (p) => ({ to: '/loans/$id', params: { id: p.targetItemId } }),
 };

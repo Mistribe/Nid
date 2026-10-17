@@ -109,6 +109,18 @@ describe('Un tableau d’amortissement proposé', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('names the first refused row, counted from 1', async () => {
+    const p = table();
+    serve([p], { preview: tablePreview() });
+    server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
+      { status: 422, code: 'realestate.bank_schedule_invalid', title: 'x', errors: [{ path: 'payload.rows[11].crd', code: 'realestate.bank_schedule_invalid', message: 'x' }] },
+      { status: 422 })));
+    const { user } = await renderApp(`/proposals/${p.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Approuver' }));
+    expect(await screen.findByText('Ce tableau ne correspond plus au crédit (ligne 12) : rejetez-le et demandez-en un à jour.')).toBeInTheDocument();
+  });
+
   it('marks the rows left out between the first and the last', async () => {
     const p = table();
     serve([p], { preview: tablePreview({ first: rows.slice(0, 2), last: rows.slice(2), count: 240 }) });

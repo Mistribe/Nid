@@ -27,9 +27,8 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
     public string Kind => "realestate.import_amortization";
     public int PayloadVersion => 1;
 
-    private sealed record Body(List<RowBody?>? Rows, JsonElement? MakeReference);
-
-    private sealed record RowBody(string? DueDate, string? Payment, string? Interest, string? Principal, string? Insurance, string? Crd);
+    // Rows read element by element, so a malformed row or cell is refused at its own path, not the whole table's.
+    private sealed record Body(List<JsonElement>? Rows, JsonElement? MakeReference);
 
     private sealed record Parsed(IReadOnlyList<BankRow> Rows, bool? MakeReference);
 
@@ -162,7 +161,7 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
         {
             body = payload.Deserialize<Body>(Json);
         }
-        catch (Exception e) when (e is JsonException or InvalidOperationException) // an amount sent as a number, rows not a list
+        catch (Exception e) when (e is JsonException or InvalidOperationException) // rows not a list
         {
             body = null;
         }
@@ -183,26 +182,54 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
             return null;
         }
 
+        // A cell's text; absent or null is null; any other non-string value (a number) is refused at the cell.
+        string? Cell(JsonElement row, string name, string at)
+        {
+            foreach (var property in row.EnumerateObject())
+                if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (property.Value.ValueKind == JsonValueKind.String)
+                        return property.Value.GetString();
+                    if (property.Value.ValueKind != JsonValueKind.Null)
+                        errors.Add(new FieldError($"{at}.{name}", FieldErrors.ShapeCode, "A string (e.g. '1159.92' or '2025-02-15')."));
+                    return null;
+                }
+            return null;
+        }
+
         var rows = new List<BankRow>();
         for (var k = 0; k < raw.Count; k++)
         {
             var at = $"payload.rows[{k}]";
-            if (raw[k] is not { } r)
+            if (raw[k].ValueKind != JsonValueKind.Object)
             {
                 errors.Add(new FieldError(at, FieldErrors.ShapeCode, "A row is an object."));
                 continue;
             }
+            var r = raw[k];
             var before = errors.Count;
             LocalDate due = default;
-            if (r.DueDate is not { } date || LocalDatePattern.Iso.Parse(date) is not { Success: true } parsedDate)
-                errors.Add(new FieldError($"{at}.dueDate", FieldErrors.ShapeCode, "An ISO date (yyyy-mm-dd) is required."));
-            else
-                due = parsedDate.Value;
-            var payment = Amount(r.Payment, $"{at}.payment");
-            var interest = Amount(r.Interest, $"{at}.interest");
-            var principal = Amount(r.Principal, $"{at}.principal");
-            var insurance = r.Insurance is null ? null : Amount(r.Insurance, $"{at}.insurance");
-            var crd = Amount(r.Crd, $"{at}.crd");
+            var dueText = Cell(r, "dueDate", at);
+            if (errors.Count == before)
+            {
+                if (dueText is { } date && LocalDatePattern.Iso.Parse(date) is { Success: true } parsedDate)
+                    due = parsedDate.Value;
+                else
+                    errors.Add(new FieldError($"{at}.dueDate", FieldErrors.ShapeCode, "An ISO date (yyyy-mm-dd) is required."));
+            }
+            decimal? Column(string name)
+            {
+                var mark = errors.Count;
+                var text = Cell(r, name, at);
+                return errors.Count > mark ? null : Amount(text, $"{at}.{name}");
+            }
+            var payment = Column("payment");
+            var interest = Column("interest");
+            var principal = Column("principal");
+            var insuranceMark = errors.Count;
+            var insuranceText = Cell(r, "insurance", at);
+            var insurance = errors.Count > insuranceMark || insuranceText is null ? null : Amount(insuranceText, $"{at}.insurance");
+            var crd = Column("crd");
             if (errors.Count == before)
                 rows.Add(new BankRow(due, payment!.Value, interest!.Value, principal!.Value, insurance, crd!.Value));
         }

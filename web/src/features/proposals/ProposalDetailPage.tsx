@@ -33,6 +33,12 @@ function refusalText(t: TFunction, error: unknown): string {
   return knownConflictMessage(t, problem.code) ?? t('problem.unexpected');
 }
 
+/** An `apply_failed` warning reads `<code>: <server sentence>`: its code in French when known, never the server's English. */
+function applyFailedText(t: TFunction, message: string): string {
+  const reason = knownConflictMessage(t, message.split(':')[0]?.trim());
+  return reason ? t('proposal.apply_failed', { message: reason }) : t('proposal.apply_failed', { context: 'unknown' });
+}
+
 /** Spec 4C2 §4: one proposal — read, edit, decide, move on. */
 export function ProposalDetailPage() {
   const { id } = useParams({ from: '/proposals/$id' });
@@ -80,7 +86,7 @@ function Proposal({ id }: { id: string }) {
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
       {warnings.length > 0 ? (
         <section aria-label={t('proposal.warnings')} className="rounded-md border p-3">
-          <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? t('proposal.apply_failed', { message: w.message }) : w.message}</li>)}</ul>
+          <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? applyFailedText(t, w.message) : w.message}</li>)}</ul>
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}

@@ -169,7 +169,8 @@ public class AmortizationProposalTests(PostgresFixture fixture)
         await AssertRefusedAtAsync(await PostAsync(app, Table(loan, new[]
         {
             new { dueDate = "2020-11-15", payment = 1159.92m, interest = 583.33m, principal = 576.59m, crd = 199423.41m },
-        })), "payload.rows", "request.invalid");
+        })), "payload.rows[0].payment", "request.invalid");
+        await AssertRefusedAtAsync(await PostAsync(app, Table(loan, new object[] { GoldenRows()[0], "2020-12-15;1159.92" })), "payload.rows[1]", "request.invalid");
         await AssertRefusedAtAsync(await PostAsync(app, Table(loan, Enumerable.Repeat(GoldenRows()[0], 1201).ToList())), "payload.rows", "request.invalid");
         await AssertRefusedAtAsync(await PostAsync(app, Table(loan, Array.Empty<object>())), "payload.rows", "request.invalid");
 

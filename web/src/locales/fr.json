@@ -1813,6 +1813,7 @@
     "statement": "Relevé",
     "warnings": "Avertissements",
     "apply_failed": "L’application a échoué : {{message}}",
+    "apply_failed_unknown": "L’application a échoué ; la proposition reste en attente.",
     "preview": { "title": "Comparaison", "current": "Valeur déjà enregistrée à cette date", "previous": "Valeur précédente", "proposed": "Valeur proposée", "none": "—" },
     "edit": { "title": "À enregistrer", "as_of": "Date", "amount": "Montant ({{currency}})", "note": "Note" },
     "movements": {
@@ -1846,7 +1847,8 @@
     "amortization": {
       "make_reference": "Faire de ce tableau la référence",
       "stays_bank": "Le tableau de la banque reste la référence de ce crédit.",
-      "refused": "Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour."
+      "refused": "Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour.",
+      "refused_row": "Ce tableau ne correspond plus au crédit (ligne {{n}}) : rejetez-le et demandez-en un à jour."
     },
     "approve": "Approuver",
     "nothing_to_record": "Aucun mouvement n’est coché et le relevé n’a pas de valeur : il n’y aurait rien à enregistrer. Cochez un mouvement, ou rejetez la proposition.",
