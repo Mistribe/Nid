@@ -25,3 +25,6 @@ deploy/authelia/configuration.yml
 deploy/authelia/users.yml
 deploy/backup-secrets/
 deploy/backups/
+
+# Playwright MCP's local console logs and snapshots; never committed
+.playwright-mcp/
