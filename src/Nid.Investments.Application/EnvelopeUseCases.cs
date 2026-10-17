@@ -156,7 +156,8 @@ public sealed class GetEnvelopeHandler(
 
 [RequestHandler<ListEnvelopesQuery, EnvelopeList>]
 public sealed class ListEnvelopesHandler(
-    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
+    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
+    IItemRegistry items)
     : IRequestHandler<ListEnvelopesQuery, EnvelopeList>
 {
     public async ValueTask<Result<EnvelopeList>> HandleAsync(ListEnvelopesQuery query, CancellationToken ct = default)
@@ -164,20 +165,30 @@ public sealed class ListEnvelopesHandler(
         // Controller ruling (Task 4): the 3-argument overload of IVisibleItems.ForAsync returns ACTIVE items
         // only, so a request that wants closed envelopes must ask includeArchived: true explicitly — otherwise
         // a closed envelope could never be listed, even with IncludeClosed set.
-        var ids = await visible.ForAsync(actor.Current!.PersonId!.Value, query.Scope, includeArchived: query.IncludeClosed, ct);
+        var reader = actor.Current!.PersonId!.Value;
+        var ids = await visible.ForAsync(reader, query.Scope, includeArchived: query.IncludeClosed, ct);
         var found = await envelopes.FindManyAsync(ids.ToList(), ct);
+        // Batched reads spec §3: the items, facts and write rights read once for all; a block that cannot be read falls back
+        // to each envelope's own read, which leaves out only the envelopes whose facts cannot be read.
+        var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
+        var block = await performance.FactsManyAsync(found, accesses, ct);
+        var writable = await policy.CheckManyAsync(reader, accesses.Keys.ToList(), AccessKind.Write, ct);
         var today = await calendar.TodayAsync(ct);
         var summaries = new List<EnvelopeSummary>();
         foreach (var envelope in found)
         {
-            var facts = await performance.FactsAsync(envelope.ItemId, ct);
-            if (!facts.TryGetValue(out var f) || (!query.IncludeClosed && f!.Item.ArchivedAt is not null))
+            EnvelopePerformance.Facts? f;
+            if (block is not null)
+                block.TryGetValue(envelope.ItemId, out f);
+            else
+                (await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out f);
+            if (f is null || (!query.IncludeClosed && f.Item.ArchivedAt is not null))
                 continue;
             var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
             if (f.Item.ArchivedAt is not null)
                 figures = figures with { StaleDays = null };
-            var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, envelope.ItemId, AccessKind.Write, ct)).IsSuccess;
+            var canWrite = writable.Contains(envelope.ItemId);
             summaries.Add(new EnvelopeSummary(envelope.ItemId, f.Item.DisplayName, EnvelopeWire.Of(envelope.Kind), f.Currency.Code,
                 f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite, FiguresView.From(figures)));
         }

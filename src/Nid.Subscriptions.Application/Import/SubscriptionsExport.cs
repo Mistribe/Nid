@@ -20,10 +20,7 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
         var ids = await visible.ForAsync(context.Reader, VisibilityScope.Me, ct);
         var rows = await store.ReadAllAsync(ids.ToList(), ct);
 
-        var heads = new Dictionary<ItemId, ItemAccess>();
-        foreach (var subscription in rows.Subscriptions)
-            if (await items.FindAsync(subscription.Id, ct) is { } item)
-                heads[subscription.Id] = item;
+        var heads = await items.FindManyAsync(rows.Subscriptions.Select(x => x.Id).ToList(), ct);
         var exported = rows.Subscriptions.Where(s => heads.ContainsKey(s.Id)).ToList();
         var exportedIds = exported.Select(s => s.Id).ToHashSet();
         foreach (var id in exportedIds)

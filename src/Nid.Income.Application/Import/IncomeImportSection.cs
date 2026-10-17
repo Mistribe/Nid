@@ -391,10 +391,7 @@ public sealed class IncomeImportSection(
     {
         var ids = await visible.ForAsync(context.Reader, VisibilityScope.Me, includeArchived: true, ct);
         var stored = await sources.ReadAllAsync(ids.ToList(), ct); // only the items that are sources
-        var heads = new Dictionary<ItemId, ItemAccess>();
-        foreach (var s in stored)
-            if (await items.FindAsync(s.Source.ItemId, ct) is { } item)
-                heads[s.Source.ItemId] = item;
+        var heads = await items.FindManyAsync(stored.Select(x => x.Source.ItemId).ToList(), ct);
         var exported = stored.Where(s => heads.ContainsKey(s.Source.ItemId)).ToList();
         var sourceIds = FileIds.Assign("inc",
             exported.Select(s => new KeyedRow(s.Source.ItemId.Value, s.Import?.Ref, s.Import?.ImportedBy)).ToList(), context.Reader);
