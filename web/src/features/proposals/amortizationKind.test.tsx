@@ -49,9 +49,11 @@ describe('Un tableau d’amortissement proposé', () => {
   it('sends makeReference false when the box is unchecked', async () => {
     const p = table();
     const sent = serve([p], { preview: tablePreview() });
-    const { user } = await renderApp(`/proposals/${p.id}`);
+    const { user, container } = await renderApp(`/proposals/${p.id}`);
 
     await user.click(await screen.findByRole('checkbox', checkbox));
+    expect(screen.getByRole('checkbox', checkbox)).not.toBeChecked();
+    await expectNoAxeViolations(container);
     await user.click(screen.getByRole('button', { name: 'Approuver' }));
     await waitFor(() => expect(sent.approve).toEqual({ version: 1, editedPayload: { rows, makeReference: false } }));
   });
@@ -92,29 +94,27 @@ describe('Un tableau d’amortissement proposé', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1 }));
   });
 
-  it('tells a refused approval in French, never with the server’s sentence (409 and 422)', async () => {
-    for (const [status, body] of [
-      [409, { status: 409, code: 'realestate.bank_schedule_invalid', title: 'The bank table does not match the loan.' }],
-      [422, { status: 422, code: 'request.invalid', title: 'Invalid.', errors: [{ path: 'payload.rows', code: 'realestate.early_repayment', message: 'Impossible.' }] }],
-    ] as const) {
-      const p = table();
-      serve([p], { preview: tablePreview() });
-      server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(body, { status })));
-      const { user, container, unmount } = await renderApp(`/proposals/${p.id}`);
+  it.each([
+    [409, { status: 409, code: 'realestate.bank_schedule_invalid', title: 'The bank table does not match the loan.' }],
+    [422, { status: 422, code: 'request.invalid', title: 'Invalid.', errors: [{ path: 'payload.rows', code: 'realestate.early_repayment', message: 'Impossible.' }] }],
+  ])('tells a refused approval (%i) in French, never with the server’s sentence', async (status, body) => {
+    const p = table();
+    serve([p], { preview: tablePreview() });
+    server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(body, { status })));
+    const { user, container } = await renderApp(`/proposals/${p.id}`);
 
       await user.click(await screen.findByRole('button', { name: 'Approuver' }));
       expect(await screen.findByText('Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour.')).toBeInTheDocument();
       expect(screen.queryByText(/bank table|Impossible/)).toBeNull();
       await expectNoAxeViolations(container);
-      unmount();
-    }
   });
 
   it('marks the rows left out between the first and the last', async () => {
     const p = table();
     serve([p], { preview: tablePreview({ first: rows.slice(0, 2), last: rows.slice(2), count: 240 }) });
-    await renderApp(`/proposals/${p.id}`);
+    const { container } = await renderApp(`/proposals/${p.id}`);
 
     expect(await screen.findByText('… 237 échéances …')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 });
