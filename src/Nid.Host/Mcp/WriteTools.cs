@@ -74,7 +74,7 @@ public sealed class WriteTools
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, new { chargedOn, amount }, sourceLabel, apply, ct);
 
-    [McpServerTool(Name = "propose_amortization", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [McpServerTool(Name = "propose_amortization", ReadOnly = false, Destructive = true, Idempotent = true)]
     [Description("A bank's amortisation table for one loan: every row as printed, in date order, 1200 rows at most, the whole table in "
         + "one call. Nid checks it against the loan and compares it with its own schedule; the answer's summary gives the largest gap "
         + "and the date the remaining balance diverges by more than 1, to tell the adult. The same table already the loan's reference "
@@ -83,7 +83,7 @@ public sealed class WriteTools
     public static Task<CallToolResult> ProposeAmortization(IServiceProvider services,
         [Description("The loan's id (list_loans).")] Guid loanId,
         [Description("Every row of the table, as printed: payment excludes insurance; crd is the balance after the payment.")] AmortizationRow[] rows,
-        [Description("The document's name, e.g. 'Tableau d'amortissement prêt maison', 200 characters at most.")] string? sourceLabel = null,
+        [Description("The document's name, e.g. 'Tableau d’amortissement prêt maison', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "realestate.import_amortization", loanId, new { rows }, sourceLabel, apply, ct);

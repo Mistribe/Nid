@@ -30,6 +30,7 @@ export async function cancelActiveImports(page: Page): Promise<void> {
 }
 
 /** A « Lecture + propositions » token for the signed-in person; the ones earlier runs left are revoked first (a person holds 10 active tokens at most). */
+// Assumes serial runs (proposals.spec.ts is not parallel); delete responses are left unchecked on purpose (an already-revoked token may 404).
 export async function proposeToken(page: Page): Promise<string> {
   const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
   const headers = { 'X-Nid-Csrf': session.csrf };

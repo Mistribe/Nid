@@ -35,6 +35,16 @@ public class BankCheckTests
     }
 
     [Fact]
+    public void A_pasted_table_over_the_row_limit_is_refused_at_the_text()
+    {
+        var line = "15/11/2020;1159,92;583,33;576,59;199423,41\n";
+
+        var read = BankCheck.Read(string.Concat(Enumerable.Repeat(line, LoanScheduleBuilder.MaxRows + 1)), Terms, Computed);
+
+        Assert.Equal("text", PathOf(read));
+    }
+
+    [Fact]
     public void An_early_repayment_the_table_cannot_take_is_refused_at_the_table()
     {
         // 199 000 repaid right after the first payment: the bank's balance after it, 198 000, cannot take it.

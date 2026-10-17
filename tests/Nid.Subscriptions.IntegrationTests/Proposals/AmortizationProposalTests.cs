@@ -304,6 +304,30 @@ public class AmortizationProposalTests(PostgresFixture fixture)
 
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
         Assert.Empty((await JsonOf(approved)).GetProperty("appliedRefs").EnumerateArray());
+        var rows = (await LoanApi.DetailAsync(app, loan)).GetProperty("bankSchedule").GetProperty("rows");
+        Assert.Equal(3, rows.GetArrayLength()); // the direct write's table, untouched by the approval
+        Assert.Equal(("bank", "198265.18"), (LoanApi.S(await LoanApi.DetailAsync(app, loan), "scheduleSource"), LoanApi.S(rows[2], "crd")));
+    }
+
+    /// <summary>D5: the only edit is the reference; rows that differ from the submitted ones are refused.</summary>
+    [Fact]
+    public async Task An_edit_that_changes_the_rows_is_refused_and_one_that_keeps_them_is_accepted()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await LoanApi.NewAsync(app, LoanApi.Golden(app));
+        var proposal = await SubmitAsync(app, Table(loan, GoldenRows()));
+        var changed = JsonNode.Parse(proposal.GetProperty("payload").GetRawText())!;
+        changed["rows"]![2]!["crd"] = "197265.18"; // a valid table, but not the submitted one
+
+        await AssertRefusedAtAsync(await ApproveAsync(app, proposal, changed), "payload.rows", "request.invalid");
+
+        var after = (await ReadAsync(app, proposal)).GetProperty("proposal"); // the refusal's warning bumped its version
+        Assert.Equal("pending", after.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, (await LoanApi.DetailAsync(app, loan)).GetProperty("bankSchedule").ValueKind);
+
+        var same = JsonNode.Parse(proposal.GetProperty("payload").GetRawText())!;
+        same["makeReference"] = false;
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, after, same)).StatusCode);
     }
 
     [Fact]

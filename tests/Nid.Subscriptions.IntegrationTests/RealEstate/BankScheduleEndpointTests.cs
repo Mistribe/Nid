@@ -233,5 +233,10 @@ public class BankScheduleEndpointTests(PostgresFixture fixture)
         var (_, chosen) = await app.InvokeAsync(app.AdultA, new ReplaceBankRowsCommand(loan, rows, MakeReference: true));
         Assert.Null(chosen);
         Assert.Equal("bank", S(await DetailAsync(app, id), "scheduleSource"));
+
+        // Not asking leaves the reference as it is: the bank stays.
+        var (_, again) = await app.InvokeAsync(app.AdultA, new ReplaceBankRowsCommand(loan, rows, MakeReference: false));
+        Assert.Null(again);
+        Assert.Equal("bank", S(await DetailAsync(app, id), "scheduleSource"));
     }
 }

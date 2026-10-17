@@ -221,7 +221,9 @@ public sealed class ApproveProposalHandler(
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
-            var check = await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
+            var check = command.EditedPayload is not null && handler.RefuseEdit(proposal.Payload, payload) is { } notEditable
+                ? Result.Failure<ProposalCheck>(notEditable)
+                : await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
             if (check.TryGetValue(out var valid))
             {
                 // Applied and kept normalized, as a submission is.

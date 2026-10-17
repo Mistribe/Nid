@@ -1,6 +1,7 @@
 using System.Text.Json;
 using NodaTime;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.Contracts;
 
@@ -79,6 +80,9 @@ public interface IProposalHandler
     /// <paramref name="edited"/>: the payload is an approval's edit, so the fields only an edit may set (a statement's `excluded`) are kept; a submitter's are dropped.
     /// </summary>
     Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct);
+
+    /// <summary>An approval's edit refused against the submitted payload (a kind whose only edit is a flag keeps its rows); null: allowed.</summary>
+    Failure? RefuseEdit(JsonElement submitted, JsonElement edited) => null;
 
     /// <summary>The current state next to the proposed one, for the decider.</summary>
     Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct);

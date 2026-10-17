@@ -59,6 +59,13 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
         return Result.Success(new ProposalCheck(Key(target), warnings, Normalized(p), null, JsonSerializer.SerializeToElement(SummaryOf(summary), Json)));
     }
 
+    /// <summary>D5: the rows are not edited, only `makeReference`; an edit that changes them is refused at `payload.rows`.</summary>
+    public Failure? RefuseEdit(JsonElement submitted, JsonElement edited)
+        => Parse(submitted, readMakeReference: false).TryGetValue(out var before) && Parse(edited, readMakeReference: false).TryGetValue(out var after)
+           && !before!.Rows.SequenceEqual(after!.Rows)
+            ? FailureOf(Shape([new FieldError("payload.rows", FieldErrors.ShapeCode, "The rows are not edited: reject this table and send a corrected one.")]))
+            : null;
+
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         var loaded = await LoanCheck.LoadAsync(loans, items, target, ct);
