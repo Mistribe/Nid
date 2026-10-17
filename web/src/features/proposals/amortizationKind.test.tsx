@@ -104,9 +104,9 @@ describe('Un tableau d’amortissement proposé', () => {
     const { user, container } = await renderApp(`/proposals/${p.id}`);
 
     await user.click(await screen.findByRole('button', { name: 'Approuver' }));
-      expect(await screen.findByText('Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour.')).toBeInTheDocument();
-      expect(screen.queryByText(/bank table|Impossible/)).toBeNull();
-      await expectNoAxeViolations(container);
+    expect(await screen.findByText('Ce tableau ne correspond plus au crédit : rejetez-le et demandez-en un à jour.')).toBeInTheDocument();
+    expect(screen.queryByText(/bank table|Impossible/)).toBeNull();
+    await expectNoAxeViolations(container);
   });
 
   it('marks the rows left out between the first and the last', async () => {
