@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const QUIET = ['**/export.spec.ts', '**/security.spec.ts'];
+
 /** Journeys against the Aspire dev stack, or the reference compose in deploy/smoke.sh, which CI runs (1F1). */
 export default defineConfig({
   testDir: './e2e',
@@ -12,5 +14,10 @@ export default defineConfig({
     ignoreHTTPSErrors: true, // Caddy's local certificate authority
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: QUIET },
+    // Once the other journeys are done: the export reads alice's data from end to end, and « Déconnecter partout » (security.spec)
+    // ends every session of bob, which the other journeys sign in.
+    { name: 'quiet', use: { ...devices['Desktop Chrome'] }, testMatch: QUIET, dependencies: ['chromium'] },
+  ],
 });

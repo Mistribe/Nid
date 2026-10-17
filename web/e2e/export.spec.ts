@@ -3,9 +3,9 @@ import { expect, test, type Download, type Page } from '@playwright/test';
 import { signIn } from './session';
 
 /**
- * The other journeys run in parallel and write (subscriptions.spec adds a subscription, dashboard.spec an envelope): the export may see its data
- * change between its first and last read. The screen then downloads nothing and offers to start again, as designed;
- * the test starts again, six times at most.
+ * The « quiet » project runs this journey after the others (playwright.config.ts), but a journey run alongside it (`--no-deps`)
+ * may change its data between its first and last read. The screen then downloads nothing and offers to start again, as
+ * designed; the test starts again, six times at most.
  */
 async function exportFile(page: Page): Promise<Download> {
   for (let attempt = 0; attempt < 6; attempt++) {

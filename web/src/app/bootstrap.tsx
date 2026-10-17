@@ -64,14 +64,27 @@ function renderLoginRefused(root: HTMLElement, location: AppLocation): Root {
 /** frontend/architecture.md §3: session, preferences, capabilities, then the app. `null` when it redirected to login instead of rendering. */
 export async function bootstrap({ root, location }: { root: HTMLElement; location: AppLocation }): Promise<Root | null> {
   let csrf: string | null = null;
+  // Set once the app leaves for the signed-out page: the queries its cleared cache reads again while the browser is still
+  // on the page answer 401, and login would have the identity provider sign the same person straight back in.
+  let leaving = false;
   const queryClient = createQueryClient();
   const api = createApi({
     getCsrf: () => csrf,
     onUnauthenticated: () => {
+      if (leaving) return;
       queryClient.clear();
       location.assign(loginUrl(location));
     },
   });
+  const appLocation: AppLocation = {
+    get pathname() { return location.pathname; },
+    get search() { return location.search; },
+    reload: () => location.reload(),
+    assign: (url) => {
+      leaving ||= url === SIGNED_OUT_PATH;
+      location.assign(url);
+    },
+  };
 
   // Never the login redirect here: the identity provider's open session would sign the same person straight back in.
   if (location.pathname === SIGNED_OUT_PATH) return renderSignedOut(root, api);
@@ -107,7 +120,7 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
   const reactRoot = createRoot(root);
   reactRoot.render(
     <StrictMode>
-      <Providers api={api} queryClient={queryClient} session={session} capabilities={capabilities} location={location}>
+      <Providers api={api} queryClient={queryClient} session={session} capabilities={capabilities} location={appLocation}>
         <App />
       </Providers>
     </StrictMode>,

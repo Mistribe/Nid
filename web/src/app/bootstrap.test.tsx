@@ -109,6 +109,38 @@ describe('bootstrap', () => {
     act(() => reactRoot?.unmount());
   });
 
+  it('keeps « Déconnecter partout » on its way to the signed-out page when a request answers 401 after it', async () => {
+    let revoked = false;
+    let lateAnswers = 0;
+    server.use(
+      http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
+      http.post('*/api/v1/core/me/revoke-sessions', () => { revoked = true; return new HttpResponse(null, { status: 204 }); }),
+      // The page is still mounted while the browser leaves: the shell's token banner reads again, and the session is over.
+      http.get('*/api/v1/core/me/tokens', () => {
+        if (!revoked) return HttpResponse.json([]);
+        lateAnswers++;
+        return new HttpResponse(null, { status: 401 });
+      }),
+    );
+    window.history.pushState({}, '', '/security');
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+    const location = fakeLocation('/security');
+
+    const reactRoot = await bootstrap({ root, location });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Déconnecter partout' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await vi.waitFor(() => expect(lateAnswers).toBeGreaterThan(0));
+    await new Promise((resolve) => setTimeout(resolve, 50)); // the late answer reaches the client
+
+    // Never through login: the identity provider's open session would sign the adult straight back in.
+    expect(location.assign.mock.calls).toEqual([['/signed-out']]);
+
+    act(() => reactRoot?.unmount());
+    window.history.pushState({}, '', '/');
+  });
+
   it('shows the signed-out page without sending you back to login', async () => {
     server.use(http.get('*/auth/session', () =>
       HttpResponse.json({ ...signedOutResponse, identityProvider: 'https://auth.example.test' })));

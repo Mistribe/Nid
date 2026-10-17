@@ -146,31 +146,42 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
     public async Task<Preferences?> PreferencesAsync(PersonId id, CancellationToken ct)
     {
         var stored = await db.Persons.AsNoTracking().Where(p => p.Id == id.Value).Select(p => p.Preferences).SingleOrDefaultAsync(ct);
-        if (stored is null)
-            return null;
-
-        var node = JsonNode.Parse(stored) as JsonObject ?? [];
-        return Preferences.FromStored(
-            node["theme"]?.GetValueKind() == JsonValueKind.String ? node["theme"]!.GetValue<string>() : null,
-            node["mode"]?.GetValueKind() == JsonValueKind.String ? node["mode"]!.GetValue<string>() : null,
-            node["chart_patterns"]?.GetValueKind() is JsonValueKind.True or JsonValueKind.False ? node["chart_patterns"]!.GetValue<bool>() : null,
-            node["guides_seen"] is JsonObject guides
-                ? guides.Where(g => g.Value?.GetValueKind() == JsonValueKind.Number && g.Value.AsValue().TryGetValue<int>(out _))
-                    .ToDictionary(g => g.Key, g => g.Value!.GetValue<int>())
-                : null);
+        return stored is null ? null : ReadPreferences(JsonNode.Parse(stored) as JsonObject ?? []);
     }
 
-    public async Task SavePreferencesAsync(PersonId id, Preferences preferences, CancellationToken ct)
+    public async Task<Result<Preferences>> UpdatePreferencesAsync(PersonId id, PreferencesChange change, CancellationToken ct)
     {
-        var row = await db.Persons.SingleAsync(p => p.Id == id.Value, ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Two tabs, or two sign-ins, changing preferences at once: each applies its change to what the other saved.
+        await db.Database.ExecuteSqlAsync($"select 1 from core.person where id = {id.Value} for update", ct);
+
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure<Preferences>(new NotFoundFailure("person", id.ToString()));
+
         var node = JsonNode.Parse(row.Preferences) as JsonObject ?? [];
+        var applied = ReadPreferences(node).Apply(change);
+        if (!applied.TryGetValue(out var preferences))
+            return applied;
+
         node["theme"] = preferences.Theme;
         node["mode"] = preferences.Mode;
         node["chart_patterns"] = preferences.ChartPatterns;
         node["guides_seen"] = new JsonObject(preferences.GuidesSeen.Select(g => KeyValuePair.Create(g.Key, (JsonNode?)JsonValue.Create(g.Value))));
         row.Preferences = node.ToJsonString();
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(preferences);
     }
+
+    private static Preferences ReadPreferences(JsonObject node) => Preferences.FromStored(
+        node["theme"]?.GetValueKind() == JsonValueKind.String ? node["theme"]!.GetValue<string>() : null,
+        node["mode"]?.GetValueKind() == JsonValueKind.String ? node["mode"]!.GetValue<string>() : null,
+        node["chart_patterns"]?.GetValueKind() is JsonValueKind.True or JsonValueKind.False ? node["chart_patterns"]!.GetValue<bool>() : null,
+        node["guides_seen"] is JsonObject guides
+            ? guides.Where(g => g.Value?.GetValueKind() == JsonValueKind.Number && g.Value.AsValue().TryGetValue<int>(out _))
+                .ToDictionary(g => g.Key, g => g.Value!.GetValue<int>())
+            : null);
 
     public async Task<Result> DeletePendingAdultAsync(PersonId id, CancellationToken ct)
     {

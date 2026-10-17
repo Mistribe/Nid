@@ -66,6 +66,23 @@ public class PreferencesTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Simultaneous_changes_all_succeed_and_none_is_lost()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        object[] changes = [new { theme = "sauge" }, new { mode = "dark" }, new { chartPatterns = true }, new { guidesSeen = new { dashboard = 1 } }];
+
+        var responses = await Task.WhenAll(changes.Concat(changes)
+            .Select(change => app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/core/me/preferences", change)));
+
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+        var preferences = (await app.GetAsync<JsonElement>(app.AdultA, "/auth/session")).GetProperty("preferences");
+        Assert.Equal("sauge", preferences.GetProperty("theme").GetString());
+        Assert.Equal("dark", preferences.GetProperty("mode").GetString());
+        Assert.True(preferences.GetProperty("chartPatterns").GetBoolean());
+        Assert.Equal(1, preferences.GetProperty("guidesSeen").GetProperty("dashboard").GetInt32());
+    }
+
+    [Fact]
     public async Task A_change_is_merged_saved_and_read_back_by_the_next_session()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -209,10 +209,7 @@ public sealed class EnvelopesImportSection(
     {
         var ids = await visible.ForAsync(context.Reader, VisibilityScope.Me, includeArchived: true, ct);
         var stored = await envelopes.ReadAllAsync(ids.ToList(), ct); // only the items that are envelopes
-        var heads = new Dictionary<ItemId, ItemAccess>();
-        foreach (var e in stored)
-            if (await items.FindAsync(e.Envelope.ItemId, ct) is { } item)
-                heads[e.Envelope.ItemId] = item;
+        var heads = await items.FindManyAsync(stored.Select(x => x.Envelope.ItemId).ToList(), ct);
         var exported = stored.Where(e => heads.ContainsKey(e.Envelope.ItemId)).ToList();
         var fileIds = FileIds.Assign("env",
             exported.Select(e => new KeyedRow(e.Envelope.ItemId.Value, e.Import?.Ref, e.Import?.ImportedBy)).ToList(), context.Reader);
