@@ -20,7 +20,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Least privilege (security/infrastructure.md §5): no job writes to the repository. Actions are pinned by SHA.
+# Least privilege (security/infrastructure.md §5): only `images` writes to the repository (the release tag, below). Actions are
+# pinned by SHA.
 permissions:
   contents: read
 
@@ -68,12 +69,28 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # the vX.Y.Z tag, pushed once the images are
       id-token: write # OIDC to Azure for the push below; the federated credential only trusts refs/heads/main
     env:
       TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the action reads the whole history and the tags
+      # Semver: the version one ahead of the latest vX.Y.Z tag (patch; `feat:` in a commit is a minor, `!:` or
+      # `BREAKING CHANGE:` a major, see .claude/CLAUDE.md). It only computes it: the tag is pushed at the end, once the images are.
+      - name: Next version
+        id: semver
+        uses: PaulHatch/semantic-version@9f72830310d5ed81233b641ee59253644cd8a8fc # v6.0.2
+        with:
+          search_commit_body: true
+      - name: Version
+        env:
+          NEXT: ${{ steps.semver.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" = push ]; then version=$NEXT; else version="$NEXT-ci.$GITHUB_RUN_NUMBER"; fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "Version: $version" >> "$GITHUB_STEP_SUMMARY"
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
         with:
           package_json_file: web/package.json
@@ -86,7 +103,7 @@ jobs:
       - run: pnpm --dir web exec playwright install --with-deps chromium
       - name: Build images
         run: |
-          docker build -f src/Nid.Host/Dockerfile -t nid-api:local .
+          docker build -f src/Nid.Host/Dockerfile --build-arg VERSION="$VERSION" -t nid-api:local .
           docker build -f web/Dockerfile -t nid-web:local .
           docker build -t nid-backup:local deploy/backup
       - name: Unit tests of the backup image
@@ -132,11 +149,16 @@ jobs:
           registry=oriondev.azurecr.io/mistribe
           az acr login --name oriondev
           for image in nid-api nid-web nid-backup; do
-            for tag in "$GITHUB_SHA" main; do
+            for tag in "$GITHUB_SHA" main "$VERSION"; do
               docker tag "$image:local" "$registry/$image:$tag"
               docker push "$registry/$image:$tag"
             done
           done
+      - name: Tag the release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.semver.outputs.is_tagged != 'true'
+        run: |
+          git tag "v$VERSION" "$GITHUB_SHA"
+          git push origin "v$VERSION"
       - name: Compose logs
         if: failure()
         run: |

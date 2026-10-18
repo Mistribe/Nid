@@ -2,6 +2,8 @@
 # nid-api (1F1 design §2.1). Build context: the repository root (docker build -f src/Nid.Host/Dockerfile .).
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:0d99ebf1ccad15037b5c98c9fe8979d6b8dbac23812feae2277a0b277b5c5ffa AS build
 ARG TARGETARCH
+# The semver of the release (CI passes it); 0.0.0 for a local build.
+ARG VERSION=0.0.0
 WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props Nid.slnx ./
 COPY src/ src/
@@ -9,7 +11,7 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.nuget/packages \
     RID=$([ "$TARGETARCH" = "arm64" ] && echo linux-arm64 || echo linux-x64) \
  && dotnet publish src/Nid.Host/Nid.Host.csproj -c Release -r "$RID" --self-contained false -o /app \
-      -p:OpenApiGenerateDocumentsOnBuild=false \
+      -p:OpenApiGenerateDocumentsOnBuild=false -p:Version="$VERSION" \
  && test -f /app/libSkiaSharp.so
 # 1F4: `nid admin …` in the container; the chiseled image has no shell to make this link. Next to the app host: it
 # looks for Nid.Host.dll beside the path it was called by, not beside the file a link points to.
