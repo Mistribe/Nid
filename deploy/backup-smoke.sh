@@ -31,8 +31,9 @@ echo "ok: the backup service is up and healthy before its first run"
 
 server=$("${COMPOSE[@]}" exec -T postgres postgres --version | sed -E 's/.* ([0-9]+)\..*/\1/')
 client=$(in_backup 'pg_dump --version' | sed -E 's/.* ([0-9]+)\..*/\1/')
-[ "$server" = "$client" ] || fail "pg_dump $client, server $server"
-echo "ok: pg_dump and the server share their major version ($server)"
+# pg_dump reads older servers but refuses a newer one: the 18 client serves the bundled 16 and a shared server up to 18.
+[ "$client" -ge "$server" ] || fail "pg_dump $client is older than the server $server"
+echo "ok: pg_dump $client is not older than the server $server"
 
 backup backup-now
 backup status >/dev/null || fail "unhealthy after a good run: $(backup status)"
