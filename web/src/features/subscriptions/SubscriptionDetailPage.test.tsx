@@ -43,6 +43,28 @@ describe('Abonnements › détail', () => {
     expect(await screen.findByText('Un trou de couverture existe.')).toBeInTheDocument();
   });
 
+  it('hides the horizon finding and reads the others in French', async () => {
+    serveDetail(detail({
+      findings: [
+        { code: 'subscriptions.horizon_reached', message: 'The walk stopped at the horizon.', reference: null },
+        { code: 'subscriptions.cycle_cap', message: 'A phase reached the renewal cap.', reference: null },
+      ],
+    }));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    expect(await screen.findByText(/plafond de renouvellements/)).toBeInTheDocument();
+    expect(screen.queryByText(/The walk stopped/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/A phase reached/)).not.toBeInTheDocument();
+  });
+
+  it('shows no findings section when the horizon is the only finding', async () => {
+    serveDetail(detail({ findings: [{ code: 'subscriptions.horizon_reached', message: 'The walk stopped.', reference: null }] }));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+    expect(screen.queryByRole('heading', { name: 'Points à vérifier' })).not.toBeInTheDocument();
+  });
+
   it('answers a subscription it cannot read like one that does not exist', async () => {
     serveDetail(null);
     await renderApp(`/subscriptions/${SUB}`);

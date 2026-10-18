@@ -11,6 +11,7 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { DETAIL, PERSONS } from './api';
 import { CoverageBand } from './CoverageBand';
 import { DeletePurchase, Edits, ReadOnly } from './edits/Edits';
+import { findingText, visibleFindings } from './findings';
 import { accessOf, durationText, kindText, payerText } from './format';
 
 /** 1E2a design §4: the subscription as it stands, and its edits when the reader may write. */
@@ -26,6 +27,7 @@ export function SubscriptionDetailPage() {
   if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
 
   const detail = answer.data;
+  const findings = visibleFindings(detail.findings);
   const persons = people.data ?? [];
   return (
     <article className="space-y-6">
@@ -52,9 +54,9 @@ export function SubscriptionDetailPage() {
         {detail.freeDays > 0 ? <p>{t('subscription.free_days', { count: detail.freeDays })}</p> : null}
       </Section>
 
-      {detail.findings.length > 0 ? (
+      {findings.length > 0 ? (
         <Section title={t('subscription.findings')}>
-          <ul className="list-disc pl-5">{detail.findings.map((f) => <li key={`${f.code}-${f.reference ?? ''}`}>{f.message}</li>)}</ul>
+          <ul className="list-disc pl-5">{findings.map((f) => <li key={`${f.code}-${f.reference ?? ''}`}>{findingText(t, f)}</li>)}</ul>
         </Section>
       ) : null}
 

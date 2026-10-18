@@ -13,6 +13,7 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { LIST, type Summary } from './api';
 import { filterSubscriptions, labelParam, labelsInUse, labelsOf } from './filter';
+import { findingText, visibleFindings } from './findings';
 import { todayIso } from './today';
 
 /** 1E2a design §3: scope (the shell's switch) goes to the server, name and status filter the answer in the browser. */
@@ -125,6 +126,7 @@ export function SubscriptionsPage() {
 
 function Row({ item }: { item: Summary }) {
   const { t } = useTranslation();
+  const findings = visibleFindings(item.findings);
   return (
     <li className="rounded-md border">
       <Link to="/subscriptions/$id" params={{ id: item.id }} className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted">
@@ -144,12 +146,12 @@ function Row({ item }: { item: Summary }) {
             : item.expiresOn ? t('subscriptions.expires', { date: formatLocalDate(item.expiresOn) }) : null}
         </span>
       </Link>
-      {item.findings.length > 0 ? (
+      {findings.length > 0 ? (
         <ul aria-label={t('subscriptions.findings')} className="flex flex-wrap gap-2 px-3 pb-3">
-          {item.findings.map((f) => (
+          {findings.map((f) => (
             <li key={`${f.code}-${f.reference ?? ''}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm">
               <AlertTriangle aria-hidden="true" className="size-4" />
-              {f.message}
+              {findingText(t, f)}
             </li>
           ))}
         </ul>

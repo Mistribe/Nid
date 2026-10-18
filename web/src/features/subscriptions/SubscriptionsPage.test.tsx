@@ -60,6 +60,29 @@ describe('Abonnements › liste', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('hides the horizon finding and reads the others in French', async () => {
+    serve(list([summary({
+      findings: [
+        { code: 'subscriptions.horizon_reached', message: 'The walk stopped at the horizon; the subscription runs beyond it.', reference: null },
+        { code: 'subscriptions.grant_overlap', message: 'A grant with an explicit start overlaps existing coverage.', reference: null },
+      ],
+    })]));
+    await renderApp('/subscriptions');
+
+    const [row] = await rows();
+    expect(within(row!).getByText(/chevauche une couverture existante/)).toBeInTheDocument();
+    expect(screen.queryByText(/The walk stopped/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/A grant with/)).not.toBeInTheDocument();
+  });
+
+  it('shows no findings list when the horizon is the only finding', async () => {
+    serve(list([summary({ findings: [{ code: 'subscriptions.horizon_reached', message: 'The walk stopped.', reference: null }] })]));
+    await renderApp('/subscriptions');
+
+    await rows();
+    expect(screen.queryByRole('list', { name: 'Points à vérifier' })).not.toBeInTheDocument();
+  });
+
   it('says why the totals are not the sum of the rows when purchases are shared', async () => {
     serve(list([summary({})], { sharedPurchaseIds: ['0192f0aa-0000-7000-8000-00000000000f'] }));
     await renderApp('/subscriptions');

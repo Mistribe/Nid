@@ -492,6 +492,12 @@
       "hint": "La facturation commence quand la période couverte se termine."
     }
   },
+  "finding": {
+    "subscriptions_incomplete": "Cet abonnement n'a ni tarif ni achat.",
+    "subscriptions_grant_overlap": "Un achat avec une date de début chevauche une couverture existante : c'est peut-être un doublon.",
+    "subscriptions_cycle_cap": "Une phase a atteint le plafond de renouvellements : le calendrier s'arrête là.",
+    "subscriptions_phase_cycles_unspent": "Une phase s'est terminée alors qu'il lui restait des renouvellements : la couverture dépasse ses dates."
+  },
   "field_error": {
     "core_external_ref_taken": "Un mouvement est déjà enregistré avec cette référence : décochez-le.",
     "core_external_ref_taken_movement": "Le mouvement {{n}} est déjà enregistré avec cette référence : décochez-le.",
