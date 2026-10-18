@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 import { useId } from 'react';
@@ -52,16 +53,16 @@ export function SubscriptionsPage() {
       <div className="space-y-1">
         <label htmlFor={searchId} className="block text-sm">{t('subscriptions.search')}</label>
         <input id={searchId} type="search" value={search.q ?? ''} onChange={(e) => setSearch({ q: e.target.value || undefined })}
-          className="rounded-md border px-3 py-1.5" />
+          />
       </div>
       <div className="space-y-1">
         <label htmlFor={statusId} className="block text-sm">{t('subscriptions.status_label')}</label>
-        <select id={statusId} value={search.status ?? ''} className="rounded-md border px-3 py-1.5"
+        <NativeSelect id={statusId} value={search.status ?? ''}
           onChange={(e) => setSearch({ status: e.target.value === 'active' || e.target.value === 'ended' ? e.target.value : undefined })}>
-          <option value="">{t('subscriptions.status_all')}</option>
-          <option value="active">{t('subscriptions.status_active')}</option>
-          <option value="ended">{t('subscriptions.status_ended')}</option>
-        </select>
+          <NativeSelectOption value="">{t('subscriptions.status_all')}</NativeSelectOption>
+          <NativeSelectOption value="active">{t('subscriptions.status_active')}</NativeSelectOption>
+          <NativeSelectOption value="ended">{t('subscriptions.status_ended')}</NativeSelectOption>
+        </NativeSelect>
       </div>
       {offered.length > 0 ? (
         <div role="group" aria-labelledby={labelsId} className="space-y-1">

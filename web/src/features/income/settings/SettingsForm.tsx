@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
@@ -18,7 +19,6 @@ import { invalidateIncome, SOURCE, type IncomeSourceDetail } from '../api';
 import { KINDS } from '../format';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 
-const input = 'rounded-md border px-3 py-2';
 const PATHS = { displayName: 'displayName', kind: 'kind', payerLabel: 'payerLabel', note: 'note' } as const;
 
 const schema = (t: TFunction) => z.object({
@@ -86,20 +86,20 @@ export function SettingsForm({ source, onStart, onDone }: { source: IncomeSource
         </>
       ) : null}
       <Field label={t('income_form.name')} error={e.displayName?.message}>
-        {(c) => <input {...c} {...form.register('displayName')} className={`w-full ${input}`} />}
+        {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
       </Field>
       <Field label={t('income_form.kind')} error={e.kind?.message}>
         {(c) => (
-          <select {...c} {...form.register('kind')} className={input}>
-            {KINDS.map((k) => <option key={k} value={k}>{t(`income.kind.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('kind')}>
+            {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`income.kind.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('income_form.payer')} hint={t('income_form.payer_help')} error={e.payerLabel?.message}>
-        {(c) => <input {...c} {...form.register('payerLabel')} className={`w-full ${input}`} />}
+        {(c) => <input {...c} {...form.register('payerLabel')} className="w-full" />}
       </Field>
       <Field label={t('income_form.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
       </Field>
       <Button type="submit" disabled={save.isPending}>{t('income_detail.settings.submit')}</Button>
     </form>

@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
@@ -107,20 +108,20 @@ export function FlowForm({ envelope, editing, openingRequest, onDone }: {
       {/* Mounted empty so a screen reader is already watching it when the text arrives. */}
       <p role="status" aria-live="polite">{saved ? t('envelope.flow_saved') : ''}</p>
       <Field label={t('envelope.date')} error={e.occurredOn?.message}>
-        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} className={input} />}
+        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} />}
       </Field>
       <Field label={t('envelope.kind')} error={e.kind?.message}>
         {(c) => (
-          <select {...c} {...form.register('kind')} className={input}>
-            {kinds.map((k) => <option key={k} value={k}>{t(`investments.flow_kind.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('kind')}>
+            {kinds.map((k) => <NativeSelectOption key={k} value={k}>{t(`investments.flow_kind.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('envelope.amount')} error={e.amount?.message}>
         {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
       </Field>
       <Field label={t('envelope.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
       </Field>
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={pending}>{editing ? t('envelope.save') : t('envelope.add_flow')}</Button>

@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef } from 'react';
@@ -18,8 +19,6 @@ import { EXPECTED, invalidateIncome, PHASE_CHANGES, type IncomePhase, type Incom
 import { defaultEffectiveDate, paymentDates, paymentWindow } from '../expected/months';
 import { phaseChangeFieldOf, phaseChangeSchema, phaseChangeValuesOf, toWirePhaseChange, type PhaseChangeValues } from './phase';
 import { PhaseFields } from './PhaseFields';
-
-const input = 'rounded-md border px-3 py-2';
 
 /**
  * Spec §3: a change of amount, inline on a phase row. The effective date is chosen among the phase's own payment dates
@@ -101,9 +100,9 @@ function ChangeForm({ source, phase, dates, labelledBy, onDone }: {
       ) : null}
       <Field label={t('income_detail.change.effective_on')} error={e.effectiveOn?.message}>
         {(c) => (
-          <select {...c} {...form.register('effectiveOn')} className={input}>
-            {dates.map((d) => <option key={d} value={d}>{formatLocalDate(d)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('effectiveOn')}>
+            {dates.map((d) => <NativeSelectOption key={d} value={d}>{formatLocalDate(d)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <PhaseFields form={form} prefix="" errors={e} fields={['netAmount', 'cadence', 'grossAmount', 'note']} />

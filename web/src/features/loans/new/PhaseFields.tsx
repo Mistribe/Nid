@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
@@ -15,9 +16,9 @@ export function PhaseFields({ form, index, last }: { form: UseFormReturn<Contrac
     <>
       <Field label={t('loan_form.mode')} error={e?.mode?.message}>
         {(c) => (
-          <select {...c} {...form.register(`phases.${index}.mode`)} className={input}>
-            {PHASE_MODES.map((m) => <option key={m} value={m}>{t(`loan_form.mode_option.${m}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register(`phases.${index}.mode`)}>
+            {PHASE_MODES.map((m) => <NativeSelectOption key={m} value={m}>{t(`loan_form.mode_option.${m}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('loan_form.rate')} error={e?.rate?.message}>
@@ -25,9 +26,9 @@ export function PhaseFields({ form, index, last }: { form: UseFormReturn<Contrac
       </Field>
       <Field label={t('loan_form.rate_type')} error={e?.rateType?.message}>
         {(c) => (
-          <select {...c} {...form.register(`phases.${index}.rateType`)} className={input}>
-            {RATE_TYPES.map((r) => <option key={r} value={r}>{t(`loan_form.rate_type_option.${r}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register(`phases.${index}.rateType`)}>
+            {RATE_TYPES.map((r) => <NativeSelectOption key={r} value={r}>{t(`loan_form.rate_type_option.${r}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('loan_form.payments')} hint={last ? t('loan_form.payments_help') : undefined} error={e?.payments?.message}>
@@ -41,7 +42,7 @@ export function PhaseFields({ form, index, last }: { form: UseFormReturn<Contrac
           {(c) => <input inputMode="decimal" {...c} {...form.register(`phases.${index}.openingBalance`)} className={`w-32 ${input}`} />}
         </Field>
         <Field label={t('loan_form.phase_note')} error={e?.note?.message}>
-          {(c) => <textarea {...c} {...form.register(`phases.${index}.note`)} className={`w-full ${input}`} />}
+          {(c) => <textarea {...c} {...form.register(`phases.${index}.note`)} className="w-full" />}
         </Field>
       </Folded>
     </>

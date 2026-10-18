@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useEffect, useId } from 'react';
 import type { Path, UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +18,7 @@ const errorOf = (form: Form, name: Path<WizardValues>) => form.getFieldState(nam
 export function DateField({ form, name, label, hint }: Props) {
   return (
     <Field label={label} hint={hint} error={errorOf(form, name)}>
-      {(c) => <input type="date" {...c} {...form.register(name)} className={input} />}
+      {(c) => <input type="date" {...c} {...form.register(name)} />}
     </Field>
   );
 }
@@ -60,9 +61,9 @@ export function DurationFields({ form, count, unit, label, hint }: {
       <div className="flex gap-2">
         <input inputMode="numeric" aria-labelledby={legendId} aria-describedby={describedBy} aria-invalid={error ? true : undefined}
           {...form.register(count)} className={`w-20 ${input}`} />
-        <select aria-label={t('wizard.unit')} {...form.register(unit)} className={input}>
-          {UNITS.map((u) => <option key={u} value={u}>{t(`edit.unit.${u}`)}</option>)}
-        </select>
+        <NativeSelect aria-label={t('wizard.unit')} {...form.register(unit)}>
+          {UNITS.map((u) => <NativeSelectOption key={u} value={u}>{t(`edit.unit.${u}`)}</NativeSelectOption>)}
+        </NativeSelect>
       </div>
       {hint ? <span id={hintId} className="block text-sm text-muted-foreground">{hint}</span> : null}
       {error ? <span id={errorId} className="block text-sm text-destructive">{error}</span> : null}
@@ -86,10 +87,10 @@ export function PayerFields({ form, persons, withExternal = false }: { form: For
       {form.watch('offerPayerType') === 'person' ? (
         <Field label={t('wizard.payer_who')} error={errorOf(form, 'offerPayerPerson')}>
           {(c) => (
-            <select {...c} {...form.register('offerPayerPerson')} className={input}>
-              <option value="">{t('wizard.none')}</option>
-              {persons.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('offerPayerPerson')}>
+              <NativeSelectOption value="">{t('wizard.none')}</NativeSelectOption>
+              {persons.map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.displayName}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
       ) : null}
@@ -105,7 +106,7 @@ export function LabelField({ form, initial }: { form: Form; initial: string }) {
   }, [form, initial]);
   return (
     <Field label={t('wizard.offer.label')} error={errorOf(form, 'offerLabel')}>
-      {(c) => <input {...c} {...form.register('offerLabel')} className={`w-full ${input}`} />}
+      {(c) => <input {...c} {...form.register('offerLabel')} className="w-full" />}
     </Field>
   );
 }

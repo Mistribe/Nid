@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
@@ -15,9 +16,9 @@ export function InsuranceFields({ form, index }: { form: UseFormReturn<ContractV
     <>
       <Field label={t('loan_form.insurance_mode')} error={e?.mode?.message}>
         {(c) => (
-          <select {...c} {...form.register(`insurances.${index}.mode`)} className={input}>
-            {INSURANCE_MODES.map((m) => <option key={m} value={m}>{t(`loan_form.insurance_mode_option.${m}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register(`insurances.${index}.mode`)}>
+            {INSURANCE_MODES.map((m) => <NativeSelectOption key={m} value={m}>{t(`loan_form.insurance_mode_option.${m}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       {mode === 'fixed_monthly' ? (
@@ -30,13 +31,13 @@ export function InsuranceFields({ form, index }: { form: UseFormReturn<ContractV
         </Field>
       )}
       <Field label={t('loan_form.starts_on')} error={e?.startsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.startsOn`, { onChange: () => form.setValue(`insurances.${index}.follows`, false) })} className={input} />}
+        {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.startsOn`, { onChange: () => form.setValue(`insurances.${index}.follows`, false) })} />}
       </Field>
       <Field label={t('loan_form.ends_on')} hint={t('loan_form.optional')} error={e?.endsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.endsOn`)} className={input} />}
+        {(c) => <input type="date" {...c} {...form.register(`insurances.${index}.endsOn`)} />}
       </Field>
       <Field label={t('loan_form.insurance_note')} error={e?.note?.message}>
-        {(c) => <textarea {...c} {...form.register(`insurances.${index}.note`)} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register(`insurances.${index}.note`)} className="w-full" />}
       </Field>
     </>
   );

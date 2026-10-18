@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -136,19 +137,19 @@ function TransferForm({ source, destinations, titleId, onClose, onDone }: {
       ) : null}
       <Field label={t('envelope.transfer.to')} error={e.to?.message}>
         {(c) => (
-          <select {...c} {...form.register('to')} className={`w-full ${input}`}>
-            {destinations.map((d) => <option key={d.id} value={d.id}>{d.displayName}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('to')} wrapperClassName="w-full">
+            {destinations.map((d) => <NativeSelectOption key={d.id} value={d.id}>{d.displayName}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('envelope.date')} error={e.occurredOn?.message}>
-        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} className={input} />}
+        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} />}
       </Field>
       <Field label={t('envelope.amount')} error={e.amount?.message}>
         {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
       </Field>
       <Field label={t('envelope.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
       </Field>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>{t('envelope.cancel')}</Button>

@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -72,13 +73,13 @@ export function PurchaseForm({ detail }: { detail: Detail }) {
         {(c) => <input {...c} {...form.register('label')} className="w-full rounded-md border px-3 py-2" />}
       </Field>
       <Field label={t('edit.purchase_date')} error={e.date?.message}>
-        {(c) => <input type="date" {...c} {...form.register('date')} className="rounded-md border px-3 py-2" />}
+        {(c) => <input type="date" {...c} {...form.register('date')} />}
       </Field>
       <Field label={t('edit.purchase_kind')}>
         {(c) => (
-          <select {...c} {...form.register('kind')} className="rounded-md border px-3 py-2">
-            {KINDS.map((k) => <option key={k} value={k}>{t(`purchase_kind.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('kind')}>
+            {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`purchase_kind.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <div className="flex gap-3">
@@ -95,9 +96,9 @@ export function PurchaseForm({ detail }: { detail: Detail }) {
         </Field>
         <Field label={t('edit.purchase_unit')}>
           {(c) => (
-            <select {...c} {...form.register('unit')} className="rounded-md border px-3 py-2">
-              {UNITS.map((u) => <option key={u} value={u}>{t(`edit.unit.${u}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('unit')}>
+              {UNITS.map((u) => <NativeSelectOption key={u} value={u}>{t(`edit.unit.${u}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
       </div>

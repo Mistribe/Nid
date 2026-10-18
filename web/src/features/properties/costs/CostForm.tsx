@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
@@ -64,9 +65,9 @@ export function CostForm({ property, editing, onDone }: { property: PropertyDeta
       ) : null}
       <Field label={t('property_costs.category')} error={e.category?.message}>
         {(c) => (
-          <select {...c} {...form.register('category')} className={input}>
-            {RECURRING_CATEGORIES.map((k) => <option key={k} value={k}>{t(`property_flows.category_option.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('category')}>
+            {RECURRING_CATEGORIES.map((k) => <NativeSelectOption key={k} value={k}>{t(`property_flows.category_option.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('property_costs.amount')} error={e.amount?.message}>
@@ -77,19 +78,19 @@ export function CostForm({ property, editing, onDone }: { property: PropertyDeta
       </Field>
       <Field label={t('wizard.unit')} error={e.everyUnit?.message}>
         {(c) => (
-          <select {...c} {...form.register('everyUnit')} className={input}>
-            {EVERY_UNITS.map((k) => <option key={k} value={k}>{t(`property_costs.unit_option.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('everyUnit')}>
+            {EVERY_UNITS.map((k) => <NativeSelectOption key={k} value={k}>{t(`property_costs.unit_option.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('property_costs.starts')} error={e.startsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register('startsOn')} className={input} />}
+        {(c) => <input type="date" {...c} {...form.register('startsOn')} />}
       </Field>
       <Field label={t('property_costs.ends')} hint={t('loan_form.optional')} error={e.endsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register('endsOn')} className={input} />}
+        {(c) => <input type="date" {...c} {...form.register('endsOn')} />}
       </Field>
       <Field label={t('property_costs.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
       </Field>
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('loan_detail.save') : t('property_costs.submit')}</Button>

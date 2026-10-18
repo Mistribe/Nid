@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -33,10 +34,10 @@ export function SecurityJournalPage() {
     <AdminFrame title={title}>
       <label className="flex items-center gap-2">
         <span>{t('admin.security.filter')}</span>
-        <select value={event} onChange={(e) => setEvent(e.target.value)} className="min-h-11 rounded-md border px-2">
-          <option value="">{t('admin.security.all')}</option>
-          {JOURNAL_EVENTS.map((name) => <option key={name} value={name}>{eventLabel(t, name)}</option>)}
-        </select>
+        <NativeSelect value={event} onChange={(e) => setEvent(e.target.value)} className="min-h-11">
+          <NativeSelectOption value="">{t('admin.security.all')}</NativeSelectOption>
+          {JOURNAL_EVENTS.map((name) => <NativeSelectOption key={name} value={name}>{eventLabel(t, name)}</NativeSelectOption>)}
+        </NativeSelect>
       </label>
       {!journal.data || !adults.data ? <AdminSkeleton /> : journal.data.entries.length === 0 ? (
         <EmptyState title={t('admin.security.empty')} body="" />

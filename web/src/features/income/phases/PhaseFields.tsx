@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import type { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
@@ -23,7 +24,7 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
     <>
       {shown('label') ? (
         <Field label={t('income_form.label')} error={errors?.label?.message}>
-          {(c) => <input {...c} {...form.register(name('label'))} className={`w-full ${input}`} />}
+          {(c) => <input {...c} {...form.register(name('label'))} className="w-full" />}
         </Field>
       ) : null}
       {shown('netAmount') ? (
@@ -34,9 +35,9 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
       {shown('cadence') ? (
         <Field label={t('income_form.cadence')} error={errors?.cadence?.message}>
           {(c) => (
-            <select {...c} {...form.register(name('cadence'))} className={input}>
-              {CADENCES.map((k) => <option key={k} value={k}>{t(`income_form.cadence_option.${k}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register(name('cadence'))}>
+              {CADENCES.map((k) => <NativeSelectOption key={k} value={k}>{t(`income_form.cadence_option.${k}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
       ) : null}
@@ -47,12 +48,12 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
       ) : null}
       {shown('startsOn') ? (
         <Field label={t('income_form.starts_on')} error={errors?.startsOn?.message}>
-          {(c) => <input type="date" {...c} {...form.register(name('startsOn'))} className={input} />}
+          {(c) => <input type="date" {...c} {...form.register(name('startsOn'))} />}
         </Field>
       ) : null}
       {shown('endsOn') ? (
         <Field label={t('income_form.ends_on')} hint={t('income_form.optional')} error={errors?.endsOn?.message}>
-          {(c) => <input type="date" {...c} {...form.register(name('endsOn'))} className={input} />}
+          {(c) => <input type="date" {...c} {...form.register(name('endsOn'))} />}
         </Field>
       ) : null}
       {shown('grossAmount') ? (
@@ -67,7 +68,7 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
       ) : null}
       {shown('note') ? (
         <Field label={t('income_form.phase_note')} error={errors?.note?.message}>
-          {(c) => <textarea {...c} {...form.register(name('note'))} className={`w-full ${input}`} />}
+          {(c) => <textarea {...c} {...form.register(name('note'))} className="w-full" />}
         </Field>
       ) : null}
     </>

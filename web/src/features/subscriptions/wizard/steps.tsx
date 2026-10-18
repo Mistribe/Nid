@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Fragment, useId } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,7 @@ export function CommonStep({ form, persons }: { form: Form; persons: Person[] })
           if (p && form.getValues('displayName').trim() === '') form.setValue('displayName', p.name, { shouldValidate: true });
         }} />
       )} />
-      <Field label={t('wizard.name')} error={e.displayName?.message}>{(c) => <input {...c} {...form.register('displayName')} className={`w-full ${input}`} />}</Field>
+      <Field label={t('wizard.name')} error={e.displayName?.message}>{(c) => <input {...c} {...form.register('displayName')} className="w-full" />}</Field>
       <OwnershipFields form={form} persons={persons} />
       <fieldset className="space-y-1">
         <legend className="text-sm">{t('wizard.users')}</legend>
@@ -35,7 +36,7 @@ export function CommonStep({ form, persons }: { form: Form; persons: Person[] })
           <label key={p.id} className="flex items-center gap-2"><input type="checkbox" value={p.id} {...form.register('users')} />{p.displayName}</label>
         ))}
       </fieldset>
-      <Field label={t('wizard.note')}>{(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}</Field>
+      <Field label={t('wizard.note')}>{(c) => <textarea {...c} {...form.register('note')} className="w-full" />}</Field>
     </div>
   );
 }
@@ -49,7 +50,7 @@ export function RecurringOffer({ form, persons, withStart = true }: { form: Form
   return (
     <div className="space-y-4">
       {withStart ? (
-        <Field label={t('wizard.starts')} error={e.startsOn?.message}>{(c) => <input type="date" {...c} {...form.register('startsOn')} className={input} />}</Field>
+        <Field label={t('wizard.starts')} error={e.startsOn?.message}>{(c) => <input type="date" {...c} {...form.register('startsOn')} />}</Field>
       ) : null}
       <div className="flex gap-3">
         <Field label={t('wizard.amount')} error={e.amount?.message}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}</Field>
@@ -58,7 +59,7 @@ export function RecurringOffer({ form, persons, withStart = true }: { form: Form
       <div className="flex gap-3">
         <Field label={t('wizard.every')} error={e.everyCount?.message}>{(c) => <input inputMode="numeric" {...c} {...form.register('everyCount')} className={`w-20 ${input}`} />}</Field>
         <Field label={t('wizard.unit')}>
-          {(c) => <select {...c} {...form.register('everyUnit')} className={input}>{UNITS.map((u) => <option key={u} value={u}>{t(`edit.unit.${u}`)}</option>)}</select>}
+          {(c) => <NativeSelect {...c} {...form.register('everyUnit')}>{UNITS.map((u) => <NativeSelectOption key={u} value={u}>{t(`edit.unit.${u}`)}</NativeSelectOption>)}</NativeSelect>}
         </Field>
       </div>
       <Field label={t('wizard.same_covers')} inline>{(c) => <input type="checkbox" {...c} {...form.register('sameCovers')} />}</Field>
@@ -66,7 +67,7 @@ export function RecurringOffer({ form, persons, withStart = true }: { form: Form
         <div className="flex gap-3">
           <Field label={t('wizard.covers')} error={e.coversCount?.message}>{(c) => <input inputMode="numeric" {...c} {...form.register('coversCount')} className={`w-20 ${input}`} />}</Field>
           <Field label={t('wizard.unit')}>
-            {(c) => <select {...c} {...form.register('coversUnit')} className={input}>{UNITS.map((u) => <option key={u} value={u}>{t(`edit.unit.${u}`)}</option>)}</select>}
+            {(c) => <NativeSelect {...c} {...form.register('coversUnit')}>{UNITS.map((u) => <NativeSelectOption key={u} value={u}>{t(`edit.unit.${u}`)}</NativeSelectOption>)}</NativeSelect>}
           </Field>
         </div>
       )}
@@ -80,10 +81,10 @@ export function RecurringOffer({ form, persons, withStart = true }: { form: Form
       {payerType === 'person' ? (
         <Field label={t('wizard.payer_who')} error={e.payerPerson?.message}>
           {(c) => (
-            <select {...c} {...form.register('payerPerson')} className={input}>
-              <option value="">{t('wizard.none')}</option>
-              {persons.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('payerPerson')}>
+              <NativeSelectOption value="">{t('wizard.none')}</NativeSelectOption>
+              {persons.map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.displayName}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
       ) : null}

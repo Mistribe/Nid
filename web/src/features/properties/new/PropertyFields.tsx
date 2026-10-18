@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Folded } from '../../loans/new/Folded';
@@ -28,13 +29,13 @@ export function PropertyFields() {
     <>
       <Field label={t('property_form.type')} error={e.type?.message}>
         {(c) => (
-          <select {...c} {...form.register('type')} className={input}>
-            {PROPERTY_TYPES.map((v) => <option key={v} value={v}>{t(`property_form.type_option.${v}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('type')}>
+            {PROPERTY_TYPES.map((v) => <NativeSelectOption key={v} value={v}>{t(`property_form.type_option.${v}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('property_form.purchase_date')} error={e.purchaseDate?.message}>
-        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('purchaseDate')} className={input} />}
+        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('purchaseDate')} />}
       </Field>
       {amount('purchasePrice', t('property_form.purchase_price'))}
       {amount('notaryFees', t('property_form.notary_fees'))}
@@ -44,14 +45,14 @@ export function PropertyFields() {
         {(c) => <input inputMode="decimal" {...c} {...form.register('surfaceM2')} className={`w-24 ${input}`} />}
       </Field>
       <Field label={t('property_form.location')} hint={t('property_form.location_help')} error={e.locationLabel?.message}>
-        {(c) => <input {...c} {...form.register('locationLabel')} className={`w-full ${input}`} />}
+        {(c) => <input {...c} {...form.register('locationLabel')} className="w-full" />}
       </Field>
       <Folded label={t('loan_form.more_options')} hasError={Boolean(e.valuationCadence || e.staleAfterDays)}>
         <Field label={t('property_form.cadence')} error={e.valuationCadence?.message}>
           {(c) => (
-            <select {...c} {...form.register('valuationCadence')} className={input}>
-              {CADENCES.map((v) => <option key={v} value={v}>{t(`property_form.cadence_option.${v}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('valuationCadence')}>
+              {CADENCES.map((v) => <NativeSelectOption key={v} value={v}>{t(`property_form.cadence_option.${v}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
         <Field label={t('property_form.stale_after')} hint={t('property_form.stale_after_help')} error={e.staleAfterDays?.message}>

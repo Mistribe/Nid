@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, type ChangeEvent } from 'react';
@@ -67,27 +68,27 @@ export function FlowForm({ property, editing, onDone }: { property: PropertyDeta
       ) : null}
       <Field label={t('property_flows.kind')} error={e.kind?.message}>
         {(c) => (
-          <select {...c} {...form.register('kind', { onChange: changeKind })} className={input}>
-            {FLOW_KINDS.map((k) => <option key={k} value={k}>{t(`property_flows.kind_option.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('kind', { onChange: changeKind })}>
+            {FLOW_KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`property_flows.kind_option.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       {/* The category select is keyed by the kind: it remounts on the new list, showing the category the form now holds. */}
       <Field label={t('property_flows.category')} error={e.category?.message}>
         {(c) => (
-          <select key={kind} {...c} {...form.register('category')} className={input}>
-            {categoriesOf(kind).map((k) => <option key={k} value={k}>{t(`property_flows.category_option.${k}`)}</option>)}
-          </select>
+          <NativeSelect key={kind} {...c} {...form.register('category')}>
+            {categoriesOf(kind).map((k) => <NativeSelectOption key={k} value={k}>{t(`property_flows.category_option.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('property_flows.amount')} error={e.amount?.message}>
         {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
       </Field>
       <Field label={t('property_flows.date')} error={e.occurredOn?.message}>
-        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} className={input} />}
+        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} />}
       </Field>
       <Field label={t('property_flows.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
       </Field>
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('loan_detail.save') : t('property_flows.submit')}</Button>

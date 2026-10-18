@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useId, useRef, useState, type ChangeEvent } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -81,10 +82,10 @@ export function ContractFields({ startListed = false, stored = false }: { startL
           {(c) => <input inputMode="numeric" {...c} {...form.register('totalPayments')} className={`w-24 ${input}`} />}
         </Field>
         <Field label={t('loan_form.disbursed_on')} error={e.disbursedOn?.message}>
-          {(c) => <input type="date" {...c} {...form.register('disbursedOn', { onChange: followDisbursement })} className={input} />}
+          {(c) => <input type="date" {...c} {...form.register('disbursedOn', { onChange: followDisbursement })} />}
         </Field>
         <Field label={t('loan_form.first_payment')} hint={t('loan_form.first_payment_help')} error={e.firstPaymentDate?.message}>
-          {(c) => <input type="date" {...c} {...form.register('firstPaymentDate', { onChange: typeFirst })} className={input} />}
+          {(c) => <input type="date" {...c} {...form.register('firstPaymentDate', { onChange: typeFirst })} />}
         </Field>
       </section>
 
@@ -108,16 +109,16 @@ export function ContractFields({ startListed = false, stored = false }: { startL
       <Folded label={t('loan_form.options')} hasError={Boolean(e.rounding || e.firstPeriod)}>
         <Field label={t('loan_form.rounding')} error={e.rounding?.message}>
           {(c) => (
-            <select {...c} {...form.register('rounding')} className={input}>
-              {ROUNDINGS.map((r) => <option key={r} value={r}>{t(`loan_form.rounding_option.${r}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('rounding')}>
+              {ROUNDINGS.map((r) => <NativeSelectOption key={r} value={r}>{t(`loan_form.rounding_option.${r}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
         <Field label={t('loan_form.first_period')} error={e.firstPeriod?.message}>
           {(c) => (
-            <select {...c} {...form.register('firstPeriod')} className={input}>
-              {FIRST_PERIODS.map((p) => <option key={p} value={p}>{t(`loan_form.first_period_option.${p}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('firstPeriod')}>
+              {FIRST_PERIODS.map((p) => <NativeSelectOption key={p} value={p}>{t(`loan_form.first_period_option.${p}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
       </Folded>

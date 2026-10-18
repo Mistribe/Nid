@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -85,29 +86,29 @@ export function NewEnvelope() {
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <form noValidate onSubmit={(e) => void form.handleSubmit((values) => create.mutate({ body: toCreateBody(values) }))(e)} className="space-y-4">
         <Field label={t('investments_form.name')} error={e.displayName?.message}>
-          {(c) => <input {...c} {...form.register('displayName')} className={`w-full ${input}`} />}
+          {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
         </Field>
         <Field label={t('investments_form.kind')} error={e.kind?.message}>
           {(c) => (
-            <select {...c} {...form.register('kind')} className={input}>
-              {KINDS.map((k) => <option key={k} value={k}>{t(`investments.kind.${k}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('kind')}>
+              {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`investments.kind.${k}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
         <Field label={t('investments_form.currency')} error={e.currency?.message}>
           {(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}
         </Field>
         <Field label={t('investments_form.institution')} error={e.institution?.message}>
-          {(c) => <input {...c} {...form.register('institution')} className={`w-full ${input}`} />}
+          {(c) => <input {...c} {...form.register('institution')} className="w-full" />}
         </Field>
         <Field label={t('investments_form.account_hint')} hint={t('investments_form.account_hint_help')} error={e.accountHint?.message}>
           {(c) => <input {...c} {...form.register('accountHint')} className={`w-24 ${input}`} />}
         </Field>
         <Field label={t('investments_form.cadence')} error={e.valuationCadence?.message}>
           {(c) => (
-            <select {...c} {...form.register('valuationCadence')} className={input}>
-              {CADENCES.map((cadence) => <option key={cadence} value={cadence}>{t(`investments.cadence.${cadence}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('valuationCadence')}>
+              {CADENCES.map((cadence) => <NativeSelectOption key={cadence} value={cadence}>{t(`investments.cadence.${cadence}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
         <OwnershipFields form={form} persons={persons} />
@@ -117,7 +118,7 @@ export function NewEnvelope() {
         {withOpening ? (
           <>
             <Field label={t('investments_form.opening_on')} error={e.openingOn?.message}>
-              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('openingOn')} className={input} />}
+              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('openingOn')} />}
             </Field>
             <Field label={t('investments_form.opening_amount')} error={e.openingAmount?.message}>
               {(c) => <input inputMode="decimal" {...c} {...form.register('openingAmount')} className={`w-32 ${input}`} />}
@@ -130,7 +131,7 @@ export function NewEnvelope() {
         {withFirstValue ? (
           <>
             <Field label={t('investments_form.first_value_on')} error={e.firstValueOn?.message}>
-              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('firstValueOn')} className={input} />}
+              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('firstValueOn')} />}
             </Field>
             <Field label={t('investments_form.first_value_amount')} error={e.firstValueAmount?.message}>
               {(c) => <input inputMode="decimal" {...c} {...form.register('firstValueAmount')} className={`w-32 ${input}`} />}

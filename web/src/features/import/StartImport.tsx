@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -65,18 +66,18 @@ export function StartImport({ file }: { file: ReadyFile }) {
         {file.adults.map((adult) => (
           <label key={adult.ref} className="block max-w-md">
             <span className="block text-sm">{t('import.adult_label', { name: adult.displayName, ref: adult.ref })}</span>
-            <select
+            <NativeSelect
               value={choice(adult.ref, adult.email)}
               onChange={(event) => setChosen({ ...chosen, [adult.ref]: event.target.value })}
               className="w-full rounded-md border px-3 py-2"
             >
-              <option value="">{t('import.adults_none')}</option>
+              <NativeSelectOption value="">{t('import.adults_none')}</NativeSelectOption>
               {adults.map((person) => (
-                <option key={person.id} value={person.id}>
+                <NativeSelectOption key={person.id} value={person.id}>
                   {person.email ? t('import.person_option', { name: person.displayName, email: person.email }) : person.displayName}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         ))}
       </fieldset>

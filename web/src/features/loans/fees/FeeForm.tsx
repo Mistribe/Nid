@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
@@ -63,19 +64,19 @@ export function FeeForm({ loan, editing, onDone }: { loan: LoanDetail; editing?:
       ) : null}
       <Field label={t('loan_fees.kind')} error={e.kind?.message}>
         {(c) => (
-          <select {...c} {...form.register('kind')} className={input}>
-            {kinds.map((k) => <option key={k} value={k}>{t(`loan_detail.fee_kind.${k}`)}</option>)}
-          </select>
+          <NativeSelect {...c} {...form.register('kind')}>
+            {kinds.map((k) => <NativeSelectOption key={k} value={k}>{t(`loan_detail.fee_kind.${k}`)}</NativeSelectOption>)}
+          </NativeSelect>
         )}
       </Field>
       <Field label={t('loan_fees.amount')} error={e.amount?.message}>
         {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
       </Field>
       <Field label={t('loan_fees.date')} error={e.onDate?.message}>
-        {(c) => <input type="date" {...c} {...form.register('onDate')} className={input} />}
+        {(c) => <input type="date" {...c} {...form.register('onDate')} />}
       </Field>
       <Field label={t('loan_fees.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
       </Field>
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('loan_detail.save') : t('loan_fees.submit')}</Button>

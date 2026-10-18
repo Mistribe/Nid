@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import type { UseFormRegisterReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -20,11 +21,11 @@ export function PropertySelect({ registration, error, linked }: {
   return (
     <Field label={t('loan_form.property')} error={error}>
       {(c) => (
-        <select {...c} {...registration} className="rounded-md border px-3 py-2">
-          <option value="">{t('loan_form.property_none')}</option>
-          {linked ? <option value={linked.id}>{linkedName}</option> : null}
-          {items.filter((p) => p.id !== linked?.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <NativeSelect {...c} {...registration}>
+          <NativeSelectOption value="">{t('loan_form.property_none')}</NativeSelectOption>
+          {linked ? <NativeSelectOption value={linked.id}>{linkedName}</NativeSelectOption> : null}
+          {items.filter((p) => p.id !== linked?.id).map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.name}</NativeSelectOption>)}
+        </NativeSelect>
       )}
     </Field>
   );

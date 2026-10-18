@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -31,10 +32,10 @@ export function McpHelp() {
       </p>
       <label className="flex flex-wrap items-center gap-2">
         {t('security.mcp.agent_label')}
-        <select value={agent} onChange={(e) => setAgent(e.target.value as Agent)} className="rounded-md border px-3 py-2">
-          <option value="claude_code">{t('security.mcp.agent_claude_code')}</option>
-          <option value="claude_desktop">{t('security.mcp.agent_claude_desktop')}</option>
-        </select>
+        <NativeSelect value={agent} onChange={(e) => setAgent(e.target.value as Agent)}>
+          <NativeSelectOption value="claude_code">{t('security.mcp.agent_claude_code')}</NativeSelectOption>
+          <NativeSelectOption value="claude_desktop">{t('security.mcp.agent_claude_desktop')}</NativeSelectOption>
+        </NativeSelect>
       </label>
       {agent === 'claude_code' ? (
         <>

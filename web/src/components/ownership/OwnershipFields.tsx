@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useId } from 'react';
 import { useFieldArray, type ArrayPath, type FieldArray, type FieldErrors, type Path, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -48,9 +49,9 @@ export function OwnershipFields<T extends OwnershipValues>({ form, persons, with
           <div key={row.id} className="flex flex-wrap items-end gap-2">
             <Field label={t('wizard.owner')} error={e.owners?.[i]?.personId?.message}>
               {(c) => (
-                <select {...c} {...form.register(`owners.${i}.personId` as Path<T>)} className={input}>
-                  {persons.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                </select>
+                <NativeSelect {...c} {...form.register(`owners.${i}.personId` as Path<T>)}>
+                  {persons.map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.displayName}</NativeSelectOption>)}
+                </NativeSelect>
               )}
             </Field>
             <Field label={t('wizard.share')} error={e.owners?.[i]?.share?.message}>

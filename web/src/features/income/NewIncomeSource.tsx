@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -57,23 +58,23 @@ export function NewIncomeSource() {
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <form noValidate onSubmit={(ev) => void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })(ev)} className="space-y-4">
         <Field label={t('income_form.name')} error={e.displayName?.message}>
-          {(c) => <input {...c} {...form.register('displayName')} className={`w-full ${input}`} />}
+          {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
         </Field>
         <Field label={t('income_form.kind')} error={e.kind?.message}>
           {(c) => (
-            <select {...c} {...form.register('kind')} className={input}>
-              {KINDS.map((k) => <option key={k} value={k}>{t(`income.kind.${k}`)}</option>)}
-            </select>
+            <NativeSelect {...c} {...form.register('kind')}>
+              {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`income.kind.${k}`)}</NativeSelectOption>)}
+            </NativeSelect>
           )}
         </Field>
         <Field label={t('income_form.currency')} error={e.currency?.message}>
           {(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}
         </Field>
         <Field label={t('income_form.payer')} hint={t('income_form.payer_help')} error={e.payerLabel?.message}>
-          {(c) => <input {...c} {...form.register('payerLabel')} className={`w-full ${input}`} />}
+          {(c) => <input {...c} {...form.register('payerLabel')} className="w-full" />}
         </Field>
         <Field label={t('income_form.note')} error={e.note?.message}>
-          {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+          {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
         </Field>
         <fieldset aria-describedby={e.visibility ? visibilityErrorId : undefined} className="space-y-1">
           <legend className="text-sm">{t('income_form.visibility')}</legend>

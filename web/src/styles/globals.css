@@ -59,6 +59,11 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Native controls (the <select> popup above all) draw their own surface from `color-scheme`: without it the dark themes
+   put light text on the browser's white popup, and `Canvas` in ui/native-select.tsx stays light. */
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+
 @layer base {
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }

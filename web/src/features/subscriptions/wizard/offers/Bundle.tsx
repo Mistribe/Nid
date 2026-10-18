@@ -1,10 +1,11 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useId } from 'react';
 import { useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { Button } from '@/components/ui/button';
 import { LIST } from '../../api';
-import { AmountField, DateField, DurationFields, input, LabelField, PayerFields, type Form, type Person } from './fields';
+import { AmountField, DateField, DurationFields, LabelField, PayerFields, type Form, type Person } from './fields';
 
 function Other({ form, index, options, onRemove }: {
   form: Form; index: number; options: { id: string; displayName: string }[]; onRemove: () => void;
@@ -17,11 +18,11 @@ function Other({ form, index, options, onRemove }: {
   return (
     <fieldset className="space-y-2 rounded-md border p-3">
       <legend id={legendId} className="text-sm">{label}</legend>
-      <select aria-labelledby={legendId} aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined}
-        {...form.register(`others.${index}.subscriptionId`)} className={input}>
-        <option value="">{t('wizard.none')}</option>
-        {options.map((o) => <option key={o.id} value={o.id}>{o.displayName}</option>)}
-      </select>
+      <NativeSelect aria-labelledby={legendId} aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined}
+        {...form.register(`others.${index}.subscriptionId`)}>
+        <NativeSelectOption value="">{t('wizard.none')}</NativeSelectOption>
+        {options.map((o) => <NativeSelectOption key={o.id} value={o.id}>{o.displayName}</NativeSelectOption>)}
+      </NativeSelect>
       {error ? <span id={errorId} className="block text-sm text-destructive">{error}</span> : null}
       <DurationFields form={form} count={`others.${index}.count`} unit={`others.${index}.unit`} label={t('wizard.offer.included')} />
       <Button type="button" variant="ghost" size="sm" onClick={onRemove}>{t('wizard.offer.remove_covered')}</Button>

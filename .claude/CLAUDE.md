@@ -12,6 +12,14 @@ Pull requests use `.github/pull_request_template.md`.
 - Link the issue a PR resolves with `Closes #N` in the Summary.
 - Keep the PR to one concern; list follow-ups in « Notes for the reviewer » instead of folding them in.
 
+## Web UI
+
+The web app uses shadcn/ui (`web/components.json`, components in `web/src/components/ui/`).
+
+- Reach for a shadcn/ui component first (`pnpm dlx shadcn@latest add <name>` from `web/`) before writing one by hand: select, dialog, input, checkbox, tabs, tooltip, etc.
+- Do not use a native `<select>` (or another browser widget with its own popup) where shadcn/ui has a component for it.
+- Build a component by hand only when shadcn/ui has no equivalent; say so in the PR.
+
 ## Versioning
 
 Every push to `main` is a release: the `images` job of `.github/workflows/ci.yml` computes the version with
