@@ -4,6 +4,10 @@ Ce dossier contient le **compose de référence** de Nid : la seule forme livré
 cinq services : `postgres`, `pocket-id` (le fournisseur d'identité), `nid-api` (l'API), `nid-web` (l'interface, qui
 relaie aussi l'API sur la même origine) et `backup` (la sauvegarde chiffrée, §6).
 
+**Plus simple : [`standalone/`](standalone/compose.yaml).** Un seul fichier et un `.env`, sans script. `nid-api` et `nid-web`
+tournent toujours ; Postgres et Pocket ID sont des profils (`--profile postgres`, `--profile pocket-id`) qu'on laisse de côté
+quand on les a déjà ailleurs. Pas de sauvegarde ni de `restore.sh` : le reste de ce document décrit la forme de référence.
+
 ## 1. Prérequis
 
 - Docker avec compose v2, `openssl` et `bash` sur l'hôte.
