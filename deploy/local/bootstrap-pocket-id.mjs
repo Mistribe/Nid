@@ -2,7 +2,7 @@
 // what Nid needs: the groups nid-users and nid-admins, three users (alice in both groups, bob in nid-users, carol in
 // none) and Nid's client, restricted to nid-users. Prints `<client id> <client secret>` for deploy/setup.sh and, when
 // NID_CLIENT_SECRET_FILE is set, writes the secret there (the Aspire dev stack reads it as a key-per-file secret).
-// Safe to rerun: what exists is kept, and a new client secret is added each time. Never run it on a real deployment.
+// Safe to rerun: what exists is kept (a user without its fixed id is made again), and a new client secret is added each time. Never run it on a real deployment.
 //   POCKET_ID_URL (default https://auth.localtest.me), POCKET_ID_API_KEY, NID_URL (default https://nid.localtest.me),
 //   NID_CLIENT_SECRET_FILE (optional)
 const base = process.env.POCKET_ID_URL ?? 'https://auth.localtest.me';
@@ -40,9 +40,20 @@ async function ensureGroup(name) {
   const existing = items(await api('GET', `/api/user-groups?pagination[limit]=100`)).find((g) => g.name === name);
   return existing ?? api('POST', '/api/user-groups', { name, friendlyName: name });
 }
+// Fixed ids: Nid binds a person to the `sub` of their first sign-in, and its database outlives Pocket ID's (two volumes). With
+// random ids a fresh Pocket ID gives alice a new `sub`, and Nid refuses her (core.email_taken). The ids are the `sub` claims.
+const USER_IDS = {
+  alice: '00000000-0000-4000-8000-0000000a11ce',
+  bob: '00000000-0000-4000-8000-00000000b0b0',
+  carol: '00000000-0000-4000-8000-00000000ca01',
+};
 async function ensureUser(username, first) {
+  const id = USER_IDS[username];
   const existing = items(await api('GET', `/api/users?pagination[limit]=100`)).find((u) => u.username === username);
-  return existing ?? api('POST', '/api/users', { username, email: `${username}@example.test`, firstName: first, lastName: 'Dev', displayName: `${first} Dev`, isAdmin: false });
+  if (existing?.id === id) return existing;
+  // A user made before the fixed ids has a random one, which cannot be changed: it is made again (its passkeys go with it).
+  if (existing) await api('DELETE', `/api/users/${existing.id}`);
+  return api('POST', '/api/users', { id, username, email: `${username}@example.test`, firstName: first, lastName: 'Dev', displayName: `${first} Dev`, isAdmin: false });
 }
 
 const users = await ensureGroup('nid-users');
