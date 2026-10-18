@@ -82,6 +82,9 @@ run_once() {
   # Pocket ID's base is SQLite in WAL mode: a hot copy through the backup API, never the live files. Its uploads are
   # plain files; its signing keys live in the base, encrypted with the key in deploy/secrets/.
   sqlite3 "file:/pocket-id/pocket-id.db?mode=ro" ".backup '$STAGE/pocket-id.sqlite3'"
+  # The copy lists the running instance as a live host (francis_hosts, cascading to its actors): a restored Pocket ID
+  # would refuse to start next to it ("already one instance running") until the row expires.
+  sqlite3 "$STAGE/pocket-id.sqlite3" "PRAGMA foreign_keys=ON; DELETE FROM francis_hosts;"
   mkdir -p "$STAGE/pocket-id-uploads"
   if [ -d /pocket-id/uploads ]; then cp -R /pocket-id/uploads/. "$STAGE/pocket-id-uploads/"; fi
 
