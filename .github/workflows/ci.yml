@@ -1,9 +1,24 @@
 name: ci
 
+# The monthly Actions minutes are the budget (1000), so each commit is paid for once:
+#  - a pull request runs the tests and the web checks (`test`, `web`);
+#  - `main` runs only `images` (build, scan, smoke, backup), which a pull request does not: the pull request already ran the
+#    tests on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody acted on.
+#    A commit pushed straight to `main` is therefore not tested: `gh workflow run ci.yml` if that happens.
+#  - a push that only touches docs runs nothing;
+#  - the full Playwright journeys are e2e.yml, weekly.
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+
+# A second push supersedes the first (Auto-fix pushes often): a superseded run reports on a tree nobody has any more.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # Least privilege (security/infrastructure.md §5): no job writes to the repository. Actions are pinned by SHA.
 permissions:
@@ -11,8 +26,16 @@ permissions:
 
 jobs:
   test:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest   # Docker is available: the integration tests start PostgreSQL with Testcontainers
     steps:
+      # The last three runs died here with « No space left on device » (the runner could not even write its own log):
+      # the builds and the Testcontainers PostgreSQL images fill the ~14 GB the runner leaves free. These preinstalled
+      # toolchains are not used by this job.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/swift /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
@@ -25,9 +48,10 @@ jobs:
       - name: Leak bench (blocking)
         run: >
           dotnet test tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj
-          --configuration Release --filter "FullyQualifiedName~LeakBench" --logger "console;verbosity=normal"
+          --configuration Release --no-build --filter "FullyQualifiedName~LeakBench" --logger "console;verbosity=normal"
 
   web:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -48,10 +72,14 @@ jobs:
       - run: pnpm --dir web check:api
       - run: pnpm --dir web check
 
-  # 1F1: the images, their SBOM and scan, and the reference compose proven end to end (Playwright is blocking here).
+  # 1F1: the images, their SBOM and scan, and the reference compose proven end to end. Only a short Playwright sample runs here
+  # (NID_JOURNEYS=sample): the full journeys are e2e.yml, weekly or by hand, because they were most of the time of this job.
   images:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    needs: [test, web]
+    permissions:
+      contents: read
+      id-token: write # OIDC to Azure for the push below; the federated credential only trusts refs/heads/main
     env:
       TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
     steps:
@@ -94,8 +122,31 @@ jobs:
           done
       - name: Smoke test of the reference compose
         run: deploy/smoke.sh
+        env:
+          NID_JOURNEYS: sample
       - name: Backup and restore test
         run: deploy/backup-smoke.sh
+      # The images tested above, pushed as they are (still in this runner's daemon), once everything else passed. The Azure
+      # login is the organisation's AZURE_* secrets and the federated credential of the « Github Actions » app for
+      # repo:Mistribe/Nid:ref:refs/heads/main; the app is Contributor on the subscription, which includes AcrPush.
+      - name: Log in to Azure
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Push the images to the ACR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          registry=oriondev.azurecr.io/mistribe
+          az acr login --name oriondev
+          for image in nid-api nid-web nid-backup; do
+            for tag in "$GITHUB_SHA" main; do
+              docker tag "$image:local" "$registry/$image:$tag"
+              docker push "$registry/$image:$tag"
+            done
+          done
       - name: Compose logs
         if: failure()
         run: |

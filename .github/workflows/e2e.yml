@@ -1,0 +1,71 @@
+name: e2e
+
+# The full Playwright journeys against the reference compose. They were most of the time of the `images` job in ci.yml, which
+# now runs one journey only (NID_JOURNEYS=sample). The cost, stated plainly: a browser regression is found by a scheduled run
+# up to a week after it landed, not by the push that caused it. `gh workflow run e2e.yml` gives a verdict on demand.
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # A schedule fires whether or not anything changed: skip re-proving last week's tree.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # `git log --since` needs history
+      - id: check
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          # Dispatched by hand: you already decided it is worth the time.
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # Eight days against a seven-day cron: the windows overlap by one, so no commit falls between two runs.
+          commits=$(git log --since='8 days ago' --format=%H -- src web deploy Directory.Build.props Directory.Packages.props global.json)
+          if [ -n "$commits" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+
+  journeys:
+    needs: gate
+    if: needs.gate.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - name: Smoke test of the reference compose, every journey
+        run: deploy/smoke.sh
+        env:
+          NID_JOURNEYS: all
+      - name: Compose logs
+        if: failure()
+        run: |
+          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color --timestamps | tail -300
+      # Printed rather than uploaded (no artifact storage in this repository, see ci.yml).
+      - name: Playwright error context
+        if: failure()
+        run: |
+          find web/test-results -name 'error-context.md' 2>/dev/null | while read -r file; do
+            echo "::group::$file"
+            cat "$file"
+            echo "::endgroup::"
+          done
