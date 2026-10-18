@@ -3,8 +3,9 @@ name: ci
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
 #  - a pull request builds the solution and checks the web app (`build`, `web`), with no test at all: the .NET suite alone was
 #    about 25 minutes. Tests run on the developer's machine (`dotnet test Nid.slnx`, `pnpm --dir web test`);
-#  - `main` runs only `images` (build, scan, smoke, backup), which a pull request does not: the pull request already ran its
-#    checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody acted on.
+#  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
+#    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
+#    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
 #  - a push that only touches docs runs nothing;
 #  - the full Playwright journeys are e2e.yml, weekly.
 on:
@@ -63,16 +64,15 @@ jobs:
       - run: pnpm --dir web build
       - run: pnpm --dir web budget
 
-  # 1F1: the images, their SBOM and scan, and the reference compose proven end to end. Only a short Playwright sample runs here
-  # (NID_JOURNEYS=sample): the full journeys are e2e.yml, weekly or by hand, because they were most of the time of this job.
+
+  # Release: build the three images, push them to the ACR (<sha>, latest, vX.Y.Z) and tag the release. No test, no scan, no smoke:
+  # the pull request already ran its checks, and they cost too much CI time to run again on landing.
   images:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write # the vX.Y.Z tag, pushed once the images are
       id-token: write # OIDC to Azure for the push below; the federated credential only trusts refs/heads/main
-    env:
-      TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -91,50 +91,12 @@ jobs:
           if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" = push ]; then version=$NEXT; else version="$NEXT-ci.$GITHUB_RUN_NUMBER"; fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "Version: $version" >> "$GITHUB_STEP_SUMMARY"
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.4.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm --dir web install --frozen-lockfile
-      - run: pnpm --dir web exec playwright install --with-deps chromium
       - name: Build images
         run: |
           docker build -f src/Nid.Host/Dockerfile --build-arg VERSION="$VERSION" -t nid-api:local .
           docker build -f web/Dockerfile -t nid-web:local .
           docker build -t nid-backup:local deploy/backup
-      - name: Unit tests of the backup image
-        run: docker run --rm --entrypoint nid-backup-test nid-backup:local
-      # The Docker socket is mounted into Trivy here only, to read the local images; never into the application
-      # (security/infrastructure.md §1).
-      # No artifact storage: the SBOM is what gets scanned, and its component list goes to the job summary. It is
-      # rebuilt identically from the commit when needed.
-      - name: SBOM (CycloneDX) and scan of the SBOM (fails on CRITICAL)
-        run: |
-          for image in nid-api nid-web nid-backup; do
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/out "$TRIVY" \
-              image --quiet --format cyclonedx --output "/out/sbom-$image.cdx.json" "$image:local"
-            docker run --rm -v "$PWD":/out -v "$PWD/.trivyignore":/.trivyignore "$TRIVY" \
-              sbom --quiet --severity CRITICAL --exit-code 1 --ignorefile /.trivyignore "/out/sbom-$image.cdx.json"
-            {
-              echo "<details><summary>$image: $(jq '.components | length' "sbom-$image.cdx.json") components</summary>"
-              echo
-              jq -r '.components[] | "- \(.name) \(.version // "")"' "sbom-$image.cdx.json" | sort -u
-              echo
-              echo "</details>"
-            } >> "$GITHUB_STEP_SUMMARY"
-          done
-      - name: Smoke test of the reference compose
-        run: deploy/smoke.sh
-        env:
-          NID_JOURNEYS: sample
-      - name: Backup and restore test
-        run: deploy/backup-smoke.sh
-      # The images tested above, pushed as they are (still in this runner's daemon), once everything else passed. The Azure
-      # login is the organisation's AZURE_* secrets and the federated credential of the « Github Actions » app for
+      # The Azure login is the organisation's AZURE_* secrets and the federated credential of the « Github Actions » app for
       # repo:Mistribe/Nid:ref:refs/heads/main; the app is Contributor on the subscription, which includes AcrPush.
       - name: Log in to Azure
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -159,19 +121,3 @@ jobs:
         run: |
           git tag "v$VERSION" "$GITHUB_SHA"
           git push origin "v$VERSION"
-      - name: Compose logs
-        if: failure()
-        run: |
-          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml -f deploy/local/compose.backup-test.yaml \
-            logs --no-color --timestamps | tail -300
-          docker compose -p nid-restore-test logs --no-color --timestamps | tail -100 || true
-      # The page snapshot Playwright writes for a failed journey, printed rather than uploaded (no artifact storage);
-      # the full trace comes from replaying the journey locally.
-      - name: Playwright error context
-        if: failure()
-        run: |
-          find web/test-results -name 'error-context.md' 2>/dev/null | while read -r file; do
-            echo "::group::$file"
-            cat "$file"
-            echo "::endgroup::"
-          done
