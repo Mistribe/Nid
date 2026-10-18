@@ -40,7 +40,8 @@ public sealed record SubscriptionSummary(
     MoneyView? AmortizedCostConverted,
     bool ConvertedIsEstimate,
     int FreeDays,
-    IReadOnlyList<FindingView> Findings);
+    IReadOnlyList<FindingView> Findings,
+    IReadOnlyList<ItemOwnerView> Owners);
 
 /// <summary>
 /// The household totals are NOT the sum of the rows: a purchase granting to several subscriptions shows in

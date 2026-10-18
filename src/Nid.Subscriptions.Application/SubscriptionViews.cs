@@ -35,7 +35,8 @@ public sealed record Converted(ConvertedTotal Cash, ConvertedTotal Amortized)
 public static class SubscriptionViews
 {
     public static SubscriptionSummary Summarise(
-        SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted)
+        SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
+        IReadOnlyList<ItemOwnerView> owners)
         => new(
             input.Subscription.Id,
             displayName,
@@ -50,7 +51,8 @@ public static class SubscriptionViews
             converted.AmortizedView,
             converted.IsEstimate,
             timeline.FreeDays(window),
-            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList());
+            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList(),
+            owners);
 
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,

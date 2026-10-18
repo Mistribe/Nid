@@ -5,7 +5,7 @@ export const SALARY = '0192f0aa-0000-7000-8000-00000000c001';
 
 export const summary = (over: Partial<IncomeSourceSummary> = {}): IncomeSourceSummary => ({
   id: SALARY, displayName: 'Salaire Alice', kind: 'salary', payerLabel: 'Employeur', currency: 'EUR', visibility: 'private',
-  monthlyEquivalent: eur('2450.00'), runningPhases: 2, gapSoon: [], canWrite: true, ended: false, endedOn: null, ...over,
+  monthlyEquivalent: eur('2450.00'), runningPhases: 2, gapSoon: [], canWrite: true, ended: false, endedOn: null, owners: [], ...over,
 });
 
 export const list = (items: IncomeSourceSummary[]): IncomeSourceList => ({ items });

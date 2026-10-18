@@ -10,7 +10,7 @@ export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
  */
 export const propertySummary = (over: Partial<PropertySummary> = {}): PropertySummary => ({
   id: PROPERTY, name: 'Maison de Nantes', type: 'primary_residence', currency: 'EUR', visibility: 'shared', value: '290000.00',
-  valueOn: '2026-06-01', stale: false, netValue: '96435.77', grossYield: null, vacancyRate: null, canWrite: true, ...over,
+  valueOn: '2026-06-01', stale: false, netValue: '96435.77', grossYield: null, vacancyRate: null, canWrite: true, owners: [], ...over,
 });
 
 export const propertyList = (items: PropertySummary[]): PropertyList => ({ items });

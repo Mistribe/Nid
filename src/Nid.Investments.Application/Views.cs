@@ -24,7 +24,8 @@ public sealed record FiguresView(
 }
 
 public sealed record EnvelopeSummary(
-    ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite, FiguresView Figures);
+    ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite, FiguresView Figures,
+    IReadOnlyList<ItemOwnerView> Owners);
 
 public sealed record EnvelopeList(IReadOnlyList<EnvelopeSummary> Items) : IExposesItems
 {

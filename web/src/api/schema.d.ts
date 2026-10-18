@@ -11091,6 +11091,7 @@ export interface components {
             closed: boolean;
             canWrite: boolean;
             figures: components["schemas"]["FiguresView"];
+            owners: components["schemas"]["ItemOwnerView"][];
         };
         ExportManifestView: {
             format: string;
@@ -11412,6 +11413,7 @@ export interface components {
             ended: boolean;
             /** Format: date */
             endedOn?: null | string;
+            owners: components["schemas"]["ItemOwnerView"][];
         };
         /** @enum {unknown} */
         IssueSeverity: "error" | "warning";
@@ -11433,6 +11435,12 @@ export interface components {
             entries: components["schemas"]["ItemHistoryEntry"][];
             /** Format: int64 */
             next?: null | number;
+        };
+        ItemOwnerView: {
+            /** Format: uuid */
+            personId: string;
+            /** Format: int32 */
+            shareBp: number;
         };
         JobStatusView: {
             key: string;
@@ -11695,6 +11703,7 @@ export interface components {
             /** Format: uuid */
             propertyId?: null | string;
             propertyName?: null | string;
+            owners: components["schemas"]["ItemOwnerView"][];
         };
         LoanWarningView: {
             code: string;
@@ -12095,6 +12104,7 @@ export interface components {
             grossYield?: null | string;
             vacancyRate?: null | string;
             canWrite: boolean;
+            owners: components["schemas"]["ItemOwnerView"][];
         };
         PropertyTenancyBody: {
             label?: null | string;
@@ -12433,6 +12443,7 @@ export interface components {
             /** Format: int32 */
             freeDays: number;
             findings: components["schemas"]["FindingView"][];
+            owners: components["schemas"]["ItemOwnerView"][];
         };
         SystemHealthView: {
             database: string;

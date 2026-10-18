@@ -190,7 +190,7 @@ public sealed class ListEnvelopesHandler(
                 figures = figures with { StaleDays = null };
             var canWrite = writable.Contains(envelope.ItemId);
             summaries.Add(new EnvelopeSummary(envelope.ItemId, f.Item.DisplayName, EnvelopeWire.Of(envelope.Kind), f.Currency.Code,
-                f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite, FiguresView.From(figures)));
+                f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite, FiguresView.From(figures), f.Item.OwnerViews()));
         }
 
         // Minor 3: a stable order — the name alone ties on a duplicate, or across cultures/collations.

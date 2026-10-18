@@ -8,6 +8,7 @@ import type { IncomeSearch, RootSearch } from '@/app/router';
 import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatMoney } from '@/components/Money';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SOURCES, type IncomeSourceSummary } from './api';
 import { kindText } from './format';
@@ -96,6 +97,7 @@ function Row({ item }: { item: IncomeSourceSummary }) {
           <AccessBadge access={item.visibility === 'private' ? 'private' : 'shared'} />
         </span>
       </div>
+      <OwnerChips owners={item.owners} />
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <span className="tabular-nums">{t('income.per_month', { amount: formatMoney(item.monthlyEquivalent) })}</span>
         <span className="text-muted-foreground">{t('income.running', { count: item.runningPhases })}</span>

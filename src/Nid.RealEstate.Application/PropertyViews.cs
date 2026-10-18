@@ -10,7 +10,7 @@ namespace Nid.RealEstate.Application;
 /// <summary>A row of <c>GET /properties</c> (spec 3C1 §4): the value today and the net value, both null without an estimate.</summary>
 public sealed record PropertySummary(
     ItemId Id, string Name, string Type, string Currency, string Visibility, string? Value, LocalDate? ValueOn, bool Stale,
-    string? NetValue, string? GrossYield, string? VacancyRate, bool CanWrite);
+    string? NetValue, string? GrossYield, string? VacancyRate, bool CanWrite, IReadOnlyList<ItemOwnerView> Owners);
 
 public sealed record PropertyList(IReadOnlyList<PropertySummary> Items) : IExposesItems
 {
@@ -68,7 +68,7 @@ internal static class PropertyViews
     public static PropertySummary Summary(ItemAccess item, StoredProperty property, PropertyFigures f, bool canWrite)
         => new(property.ItemId, item.DisplayName, LoanWire.Of(property.Details.Type), LoanViews.CurrencyOf(item).Code,
             LoanViews.Wire(item.Visibility), Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), Fraction(f.Rental.GrossYield),
-            Fraction(f.Rental.VacancyRate), canWrite);
+            Fraction(f.Rental.VacancyRate), canWrite, item.OwnerViews());
 
     public static PropertyDetail Detail(ItemAccess item, StoredProperty property, PropertyRead read, bool canWrite, LocalDate today)
     {

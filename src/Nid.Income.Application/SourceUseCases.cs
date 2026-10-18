@@ -192,7 +192,7 @@ public sealed class ListIncomeSourcesHandler(
                 IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(own, today), currency),
                 own.Count(p => IncomeMath.IsActive(p, today)),
                 IncomeMath.Gaps(own, today).Select(g => g.Label).Distinct(StringComparer.Ordinal).ToList(),
-                canWrite, item.ArchivedAt is not null, source.EndedOn));
+                canWrite, item.ArchivedAt is not null, source.EndedOn, item.OwnerViews()));
         }
 
         // A stable order: the name alone ties on a duplicate (as the envelopes' list).

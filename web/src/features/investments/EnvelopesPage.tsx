@@ -8,6 +8,7 @@ import type { InvestmentsSearch, RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ENVELOPES, type EnvelopeSummary } from './api';
 import { kindText } from './format';
@@ -92,6 +93,7 @@ function Row({ item }: { item: EnvelopeSummary }) {
           {kindText(t, item.kind)}
         </span>
       </div>
+      <OwnerChips owners={item.owners} />
       <div className="flex flex-wrap items-center gap-3 text-sm">
         {item.figures.value
           ? <span className="tabular-nums"><Money value={item.figures.value} tabular />{item.figures.asOf ? <> · <LocalDate value={item.figures.asOf} /></> : null}</span>

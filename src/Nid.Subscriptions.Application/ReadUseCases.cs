@@ -48,14 +48,14 @@ public sealed class ListSubscriptionsHandler(
         var ids = await visible.ForAsync(person, query.Scope, ct);
         var inputs = await store.LoadManyAsync(ids.ToList(), ct);
 
-        var built = new List<(SubscriptionInput Input, Timeline Timeline, string DisplayName)>(inputs.Count);
+        var built = new List<(SubscriptionInput Input, Timeline Timeline, string DisplayName, IReadOnlyList<ItemOwnerView> Owners)>(inputs.Count);
         foreach (var input in inputs)
         {
             if (!SubscriptionTimeline.Build(input, today, horizon).TryGetValue(out var timeline))
                 continue; // a refused subscription is reported by its own detail endpoint, not by hiding the list
 
             var item = await items.FindAsync(input.Subscription.Id, ct);
-            built.Add((input, timeline!, item?.DisplayName ?? ""));
+            built.Add((input, timeline!, item?.DisplayName ?? "", item?.OwnerViews() ?? []));
         }
 
         // One provider query for the whole list; every subscription in it is visible, so is its provider (design §5).
@@ -70,7 +70,7 @@ public sealed class ListSubscriptionsHandler(
 
         var summaries = built.Select(b => SubscriptionViews.Summarise(
             b.Input, b.Timeline, b.DisplayName, providerViews.GetValueOrDefault(b.Input.Subscription.Id), window,
-            Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates))).ToList();
+            Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners)).ToList();
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
         var householdConverted = Conversion.Of(householdCash, householdAmortized, reference, rates);

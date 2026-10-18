@@ -45,6 +45,22 @@ public class EnvelopeEndpointTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task The_list_names_the_owners_so_two_envelopes_of_the_same_name_can_be_told_apart()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var ofA = await app.NewEnvelopeAsync("Livret A", app.AdultA, Visibility.Shared);
+        var ofB = await app.NewEnvelopeAsync("Livret A", app.AdultB, Visibility.Shared);
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/investments/envelopes?scope=household"));
+
+        var owners = list.GetProperty("items").EnumerateArray().ToDictionary(
+            i => i.GetProperty("id").GetGuid(),
+            i => i.GetProperty("owners").EnumerateArray().Select(o => (o.GetProperty("personId").GetGuid(), o.GetProperty("shareBp").GetInt32())).ToList());
+        Assert.Equal([(app.AdultA.Value, 10_000)], owners[ofA.Value]);
+        Assert.Equal([(app.AdultB.Value, 10_000)], owners[ofB.Value]);
+    }
+
+    [Fact]
     public async Task A_refused_first_value_leaves_no_envelope_behind()
     {
         await using var app = await NidApp.StartAsync(fixture);

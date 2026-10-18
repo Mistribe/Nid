@@ -19,7 +19,8 @@ public sealed record IncomeAmountView(string Amount, string Currency)
 
 public sealed record IncomeSourceSummary(
     ItemId Id, string DisplayName, string Kind, string? PayerLabel, string Currency, string Visibility,
-    IncomeAmountView MonthlyEquivalent, int RunningPhases, IReadOnlyList<string> GapSoon, bool CanWrite, bool Ended, LocalDate? EndedOn);
+    IncomeAmountView MonthlyEquivalent, int RunningPhases, IReadOnlyList<string> GapSoon, bool CanWrite, bool Ended, LocalDate? EndedOn,
+    IReadOnlyList<ItemOwnerView> Owners);
 
 public sealed record IncomeSourceList(IReadOnlyList<IncomeSourceSummary> Items) : IExposesItems
 {

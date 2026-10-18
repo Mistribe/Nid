@@ -3,6 +3,7 @@
   "theme": { "neutre": "Neutre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
   "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" },
   "access": { "private": "Privé", "shared": "Partagé", "dependent": "Enfant" },
+  "owner": { "label_one": "Propriétaire :", "label_other": "Propriétaires :", "pct": "{{value}} %" },
   "problem": {
     "unauthenticated": "Votre session a expiré. Reconnectez-vous pour continuer.",
     "not_found": "Cet élément est introuvable.",

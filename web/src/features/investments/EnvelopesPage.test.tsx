@@ -154,4 +154,28 @@ describe('EnvelopesPage, closed envelopes', () => {
     expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).not.toBeChecked();
     expect(seen).toEqual(['?scope=household']);
   });
+
+  it('tells two envelopes of the same name apart by their owner, and shows the shares of a split one', async () => {
+    const alice = '0192f0aa-0000-7000-8000-0000000000a1';
+    const bob = '0192f0aa-0000-7000-8000-0000000000b2';
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
+      { id: alice, kind: 'adult', displayName: 'Alice', email: null },
+      { id: bob, kind: 'adult', displayName: 'Bob', email: null },
+    ])));
+    serve(list([
+      summary({ id: 'a', displayName: 'Livret A', owners: [{ personId: alice, shareBp: 10000 }] }),
+      summary({ id: 'b', displayName: 'Livret A', owners: [{ personId: bob, shareBp: 10000 }] }),
+      summary({ id: 'c', displayName: 'Compte joint', owners: [{ personId: alice, shareBp: 6000 }, { personId: bob, shareBp: 4000 }] }),
+    ]));
+    const { container } = await renderApp('/investments');
+
+    const items = await rows();
+    await waitFor(() => expect(items[0]).toHaveTextContent('Alice'));
+    expect(items[0]).not.toHaveTextContent('Bob');
+    expect(items[1]).toHaveTextContent('Bob');
+    expect(items[1]).not.toHaveTextContent('Alice');
+    expect(items[2]).toHaveTextContent('Alice60 %');
+    expect(items[2]).toHaveTextContent('Bob40 %');
+    await expectNoAxeViolations(container);
+  });
 });

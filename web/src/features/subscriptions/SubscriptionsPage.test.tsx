@@ -12,7 +12,7 @@ const summary = (over: Partial<Summary>): Summary => ({
   id: '0192f0aa-0000-7000-8000-000000000001', displayName: 'Netflix', provider: null, autoRenew: true,
   expiresOn: null, nextChargeOn: '2025-11-01', nextChargeAmount: eur('13.49'),
   cashCost: [eur('13.49')], amortizedCost: [eur('13.49')], cashCostConverted: null, amortizedCostConverted: null,
-  convertedIsEstimate: false, freeDays: 0, findings: [], ...over,
+  convertedIsEstimate: false, freeDays: 0, findings: [], owners: [], ...over,
 });
 
 const list = (items: Summary[], over: Partial<ListResponse> = {}): ListResponse => ({

@@ -13,7 +13,7 @@ namespace Nid.RealEstate.Application;
 public sealed record LoanSummary(
     ItemId Id, string Name, string? Lender, string Currency, string Visibility, string Principal, string RemainingBalance,
     LocalDate? NextPaymentOn, string? NextPaymentTotal, string? CurrentRate, LocalDate? EndDate, bool CanWrite, bool Ended,
-    ItemId? PropertyId, string? PropertyName);
+    ItemId? PropertyId, string? PropertyName, IReadOnlyList<ItemOwnerView> Owners);
 
 public sealed record LoanList(IReadOnlyList<LoanSummary> Items) : IExposesItems
 {
@@ -97,7 +97,7 @@ internal static class LoanViews
         var figures = LoanMath.At(terms, schedule, today);
         return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
-            canWrite, Ended(terms, schedule, today), loan.PropertyId, propertyName);
+            canWrite, Ended(terms, schedule, today), loan.PropertyId, propertyName, item.OwnerViews());
     }
 
     public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)

@@ -8,6 +8,8 @@ export const handlers = [
   http.get('*/auth/session', () => HttpResponse.json(aliceSessionResponse)),
   http.get('*/api/v1/platform/capabilities', () => HttpResponse.json(allCapabilities)),
   // The shell's token banner reads the list (4A).
+  // Every list row names its owners from the household's persons.
+  http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
   http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
   // The shell's badge reads the pending proposals (4C2).
   http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [] })),

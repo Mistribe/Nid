@@ -8,6 +8,7 @@ import type { RootSearch, SubscriptionsSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
@@ -131,7 +132,10 @@ function Row({ item }: { item: Summary }) {
     <li className="rounded-md border">
       <Link to="/subscriptions/$id" params={{ id: item.id }} className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted">
         <ProviderIcon name={item.provider?.name ?? item.displayName} iconUrl={item.provider?.iconUrl} color={item.provider?.labels[0]?.color} />
-        <span className="min-w-40 flex-1 font-medium">{item.displayName}</span>
+        <span className="min-w-40 flex-1">
+          <span className="block font-medium">{item.displayName}</span>
+          <OwnerChips owners={item.owners} />
+        </span>
         <span className="text-sm">
           <span className="text-muted-foreground">{t('subscriptions.cash')} </span>
           {item.cashCost.map((m) => <Money key={m.currency} value={m} tabular />)}

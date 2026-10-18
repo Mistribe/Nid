@@ -9,7 +9,7 @@ export const LOAN = '0192f0aa-0000-7000-8000-00000000d001';
 export const summary = (over: Partial<LoanSummary> = {}): LoanSummary => ({
   id: LOAN, name: 'Prêt maison', lender: 'Banque', currency: 'EUR', visibility: 'private', principal: '200000.00',
   remainingBalance: '193564.23', nextPaymentOn: '2026-10-15', nextPaymentTotal: '1159.92', currentRate: '0.035',
-  endDate: '2045-10-15', canWrite: true, ended: false, ...over,
+  endDate: '2045-10-15', canWrite: true, ended: false, owners: [], ...over,
 });
 
 export const list = (items: LoanSummary[]): LoanList => ({ items });

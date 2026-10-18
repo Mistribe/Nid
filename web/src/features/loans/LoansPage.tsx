@@ -8,6 +8,7 @@ import type { LoansSearch, RootSearch } from '@/app/router';
 import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { LOANS, type LoanSummary } from './api';
 import { money } from './format';
@@ -95,6 +96,7 @@ function Row({ item }: { item: LoanSummary }) {
           <AccessBadge access={item.visibility === 'private' ? 'private' : 'shared'} />
         </span>
       </div>
+      <OwnerChips owners={item.owners} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
         <span>{t('loans.remaining', { balance: money(item.currency, item.remainingBalance), principal: money(item.currency, item.principal) })}</span>
         {item.nextPaymentOn && item.nextPaymentTotal ? (

@@ -13175,7 +13175,8 @@
           "visibility",
           "closed",
           "canWrite",
-          "figures"
+          "figures",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -13203,6 +13204,12 @@
           },
           "figures": {
             "$ref": "#/components/schemas/FiguresView"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
           }
         }
       },
@@ -14475,7 +14482,8 @@
           "runningPhases",
           "gapSoon",
           "canWrite",
-          "ended"
+          "ended",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -14526,6 +14534,12 @@
               "string"
             ],
             "format": "date"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
           }
         }
       },
@@ -14620,6 +14634,23 @@
               "integer"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "ItemOwnerView": {
+        "required": [
+          "personId",
+          "shareBp"
+        ],
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shareBp": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -15618,7 +15649,8 @@
           "principal",
           "remainingBalance",
           "canWrite",
-          "ended"
+          "ended",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -15691,6 +15723,12 @@
               "null",
               "string"
             ]
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
           }
         }
       },
@@ -17279,7 +17317,8 @@
           "currency",
           "visibility",
           "stale",
-          "canWrite"
+          "canWrite",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -17335,6 +17374,12 @@
           },
           "canWrite": {
             "type": "boolean"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
           }
         }
       },
@@ -18693,7 +18738,8 @@
           "amortizedCost",
           "convertedIsEstimate",
           "freeDays",
-          "findings"
+          "findings",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -18784,6 +18830,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FindingView"
+            }
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
             }
           }
         }

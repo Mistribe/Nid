@@ -13,8 +13,13 @@ public sealed record NewItem(
     string? Currency,
     IReadOnlyList<OwnerShare> Owners);
 
+/// <summary>An owner of an item on the wire, as the lists show it so two items of the same name can be told apart.</summary>
+public sealed record ItemOwnerView(Guid PersonId, int ShareBp);
+
 public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibility, IReadOnlyList<Owner> Owners)
 {
+    public IReadOnlyList<ItemOwnerView> OwnerViews() => Owners.Select(o => new ItemOwnerView(o.PersonId.Value, o.ShareBp)).ToList();
+
     /// <summary>2B1a: set when the item is archived (a closed envelope); null while it is active.</summary>
     public Instant? ArchivedAt { get; init; }
 

@@ -7,6 +7,7 @@ import type { RootSearch } from '@/app/router';
 import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { money, percent } from '../loans/format';
 import { PROPERTIES, type PropertySummary } from './api';
@@ -55,6 +56,7 @@ function Row({ item }: { item: PropertySummary }) {
         </span>
         <AccessBadge access={item.visibility === 'private' ? 'private' : 'shared'} />
       </div>
+      <OwnerChips owners={item.owners} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
         {item.value && item.valueOn ? (
           <span>{t('properties.value', { amount: money(item.currency, item.value), date: formatLocalDate(item.valueOn) })}</span>
