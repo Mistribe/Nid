@@ -149,7 +149,7 @@ jobs:
           registry=oriondev.azurecr.io/mistribe
           az acr login --name oriondev
           for image in nid-api nid-web nid-backup; do
-            for tag in "$GITHUB_SHA" main "$VERSION"; do
+            for tag in "$GITHUB_SHA" latest "$VERSION"; do
               docker tag "$image:local" "$registry/$image:$tag"
               docker push "$registry/$image:$tag"
             done
