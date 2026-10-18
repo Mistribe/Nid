@@ -3,7 +3,7 @@ import type { Path } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { checkOwnership, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
-import { LOAN_AMOUNT } from '../../loans/new/newLoan';
+import { LOAN_AMOUNT } from '../../loans/new/loanForm';
 import { CURRENCY, ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import { CADENCES, PROPERTY_TYPES } from '../format';

@@ -17,7 +17,7 @@ import { invalidateProperties } from '../../properties/api';
 import { invalidateLoans, LOANS } from '../api';
 import { PropertySelect } from '../PropertySelect';
 import { ContractFields } from './ContractFields';
-import { newLoanPath, newLoanSchema, newPhase, plusOneMonth, toCreateBody, type NewLoanValues } from './newLoan';
+import { newLoanPath, newLoanSchema, newPhase, plusOneMonth, toCreateBody, type NewLoanValues } from './loanForm';
 
 const input = 'rounded-md border px-3 py-2';
 

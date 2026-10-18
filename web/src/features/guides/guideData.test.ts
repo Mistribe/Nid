@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '@/app/i18n';
 import { NAV, section } from '@/app/nav';
-import { GUIDES, allGuidesSeen, guideFor, isUnseen } from './guides';
+import { GUIDES, allGuidesSeen, guideFor, isUnseen } from './guideData';
 
 describe('guides', () => {
   it('every guide’s section is an entry of the navigation', () => {

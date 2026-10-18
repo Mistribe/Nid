@@ -8,7 +8,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSession } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { guideFor } from './guides';
+import { guideFor } from './guideData';
 
 beforeAll(async () => {
   await import('./GuideIntro');

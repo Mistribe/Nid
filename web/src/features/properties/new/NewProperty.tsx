@@ -13,7 +13,7 @@ import { PERSONS } from '../../subscriptions/api';
 import { Field } from '../../subscriptions/edits/Field';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, PROPERTIES } from '../api';
-import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './newProperty';
+import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './propertyForm';
 import { PropertyFields } from './PropertyFields';
 
 const input = 'rounded-md border px-3 py-2';

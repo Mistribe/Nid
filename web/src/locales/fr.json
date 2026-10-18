@@ -1922,7 +1922,12 @@
       "title": "Brancher un assistant",
       "intro": "Un assistant compatible MCP, comme Claude, lit vos chiffres dans Nid avec un de vos jetons d’accès.",
       "address": "Adresse du serveur MCP",
-      "command_label": "Avec Claude Code",
+      "agent_label": "Mon assistant",
+      "agent_claude_code": "Claude Code",
+      "agent_claude_desktop": "Claude Desktop",
+      "command_label": "Avec Claude Code, lancez cette commande :",
+      "desktop_label": "Avec Claude Desktop, ouvrez Paramètres > Développeur > Modifier la configuration, puis ajoutez ce serveur au fichier claude_desktop_config.json (Node.js est requis) :",
+      "desktop_restart": "Enregistrez, puis redémarrez Claude Desktop.",
       "token_placeholder": "<votre jeton>",
       "advice": "Choisissez un jeton « Lecture seule » : l’assistant ne peut encore que consulter vos données."
     }

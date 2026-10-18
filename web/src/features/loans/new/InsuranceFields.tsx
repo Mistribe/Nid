@@ -2,7 +2,7 @@ import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
 import { INSURANCE_MODES } from '../format';
-import type { ContractValues } from './newLoan';
+import type { ContractValues } from './loanForm';
 
 const input = 'rounded-md border px-3 py-2';
 

@@ -6,7 +6,7 @@ import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { LoanRepayment } from '../api';
 import type { EFFECTS } from '../format';
-import { LOAN_AMOUNT } from '../new/newLoan';
+import { LOAN_AMOUNT } from '../new/loanForm';
 
 export type Effect = (typeof EFFECTS)[number];
 

@@ -9,7 +9,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { LOAN_AMOUNT } from '../loans/new/newLoan';
+import { LOAN_AMOUNT } from '../loans/new/loanForm';
 import { invalidateProperties } from '../properties/api';
 import { categoryText } from '../properties/format';
 import { ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';

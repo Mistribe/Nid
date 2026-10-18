@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Field } from '../../subscriptions/edits/Field';
 import { PHASE_MODES, RATE_TYPES } from '../format';
 import { Folded } from './Folded';
-import type { ContractValues } from './newLoan';
+import type { ContractValues } from './loanForm';
 
 const input = 'rounded-md border px-3 py-2';
 

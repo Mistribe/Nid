@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
-import { LOAN_AMOUNT } from '../../loans/new/newLoan';
+import { LOAN_AMOUNT } from '../../loans/new/loanForm';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyRecurringCost } from '../api';

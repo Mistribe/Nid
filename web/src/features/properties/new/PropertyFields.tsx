@@ -4,7 +4,7 @@ import { Folded } from '../../loans/new/Folded';
 import { Field } from '../../subscriptions/edits/Field';
 import { todayIso } from '../../subscriptions/today';
 import { CADENCES, PROPERTY_TYPES } from '../format';
-import type { PropertyFieldsValues } from './newProperty';
+import type { PropertyFieldsValues } from './propertyForm';
 
 const input = 'rounded-md border px-3 py-2';
 type AmountField = 'purchasePrice' | 'notaryFees' | 'agencyFees' | 'otherAcquisitionCosts';

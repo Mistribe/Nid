@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Root } from 'react-dom/client';
-import { allGuidesSeen } from '@/features/guides/guides';
+import { allGuidesSeen } from '@/features/guides/guideData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { aliceSessionResponse, signedOutResponse } from '@/test/fixtures';
 import { server } from '@/test/server';

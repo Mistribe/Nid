@@ -15,7 +15,7 @@ import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
 import { CONTRACT, invalidateLoans, LOAN, type LoanDetail } from '../api';
 import { money } from '../format';
 import { ContractFields } from '../new/ContractFields';
-import { contractPath, contractSchema, toContractBody, type ContractValues } from '../new/newLoan';
+import { contractPath, contractSchema, toContractBody, type ContractValues } from '../new/loanForm';
 import { presentRefusal } from '../refusal';
 import { contractValuesOf, isPlain, repaymentRank } from './contractValues';
 

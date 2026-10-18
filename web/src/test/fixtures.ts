@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import type { Session } from '@/app/session';
-import { allGuidesSeen } from '@/features/guides/guides';
+import { allGuidesSeen } from '@/features/guides/guideData';
 
 type SessionResponse = components['schemas']['SessionResponse'];
 

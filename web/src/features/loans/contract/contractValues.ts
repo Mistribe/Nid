@@ -1,5 +1,5 @@
 import type { LoanDetail } from '../api';
-import type { ContractValues, InsuranceLine, PhaseLine } from '../new/newLoan';
+import type { ContractValues, InsuranceLine, PhaseLine } from '../new/loanForm';
 import { fractionToPercent } from '../rate';
 
 type Contract = LoanDetail['contract'];

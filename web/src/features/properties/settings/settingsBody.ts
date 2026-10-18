@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { toWireAmount } from '../../subscriptions/edits/amount';
 import type { PropertyDetail } from '../api';
-import { propertyFieldPath, propertyFieldsSchema } from '../new/newProperty';
+import { propertyFieldPath, propertyFieldsSchema } from '../new/propertyForm';
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */
 export type EditBody = Partial<components['schemas']['EditPropertyBody']>;

@@ -2,7 +2,7 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { findTarget, type Guide } from './guides';
+import { findTarget, type Guide } from './guideData';
 
 /**
  * Spec §4.4: B, the on-screen tour. Each step rings its target, scrolled to the top of the viewport, and explains it in a

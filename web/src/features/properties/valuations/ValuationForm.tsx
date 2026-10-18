@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { LOAN_AMOUNT } from '../../loans/new/newLoan';
+import { LOAN_AMOUNT } from '../../loans/new/loanForm';
 import { presentRefusal } from '../../loans/refusal';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { Field } from '../../subscriptions/edits/Field';

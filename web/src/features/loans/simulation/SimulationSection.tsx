@@ -15,7 +15,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { SIMULATIONS, type LoanDetail, type LoanOutcome, type LoanSimulation } from '../api';
 import { EFFECTS, money, signedMoney } from '../format';
-import { LOAN_AMOUNT } from '../new/newLoan';
+import { LOAN_AMOUNT } from '../new/loanForm';
 import { presentRefusal } from '../refusal';
 import type { RepaymentPrefill } from '../repayments/repayment';
 

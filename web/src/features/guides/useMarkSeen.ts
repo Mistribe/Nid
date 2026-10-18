@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
-import { GUIDES, isUnseen, type Guide } from './guides';
+import { GUIDES, isUnseen, type Guide } from './guideData';
 
 /**
  * Spec §4.2: a guide closed is seen at once locally, then saved. A failed save says nothing: the guide plays again at the

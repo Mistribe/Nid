@@ -1,4 +1,5 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -16,6 +17,18 @@ describe('Brancher un assistant', () => {
     expect(section).toHaveTextContent(`claude mcp add --transport http nid ${origin}/mcp --header "Authorization: Bearer <votre jeton>"`);
     expect(section).toHaveTextContent('Lecture seule');
     await expectNoAxeViolations(container);
+  });
+
+  it('gives the Claude Desktop config once picked', async () => {
+    server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
+    await renderApp('/security');
+
+    const section = await screen.findByRole('region', { name: 'Brancher un assistant' });
+    await userEvent.selectOptions(within(section).getByRole('combobox', { name: 'Mon assistant' }), 'Claude Desktop');
+    expect(section).toHaveTextContent('claude_desktop_config.json');
+    expect(section).toHaveTextContent('"args": [ "-y", "mcp-remote", "' + window.location.origin + '/mcp"');
+    expect(section).toHaveTextContent('Bearer <votre jeton>');
+    expect(section).not.toHaveTextContent('claude mcp add');
   });
 
   it('names the assistant’s reads in my events', async () => {

@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { contractPath, contractSchema, newInsurance, newLoanPath, newLoanSchema, newPhase, plusOneMonth, toContractBody, toCreateBody, type NewLoanValues } from './newLoan';
+import { contractPath, contractSchema, newInsurance, newLoanPath, newLoanSchema, newPhase, plusOneMonth, toContractBody, toCreateBody, type NewLoanValues } from './loanForm';
 
 const t = ((key: string) => key) as unknown as TFunction;
 

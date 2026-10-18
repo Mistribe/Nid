@@ -7,7 +7,7 @@ import { section } from '@/app/nav';
 import { useSession } from '@/app/Providers';
 import { Button } from '@/components/ui/button';
 import type { GuideIntro as Intro } from './GuideIntro';
-import { guideFor, isUnseen, type Guide } from './guides';
+import { guideFor, isUnseen, type Guide } from './guideData';
 import type { SpotTour as Tour } from './SpotTour';
 import { useMarkSeen } from './useMarkSeen';
 

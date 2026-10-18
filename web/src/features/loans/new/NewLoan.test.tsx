@@ -8,7 +8,7 @@ import { persons } from '../../subscriptions/testData';
 import { todayIso } from '../../subscriptions/today';
 import { LOAN, loanDetail, schedule } from '../testData';
 import { PROPERTY, propertyList, propertySummary } from '../../properties/testData';
-import { plusOneMonth } from './newLoan';
+import { plusOneMonth } from './loanForm';
 
 function serveCreate(bodies: unknown[], answer: () => Response = () => HttpResponse.json({ id: LOAN }, { status: 201 })) {
   server.use(

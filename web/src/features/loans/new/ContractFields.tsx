@@ -7,7 +7,7 @@ import { Field } from '../../subscriptions/edits/Field';
 import { FIRST_PERIODS, ROUNDINGS } from '../format';
 import { Folded } from './Folded';
 import { InsuranceFields } from './InsuranceFields';
-import { MAX_INSURANCES, newInsurance, newPhase, PLAIN_HIDDEN, plusOneMonth, type ContractValues } from './newLoan';
+import { MAX_INSURANCES, newInsurance, newPhase, PLAIN_HIDDEN, plusOneMonth, type ContractValues } from './loanForm';
 import { PhaseFields } from './PhaseFields';
 
 const input = 'rounded-md border px-3 py-2';

@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './newProperty';
+import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './propertyForm';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
