@@ -65,6 +65,20 @@ compare_counts() {
   if [ -n "$differences" ]; then echo "$differences"; return 1; fi
 }
 
+# backup_parts MODE: the parts a snapshot holds, as the manifest lists them. MODE is embedded (Pocket ID is in this
+# compose, its base is part of the snapshot) or external (Pocket ID is somebody else's: its base is not). Anything else
+# fails, so that a typo never drops Pocket ID from the backup unnoticed.
+backup_parts() {
+  case $1 in
+    embedded) jq -cn '["database", "pocket-id", "dataprotection-keys", "assets", "deploy"]' ;;
+    external) jq -cn '["database", "dataprotection-keys", "assets", "deploy"]' ;;
+    *) return 1 ;;
+  esac
+}
+
+# pgpass_line HOST PASSWORD: the .pgpass entry for nid@HOST/nid.
+pgpass_line() { printf '%s:5432:nid:nid:%s\n' "$1" "$2"; }
+
 # health_check STATUS NOW MAX_HOURS REMOTE STARTED: the healthcheck's decision (1F2 design §5). REMOTE is yes when a
 # remote repository is configured; STARTED is when the service started, the grace period of a new installation.
 health_check() {

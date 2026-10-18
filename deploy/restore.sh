@@ -110,9 +110,13 @@ ok "$(tool check-database "$id")"
 c up -d --wait --wait-timeout 300
 [ "$(c exec -T nid-web wget -qO- http://nid-api:8080/health/ready)" = Healthy ] || die "nid-api n'est pas prêt"
 ok "nid-api est prêt"
-[ "$(docker inspect --format '{{.State.Health.Status}}' "$(c ps -q pocket-id)")" = healthy ] ||
-  die "Pocket ID ne lit pas sa base restaurée"
-ok "Pocket ID lit sa base restaurée"
+# A snapshot taken with an external Pocket ID (NID_BACKUP_POCKET_ID=external) holds none of it: nothing to read back.
+parts=$(tool parts "$id") || die "impossible de lire le manifeste de l'instantané $id"
+if grep -qx pocket-id <<<"$parts"; then
+  [ "$(docker inspect --format '{{.State.Health.Status}}' "$(c ps -q pocket-id)")" = healthy ] ||
+    die "Pocket ID ne lit pas sa base restaurée"
+  ok "Pocket ID lit sa base restaurée"
+fi
 ok "$(tool check-keys "$id")"
 
 if [ "$VERIFY" = 1 ]; then echo "Sauvegarde $id vérifiée : elle se restaure."; else echo "Restauration de $id terminée."; fi

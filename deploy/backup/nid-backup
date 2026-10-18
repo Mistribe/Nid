@@ -14,6 +14,10 @@ NID_BACKUP_AT=${NID_BACKUP_AT:-03:30}
 NID_BACKUP_KEEP=${NID_BACKUP_KEEP:---keep-daily 7 --keep-weekly 4 --keep-monthly 12}
 NID_BACKUP_MAX_AGE=${NID_BACKUP_MAX_AGE:-26}
 NID_BACKUP_REMOTE_FORGET=${NID_BACKUP_REMOTE_FORGET:-true}
+# embedded: Pocket ID runs in this compose and its base is backed up. external: it does not, and nothing of it is.
+NID_BACKUP_POCKET_ID=${NID_BACKUP_POCKET_ID:-embedded}
+# The Postgres server: this compose's own, or a shared one the backup service can reach on its network.
+NID_DB_HOST=${NID_DB_HOST:-postgres}
 
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) nid-backup: $*" >&2; }
 die() { log "$*"; exit 1; }
@@ -40,8 +44,8 @@ ensure_repository() {
   esac
 }
 
-pgpass() { # password file: PGPASSFILE for nid@postgres/nid
-  printf 'postgres:5432:nid:nid:%s\n' "$(cat "$1")" > /tmp/pgpass
+pgpass() { # password file: PGPASSFILE for nid@$NID_DB_HOST/nid
+  pgpass_line "$NID_DB_HOST" "$(cat "$1")" > /tmp/pgpass
   chmod 600 /tmp/pgpass
   export PGPASSFILE=/tmp/pgpass
 }
@@ -75,18 +79,20 @@ run_once() {
 
   step database
   pgpass /source/deploy/secrets/postgres_password
-  pg_dump --host=postgres --username=nid --dbname=nid --format=custom --file="$STAGE/database.pgdump"
-  postgres=$(( $(psql --host=postgres --username=nid --dbname=nid -Atc 'show server_version_num') / 10000 ))
+  pg_dump --host="$NID_DB_HOST" --username=nid --dbname=nid --format=custom --file="$STAGE/database.pgdump"
+  postgres=$(( $(psql --host="$NID_DB_HOST" --username=nid --dbname=nid -Atc 'show server_version_num') / 10000 ))
 
-  step pocket-id
-  # Pocket ID's base is SQLite in WAL mode: a hot copy through the backup API, never the live files. Its uploads are
-  # plain files; its signing keys live in the base, encrypted with the key in deploy/secrets/.
-  sqlite3 "file:/pocket-id/pocket-id.db?mode=ro" ".backup '$STAGE/pocket-id.sqlite3'"
-  # The copy lists the running instance as a live host (francis_hosts, cascading to its actors): a restored Pocket ID
-  # would refuse to start next to it ("already one instance running") until the row expires.
-  sqlite3 "$STAGE/pocket-id.sqlite3" "PRAGMA foreign_keys=ON; DELETE FROM francis_hosts;"
-  mkdir -p "$STAGE/pocket-id-uploads"
-  if [ -d /pocket-id/uploads ]; then cp -R /pocket-id/uploads/. "$STAGE/pocket-id-uploads/"; fi
+  if [ "$NID_BACKUP_POCKET_ID" = embedded ]; then
+    step pocket-id
+    # Pocket ID's base is SQLite in WAL mode: a hot copy through the backup API, never the live files. Its uploads are
+    # plain files; its signing keys live in the base, encrypted with the key in deploy/secrets/.
+    sqlite3 "file:/pocket-id/pocket-id.db?mode=ro" ".backup '$STAGE/pocket-id.sqlite3'"
+    # The copy lists the running instance as a live host (francis_hosts, cascading to its actors): a restored Pocket ID
+    # would refuse to start next to it ("already one instance running") until the row expires.
+    sqlite3 "$STAGE/pocket-id.sqlite3" "PRAGMA foreign_keys=ON; DELETE FROM francis_hosts;"
+    mkdir -p "$STAGE/pocket-id-uploads"
+    if [ -d /pocket-id/uploads ]; then cp -R /pocket-id/uploads/. "$STAGE/pocket-id-uploads/"; fi
+  fi
 
   step manifest
   pg_restore --data-only --file=- "$STAGE/database.pgdump" > /tmp/data.sql
@@ -98,9 +104,9 @@ run_once() {
   jq -n --slurpfile rows /tmp/counts.json --slurpfile migrations /tmp/migrations.json --argjson keys "$keys" \
     --slurpfile key_files /tmp/keys.json \
     --argjson postgres "$postgres" --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg restic "$(restic version | cut -d ' ' -f 2)" '
+    --arg restic "$(restic version | cut -d ' ' -f 2)" --argjson parts "$(backup_parts "$NID_BACKUP_POCKET_ID")" '
     {format: 1, created_at: $created, postgres_major: $postgres, restic_version: $restic,
-     parts: ["database", "pocket-id", "dataprotection-keys", "assets", "deploy"],
+     parts: $parts,
      migrations: $migrations[0], row_counts: $rows[0], dataprotection_keys: $keys,
      dataprotection_key_files: $key_files[0]}' > "$STAGE/manifest.json"
 
@@ -171,13 +177,16 @@ restore_files() {
   jq -e '.format == 1' "$out/tmp/stage/manifest.json" >/dev/null || die "l'instantané $1 n'a pas de manifeste lisible"
   replace_folder "$out/source/volumes/dataprotection-keys" /target/volumes/dataprotection-keys 1654:1654 700
   replace_folder "$out/source/volumes/assets" /target/volumes/assets 1654:1654 755
-  find /target/volumes/pocket-id -mindepth 1 -delete
-  cp "$out/tmp/stage/pocket-id.sqlite3" /target/volumes/pocket-id/pocket-id.db
-  mkdir -p /target/volumes/pocket-id/uploads
-  cp -a "$out/tmp/stage/pocket-id-uploads/." /target/volumes/pocket-id/uploads/
-  chown -R 65532:65532 /target/volumes/pocket-id
-  chmod 600 /target/volumes/pocket-id/pocket-id.db
-  chmod 700 /target/volumes/pocket-id/uploads
+  # The snapshot decides, not the environment: one taken with an external Pocket ID has nothing of it to put back.
+  if jq -e '(.parts // ["pocket-id"]) | index("pocket-id")' "$out/tmp/stage/manifest.json" >/dev/null; then
+    find /target/volumes/pocket-id -mindepth 1 -delete
+    cp "$out/tmp/stage/pocket-id.sqlite3" /target/volumes/pocket-id/pocket-id.db
+    mkdir -p /target/volumes/pocket-id/uploads
+    cp -a "$out/tmp/stage/pocket-id-uploads/." /target/volumes/pocket-id/uploads/
+    chown -R 65532:65532 /target/volumes/pocket-id
+    chmod 600 /target/volumes/pocket-id/pocket-id.db
+    chmod 700 /target/volumes/pocket-id/uploads
+  fi
   # deploy/ goes back to the host user, so deploy/setup.sh can still rewrite it.
   host=${NID_HOST_UID:?}:${NID_HOST_GID:?}
   mkdir -p /target/deploy/secrets
@@ -195,7 +204,7 @@ restore_files() {
 restore_database() {
   pgpass /target/deploy/secrets/postgres_password
   source_restic dump "$1" /tmp/stage/database.pgdump > /tmp/database.pgdump
-  pg_restore --host=postgres --username=nid --dbname=nid --no-owner --role=nid --exit-on-error /tmp/database.pgdump
+  pg_restore --host="$NID_DB_HOST" --username=nid --dbname=nid --no-owner --role=nid --exit-on-error /tmp/database.pgdump
   rm -f /tmp/database.pgdump
 }
 
@@ -203,7 +212,7 @@ restore_database() {
 check_database() {
   pgpass /target/deploy/secrets/postgres_password
   manifest "$1" | jq '.row_counts' > /tmp/expected.json
-  pg_dump --host=postgres --username=nid --dbname=nid --format=custom --file=/tmp/now.pgdump
+  pg_dump --host="$NID_DB_HOST" --username=nid --dbname=nid --format=custom --file=/tmp/now.pgdump
   pg_restore --data-only --file=- /tmp/now.pgdump | count_rows | counts_json > /tmp/actual.json
   rm -f /tmp/now.pgdump
   compare_counts /tmp/expected.json /tmp/actual.json || die "la base restaurée n'a pas les lignes de la sauvegarde"
@@ -265,6 +274,8 @@ status() {
 
 schedule() {
   valid_time "$NID_BACKUP_AT" || config_error "NID_BACKUP_AT invalide : $NID_BACKUP_AT (attendu HH:MM, de 00:00 à 23:59)"
+  backup_parts "$NID_BACKUP_POCKET_ID" >/dev/null ||
+    config_error "NID_BACKUP_POCKET_ID invalide : $NID_BACKUP_POCKET_ID (attendu embedded ou external)"
   [ -s "$SECRETS/restic_password" ] ||
     config_error "restic_password manque dans deploy/backup-secrets/ : relancez deploy/setup.sh"
   mkdir -p "$STATE_DIR"
@@ -287,6 +298,7 @@ case ${1:-schedule} in
   snapshot-id) snapshot_id "${2:-latest}" ;;
   manifest) manifest "$2" ;;
   migrations) manifest "$2" | jq -r '.migrations[]' ;;
+  parts) manifest "$2" | jq -r '(.parts // ["pocket-id"])[]' ;;
   restore-files) restore_files "$2" ;;
   restore-database) restore_database "$2" ;;
   check-database) check_database "$2" ;;

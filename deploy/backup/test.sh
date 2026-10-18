@@ -85,5 +85,11 @@ check "the remote result is named" "dépôt distant : unreachable" "$(health_che
 state '{"last_result":"ok","remote_result":"none","last_snapshot":"a1","last_success_at":1790390000}'
 check "healthy without a remote" yes "$(succeeds health_check /tmp/status.json $now 26 no 0)"
 
+check "parts with Pocket ID embedded" '["database","pocket-id","dataprotection-keys","assets","deploy"]' "$(backup_parts embedded)"
+check "parts with Pocket ID external" '["database","dataprotection-keys","assets","deploy"]' "$(backup_parts external)"
+check "parts refuse a mode they do not know" no "$(succeeds backup_parts extern)"
+check "pgpass line of the bundled database" "postgres:5432:nid:nid:s3cret" "$(pgpass_line postgres s3cret)"
+check "pgpass line of an external database" "postgres-server:5432:nid:nid:s3cret" "$(pgpass_line postgres-server s3cret)"
+
 if [ "$failures" -gt 0 ]; then echo "$failures failure(s)"; exit 1; fi
 echo "all lib.sh tests passed"

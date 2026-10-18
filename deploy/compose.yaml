@@ -119,6 +119,9 @@ services:
       NID_BACKUP_KEEP: ${NID_BACKUP_KEEP:-}
       NID_BACKUP_MAX_AGE: ${NID_BACKUP_MAX_AGE:-}
       NID_BACKUP_REMOTE_FORGET: ${NID_BACKUP_REMOTE_FORGET:-}
+      # embedded (default) or external: README §11. NID_DB_HOST is the Postgres server the backup reads.
+      NID_BACKUP_POCKET_ID: ${NID_BACKUP_POCKET_ID:-}
+      NID_DB_HOST: ${NID_DB_HOST:-}
       TZ: ${TZ:-UTC}
     volumes:
       - dataprotection-keys:/source/volumes/dataprotection-keys:ro
@@ -156,6 +159,7 @@ services:
       NID_RESTORE_FROM: ${NID_RESTORE_FROM:-local}
       NID_HOST_UID: ${NID_HOST_UID:-0}
       NID_HOST_GID: ${NID_HOST_GID:-0}
+      NID_DB_HOST: ${NID_DB_HOST:-}
     volumes:
       - dataprotection-keys:/target/volumes/dataprotection-keys
       - assets:/target/volumes/assets

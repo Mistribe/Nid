@@ -184,8 +184,8 @@ mise à jour de Nid les fait évoluer.
 Chaque nuit à 03:30 (réglable : `NID_BACKUP_AT` et `TZ` dans `deploy/.env`), le service `backup` fait **un instantané
 restic chiffré** qui contient tout ce qu'il faut pour repartir :
 
-- la base (`pg_dump`), la base de Pocket ID (copie à chaud de sa base SQLite, et ses images), les clés Data Protection et
-  les icônes des fournisseurs ;
+- la base (`pg_dump`), la base de Pocket ID (copie à chaud de sa base SQLite, et ses images ; pas avec un Pocket ID
+  extérieur, §11), les clés Data Protection et les icônes des fournisseurs ;
 - `deploy/secrets/` (dont la clé de chiffrement de Pocket ID, sans laquelle sa base est illisible) et `deploy/.env` ;
 - un manifeste : nombre de lignes par table, migrations de la base, nombre de clés.
 
@@ -338,3 +338,55 @@ responsabilité.
 - **Alerte par email** si la sauvegarde échoue ou vieillit.
 - **Jetons d'accès et workers** (étape 4), avec leurs commandes `revoke-tokens`, `create-worker`, `rotate-worker`,
   `revoke-worker`.
+
+## 11. Pocket ID ou Postgres déjà installés ailleurs
+
+Le compose lance son propre Pocket ID et son propre Postgres. Si vous avez déjà l'un ou l'autre, éteignez le service par un
+profil dans `deploy/compose.override.yaml` et dites à la sauvegarde où ils sont. Dès que vous passez `-f`, compose ne charge
+plus l'override tout seul : écrivez toujours `-f deploy/compose.yaml -f deploy/compose.override.yaml`.
+
+### Un Pocket ID extérieur
+
+```yaml
+services:
+  pocket-id:        { profiles: [bundled] }
+  pocket-id-volume: { profiles: [bundled] }
+```
+
+Dans `.env` : `NID_BACKUP_POCKET_ID=external` (par défaut `embedded`). `setup.sh --auth-host` reçoit le nom d'hôte du Pocket
+ID existant, et les groupes et le client de Nid (§2) s'y créent comme avant.
+
+**La sauvegarde de Nid ne contient alors rien de Pocket ID**, ni sa base ni sa clé de chiffrement : sauvegardez-les
+vous-même (son dossier de données et son `ENCRYPTION_KEY`). Sans elles, plus personne ne peut se connecter. `restore.sh`
+ne vérifie plus Pocket ID pour un instantané pris ainsi : c'est l'instantané qui décide, pas le `.env` du moment.
+Une valeur inconnue dans `NID_BACKUP_POCKET_ID` laisse le service `backup` `unhealthy` avec la raison.
+
+### Un Postgres extérieur
+
+Le serveur doit être de version 18 ou moins : l'image `nid-backup` embarque le client 18, qui lit les serveurs plus
+anciens mais pas plus récents. Créez-y une base `nid` et un rôle `nid` (`LOGIN`, sans droit superuser) dont le mot de
+passe est celui de `deploy/secrets/postgres_password`, puis faites pointer `deploy/secrets/nid_connection_string` dessus
+(`setup.sh` ne la remplace jamais).
+
+```yaml
+services:
+  postgres: { profiles: [bundled] }
+  nid-api:
+    depends_on: { postgres: { required: false } }
+    networks: [app, data, egress, db]
+  backup:
+    depends_on: { postgres: { required: false } }
+    networks: [data, db]
+  backup-restore:
+    networks: [data, db]
+networks:
+  db: { external: true, name: <réseau du serveur Postgres> }
+```
+
+Dans `.env` : `NID_DB_HOST=<nom du serveur sur ce réseau>`. La sauvegarde lit alors cette base.
+
+**`restore.sh` ne sait pas restaurer dans un Postgres extérieur** : il démarre le service `postgres` du compose. À la main,
+`nid-api` arrêté : recréez la base (`DROP DATABASE nid; CREATE DATABASE nid OWNER nid;`), puis
+`docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml run --rm --no-deps -T backup-restore restore-files <id>`
+et `… restore-database <id>` (l'identifiant vient de `… run --rm --no-deps -T backup-restore snapshot-id latest`), puis `up -d`.
+Une sauvegarde faite sur un serveur de version N ne se recharge pas sur un serveur plus ancien que N.
