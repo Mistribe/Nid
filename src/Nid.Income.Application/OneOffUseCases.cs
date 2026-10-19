@@ -24,19 +24,26 @@ public sealed record DeleteIncomeOneOffCommand(ItemId ItemId, Guid Flow) : IComm
     public AccessKind Access => AccessKind.Write;
 }
 
-/// <summary>What every one-off write checks first: an open source, and for an existing one-off, that it is the source's.</summary>
+/// <summary>
+/// What every one-off write checks first: the source, a date within it (an ended source still takes one-offs up to its
+/// end, issue #22), and for an existing one-off, that it is the source's.
+/// </summary>
 internal static class OneOffCheck
 {
-    private static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r)
+    internal static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r)
         ? r : throw new InvalidOperationException();
 
-    public static async Task<Result> OpenAsync(ISourceStore sources, IItemRegistry items, ItemId id, CancellationToken ct)
+    /// <summary>The source exists; with <paramref name="on"/>, an ended source refuses a date after its end.</summary>
+    public static async Task<Result> WithinAsync(ISourceStore sources, IItemRegistry items, ItemId id, LocalDate? on, CancellationToken ct)
     {
         var loaded = await SourceCheck.LoadAsync(sources, items, id, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure(failure!);
         loaded.TryGetValue(out var source);
-        return SourceCheck.RequireOpen(source.Item);
+        return source.Item.ArchivedAt is null || on is not { } date || date <= source.Source.EndedOn
+            ? Result.Success()
+            : Result.Failure(new Failure(IncomeCodes.SourceEnded, "This source has ended before that date: reopen it first.",
+                new Dictionary<string, object?> { ["field"] = "occurredOn" }));
     }
 
     /// <summary>Any current <c>income</c> flow of another category on the item is not a one-off: it answers as an unknown one.</summary>
@@ -60,7 +67,7 @@ public sealed class RecordIncomeOneOffHandler(ISourceStore sources, IItemRegistr
 {
     public async ValueTask<Result<Guid>> HandleAsync(RecordIncomeOneOffCommand command, CancellationToken ct = default)
     {
-        if ((await OneOffCheck.OpenAsync(sources, items, command.ItemId, ct)).TryGetFailure(out var failure))
+        if ((await OneOffCheck.WithinAsync(sources, items, command.ItemId, command.OccurredOn, ct)).TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
         var recorded = await flows.RecordAsync(OneOffCheck.Flow(command.ItemId, command.OccurredOn, command.Amount, command.Note), ct);
         return recorded.TryGetValue(out var saved) ? Result.Success(saved!.Id)
@@ -74,7 +81,7 @@ public sealed class CorrectIncomeOneOffHandler(ISourceStore sources, IItemRegist
 {
     public async ValueTask<Result<Guid>> HandleAsync(CorrectIncomeOneOffCommand command, CancellationToken ct = default)
     {
-        if ((await OneOffCheck.OpenAsync(sources, items, command.ItemId, ct)).TryGetFailure(out var failure)
+        if ((await OneOffCheck.WithinAsync(sources, items, command.ItemId, command.OccurredOn, ct)).TryGetFailure(out var failure)
             || (await OneOffCheck.ExistsAsync(flows, command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
         var corrected = await flows.SupersedeAsync(command.ItemId, command.Flow,
@@ -90,7 +97,7 @@ public sealed class DeleteIncomeOneOffHandler(ISourceStore sources, IItemRegistr
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteIncomeOneOffCommand command, CancellationToken ct = default)
     {
-        if ((await OneOffCheck.OpenAsync(sources, items, command.ItemId, ct)).TryGetFailure(out var failure)
+        if ((await OneOffCheck.WithinAsync(sources, items, command.ItemId, null, ct)).TryGetFailure(out var failure)
             || (await OneOffCheck.ExistsAsync(flows, command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
             return Result.Failure<bool>(failure!);
         var voided = await flows.VoidAsync(command.ItemId, command.Flow, ct);

@@ -192,4 +192,44 @@ describe('one-off income', () => {
     expect(within(section).queryByRole('button')).not.toBeInTheDocument();
     expect(within(section).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
   });
+
+  it('lists every one-off on « Tout », older ones included (issue #22)', async () => {
+    serve();
+    const ANCIENT = { id: 'oa', occurredOn: '2023-02-01', amount: eur('90.00'), note: 'Ancienne prime' };
+    const asked: (string | null)[] = [];
+    server.use(http.get('*/api/v1/income/sources/:id', ({ request }) => {
+      const from = new URL(request.url).searchParams.get('from');
+      asked.push(from);
+      return HttpResponse.json(detail({ oneOffs: from ? [ANCIENT, OLDER, PROJECT] : [OLDER, PROJECT] }));
+    }));
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+
+    expect(await rows()).toHaveLength(2);
+    await user.click(within(await region()).getByRole('radio', { name: 'Tout' }));
+
+    const all = await screen.findByRole('table', { name: 'Tous les revenus exceptionnels' });
+    await waitFor(() => expect(within(all).getAllByRole('row').slice(1)).toHaveLength(3));
+    expect(within(all).getAllByRole('row')[3]).toHaveTextContent('Ancienne prime');
+    expect(asked).toContain('0001-01-01');
+  });
+
+  it('adds a one-off to an ended source, dated on its end by default and not after it (issue #22)', async () => {
+    const { sent } = serve(detail({ ended: true, endedOn: '2025-06-30', oneOffs: [] }));
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+
+    await user.click(await within(await region()).findByRole('button', { name: 'Ajouter un revenu exceptionnel' }));
+    const form = screen.getByRole('form', { name: 'Nouveau revenu exceptionnel' });
+    expect(within(form).getByLabelText('Date')).toHaveValue('30/06/2025');
+    await user.clear(within(form).getByLabelText('Date'));
+    await user.type(within(form).getByLabelText('Date'), '2025-07-01');
+    await user.type(within(form).getByLabelText('Montant'), '100');
+    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    expect(await within(form).findByText('La date est après la fin de la source.')).toBeInTheDocument();
+    expect(sent).toEqual([]);
+
+    await user.clear(within(form).getByLabelText('Date'));
+    await user.type(within(form).getByLabelText('Date'), '2025-06-15');
+    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { occurredOn: '2025-06-15', amount: { amount: '100', currency: 'EUR' } } })]));
+  });
 });

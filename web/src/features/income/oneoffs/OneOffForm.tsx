@@ -26,7 +26,9 @@ export function OneOffForm({ source, editing, titleId, onDone }: {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const form = useForm<OneOffValues>({ resolver: zodResolver(oneOffSchema(t, todayIso())), defaultValues: oneOffValuesOf(editing) });
+  // An ended source takes one-offs up to its end only.
+  const last = source.endedOn ?? todayIso();
+  const form = useForm<OneOffValues>({ resolver: zodResolver(oneOffSchema(t, last, source.endedOn != null)), defaultValues: oneOffValuesOf(editing, last) });
   const errors = useSubmitErrors(form.setError, ONE_OFF_PATHS);
   const add = $api.useMutation('post', ONE_OFFS);
   const correct = $api.useMutation('put', ONE_OFF);
@@ -59,7 +61,7 @@ export function OneOffForm({ source, editing, titleId, onDone }: {
       <div className="grid gap-3 sm:grid-cols-2">
         <Controller control={form.control} name="occurredOn" render={({ field }) => (
           <Field label={t('income_detail.one_offs.date')} hint={t('income_detail.one_offs.date_help')} error={e.occurredOn?.message}>
-            {(c) => <DateField {...c} value={field.value} onChange={field.onChange} max={todayIso()} />}
+            {(c) => <DateField {...c} value={field.value} onChange={field.onChange} max={last} />}
           </Field>
         )} />
         <Field label={t('income_detail.one_offs.amount')} error={e.amount?.message}>

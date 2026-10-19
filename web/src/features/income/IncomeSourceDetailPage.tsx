@@ -190,7 +190,7 @@ export function IncomeSourceDetailPage() {
             </>
           ),
         },
-        { id: 'oneoffs', label: t('income_detail.tab.oneoffs'), content: <OneOffsSection source={source} writable={writable} /> },
+        { id: 'oneoffs', label: t('income_detail.tab.oneoffs'), content: <OneOffsSection source={source} writable={source.canWrite} /> },
         ...(writable ? [{
           id: 'settings' as const, label: t('income_detail.tab.settings'),
           content: (

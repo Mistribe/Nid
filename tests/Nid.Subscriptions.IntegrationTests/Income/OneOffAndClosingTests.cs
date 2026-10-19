@@ -169,13 +169,16 @@ public class OneOffAndClosingTests(PostgresFixture fixture)
         await AssertEveryWriteEndedAsync(app, id);
     }
 
-    /// <summary>Controller ruling (a): every write of an ended source answers 409 income.source_ended and changes nothing.</summary>
+    /// <summary>
+    /// Controller ruling (a): every write of an ended source answers 409 income.source_ended and changes nothing; a one-off
+    /// is refused only when dated after the end (issue #22).
+    /// </summary>
     private static async Task AssertEveryWriteEndedAsync(NidApp app, Guid id)
     {
         var before = await StoredAsync(app, id);
         var phase = before[0].Id;
         var unknown = Guid.NewGuid();
-        var oneOff = OneOff();
+        var oneOff = OneOff("2025-10-01");
         var phaseBody = new
         {
             label = "Salaire", startsOn = "2025-01-01", netAmount = new { amount = "1", currency = "EUR" },
@@ -185,7 +188,6 @@ public class OneOffAndClosingTests(PostgresFixture fixture)
         {
             (HttpMethod.Post, $"{Sources}/{id}/one-offs", oneOff),
             (HttpMethod.Put, $"{Sources}/{id}/one-offs/{unknown}", oneOff),
-            (HttpMethod.Delete, $"{Sources}/{id}/one-offs/{unknown}", null),
             (HttpMethod.Post, $"{Sources}/{id}/phases", Phase("Autre")),
             (HttpMethod.Put, $"{Sources}/{id}/phases/{phase}", phaseBody),
             (HttpMethod.Delete, $"{Sources}/{id}/phases/{phase}?version=1", null),
@@ -202,6 +204,46 @@ public class OneOffAndClosingTests(PostgresFixture fixture)
         Assert.Equal(before, await StoredAsync(app, id));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         Assert.Equal(0, await core.Flows.CountAsync(f => f.ItemId == id));
+    }
+
+    [Fact]
+    public async Task An_ended_source_takes_one_offs_up_to_its_end() // Issue #22
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase());
+        var kept = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", OneOff("2025-05-02")));
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/close", new { endedOn = "2025-09-30" });
+
+        var added = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", OneOff("2025-09-30")));
+        var corrected = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{id}/one-offs/{kept}", OneOff("2025-05-03", "450"));
+        var late = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{id}/one-offs/{added}", OneOff("2025-10-01"));
+
+        Assert.Equal(HttpStatusCode.OK, corrected.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, late.StatusCode);
+        Assert.Equal("income.source_ended", await CodeAsync(late));
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{id}/one-offs/{added}")).StatusCode);
+        var detail = await DetailAsync(app, id);
+        Assert.Equal((await JsonAsync(corrected)).GetProperty("id").GetGuid(), Assert.Single(OneOffIds(detail)));
+        Assert.True(detail.GetProperty("ended").GetBoolean());
+    }
+
+    [Fact]
+    public async Task The_detail_lists_older_one_offs_on_request() // Issue #22
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase("Salaire", "2023-01-01"));
+        var old = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", OneOff("2023-03-01")));
+        var recent = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", OneOff("2025-06-10")));
+
+        async Task<List<Guid>> ListedAsync(string query) => OneOffIds(await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}/{id}{query}"))).Order().ToList();
+
+        Assert.Equal([recent], await ListedAsync(""));
+        Assert.Equal(new[] { old, recent }.Order().ToList(), await ListedAsync("?from=2000-01-01"));
+        Assert.Equal([old], await ListedAsync("?to=2023-12-31"));
+        Assert.Equal([old], await ListedAsync("?from=2023-03-01&to=2023-03-01"));
+        var reversed = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}/{id}?from=2024-01-01&to=2023-01-01");
+        Assert.Equal(HttpStatusCode.BadRequest, reversed.StatusCode);
+        Assert.Equal("income.invalid_period", await CodeAsync(reversed));
     }
 
     [Fact]

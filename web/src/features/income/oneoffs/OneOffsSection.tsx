@@ -1,26 +1,47 @@
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
+import { present, toProblem } from '@/api/errors';
+import type { IncomeDetailSearch, RootSearch } from '@/app/router';
 import { FormDialog } from '@/components/FormDialog';
+import { Segmented } from '@/components/form/Segmented';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
+import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRowDialog } from '../../properties/useRowDialog';
-import type { IncomeSourceDetail } from '../api';
+import { SOURCE, type IncomeSourceDetail } from '../api';
 import { Section } from '../Section';
 import { OneOffForm } from './OneOffForm';
 import { OneOffRowActions } from './OneOffRowActions';
 
+// The server lists the one-offs from `from` on; the earliest date it reads stands for « all of them ».
+const ALL_FROM = '0001-01-01';
+
 /**
- * Spec §4: the last twelve months' one-off income, newest first. The section owns its dialog (adding or correcting), its
- * live region and where the focus lands (`useRowDialog`); without write access it is a read-only table.
+ * Spec §4: the source's one-off income, newest first: the last twelve months as the page loaded them, or all of them
+ * (`?oneOffs=all`, issue #22). The section owns its dialog (adding or correcting), its live region and where the focus
+ * lands (`useRowDialog`); without write access it is a read-only table. An ended source still takes one-offs up to its end.
  */
 export function OneOffsSection({ source, writable }: { source: IncomeSourceDetail; writable: boolean }) {
   const { t } = useTranslation();
-  const rows = [...source.oneOffs].sort((a, b) => (a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0));
+  const { $api } = useApi();
+  const navigate = useNavigate();
+  const search: RootSearch & IncomeDetailSearch = useSearch({ strict: false });
+  const all = search.oneOffs === 'all';
+  const everything = $api.useQuery('get', SOURCE, { params: { path: { id: source.id }, query: { from: ALL_FROM } } }, { enabled: all });
+  const listed = all ? everything.data?.oneOffs : source.oneOffs;
+  const choose = (next: string) =>
+    void navigate({
+      to: '/income/$id', params: { id: source.id }, replace: true,
+      search: (prev: RootSearch & IncomeDetailSearch) => ({ ...prev, oneOffs: next === 'all' ? ('all' as const) : undefined }),
+    });
+  const rows = [...(listed ?? [])].sort((a, b) => (a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0));
   const row = useRowDialog(rows, 'one-off-menu');
   const { dialog, cancel } = row;
-  // A source that turns ended (or read-only) drops its open dialog, so it does not come back on reopening.
+  // A source that turns read-only drops its open dialog, so it does not come back once writable again.
   useEffect(() => { if (!writable && dialog) cancel(); }, [writable, dialog, cancel]);
   const cols = writable ? 4 : 3;
 
@@ -32,7 +53,10 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
           {({ titleId, done }) => <OneOffForm source={source} editing={dialog.editing} titleId={titleId} onDone={done} />}
         </FormDialog>
       ) : null}
-      <Table aria-label={t('income_detail.one_offs.table')}>
+      <Segmented aria-label={t('income_detail.one_offs.period')} value={all ? 'all' : 'recent'} onValueChange={choose}
+        options={[{ value: 'recent', label: t('income_detail.one_offs.recent') }, { value: 'all', label: t('income_detail.one_offs.all') }]} />
+      {all && everything.error ? <ProblemMessage problem={present(toProblem(everything.error))} /> : null}
+      <Table aria-label={all ? t('income_detail.one_offs.table_all') : t('income_detail.one_offs.table')} aria-busy={all && everything.isPending ? true : undefined}>
         <TableHeader>
           <TableRow>
             <TableHead>{t('income_detail.one_offs.date')}</TableHead>
@@ -42,8 +66,8 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.length === 0 ? (
-            <TableRow><TableCell colSpan={cols} className="text-muted-foreground">{t('income_detail.one_offs.empty')}</TableCell></TableRow>
+          {listed && rows.length === 0 ? (
+            <TableRow><TableCell colSpan={cols} className="text-muted-foreground">{all ? t('income_detail.one_offs.empty_all') : t('income_detail.one_offs.empty')}</TableCell></TableRow>
           ) : rows.map((f) => (
             <TableRow key={f.id}>
               <TableCell><LocalDate value={f.occurredOn} /></TableCell>

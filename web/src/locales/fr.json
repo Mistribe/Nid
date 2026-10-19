@@ -523,6 +523,7 @@
     "subscriptions_phase_cycles_unspent": "Une phase s'est terminée alors qu'il lui restait des renouvellements : la couverture dépasse ses dates."
   },
   "field_error": {
+    "income_one_off_after_end": "La date est après la fin de la source.",
     "core_external_ref_taken": "Un mouvement est déjà enregistré avec cette référence : décochez-le.",
     "core_external_ref_taken_movement": "Le mouvement {{n}} est déjà enregistré avec cette référence : décochez-le.",
     "request_required": "Ce champ est obligatoire.",
@@ -1209,6 +1210,10 @@
       "menu": "Actions du revenu exceptionnel du {{date}} : {{amount}}",
       "title": "Revenus exceptionnels",
       "table": "Revenus exceptionnels des 12 derniers mois",
+      "table_all": "Tous les revenus exceptionnels",
+      "period": "Période affichée",
+      "recent": "12 derniers mois",
+      "all": "Tout",
       "add": "Ajouter un revenu exceptionnel",
       "add_title": "Nouveau revenu exceptionnel",
       "edit_title": "Corriger le revenu exceptionnel",
@@ -1218,6 +1223,7 @@
       "note": "Note",
       "submit": "Ajouter",
       "empty": "Aucun revenu exceptionnel sur les 12 derniers mois.",
+      "empty_all": "Aucun revenu exceptionnel.",
       "delete_confirm": "Ce revenu exceptionnel sera retiré.",
       "added": "Revenu exceptionnel ajouté.",
       "corrected": "Revenu exceptionnel corrigé.",

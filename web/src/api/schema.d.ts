@@ -3672,7 +3672,10 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    from?: string;
+                    to?: string;
+                };
                 header?: never;
                 path: {
                     id: string;

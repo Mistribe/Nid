@@ -34,8 +34,11 @@ export type InvestmentsSearch = { closed?: 1 };
 /** The income list's own filter: ended sources shown on demand (2C2a design §4); anything but `1` is dropped. */
 export type IncomeSearch = { ended?: 1 };
 
-/** The income detail's own choice: the expected-income period (2C2b design §5); the default stays out of the URL. */
-export type IncomeDetailSearch = { expected?: 'year' | 'next_year'; tab?: string };
+/**
+ * The income detail's own choices: the expected-income period (2C2b design §5) and the one-offs listed (issue #22); the
+ * defaults stay out of the URL.
+ */
+export type IncomeDetailSearch = { expected?: 'year' | 'next_year'; oneOffs?: 'all'; tab?: string };
 
 /** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
 export type DetailSearch = { tab?: string };
@@ -152,7 +155,10 @@ const incomeDetailRoute = createRoute({
   path: '/income/$id',
   beforeLoad: requireModule('income'),
   validateSearch: (search: Record<string, unknown>): IncomeDetailSearch =>
-    ({ ...(search.expected === 'year' || search.expected === 'next_year' ? { expected: search.expected } : {}), ...detailSearch(search) }),
+    ({
+      ...(search.expected === 'year' || search.expected === 'next_year' ? { expected: search.expected } : {}),
+      ...(search.oneOffs === 'all' ? { oneOffs: 'all' as const } : {}), ...detailSearch(search),
+    }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourceDetailPage'), 'IncomeSourceDetailPage'),
 });
 

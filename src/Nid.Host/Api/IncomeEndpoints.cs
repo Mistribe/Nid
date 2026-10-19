@@ -18,8 +18,8 @@ public static class IncomeEndpoints
             => (await invoker.InvokeAsync(new ListIncomeSourcesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
             .Returns<IncomeSourceList>();
 
-        api.MapGet("/sources/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetIncomeSourceQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
+        api.MapGet("/sources/{id:guid}", async (Guid id, string? from, string? to, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetIncomeSourceQuery(new ItemId(id), OptionalDate(from), OptionalDate(to)), ct)).ToHttp(detail => detail))
             .Returns<IncomeSourceDetail>();
 
         api.MapPost("/sources", async (CreateIncomeSourceBody body, IInvoker invoker, CancellationToken ct) =>

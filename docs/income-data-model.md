@@ -60,6 +60,8 @@ Une période de revenu, sur le modèle d'une phase de facturation d'abonnement.
 
 Prime ponctuelle, remboursement, indemnité : un `flow` du Core avec `kind = income` et `category = one_off`, posé sur la source (`core-data-model.md` §5.3). Il compte dans les revenus du mois où il tombe (§6) et prépare l'évolution vers « attendu + réel » (§14).
 
+Le détail d'une source liste ceux des 12 derniers mois, ou ceux d'une plage `from` / `to` (incluse, un côté absent restant ouvert) ; la fiche propose « 12 derniers mois » ou « Tout ». Une source terminée accepte encore l'ajout, la correction et la suppression d'un revenu exceptionnel daté au plus tard de sa fin (`income.source_ended` au-delà), sans la rouvrir.
+
 ## 4. Occurrences et équivalents
 
 Fonctions pures dans `Domain`, **décimal exact**.

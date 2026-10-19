@@ -5,6 +5,7 @@ using Nid.Income.Domain;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using Duration = Nid.Core.Contracts.Duration;
 
@@ -24,7 +25,11 @@ public sealed record EditIncomeSourceCommand(ItemId ItemId, string? DisplayName,
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record GetIncomeSourceQuery(ItemId ItemId) : IQuery<IncomeSourceDetail>, IItemScoped
+/// <summary>
+/// One source with its one-offs dated from <paramref name="From"/> to <paramref name="To"/>, inclusive: without either, the
+/// last 12 months; with one, the other side is open (issue #22).
+/// </summary>
+public sealed record GetIncomeSourceQuery(ItemId ItemId, LocalDate? From = null, LocalDate? To = null) : IQuery<IncomeSourceDetail>, IItemScoped
 {
     public AccessKind Access => AccessKind.Read;
 }
@@ -133,9 +138,13 @@ public sealed class GetIncomeSourceHandler(
         var currency = SourceCheck.CurrencyOf(item);
         var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
 
-        // The one-offs of the last 12 months: a year before today, inclusive, to today.
-        var lastYear = DateRange.Create(today.PlusYears(-1), today.PlusDays(1)).TryGetValue(out var range) ? range : throw new InvalidOperationException();
-        var oneOffs = await OneOffsAsync(flows, query.ItemId, lastYear, ct);
+        // By default the one-offs of the last 12 months: a year before today, inclusive, to today.
+        var window = query.From is null && query.To is null
+            ? DateRange.Create(today.PlusYears(-1), today.PlusDays(1))
+            : DateRange.Create(query.From ?? LocalDate.MinIsoValue, query.To?.PlusDays(1));
+        if (!window.TryGetValue(out var range))
+            return Result.Failure<IncomeSourceDetail>(new Failure(IncomeCodes.InvalidPeriod, "A period starts on or before its end.", null));
+        var oneOffs = await OneOffsAsync(flows, query.ItemId, range!, ct);
         if (oneOffs.TryGetFailure(out failure))
             return Result.Failure<IncomeSourceDetail>(failure!);
         oneOffs.TryGetValue(out var recent);
