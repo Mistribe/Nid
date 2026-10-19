@@ -8,7 +8,7 @@
 ## 1. Objectifs
 
 - Savoir **ce qui rapporte et ce qui ne rapporte pas**, en gain et en perte, sans la complexité d'un suivi de portefeuille ligne par ligne.
-- S'appuyer **uniquement sur des faits datés du Core** : une valorisation (« le PEA vaut 25 000 € au 31/12 ») et des flux (versements, retraits). Le module ne stocke aucun fait de plus.
+- S'appuyer **sur des faits datés du Core** : une valorisation (« le PEA vaut 25 000 € au 31/12 ») et des flux (versements, retraits). Le module ne stocke aucun fait de plus, **sauf le détail par support** (§16), exception assumée : stocké dans le schéma `investments`, il décompose une enveloppe sans jamais changer ses chiffres.
 - Rester **brut** : les gains s'affichent **avant fiscalité et prélèvements sociaux** (`Project.md` §13).
 - Calculer de façon **déterministe** : fonctions pures en décimal exact, jamais d'IA.
 
@@ -18,8 +18,8 @@
 Core                                      Investments (schéma investments)
 item (module = investments, kind = envelope) ──── envelope (1:1)
   ├─ ownership, visibility, currency, archived_at
-  ├──< valuation   (Core)
-  └──< flow        (Core)
+  ├──< valuation   (Core)                   ├──< holding            (optionnel, §16)
+  └──< flow        (Core)                   └──< holding_snapshot ──< holding_snapshot_line
 ```
 
 Une **enveloppe** est un `item` du Core. Son nom, ses propriétaires, sa visibilité, sa devise et son archivage viennent du Core ; les faits (valorisations, flux) aussi. Le module ajoute des attributs descriptifs et les calculs.
@@ -80,6 +80,8 @@ Règles :
 
 **Livré en 2B1b** (2026-09-30) : sections `envelopes`, `valuations`, `flows`, export et aller-retour.
 
+**Détail par support** (§16) : la valorisation de l'enveloppe reste la source de vérité de tous les chiffres ci-dessus ; une enveloppe sans support se calcule exactement comme avant.
+
 **Ajouté en 2B2b** (2026-09-30) : la route `GET /api/v1/investments/envelopes/{id}/series` (courbe : valeur et versements nets dans le temps) et le champ `canWrite` dans chaque élément de la liste des enveloppes.
 
 ## 6. Rendement annualisé (TRI), étape 6
@@ -135,6 +137,8 @@ Section `envelopes` de `import-format.md` (les sections `valuations` et `flows` 
 | `ownership` | `[{ person, share_bp }]` | Comme pour les abonnements |
 | `visibility` | string | `shared` (défaut) ou `private` |
 | `closed_on` | date? | La date de clôture ; une enveloppe clôturée est exportée |
+
+Sections `holdings`, `holding_snapshots`, `holding_movements`, `holding_cost_reports` : à venir (issue #34, PR 4).
 
 ## 10. Contrats (`Investments.Contracts`)
 
@@ -225,12 +229,13 @@ Enveloppe `pea`, un propriétaire à 100 %, partagée, devise `EUR`.
 | TRI | Valeurs de référence ; « non significatif » avant 12 mois ou sans changement de signe |
 | `missing_opening` | Déclenché sans versement enregistré |
 | Import | Aller-retour export puis import identique |
+| Supports (§16) | ISIN, poids, non-réparti, avertissements d'un relevé ; une enveloppe sans support inchangée |
 
 ## 14. Limites
 
-- **Pas de détail par ligne** (ETF, fonds) : niveau 3 optionnel de `Project.md` §7.3, à l'étape 6. Le point d'extension est une future section `holdings` dont la somme pourrait alimenter la valorisation.
+- **Détail par ligne** (ETF, fonds) : en cours (§16). Les supports et relevés existent ; mouvements, performance par support et frais suivent.
 - **Ni fiscalité ni conseil** : gains bruts. Le calcul de fiscalité (gain net d'impôt, régimes par enveloppe) est une **évolution envisagée** à cause de sa complexité (`Project.md` §10).
-- Une assurance-vie ne distingue pas fonds en euros et unités de compte.
+- Sans détail par support, une assurance-vie ne distingue pas fonds en euros et unités de compte.
 - Pas de versements programmés : ils ne sont ni des engagements ni des prévisions en v1.
 - Le TRI utilise un flottant à la frontière du calcul (§6).
 
@@ -238,4 +243,18 @@ Enveloppe `pea`, un propriétaire à 100 %, partagée, devise `EUR`.
 
 - Seuil de `large_change` (30 %) et seuils de péremption : à ajuster sur des données réelles.
 - Faut-il exposer un « gain depuis N mois » glissant en plus du gain depuis l'ouverture ?
-- Section `holdings` : forme à définir si le besoin apparaît.
+- Détail par support : forme tranchée par l'issue #34 et `superpowers/specs/2026-10-19-envelope-holdings-design.md` (§16).
+
+## 16. Détail par support (niveau 3)
+
+Optionnel. Conception : `superpowers/specs/2026-10-19-envelope-holdings-design.md` (issue #34, livrée en six PR).
+
+| Table | Rôle |
+|---|---|
+| `holding` | Un support de l'enveloppe : fonds, ETF, action, fonds en euros, produit structuré, liquidités. ISIN vérifié et unique par enveloppe |
+| `holding_snapshot` | La composition à une date (un relevé), une par date ; `complete` dit si tous les supports y sont |
+| `holding_snapshot_line` | Une ligne : parts et prix unitaire à 6 décimales (aucun pour le fonds en euros et les liquidités), valeur telle qu'imprimée |
+
+Lecture : le relevé le plus récent à une date, les poids (arrondis à 0,1 %) et le **non-réparti** (valorisation de l'enveloppe à la même date − somme des lignes). Avertissements `holding_value_mismatch` et `holdings_sum_mismatch`, jamais d'erreur. Un relevé peut, sur demande, enregistrer sa somme comme valorisation de l'enveloppe.
+
+**Livré** (PR 1) : supports et relevés, API `/api/v1/investments/envelopes/{id}/holdings` et `/holding-snapshots`. **À venir** : mouvements et performance par support, frais, part UC, échéances, import, proposition dédiée, écrans.

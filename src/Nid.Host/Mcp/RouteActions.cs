@@ -121,6 +121,20 @@ public static class RouteActions
             "Close an envelope on a date, with its final withdrawal when known. " + Ids + Amounts, Destructive: true),
         new("reopen_envelope", "POST", "/api/v1/investments/envelopes/{id:guid}/reopen", null,
             "Reopen a closed envelope. " + Ids),
+        new("add_holding", "POST", "/api/v1/investments/envelopes/{id:guid}/holdings", typeof(HoldingBody),
+            "Add a holding (support) to an envelope: a fund, ETF, share, the euro fund, a structured product or cash; kind 'euro_fund', 'fund', "
+            + "'etf', 'equity', 'bond', 'structured', 'cash' or 'other'. Copy the name and ISIN as printed. " + Ids + Amounts),
+        new("edit_holding", "PUT", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}", typeof(HoldingBody),
+            "Replace a holding's details (every field; set closedOn to close it). " + Ids + Versioned, Destructive: true),
+        new("delete_holding", "DELETE", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}", null,
+            "Remove a holding that no snapshot uses. " + Ids + Versioned, Destructive: true, Query: ["version"]),
+        new("add_holdings_snapshot", "POST", "/api/v1/investments/envelopes/{id:guid}/holding-snapshots", typeof(SnapshotBody),
+            "Record an envelope's composition on a statement's date: one line per holding (units, unit price, value as printed; no units for "
+            + "the euro fund or cash). Replaces that date's snapshot. Copy the document as written and invent nothing. " + Ids + Amounts),
+        new("replace_holdings_snapshot", "PUT", "/api/v1/investments/envelopes/{id:guid}/holding-snapshots/{snapshotId:guid}", typeof(SnapshotBody),
+            "Replace a recorded snapshot of an envelope's holdings. " + Ids + Amounts, Destructive: true),
+        new("delete_holdings_snapshot", "DELETE", "/api/v1/investments/envelopes/{id:guid}/holding-snapshots/{snapshotId:guid}", null,
+            "Remove a snapshot of an envelope's holdings. " + Ids, Destructive: true),
 
         // Income.
         new("create_income_source", "POST", "/api/v1/income/sources", typeof(CreateIncomeSourceBody),

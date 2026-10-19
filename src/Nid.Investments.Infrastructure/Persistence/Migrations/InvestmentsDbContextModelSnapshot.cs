@@ -104,6 +104,164 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AssetClass")
+                        .HasColumnType("text")
+                        .HasColumnName("asset_class");
+
+                    b.Property<LocalDate?>("ClosedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("closed_on");
+
+                    b.Property<decimal?>("EntryCostPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("entry_cost_pct");
+
+                    b.Property<Guid>("EnvelopeItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("Isin")
+                        .HasColumnType("char(12)")
+                        .HasColumnName("isin");
+
+                    b.Property<string>("Issuer")
+                        .HasColumnType("text")
+                        .HasColumnName("issuer");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<LocalDate?>("MaturesOn")
+                        .HasColumnType("date")
+                        .HasColumnName("matures_on");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<LocalDate?>("OpenedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("opened_on");
+
+                    b.Property<int?>("RiskIndicator")
+                        .HasColumnType("integer")
+                        .HasColumnName("risk_indicator");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_holding");
+
+                    b.HasIndex("EnvelopeItemId", "Isin")
+                        .IsUnique()
+                        .HasDatabaseName("ix_holding_envelope_item_id_isin")
+                        .HasFilter("isin is not null");
+
+                    b.ToTable("holding", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_holding_asset_class", "asset_class is null or asset_class in ('equity','bond','money_market','mixed','real_estate','capital_guaranteed','other')");
+
+                            t.HasCheckConstraint("ck_holding_dates", "closed_on is null or opened_on is null or closed_on >= opened_on");
+
+                            t.HasCheckConstraint("ck_holding_entry_cost_pct", "entry_cost_pct is null or entry_cost_pct between 0 and 100");
+
+                            t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','other')");
+
+                            t.HasCheckConstraint("ck_holding_risk_indicator", "risk_indicator is null or risk_indicator between 1 and 7");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingSnapshotLineRow", b =>
+                {
+                    b.Property<Guid>("SnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("snapshot_id");
+
+                    b.Property<Guid>("HoldingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("holding_id");
+
+                    b.Property<decimal?>("CostBasisPerUnit")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("cost_basis_per_unit");
+
+                    b.Property<Guid>("EnvelopeItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_item_id");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<decimal?>("Units")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("units");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("SnapshotId", "HoldingId")
+                        .HasName("pk_holding_snapshot_line");
+
+                    b.HasIndex("HoldingId")
+                        .HasDatabaseName("ix_holding_snapshot_line_holding_id");
+
+                    b.ToTable("holding_snapshot_line", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_holding_snapshot_line_amounts", "value >= 0 and (units is null or units >= 0) and (unit_price is null or unit_price >= 0) and (cost_basis_per_unit is null or cost_basis_per_unit >= 0)");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingSnapshotRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<LocalDate>("AsOf")
+                        .HasColumnType("date")
+                        .HasColumnName("as_of");
+
+                    b.Property<bool>("Complete")
+                        .HasColumnType("boolean")
+                        .HasColumnName("complete");
+
+                    b.Property<Guid>("EnvelopeItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("SourceLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("source_label");
+
+                    b.HasKey("Id")
+                        .HasName("pk_holding_snapshot");
+
+                    b.HasIndex("EnvelopeItemId", "AsOf")
+                        .IsUnique()
+                        .HasDatabaseName("ix_holding_snapshot_envelope_item_id_as_of");
+
+                    b.ToTable("holding_snapshot", "investments");
+                });
+
             modelBuilder.Entity("Nid.Platform.Infrastructure.Audit.AuditEntryRow", b =>
                 {
                     b.Property<long>("Seq")
@@ -207,6 +365,48 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingRow", b =>
+                {
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.EnvelopeRow", null)
+                        .WithMany()
+                        .HasForeignKey("EnvelopeItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_envelope_envelope_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingSnapshotLineRow", b =>
+                {
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.HoldingRow", null)
+                        .WithMany()
+                        .HasForeignKey("HoldingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_snapshot_line_holding_holding_id");
+
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.HoldingSnapshotRow", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("SnapshotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_snapshot_line_holding_snapshot_snapshot_id");
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingSnapshotRow", b =>
+                {
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.EnvelopeRow", null)
+                        .WithMany()
+                        .HasForeignKey("EnvelopeItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_snapshot_envelope_envelope_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingSnapshotRow", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

@@ -142,6 +142,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<InvestmentsDbContext>>();
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
+        services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();

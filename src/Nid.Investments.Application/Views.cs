@@ -59,3 +59,55 @@ public sealed record EnvelopeSeries(ItemId Id, IReadOnlyList<SeriesPoint> Points
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
+
+public sealed record HoldingWarningView(string Code, Guid? HoldingId)
+{
+    public static HoldingWarningView Of(HoldingWarning w) => new(w.Code, w.HoldingId);
+}
+
+/// <summary>A holding's line in the snapshot read: as printed, with its weight in the snapshot (0.1 %, null when the total is zero).</summary>
+public sealed record LineView(string? Units, string? UnitPrice, AmountView Value, string? CostBasisPerUnit, decimal? WeightPct)
+{
+    public static LineView Of(SnapshotLine l, decimal? weight, Currency currency)
+        => new(Units6.Of(l.Units), Units6.Of(l.UnitPrice), AmountView.From(Amounts.Of(l.Value, currency)), Units6.Of(l.CostBasisPerUnit), weight);
+}
+
+/// <summary>Units and unit prices on the wire: decimal strings with their 6 decimals, like amounts.</summary>
+public static class Units6
+{
+    public static string? Of(decimal? x) => x?.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+public sealed record HoldingView(
+    Guid Id, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
+    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line)
+{
+    public static HoldingView Of(StoredHolding s, LineView? line, Currency currency)
+    {
+        var h = s.Holding;
+        return new(h.Id, h.Name, h.Isin, h.Kind, h.AssetClass, h.Issuer, h.RiskIndicator, h.OpenedOn, h.MaturesOn, h.EntryCostPct, h.ClosedOn, h.Note,
+            s.Version, line);
+    }
+}
+
+/// <summary>
+/// Holdings spec §3: every holding of the envelope and its line in the latest snapshot on or before the date. <c>Unallocated</c> is the
+/// envelope's valuation of the snapshot's date minus the total, null without one.
+/// </summary>
+public sealed record HoldingsView(
+    ItemId EnvelopeId, string Currency, LocalDate? HoldingsAsOf, Guid? SnapshotId, bool? Complete, AmountView? Total, AmountView? Unallocated,
+    IReadOnlyList<HoldingView> Holdings, IReadOnlyList<HoldingWarningView> Warnings) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
+}
+
+public sealed record SnapshotLineView(Guid HoldingId, string? Units, string? UnitPrice, AmountView Value, string? CostBasisPerUnit);
+
+public sealed record SnapshotView(Guid Id, LocalDate AsOf, string? SourceLabel, bool Complete, AmountView Total, IReadOnlyList<SnapshotLineView> Lines);
+
+public sealed record HoldingSnapshotList(ItemId EnvelopeId, IReadOnlyList<SnapshotView> Items) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
+}
+
+public sealed record SnapshotRecorded(Guid Id, IReadOnlyList<HoldingWarningView> Warnings);

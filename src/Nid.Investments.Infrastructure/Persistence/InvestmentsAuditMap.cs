@@ -8,6 +8,9 @@ public sealed class InvestmentsAuditMap : IAuditMap
     public IReadOnlyDictionary<Type, AuditRule> Audited { get; } = new Dictionary<Type, AuditRule>
     {
         [typeof(EnvelopeRow)] = new(e => AuditItems.Of(e, nameof(EnvelopeRow.ItemId))),
+        [typeof(HoldingRow)] = new(e => AuditItems.Of(e, nameof(HoldingRow.EnvelopeItemId))),
+        [typeof(HoldingSnapshotRow)] = new(e => AuditItems.Of(e, nameof(HoldingSnapshotRow.EnvelopeItemId))),
+        [typeof(HoldingSnapshotLineRow)] = new(e => AuditItems.Of(e, nameof(HoldingSnapshotLineRow.EnvelopeItemId))),
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };

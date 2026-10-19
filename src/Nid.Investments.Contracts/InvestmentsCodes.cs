@@ -15,4 +15,12 @@ public static class InvestmentsCodes
     public const string RoutineDuplicate = "investments.routine_duplicate";
     public const string RoutineValueExists = "investments.routine_value_exists";
     public const string RoutineInvalidAmount = "investments.routine_invalid_amount";
+    public const string InvalidHolding = "investments.invalid_holding";
+    public const string UnknownHoldingKind = "investments.unknown_holding_kind";
+    public const string InvalidIsin = "investments.invalid_isin";
+    public const string HoldingClosed = "investments.holding_closed";
+    public const string HoldingInUse = "investments.holding_in_use";
+    public const string HoldingConflict = "investments.holding_conflict";
+    public const string InvalidSnapshot = "investments.invalid_snapshot";
+    public const string SnapshotExists = "investments.snapshot_exists";
 }

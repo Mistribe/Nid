@@ -10,6 +10,12 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 
     public DbSet<EnvelopeRow> Envelopes => Set<EnvelopeRow>();
 
+    public DbSet<HoldingRow> Holdings => Set<HoldingRow>();
+
+    public DbSet<HoldingSnapshotRow> HoldingSnapshots => Set<HoldingSnapshotRow>();
+
+    public DbSet<HoldingSnapshotLineRow> HoldingSnapshotLines => Set<HoldingSnapshotLineRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -30,6 +36,50 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             // Per importer, never instance-wide (import-format.md §8); no foreign key to core.person across contexts (2B1a §3.2).
             e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
             MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<HoldingRow>(e =>
+        {
+            e.ToTable("holding", t =>
+            {
+                t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','other')");
+                t.HasCheckConstraint("ck_holding_asset_class",
+                    "asset_class is null or asset_class in ('equity','bond','money_market','mixed','real_estate','capital_guaranteed','other')");
+                t.HasCheckConstraint("ck_holding_risk_indicator", "risk_indicator is null or risk_indicator between 1 and 7");
+                t.HasCheckConstraint("ck_holding_entry_cost_pct", "entry_cost_pct is null or entry_cost_pct between 0 and 100");
+                t.HasCheckConstraint("ck_holding_dates", "closed_on is null or opened_on is null or closed_on >= opened_on");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Isin).HasColumnType("char(12)");
+            e.Property(x => x.EntryCostPct).HasColumnType("numeric(9,4)");
+            e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
+            e.HasIndex(x => new { x.EnvelopeItemId, x.Isin }).IsUnique().HasFilter("isin is not null");
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<HoldingSnapshotRow>(e =>
+        {
+            e.ToTable("holding_snapshot");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
+            e.HasIndex(x => new { x.EnvelopeItemId, x.AsOf }).IsUnique();
+            e.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.SnapshotId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<HoldingSnapshotLineRow>(e =>
+        {
+            e.ToTable("holding_snapshot_line", t =>
+                t.HasCheckConstraint("ck_holding_snapshot_line_amounts",
+                    "value >= 0 and (units is null or units >= 0) and (unit_price is null or unit_price >= 0) and (cost_basis_per_unit is null or cost_basis_per_unit >= 0)"));
+            e.HasKey(x => new { x.SnapshotId, x.HoldingId });
+            e.Property(x => x.Units).HasColumnType("numeric(20,6)");
+            e.Property(x => x.UnitPrice).HasColumnType("numeric(20,6)");
+            e.Property(x => x.CostBasisPerUnit).HasColumnType("numeric(20,6)");
+            e.Property(x => x.Value).HasColumnType("numeric(19,4)");
+            e.HasOne<HoldingRow>().WithMany().HasForeignKey(x => x.HoldingId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.HoldingId);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

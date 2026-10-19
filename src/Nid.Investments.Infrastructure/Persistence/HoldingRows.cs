@@ -1,0 +1,45 @@
+using NodaTime;
+
+namespace Nid.Investments.Infrastructure.Persistence;
+
+/// <summary>investments.holding (holdings spec §2.1); <c>Version</c> is <c>xmin</c>.</summary>
+public sealed class HoldingRow
+{
+    public Guid Id { get; set; }
+    public Guid EnvelopeItemId { get; set; }
+    public string Name { get; set; } = "";
+    public string? Isin { get; set; }
+    public string Kind { get; set; } = "";
+    public string? AssetClass { get; set; }
+    public string? Issuer { get; set; }
+    public int? RiskIndicator { get; set; }
+    public LocalDate? OpenedOn { get; set; }
+    public LocalDate? MaturesOn { get; set; }
+    public decimal? EntryCostPct { get; set; }
+    public LocalDate? ClosedOn { get; set; }
+    public string? Note { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>investments.holding_snapshot (holdings spec §2.2): one per envelope and date.</summary>
+public sealed class HoldingSnapshotRow
+{
+    public Guid Id { get; set; }
+    public Guid EnvelopeItemId { get; set; }
+    public LocalDate AsOf { get; set; }
+    public string? SourceLabel { get; set; }
+    public bool Complete { get; set; }
+    public List<HoldingSnapshotLineRow> Lines { get; set; } = [];
+}
+
+/// <summary>investments.holding_snapshot_line; <c>EnvelopeItemId</c> is the snapshot's, so its audit lands on the envelope.</summary>
+public sealed class HoldingSnapshotLineRow
+{
+    public Guid SnapshotId { get; set; }
+    public Guid HoldingId { get; set; }
+    public Guid EnvelopeItemId { get; set; }
+    public decimal? Units { get; set; }
+    public decimal? UnitPrice { get; set; }
+    public decimal Value { get; set; }
+    public decimal? CostBasisPerUnit { get; set; }
+}

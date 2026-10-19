@@ -154,6 +154,8 @@ public static class ResultHttp
             _ when failure.Code is CoreFactCodes.FactRetired or CoreFactCodes.OpeningExists or CoreFactCodes.ExternalRefTaken
                 or CoreFactCodes.FactConflict => StatusCodes.Status409Conflict,
             _ when failure.Code is InvestmentsCodes.EnvelopeClosed or InvestmentsCodes.EnvelopeOpen => StatusCodes.Status409Conflict,
+            _ when failure.Code is InvestmentsCodes.HoldingInUse or InvestmentsCodes.HoldingConflict or InvestmentsCodes.HoldingClosed
+                or InvestmentsCodes.SnapshotExists => StatusCodes.Status409Conflict,
             _ when failure.Code == InvestmentsCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,

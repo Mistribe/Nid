@@ -93,7 +93,80 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetEnvelopeSeriesQuery(new ItemId(id)), ct)).ToHttp(s => s))
             .Returns<EnvelopeSeries>();
 
+        api.MapGet("/envelopes/{id:guid}/holdings", async (Guid id, string? on, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetHoldingsQuery(new ItemId(id), OptionalDate(on)), ct)).ToHttp(v => v))
+            .Returns<HoldingsView>();
+
+        api.MapPost("/envelopes/{id:guid}/holdings", async (Guid id, HoldingBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AddHoldingCommand(new ItemId(id), draft), ct)).ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/envelopes/{id:guid}/holdings/{holdingId:guid}", async (Guid id, Guid holdingId, HoldingBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                var version = RequireVersion(reader, body.Version);
+                return draft is null || version is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new EditHoldingCommand(new ItemId(id), holdingId, draft, version.Value), ct)).ToHttp(x => new IdResponse(x));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/envelopes/{id:guid}/holdings/{holdingId:guid}", async (Guid id, Guid holdingId, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (RequireVersion(reader, version) is not { } read)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeleteHoldingCommand(new ItemId(id), holdingId, read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
+        api.MapGet("/envelopes/{id:guid}/holding-snapshots", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListHoldingsSnapshotsQuery(new ItemId(id)), ct)).ToHttp(v => v))
+            .Returns<HoldingSnapshotList>();
+
+        api.MapPost("/envelopes/{id:guid}/holding-snapshots", async (Guid id, SnapshotBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordHoldingsSnapshotCommand(new ItemId(id), null, draft), ct)).ToHttp(x => x, StatusCodes.Status201Created);
+            })
+            .Returns<SnapshotRecorded>(StatusCodes.Status201Created);
+
+        api.MapPut("/envelopes/{id:guid}/holding-snapshots/{snapshotId:guid}", async (Guid id, Guid snapshotId, SnapshotBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordHoldingsSnapshotCommand(new ItemId(id), snapshotId, draft), ct)).ToHttp(x => x);
+            })
+            .Returns<SnapshotRecorded>();
+
+        api.MapDelete("/envelopes/{id:guid}/holding-snapshots/{snapshotId:guid}", async (Guid id, Guid snapshotId, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteHoldingsSnapshotCommand(new ItemId(id), snapshotId), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         return routes;
+    }
+
+    private static uint? RequireVersion(FieldReader reader, uint? version)
+    {
+        if (version is null)
+            reader.Add("version", "request.required", "The version read with it is required.");
+        return version;
     }
 
     /// <summary>
@@ -176,4 +249,45 @@ public static class InvestmentEndpoints
     public sealed record RoutineUndoBody(IReadOnlyList<RoutineFactBody>? Facts);
 
     public sealed record CloseBody(string ClosedOn, MoneyBody? FinalWithdrawal);
+
+    /// <summary>
+    /// Holdings spec §2.1: decimals are strings, dates ISO; name and kind are checked by the rules, at their fields. The <c>PUT</c>
+    /// reads <c>version</c>, the <c>POST</c> ignores it.
+    /// </summary>
+    public sealed record HoldingBody(
+        string? Name, string? Isin, string? Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
+        string? OpenedOn, string? MaturesOn, string? EntryCostPct, string? ClosedOn, string? Note, uint? Version)
+    {
+        internal HoldingDraft? Read(FieldReader reader)
+        {
+            var openedOn = reader.Date(OpenedOn, "openedOn", required: false);
+            var maturesOn = reader.Date(MaturesOn, "maturesOn", required: false);
+            var closedOn = reader.Date(ClosedOn, "closedOn", required: false);
+            var entryCost = reader.Decimal(EntryCostPct, "entryCostPct");
+            return reader.Ok ? new HoldingDraft(Name, Isin, Kind, AssetClass, Issuer, RiskIndicator, openedOn, maturesOn, entryCost, closedOn, Note) : null;
+        }
+    }
+
+    public sealed record SnapshotLineBody(Guid HoldingId, string? Units, string? UnitPrice, MoneyBody? Value, string? CostBasisPerUnit);
+
+    /// <summary>Holdings spec §2.2 and D7: <c>complete</c> defaults to true; <c>recordValuation</c> also records the total as the envelope's value.</summary>
+    public sealed record SnapshotBody(string? AsOf, string? SourceLabel, bool? Complete, IReadOnlyList<SnapshotLineBody>? Lines, bool RecordValuation)
+    {
+        internal SnapshotDraft? Read(FieldReader reader)
+        {
+            var asOf = reader.Date(AsOf, "asOf");
+            var lines = new List<SnapshotLineDraft>();
+            for (var i = 0; i < (Lines ?? []).Count; i++)
+            {
+                var l = Lines![i];
+                var value = reader.Money(l.Value, $"lines[{i}].value");
+                var units = reader.Decimal(l.Units, $"lines[{i}].units");
+                var price = reader.Decimal(l.UnitPrice, $"lines[{i}].unitPrice");
+                var basis = reader.Decimal(l.CostBasisPerUnit, $"lines[{i}].costBasisPerUnit");
+                if (value is { } v)
+                    lines.Add(new SnapshotLineDraft(l.HoldingId, units, price, v, basis));
+            }
+            return reader.Ok ? new SnapshotDraft(asOf!.Value, SourceLabel, Complete ?? true, lines, RecordValuation) : null;
+        }
+    }
 }
