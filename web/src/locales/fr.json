@@ -598,6 +598,13 @@
       "mode": "Mode",
       "theme": "Thème",
       "chart_patterns": "Motifs dans les graphiques"
+    },
+    "persons": {
+      "title": "Personnes",
+      "add_child": "Ajouter un enfant",
+      "name": "Prénom et nom",
+      "add": "Ajouter",
+      "added": "{{name}} fait maintenant partie du foyer."
     }
   },
   "import": {

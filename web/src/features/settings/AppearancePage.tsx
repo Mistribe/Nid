@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
+import { PersonsSection } from './PersonsSection';
 
 type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns' | 'guidesSeen'>>;
 
@@ -148,6 +149,8 @@ export function AppearancePage() {
         <Button variant="outline" onClick={() => change({ guidesSeen: {} })}>{t('guides.settings.replay_all')}</Button>
         <p role="status">{replayed ? t('guides.settings.replayed') : null}</p>
       </section>
+
+      <PersonsSection />
     </div>
   );
 }
