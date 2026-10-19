@@ -18,6 +18,8 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 
     public DbSet<HoldingMovementRow> HoldingMovements => Set<HoldingMovementRow>();
 
+    public DbSet<HoldingCostReportRow> HoldingCostReports => Set<HoldingCostReportRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -30,11 +32,13 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
                 t.HasCheckConstraint("ck_envelope_cadence", "valuation_cadence in ('monthly','quarterly','yearly','manual')");
                 t.HasCheckConstraint("ck_envelope_account_hint", "account_hint is null or char_length(account_hint) between 1 and 4");
                 t.HasCheckConstraint("ck_envelope_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
+                t.HasCheckConstraint("ck_envelope_uc_share_floor_pct", "uc_share_floor_pct is null or uc_share_floor_pct between 0 and 100");
                 t.HasCheckConstraint("ck_envelope_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            e.Property(x => x.UcShareFloorPct).HasColumnType("numeric(9,4)");
             // Per importer, never instance-wide (import-format.md §8); no foreign key to core.person across contexts (2B1a §3.2).
             e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
             MapXmin(e.Property(x => x.Version));
@@ -103,8 +107,23 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.HasIndex(x => x.HoldingId);
         });
 
+        modelBuilder.Entity<HoldingCostReportRow>(e =>
+        {
+            e.ToTable("holding_cost_report", t => t.HasCheckConstraint("ck_holding_cost_report_year", "year between 1900 and 2200"));
+            e.HasKey(x => new { x.HoldingId, x.Year });
+            foreach (var pct in new[] { nameof(HoldingCostReportRow.GrossReturnPct), nameof(HoldingCostReportRow.TotalFeesPct), nameof(HoldingCostReportRow.NetReturnPct),
+                         nameof(HoldingCostReportRow.ContractFeesPct), nameof(HoldingCostReportRow.SupportFeesPct), nameof(HoldingCostReportRow.RetrocessionPct),
+                         nameof(HoldingCostReportRow.NetAnnualized5yPct) })
+                e.Property(pct).HasColumnType("numeric(9,4)");
+            e.HasOne<HoldingRow>().WithMany().HasForeignKey(x => x.HoldingId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
+            e.HasIndex(x => x.EnvelopeItemId);
+        });
+
         modelBuilder.MapAuditLog(ownedHere: false);
         ApplySnakeCase(modelBuilder);
+        // Issue #34 §2.5's name; snake case alone would glue the digit to the word before it.
+        modelBuilder.Entity<HoldingCostReportRow>().Property(x => x.NetAnnualized5yPct).HasColumnName("net_annualized_5y_pct");
     }
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)

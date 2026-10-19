@@ -216,7 +216,7 @@ public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry
         if (stored.Version != command.Version)
             return Result.Failure<bool>(HoldingRules.Conflict());
         if (await holdings.InUseAsync(command.Holding, ct))
-            return Result.Failure<bool>(new Failure(InvestmentsCodes.HoldingInUse, "This holding is in a snapshot or has movements: close it instead.", null));
+            return Result.Failure<bool>(new Failure(InvestmentsCodes.HoldingInUse, "This holding is in a snapshot or has movements or cost reports: close it instead.", null));
 
         await holdings.DeleteAsync(command.Holding, ct);
         await transaction.CommitAsync(ct);
@@ -304,20 +304,24 @@ public sealed class GetHoldingsHandler(
         var snapshots = await holdings.SnapshotsAsync(query.ItemId, ct);
         var snapshot = snapshots.FirstOrDefault(s => s.AsOf <= on);
         var currency = facts!.Currency;
-        var movementWarnings = HoldingMath.Warnings(facts.Movements.Where(m => m.OccurredOn <= on).ToList(), facts.Flows);
+        var movementWarnings = HoldingMath.Warnings(facts.Movements.Where(m => m.OccurredOn <= on).ToList(), facts.Flows)
+            .Concat(HoldingMath.UnexplainedUnits(snapshots.Where(s => s.AsOf <= on).ToList(), facts.Movements, currency)).ToList();
+        var floor = (await envelopes.FindAsync(query.ItemId, ct))!.UcShareFloorPct;
         HoldingFigures? Figures(Guid h) => HoldingMath.At(h, snapshots, facts.Movements, currency, on);
         if (snapshot is null)
-            return Result.Success(new HoldingsView(query.ItemId, currency.Code, null, null, null, null, null, null,
+            return Result.Success(new HoldingsView(query.ItemId, currency.Code, null, null, null, null, null, null, null, floor,
                 facts.Holdings.Select(h => HoldingView.Of(h, null, null)).ToList(), movementWarnings.Select(HoldingWarningView.Of).ToList()));
 
         var valuation = await HoldingCheck.ValuationOnAsync(valuations, query.ItemId, snapshot.AsOf, ct);
         var total = HoldingMath.Total(snapshot);
+        var ucShare = HoldingMath.UcSharePct(snapshot, facts.Holdings.ToDictionary(h => h.Holding.Id, h => h.Holding.Kind));
+        var shareWarning = ucShare < floor ? [new HoldingWarning(HoldingWarnings.UcShareBelowFloor, null, snapshot.AsOf)] : Array.Empty<HoldingWarning>();
         return Result.Success(new HoldingsView(query.ItemId, currency.Code, snapshot.AsOf, snapshot.Id, snapshot.Complete,
             AmountView.From(Amounts.Of(total, currency)), valuation is { } v ? AmountView.From(Amounts.Of(v - total, currency)) : null,
-            AmountView.From(Amounts.Of(HoldingMath.ExplicitFees(facts.Movements, snapshot.AsOf), currency)),
+            AmountView.From(Amounts.Of(HoldingMath.ExplicitFees(facts.Movements, snapshot.AsOf), currency)), ucShare, floor,
             facts.Holdings.Select(h => HoldingView.Of(h, snapshot.Lines.FirstOrDefault(l => l.HoldingId == h.Holding.Id) is { } line
                 ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id))).ToList(),
-            HoldingMath.Warnings(snapshot, valuation).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList()));
+            HoldingMath.Warnings(snapshot, valuation).Concat(shareWarning).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList()));
     }
 }
 

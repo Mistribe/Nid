@@ -286,6 +286,9 @@ public static class RequestCatalogue
         new(typeof(ListHoldingMovementsQuery), true, (_, item) => new ListHoldingMovementsQuery(item, Guid.NewGuid())),
         new(typeof(GetHoldingSeriesQuery), true, (_, item) => new GetHoldingSeriesQuery(item, Guid.NewGuid())),
         new(typeof(GetHoldingPerformanceQuery), true, (_, item) => new GetHoldingPerformanceQuery(item, Guid.NewGuid(), new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
+        new(typeof(SaveCostReportCommand), true, (_, item) => new SaveCostReportCommand(item, Guid.NewGuid(), 2024,
+            new CostReportDraft(8m, 2.5m, 5.5m, null, null, null, null, null))),
+        new(typeof(GetCostReportQuery), true, (_, item) => new GetCostReportQuery(item, Guid.NewGuid(), 2024)),
 
         new(typeof(RecordRoutineCommand), false, (_, _) => new RecordRoutineCommand(new LocalDate(2025, 1, 31), [])),
         new(typeof(UndoRoutineCommand), false, (_, _) => new UndoRoutineCommand([])),

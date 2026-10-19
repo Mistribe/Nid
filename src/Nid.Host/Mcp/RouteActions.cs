@@ -24,6 +24,9 @@ public sealed record RouteAction(
     public IReadOnlyList<string> RouteParameters { get; } = [.. Route.Split('/').Where(s => s.StartsWith('{')).Select(s => s.Trim('{', '}').Split(':')[0])];
 
     public bool Targeted => RouteParameters.Contains("id");
+
+    /// <summary>`{year:int}` is an integer; every other route parameter is a UUID.</summary>
+    public bool IsInteger(string parameter) => Route.Contains($"{{{parameter}:int}}", StringComparison.Ordinal);
 }
 
 /// <summary>
@@ -144,6 +147,10 @@ public static class RouteActions
             "Record a switch (arbitrage) between two holdings of an envelope, both legs at once; maturity true when the source is a structured "
             + "product reaching its term or called. A switch fee is a separate 'fee' movement. Copy the document as written and invent nothing. "
             + Ids + Amounts),
+        new("save_holding_cost_report", "PUT", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports/{year:int}", typeof(CostReportBody),
+            "Record one holding's yearly costs as stated on the insurer's annual document (gross return, total fees, net return, in percent; "
+            + "optional contract fees, support fees, retrocession and 5-year annualized net return). Replaces that year's report. Copy the document "
+            + "as written and invent nothing. " + Ids, Destructive: true),
 
         // Income.
         new("create_income_source", "POST", "/api/v1/income/sources", typeof(CreateIncomeSourceBody),

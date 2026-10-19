@@ -60,10 +60,12 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
         {
             if (action.RouteParameters.Contains(field.Name))
             {
-                if (field.Value.ValueKind == JsonValueKind.String && Guid.TryParse(field.Value.GetString(), out var id))
+                if (action.IsInteger(field.Name) && field.Value.ValueKind == JsonValueKind.Number && field.Value.TryGetInt32(out var n))
+                    route[field.Name] = n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                else if (!action.IsInteger(field.Name) && field.Value.ValueKind == JsonValueKind.String && Guid.TryParse(field.Value.GetString(), out var id))
                     route[field.Name] = id.ToString();
                 else
-                    errors.Add(new FieldError($"payload.{field.Name}", FieldErrors.ShapeCode, "A UUID is required."));
+                    errors.Add(new FieldError($"payload.{field.Name}", FieldErrors.ShapeCode, Required(action, field.Name)));
             }
             else if (action.Query?.Contains(field.Name) == true)
             {
@@ -83,17 +85,19 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
                 errors.Add(new FieldError($"payload.{field.Name}", FieldErrors.ShapeCode, "Unknown field."));
         }
         errors.AddRange(action.RouteParameters.Where(p => !route.ContainsKey(p) && errors.All(e => e.Path != $"payload.{p}"))
-            .Select(p => new FieldError($"payload.{p}", FieldErrors.ShapeCode, "A UUID is required.")));
+            .Select(p => new FieldError($"payload.{p}", FieldErrors.ShapeCode, Required(action, p))));
         if (action.Body is not null && body is null && errors.All(e => e.Path != "payload.body"))
             errors.Add(new FieldError("payload.body", FieldErrors.ShapeCode, "A JSON object is required."));
         return errors.Count > 0 ? Result.Failure<RouteCall>(FieldErrors.Shape(errors)) : Result.Success(new RouteCall(route, query, body));
     }
 
+    private static string Required(RouteAction action, string parameter) => action.IsInteger(parameter) ? "An integer is required." : "A UUID is required.";
+
     private static JsonElement Normalized(RouteCall call)
     {
         var json = new JsonObject();
         foreach (var (name, value) in call.Route)
-            json[name] = value;
+            json[name] = int.TryParse(value, out var year) ? year : value; // a `{year:int}`: a UUID never parses
         foreach (var (name, value) in call.Query)
             json[name] = long.TryParse(value, out var number) ? number : value;
         if (call.Body is { } body)

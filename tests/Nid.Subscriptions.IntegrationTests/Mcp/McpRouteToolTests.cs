@@ -127,6 +127,28 @@ public class McpRouteToolTests(PostgresFixture fixture)
         Assert.Single(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, LoanApi.Loans)).RootElement.GetProperty("items").EnumerateArray());
     }
 
+    /// <summary>Issue #34 §2.5: a cost report's year is the first integer route parameter.</summary>
+    [Fact]
+    public async Task A_cost_report_is_proposed_with_its_year_and_written_when_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var envelope = await app.NewEnvelopeAsync("Assurance-vie", app.AdultA, Visibility.Shared);
+        var envelopes = $"/api/v1/investments/envelopes/{envelope.Value}";
+        var holding = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{envelopes}/holdings", new { name = "Fonds A", kind = "fund" }))
+            .Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        var body = new { grossReturnPct = 8.0m, totalFeesPct = 2.5m, netReturnPct = 5.5m };
+
+        var (error, text) = await CallAsync(propose, "propose_save_holding_cost_report", new { id = envelope.Value, holdingId = holding, year = "2024", body });
+        Assert.True(error);
+        Assert.Contains("payload.year: An integer is required.", text);
+
+        var proposed = await AnswerAsync(propose, "propose_save_holding_cost_report", new { id = envelope.Value, holdingId = holding, year = 2024, body });
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
+        Assert.Equal(5.5m, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{envelopes}/holdings/{holding}/cost-reports/2024")).RootElement
+            .GetProperty("netReturnPct").GetDecimal());
+    }
+
     [Fact]
     public async Task A_refused_field_is_named_by_its_payload_path_and_nothing_is_proposed()
     {

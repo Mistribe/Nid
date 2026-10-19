@@ -114,3 +114,20 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
     private static void Add(Dictionary<Currency, decimal> sums, Currency currency, decimal amount)
         => sums[currency] = sums.GetValueOrDefault(currency) + amount;
 }
+
+/// <summary>
+/// Issue #34 §2.7: an open holding of a visible open envelope maturing in the window (60 days, a letter must reach the insurer to choose where
+/// the proceeds go). <c>Label</c> is the holding's name.
+/// </summary>
+public sealed class InvestmentsUpcoming(IVisibleItems visible, IItemRegistry items, IHoldingStore holdings) : IUpcomingEvents
+{
+    public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+    {
+        var maturing = await holdings.MaturingAsync((await visible.ForAsync(reader, scope, ct)).ToList(), today, until, ct);
+        var accesses = await items.FindManyAsync(maturing.Select(m => m.Envelope).Distinct().ToList(), ct);
+        return Result.Success<IReadOnlyList<UpcomingEvent>>(maturing
+            .Where(m => accesses.ContainsKey(m.Envelope))
+            .Select(m => new UpcomingEvent(m.MaturesOn, UpcomingKinds.HoldingMaturity, m.Envelope, "investments", accesses[m.Envelope].DisplayName, m.Name, null))
+            .ToList());
+    }
+}

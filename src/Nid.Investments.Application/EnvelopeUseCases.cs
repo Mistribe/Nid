@@ -107,7 +107,8 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
         }
 
         var change = command.Change with { Kind = kind, Cadence = cadence };
-        if (EnvelopeRules.Check(change.Institution, change.AccountHint, change.StaleAfterDays, change.Note).TryGetFailure(out failure))
+        if (EnvelopeRules.Check(change.Institution, change.AccountHint, change.StaleAfterDays, change.Note).TryGetFailure(out failure)
+            || EnvelopeRules.UcShareFloor(change.UcShareFloorPct).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -147,7 +148,7 @@ public sealed class GetEnvelopeHandler(
         return Result.Success(new EnvelopeDetail(
             query.ItemId, f.Item.DisplayName, EnvelopeWire.Of(e.Kind), f.Currency.Code,
             f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite,
-            e.Institution, e.AccountHint, e.OpenedOn, EnvelopeWire.Of(e.Cadence), e.StaleAfterDays, e.Note,
+            e.Institution, e.AccountHint, e.OpenedOn, EnvelopeWire.Of(e.Cadence), e.StaleAfterDays, e.Note, e.UcShareFloorPct,
             FiguresView.From(figures),
             f.Values.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, AmountView.From(v.Value), v.Note)).ToList(),
             f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note)).ToList()));

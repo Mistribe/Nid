@@ -211,7 +211,8 @@
       "loan_phase_end": "Fin de la phase {{n}} : taux ou différé qui change",
       "loan_end": "Dernière échéance",
       "valuation_due": "Estimation à refaire",
-      "tenancy_end": "Fin du bail « {{label}} »"
+      "tenancy_end": "Fin du bail « {{label}} »",
+      "holding_maturity": "Échéance de « {{label}} » : vérifier où ira le capital"
     }
   },
   "export": {
@@ -1914,6 +1915,7 @@
       "delete_holdings_snapshot": "Suppression d’un relevé des supports",
       "add_holding_movement": "Mouvement sur un support",
       "record_holding_switch": "Arbitrage entre deux supports",
+      "save_holding_cost_report": "Frais annuels d’un support",
       "create_income_source": "Nouvelle source de revenu",
       "edit_income_source": "Modification d’une source de revenu",
       "add_income_phase": "Nouvelle période de revenu",

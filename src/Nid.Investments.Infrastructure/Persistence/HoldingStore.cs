@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
+using NodaTime;
 
 namespace Nid.Investments.Infrastructure.Persistence;
 
@@ -35,7 +36,8 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
     }
 
     public async Task<bool> InUseAsync(Guid holding, CancellationToken ct)
-        => await db.HoldingSnapshotLines.AnyAsync(l => l.HoldingId == holding, ct) || await db.HoldingMovements.AnyAsync(m => m.HoldingId == holding, ct);
+        => await db.HoldingSnapshotLines.AnyAsync(l => l.HoldingId == holding, ct) || await db.HoldingMovements.AnyAsync(m => m.HoldingId == holding, ct)
+            || await db.HoldingCostReports.AnyAsync(r => r.HoldingId == holding, ct);
 
     public async Task<IReadOnlyList<HoldingSnapshot>> SnapshotsAsync(ItemId envelope, CancellationToken ct)
     {
@@ -97,6 +99,39 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
             ExternalRef = m.ExternalRef,
         }));
         await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<CostReport>> CostReportsAsync(ItemId envelope, CancellationToken ct)
+    {
+        var rows = await db.HoldingCostReports.AsNoTracking().Where(r => r.EnvelopeItemId == envelope.Value)
+            .OrderBy(r => r.HoldingId).ThenBy(r => r.Year).ToListAsync(ct);
+        return rows.Select(r => new CostReport(r.HoldingId, r.Year, r.GrossReturnPct, r.TotalFeesPct, r.NetReturnPct, r.ContractFeesPct, r.SupportFeesPct,
+            r.RetrocessionPct, r.NetAnnualized5yPct, r.SourceLabel)).ToList();
+    }
+
+    public async Task SaveCostReportAsync(ItemId envelope, CostReport report, CancellationToken ct)
+    {
+        var row = await db.HoldingCostReports.SingleOrDefaultAsync(r => r.HoldingId == report.HoldingId && r.Year == report.Year, ct);
+        if (row is null)
+            db.HoldingCostReports.Add(row = new HoldingCostReportRow { HoldingId = report.HoldingId, Year = report.Year, EnvelopeItemId = envelope.Value });
+        row.GrossReturnPct = report.GrossReturnPct;
+        row.TotalFeesPct = report.TotalFeesPct;
+        row.NetReturnPct = report.NetReturnPct;
+        row.ContractFeesPct = report.ContractFeesPct;
+        row.SupportFeesPct = report.SupportFeesPct;
+        row.RetrocessionPct = report.RetrocessionPct;
+        row.NetAnnualized5yPct = report.NetAnnualized5yPct;
+        row.SourceLabel = report.SourceLabel;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<MaturingHolding>> MaturingAsync(IReadOnlyCollection<ItemId> envelopes, LocalDate from, LocalDate until, CancellationToken ct)
+    {
+        var ids = envelopes.Select(e => e.Value).ToList();
+        var rows = await db.Holdings.AsNoTracking()
+            .Where(h => ids.Contains(h.EnvelopeItemId) && h.ClosedOn == null && h.MaturesOn >= from && h.MaturesOn <= until)
+            .Select(h => new { h.EnvelopeItemId, h.Id, h.Name, h.MaturesOn }).ToListAsync(ct);
+        return rows.Select(r => new MaturingHolding(new ItemId(r.EnvelopeItemId), r.Id, r.Name, r.MaturesOn!.Value)).ToList();
     }
 
     private static void Copy(EnvelopeHolding from, HoldingRow to)

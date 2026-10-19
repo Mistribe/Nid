@@ -22,6 +22,7 @@ function EventText({ e }: { e: DashboardEvent }) {
     case 'valuation_due': return <>{t('dashboard.upcoming.valuation_due')}</>;
     case 'property_cost_due': return <>{categoryText(t, e.label)}</>;
     case 'tenancy_end': return <>{t('dashboard.upcoming.tenancy_end', { label: e.label ?? '' })}</>;
+    case 'holding_maturity': return <>{t('dashboard.upcoming.holding_maturity', { label: e.label ?? '' })}</>;
     default: return null;
   }
 }

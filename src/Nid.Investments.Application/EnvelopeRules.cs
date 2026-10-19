@@ -36,6 +36,12 @@ internal static class EnvelopeRules
         return Result.Success();
     }
 
+    /// <summary>Issue #34 §2.6: a percentage of the contract, 0 to 100, with 4 decimals at most.</summary>
+    public static Result UcShareFloor(decimal? floor)
+        => floor is { } f && (f is < 0 or > 100 || Math.Round(f, 4) != f)
+            ? Invalid("ucShareFloorPct", "A units-of-account floor is 0 to 100 percent, with 4 decimals at most.")
+            : Result.Success();
+
     public static Result<EnvelopeKind> Kind(string? wire)
         => EnvelopeWire.TryKind(wire, out var kind) ? Result.Success(kind)
             : Result.Failure<EnvelopeKind>(new Failure(InvestmentsCodes.UnknownKind, $"'{wire}' is not an envelope kind.", null));

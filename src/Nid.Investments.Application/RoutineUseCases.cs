@@ -13,7 +13,13 @@ namespace Nid.Investments.Application;
 /// <summary>2E2 spec §4: the month's envelopes for the routine, as of <c>On</c> (default: the end of the previous month).</summary>
 public sealed record GetRoutineQuery(LocalDate? On) : IQuery<RoutineView>;
 
-public sealed record RoutineLineView(ItemId Id, string Name, string Currency, string Cadence, AmountView? LastValue, LocalDate? LastAsOf, bool Due);
+/// <summary>
+/// Issue #34 §2.6: with a units-of-account floor, <c>UcSharePct</c> is the share in the latest holdings snapshot on or before the date (null
+/// without one) and <c>UcShareBelowFloor</c> says it is under the floor.
+/// </summary>
+public sealed record RoutineLineView(
+    ItemId Id, string Name, string Currency, string Cadence, AmountView? LastValue, LocalDate? LastAsOf, bool Due,
+    decimal? UcShareFloorPct, decimal? UcSharePct, bool UcShareBelowFloor);
 
 public sealed record RoutineView(LocalDate On, IReadOnlyList<RoutineLineView> Lines) : IExposesItems
 {
@@ -31,7 +37,7 @@ internal static class Routine
 [RequestHandler<GetRoutineQuery, RoutineView>]
 public sealed class GetRoutineHandler(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IAccessPolicy policy, IActorAccessor actor,
-    IHouseholdCalendar calendar)
+    IHouseholdCalendar calendar, IHoldingStore holdings)
     : IRequestHandler<GetRoutineQuery, RoutineView>
 {
     public async ValueTask<Result<RoutineView>> HandleAsync(GetRoutineQuery query, CancellationToken ct = default)
@@ -48,13 +54,19 @@ public sealed class GetRoutineHandler(
             if (!(await policy.CheckAsync(reader, envelope.ItemId, AccessKind.Write, ct)).IsSuccess) continue;
             if (!(await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f) || f!.Item.ArchivedAt is not null) continue;
             var last = f.Values.Where(v => v.AsOf <= on).OrderByDescending(v => v.AsOf).FirstOrDefault();
+            var share = envelope.UcShareFloorPct is null ? null : await UcShareAsync(envelope.ItemId, on, ct);
             lines.Add(new RoutineLineView(envelope.ItemId, f.Item.DisplayName, f.Currency.Code, EnvelopeWire.Of(envelope.Cadence),
                 last is null ? null : AmountView.From(last.Value), last?.AsOf,
-                RoutineMath.IsDue(envelope.Cadence, f.Values.Select(v => v.AsOf), on)));
+                RoutineMath.IsDue(envelope.Cadence, f.Values.Select(v => v.AsOf), on), envelope.UcShareFloorPct, share, share < envelope.UcShareFloorPct));
         }
         return Result.Success(new RoutineView(on, lines
             .OrderBy(l => l.Due ? 0 : 1).ThenBy(l => l.Name, Routine.French).ThenBy(l => l.Id.Value).ToList()));
     }
+
+    private async Task<decimal?> UcShareAsync(ItemId envelope, LocalDate on, CancellationToken ct)
+        => (await holdings.SnapshotsAsync(envelope, ct)).FirstOrDefault(s => s.AsOf <= on) is { } snapshot
+            ? HoldingMath.UcSharePct(snapshot, (await holdings.HoldingsAsync(envelope, ct)).ToDictionary(h => h.Holding.Id, h => h.Holding.Kind))
+            : null;
 }
 
 public sealed record RoutineEntry(ItemId Envelope, Money? Value, Money? Contribution);

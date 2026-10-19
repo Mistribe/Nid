@@ -44,6 +44,22 @@ public sealed class HoldingSnapshotLineRow
     public decimal? CostBasisPerUnit { get; set; }
 }
 
+/// <summary>investments.holding_cost_report (issue #34 §2.5): one per holding and year; <c>EnvelopeItemId</c> is the holding's, for the audit.</summary>
+public sealed class HoldingCostReportRow
+{
+    public Guid HoldingId { get; set; }
+    public int Year { get; set; }
+    public Guid EnvelopeItemId { get; set; }
+    public decimal GrossReturnPct { get; set; }
+    public decimal TotalFeesPct { get; set; }
+    public decimal NetReturnPct { get; set; }
+    public decimal? ContractFeesPct { get; set; }
+    public decimal? SupportFeesPct { get; set; }
+    public decimal? RetrocessionPct { get; set; }
+    public decimal? NetAnnualized5yPct { get; set; }
+    public string? SourceLabel { get; set; }
+}
+
 /// <summary>investments.holding_movement (issue #34 §2.3); <c>EnvelopeItemId</c> is the holding's, so its audit lands on the envelope.</summary>
 public sealed class HoldingMovementRow
 {

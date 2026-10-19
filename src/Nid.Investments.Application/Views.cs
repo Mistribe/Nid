@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
+using Nid.Investments.Domain;
 using NodaTime;
 
 namespace Nid.Investments.Application;
@@ -39,7 +40,7 @@ public sealed record FlowView(Guid Id, LocalDate OccurredOn, string Kind, Amount
 public sealed record EnvelopeDetail(
     ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string ValuationCadence, int? StaleAfterDays, string? Note,
-    FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows) : IExposesItems
+    decimal? UcShareFloorPct, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
@@ -60,9 +61,28 @@ public sealed record EnvelopeSeries(ItemId Id, IReadOnlyList<SeriesPoint> Points
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
 
-public sealed record HoldingWarningView(string Code, Guid? HoldingId, LocalDate? On)
+/// <summary><c>Units</c> and <c>ProposedFee</c> are only on <c>unexplained_units</c>: the fee is a proposal, never written.</summary>
+public sealed record HoldingWarningView(string Code, Guid? HoldingId, LocalDate? On, string? Units, AmountView? ProposedFee)
 {
-    public static HoldingWarningView Of(HoldingWarning w) => new(w.Code, w.HoldingId, w.On);
+    public static HoldingWarningView Of(HoldingWarning w)
+        => new(w.Code, w.HoldingId, w.On, Units6.Of(w.Units), w.ProposedFee is { } fee ? AmountView.From(fee) : null);
+}
+
+/// <summary>
+/// Issue #34 §2.5, as stated; <c>EstimatedImplicitCost</c> is an estimate (§3): total fees × the mean of the holding's values at the start and
+/// the end of the year, null without both.
+/// </summary>
+public sealed record CostReportView(
+    ItemId EnvelopeId, Guid HoldingId, int Year, decimal GrossReturnPct, decimal TotalFeesPct, decimal NetReturnPct, decimal? ContractFeesPct,
+    decimal? SupportFeesPct, decimal? RetrocessionPct, decimal? NetAnnualized5yPct, string? SourceLabel, AmountView? EstimatedImplicitCost,
+    IReadOnlyList<HoldingWarningView> Warnings) : IExposesItems
+{
+    public static CostReportView Of(ItemId envelope, CostReport r, Money? implicitCost) => new(envelope, r.HoldingId, r.Year, r.GrossReturnPct,
+        r.TotalFeesPct, r.NetReturnPct, r.ContractFeesPct, r.SupportFeesPct, r.RetrocessionPct, r.NetAnnualized5yPct, r.SourceLabel,
+        implicitCost is { } c ? AmountView.From(c) : null,
+        HoldingMath.IsInconsistent(r) ? [new HoldingWarningView(HoldingWarnings.CostReportInconsistent, r.HoldingId, null, null, null)] : []);
+
+    public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
 }
 
 /// <summary>Issue #34 §3: a holding's figures at its latest value on or before the read's date (<see cref="AsOf"/>).</summary>
@@ -126,11 +146,11 @@ public sealed record HoldingView(
 /// <summary>
 /// Holdings spec §3: every holding of the envelope and its line in the latest snapshot on or before the date. <c>Unallocated</c> is the
 /// envelope's valuation of the snapshot's date minus the total, null without one. <c>ExplicitFees</c> is Σ <c>fee</c> movements up to the
-/// snapshot's date.
+/// snapshot's date. <c>UcSharePct</c> is the snapshot's share of units of account (neither euro fund nor cash), 0.1 %.
 /// </summary>
 public sealed record HoldingsView(
     ItemId EnvelopeId, string Currency, LocalDate? HoldingsAsOf, Guid? SnapshotId, bool? Complete, AmountView? Total, AmountView? Unallocated,
-    AmountView? ExplicitFees,
+    AmountView? ExplicitFees, decimal? UcSharePct, decimal? UcShareFloorPct,
     IReadOnlyList<HoldingView> Holdings, IReadOnlyList<HoldingWarningView> Warnings) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];

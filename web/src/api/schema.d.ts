@@ -4292,6 +4292,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/cost-reports/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    holdingId: string;
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CostReportView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    holdingId: string;
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CostReportBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CostReportView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/envelopes/{id}/holding-snapshots": {
         parameters: {
             query?: never;
@@ -11930,6 +12104,48 @@ export interface components {
         ClosePhaseBody: {
             endsOn: string;
         };
+        CostReportBody: {
+            /** Format: double */
+            grossReturnPct?: null | number;
+            /** Format: double */
+            totalFeesPct?: null | number;
+            /** Format: double */
+            netReturnPct?: null | number;
+            /** Format: double */
+            contractFeesPct?: null | number;
+            /** Format: double */
+            supportFeesPct?: null | number;
+            /** Format: double */
+            retrocessionPct?: null | number;
+            /** Format: double */
+            netAnnualized5yPct?: null | number;
+            sourceLabel?: null | string;
+        };
+        CostReportView: {
+            /** Format: uuid */
+            envelopeId: string;
+            /** Format: uuid */
+            holdingId: string;
+            /** Format: int32 */
+            year: number;
+            /** Format: double */
+            grossReturnPct: number;
+            /** Format: double */
+            totalFeesPct: number;
+            /** Format: double */
+            netReturnPct: number;
+            /** Format: double */
+            contractFeesPct?: null | number;
+            /** Format: double */
+            supportFeesPct?: null | number;
+            /** Format: double */
+            retrocessionPct?: null | number;
+            /** Format: double */
+            netAnnualized5yPct?: null | number;
+            sourceLabel?: null | string;
+            estimatedImplicitCost?: null | components["schemas"]["AmountView"];
+            warnings: components["schemas"]["HoldingWarningView"][];
+        };
         CoverageView: {
             /** Format: date */
             start: string;
@@ -12141,6 +12357,9 @@ export interface components {
             clearStaleAfterDays: boolean;
             note?: null | string;
             clearNote: boolean;
+            /** Format: double */
+            ucShareFloorPct?: null | number;
+            clearUcShareFloorPct?: null | boolean;
         };
         EditIncomeSourceBody: {
             displayName?: null | string;
@@ -12210,6 +12429,8 @@ export interface components {
             /** Format: int32 */
             staleAfterDays?: null | number;
             note?: null | string;
+            /** Format: double */
+            ucShareFloorPct?: null | number;
             figures: components["schemas"]["FiguresView"];
             valuations: components["schemas"]["ValuationView"][];
             flows: components["schemas"]["FlowView"][];
@@ -12410,6 +12631,10 @@ export interface components {
             total?: null | components["schemas"]["AmountView"];
             unallocated?: null | components["schemas"]["AmountView"];
             explicitFees?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            ucSharePct?: null | number;
+            /** Format: double */
+            ucShareFloorPct?: null | number;
             holdings: components["schemas"]["HoldingView"][];
             warnings: components["schemas"]["HoldingWarningView"][];
         };
@@ -12443,6 +12668,8 @@ export interface components {
             holdingId?: null | string;
             /** Format: date */
             on?: null | string;
+            units?: null | string;
+            proposedFee?: null | components["schemas"]["AmountView"];
         };
         HouseholdBody: {
             /** Format: int32 */
@@ -13548,6 +13775,11 @@ export interface components {
             /** Format: date */
             lastAsOf?: null | string;
             due: boolean;
+            /** Format: double */
+            ucShareFloorPct?: null | number;
+            /** Format: double */
+            ucSharePct?: null | number;
+            ucShareBelowFloor: boolean;
         };
         RoutineRecap: {
             /** Format: date */

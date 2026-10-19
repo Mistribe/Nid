@@ -71,6 +71,10 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("stale_after_days");
 
+                    b.Property<decimal?>("UcShareFloorPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("uc_share_floor_pct");
+
                     b.Property<string>("ValuationCadence")
                         .IsRequired()
                         .HasColumnType("text")
@@ -101,6 +105,66 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other')");
 
                             t.HasCheckConstraint("ck_envelope_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
+
+                            t.HasCheckConstraint("ck_envelope_uc_share_floor_pct", "uc_share_floor_pct is null or uc_share_floor_pct between 0 and 100");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingCostReportRow", b =>
+                {
+                    b.Property<Guid>("HoldingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("holding_id");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.Property<decimal?>("ContractFeesPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("contract_fees_pct");
+
+                    b.Property<Guid>("EnvelopeItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_item_id");
+
+                    b.Property<decimal>("GrossReturnPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("gross_return_pct");
+
+                    b.Property<decimal?>("NetAnnualized5yPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("net_annualized_5y_pct");
+
+                    b.Property<decimal>("NetReturnPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("net_return_pct");
+
+                    b.Property<decimal?>("RetrocessionPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("retrocession_pct");
+
+                    b.Property<string>("SourceLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("source_label");
+
+                    b.Property<decimal?>("SupportFeesPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("support_fees_pct");
+
+                    b.Property<decimal>("TotalFeesPct")
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("total_fees_pct");
+
+                    b.HasKey("HoldingId", "Year")
+                        .HasName("pk_holding_cost_report");
+
+                    b.HasIndex("EnvelopeItemId")
+                        .HasDatabaseName("ix_holding_cost_report_envelope_item_id");
+
+                    b.ToTable("holding_cost_report", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_holding_cost_report_year", "year between 1900 and 2200");
                         });
                 });
 
@@ -433,6 +497,23 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingCostReportRow", b =>
+                {
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.EnvelopeRow", null)
+                        .WithMany()
+                        .HasForeignKey("EnvelopeItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_cost_report_envelope_envelope_item_id");
+
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.HoldingRow", null)
+                        .WithMany()
+                        .HasForeignKey("HoldingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_cost_report_holding_holding_id");
                 });
 
             modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingMovementRow", b =>

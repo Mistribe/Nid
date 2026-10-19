@@ -70,10 +70,28 @@ public static class HoldingWarnings
     public const string SumMismatch = "holdings_sum_mismatch";
     public const string AllocationMismatch = "allocation_mismatch";
     public const string SwitchUnbalanced = "switch_unbalanced";
+    public const string CostReportInconsistent = "cost_report_inconsistent";
+    public const string UnexplainedUnits = "unexplained_units";
+    public const string UcShareBelowFloor = "uc_share_below_floor";
 }
 
-/// <summary>A warning about a snapshot or movements, on one holding when <see cref="HoldingId"/> is set, on a date when <see cref="On"/> is.</summary>
-public sealed record HoldingWarning(string Code, Guid? HoldingId = null, LocalDate? On = null);
+/// <summary>
+/// A warning about a snapshot or movements, on one holding when <see cref="HoldingId"/> is set, on a date when <see cref="On"/> is.
+/// <c>unexplained_units</c> carries the <see cref="Units"/> no movement explains and, when units went missing, the <see cref="ProposedFee"/>
+/// at the later unit price (never written).
+/// </summary>
+public sealed record HoldingWarning(string Code, Guid? HoldingId = null, LocalDate? On = null, decimal? Units = null, Money? ProposedFee = null);
+
+/// <summary>
+/// Issue #34 §2.5: a holding's yearly gross return, total fees and net return, in percent, as stated on the annual document (art. A.522-1);
+/// never derived from snapshots.
+/// </summary>
+public sealed record CostReport(
+    Guid HoldingId, int Year, decimal GrossReturnPct, decimal TotalFeesPct, decimal NetReturnPct, decimal? ContractFeesPct, decimal? SupportFeesPct,
+    decimal? RetrocessionPct, decimal? NetAnnualized5yPct, string? SourceLabel);
+
+/// <summary>A holding with a maturity date, for the upcoming events.</summary>
+public sealed record MaturingHolding(ItemId Envelope, Guid HoldingId, string Name, LocalDate MaturesOn);
 
 public interface IHoldingStore
 {
@@ -101,4 +119,13 @@ public interface IHoldingStore
     Task<IReadOnlyList<HoldingMovement>> MovementsAsync(ItemId envelope, CancellationToken ct);
 
     Task AddMovementsAsync(IReadOnlyList<HoldingMovement> movements, CancellationToken ct);
+
+    /// <summary>The envelope's cost reports, by holding then year.</summary>
+    Task<IReadOnlyList<CostReport>> CostReportsAsync(ItemId envelope, CancellationToken ct);
+
+    /// <summary>Creates the holding's report of that year, or replaces it in place.</summary>
+    Task SaveCostReportAsync(ItemId envelope, CostReport report, CancellationToken ct);
+
+    /// <summary>The open holdings of these envelopes maturing in [<paramref name="from"/>, <paramref name="until"/>].</summary>
+    Task<IReadOnlyList<MaturingHolding>> MaturingAsync(IReadOnlyCollection<ItemId> envelopes, LocalDate from, LocalDate until, CancellationToken ct);
 }

@@ -125,6 +125,52 @@ public static class HoldingMath
         return allocations.Concat(switches).OrderBy(w => w.On).ToList();
     }
 
+    /// <summary>Issue #34 §2.5: gross − fees − net more than 0.01 pt from zero.</summary>
+    public static bool IsInconsistent(CostReport report)
+        => Math.Abs(report.GrossReturnPct - report.TotalFeesPct - report.NetReturnPct) > 0.01m;
+
+    /// <summary>
+    /// Issue #34 §3, an estimate: the year's <c>total_fees_pct</c> × the mean of the holding's value at the start (on or before 31 December of
+    /// the year before) and at the end (on or before 31 December) of <paramref name="year"/>, to the cent. Null without both values.
+    /// </summary>
+    public static Money? ImplicitCost(CostReport report, IReadOnlyList<HoldingSnapshot> snapshots, Currency currency)
+    {
+        if (ValueAt(report.HoldingId, snapshots, new LocalDate(report.Year - 1, 12, 31)) is not var (_, start)
+            || ValueAt(report.HoldingId, snapshots, new LocalDate(report.Year, 12, 31)) is not var (_, end))
+            return null;
+        return EnvelopeMath.M(Math.Round(report.TotalFeesPct / 100m * (start + end) / 2m, 2, MidpointRounding.AwayFromZero), currency);
+    }
+
+    /// <summary>
+    /// Issue #34 §3: between two consecutive snapshots giving a holding's units, Δunits − Σ movement units on ]earlier, later] (tolerance
+    /// 0.0001) warns <c>unexplained_units</c> on the later date. Units gone missing with a later unit price propose a <c>fee</c> of that many
+    /// units at that price, to the cent — never written.
+    /// </summary>
+    public static IReadOnlyList<HoldingWarning> UnexplainedUnits(IReadOnlyList<HoldingSnapshot> snapshots, IReadOnlyList<HoldingMovement> movements, Currency currency)
+        => snapshots.SelectMany(s => s.Lines.Where(l => l.Units is not null).Select(l => (s.AsOf, Line: l)))
+            .GroupBy(x => x.Line.HoldingId)
+            .SelectMany(g =>
+            {
+                var points = g.OrderBy(x => x.AsOf).ToList();
+                return points.Zip(points.Skip(1), (a, b) => (a, b))
+                    .Select(p => (p.b, Missing: p.b.Line.Units!.Value - p.a.Line.Units!.Value - movements
+                        .Where(m => m.HoldingId == g.Key && m.OccurredOn > p.a.AsOf && m.OccurredOn <= p.b.AsOf).Sum(m => m.Units ?? 0m)))
+                    .Where(x => Math.Abs(x.Missing) > 0.0001m)
+                    .Select(x => new HoldingWarning(HoldingWarnings.UnexplainedUnits, g.Key, x.b.AsOf, x.Missing,
+                        x.Missing < 0 && x.b.Line.UnitPrice is { } price
+                            ? EnvelopeMath.M(Math.Round(-x.Missing * price, 2, MidpointRounding.AwayFromZero), currency) : null));
+            })
+            .OrderBy(w => w.On).ThenBy(w => w.HoldingId)
+            .ToList();
+
+    /// <summary>
+    /// Issue #34 §2.6: the share of units-of-account lines (neither euro fund nor cash) in the snapshot's total, rounded to 0.1 %; null when the
+    /// total is zero.
+    /// </summary>
+    public static decimal? UcSharePct(HoldingSnapshot snapshot, IReadOnlyDictionary<Guid, string> kinds)
+        => Total(snapshot) is var total && total == 0 ? null
+            : EnvelopeMath.RoundPercent(snapshot.Lines.Where(l => kinds.TryGetValue(l.HoldingId, out var k) && HoldingWire.HasUnits(k)).Sum(l => l.Value) / total * 100m);
+
     private static decimal NetIn(Guid holding, IReadOnlyList<HoldingMovement> movements, Func<HoldingMovement, bool> window)
         => movements.Where(m => m.HoldingId == holding && window(m))
             .Sum(m => MovementKinds.IsMoneyIn(m.Kind) ? m.Amount : MovementKinds.IsMoneyOut(m.Kind) ? -m.Amount : 0m);

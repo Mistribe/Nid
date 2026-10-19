@@ -80,6 +80,9 @@ public static class UpcomingKinds
     public const string ValuationDue = "valuation_due";
     public const string PropertyCostDue = "property_cost_due";
     public const string TenancyEnd = "tenancy_end";
+
+    // Issue #34 §2.7.
+    public const string HoldingMaturity = "holding_maturity";
 }
 
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>

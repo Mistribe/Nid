@@ -160,6 +160,14 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetHoldingPerformanceQuery(new ItemId(id), holdingId, RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<PeriodView>();
 
+        api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports/{year:int}", async (Guid id, Guid holdingId, int year, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetCostReportQuery(new ItemId(id), holdingId, year), ct)).ToHttp(v => v))
+            .Returns<CostReportView>();
+
+        api.MapPut("/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports/{year:int}", async (Guid id, Guid holdingId, int year, CostReportBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SaveCostReportCommand(new ItemId(id), holdingId, year, body.ToDraft()), ct)).ToHttp(v => v))
+            .Returns<CostReportView>();
+
         api.MapGet("/envelopes/{id:guid}/holding-snapshots", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListHoldingsSnapshotsQuery(new ItemId(id)), ct)).ToHttp(v => v))
             .Returns<HoldingSnapshotList>();
@@ -245,12 +253,13 @@ public static class InvestmentEndpoints
     public sealed record EditEnvelopeBody(
         string? DisplayName, string? Kind, string? Institution, bool ClearInstitution, string? AccountHint, bool ClearAccountHint,
         string? OpenedOn, bool ClearOpenedOn, string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays,
-        string? Note, bool ClearNote)
+        string? Note, bool ClearNote, decimal? UcShareFloorPct, bool? ClearUcShareFloorPct)
     {
         public EditEnvelopeCommand ToCommand(ItemId id) => new(id, DisplayName, Kind, new EnvelopeChange(
             Institution: Institution, ClearInstitution: ClearInstitution, AccountHint: AccountHint, ClearAccountHint: ClearAccountHint,
             OpenedOn: OptionalDate(OpenedOn), ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
-            ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote), ValuationCadence);
+            ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote, UcShareFloorPct: UcShareFloorPct,
+            ClearUcShareFloorPct: ClearUcShareFloorPct ?? false), ValuationCadence);
     }
 
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member
@@ -321,6 +330,15 @@ public static class InvestmentEndpoints
             }
             return reader.Ok ? new SnapshotDraft(asOf!.Value, SourceLabel, Complete ?? true, lines, RecordValuation) : null;
         }
+    }
+
+    /// <summary>Issue #34 §2.5: percentages as numbers, as stated on the annual document; the year is the route's.</summary>
+    public sealed record CostReportBody(
+        decimal? GrossReturnPct, decimal? TotalFeesPct, decimal? NetReturnPct, decimal? ContractFeesPct, decimal? SupportFeesPct,
+        decimal? RetrocessionPct, decimal? NetAnnualized5yPct, string? SourceLabel)
+    {
+        public CostReportDraft ToDraft() => new(GrossReturnPct, TotalFeesPct, NetReturnPct, ContractFeesPct, SupportFeesPct, RetrocessionPct,
+            NetAnnualized5yPct, SourceLabel);
     }
 
     /// <summary>Issue #34 §2.3: units are signed by the kind (bought +, sold or deducted −); decimals are strings, dates ISO.</summary>

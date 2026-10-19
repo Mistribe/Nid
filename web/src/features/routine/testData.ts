@@ -9,7 +9,7 @@ export const LIVRET = '00000000-0000-7000-8000-0000000000f2';
 export const MANUEL = '00000000-0000-7000-8000-0000000000f3';
 
 export const line = (over: Partial<RoutineLine> = {}): RoutineLine => ({
-  id: PEA, name: 'PEA', currency: 'EUR', cadence: 'monthly', lastValue: eur('1000.00'), lastAsOf: '2025-08-31', due: true, ...over,
+  id: PEA, name: 'PEA', currency: 'EUR', cadence: 'monthly', lastValue: eur('1000.00'), lastAsOf: '2025-08-31', due: true, ucShareBelowFloor: false, ...over,
 });
 
 export const routine = (lines: RoutineLine[], on = '2025-09-30'): RoutineView => ({ on, lines });

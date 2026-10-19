@@ -121,6 +121,42 @@ public class HoldingPerformanceTests
             Move(EuroFund, End2025, MovementKinds.SwitchIn, 1_049m, switchRef: "s3")], Flows));
     }
 
+    private static readonly CostReport FundA2025 = new(FundA, 2025, 8.00m, 2.50m, 5.50m, null, null, null, null, null);
+
+    [Fact]
+    public void The_implicit_cost_of_fund_a_in_2025_is_the_golden_estimate()
+        => Assert.Equal(Eur(168.98m), HoldingMath.ImplicitCost(FundA2025, Snapshots, Currency.Eur));
+
+    [Fact]
+    public void Without_a_value_at_the_start_of_the_year_there_is_no_implicit_cost()
+        => Assert.Null(HoldingMath.ImplicitCost(FundA2025 with { Year = 2024 }, Snapshots, Currency.Eur));
+
+    [Fact]
+    public void A_cost_report_whose_gross_minus_fees_is_not_its_net_is_inconsistent()
+    {
+        Assert.False(HoldingMath.IsInconsistent(FundA2025));
+        Assert.False(HoldingMath.IsInconsistent(FundA2025 with { NetReturnPct = 5.51m }));
+        Assert.True(HoldingMath.IsInconsistent(FundA2025 with { NetReturnPct = 5.52m }));
+    }
+
+    [Fact]
+    public void The_golden_units_are_all_explained() => Assert.Empty(HoldingMath.UnexplainedUnits(Snapshots, Movements, Currency.Eur));
+
+    [Fact]
+    public void Without_the_2025_fee_movement_the_missing_units_propose_a_fee_at_the_later_price()
+        => Assert.Equal([new HoldingWarning(HoldingWarnings.UnexplainedUnits, FundA, End2025, -0.8m, Eur(60.00m))],
+            HoldingMath.UnexplainedUnits(Snapshots, Movements.Where(m => !(m.HoldingId == FundA && m.OccurredOn == End2025)).ToList(), Currency.Eur));
+
+    [Fact]
+    public void Units_appearing_from_nowhere_warn_without_a_fee()
+        => Assert.Equal([new HoldingWarning(HoldingWarnings.UnexplainedUnits, FundA, End2025, 0.2m, null)],
+            HoldingMath.UnexplainedUnits(Snapshots, Movements.Select(m => m.HoldingId == FundA && m.OccurredOn == End2025 ? m with { Units = -0.6m } : m)
+                .Append(Move(FundA, End2025, MovementKinds.Fee, 15m, -0.4m, 75m)).ToList(), Currency.Eur));
+
+    [Fact]
+    public void The_units_of_account_share_is_the_golden_one()
+        => Assert.Equal(55.0m, HoldingMath.UcSharePct(Snapshots[0], new Dictionary<Guid, string> { [FundA] = "fund", [EuroFund] = "euro_fund" }));
+
     [Fact]
     public void Holding_period_performance_is_additive_and_the_holdings_sum_to_the_envelope_over_random_complete_data()
     {
