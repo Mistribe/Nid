@@ -58,6 +58,7 @@ public class RoundTripTests(PostgresFixture fixture)
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         var list = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
         Strip(list);
+        await NamePersonsAsync(app, list);
         var items = list["items"]!.AsArray().Select(i => i!.DeepClone()).OrderBy(i => i["displayName"]!.GetValue<string>(), StringComparer.Ordinal).ToList();
         list["items"] = new JsonArray(items.ToArray());
         return list.ToJsonString();
@@ -135,7 +136,37 @@ public class RoundTripTests(PostgresFixture fixture)
             };
         }
         StripIds(result);
+        await NamePersonsAsync(app, result);
         return result.ToJsonString();
+    }
+
+    /// <summary>
+    /// A person's id is the instance's own (the import maps people, it does not keep their ids): each `personId` read
+    /// becomes the person's name, the same on both sides (« Adulte 1 », « Adulte 2 », an imported dependent's name).
+    /// </summary>
+    private static async Task NamePersonsAsync(NidApp app, JsonNode node)
+    {
+        var names = (await SendAsync(app, HttpMethod.Get, "/api/v1/core/persons")).AsArray()
+            .ToDictionary(p => p!["id"]!.GetValue<string>(), p => p!["displayName"]!.GetValue<string>());
+        Rename(node);
+
+        void Rename(JsonNode? current)
+        {
+            if (current is JsonObject obj)
+            {
+                if (obj["personId"] is JsonValue id && id.TryGetValue<string>(out var value))
+                    obj["personId"] = names.GetValueOrDefault(value, value);
+                foreach (var (_, child) in obj.ToList())
+                    Rename(child);
+                // Owners come in their ids' order, which is the instance's own: compared by name.
+                if (obj["owners"] is JsonArray owners)
+                    obj["owners"] = new JsonArray([.. owners.Select(o => o!.DeepClone())
+                        .OrderBy(o => o["personId"]?.ToJsonString(), StringComparer.Ordinal)]);
+            }
+            else if (current is JsonArray array)
+                foreach (var child in array)
+                    Rename(child);
+        }
     }
 
     private static void StripIds(JsonNode? node, params string[] also)
@@ -199,6 +230,7 @@ public class RoundTripTests(PostgresFixture fixture)
             };
         }
         StripIds(result, "phaseId", "version"); // a phase's concurrency token is its row's xmin, a transaction id of the instance that wrote it
+        await NamePersonsAsync(app, result);
         return result.ToJsonString();
     }
 
