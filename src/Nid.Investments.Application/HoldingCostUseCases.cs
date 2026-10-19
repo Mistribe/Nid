@@ -24,6 +24,12 @@ public sealed record GetCostReportQuery(ItemId ItemId, Guid Holding, int Year) :
     public AccessKind Access => AccessKind.Read;
 }
 
+/// <summary>The holding's reports, newest year first: the « Coûts » block of the holding's screen.</summary>
+public sealed record ListCostReportsQuery(ItemId ItemId, Guid Holding) : IQuery<CostReportList>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
+
 /// <summary>Issue #34 §2.5, checked before anything is written: entered as stated, so only bounds and decimals.</summary>
 internal static class CostReportRules
 {
@@ -89,5 +95,21 @@ public sealed class GetCostReportHandler(IEnvelopeStore envelopes, IItemRegistry
         if (report is null)
             return Result.Failure<CostReportView>(new NotFoundFailure("cost report", $"{query.Holding}/{query.Year}"));
         return Result.Success(CostReportView.Of(query.ItemId, report, HoldingMath.ImplicitCost(report, await holdings.SnapshotsAsync(query.ItemId, ct), facts!.Currency)));
+    }
+}
+
+[RequestHandler<ListCostReportsQuery, CostReportList>]
+public sealed class ListCostReportsHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows)
+    : IRequestHandler<ListCostReportsQuery, CostReportList>
+{
+    public async ValueTask<Result<CostReportList>> HandleAsync(ListCostReportsQuery query, CancellationToken ct = default)
+    {
+        var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, query.ItemId, write: false, query.Holding, ct);
+        if (!loaded.TryGetValue(out var facts))
+            return Result.Failure<CostReportList>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var snapshots = await holdings.SnapshotsAsync(query.ItemId, ct);
+        var reports = (await holdings.CostReportsAsync(query.ItemId, ct)).Where(r => r.HoldingId == query.Holding).OrderByDescending(r => r.Year)
+            .Select(r => CostReportView.Of(query.ItemId, r, HoldingMath.ImplicitCost(r, snapshots, facts!.Currency))).ToList();
+        return Result.Success(new CostReportList(query.ItemId, query.Holding, reports));
     }
 }

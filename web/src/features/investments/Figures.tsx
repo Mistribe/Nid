@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Figures } from './api';
 import { directionOf } from './format';
 
-const pct = (value: number) => new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+export const pct = (value: number) => new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 
 const ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } as const;
 const TONE = { up: 'text-status-good', down: 'text-status-critical', flat: 'text-muted-foreground' } as const;

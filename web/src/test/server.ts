@@ -33,6 +33,8 @@ export const handlers = [
   }),
   // Every envelope detail also reads its value series; an empty one says « la courbe apparaît à partir de deux valeurs ».
   http.get('*/api/v1/investments/envelopes/:id/series', ({ params }) => HttpResponse.json({ id: params.id, points: [] })),
+  // ... its holdings (none: the « Supports » tab invites to detail them) ...
+  http.get('*/api/v1/investments/envelopes/:id/holdings', ({ params }) => HttpResponse.json({ envelopeId: params.id, currency: 'EUR', holdings: [], warnings: [] })),
   // ... and the performance of the default period; a period with no figures says so rather than showing zeros.
   http.get('*/api/v1/investments/envelopes/:id/performance', ({ request }) => {
     const url = new URL(request.url);

@@ -8,6 +8,13 @@ export type EnvelopeDetail = components['schemas']['EnvelopeDetail'];
 export type Figures = components['schemas']['FiguresView'];
 export type Valuation = components['schemas']['ValuationView'];
 export type Flow = components['schemas']['FlowView'];
+export type HoldingsView = components['schemas']['HoldingsView'];
+export type Holding = components['schemas']['HoldingView'];
+export type HoldingBody = components['schemas']['HoldingBody'];
+export type HoldingWarning = components['schemas']['HoldingWarningView'];
+export type Movement = components['schemas']['MovementView'];
+export type CostReport = components['schemas']['CostReportView'];
+export type Snapshot = components['schemas']['SnapshotView'];
 
 export const ENVELOPES = '/api/v1/investments/envelopes' as const;
 export const ENVELOPE = '/api/v1/investments/envelopes/{id}' as const;
@@ -20,6 +27,14 @@ export const TRANSFERS = '/api/v1/investments/transfers' as const;
 export const CLOSE = '/api/v1/investments/envelopes/{id}/close' as const;
 export const REOPEN = '/api/v1/investments/envelopes/{id}/reopen' as const;
 export const FLOW = '/api/v1/investments/envelopes/{id}/flows/{flowId}' as const;
+export const HOLDINGS = '/api/v1/investments/envelopes/{id}/holdings' as const;
+export const HOLDING = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}' as const;
+export const MOVEMENTS = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/movements' as const;
+export const HOLDING_SERIES = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/series' as const;
+export const COST_REPORTS = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/cost-reports' as const;
+export const COST_REPORT = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/cost-reports/{year}' as const;
+export const SNAPSHOTS = '/api/v1/investments/envelopes/{id}/holding-snapshots' as const;
+export const SWITCHES = '/api/v1/investments/envelopes/{id}/switches' as const;
 
 /** Every write invalidates the list, every detail, every value series and every period, as for subscriptions. */
 export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
@@ -30,5 +45,6 @@ export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
     queryClient.invalidateQueries({ queryKey: ['get', PERFORMANCE] }),
+    ...[HOLDINGS, MOVEMENTS, HOLDING_SERIES, COST_REPORTS, SNAPSHOTS].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
   ]).then(() => undefined);
 }

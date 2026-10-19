@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { detail } from '../testData';
 import { toEditBody, toWireBody } from './settingsBody';
 
-const values = (over = {}) => ({ displayName: 'PEA', kind: 'pea', institution: 'Banque', accountHint: '4521', valuationCadence: 'monthly', staleAfterDays: '', note: '', ...over });
+const values = (over = {}) => ({ displayName: 'PEA', kind: 'pea', institution: 'Banque', accountHint: '4521', valuationCadence: 'monthly', staleAfterDays: '', ucShareFloorPct: '', note: '', ...over });
 
 describe('toEditBody', () => {
   it('sends nothing when nothing changed', () => expect(toEditBody(detail(), values())).toBeNull());
@@ -15,6 +15,9 @@ describe('toEditBody', () => {
     expect(toEditBody(detail(), values({ staleAfterDays: '30' }))).toEqual({ staleAfterDays: 30 });
     expect(toEditBody(detail({ staleAfterDays: 30 }), values({ staleAfterDays: '' }))).toEqual({ clearStaleAfterDays: true });
     expect(toEditBody(detail({ staleAfterDays: 30 }), values({ staleAfterDays: '30' }))).toBeNull();
+    expect(toEditBody(detail(), values({ ucShareFloorPct: '30,5' }))).toEqual({ ucShareFloorPct: 30.5 });
+    expect(toEditBody(detail({ ucShareFloorPct: 30 }), values({ ucShareFloorPct: '' }))).toEqual({ clearUcShareFloorPct: true });
+    expect(toEditBody(detail({ ucShareFloorPct: 30 }), values({ ucShareFloorPct: '30' }))).toBeNull();
   });
   it('sets a note, and clears it once emptied', () => {
     expect(toEditBody(detail(), values({ note: 'Plafond atteint' }))).toEqual({ note: 'Plafond atteint' });
@@ -24,6 +27,6 @@ describe('toEditBody', () => {
 
 describe('toWireBody', () => {
   it('states every clear flag the body does not set', () => expect(toWireBody({ displayName: 'PEA Bourse', clearNote: true })).toEqual({
-    displayName: 'PEA Bourse', clearInstitution: false, clearAccountHint: false, clearOpenedOn: false, clearStaleAfterDays: false, clearNote: true,
+    displayName: 'PEA Bourse', clearInstitution: false, clearAccountHint: false, clearOpenedOn: false, clearStaleAfterDays: false, clearNote: true, clearUcShareFloorPct: false,
   }));
 });

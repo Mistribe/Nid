@@ -78,6 +78,9 @@ public class HoldingCostEndpointTests(PostgresFixture fixture)
             new { grossReturnPct = 12m, totalFeesPct = 2m, netReturnPct = 10m }, HttpStatusCode.OK);
         Assert.Equal(JsonValueKind.Null, first.GetProperty("estimatedImplicitCost").ValueKind);
         await SendAsync(app, HttpMethod.Get, $"{Url(id)}/holdings/{fund}/cost-reports/2022", null, HttpStatusCode.NotFound);
+        var list = (await SendAsync(app, HttpMethod.Get, $"{Url(id)}/holdings/{fund}/cost-reports", null, HttpStatusCode.OK)).GetProperty("items");
+        Assert.Equal([2024, 2023], list.EnumerateArray().Select(r => r.GetProperty("year").GetInt32()));
+        Assert.Equal("168.98", list[0].GetProperty("estimatedImplicitCost").GetProperty("amount").GetString());
     }
 
     [Fact]

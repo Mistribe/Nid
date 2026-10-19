@@ -4,7 +4,7 @@ import type { EnvelopeDetail } from '../api';
 /** What the settings form holds: every field as the text typed, compared and sent trimmed. */
 export type SettingsValues = {
   displayName: string; kind: string; institution: string; accountHint: string;
-  valuationCadence: string; staleAfterDays: string; note: string;
+  valuationCadence: string; staleAfterDays: string; ucShareFloorPct: string; note: string;
 };
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */
@@ -39,13 +39,21 @@ export function toEditBody(before: EnvelopeDetail, values: SettingsValues): Edit
     body.staleAfterDays = Number(stale);
   }
 
+  // A percentage, not an amount: `Number` is fine here too.
+  const floor = values.ucShareFloorPct.trim().replace(',', '.');
+  if (floor === '') {
+    if (before.ucShareFloorPct != null) body.clearUcShareFloorPct = true;
+  } else if (Number(floor) !== before.ucShareFloorPct) {
+    body.ucShareFloorPct = Number(floor);
+  }
+
   return Object.keys(body).length === 0 ? null : body;
 }
 
 /** The wire body: the server binds a missing member to null, so every `clear*` flag is stated. */
 export function toWireBody(body: EditBody): components['schemas']['EditEnvelopeBody'] {
   return {
-    clearInstitution: false, clearAccountHint: false, clearOpenedOn: false, clearStaleAfterDays: false, clearNote: false,
+    clearInstitution: false, clearAccountHint: false, clearOpenedOn: false, clearStaleAfterDays: false, clearNote: false, clearUcShareFloorPct: false,
     ...body,
   };
 }

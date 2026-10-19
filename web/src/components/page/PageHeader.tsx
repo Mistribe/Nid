@@ -5,7 +5,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbS
 /** The top of a screen: breadcrumb, title with its badges, actions (under the title on a phone), then a stats line. */
 export function PageHeader({ crumbs, title, titleRef, meta, actions, children }: {
   /** A title the screen moves focus to (after a decision) is focusable, never in the tab order. */
-  titleRef?: Ref<HTMLHeadingElement>; crumbs?: { label: string; to: LinkProps['to'] }[]; title: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode;
+  titleRef?: Ref<HTMLHeadingElement>; crumbs?: { label: string; to: LinkProps['to']; params?: LinkProps['params'] }[]; title: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode;
 }) {
   return (
     <header className="space-y-3">
@@ -15,7 +15,7 @@ export function PageHeader({ crumbs, title, titleRef, meta, actions, children }:
             {crumbs.map((crumb, i) => (
               <Fragment key={crumb.label}>
                 {i > 0 ? <BreadcrumbSeparator /> : null}
-                <BreadcrumbItem><BreadcrumbLink asChild><Link to={crumb.to}>{crumb.label}</Link></BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><BreadcrumbLink asChild><Link to={crumb.to} params={crumb.params}>{crumb.label}</Link></BreadcrumbLink></BreadcrumbItem>
               </Fragment>
             ))}
           </BreadcrumbList>

@@ -1,0 +1,213 @@
+import { useParams } from '@tanstack/react-router';
+import { AlertTriangle, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
+import { present, toProblem } from '@/api/errors';
+import { formatLocalDate, LocalDate } from '@/components/LocalDate';
+import { Money } from '@/components/Money';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { PageHeader } from '@/components/page/PageHeader';
+import { RowMenu } from '@/components/page/RowMenu';
+import { StatLine } from '@/components/page/StatLine';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Section } from '../../income/Section';
+import { COST_REPORTS, ENVELOPE, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '../api';
+import { SeriesChart } from '../chart/ValueChart';
+import { AnnualReturn, Direction, pct } from '../Figures';
+import { CostReportDialog } from './CostReportDialog';
+import { HoldingDialog } from './HoldingDialog';
+import { formatUnits, holdingKindText, movementKindText, percent } from './holdingFormat';
+import { MovementDialog } from './MovementDialog';
+
+const TABS = ['overview', 'movements', 'costs'] as const;
+type Dialog = { kind: 'movement' } | { kind: 'edit' } | { kind: 'cost'; editing?: CostReport };
+
+/**
+ * Issue #34 §7: one holding of an envelope, on the page grammar — its figures inline, then its curve (value against
+ * money in − out), its movements and its « Coûts » (the yearly cost reports and the estimated implicit cost).
+ */
+export function HoldingPage() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const { id, holdingId } = useParams({ from: '/investments/$id/holdings/$holdingId' });
+  const path = { params: { path: { id, holdingId } } };
+  const envelope = $api.useQuery('get', ENVELOPE, { params: { path: { id } } });
+  const holdings = $api.useQuery('get', HOLDINGS, { params: { path: { id } } });
+  const movements = $api.useQuery('get', MOVEMENTS, path);
+  const reports = $api.useQuery('get', COST_REPORTS, path);
+  const series = $api.useQuery('get', HOLDING_SERIES, path);
+  const [tab, setTab] = useDetailTab(TABS);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [announcement, setAnnouncement] = useState('');
+  const open = (next: Dialog) => { setAnnouncement(''); setDialog(next); };
+  const done = (message: string) => { setDialog(null); setAnnouncement(message); };
+
+  const error = envelope.error ?? holdings.error;
+  if (error) return <ProblemMessage problem={present(toProblem(error))} />;
+  if (!envelope.data || !holdings.data) return <div aria-busy="true" aria-label={t('holdings.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  const holding = holdings.data.holdings.find((h) => h.id === holdingId);
+  if (!holding) return <ProblemMessage problem={{ kind: 'not_found' }} />;
+
+  const detail = envelope.data;
+  const figures = holding.figures;
+  const writable = detail.canWrite && !detail.closed;
+  const absent = <span className="text-base font-normal text-muted-foreground">{t('investments.no_value')}</span>;
+  const items = movements.data?.items ?? [];
+
+  const actions = writable && !holding.closedOn ? (
+    <>
+      <Button type="button" onClick={() => open({ kind: 'movement' })}><Plus aria-hidden="true" />{t('holdings.movement.open')}</Button>
+      <RowMenu label={t('envelope.more_actions')} items={[
+        { label: t('holdings.edit'), onSelect: () => open({ kind: 'edit' }) },
+        { label: t('holdings.costs.add'), onSelect: () => open({ kind: 'cost' }) },
+      ]} />
+    </>
+  ) : null;
+
+  return (
+    <article className="space-y-6">
+      <PageHeader title={holding.name} actions={actions}
+        crumbs={[{ label: t('nav.investments'), to: '/investments' }, { label: detail.displayName, to: '/investments/$id', params: { id } }]}
+        meta={<Meta holding={holding} />}>
+        <section aria-label={t('holdings.figures')} className="space-y-2">
+          <StatLine items={[
+            { label: figures ? t('envelope.value_at', { date: formatLocalDate(figures.asOf) }) : t('envelope.value'), value: figures ? <Money value={figures.value} tabular /> : absent },
+            { label: t('holdings.money_in'), value: figures ? <Money value={figures.moneyIn} tabular /> : absent },
+            { label: t('holdings.money_out'), value: figures ? <Money value={figures.moneyOut} tabular /> : absent },
+            { label: t('envelope.gain'), value: figures ? (
+              <Direction amount={figures.gain}>
+                {figures.gainPct != null ? <span className="tabular-nums">{t('investments.pct', { value: pct(figures.gainPct) })}</span> : null}
+              </Direction>
+            ) : absent },
+            ...(figures?.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
+            ...(figures ? [
+              { label: t('holdings.explicit_fees'), value: <Money value={figures.explicitFees} tabular /> },
+              { label: t('holdings.gain_before_fees'), value: <Money value={figures.gainBeforeFees} tabular /> },
+            ] : []),
+          ]} />
+          <p className="text-sm text-muted-foreground">{t('holdings.figures_note')}</p>
+        </section>
+      </PageHeader>
+      <p role="status" aria-live="polite">{announcement}</p>
+      {dialog?.kind === 'movement' ? <MovementDialog envelope={detail} holding={holding} onClose={() => setDialog(null)} onDone={done} /> : null}
+      {dialog?.kind === 'edit' ? <HoldingDialog envelope={detail} editing={holding} onClose={() => setDialog(null)} onDone={done} /> : null}
+      {dialog?.kind === 'cost' ? <CostReportDialog envelope={detail} holding={holding} editing={dialog.editing} onClose={() => setDialog(null)} onDone={done} /> : null}
+
+      <DetailTabs value={tab} onChange={setTab} tabs={[
+        {
+          id: 'overview', label: t('envelope.tab.overview'),
+          content: (
+            <>
+              <Section title={t('envelope.evolution')}>
+                {series.error ? <ProblemMessage problem={present(toProblem(series.error))} />
+                  : !series.data ? <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 animate-pulse rounded-md border bg-muted" />
+                    : <SeriesChart id={holding.id} points={series.data.points} currency={detail.currency} netLabel={t('holdings.net_money_in')}
+                      title={t('holdings.chart_title')} tableLabel={t('holdings.chart_table')} />}
+              </Section>
+              {holding.note ? <Section title={t('holdings.form.note')}><p className="whitespace-pre-line">{holding.note}</p></Section> : null}
+            </>
+          ),
+        },
+        {
+          id: 'movements', label: t('holdings.tab.movements', { count: items.length }),
+          content: (
+            <Section title={t('holdings.movements')} srTitle>
+              {movements.error ? <ProblemMessage problem={present(toProblem(movements.error))} /> : (
+                <Table aria-label={t('holdings.movements')}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('envelope.date')}</TableHead>
+                      <TableHead>{t('holdings.movement.kind')}</TableHead>
+                      <TableHead className="text-right">{t('envelope.amount')}</TableHead>
+                      <TableHead className="text-right">{t('holdings.units')}</TableHead>
+                      <TableHead className="text-right">{t('holdings.unit_price')}</TableHead>
+                      <TableHead>{t('holdings.movement.label')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-muted-foreground">{t('holdings.no_movements')}</TableCell></TableRow>
+                    ) : [...items].reverse().map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell><LocalDate value={m.occurredOn} /></TableCell>
+                        <TableCell>{movementKindText(t, m.kind)}</TableCell>
+                        <TableCell className="text-right"><Money value={m.amount} tabular /></TableCell>
+                        <TableCell className="text-right tabular-nums">{m.units ? formatUnits(m.units) : null}</TableCell>
+                        <TableCell className="text-right tabular-nums">{m.unitPrice ? formatUnits(m.unitPrice) : null}</TableCell>
+                        <TableCell className="whitespace-normal">{m.label}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Section>
+          ),
+        },
+        {
+          id: 'costs', label: t('holdings.tab.costs'),
+          content: (
+            <Section title={t('holdings.costs.title')} srTitle>
+              <p className="text-sm text-muted-foreground">{t('holdings.costs.intro')}</p>
+              {reports.error ? <ProblemMessage problem={present(toProblem(reports.error))} /> : (
+                <Table aria-label={t('holdings.costs.title')}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('holdings.costs.year')}</TableHead>
+                      <TableHead className="text-right">{t('holdings.costs.grossReturnPct')}</TableHead>
+                      <TableHead className="text-right">{t('holdings.costs.totalFeesPct')}</TableHead>
+                      <TableHead className="text-right">{t('holdings.costs.netReturnPct')}</TableHead>
+                      <TableHead className="text-right">{t('holdings.costs.implicit')}</TableHead>
+                      {writable ? <TableHead className="w-0"><span className="sr-only">{t('envelope.actions')}</span></TableHead> : null}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(reports.data?.items ?? []).length === 0 ? (
+                      <TableRow><TableCell colSpan={writable ? 6 : 5} className="text-muted-foreground">{t('holdings.costs.none')}</TableCell></TableRow>
+                    ) : reports.data!.items.map((r) => (
+                      <TableRow key={r.year}>
+                        <TableCell>
+                          {r.year}
+                          {r.warnings.length > 0 ? (
+                            <span className="ml-2 inline-flex items-center gap-1 text-sm">
+                              <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />{t('holdings.warning.cost_report_inconsistent_short')}
+                            </span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{t('investments.pct', { value: percent(r.grossReturnPct) })}</TableCell>
+                        <TableCell className="text-right tabular-nums">{t('investments.pct', { value: percent(r.totalFeesPct) })}</TableCell>
+                        <TableCell className="text-right tabular-nums">{t('investments.pct', { value: percent(r.netReturnPct) })}</TableCell>
+                        <TableCell className="text-right">
+                          {r.estimatedImplicitCost ? <Money value={r.estimatedImplicitCost} tabular /> : <span className="text-muted-foreground">{t('investments.dash')}</span>}
+                        </TableCell>
+                        {writable ? (
+                          <TableCell>
+                            <RowMenu label={t('holdings.costs.row_menu', { year: r.year })} items={[{ label: t('envelope.correct'), onSelect: () => open({ kind: 'cost', editing: r }) }]} />
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+              <p className="text-sm text-muted-foreground">{t('holdings.costs.implicit_note')}</p>
+            </Section>
+          ),
+        },
+      ]} />
+    </article>
+  );
+}
+
+function Meta({ holding }: { holding: Holding }) {
+  const { t } = useTranslation();
+  const parts = [
+    holdingKindText(t, holding.kind),
+    holding.isin,
+    holding.maturesOn ? t('holdings.matures_on', { date: formatLocalDate(holding.maturesOn) }) : null,
+    holding.closedOn ? t('holdings.closed_on', { date: formatLocalDate(holding.closedOn) }) : null,
+  ].filter(Boolean);
+  return <span className="text-sm text-muted-foreground">{parts.join(' · ')}</span>;
+}

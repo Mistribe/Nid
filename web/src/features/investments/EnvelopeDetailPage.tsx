@@ -1,6 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '../income/Section';
 import { todayIso } from '../subscriptions/today';
-import { ENVELOPE, PERFORMANCE, type Flow, type Valuation } from './api';
+import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from './api';
 import { ValueChart } from './chart/ValueChart';
 import { PeriodPerformance } from './period/PeriodPerformance';
 import { presetRange } from './period/periods';
@@ -28,8 +28,12 @@ import { SettingsForm } from './settings/SettingsForm';
 import { TransferDialog } from './transfer/TransferDialog';
 import { AnnualReturn, Direction, Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
+import { percent } from './holdings/holdingFormat';
 
-const TABS = ['overview', 'values', 'flows', 'settings'] as const;
+// The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
+const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
+
+const TABS = ['overview', 'values', 'flows', 'holdings', 'settings'] as const;
 const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
   [...rows].sort((a, b) => (date(a) < date(b) ? 1 : date(a) > date(b) ? -1 : 0));
 
@@ -47,6 +51,8 @@ export function EnvelopeDetailPage() {
   const answer = $api.useQuery('get', ENVELOPE, { params: { path: { id } } });
   // « Depuis janvier » is the year-to-date performance: the period figure the overview's block asks for too.
   const sinceJanuary = $api.useQuery('get', PERFORMANCE, { params: { path: { id }, query: presetRange('ytd', todayIso()) } });
+  // Read here too for the « Part UC » and « Frais prélevés » figures; the tab shares this query.
+  const holdings = $api.useQuery('get', HOLDINGS, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
   const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
   // The dialogs: a new value or flow (`{}`), the correction of a row, or a new flow on « Versements antérieurs ».
@@ -189,6 +195,19 @@ export function EnvelopeDetailPage() {
             ...extra(t('envelope.fees'), figures.fees),
             ...extra(t('envelope.gain_after_fees'), figures.gainAfterFees),
             ...extra(t('envelope.income'), figures.income),
+            ...(holdings.data?.ucSharePct != null ? [{ label: t('holdings.uc_share'), value: (
+              <span className="inline-flex items-center gap-1">
+                {t('investments.pct', { value: percent(holdings.data.ucSharePct) })}
+                {holdings.data.warnings.some((w) => w.code === 'uc_share_below_floor') ? (
+                  <span className="inline-flex items-center gap-1 text-sm font-normal">
+                    <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
+                    {t('holdings.uc_below_floor', { floor: percent(holdings.data.ucShareFloorPct ?? 0) })}
+                  </span>
+                ) : null}
+              </span>
+            ) }] : []),
+            ...(holdings.data?.explicitFees && directionOf(holdings.data.explicitFees.amount) !== 'flat'
+              ? [{ label: t('holdings.fees_taken'), value: <Money value={holdings.data.explicitFees} tabular /> }] : []),
           ]} />
           <p className="text-sm text-muted-foreground">{t('envelope.before_tax')}</p>
           {sinceShown ? (
@@ -317,6 +336,14 @@ export function EnvelopeDetailPage() {
                 </TableBody>
               </Table>
             </Section>
+          ),
+        },
+        {
+          id: 'holdings', label: t('holdings.tab_label'), guide: 'investments.holdings',
+          content: (
+            <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />}>
+              <HoldingsTab envelope={detail} writable={writable} />
+            </Suspense>
           ),
         },
         ...(writable ? [{

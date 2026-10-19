@@ -23,10 +23,10 @@ import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './se
 
 const PATHS = {
   displayName: 'displayName', kind: 'kind', institution: 'institution', accountHint: 'accountHint',
-  valuationCadence: 'valuationCadence', staleAfterDays: 'staleAfterDays', note: 'note',
+  valuationCadence: 'valuationCadence', staleAfterDays: 'staleAfterDays', ucShareFloorPct: 'ucShareFloorPct', note: 'note',
 } as const;
 /** Fields whose value the server can refuse with `investments.invalid_envelope` (the server names the field; `soleChangedField` is the fallback for a refusal without one). */
-const TEXT_FIELDS = ['displayName', 'institution', 'accountHint', 'staleAfterDays', 'note'] as const;
+const TEXT_FIELDS = ['displayName', 'institution', 'accountHint', 'staleAfterDays', 'ucShareFloorPct', 'note'] as const;
 
 const schema = (t: TFunction) => z.object({
   displayName: z.string().trim().min(1, t('edit.required')).max(100, t('investments_form.name_too_long')),
@@ -38,6 +38,10 @@ const schema = (t: TFunction) => z.object({
     const days = v.trim();
     return days === '' || (/^\d+$/.test(days) && Number(days) >= 1 && Number(days) <= 3650);
   }, t('envelope.settings.stale_range')),
+  ucShareFloorPct: z.string().refine((v) => {
+    const floor = v.trim().replace(',', '.');
+    return floor === '' || (/^\d{1,3}(\.\d{1,4})?$/.test(floor) && Number(floor) <= 100);
+  }, t('envelope.settings.uc_floor_range')),
   note: z.string().max(2000, t('investments_form.note_too_long')),
 });
 
@@ -51,11 +55,13 @@ function soleChangedField(body: EditBody) {
 function applied(before: EnvelopeDetail, values: SettingsValues): EnvelopeDetail {
   const text = (v: string) => (v.trim() === '' ? null : v.trim());
   const days = values.staleAfterDays.trim();
+  const floor = values.ucShareFloorPct.trim().replace(',', '.');
   return {
     ...before, displayName: values.displayName.trim(), kind: values.kind, valuationCadence: values.valuationCadence,
     institution: text(values.institution), accountHint: text(values.accountHint), note: text(values.note),
     // A count of days, not an amount.
     staleAfterDays: days === '' ? null : Number(days),
+    ucShareFloorPct: floor === '' ? null : Number(floor),
   };
 }
 
@@ -74,6 +80,7 @@ export function SettingsForm({ envelope, onStart, onDone }: {
     displayName: envelope.displayName, kind: envelope.kind as (typeof KINDS)[number], institution: envelope.institution ?? '',
     accountHint: envelope.accountHint ?? '', valuationCadence: envelope.valuationCadence as (typeof CADENCES)[number],
     staleAfterDays: envelope.staleAfterDays == null ? '' : String(envelope.staleAfterDays), note: envelope.note ?? '',
+    ucShareFloorPct: envelope.ucShareFloorPct == null ? '' : String(envelope.ucShareFloorPct),
   };
   const form = useForm({ resolver: zodResolver(schema(t)), defaultValues: defaults });
   // What the form started from (and, after a save, what it saved): a save is diffed against this, never against the
@@ -149,6 +156,9 @@ export function SettingsForm({ envelope, onStart, onDone }: {
         )} />
         <Field label={t('envelope.settings.stale_after')} hint={t('envelope.settings.stale_help')} error={e.staleAfterDays?.message}>
           {(c) => <Input inputMode="numeric" {...c} {...form.register('staleAfterDays')} />}
+        </Field>
+        <Field label={t('envelope.settings.uc_floor')} hint={t('envelope.settings.uc_floor_help')} error={e.ucShareFloorPct?.message}>
+          {(c) => <Input inputMode="decimal" {...c} {...form.register('ucShareFloorPct')} />}
         </Field>
       </div>
       <Field label={t('envelope.settings.note')} error={e.note?.message}>

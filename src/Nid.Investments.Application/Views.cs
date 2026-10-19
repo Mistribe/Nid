@@ -85,6 +85,11 @@ public sealed record CostReportView(
     public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
 }
 
+public sealed record CostReportList(ItemId EnvelopeId, Guid HoldingId, IReadOnlyList<CostReportView> Items) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
+}
+
 /// <summary>Issue #34 §3: a holding's figures at its latest value on or before the read's date (<see cref="AsOf"/>).</summary>
 public sealed record HoldingFiguresView(
     LocalDate AsOf, AmountView Value, AmountView MoneyIn, AmountView MoneyOut, AmountView Gain, decimal? GainPct, decimal? AnnualReturnPct,

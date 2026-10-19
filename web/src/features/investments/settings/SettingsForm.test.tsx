@@ -36,7 +36,7 @@ function serve(initial = detail(), bodies: Patch[] = [], answer: Answer = () => 
 const problem = (status: number, code: string | null, extra: object = {}) => () =>
   HttpResponse.json({ status, code, title: 'Problem', ...extra }, { status, headers: { 'Content-Type': 'application/problem+json' } });
 
-const CLEARS = { clearInstitution: false, clearAccountHint: false, clearOpenedOn: false, clearStaleAfterDays: false, clearNote: false };
+const CLEARS = { clearInstitution: false, clearAccountHint: false, clearOpenedOn: false, clearStaleAfterDays: false, clearNote: false, clearUcShareFloorPct: false };
 const openForm = async () => within(await screen.findByRole('form', { name: 'Réglages' }));
 
 describe('an envelope\'s settings', () => {

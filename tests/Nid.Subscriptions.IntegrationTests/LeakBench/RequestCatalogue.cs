@@ -292,6 +292,7 @@ public static class RequestCatalogue
         new(typeof(SaveCostReportCommand), true, (_, item) => new SaveCostReportCommand(item, Guid.NewGuid(), 2024,
             new CostReportDraft(8m, 2.5m, 5.5m, null, null, null, null, null))),
         new(typeof(GetCostReportQuery), true, (_, item) => new GetCostReportQuery(item, Guid.NewGuid(), 2024)),
+        new(typeof(ListCostReportsQuery), true, (_, item) => new ListCostReportsQuery(item, Guid.NewGuid())),
 
         new(typeof(RecordRoutineCommand), false, (_, _) => new RecordRoutineCommand(new LocalDate(2025, 1, 31), [])),
         new(typeof(UndoRoutineCommand), false, (_, _) => new UndoRoutineCommand([])),

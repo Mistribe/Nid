@@ -160,6 +160,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetHoldingPerformanceQuery(new ItemId(id), holdingId, RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<PeriodView>();
 
+        api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListCostReportsQuery(new ItemId(id), holdingId), ct)).ToHttp(v => v))
+            .Returns<CostReportList>();
+
         api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports/{year:int}", async (Guid id, Guid holdingId, int year, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetCostReportQuery(new ItemId(id), holdingId, year), ct)).ToHttp(v => v))
             .Returns<CostReportView>();
