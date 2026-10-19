@@ -122,12 +122,18 @@ public sealed class ItemAccessBehavior<TRequest, TResponse>(
         if (actor.PersonId is not { } person)
             return await next(request, cancellationToken); // system actors are not bound to a person
 
-        if (request is IItemScoped scoped)
+        var target = request switch
         {
-            var check = await policy.CheckAsync(person, scoped.ItemId, scoped.Access, cancellationToken);
+            IItemScoped scoped => (scoped.ItemId, scoped.Access),
+            IOptionalItemScoped { ItemId: { } item } optional => (item, optional.Access),
+            _ => ((ItemId, AccessKind)?)null,
+        };
+        if (target is var (itemId, access))
+        {
+            var check = await policy.CheckAsync(person, itemId, access, cancellationToken);
             if (check.TryGetFailure(out var failure))
             {
-                await denials.RecordAsync(person, scoped.ItemId, scoped.Access.ToString().ToLowerInvariant(), cancellationToken);
+                await denials.RecordAsync(person, itemId, access.ToString().ToLowerInvariant(), cancellationToken);
                 return Result.Failure<TResponse>(failure!);
             }
         }

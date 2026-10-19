@@ -11,6 +11,7 @@ import { formatInstantDay } from '@/features/admin/format';
 import { PROPOSALS, type ProposalView } from './api';
 import { useAnnouncement } from './announce';
 import { kindOf, originText } from './kinds';
+import { isRouteKind, routeSummary } from './routeKind';
 
 const STATUSES = ['pending', 'approved', 'rejected'] as const;
 
@@ -27,7 +28,8 @@ export function ProposalsPage() {
     void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'approved' || s === 'rejected' ? s : undefined }), replace: true });
 
   const summary = (p: ProposalView) =>
-    kindOf(p.kind)?.summary(t, p) ?? t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') });
+    kindOf(p.kind)?.summary(t, p) ?? (isRouteKind(p.kind) ? routeSummary(t, p)
+      : t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') }));
 
   return (
     <div className="space-y-4">

@@ -17605,7 +17605,6 @@
         "required": [
           "id",
           "kind",
-          "targetItemId",
           "status",
           "payload",
           "payloadVersion",
@@ -17626,7 +17625,10 @@
             "type": "string"
           },
           "targetItemId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "status": {
@@ -18471,7 +18473,6 @@
       "SubmitProposalBody": {
         "required": [
           "kind",
-          "targetItemId",
           "payload"
         ],
         "type": "object",
@@ -18480,7 +18481,10 @@
             "type": "string"
           },
           "targetItemId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "payload": {

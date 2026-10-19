@@ -22,6 +22,7 @@ import { PERSONS } from '../subscriptions/api';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
 import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
+import { RoutePayload, isRouteKind, routeLabel, routeLink } from './routeKind';
 import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
 
 /** A decision that lost a race: reload (any other 409, such as a reference already recorded, is the payload's own refusal). */
@@ -75,9 +76,12 @@ function Proposal({ id }: { id: string }) {
   const hidden = ['payload_version_unsupported', 'already_recorded', 'schedule_mismatch'];
   const unsupported = p.warnings.some((w) => w.code === 'payload_version_unsupported');
   const warnings = p.warnings.filter((w) => !hidden.includes(w.code));
-  const link = kind?.link(p);
+  // Spec 4D3: a kind without its own screen replays a web write, approved as proposed.
+  const route = !kind && !unsupported && isRouteKind(p.kind);
+  const link = kind ? kind.link(p) : route ? routeLink(p) : undefined;
+  const targetName = p.targetName ?? t(p.targetItemId ? 'proposals.unknown_target' : 'proposal.route.new');
 
-  const title = kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind });
+  const title = kind ? t(kind.label) : route ? routeLabel(t, p.kind) : t('proposal.unknown_kind', { kind: p.kind });
   const head = (actions: ReactNode) => (
     <PageHeader crumbs={[{ label: t('proposal.back'), to: '/proposals' }]} title={title} titleRef={heading} actions={actions}
       meta={p.sourceLabel ? <span className="text-sm text-muted-foreground">{p.sourceLabel}</span> : undefined} />
@@ -86,7 +90,7 @@ function Proposal({ id }: { id: string }) {
     <>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt className="text-muted-foreground">{t('proposal.target')}</dt>
-        <dd>{link ? <Link to={link.to} params={link.params} className="underline">{p.targetName ?? t('proposals.unknown_target')}</Link> : (p.targetName ?? t('proposals.unknown_target'))}</dd>
+        <dd>{link && p.targetItemId ? <Link to={link.to} params={link.params} className="underline">{targetName}</Link> : targetName}</dd>
         {p.sourceLabel ? (<><dt className="text-muted-foreground">{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
       </dl>
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
@@ -97,7 +101,7 @@ function Proposal({ id }: { id: string }) {
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}
-      {!kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
+      {route ? <RoutePayload p={p} /> : !kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
     </>
   );
   const tail = (
@@ -111,7 +115,7 @@ function Proposal({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} /></>
         : !canDecide ? <>{head(null)}{body}<p>{t('proposal.read_only')}</p></>
-        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} head={head} body={body} />}
+        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
       {tail}
     </div>
   );
@@ -133,8 +137,10 @@ function Decided({ p, target }: { p: ProposalView; target: LinkTarget | null }) 
 }
 
 /** Owns the decision: its buttons sit in the page header (`head`), under the document (`body`), the approval's form below. */
-function Decide({ p, preview, next, kind, head, body }: {
-  p: ProposalView; preview: unknown; next: ProposalView | null; kind: KindUi | null; head: (actions: ReactNode) => ReactNode; body: ReactNode;
+/** `asProposed`: a proposal with no form of its own (spec 4D3), approved as proposed. */
+function Decide({ p, preview, next, kind, asProposed, head, body }: {
+  p: ProposalView; preview: unknown; next: ProposalView | null; kind: KindUi | null; asProposed: boolean;
+  head: (actions: ReactNode) => ReactNode; body: ReactNode;
 }) {
   const formId = useId();
   const { t } = useTranslation();
@@ -164,27 +170,29 @@ function Decide({ p, preview, next, kind, head, body }: {
   const reject = $api.useMutation('post', REJECT);
   const conflict = [approve.error, reject.error].find((e) => e && isRace(e));
 
-  const submit = form.handleSubmit((values) => {
-    if (!kind) return;
+  const send = (edited: unknown) => {
     errors.clear();
     setRefusal(null);
-    const edited = kind.toPayload(values, original, preview);
     approve.mutate({ params: { path: { id: p.id } }, body: { version: p.version, ...(edited ? { editedPayload: edited } : {}) } }, {
       onSuccess: () => after(t('proposal.approved'), true),
       onError: (e) => {
         if (isRace(e)) return;
         const problem = toProblem(e);
-        const own = kind.refusal?.(t, problem);
+        const own = kind?.refusal?.(t, problem);
         if (own) setRefusal(own);
         else if (problem.status === 409) setRefusal(refusalText(t, e));
         else errors.onError(e);
       },
     });
+  };
+  const submit = form.handleSubmit((values) => {
+    if (kind) send(kind.toPayload(values, original, preview));
   });
 
   const actions = (
     <>
-      {kind ? <Button type="submit" form={formId} disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button> : null}
+      {kind ? <Button type="submit" form={formId} disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button>
+        : asProposed ? <Button type="button" disabled={approve.isPending} onClick={() => send(null)}>{t('proposal.approve')}</Button> : null}
       {rejecting ? null : <Button type="button" variant="outline" onClick={() => setRejecting(true)}>{t('proposal.reject')}</Button>}
     </>
   );

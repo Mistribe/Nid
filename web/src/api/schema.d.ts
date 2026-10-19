@@ -12164,7 +12164,7 @@ export interface components {
             id: string;
             kind: string;
             /** Format: uuid */
-            targetItemId: string;
+            targetItemId?: null | string;
             status: string;
             payload: components["schemas"]["JsonElement"];
             editedPayload?: null | components["schemas"]["JsonElement"];
@@ -12379,7 +12379,7 @@ export interface components {
         SubmitProposalBody: {
             kind: string;
             /** Format: uuid */
-            targetItemId: string;
+            targetItemId?: null | string;
             payload: components["schemas"]["JsonElement"];
             sourceLabel?: null | string;
         };

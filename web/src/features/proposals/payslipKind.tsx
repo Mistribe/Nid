@@ -90,5 +90,5 @@ export const payslip: KindUi = {
   // The income screens' generic text says nothing of a payslip's date.
   message: (t, error) => (error.code === 'income.invalid_phase' ? t('field_error.income_invalid_phase', { context: 'payslip' }) : undefined),
   Fields: PayslipFields,
-  link: (p) => ({ to: '/income/$id', params: { id: p.targetItemId } }),
+  link: (p) => ({ to: '/income/$id', params: { id: p.targetItemId ?? '' } }),
 };

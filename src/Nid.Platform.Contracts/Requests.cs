@@ -32,6 +32,14 @@ public interface IItemScoped
     AccessKind Access { get; }
 }
 
+/// <summary>As <see cref="IItemScoped"/> when <see cref="ItemId"/> is set; a proposal to create an item has none to check.</summary>
+public interface IOptionalItemScoped
+{
+    ItemId? ItemId { get; }
+
+    AccessKind Access { get; }
+}
+
 /// <summary>
 /// A request that brings an item into being (<c>authorization.md</c> §4). There is no item yet to check the
 /// actor against, so the access behavior checks the owners it names instead: §5 lets an adult create for

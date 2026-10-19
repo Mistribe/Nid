@@ -40,13 +40,14 @@ public class McpToolTests(PostgresFixture fixture)
         => Assert.Equal(JsonDocument.Parse(rest).RootElement.ToString(), JsonDocument.Parse(mcp).RootElement.ToString());
 
     [Fact]
-    public async Task The_tool_list_is_the_read_tools_and_the_write_tools()
+    public async Task The_tool_list_is_the_read_tools_the_document_tools_and_one_per_web_write()
     {
         var (app, client) = await StartAsync(fixture);
         await using (app) await using (client)
         {
             var tools = await client.ListToolsAsync();
-            Assert.Equal(Expected, tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
+            Assert.Equal(Expected.Concat(Nid.Host.Mcp.RouteActions.All.Select(a => a.Tool)).Order(StringComparer.Ordinal),
+                tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
             Assert.All(tools.Where(t => !McpServerTests.IsWrite(t.Name)), t => Assert.True(t.ProtocolTool.Annotations?.ReadOnlyHint));
         }
     }

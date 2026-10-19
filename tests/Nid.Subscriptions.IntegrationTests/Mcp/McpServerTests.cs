@@ -53,7 +53,8 @@ public class McpServerTests(PostgresFixture fixture)
         Assert.All(writes, t =>
         {
             var hints = t.ProtocolTool.Annotations!;
-            Assert.Equal<(bool?, bool?, bool?)>((false, t.Name == "propose_amortization", true), (hints.ReadOnlyHint, hints.DestructiveHint, hints.IdempotentHint));
+            var destructive = t.Name == "propose_amortization" || Nid.Host.Mcp.RouteActions.All.Any(a => a.Tool == t.Name && a.Destructive);
+            Assert.Equal<(bool?, bool?, bool?)>((false, destructive, true), (hints.ReadOnlyHint, hints.DestructiveHint, hints.IdempotentHint));
             Assert.Contains("invent nothing", t.Description);
             Assert.DoesNotContain(McpServerSentence, t.Description);
         });

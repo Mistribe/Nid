@@ -20,12 +20,13 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 public sealed record ProposalCheck(
     string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null, JsonElement? Summary = null);
 
+/// <summary><paramref name="Target"/> is null for a proposal that creates its item: only its submitter reads and decides it.</summary>
 public sealed record NewProposal(
-    string Module, string Kind, ItemId Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
+    string Module, string Kind, ItemId? Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
     IReadOnlyList<ProposalWarning> Warnings, string CreatedVia, Guid? TokenId, string? SourceLabel);
 
 public sealed record StoredProposal(
-    Guid Id, string Module, string Kind, ItemId Target, PersonId ForPerson, string? SubjectKey, JsonElement Payload,
+    Guid Id, string Module, string Kind, ItemId? Target, PersonId ForPerson, string? SubjectKey, JsonElement Payload,
     int PayloadVersion, JsonElement? EditedPayload, IReadOnlyList<ProposalWarning> Warnings, ProposalStatus Status,
     Guid? SupersededById, string CreatedVia, Guid? TokenId, PersonId CreatedBy, string? SourceLabel, Instant CreatedAt,
     PersonId? DecidedBy, Instant? DecidedAt, string? DecisionNote, IReadOnlyList<Guid> AppliedRefs, uint Version);
@@ -38,6 +39,7 @@ public static class ProposalCodes
     public const string Conflict = "core.proposal_conflict";
     public const string Decided = "core.proposal_decided";
     public const string VersionUnsupported = "core.proposal_version_unsupported";
+    public const string TargetRequired = "core.proposal_target_required";
 
     /// <summary>Warning codes.</summary>
     public const string ApplyFailed = "apply_failed";
@@ -54,8 +56,8 @@ public interface IProposalStore
 
     Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct);
 
-    /// <summary>The proposals on <paramref name="targets"/> in <paramref name="status"/>, newest first.</summary>
-    Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, ProposalStatus status, CancellationToken ct);
+    /// <summary>The proposals on <paramref name="targets"/>, and those without a target <paramref name="person"/> submitted, in <paramref name="status"/>, newest first.</summary>
+    Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId person, ProposalStatus status, CancellationToken ct);
 
     /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,
@@ -74,6 +76,9 @@ public interface IProposalHandler
     string Module { get; }
     string Kind { get; }
     int PayloadVersion { get; }
+
+    /// <summary>false for a kind that creates its item (or names its items in the payload): it is then called with no target, as <c>default</c>.</summary>
+    bool NeedsTarget => true;
 
     /// <summary>
     /// Against the current state (<paramref name="payload"/> is a JSON object): a failure refuses (field errors at <c>payload.*</c>), warnings are kept.

@@ -54,7 +54,7 @@ public static class McpCalls
     /// missing one is named rather than answered « Not found. »; a refusal names its code and each refused field.
     /// </summary>
     public static async Task<CallToolResult> ProposeAsync(
-        IServiceProvider services, string kind, Guid target, object payload, string? sourceLabel, bool apply, CancellationToken ct)
+        IServiceProvider services, string kind, Guid? target, object payload, string? sourceLabel, bool apply, CancellationToken ct)
     {
         if (services.GetRequiredService<IActorAccessor>().Current?.Has(apply ? ScopeNames.WriteDirect : ScopeNames.Write) != true)
             return Error(apply
@@ -65,17 +65,19 @@ public static class McpCalls
         var invoker = services.GetRequiredService<IInvoker>();
         if (apply)
         {
-            var written = await invoker.InvokeAsync(new ApplyDirectCommand(kind, new ItemId(target), body), ct);
+            var written = await invoker.InvokeAsync(new ApplyDirectCommand(kind, Item(target), body), ct);
             if (!written.TryGetValue(out var write))
                 return Refusal(written.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
             return Answer(services, write!.Conforme is { } same ? Conforme(same) : Applied(write), limited: false);
         }
 
-        var submitted = await invoker.InvokeAsync(new SubmitProposalCommand(kind, new ItemId(target), body, sourceLabel), ct);
+        var submitted = await invoker.InvokeAsync(new SubmitProposalCommand(kind, Item(target), body, sourceLabel), ct);
         if (!submitted.TryGetValue(out var outcome))
             return Refusal(submitted.TryGetFailure(out var rejected) ? rejected! : throw new InvalidOperationException());
         return Answer(services, outcome!.Proposal is null ? Conforme(outcome.Conforme!.Value) : Proposed(outcome), limited: false);
     }
+
+    private static ItemId? Item(Guid? target) => target is { } id ? new ItemId(id) : null;
 
     private static object Conforme(JsonElement same)
         => new { outcome = "conforme", expected = same.GetProperty("expected"), given = same.GetProperty("given") };

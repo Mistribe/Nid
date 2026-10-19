@@ -23,6 +23,11 @@ public static class McpSetup
         services.AddAuthorizationBuilder().AddPolicy(Policy, policy =>
             policy.AddAuthenticationSchemes(TokenAuthentication.Scheme).RequireAuthenticatedUser());
 
+        services.AddHttpContextAccessor();
+        services.AddScoped<RouteReplay>();
+        foreach (var action in RouteActions.All)
+            services.AddScoped<Nid.Core.Contracts.IProposalHandler>(sp => ActivatorUtilities.CreateInstance<RouteProposal>(sp, action));
+
         services.AddMcpServer(options =>
             {
                 options.ServerInfo = new Implementation { Name = "nid", Version = "1" };
@@ -50,7 +55,8 @@ public static class McpSetup
             .WithTools<InvestmentTools>()
             .WithTools<IncomeTools>()
             .WithTools<RealEstateTools>()
-            .WithTools<WriteTools>();
+            .WithTools<WriteTools>()
+            .WithTools(RouteActions.All.Select(action => (McpServerTool)new RouteTool(action)));
         return services;
     }
 

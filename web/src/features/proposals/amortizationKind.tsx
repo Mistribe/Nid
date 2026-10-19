@@ -80,5 +80,5 @@ export const amortization: KindUi = {
     return k === undefined ? t('proposal.amortization.refused') : t('proposal.amortization.refused', { context: 'row', n: Number(k) + 1 });
   },
   Fields: AmortizationFields,
-  link: (p) => ({ to: '/loans/$id', params: { id: p.targetItemId } }),
+  link: (p) => ({ to: '/loans/$id', params: { id: p.targetItemId ?? '' } }),
 };

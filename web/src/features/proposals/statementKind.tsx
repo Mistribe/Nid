@@ -132,5 +132,5 @@ export const statement: KindUi = {
   field: (path) => (path === 'payload.asOf' ? 'asOf' : path.startsWith('payload.value') ? 'amount' : undefined),
   Fields: StatementFields,
   nothing: (values, original) => !asStatement(original).value && (values as StatementForm).keep.every((keep) => !keep),
-  link: (p) => ({ to: '/investments/$id', params: { id: p.targetItemId } }),
+  link: (p) => ({ to: '/investments/$id', params: { id: p.targetItemId ?? '' } }),
 };

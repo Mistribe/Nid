@@ -50,7 +50,8 @@ public sealed class WriteTools
     [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "
         + "and with the same gross when both are known, it answers 'conforme' and records nothing; otherwise the expected pay "
-        + "changes from that month's payment date. " + Rules)]
+        + "changes from that month's payment date. A payslip paid when no period of the source runs (before its first period, or "
+        + "after it ended) is refused at paidOn: Nid never creates a period, propose_add_income_phase adds one first. " + Rules)]
     public static Task<CallToolResult> ProposePayslip(IServiceProvider services,
         [Description("The income source's id (list_income_sources).")] Guid incomeSourceId,
         [Description("The payment date printed on the payslip, ISO (yyyy-mm-dd).")] string paidOn,

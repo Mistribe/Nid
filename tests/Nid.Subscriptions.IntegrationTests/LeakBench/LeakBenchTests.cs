@@ -74,7 +74,8 @@ public class LeakBenchTests(PostgresFixture fixture)
     {
         foreach (var entry in RequestCatalogue.Entries)
         {
-            var implements = typeof(IItemScoped).IsAssignableFrom(entry.RequestType);
+            // A proposal's submission may have no target; with one, it is checked as any item-scoped request.
+            var implements = typeof(IItemScoped).IsAssignableFrom(entry.RequestType) || typeof(IOptionalItemScoped).IsAssignableFrom(entry.RequestType);
 
             Assert.True(implements == entry.IsItemScoped,
                 $"{entry.RequestType.Name}: the catalogue says IsItemScoped={entry.IsItemScoped}, but the type "
@@ -275,7 +276,12 @@ public class LeakBenchTests(PostgresFixture fixture)
         foreach (var actor in new[] { app.AdultA, app.AdultB })
         {
             var request = entry.Build(data, item);
-            var scoped = Assert.IsAssignableFrom<IItemScoped>(request);
+            var access = request switch
+            {
+                IItemScoped scoped => scoped.Access,
+                IOptionalItemScoped { ItemId: not null } optional => optional.Access,
+                _ => throw new Xunit.Sdk.XunitException($"{entry.RequestType.Name} is catalogued item-scoped but carries no item."),
+            };
             var where = $"{entry.RequestType.Name} on {name} by {data.NameOf(actor)}";
 
             var (_, failure) = await app.InvokeAsync(actor, request);
@@ -288,7 +294,7 @@ public class LeakBenchTests(PostgresFixture fixture)
                 continue;
             }
 
-            if (scoped.Access == AccessKind.Write && !data.ExpectedWritable(name, actor))
+            if (access == AccessKind.Write && !data.ExpectedWritable(name, actor))
             {
                 Assert.True(failure is UnauthorizedFailure,
                     $"{where}: the rules let this actor read but not write, so it must be forbidden, "

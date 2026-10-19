@@ -598,7 +598,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("superseded_by_id");
 
-                    b.Property<Guid>("TargetItemId")
+                    b.Property<Guid?>("TargetItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("target_item_id");
 
@@ -917,7 +917,6 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TargetItemId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_proposal_item_target_item_id");
                 });
 

@@ -56,7 +56,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture)
         ["src/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
         ["src/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 1, // advisory lock
         ["src/Nid.Core.Infrastructure/Persistence/PersonalAccessTokenStore.cs"] = 3, // lock; revoked_at (token_revoked) and last_used_at (not audited)
-        ["src/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 2, // the target's row lock; warnings append (not a decision, not in the write log)
+        ["src/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 3, // the target's (or, without one, the submitter's) row lock; warnings append (not a decision, not in the write log)
         ["src/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)
         ["src/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
         ["src/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)

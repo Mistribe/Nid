@@ -17,13 +17,13 @@ public sealed class ProposalHandlers(IEnumerable<IProposalHandler> handlers)
 }
 
 public sealed record ProposalView(
-    Guid Id, string Kind, Guid TargetItemId, string Status, JsonElement Payload, JsonElement? EditedPayload, int PayloadVersion,
+    Guid Id, string Kind, Guid? TargetItemId, string Status, JsonElement Payload, JsonElement? EditedPayload, int PayloadVersion,
     IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, DateTimeOffset CreatedAt,
     Guid CreatedByPersonId, Guid? SupersededById, DateTimeOffset? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
     IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName)
 {
     public static ProposalView From(StoredProposal p, string? targetName, IReadOnlyList<ProposalWarning>? extra = null) => new(
-        p.Id, p.Kind, p.Target.Value, p.Status.ToString().ToLowerInvariant(), p.Payload, p.EditedPayload, p.PayloadVersion,
+        p.Id, p.Kind, p.Target?.Value, p.Status.ToString().ToLowerInvariant(), p.Payload, p.EditedPayload, p.PayloadVersion,
         extra is null ? p.Warnings : [.. p.Warnings, .. extra], p.SubjectKey, p.SourceLabel, p.CreatedVia,
         p.CreatedAt.ToDateTimeOffset(), p.CreatedBy.Value, p.SupersededById, p.DecidedAt?.ToDateTimeOffset(), p.DecidedBy?.Value,
         p.DecisionNote, p.AppliedRefs, p.Version, targetName);
@@ -35,21 +35,22 @@ public sealed record ProposalView(
 /// </summary>
 public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null, JsonElement? Summary = null) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => Proposal is null ? [] : [new ItemId(Proposal.TargetItemId)];
+    public IEnumerable<ItemId> ExposedItems() => Proposal?.TargetItemId is { } target ? [new ItemId(target)] : [];
 }
 
 public sealed record ProposalList(IReadOnlyList<ProposalView> Items) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => Items.Select(p => new ItemId(p.TargetItemId)).Distinct();
+    public IEnumerable<ItemId> ExposedItems() => Items.Where(p => p.TargetItemId is not null).Select(p => new ItemId(p.TargetItemId!.Value)).Distinct();
 }
 
 public sealed record ProposalDetail(ProposalView Proposal, JsonElement? Preview, bool CanDecide) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => [new ItemId(Proposal.TargetItemId)];
+    public IEnumerable<ItemId> ExposedItems() => Proposal.TargetItemId is { } target ? [new ItemId(target)] : [];
 }
 
-public sealed record SubmitProposalCommand(string Kind, ItemId ItemId, JsonElement Payload, string? SourceLabel)
-    : ICommand<SubmittedProposal>, IItemScoped, IRequiresScope
+/// <summary><paramref name="ItemId"/> is null for a kind that does not need a target (<see cref="IProposalHandler.NeedsTarget"/>).</summary>
+public sealed record SubmitProposalCommand(string Kind, ItemId? ItemId, JsonElement Payload, string? SourceLabel)
+    : ICommand<SubmittedProposal>, IOptionalItemScoped, IRequiresScope
 {
     public AccessKind Access => AccessKind.Write;
     public string RequiredScope => ScopeNames.Write;
@@ -67,7 +68,7 @@ public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) 
 /// Spec 4D1 §5: a document written directly — the kind's validation then its application in one unit of work, as the
 /// token's actor; no proposal row (the write log records the module's rows).
 /// </summary>
-public sealed record ApplyDirectCommand(string Kind, ItemId ItemId, JsonElement Payload) : ICommand<DirectWrite>, IItemScoped, IDirectWrite
+public sealed record ApplyDirectCommand(string Kind, ItemId? ItemId, JsonElement Payload) : ICommand<DirectWrite>, IOptionalItemScoped, IDirectWrite
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -79,11 +80,17 @@ public sealed record DirectWrite(
 internal static class ProposalAccess
 {
     /// <summary>Spec 4C2 D2: the targets' names, in one registry read whatever the list's length.</summary>
-    public static async Task<Func<ItemId, string?>> NamesAsync(IItemRegistry items, IEnumerable<ItemId> targets, CancellationToken ct)
+    public static async Task<Func<ItemId?, string?>> NamesAsync(IItemRegistry items, IEnumerable<ItemId?> targets, CancellationToken ct)
     {
-        var found = await items.FindManyAsync(targets.Distinct().ToList(), ct);
-        return id => found.TryGetValue(id, out var item) ? item.DisplayName : null;
+        var found = await items.FindManyAsync(targets.OfType<ItemId>().Distinct().ToList(), ct);
+        return id => id is { } target && found.TryGetValue(target, out var item) ? item.DisplayName : null;
     }
+
+    /// <summary>A kind that needs a target refuses a proposal without one, at <c>targetItemId</c>.</summary>
+    public static Result Target(IProposalHandler handler, ItemId? target)
+        => handler.NeedsTarget && target is null
+            ? Result.Failure(FieldErrors.At(new Failure(ProposalCodes.TargetRequired, "This kind needs a target item.", null), "targetItemId"))
+            : Result.Success();
 
     /// <summary>
     /// The proposal, if the actor may <paramref name="access"/> its target: unreadable answers not found (authorization.md §6).
@@ -97,14 +104,19 @@ internal static class ProposalAccess
         var proposal = await store.FindAsync(id, ct);
         if (proposal is null)
             return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
-        if ((await policy.CheckAsync(me, proposal.Target, AccessKind.Read, ct)).TryGetFailure(out _))
+        // Without a target, the submitter alone reads and decides it; what it creates is checked when it is applied.
+        if (proposal.Target is not { } target)
+            return proposal.ForPerson == me
+                ? Result.Success((proposal, me))
+                : Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
+        if ((await policy.CheckAsync(me, target, AccessKind.Read, ct)).TryGetFailure(out _))
         {
-            await denials.RecordAsync(me, proposal.Target, "read", ct);
+            await denials.RecordAsync(me, target, "read", ct);
             return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
         }
-        if (access == AccessKind.Write && (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).TryGetFailure(out var denied))
+        if (access == AccessKind.Write && (await policy.CheckAsync(me, target, AccessKind.Write, ct)).TryGetFailure(out var denied))
         {
-            await denials.RecordAsync(me, proposal.Target, "write", ct);
+            await denials.RecordAsync(me, target, "write", ct);
             return Result.Failure<(StoredProposal, PersonId)>(denied!);
         }
         return Result.Success((proposal, me));
@@ -137,8 +149,10 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
             return Result.Failure<SubmittedProposal>(new Failure(ProposalCodes.KindUnknown, $"'{command.Kind}' is not a proposal kind.", null));
         if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
             return Result.Failure<SubmittedProposal>(notObject!);
+        if (ProposalAccess.Target(handler, command.ItemId).TryGetFailure(out var noTarget))
+            return Result.Failure<SubmittedProposal>(noTarget!);
 
-        var checkedPayload = await handler.ValidateAsync(command.ItemId, command.Payload, edited: false, ct);
+        var checkedPayload = await handler.ValidateAsync(command.ItemId ?? default, command.Payload, edited: false, ct);
         if (!checkedPayload.TryGetValue(out var check))
             return Result.Failure<SubmittedProposal>(checkedPayload.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
@@ -163,7 +177,7 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
         if (!Enum.TryParse<ProposalStatus>(query.Status ?? "pending", ignoreCase: true, out var status) || !Enum.IsDefined(status))
             return Result.Failure<ProposalList>(FieldErrors.At(new Failure("request.invalid", "pending, approved, rejected or superseded.", null), "status"));
         var targets = await visible.ForAsync(me, VisibilityScope.Me, includeArchived: true, ct);
-        var stored = await store.ListAsync(targets, status, ct);
+        var stored = await store.ListAsync(targets, me, status, ct);
         var names = await ProposalAccess.NamesAsync(items, stored.Select(p => p.Target), ct);
         return Result.Success(new ProposalList(stored.Select(p => ProposalView.From(p, names(p.Target))).ToList()));
     }
@@ -180,7 +194,8 @@ public sealed class GetProposalHandler(
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalDetail>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
-        var canDecide = (await policy.CheckAsync(me, proposal.Target, AccessKind.Write, ct)).IsSuccess && proposal.Status == ProposalStatus.Pending
+        var canDecide = (proposal.Target is not { } target || (await policy.CheckAsync(me, target, AccessKind.Write, ct)).IsSuccess)
+            && proposal.Status == ProposalStatus.Pending
             && accessor.Current?.TokenId is null; // deciding is browser-only
         var names = await ProposalAccess.NamesAsync(items, [proposal.Target], ct);
         var handler = handlers.Find(proposal.Kind);
@@ -188,7 +203,7 @@ public sealed class GetProposalHandler(
             return Result.Success(new ProposalDetail(ProposalView.From(proposal, names(proposal.Target), proposal.Status == ProposalStatus.Pending
                 ? [new ProposalWarning(ProposalCodes.PayloadVersionUnsupported, "error", "This proposal can only be rejected.")] : null), null, canDecide));
         var preview = proposal.Status == ProposalStatus.Pending
-            ? await handler.PreviewAsync(proposal.Target, proposal.EditedPayload ?? proposal.Payload, ct) : (JsonElement?)null;
+            ? await handler.PreviewAsync(proposal.Target ?? default, proposal.EditedPayload ?? proposal.Payload, ct) : (JsonElement?)null;
         return Result.Success(new ProposalDetail(ProposalView.From(proposal, names(proposal.Target)), preview, canDecide));
     }
 }
@@ -223,14 +238,14 @@ public sealed class ApproveProposalHandler(
             await using var transaction = await unitOfWork.BeginAsync(ct);
             var check = command.EditedPayload is not null && handler.RefuseEdit(proposal.Payload, payload) is { } notEditable
                 ? Result.Failure<ProposalCheck>(notEditable)
-                : await handler.ValidateAsync(proposal.Target, payload, edited: command.EditedPayload is not null, ct);
+                : await handler.ValidateAsync(proposal.Target ?? default, payload, edited: command.EditedPayload is not null, ct);
             if (check.TryGetValue(out var valid))
             {
                 // Applied and kept normalized, as a submission is.
                 // A payload that now matches what Nid expects (« conforme ») has nothing to apply: approved, nothing written.
                 var applied = valid!.Conforme is not null
                     ? Result.Success<IReadOnlyList<Guid>>([])
-                    : await handler.ApplyAsync(proposal.Target, valid.Payload, ct);
+                    : await handler.ApplyAsync(proposal.Target ?? default, valid.Payload, ct);
                 if (applied.TryGetValue(out var refs))
                 {
                     var decided = await store.DecideAsync(proposal.Id, command.Version, ProposalStatus.Approved, me,
@@ -301,15 +316,17 @@ public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork un
             return Result.Failure<DirectWrite>(new Failure(ProposalCodes.KindUnknown, $"'{command.Kind}' is not a proposal kind.", null));
         if (ProposalAccess.Payload(command.Payload, "payload").TryGetFailure(out var notObject))
             return Result.Failure<DirectWrite>(notObject!);
+        if (ProposalAccess.Target(handler, command.ItemId).TryGetFailure(out var noTarget))
+            return Result.Failure<DirectWrite>(noTarget!);
 
         // Every early return skips the commit and so rolls back whatever the application wrote: never commit after a refusal.
         await using var transaction = await unitOfWork.BeginAsync(ct);
-        var check = await handler.ValidateAsync(command.ItemId, command.Payload, edited: false, ct);
+        var check = await handler.ValidateAsync(command.ItemId ?? default, command.Payload, edited: false, ct);
         if (!check.TryGetValue(out var valid))
             return Result.Failure<DirectWrite>(check.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
         if (valid!.Conforme is { } conforme)
             return Result.Success(new DirectWrite("conforme", [], [], conforme));
-        var applied = await handler.ApplyAsync(command.ItemId, valid.Payload, ct);
+        var applied = await handler.ApplyAsync(command.ItemId ?? default, valid.Payload, ct);
         if (!applied.TryGetValue(out var refs))
             return Result.Failure<DirectWrite>(applied.TryGetFailure(out var failed) ? failed! : throw new InvalidOperationException());
         await transaction.CommitAsync(ct);

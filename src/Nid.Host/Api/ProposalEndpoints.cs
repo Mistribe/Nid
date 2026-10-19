@@ -8,7 +8,7 @@ namespace Nid.Host.Api;
 /// <summary>Spec 4C1 §3–§5: the validation queue.</summary>
 public static class ProposalEndpoints
 {
-    public sealed record SubmitProposalBody(string Kind, Guid TargetItemId, JsonElement Payload, string? SourceLabel);
+    public sealed record SubmitProposalBody(string Kind, Guid? TargetItemId, JsonElement Payload, string? SourceLabel);
 
     public sealed record ApproveProposalBody(uint Version, JsonElement? EditedPayload);
 
@@ -21,7 +21,7 @@ public static class ProposalEndpoints
 
         api.MapPost("", async (SubmitProposalBody body, IInvoker invoker, CancellationToken ct) =>
             {
-                var result = await invoker.InvokeAsync(new SubmitProposalCommand(body.Kind, new ItemId(body.TargetItemId), body.Payload, body.SourceLabel), ct);
+                var result = await invoker.InvokeAsync(new SubmitProposalCommand(body.Kind, body.TargetItemId is { } target ? new ItemId(target) : null, body.Payload, body.SourceLabel), ct);
                 if (!result.TryGetValue(out var submitted))
                     return result.ToHttp(s => s.Proposal);
                 return submitted!.Proposal is null

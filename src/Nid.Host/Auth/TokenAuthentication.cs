@@ -65,6 +65,12 @@ public static class TokenClaims
                 .Concat(token.Scopes.Select(s => new Claim(Scope, s))),
             TokenAuthentication.Scheme));
 
+    /// <summary>A token's principal with one more scope (a browser session's unchanged): only for a dry run that never commits.</summary>
+    public static ClaimsPrincipal WithScope(ClaimsPrincipal user, string scope)
+        => Read(user) is null
+            ? user
+            : new(new ClaimsIdentity(user.Claims.Append(new Claim(Scope, scope)), TokenAuthentication.Scheme));
+
     public static (PersonId Person, Guid TokenId, IReadOnlySet<string> Scopes)? Read(ClaimsPrincipal user)
         => Guid.TryParse(user.FindFirstValue(Person), out var person) && Guid.TryParse(user.FindFirstValue(Id), out var id)
             ? (new PersonId(person), id, user.FindAll(Scope).Select(c => c.Value).ToHashSet(StringComparer.Ordinal))

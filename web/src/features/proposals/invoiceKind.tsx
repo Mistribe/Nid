@@ -78,5 +78,5 @@ export const invoice: KindUi = {
   // The subscription screens' « La fin doit venir après le début. » does not fit an invoice's date.
   message: (t, error) => (error.code === 'subscriptions.phase_range' ? t('field_error.subscriptions_phase_range', { context: 'invoice' }) : undefined),
   Fields: InvoiceFields,
-  link: (p) => ({ to: '/subscriptions/$id', params: { id: p.targetItemId } }),
+  link: (p) => ({ to: '/subscriptions/$id', params: { id: p.targetItemId ?? '' } }),
 };

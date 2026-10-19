@@ -115,9 +115,23 @@ public class ProposalStoreTests(PostgresFixture postgres)
         await Store(connection).SubmitAsync(Valuation(adult, item, "2025-08-31", "900.00"), default);
         var newer = await Store(connection).SubmitAsync(Valuation(adult, item, "2025-09-30", "1000.00"), default);
 
-        var listed = await Store(connection).ListAsync(new HashSet<ItemId> { item }, ProposalStatus.Pending, default);
+        var listed = await Store(connection).ListAsync(new HashSet<ItemId> { item }, adult, ProposalStatus.Pending, default);
         Assert.Equal(newer.Proposal.Id, listed[0].Id);
         Assert.Equal(2, listed.Count);
-        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), ProposalStatus.Pending, default));
+        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), adult, ProposalStatus.Pending, default));
+    }
+
+    [Fact]
+    public async Task A_proposal_without_a_target_is_listed_for_its_submitter_only_and_deduplicated()
+    {
+        var (connection, adult, _) = await SeedAsync();
+        var creation = Valuation(adult, default, "2025-09-30", "1000.00") with { Kind = "realestate.create_property", Target = null, SubjectKey = null };
+
+        var first = await Store(connection).SubmitAsync(creation, default);
+        Assert.False((await Store(connection).SubmitAsync(creation, default)).Created);
+
+        Assert.Null(first.Proposal.Target);
+        Assert.Equal(first.Proposal.Id, Assert.Single(await Store(connection).ListAsync(new HashSet<ItemId>(), adult, ProposalStatus.Pending, default)).Id);
+        Assert.Empty(await Store(connection).ListAsync(new HashSet<ItemId>(), new PersonId(Guid.CreateVersion7()), ProposalStatus.Pending, default));
     }
 }

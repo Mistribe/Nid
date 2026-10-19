@@ -15,18 +15,21 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public static string Fingerprint(string kind, ItemId target, JsonElement payload)
+    public static string Fingerprint(string kind, ItemId? target, JsonElement payload)
         => Rfc8785.Hash(JsonSerializer.SerializeToElement(new JsonObject
         {
-            ["kind"] = kind, ["target"] = target.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()),
+            ["kind"] = kind, ["target"] = target?.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()),
         }));
 
     public async Task<SubmitOutcome> SubmitAsync(NewProposal p, CancellationToken ct)
     {
         var fingerprint = Fingerprint(p.Kind, p.Target, p.Payload);
         await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
-        // One submission at a time per target: deduplication and supersession read then write.
-        await db.Database.ExecuteSqlAsync($"select 1 from core.item where id = {p.Target.Value} for update", ct);
+        // One submission at a time per target (per submitter without one): deduplication and supersession read then write.
+        if (p.Target is { } target)
+            await db.Database.ExecuteSqlAsync($"select 1 from core.item where id = {target.Value} for update", ct);
+        else
+            await db.Database.ExecuteSqlAsync($"select 1 from core.person where id = {p.Person.Value} for update", ct);
 
         var same = await db.Proposals.AsNoTracking().SingleOrDefaultAsync(r => r.Fingerprint == fingerprint && r.Status == "pending", ct);
         if (same is not null)
@@ -34,14 +37,14 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
 
         var row = new ProposalRow
         {
-            Id = Guid.CreateVersion7(), Module = p.Module, Kind = p.Kind, TargetItemId = p.Target.Value, ForPersonId = p.Person.Value,
+            Id = Guid.CreateVersion7(), Module = p.Module, Kind = p.Kind, TargetItemId = p.Target?.Value, ForPersonId = p.Person.Value,
             SubjectKey = p.SubjectKey, Payload = p.Payload.GetRawText(), PayloadVersion = p.PayloadVersion,
             Warnings = JsonSerializer.Serialize(p.Warnings, Json), Status = "pending", Fingerprint = fingerprint,
             CreatedVia = p.CreatedVia, TokenId = p.TokenId, CreatedByPersonId = p.Person.Value, SourceLabel = p.SourceLabel,
             CreatedAt = clock.GetCurrentInstant(),
         };
         if (p.SubjectKey is not null)
-            foreach (var older in await db.Proposals.Where(r => r.Kind == p.Kind && r.TargetItemId == p.Target.Value
+            foreach (var older in await db.Proposals.Where(r => r.Kind == p.Kind && r.TargetItemId == row.TargetItemId
                          && r.SubjectKey == p.SubjectKey && r.Status == "pending").ToListAsync(ct))
             {
                 older.Status = "superseded";
@@ -67,11 +70,12 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
     public async Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct)
         => await db.Proposals.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id, ct) is { } row ? ToStored(row) : null;
 
-    public async Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, ProposalStatus status, CancellationToken ct)
+    public async Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId person, ProposalStatus status, CancellationToken ct)
     {
-        var ids = targets.Select(t => t.Value).ToArray();
+        var ids = targets.Select(t => (Guid?)t.Value).ToArray();
         var wire = Wire(status);
-        return (await db.Proposals.AsNoTracking().Where(r => ids.Contains(r.TargetItemId) && r.Status == wire)
+        return (await db.Proposals.AsNoTracking()
+                .Where(r => (ids.Contains(r.TargetItemId) || (r.TargetItemId == null && r.ForPersonId == person.Value)) && r.Status == wire)
             .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).ToListAsync(ct)).Select(ToStored).ToList();
     }
 
@@ -113,7 +117,7 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
     private static string Wire(ProposalStatus status) => status.ToString().ToLowerInvariant();
 
     private static StoredProposal ToStored(ProposalRow r) => new(
-        r.Id, r.Module, r.Kind, new ItemId(r.TargetItemId), new PersonId(r.ForPersonId), r.SubjectKey,
+        r.Id, r.Module, r.Kind, r.TargetItemId is { } target ? new ItemId(target) : null, new PersonId(r.ForPersonId), r.SubjectKey,
         JsonDocument.Parse(r.Payload).RootElement.Clone(), r.PayloadVersion,
         r.EditedPayload is null ? null : JsonDocument.Parse(r.EditedPayload).RootElement.Clone(),
         JsonSerializer.Deserialize<List<ProposalWarning>>(r.Warnings, Json) ?? [],

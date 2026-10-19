@@ -58,7 +58,7 @@ const valuation: KindUi = {
   },
   field: (path) => VALUATION_FIELDS[path],
   Fields: ValuationFields,
-  link: (p) => ({ to: '/investments/$id', params: { id: p.targetItemId } }),
+  link: (p) => ({ to: '/investments/$id', params: { id: p.targetItemId ?? '' } }),
 };
 
 const KINDS: Record<string, KindUi> = {

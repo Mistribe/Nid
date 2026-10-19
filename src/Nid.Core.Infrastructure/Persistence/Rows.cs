@@ -134,7 +134,7 @@ public sealed class ProposalRow
     public Guid Id { get; set; }
     public string Module { get; set; } = "";
     public string Kind { get; set; } = "";
-    public Guid TargetItemId { get; set; }
+    public Guid? TargetItemId { get; set; }
     public Guid ForPersonId { get; set; }
     public string? SubjectKey { get; set; }
     public string Payload { get; set; } = "{}";
