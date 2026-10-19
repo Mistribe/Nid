@@ -279,6 +279,13 @@ public static class RequestCatalogue
         new(typeof(DeleteHoldingsSnapshotCommand), true, (_, item) => new DeleteHoldingsSnapshotCommand(item, Guid.NewGuid())),
         new(typeof(GetHoldingsQuery), true, (_, item) => new GetHoldingsQuery(item, null)),
         new(typeof(ListHoldingsSnapshotsQuery), true, (_, item) => new ListHoldingsSnapshotsQuery(item)),
+        new(typeof(AddHoldingMovementCommand), true, (_, item) => new AddHoldingMovementCommand(item, Guid.NewGuid(),
+            new MovementDraft(new LocalDate(2025, 1, 1), "fee", null, null, Money.Create(1m, Currency.Eur).Ok(), null, null, null))),
+        new(typeof(RecordSwitchCommand), true, (_, item) => new RecordSwitchCommand(item, new SwitchDraft(new LocalDate(2025, 1, 1), false,
+            new SwitchLegDraft(Guid.NewGuid(), Money.Create(1m, Currency.Eur).Ok(), null, null), new SwitchLegDraft(Guid.NewGuid(), Money.Create(1m, Currency.Eur).Ok(), null, null), null))),
+        new(typeof(ListHoldingMovementsQuery), true, (_, item) => new ListHoldingMovementsQuery(item, Guid.NewGuid())),
+        new(typeof(GetHoldingSeriesQuery), true, (_, item) => new GetHoldingSeriesQuery(item, Guid.NewGuid())),
+        new(typeof(GetHoldingPerformanceQuery), true, (_, item) => new GetHoldingPerformanceQuery(item, Guid.NewGuid(), new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30))),
 
         new(typeof(RecordRoutineCommand), false, (_, _) => new RecordRoutineCommand(new LocalDate(2025, 1, 31), [])),
         new(typeof(UndoRoutineCommand), false, (_, _) => new UndoRoutineCommand([])),

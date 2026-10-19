@@ -64,28 +64,9 @@ public static class EnvelopeMath
     /// null when not meaningful (under 12 months, or cash flows all of one sign).
     /// </summary>
     public static decimal? AnnualReturn(IReadOnlyList<Flow> flows, Valuation latest)
-    {
-        var cash = flows.Where(f => f.OccurredOn <= latest.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
-            .Select(f => (On: f.OccurredOn, Amount: f.Kind == FlowKind.Withdrawal ? f.Amount.Amount : -f.Amount.Amount))
-            .Append((On: latest.AsOf, Amount: latest.Value.Amount))
-            .Where(c => c.Amount != 0)
-            .ToList();
-        if (cash.Count < 2 || cash.All(c => c.Amount > 0) || cash.All(c => c.Amount < 0)) return null;
-        var first = cash.Min(c => c.On);
-        if (first.PlusYears(1) > latest.AsOf) return null;
-
-        // The one floating-point calculation (§6): a non-integer power. Amounts stay decimal up to here.
-        var points = cash.Select(c => (Years: NodaTime.Period.DaysBetween(first, c.On) / 365.0, Amount: (double)c.Amount)).ToList();
-        double Npv(double rate) => points.Sum(p => p.Amount / Math.Pow(1 + rate, p.Years));
-        double low = -0.9999, high = 100;
-        if (Math.Sign(Npv(low)) == Math.Sign(Npv(high))) return null;
-        for (var i = 0; i < 100 && high - low > 1e-9; i++)
-        {
-            var mid = (low + high) / 2;
-            if (Math.Sign(Npv(mid)) == Math.Sign(Npv(low))) low = mid; else high = mid;
-        }
-        return RoundPercent((decimal)((low + high) / 2 * 100));
-    }
+        => Xirr.AnnualPercent(flows.Where(f => f.OccurredOn <= latest.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
+            .Select(f => (f.OccurredOn, f.Kind == FlowKind.Withdrawal ? f.Amount.Amount : -f.Amount.Amount))
+            .Append((latest.AsOf, latest.Value.Amount)), latest.AsOf);
 
     public static decimal RoundPercent(decimal percent) => Math.Round(percent, 1, MidpointRounding.AwayFromZero);
 
@@ -108,7 +89,7 @@ public static class EnvelopeMath
 
     private static Money Sum(IReadOnlyList<Flow> flows, Currency currency, Func<Flow, bool> which) => M(Total(flows, which), currency);
 
-    private static Money M(decimal amount, Currency currency)
+    internal static Money M(decimal amount, Currency currency)
         => Money.Create(amount, currency).TryGetValue(out var money) ? money
             : throw new InvalidOperationException("A sum of four-decimal amounts has four decimals.");
 }

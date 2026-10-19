@@ -135,6 +135,15 @@ public static class RouteActions
             "Replace a recorded snapshot of an envelope's holdings. " + Ids + Amounts, Destructive: true),
         new("delete_holdings_snapshot", "DELETE", "/api/v1/investments/envelopes/{id:guid}/holding-snapshots/{snapshotId:guid}", null,
             "Remove a snapshot of an envelope's holdings. " + Ids, Destructive: true),
+        new("add_holding_movement", "POST", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}/movements", typeof(MovementBody),
+            "Record a movement on one holding of an envelope: kind 'allocation_in' or 'allocation_out' (its share of a payment or withdrawal), "
+            + "'maturity', 'fee' (management fee taken in units), 'interest' (euro fund profit sharing) or 'income'. The amount is above zero; "
+            + "units are signed (bought +, deducted −). A switch between holdings is record_holding_switch. Copy the document as written and invent nothing. "
+            + Ids + Amounts),
+        new("record_holding_switch", "POST", "/api/v1/investments/envelopes/{id:guid}/switches", typeof(SwitchBody),
+            "Record a switch (arbitrage) between two holdings of an envelope, both legs at once; maturity true when the source is a structured "
+            + "product reaching its term or called. A switch fee is a separate 'fee' movement. Copy the document as written and invent nothing. "
+            + Ids + Amounts),
 
         // Income.
         new("create_income_source", "POST", "/api/v1/income/sources", typeof(CreateIncomeSourceBody),

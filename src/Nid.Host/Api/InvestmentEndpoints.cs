@@ -128,6 +128,38 @@ public static class InvestmentEndpoints
             })
             .ReturnsNoContent();
 
+        api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/movements", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListHoldingMovementsQuery(new ItemId(id), holdingId), ct)).ToHttp(v => v))
+            .Returns<HoldingMovementList>();
+
+        api.MapPost("/envelopes/{id:guid}/holdings/{holdingId:guid}/movements", async (Guid id, Guid holdingId, MovementBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AddHoldingMovementCommand(new ItemId(id), holdingId, draft), ct)).ToHttp(x => x, StatusCodes.Status201Created);
+            })
+            .Returns<MovementRecorded>(StatusCodes.Status201Created);
+
+        api.MapPost("/envelopes/{id:guid}/switches", async (Guid id, SwitchBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var draft = body.Read(reader);
+                return draft is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new RecordSwitchCommand(new ItemId(id), draft), ct)).ToHttp(x => x, StatusCodes.Status201Created);
+            })
+            .Returns<SwitchRecorded>(StatusCodes.Status201Created);
+
+        api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/series", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetHoldingSeriesQuery(new ItemId(id), holdingId), ct)).ToHttp(v => v))
+            .Returns<HoldingSeries>();
+
+        api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/performance", async (Guid id, Guid holdingId, string from, string to, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetHoldingPerformanceQuery(new ItemId(id), holdingId, RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
+            .Returns<PeriodView>();
+
         api.MapGet("/envelopes/{id:guid}/holding-snapshots", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListHoldingsSnapshotsQuery(new ItemId(id)), ct)).ToHttp(v => v))
             .Returns<HoldingSnapshotList>();
@@ -288,6 +320,50 @@ public static class InvestmentEndpoints
                     lines.Add(new SnapshotLineDraft(l.HoldingId, units, price, v, basis));
             }
             return reader.Ok ? new SnapshotDraft(asOf!.Value, SourceLabel, Complete ?? true, lines, RecordValuation) : null;
+        }
+    }
+
+    /// <summary>Issue #34 §2.3: units are signed by the kind (bought +, sold or deducted −); decimals are strings, dates ISO.</summary>
+    public sealed record MovementBody(
+        string? OccurredOn, string? Kind, string? Units, string? UnitPrice, MoneyBody? Amount, Guid? EnvelopeFlowId, string? Label, string? ExternalRef)
+    {
+        internal MovementDraft? Read(FieldReader reader)
+        {
+            var on = reader.Date(OccurredOn, "occurredOn");
+            var amount = reader.Money(Amount, "amount");
+            var units = reader.Decimal(Units, "units");
+            var price = reader.Decimal(UnitPrice, "unitPrice");
+            return reader.Ok ? new MovementDraft(on!.Value, Kind, units, price, amount!.Value, EnvelopeFlowId, Label, ExternalRef) : null;
+        }
+    }
+
+    public sealed record SwitchLegBody(Guid HoldingId, MoneyBody? Amount, string? Units, string? UnitPrice)
+    {
+        internal SwitchLegDraft? Read(FieldReader reader, string at)
+        {
+            var amount = reader.Money(Amount, $"{at}.amount");
+            var units = reader.Decimal(Units, $"{at}.units");
+            var price = reader.Decimal(UnitPrice, $"{at}.unitPrice");
+            return amount is { } a ? new SwitchLegDraft(HoldingId, a, units, price) : null;
+        }
+    }
+
+    /// <summary>
+    /// A switch between two holdings, both legs at once (issue #34 §2.3): <c>maturity</c> makes the <c>from</c> leg a maturity (a structured
+    /// product reaching its term or called) rather than a <c>switch_out</c>. A switch fee is a separate <c>fee</c> movement.
+    /// </summary>
+    public sealed record SwitchBody(string? OccurredOn, bool Maturity, SwitchLegBody? From, SwitchLegBody? To, string? Label)
+    {
+        internal SwitchDraft? Read(FieldReader reader)
+        {
+            var on = reader.Date(OccurredOn, "occurredOn");
+            if (From is null)
+                reader.Add("from", "request.required", "The holding the money leaves is required.");
+            if (To is null)
+                reader.Add("to", "request.required", "The holding the money goes to is required.");
+            var from = From?.Read(reader, "from");
+            var to = To?.Read(reader, "to");
+            return reader.Ok ? new SwitchDraft(on!.Value, Maturity, from!, to!, Label) : null;
         }
     }
 }

@@ -1912,6 +1912,8 @@
       "add_holdings_snapshot": "Relevé des supports d’une enveloppe",
       "replace_holdings_snapshot": "Remplacement d’un relevé des supports",
       "delete_holdings_snapshot": "Suppression d’un relevé des supports",
+      "add_holding_movement": "Mouvement sur un support",
+      "record_holding_switch": "Arbitrage entre deux supports",
       "create_income_source": "Nouvelle source de revenu",
       "edit_income_source": "Modification d’une source de revenu",
       "add_income_phase": "Nouvelle période de revenu",

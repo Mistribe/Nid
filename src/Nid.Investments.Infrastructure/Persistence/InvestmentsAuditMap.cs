@@ -11,6 +11,7 @@ public sealed class InvestmentsAuditMap : IAuditMap
         [typeof(HoldingRow)] = new(e => AuditItems.Of(e, nameof(HoldingRow.EnvelopeItemId))),
         [typeof(HoldingSnapshotRow)] = new(e => AuditItems.Of(e, nameof(HoldingSnapshotRow.EnvelopeItemId))),
         [typeof(HoldingSnapshotLineRow)] = new(e => AuditItems.Of(e, nameof(HoldingSnapshotLineRow.EnvelopeItemId))),
+        [typeof(HoldingMovementRow)] = new(e => AuditItems.Of(e, nameof(HoldingMovementRow.EnvelopeItemId))),
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };

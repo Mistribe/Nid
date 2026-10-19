@@ -14,6 +14,30 @@ public static class HoldingWire
     public static bool HasUnits(string kind) => kind is not ("euro_fund" or "cash");
 }
 
+/// <summary>Issue #34 §2.3: a movement's kind, its direction, and whether it is money in or out of the holding.</summary>
+public static class MovementKinds
+{
+    public const string AllocationIn = "allocation_in";
+    public const string AllocationOut = "allocation_out";
+    public const string SwitchIn = "switch_in";
+    public const string SwitchOut = "switch_out";
+    public const string Maturity = "maturity";
+    public const string Fee = "fee";
+    public const string Interest = "interest";
+    public const string Income = "income";
+
+    public static readonly IReadOnlyList<string> All = [AllocationIn, AllocationOut, SwitchIn, SwitchOut, Maturity, Fee, Interest, Income];
+
+    /// <summary>Money in of the holding's performance.</summary>
+    public static bool IsMoneyIn(string kind) => kind is AllocationIn or SwitchIn;
+
+    /// <summary>Money out of the holding's performance.</summary>
+    public static bool IsMoneyOut(string kind) => kind is AllocationOut or SwitchOut or Maturity;
+
+    /// <summary>Units come in (bought, reinvested); the others take units out.</summary>
+    public static bool IsIn(string kind) => kind is AllocationIn or SwitchIn or Interest or Income;
+}
+
 /// <summary>One line of an envelope (holdings spec §2.1): a fund, a share, the euro fund, a structured product, cash.</summary>
 public sealed record EnvelopeHolding(
     Guid Id, ItemId Envelope, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
@@ -27,14 +51,29 @@ public sealed record SnapshotLine(Guid HoldingId, decimal? Units, decimal? UnitP
 /// <summary>The composition of an envelope at a date (holdings spec §2.2): one per date.</summary>
 public sealed record HoldingSnapshot(Guid Id, ItemId Envelope, LocalDate AsOf, string? SourceLabel, bool Complete, IReadOnlyList<SnapshotLine> Lines);
 
+/// <summary>
+/// A dated movement on one holding (issue #34 §2.3): <see cref="Amount"/> is above zero, its direction comes from the kind; units are
+/// signed (bought +, sold or deducted −). The two legs of a switch share <see cref="SwitchRef"/>.
+/// </summary>
+public sealed record HoldingMovement(
+    Guid Id, ItemId Envelope, Guid HoldingId, LocalDate OccurredOn, string Kind, decimal? Units, decimal? UnitPrice, decimal Amount,
+    Guid? EnvelopeFlowId, string? SwitchRef, string? Label, string? ExternalRef);
+
+/// <summary>Issue #34 §3, a holding at its latest valued snapshot on or before the date: money in and out, gain, XIRR, explicit fees.</summary>
+public sealed record HoldingFigures(
+    LocalDate AsOf, Money Value, Money MoneyIn, Money MoneyOut, Money Gain, decimal? GainPct, decimal? AnnualReturnPct,
+    Money ExplicitFees, Money GainBeforeFees);
+
 public static class HoldingWarnings
 {
     public const string ValueMismatch = "holding_value_mismatch";
     public const string SumMismatch = "holdings_sum_mismatch";
+    public const string AllocationMismatch = "allocation_mismatch";
+    public const string SwitchUnbalanced = "switch_unbalanced";
 }
 
-/// <summary>A warning about a snapshot, on one of its lines when <see cref="HoldingId"/> is set.</summary>
-public sealed record HoldingWarning(string Code, Guid? HoldingId = null);
+/// <summary>A warning about a snapshot or movements, on one holding when <see cref="HoldingId"/> is set, on a date when <see cref="On"/> is.</summary>
+public sealed record HoldingWarning(string Code, Guid? HoldingId = null, LocalDate? On = null);
 
 public interface IHoldingStore
 {
@@ -47,7 +86,7 @@ public interface IHoldingStore
 
     Task DeleteAsync(Guid holding, CancellationToken ct);
 
-    /// <summary>True when a snapshot line names the holding.</summary>
+    /// <summary>True when a snapshot line or a movement names the holding.</summary>
     Task<bool> InUseAsync(Guid holding, CancellationToken ct);
 
     /// <summary>The envelope's snapshots, latest first.</summary>
@@ -57,4 +96,9 @@ public interface IHoldingStore
     Task SaveSnapshotAsync(HoldingSnapshot snapshot, CancellationToken ct);
 
     Task DeleteSnapshotAsync(Guid snapshot, CancellationToken ct);
+
+    /// <summary>The envelope's movements, by date then id.</summary>
+    Task<IReadOnlyList<HoldingMovement>> MovementsAsync(ItemId envelope, CancellationToken ct);
+
+    Task AddMovementsAsync(IReadOnlyList<HoldingMovement> movements, CancellationToken ct);
 }

@@ -43,3 +43,20 @@ public sealed class HoldingSnapshotLineRow
     public decimal Value { get; set; }
     public decimal? CostBasisPerUnit { get; set; }
 }
+
+/// <summary>investments.holding_movement (issue #34 §2.3); <c>EnvelopeItemId</c> is the holding's, so its audit lands on the envelope.</summary>
+public sealed class HoldingMovementRow
+{
+    public Guid Id { get; set; }
+    public Guid HoldingId { get; set; }
+    public Guid EnvelopeItemId { get; set; }
+    public LocalDate OccurredOn { get; set; }
+    public string Kind { get; set; } = "";
+    public decimal? Units { get; set; }
+    public decimal? UnitPrice { get; set; }
+    public decimal Amount { get; set; }
+    public Guid? EnvelopeFlowId { get; set; }
+    public string? SwitchRef { get; set; }
+    public string? Label { get; set; }
+    public string? ExternalRef { get; set; }
+}

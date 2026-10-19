@@ -90,7 +90,7 @@ Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant c
 
 - **Flux** : `opening` et `contribution` négatifs, `withdrawal` positifs, valeur finale positive à `v`. Base **Actual/365**.
 - **Résolution** : bissection sur ]−99,99 %, +10 000 %], tolérance 10⁻⁹ sur le taux, 100 itérations au plus ; arrondi par le serveur à 0,1 %. Pas de changement de signe de la VAN sur l'intervalle → non significatif.
-- **Livré** avec l'issue #20 : `annual_return_pct` dans les chiffres d'une enveloppe (`annualReturnPct` sur le fil), affiché « Rendement annuel » sur sa fiche.
+- **Livré** avec l'issue #20 : `annual_return_pct` dans les chiffres d'une enveloppe (`annualReturnPct` sur le fil), affiché « Rendement annuel » sur sa fiche. Le solveur est `Xirr.AnnualPercent`, partagé avec les supports (§16).
 - **Non significatif** si tous les flux ont le même signe ou si la période couvre moins de 12 mois.
 - **Seule exception aux montants décimaux** : la puissance non entière impose un calcul en flottant. Il reste **à la frontière du calcul** : les montants restent décimaux, le taux est reconverti en décimal.
 
@@ -254,7 +254,10 @@ Optionnel. Conception : `superpowers/specs/2026-10-19-envelope-holdings-design.m
 | `holding` | Un support de l'enveloppe : fonds, ETF, action, fonds en euros, produit structuré, liquidités. ISIN vérifié et unique par enveloppe |
 | `holding_snapshot` | La composition à une date (un relevé), une par date ; `complete` dit si tous les supports y sont |
 | `holding_snapshot_line` | Une ligne : parts et prix unitaire à 6 décimales (aucun pour le fonds en euros et les liquidités), valeur telle qu'imprimée |
+| `holding_movement` | Un mouvement daté sur un support : `allocation_in` / `allocation_out` (part d'un versement ou d'un rachat), `switch_in` / `switch_out` (arbitrage, les deux jambes partagent `switch_ref`), `maturity`, `fee`, `interest`, `income`. Montant > 0, sens donné par le type ; parts signées |
 
 Lecture : le relevé le plus récent à une date, les poids (arrondis à 0,1 %) et le **non-réparti** (valorisation de l'enveloppe à la même date − somme des lignes). Avertissements `holding_value_mismatch` et `holdings_sum_mismatch`, jamais d'erreur. Un relevé peut, sur demande, enregistrer sa somme comme valorisation de l'enveloppe.
 
-**Livré** (PR 1) : supports et relevés, API `/api/v1/investments/envelopes/{id}/holdings` et `/holding-snapshots`. **À venir** : mouvements et performance par support, frais, part UC, échéances, import, proposition dédiée, écrans.
+Chiffres d'un support (`HoldingMath`, depuis ses seules données) : entrées (`allocation_in` + `switch_in`) et sorties (`allocation_out` + `switch_out` + `maturity`), gain = valeur + sorties − entrées, gain % sur les entrées, TRI (même solveur que l'enveloppe, `Xirr`), performance de période additive, frais explicites (Σ `fee`) et gain avant frais. `fee`, `interest` et `income` font partie de la performance, pas des flux. Les mouvements ne créent jamais de flux du Core : les chiffres de l'enveloppe ne changent pas. Avertissements `allocation_mismatch` (allocations d'une date ≠ versements ou rachats de cette date) et `switch_unbalanced` (jambes d'un arbitrage à plus de 1 € d'écart).
+
+**Livré** : supports et relevés (PR 1) ; mouvements, arbitrages et performance par support (PR 2), API `/api/v1/investments/envelopes/{id}/holdings`, `/holding-snapshots`, `/holdings/{holdingId}/movements|series|performance` et `/switches`. **À venir** : rapports de frais, part UC, échéances, import, proposition dédiée, écrans.

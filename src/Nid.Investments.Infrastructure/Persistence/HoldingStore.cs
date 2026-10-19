@@ -34,7 +34,8 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
         await db.SaveChangesAsync(ct);
     }
 
-    public Task<bool> InUseAsync(Guid holding, CancellationToken ct) => db.HoldingSnapshotLines.AnyAsync(l => l.HoldingId == holding, ct);
+    public async Task<bool> InUseAsync(Guid holding, CancellationToken ct)
+        => await db.HoldingSnapshotLines.AnyAsync(l => l.HoldingId == holding, ct) || await db.HoldingMovements.AnyAsync(m => m.HoldingId == holding, ct);
 
     public async Task<IReadOnlyList<HoldingSnapshot>> SnapshotsAsync(ItemId envelope, CancellationToken ct)
     {
@@ -76,6 +77,25 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
     public async Task DeleteSnapshotAsync(Guid snapshot, CancellationToken ct)
     {
         db.HoldingSnapshots.Remove(await db.HoldingSnapshots.Include(s => s.Lines).SingleAsync(s => s.Id == snapshot, ct));
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<HoldingMovement>> MovementsAsync(ItemId envelope, CancellationToken ct)
+    {
+        var rows = await db.HoldingMovements.AsNoTracking().Where(m => m.EnvelopeItemId == envelope.Value)
+            .OrderBy(m => m.OccurredOn).ThenBy(m => m.Id).ToListAsync(ct);
+        return rows.Select(r => new HoldingMovement(r.Id, envelope, r.HoldingId, r.OccurredOn, r.Kind, r.Units, r.UnitPrice, r.Amount,
+            r.EnvelopeFlowId, r.SwitchRef, r.Label, r.ExternalRef)).ToList();
+    }
+
+    public async Task AddMovementsAsync(IReadOnlyList<HoldingMovement> movements, CancellationToken ct)
+    {
+        db.HoldingMovements.AddRange(movements.Select(m => new HoldingMovementRow
+        {
+            Id = m.Id, HoldingId = m.HoldingId, EnvelopeItemId = m.Envelope.Value, OccurredOn = m.OccurredOn, Kind = m.Kind, Units = m.Units,
+            UnitPrice = m.UnitPrice, Amount = m.Amount, EnvelopeFlowId = m.EnvelopeFlowId, SwitchRef = m.SwitchRef, Label = m.Label,
+            ExternalRef = m.ExternalRef,
+        }));
         await db.SaveChangesAsync(ct);
     }
 

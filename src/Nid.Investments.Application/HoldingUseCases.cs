@@ -216,7 +216,7 @@ public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry
         if (stored.Version != command.Version)
             return Result.Failure<bool>(HoldingRules.Conflict());
         if (await holdings.InUseAsync(command.Holding, ct))
-            return Result.Failure<bool>(new Failure(InvestmentsCodes.HoldingInUse, "This holding is in a snapshot: close it instead.", null));
+            return Result.Failure<bool>(new Failure(InvestmentsCodes.HoldingInUse, "This holding is in a snapshot or has movements: close it instead.", null));
 
         await holdings.DeleteAsync(command.Holding, ct);
         await transaction.CommitAsync(ct);
@@ -292,29 +292,32 @@ public sealed class DeleteHoldingsSnapshotHandler(IEnvelopeStore envelopes, IIte
 
 [RequestHandler<GetHoldingsQuery, HoldingsView>]
 public sealed class GetHoldingsHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IValuations valuations, IHouseholdCalendar calendar)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IValuations valuations, IHouseholdCalendar calendar)
     : IRequestHandler<GetHoldingsQuery, HoldingsView>
 {
     public async ValueTask<Result<HoldingsView>> HandleAsync(GetHoldingsQuery query, CancellationToken ct = default)
     {
-        var readable = await HoldingCheck.ReadableAsync(envelopes, items, query.ItemId, ct);
-        if (!readable.TryGetValue(out var envelope))
-            return Result.Failure<HoldingsView>(readable.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, query.ItemId, write: false, null, ct);
+        if (!loaded.TryGetValue(out var facts))
+            return Result.Failure<HoldingsView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var on = query.On ?? await calendar.TodayAsync(ct);
-        var snapshot = (await holdings.SnapshotsAsync(query.ItemId, ct)).FirstOrDefault(s => s.AsOf <= on);
-        var all = await holdings.HoldingsAsync(query.ItemId, ct);
-        var currency = envelope.Currency;
+        var snapshots = await holdings.SnapshotsAsync(query.ItemId, ct);
+        var snapshot = snapshots.FirstOrDefault(s => s.AsOf <= on);
+        var currency = facts!.Currency;
+        var movementWarnings = HoldingMath.Warnings(facts.Movements.Where(m => m.OccurredOn <= on).ToList(), facts.Flows);
+        HoldingFigures? Figures(Guid h) => HoldingMath.At(h, snapshots, facts.Movements, currency, on);
         if (snapshot is null)
-            return Result.Success(new HoldingsView(query.ItemId, currency.Code, null, null, null, null, null,
-                all.Select(h => HoldingView.Of(h, null, currency)).ToList(), []));
+            return Result.Success(new HoldingsView(query.ItemId, currency.Code, null, null, null, null, null, null,
+                facts.Holdings.Select(h => HoldingView.Of(h, null, null)).ToList(), movementWarnings.Select(HoldingWarningView.Of).ToList()));
 
         var valuation = await HoldingCheck.ValuationOnAsync(valuations, query.ItemId, snapshot.AsOf, ct);
         var total = HoldingMath.Total(snapshot);
         return Result.Success(new HoldingsView(query.ItemId, currency.Code, snapshot.AsOf, snapshot.Id, snapshot.Complete,
             AmountView.From(Amounts.Of(total, currency)), valuation is { } v ? AmountView.From(Amounts.Of(v - total, currency)) : null,
-            all.Select(h => HoldingView.Of(h, snapshot.Lines.FirstOrDefault(l => l.HoldingId == h.Holding.Id) is { } line
-                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, currency)).ToList(),
-            HoldingMath.Warnings(snapshot, valuation).Select(HoldingWarningView.Of).ToList()));
+            AmountView.From(Amounts.Of(HoldingMath.ExplicitFees(facts.Movements, snapshot.AsOf), currency)),
+            facts.Holdings.Select(h => HoldingView.Of(h, snapshot.Lines.FirstOrDefault(l => l.HoldingId == h.Holding.Id) is { } line
+                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id))).ToList(),
+            HoldingMath.Warnings(snapshot, valuation).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList()));
     }
 }
 

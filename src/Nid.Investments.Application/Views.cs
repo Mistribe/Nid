@@ -60,10 +60,42 @@ public sealed record EnvelopeSeries(ItemId Id, IReadOnlyList<SeriesPoint> Points
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }
 
-public sealed record HoldingWarningView(string Code, Guid? HoldingId)
+public sealed record HoldingWarningView(string Code, Guid? HoldingId, LocalDate? On)
 {
-    public static HoldingWarningView Of(HoldingWarning w) => new(w.Code, w.HoldingId);
+    public static HoldingWarningView Of(HoldingWarning w) => new(w.Code, w.HoldingId, w.On);
 }
+
+/// <summary>Issue #34 §3: a holding's figures at its latest value on or before the read's date (<see cref="AsOf"/>).</summary>
+public sealed record HoldingFiguresView(
+    LocalDate AsOf, AmountView Value, AmountView MoneyIn, AmountView MoneyOut, AmountView Gain, decimal? GainPct, decimal? AnnualReturnPct,
+    AmountView ExplicitFees, AmountView GainBeforeFees)
+{
+    public static HoldingFiguresView? Of(HoldingFigures? f) => f is null ? null : new(f.AsOf, AmountView.From(f.Value), AmountView.From(f.MoneyIn),
+        AmountView.From(f.MoneyOut), AmountView.From(f.Gain), f.GainPct, f.AnnualReturnPct, AmountView.From(f.ExplicitFees), AmountView.From(f.GainBeforeFees));
+}
+
+public sealed record MovementView(
+    Guid Id, LocalDate OccurredOn, string Kind, string? Units, string? UnitPrice, AmountView Amount, Guid? EnvelopeFlowId, string? SwitchRef,
+    string? Label, string? ExternalRef)
+{
+    public static MovementView Of(HoldingMovement m, Currency currency) => new(m.Id, m.OccurredOn, m.Kind, Units6.Of(m.Units), Units6.Of(m.UnitPrice),
+        AmountView.From(Amounts.Of(m.Amount, currency)), m.EnvelopeFlowId, m.SwitchRef, m.Label, m.ExternalRef);
+}
+
+public sealed record HoldingMovementList(ItemId EnvelopeId, Guid HoldingId, IReadOnlyList<MovementView> Items) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
+}
+
+/// <summary>One point per snapshot valuing the holding; <c>NetContributions</c> is its money in − out up to that date.</summary>
+public sealed record HoldingSeries(ItemId EnvelopeId, Guid HoldingId, IReadOnlyList<SeriesPoint> Points) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
+}
+
+public sealed record MovementRecorded(Guid Id, IReadOnlyList<HoldingWarningView> Warnings);
+
+public sealed record SwitchRecorded(string SwitchRef, Guid FromMovementId, Guid ToMovementId, IReadOnlyList<HoldingWarningView> Warnings);
 
 /// <summary>A holding's line in the snapshot read: as printed, with its weight in the snapshot (0.1 %, null when the total is zero).</summary>
 public sealed record LineView(string? Units, string? UnitPrice, AmountView Value, string? CostBasisPerUnit, decimal? WeightPct)
@@ -80,22 +112,25 @@ public static class Units6
 
 public sealed record HoldingView(
     Guid Id, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
-    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line)
+    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line,
+    HoldingFiguresView? Figures)
 {
-    public static HoldingView Of(StoredHolding s, LineView? line, Currency currency)
+    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures)
     {
         var h = s.Holding;
         return new(h.Id, h.Name, h.Isin, h.Kind, h.AssetClass, h.Issuer, h.RiskIndicator, h.OpenedOn, h.MaturesOn, h.EntryCostPct, h.ClosedOn, h.Note,
-            s.Version, line);
+            s.Version, line, HoldingFiguresView.Of(figures));
     }
 }
 
 /// <summary>
 /// Holdings spec §3: every holding of the envelope and its line in the latest snapshot on or before the date. <c>Unallocated</c> is the
-/// envelope's valuation of the snapshot's date minus the total, null without one.
+/// envelope's valuation of the snapshot's date minus the total, null without one. <c>ExplicitFees</c> is Σ <c>fee</c> movements up to the
+/// snapshot's date.
 /// </summary>
 public sealed record HoldingsView(
     ItemId EnvelopeId, string Currency, LocalDate? HoldingsAsOf, Guid? SnapshotId, bool? Complete, AmountView? Total, AmountView? Unallocated,
+    AmountView? ExplicitFees,
     IReadOnlyList<HoldingView> Holdings, IReadOnlyList<HoldingWarningView> Warnings) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];

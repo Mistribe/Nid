@@ -104,6 +104,74 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingMovementRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid?>("EnvelopeFlowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_flow_id");
+
+                    b.Property<Guid>("EnvelopeItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("ExternalRef")
+                        .HasColumnType("text")
+                        .HasColumnName("external_ref");
+
+                    b.Property<Guid>("HoldingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("holding_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("text")
+                        .HasColumnName("label");
+
+                    b.Property<LocalDate>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<string>("SwitchRef")
+                        .HasColumnType("text")
+                        .HasColumnName("switch_ref");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<decimal?>("Units")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("units");
+
+                    b.HasKey("Id")
+                        .HasName("pk_holding_movement");
+
+                    b.HasIndex("HoldingId")
+                        .HasDatabaseName("ix_holding_movement_holding_id");
+
+                    b.HasIndex("EnvelopeItemId", "OccurredOn")
+                        .HasDatabaseName("ix_holding_movement_envelope_item_id_occurred_on");
+
+                    b.ToTable("holding_movement", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_holding_movement_amounts", "amount > 0 and (unit_price is null or unit_price >= 0)");
+
+                            t.HasCheckConstraint("ck_holding_movement_kind", "kind in ('allocation_in','allocation_out','switch_in','switch_out','maturity','fee','interest','income')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -365,6 +433,23 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingMovementRow", b =>
+                {
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.EnvelopeRow", null)
+                        .WithMany()
+                        .HasForeignKey("EnvelopeItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_movement_envelope_envelope_item_id");
+
+                    b.HasOne("Nid.Investments.Infrastructure.Persistence.HoldingRow", null)
+                        .WithMany()
+                        .HasForeignKey("HoldingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_holding_movement_holding_holding_id");
                 });
 
             modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.HoldingRow", b =>

@@ -23,4 +23,5 @@ public static class InvestmentsCodes
     public const string HoldingConflict = "investments.holding_conflict";
     public const string InvalidSnapshot = "investments.invalid_snapshot";
     public const string SnapshotExists = "investments.snapshot_exists";
+    public const string InvalidMovement = "investments.invalid_movement";
 }

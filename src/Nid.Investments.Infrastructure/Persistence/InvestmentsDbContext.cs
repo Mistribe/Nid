@@ -16,6 +16,8 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 
     public DbSet<HoldingSnapshotLineRow> HoldingSnapshotLines => Set<HoldingSnapshotLineRow>();
 
+    public DbSet<HoldingMovementRow> HoldingMovements => Set<HoldingMovementRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -79,6 +81,25 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.Property(x => x.CostBasisPerUnit).HasColumnType("numeric(20,6)");
             e.Property(x => x.Value).HasColumnType("numeric(19,4)");
             e.HasOne<HoldingRow>().WithMany().HasForeignKey(x => x.HoldingId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.HoldingId);
+        });
+
+        modelBuilder.Entity<HoldingMovementRow>(e =>
+        {
+            e.ToTable("holding_movement", t =>
+            {
+                t.HasCheckConstraint("ck_holding_movement_kind",
+                    "kind in ('allocation_in','allocation_out','switch_in','switch_out','maturity','fee','interest','income')");
+                t.HasCheckConstraint("ck_holding_movement_amounts", "amount > 0 and (unit_price is null or unit_price >= 0)");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Units).HasColumnType("numeric(20,6)");
+            e.Property(x => x.UnitPrice).HasColumnType("numeric(20,6)");
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            e.HasOne<HoldingRow>().WithMany().HasForeignKey(x => x.HoldingId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
+            e.HasIndex(x => new { x.EnvelopeItemId, x.OccurredOn });
             e.HasIndex(x => x.HoldingId);
         });
 
