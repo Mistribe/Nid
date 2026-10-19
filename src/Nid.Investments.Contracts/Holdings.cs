@@ -93,6 +93,17 @@ public sealed record CostReport(
 /// <summary>A holding with a maturity date, for the upcoming events.</summary>
 public sealed record MaturingHolding(ItemId Envelope, Guid HoldingId, string Name, LocalDate MaturesOn);
 
+/// <summary>import-format.md §8: the holdings tables an import marks with the file id a row came from.</summary>
+public enum HoldingTable { Holding, Snapshot, Movement }
+
+/// <summary>A row imported under a file id: its id, its envelope, the entity's hash, and who imported it.</summary>
+public sealed record ImportedHoldingRow(Guid Id, ItemId Envelope, string Hash, PersonId ImportedBy);
+
+/// <summary>What the export writes of some envelopes: their holdings, snapshots and movements, and the marks of those imported.</summary>
+public sealed record HoldingsExport(
+    IReadOnlyList<EnvelopeHolding> Holdings, IReadOnlyList<HoldingSnapshot> Snapshots, IReadOnlyList<HoldingMovement> Movements,
+    IReadOnlyDictionary<Guid, ImportMark> Marks);
+
 public interface IHoldingStore
 {
     Task<IReadOnlyList<StoredHolding>> HoldingsAsync(ItemId envelope, CancellationToken ct);
@@ -119,6 +130,18 @@ public interface IHoldingStore
     Task<IReadOnlyList<HoldingMovement>> MovementsAsync(ItemId envelope, CancellationToken ct);
 
     Task AddMovementsAsync(IReadOnlyList<HoldingMovement> movements, CancellationToken ct);
+
+    /// <summary>An import's replacement: every field of the movement, in place.</summary>
+    Task ReplaceMovementAsync(HoldingMovement movement, CancellationToken ct);
+
+    /// <summary>Every importer's rows of <paramref name="table"/> under these file ids: the import section decides which one the importer may see.</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedHoldingRow>>> FindImportedAsync(HoldingTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>The rows of these envelopes, in as many queries whatever their number.</summary>
+    Task<HoldingsExport> ExportAsync(IReadOnlyCollection<ItemId> envelopes, CancellationToken ct);
+
+    /// <summary>Marks a row just written, in the import's transaction.</summary>
+    Task MarkAsync(HoldingTable table, Guid id, ImportMark mark, CancellationToken ct);
 
     /// <summary>The envelope's cost reports, by holding then year.</summary>
     Task<IReadOnlyList<CostReport>> CostReportsAsync(ItemId envelope, CancellationToken ct);

@@ -243,6 +243,9 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("loan_bank_schedule", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("valuations", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("flows", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holdings", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_snapshots", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_movements", null, null)),
 
         new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
         new(typeof(GetRoutineQuery), false, (_, _) => new GetRoutineQuery(null)),

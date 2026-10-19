@@ -2,8 +2,18 @@ using NodaTime;
 
 namespace Nid.Investments.Infrastructure.Persistence;
 
+/// <summary>A holdings row an import marks (import-format.md §8): the file id it came from, the entity's hash, its importer.</summary>
+public interface IImportMarked
+{
+    Guid Id { get; }
+    Guid EnvelopeItemId { get; }
+    string? ImportRef { get; set; }
+    string? ImportHash { get; set; }
+    Guid? ImportedBy { get; set; }
+}
+
 /// <summary>investments.holding (holdings spec §2.1); <c>Version</c> is <c>xmin</c>.</summary>
-public sealed class HoldingRow
+public sealed class HoldingRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid EnvelopeItemId { get; set; }
@@ -18,17 +28,23 @@ public sealed class HoldingRow
     public decimal? EntryCostPct { get; set; }
     public LocalDate? ClosedOn { get; set; }
     public string? Note { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
 
 /// <summary>investments.holding_snapshot (holdings spec §2.2): one per envelope and date.</summary>
-public sealed class HoldingSnapshotRow
+public sealed class HoldingSnapshotRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid EnvelopeItemId { get; set; }
     public LocalDate AsOf { get; set; }
     public string? SourceLabel { get; set; }
     public bool Complete { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
     public List<HoldingSnapshotLineRow> Lines { get; set; } = [];
 }
 
@@ -61,7 +77,7 @@ public sealed class HoldingCostReportRow
 }
 
 /// <summary>investments.holding_movement (issue #34 §2.3); <c>EnvelopeItemId</c> is the holding's, so its audit lands on the envelope.</summary>
-public sealed class HoldingMovementRow
+public sealed class HoldingMovementRow : IImportMarked
 {
     public Guid Id { get; set; }
     public Guid HoldingId { get; set; }
@@ -75,4 +91,7 @@ public sealed class HoldingMovementRow
     public string? SwitchRef { get; set; }
     public string? Label { get; set; }
     public string? ExternalRef { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
 }

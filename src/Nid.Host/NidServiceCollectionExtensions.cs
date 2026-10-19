@@ -212,6 +212,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, PersonsImportSection>();
         services.AddScoped<IImportSection, SubscriptionsImportSection>();
         services.AddScoped<IImportSection, EnvelopesImportSection>();
+        services.AddScoped<IImportSection, HoldingsImportSection>();
         services.AddScoped<IImportSection, IncomeImportSection>();
         services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();

@@ -249,7 +249,10 @@
       "loan_events": "Remboursements anticipés",
       "loan_bank_schedule": "Tableaux de la banque",
       "valuations": "Valeurs",
-      "flows": "Flux"
+      "flows": "Flux",
+      "holdings": "Supports",
+      "holding_snapshots": "Relevés par support",
+      "holding_movements": "Mouvements par support"
     }
   },
   "shell": { "sign_out": "Se déconnecter" },

@@ -194,6 +194,18 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("holding_id");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")
@@ -228,9 +240,16 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                     b.HasIndex("EnvelopeItemId", "OccurredOn")
                         .HasDatabaseName("ix_holding_movement_envelope_item_id_occurred_on");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_holding_movement_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("holding_movement", "investments", t =>
                         {
                             t.HasCheckConstraint("ck_holding_movement_amounts", "amount > 0 and (unit_price is null or unit_price >= 0)");
+
+                            t.HasCheckConstraint("ck_holding_movement_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_holding_movement_kind", "kind in ('allocation_in','allocation_out','switch_in','switch_out','maturity','fee','interest','income')");
                         });
@@ -257,6 +276,18 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("EnvelopeItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
 
                     b.Property<string>("Isin")
                         .HasColumnType("char(12)")
@@ -306,6 +337,11 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_holding_envelope_item_id_isin")
                         .HasFilter("isin is not null");
 
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_holding_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
                     b.ToTable("holding", "investments", t =>
                         {
                             t.HasCheckConstraint("ck_holding_asset_class", "asset_class is null or asset_class in ('equity','bond','money_market','mixed','real_estate','capital_guaranteed','other')");
@@ -313,6 +349,8 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_holding_dates", "closed_on is null or opened_on is null or closed_on >= opened_on");
 
                             t.HasCheckConstraint("ck_holding_entry_cost_pct", "entry_cost_pct is null or entry_cost_pct between 0 and 100");
+
+                            t.HasCheckConstraint("ck_holding_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
                             t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','other')");
 
@@ -380,6 +418,18 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("envelope_item_id");
 
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
                     b.Property<string>("SourceLabel")
                         .HasColumnType("text")
                         .HasColumnName("source_label");
@@ -391,7 +441,15 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_holding_snapshot_envelope_item_id_as_of");
 
-                    b.ToTable("holding_snapshot", "investments");
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_holding_snapshot_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
+                    b.ToTable("holding_snapshot", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_holding_snapshot_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
+                        });
                 });
 
             modelBuilder.Entity("Nid.Platform.Infrastructure.Audit.AuditEntryRow", b =>

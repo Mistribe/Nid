@@ -61,6 +61,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.Property(x => x.EntryCostPct).HasColumnType("numeric(9,4)");
             e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
             e.HasIndex(x => new { x.EnvelopeItemId, x.Isin }).IsUnique().HasFilter("isin is not null");
+            MapImportMark(e, "holding");
             MapXmin(e.Property(x => x.Version));
         });
 
@@ -72,6 +73,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
             e.HasIndex(x => new { x.EnvelopeItemId, x.AsOf }).IsUnique();
             e.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.SnapshotId).OnDelete(DeleteBehavior.Cascade);
+            MapImportMark(e, "holding_snapshot");
         });
 
         modelBuilder.Entity<HoldingSnapshotLineRow>(e =>
@@ -105,6 +107,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
             e.HasIndex(x => new { x.EnvelopeItemId, x.OccurredOn });
             e.HasIndex(x => x.HoldingId);
+            MapImportMark(e, "holding_movement");
         });
 
         modelBuilder.Entity<HoldingCostReportRow>(e =>
@@ -124,6 +127,15 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
         ApplySnakeCase(modelBuilder);
         // Issue #34 §2.5's name; snake case alone would glue the digit to the word before it.
         modelBuilder.Entity<HoldingCostReportRow>().Property(x => x.NetAnnualized5yPct).HasColumnName("net_annualized_5y_pct");
+    }
+
+    /// <summary>import-format.md §8, as the envelope's: the mark is all or nothing, unique per importer, never instance-wide.</summary>
+    private static void MapImportMark<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e, string table) where T : class, IImportMarked
+    {
+        e.ToTable(t => t.HasCheckConstraint($"ck_{table}_import",
+            "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)"));
+        e.Property(nameof(IImportMarked.ImportHash)).HasColumnType("char(64)");
+        e.HasIndex(nameof(IImportMarked.ImportedBy), nameof(IImportMarked.ImportRef)).IsUnique().HasFilter("import_ref is not null");
     }
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)

@@ -116,6 +116,71 @@ public class RoundTripTests(PostgresFixture fixture)
         });
     }
 
+    /// <summary>
+    /// Issue #34 §5: a life insurance detailed by holdings, as the golden case of §8 one year earlier — a euro fund, a fund, two
+    /// snapshots (the first recording the envelope's value), a switch and fees, the allocations tied to the contribution.
+    /// </summary>
+    private static async Task AddHoldingsThroughTheApiAsync(NidApp app)
+    {
+        var id = (await SendAsync(app, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "Assurance-vie", kind = "life_insurance", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        }))["id"]!.GetValue<string>();
+        var url = $"/api/v1/investments/envelopes/{id}";
+        string Id(JsonNode node) => node["id"]!.GetValue<string>();
+        var euro = Id(await SendAsync(app, HttpMethod.Post, $"{url}/holdings", new { name = "Fonds euros", kind = "euro_fund", assetClass = "capital_guaranteed" }));
+        var fund = Id(await SendAsync(app, HttpMethod.Post, $"{url}/holdings", new
+        {
+            name = "Fonds A", kind = "fund", isin = "FR0000120271", issuer = "Gestion A", riskIndicator = 4, entryCostPct = "1.5", openedOn = "2023-01-01",
+        }));
+        var flow = Id(await SendAsync(app, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2023-01-01", kind = "contribution", amount = Eur("10000.00") }));
+        object Move(string on, string kind, string amount, string? units = null, string? price = null, string? flowId = null)
+            => new { occurredOn = on, kind, amount = Eur(amount), units, unitPrice = price, envelopeFlowId = flowId };
+        await SendAsync(app, HttpMethod.Post, $"{url}/holdings/{euro}/movements", Move("2023-01-01", "allocation_in", "3000.00", flowId: flow));
+        await SendAsync(app, HttpMethod.Post, $"{url}/holdings/{fund}/movements", Move("2023-01-01", "allocation_in", "7000.00", "100", "70", flow));
+        await SendAsync(app, HttpMethod.Post, $"{url}/holdings/{euro}/movements", Move("2023-12-31", "interest", "90.00"));
+        await SendAsync(app, HttpMethod.Post, $"{url}/holdings/{fund}/movements", Move("2023-12-31", "fee", "61.60", "-0.8", "77"));
+        await SendAsync(app, HttpMethod.Post, $"{url}/holding-snapshots", new
+        {
+            asOf = "2023-12-31", recordValuation = true, sourceLabel = "Relevé annuel 2023",
+            lines = new object[] { new { holdingId = euro, value = Eur("3090.00") }, new { holdingId = fund, units = "99.2", unitPrice = "77", value = Eur("7638.40") } },
+        });
+        await SendAsync(app, HttpMethod.Post, $"{url}/switches", new
+        {
+            occurredOn = "2024-06-30", label = "Arbitrage", from = new { holdingId = fund, amount = Eur("1600.00"), units = "-20", unitPrice = "80" },
+            to = new { holdingId = euro, amount = Eur("1600.00") },
+        });
+        await SendAsync(app, HttpMethod.Post, $"{url}/holdings/{euro}/movements", Move("2024-12-31", "interest", "116.70"));
+        await SendAsync(app, HttpMethod.Post, $"{url}/holdings/{fund}/movements", Move("2024-12-31", "fee", "60.00", "-0.8", "75"));
+        await SendAsync(app, HttpMethod.Post, $"{url}/holding-snapshots", new
+        {
+            asOf = "2024-12-31", complete = false,
+            lines = new object[] { new { holdingId = euro, value = Eur("4806.70") }, new { holdingId = fund, units = "78.4", unitPrice = "75", value = Eur("5880.00") } },
+        });
+    }
+
+    /// <summary>An envelope's holdings, snapshots, and each holding's movements and series, by holding name; lines by value (they come in id order).</summary>
+    private static async Task<JsonObject> HoldingReadsAsync(NidApp app, string url)
+    {
+        var holdings = await SendAsync(app, HttpMethod.Get, $"{url}/holdings?on=2025-12-31");
+        var snapshots = await SendAsync(app, HttpMethod.Get, $"{url}/holding-snapshots");
+        foreach (var snapshot in snapshots["items"]?.AsArray() ?? [])
+            snapshot!["lines"] = new JsonArray([.. snapshot["lines"]!.AsArray().Select(l => l!.DeepClone())
+                .OrderBy(l => l["value"]!["amount"]!.GetValue<string>(), StringComparer.Ordinal)]);
+        var result = new JsonObject { ["holdings"] = holdings, ["snapshots"] = snapshots };
+        foreach (var holding in holdings["holdings"]!.AsArray().Select(h => h!.DeepClone()).ToList())
+        {
+            var holdingUrl = $"{url}/holdings/{holding["id"]!.GetValue<string>()}";
+            result[holding["name"]!.GetValue<string>()] = new JsonObject
+            {
+                ["movements"] = await SendAsync(app, HttpMethod.Get, $"{holdingUrl}/movements"),
+                ["series"] = await SendAsync(app, HttpMethod.Get, $"{holdingUrl}/series"),
+            };
+        }
+        return result;
+    }
+
     /// <summary>The envelope reads agree too: list, detail, series and performance, per envelope by name, without any id.</summary>
     private static async Task<string> InvestmentReadsAsync(NidApp app, PersonId reader)
     {
@@ -133,9 +198,11 @@ public class RoundTripTests(PostgresFixture fixture)
                 ["detail"] = await SendAsync(app, HttpMethod.Get, url),
                 ["series"] = await SendAsync(app, HttpMethod.Get, $"{url}/series"),
                 ["performance"] = await SendAsync(app, HttpMethod.Get, $"{url}/performance?from=2024-01-01&to=2025-12-31"),
+                ["holdings"] = await HoldingReadsAsync(app, url),
             };
         }
-        StripIds(result);
+        // A holding's version is its row's xmin, a transaction id of the instance that wrote it.
+        StripIds(result, "holdingId", "snapshotId", "envelopeFlowId", "envelopeId", "version");
         await NamePersonsAsync(app, result);
         return result.ToJsonString();
     }
@@ -260,6 +327,7 @@ public class RoundTripTests(PostgresFixture fixture)
             ["income_phases"] = IncomePhases,
         });
         await AddEnvelopeDataThroughTheApiAsync(source);
+        await AddHoldingsThroughTheApiAsync(source);
         await AddIncomeDataThroughTheApiAsync(source);
         // An adopted provider (only a migration makes one) named by a subscription created in the interface.
         await using (var subs = PostgresFixture.NewSubscriptionsContext(source.ConnectionString))
@@ -281,7 +349,7 @@ public class RoundTripTests(PostgresFixture fixture)
         Assert.Equal(await InvestmentReadsAsync(source, source.AdultA), await InvestmentReadsAsync(target, target.AdultA));
         Assert.Equal(await IncomeReadsAsync(source), await IncomeReadsAsync(target));
         Assert.Equal(6, first["subscriptions"].Count);
-        Assert.Equal(3, first["envelopes"].Count);
+        Assert.Equal(4, first["envelopes"].Count);
         // The comparison is not vacuous: the API-made facts are in the reads and in the file.
         var reads = await InvestmentReadsAsync(target, target.AdultA);
         Assert.Contains("25500", reads);
@@ -290,6 +358,19 @@ public class RoundTripTests(PostgresFixture fixture)
         var livret = JsonNode.Parse(reads)!["Livret A"]!["detail"]!;
         Assert.True(livret["closed"]!.GetValue<bool>());
         Assert.Contains(first["flows"], f => f.GetProperty("external_ref").GetString()?.StartsWith("transfer:") == true);
+        // The holdings: both lines, both snapshots, the switch's two legs under one reference, the fees, and the allocations' flow.
+        Assert.Equal(["Fonds A", "Fonds euros"], first["holdings"].Select(h => h.GetProperty("name").GetString()));
+        Assert.Equal(["2023-12-31", "2024-12-31"], first["holding_snapshots"].Select(s => s.GetProperty("as_of").GetString()));
+        Assert.Equal(8, first["holding_movements"].Count);
+        Assert.Single(first["holding_movements"].Where(m => m.GetProperty("switch_ref").ValueKind == JsonValueKind.String)
+            .GroupBy(m => m.GetProperty("switch_ref").GetString()), g => g.Count() == 2);
+        Assert.Equal(2, first["holding_movements"].Count(m => m.GetProperty("kind").GetString() == "fee"));
+        var contribution = first["flows"].Single(f => f.GetProperty("amount").GetProperty("amount").GetString() == "10000.0000"
+            && f.GetProperty("occurred_on").GetString() == "2023-01-01").GetProperty("id").GetString();
+        Assert.Equal(2, first["holding_movements"].Count(m => m.GetProperty("envelope_flow").GetString() == contribution));
+        var holdingReads = JsonNode.Parse(reads)!["Assurance-vie"]!["holdings"]!;
+        Assert.Equal("121.6000", holdingReads["holdings"]!["explicitFees"]!["amount"]!.GetValue<string>());
+        Assert.Equal(4, holdingReads["Fonds A"]!["movements"]!["items"]!.AsArray().Count);
         // Same for income: the API-made raise, one-off and ended source are in the reads and in the file.
         var income = await IncomeReadsAsync(target);
         Assert.Contains("2300", income);

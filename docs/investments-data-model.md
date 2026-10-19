@@ -138,7 +138,42 @@ Section `envelopes` de `import-format.md` (les sections `valuations` et `flows` 
 | `visibility` | string | `shared` (défaut) ou `private` |
 | `closed_on` | date? | La date de clôture ; une enveloppe clôturée est exportée |
 
-Sections `holdings`, `holding_snapshots`, `holding_movements`, `holding_cost_reports` : à venir (issue #34, PR 4).
+Sections du détail par support (§16, issue #34 §5), clés comme `envelopes` : `id` de fichier, `item` = l'`id` de l'enveloppe dans le
+fichier, un support nommé par son `id` de fichier. Les règles et les avertissements sont ceux de l'API (`HoldingRules`, `MovementRules`,
+`HoldingMath`), au chemin du fichier (`holding_snapshots[0].lines[1].unit_price`) ; les avertissements portent le préfixe `investments.`
+(`investments.holding_value_mismatch`…). Parts, prix et pourcentages s'écrivent en chaînes (lus aussi comme nombres JSON), à 6 décimales
+pour les parts et prix.
+
+**`holdings`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id`, `item` | string | |
+| `name` | string | 1 à 100 caractères |
+| `isin` | string? | Format et clé vérifiés ; unique par enveloppe |
+| `kind` | string | `euro_fund`, `fund`, `etf`, `equity`, `bond`, `structured`, `cash`, `other` |
+| `asset_class`, `issuer`, `note` | string? | |
+| `risk_indicator` | int? | 1 à 7 |
+| `opened_on`, `matures_on`, `closed_on` | date? | |
+| `entry_cost_pct` | décimal? | 0 à 100 |
+
+**`holding_snapshots`** : `id`, `item`, `as_of` (date non future), `source_label` (string?), `complete` (bool, vrai par défaut),
+`lines` : `[{ holding, units?, unit_price?, value, cost_basis_per_unit? }]`, `value` un montant dans la devise de l'enveloppe. Un relevé
+par enveloppe et par date : deux dans le fichier sont une erreur (`import.duplicate_fact`) ; un relevé stocké à cette date que le
+fichier ne nomme pas est un `conflict`, remplacé seulement avec `replace` (comme l'API, spec D5). Les lignes sont réécrites avec le
+relevé.
+
+**`holding_movements`** : `id`, `holding`, `occurred_on`, `kind` (les types du §16), `units?` (signées par le type), `unit_price?`,
+`amount` (> 0), `envelope_flow` (string?, l'`id` d'un flux de `flows` du fichier **sur la même enveloppe**), `switch_ref` (string?,
+obligatoire pour `switch_in` et `switch_out`, partagé par les deux jambes), `label`, `external_ref`.
+
+- Ordre : ces sections sont appliquées **après** les faits du Core, pour qu'un mouvement retrouve son flux une fois écrit. Un flux
+  corrigé depuis n'est plus courant : il n'est pas exporté, et le lien du mouvement non plus.
+- Provenance par ligne (`import_ref`, `import_hash`, `imported_by` sur `holding`, `holding_snapshot`, `holding_movement`) comme
+  `import-format.md` §8 : `unchanged`, `conflict`, `replace` ; une ligne reste sur son enveloppe ; écrire exige le droit d'écriture
+  sur l'enveloppe. Une enveloppe clôturée reçoit son historique comme ses faits.
+- Export : les supports, relevés et mouvements de chaque enveloppe exportée ; `id` dérivés `hold-…`, `hsnap-…`, `hmov-…`.
+- `holding_cost_reports` : les rapports de frais (PR 3) ne sont pas encore dans le format ; à venir.
 
 ## 10. Contrats (`Investments.Contracts`)
 
@@ -265,4 +300,4 @@ Chiffres d'un support (`HoldingMath`, depuis ses seules données) : entrées (`a
 
 Frais et part UC : **coût implicite estimé** d'une année = frais totaux du rapport × moyenne des valeurs du support au 31 décembre précédent et au 31 décembre de l'année (au centime, null sans les deux), toujours présenté comme une estimation ; `cost_report_inconsistent` quand |brut − frais − net| > 0,01 pt. **Parts inexpliquées** entre deux relevés consécutifs qui donnent les parts d'un support : Δparts − Σ parts des mouvements (tolérance 0,0001) → `unexplained_units`, avec, pour des parts disparues, un `fee` **proposé** (parts × prix du relevé le plus récent, jamais écrit). **Part UC** du relevé lu (lignes ni fonds en euros ni liquidités, 0,1 %) ; sous le plancher, `uc_share_below_floor`, aussi dans la routine. Un support ouvert dont `matures_on` tombe dans les 60 jours est un événement « À venir » (`holding_maturity`).
 
-**Livré** : supports et relevés (PR 1) ; mouvements, arbitrages et performance par support (PR 2) ; rapports de frais, parts inexpliquées, part UC et échéances (PR 3). API `/api/v1/investments/envelopes/{id}/holdings`, `/holding-snapshots`, `/holdings/{holdingId}/movements|series|performance|cost-reports/{year}` et `/switches`. **À venir** : import, proposition dédiée, écrans.
+**Livré** : supports et relevés (PR 1) ; mouvements, arbitrages et performance par support (PR 2) ; rapports de frais, parts inexpliquées, part UC et échéances (PR 3) ; import et export des supports, relevés et mouvements (PR 4, §9). API `/api/v1/investments/envelopes/{id}/holdings`, `/holding-snapshots`, `/holdings/{holdingId}/movements|series|performance|cost-reports/{year}` et `/switches`. **À venir** : la section d'import `holding_cost_reports`, proposition dédiée, écrans.
