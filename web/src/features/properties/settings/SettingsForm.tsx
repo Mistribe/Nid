@@ -1,21 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { DateField } from '@/components/form/DateField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Section } from '../../income/Section';
 import { presentRefusal } from '../../loans/refusal';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, PROPERTY, type PropertyDetail } from '../api';
 import { PropertyFields } from '../new/PropertyFields';
 import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
-
-const input = 'rounded-md border px-3 py-2';
 
 /**
  * 3D1 design §6: « Réglages », its live region and its focus. The form remounts on the stored property — its new values
@@ -84,15 +85,17 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
           </>
         ) : null}
         <Field label={t('property_form.name')} error={e.name?.message}>
-          {(c) => <input {...c} {...form.register('name')} className={`w-full ${input}`} />}
+          {(c) => <Input {...c} {...form.register('name')} />}
         </Field>
         <PropertyFields />
         {/* Spec 3D2 §5: the rental start lives here, not in « Location »; emptied, it is cleared. */}
-        <Field label={t('property_form.rental_starts_on')} hint={t('property_form.rental_starts_on_help')} error={e.rentalStartsOn?.message}>
-          {(c) => <input type="date" {...c} {...form.register('rentalStartsOn')} className={input} />}
-        </Field>
+        <Controller control={form.control} name="rentalStartsOn" render={({ field }) => (
+          <Field label={t('property_form.rental_starts_on')} hint={t('property_form.rental_starts_on_help')} error={e.rentalStartsOn?.message}>
+            {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+          </Field>
+        )} />
         <Field label={t('property_form.note')} error={e.note?.message}>
-          {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+          {(c) => <Textarea {...c} {...form.register('note')} />}
         </Field>
         <Button type="submit" disabled={save.isPending}>{t('loan_detail.settings.submit')}</Button>
       </form>

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -6,7 +6,8 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { LoanDetail, LoanSchedule } from './api';
 import { PROPERTY } from '../properties/testData';
-import { LOAN, loanDetail, rows, schedule, year } from './testData';
+import { pick } from '@/test/controls';
+import { agreeing, LOAN, loanDetail, rows, schedule, withTable, year } from './testData';
 
 function serve(detail: LoanDetail = loanDetail(), plan: LoanSchedule = schedule()) {
   server.use(
@@ -15,9 +16,12 @@ function serve(detail: LoanDetail = loanDetail(), plan: LoanSchedule = schedule(
   );
 }
 
+const at = (tab: string) => `/loans/${LOAN}?tab=${tab}`;
 const heading = () => screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
 const figure = (term: string) =>
   within(screen.getByRole('region', { name: 'Aujourd’hui' })).getByText(term, { selector: 'dt' }).nextElementSibling;
+const detail = (term: string) =>
+  within(screen.getByRole('region', { name: 'Coût du crédit' })).getByText(term, { selector: 'dt' }).nextElementSibling;
 const table = () => screen.getByRole('table', { name: 'Échéancier par année' });
 const yearButton = (y: number) => within(table()).getByRole('button', { name: `Année ${y}` });
 const bodyRows = (scope: HTMLElement, name: string) => within(within(scope).getByRole('table', { name })).getAllByRole('row').slice(1);
@@ -29,29 +33,48 @@ describe('LoanDetailPage', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 9, 12, 12)); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('shows the header and every figure of today, as the server computed them', async () => {
+  it('overview answers where the loan stands', async () => {
     serve();
     const { container } = await renderApp(`/loans/${LOAN}`);
 
     expect(await heading()).toBeInTheDocument();
     expect(screen.getByText('Banque')).toBeInTheDocument();
     expect(screen.getByText('Privé')).toBeInTheDocument();
-    expect(figure('Capital restant dû')).toHaveTextContent('193 564,23 €');
-    expect(figure('Capital emprunté')).toHaveTextContent('200 000,00 €');
-    expect(figure('Prochaine échéance')).toHaveTextContent('15 octobre 2026 : 1 159,92 €, assurance comprise');
+    expect(figure('Restant dû')).toHaveTextContent('193 564,23 €');
+    expect(figure('Prochaine échéance')).toHaveTextContent('15 octobre 2026 : 1 159,92 €');
     expect(figure('Taux actuel')).toHaveTextContent('3,5 % (phase 1)');
-    expect(figure('Échéances restantes')).toHaveTextContent('229');
-    expect(figure('Dernière échéance')).toHaveTextContent('15 octobre 2045');
-    expect(figure('Capital remboursé')).toHaveTextContent('6 435,77 €');
-    expect(figure('Intérêts à ce jour')).toHaveTextContent('6 323,35 €');
-    expect(figure('Assurance payée')).toHaveTextContent('0,00 €');
-    expect(figure('Frais payés')).toHaveTextContent('0,00 €');
-    expect(figure('Coût total du crédit')).toHaveTextContent('78 380,66 €');
-    expect(figure('Coût à ce jour')).toHaveTextContent('6 323,35 €');
-    expect(figure('Coût à venir')).toHaveTextContent('72 057,31 €');
+    expect(figure('Fin')).toHaveTextContent('15 octobre 2045 · 229 échéances restantes');
+    // The bar is sized by plotting numbers; what a person reads is the server's two strings.
+    const spaced = (text: string) => text.replace(/\s/g, ' ');
+    const bar = screen.getByRole('progressbar', { name: (name) => spaced(name) === '6 435,77 € remboursés sur 200 000,00 €' });
+    expect(spaced(bar.getAttribute('aria-valuetext') ?? '')).toBe('6 435,77 € remboursés sur 200 000,00 €');
+    expect(bar).not.toHaveTextContent('%');
+    expect(Number(bar.getAttribute('aria-valuenow'))).toBeGreaterThan(3);
+    expect(Number(bar.getAttribute('aria-valuenow'))).toBeLessThan(4);
+    expect(detail('Intérêts à ce jour')).toHaveTextContent('6 323,35 €');
+    expect(detail('Assurance payée')).toHaveTextContent('0,00 €');
+    expect(detail('Frais payés')).toHaveTextContent('0,00 €');
+    expect(detail('Coût total du crédit')).toHaveTextContent('78 380,66 €');
+    expect(detail('Coût à ce jour')).toHaveTextContent('6 323,35 €');
+    expect(detail('Coût à venir')).toHaveTextContent('72 057,31 €');
+    // The next three payments, from the one the figures name.
+    const next = await screen.findByRole('table', { name: 'Prochaines échéances' });
+    const upcoming = within(next).getAllByRole('row').slice(1);
+    expect(upcoming.map((r) => within(r).getAllByRole('cell')[0]!.textContent)).toEqual(['12', '13', '14']);
+    expect(upcoming[0]).toHaveTextContent('15 octobre 2026');
+    expect(await screen.findByRole('figure', { name: 'Graphique de l’échéancier par année' })).toBeInTheDocument();
     expect(screen.queryByText('Terminé')).not.toBeInTheDocument();
-    await screen.findByRole('table', { name: 'Échéancier par année' });
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the four tabs, the first out of the URL', async () => {
+    serve();
+    const { router } = await renderApp(`/loans/${LOAN}`);
+
+    await heading();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Échéancier', 'Opérations', 'Contrat et réglages']);
+    expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
+    expect(router.state.location.search).not.toHaveProperty('tab');
   });
 
   it('says an ended loan has no next payment and no current phase, though the server names its last one', async () => {
@@ -63,6 +86,8 @@ describe('LoanDetailPage', () => {
     expect(screen.getByText('Terminé')).toBeInTheDocument();
     expect(figure('Prochaine échéance')).toHaveTextContent('Aucune : le crédit est terminé.');
     expect(within(screen.getByRole('region', { name: 'Aujourd’hui' })).queryByText('Taux actuel')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Simuler un remboursement' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Prochaines échéances' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
@@ -101,7 +126,7 @@ describe('LoanDetailPage', () => {
       ],
     };
     serve(loanDetail({ contract }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(at('contract'));
 
     await heading();
     const region = screen.getByRole('region', { name: 'Contrat' });
@@ -135,7 +160,7 @@ describe('LoanDetailPage', () => {
 
   it('reads the schedule by year, the current year open and today’s payment marked in words', async () => {
     serve();
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(at('schedule'));
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     expect(yearButton(2026)).toHaveAttribute('aria-expanded', 'true');
@@ -164,7 +189,7 @@ describe('LoanDetailPage', () => {
   it('opens the next payment’s year late in December, though this year still has payments, and marks that payment', async () => {
     vi.setSystemTime(new Date(2026, 11, 20, 12));
     serve(loanDetail({ figures: { ...loanDetail().figures, nextPaymentOn: '2027-01-15' } }));
-    await renderApp(`/loans/${LOAN}`);
+    await renderApp(at('schedule'));
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     expect(yearButton(2027)).toHaveAttribute('aria-expanded', 'true');
@@ -175,7 +200,7 @@ describe('LoanDetailPage', () => {
   it('marks the figures’ next payment, a payment due today counting as paid', async () => {
     vi.setSystemTime(new Date(2026, 9, 15, 12));
     serve(loanDetail({ figures: { ...loanDetail().figures, nextPaymentOn: '2026-11-15' } }));
-    await renderApp(`/loans/${LOAN}`);
+    await renderApp(at('schedule'));
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     const marked = within(table()).getByText('prochaine échéance').closest('tr')!;
@@ -186,7 +211,7 @@ describe('LoanDetailPage', () => {
   it('folds every year and marks nothing for an ended loan', async () => {
     vi.setSystemTime(new Date(2028, 2, 1, 12));
     serve(loanDetail({ ended: true, figures: { ...loanDetail().figures, nextPaymentOn: null, nextPaymentTotal: null } }));
-    await renderApp(`/loans/${LOAN}`);
+    await renderApp(at('schedule'));
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     expect(within(table()).getAllByRole('row')).toHaveLength(1 + 3);
@@ -196,7 +221,7 @@ describe('LoanDetailPage', () => {
   it('renders only the open year’s months of a 600-payment schedule', async () => {
     const years = Array.from({ length: 50 }, (_, i) => year({ year: 2026 + i }));
     serve(loanDetail(), schedule({ rows: rows('2026-01-15', 600), years }));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(at('schedule'));
 
     await screen.findByRole('table', { name: 'Échéancier par année' });
     expect(within(table()).getAllByRole('row')).toHaveLength(1 + 50 + 12);
@@ -214,15 +239,79 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('tells a reader without write access the page is read-only, without settings', async () => {
-    serve(loanDetail({ canWrite: false, visibility: 'shared' }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
+  it('a reader sees no write action', async () => {
+    serve(loanDetail({ canWrite: false, visibility: 'shared', fees: [{ id: 'f1', kind: 'file', amount: '1000.00', onDate: '2025-10-15', note: null, repaymentId: null, version: 1 }] }));
+    const { user, container } = await renderApp(`/loans/${LOAN}`);
 
     expect(await screen.findByText('Vous pouvez consulter ce crédit, pas le modifier.')).toBeInTheDocument();
     expect(screen.getByText('Partagé')).toBeInTheDocument();
+    // The simulation reads the loan as stored: it stays.
+    expect(screen.getByRole('button', { name: 'Simuler un remboursement' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Opérations' }));
+    await screen.findByRole('table', { name: 'Frais du crédit' });
+    expect(screen.queryByRole('button', { name: 'Ajouter des frais' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ajouter un remboursement' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Actions pour/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Contrat et réglages' }));
     expect(screen.queryByRole('form', { name: 'Réglages' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Modifier le contrat' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('the schedule tab keeps today’s row marked and the bank comparison', async () => {
+    serve(withTable({ comparison: agreeing({ maxGap: '0.02', interestGap: '-0.03' }) }));
+    const { container } = await renderApp(at('schedule'));
+
+    const marked = (await within(await screen.findByRole('table', { name: 'Échéancier par année' })).findByText('prochaine échéance')).closest('tr')!;
+    expect(marked).toHaveTextContent('15 octobre 2026');
+    const bank = await screen.findByRole('region', { name: 'Tableau de la banque' }, { timeout: 5000 });
+    expect(within(bank).getByRole('list', { name: 'Comparaison avec le calcul' })).toHaveTextContent('Les deux concordent');
+    await expectNoAxeViolations(container);
+  });
+
+  it('the simulation is reachable from the header', async () => {
+    serve();
+    const { user, router } = await renderApp(`/loans/${LOAN}`);
+
+    await heading();
+    await user.click(screen.getByRole('button', { name: 'Simuler un remboursement' }));
+
+    expect(await screen.findByRole('region', { name: 'Simuler un remboursement anticipé' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Opérations' })).toHaveAttribute('aria-selected', 'true');
+    expect(router.state.location.search).toMatchObject({ tab: 'operations' });
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Simuler un remboursement anticipé' })).toHaveFocus());
+  });
+
+  it('operations add a fee and a repayment in dialogs', async () => {
+    const sent: { path: string; body: unknown }[] = [];
+    serve();
+    server.use(
+      http.post('*/api/v1/realestate/loans/:id/fees', async ({ request }) => { sent.push({ path: 'fees', body: await request.json() }); return HttpResponse.json({ id: 'f9' }, { status: 201 }); }),
+      http.post('*/api/v1/realestate/loans/:id/repayments', async ({ request }) => { sent.push({ path: 'repayments', body: await request.json() }); return HttpResponse.json({ id: 'r9' }, { status: 201 }); }),
+    );
+    const { user, container } = await renderApp(at('operations'));
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter des frais' }));
+    const fee = within(await screen.findByRole('dialog', { name: 'Nouveaux frais' }));
+    await pick(user, 'Nature', 'Garantie');
+    await user.type(fee.getByLabelText('Montant'), '1500,50');
+    await user.clear(fee.getByLabelText('Date'));
+    await user.type(fee.getByLabelText('Date'), '20/10/2025');
+    await expectNoAxeViolations(container);
+    await user.click(fee.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(sent).toEqual([{ path: 'fees', body: { kind: 'guarantee', amount: '1500.50', onDate: '2025-10-20' } }]);
+    expect(screen.getByText('Frais ajoutés.')).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('heading', { name: 'Frais' })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Ajouter un remboursement' }));
+    const repayment = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
+    await user.type(repayment.getByLabelText('Montant'), '5000');
+    await user.click(repayment.getByRole('radio', { name: 'Réduire la durée' }));
+    await user.click(repayment.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(sent[1]).toEqual({ path: 'repayments', body: expect.objectContaining({ amount: '5000', effect: 'reduce_term' }) as unknown });
+    expect(screen.getByText('Remboursement anticipé ajouté.')).toHaveAttribute('role', 'status');
   });
 
   it('says an unknown or unreadable loan is not found', async () => {

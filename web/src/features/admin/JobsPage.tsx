@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { formatInstant } from './format';
@@ -20,26 +21,26 @@ export function JobsPage() {
 
   return (
     <AdminFrame title={title}>
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b">
-            <th scope="col" className="py-2 pr-4">{t('admin.jobs.key')}</th>
-            <th scope="col" className="py-2 pr-4">{t('admin.jobs.last')}</th>
-            <th scope="col" className="py-2 pr-4">{t('admin.jobs.next')}</th>
-            <th scope="col" className="py-2">{t('admin.jobs.state')}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('admin.jobs.key')}</TableHead>
+            <TableHead>{t('admin.jobs.last')}</TableHead>
+            <TableHead>{t('admin.jobs.next')}</TableHead>
+            <TableHead>{t('admin.jobs.state')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {jobs.data.map((job) => (
-            <tr key={job.key} className="border-b">
-              <td className="py-2 pr-4 font-mono">{job.key}</td>
-              <td className="py-2 pr-4">{job.lastRunAt ? formatInstant(job.lastRunAt) : t('admin.jobs.never')}</td>
-              <td className="py-2 pr-4">{job.nextRunAt ? formatInstant(job.nextRunAt) : t('admin.jobs.on_demand')}</td>
-              <td className="py-2">{t(job.state === 'running' ? 'admin.jobs.running' : 'admin.jobs.idle')}</td>
-            </tr>
+            <TableRow key={job.key}>
+              <TableCell className="font-mono">{job.key}</TableCell>
+              <TableCell>{job.lastRunAt ? formatInstant(job.lastRunAt) : t('admin.jobs.never')}</TableCell>
+              <TableCell>{job.nextRunAt ? formatInstant(job.nextRunAt) : t('admin.jobs.on_demand')}</TableCell>
+              <TableCell>{t(job.state === 'running' ? 'admin.jobs.running' : 'admin.jobs.idle')}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </AdminFrame>
   );
 }

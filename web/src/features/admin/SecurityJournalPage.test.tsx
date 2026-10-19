@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
+import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 
 const adults = [
@@ -44,12 +45,14 @@ describe('Administration › Journal de sécurité', () => {
         next: null,
       })),
     );
-    await renderApp('/admin/security', { capabilities: adminCapabilities });
+    const { user } = await renderApp('/admin/security', { capabilities: adminCapabilities });
 
     expect(await screen.findByRole('row', { name: /Commande de secours/ })).toHaveTextContent('Bob');
     expect(screen.getByRole('row', { name: /Identité rattachée/ })).toHaveTextContent('Alice');
-    expect(screen.getByRole('option', { name: 'Commande de secours' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Identité rattachée' })).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Événement' }));
+    const list = await screen.findByRole('listbox');
+    expect(within(list).getByRole('option', { name: 'Commande de secours' })).toBeInTheDocument();
+    expect(within(list).getByRole('option', { name: 'Identité rattachée' })).toBeInTheDocument();
   });
 
   it('filters by event', async () => {
@@ -63,7 +66,8 @@ describe('Administration › Journal de sécurité', () => {
     );
     const { user } = await renderApp('/admin/security', { capabilities: adminCapabilities });
 
-    await user.selectOptions(await screen.findByLabelText('Événement'), 'access_violation');
+    await screen.findByRole('combobox', { name: 'Événement' });
+    await pick(user, 'Événement', /violation d'accès/);
 
     await expect.poll(() => asked.at(-1)).toBe('access_violation');
   });

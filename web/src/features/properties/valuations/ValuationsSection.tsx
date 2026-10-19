@@ -2,75 +2,55 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { ConfirmAction } from '@/components/ConfirmAction';
-import { LocalDate } from '@/components/LocalDate';
-import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
+import { formatLocalDate, LocalDate } from '@/components/LocalDate';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '../../income/Section';
 import { money } from '../../loans/format';
-import { presentRefusal } from '../../loans/refusal';
-import { Reload } from '../../subscriptions/edits/Reload';
 import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '../api';
-import { ValuationForm } from './ValuationForm';
-
-const th = 'px-2 py-1 text-left font-medium';
-const td = 'px-2 py-1';
-const num = 'px-2 py-1 text-right tabular-nums';
+import { RowActions } from '@/components/page/RowActions';
+import { presentRefusal } from '../../loans/refusal';
 
 /**
- * 3D1 design §6: the estimates, newest first (the server lists them oldest first), one added at a time; the section owns
- * its form, its live region and where the focus lands.
+ * 3D1 design §6: the estimates, newest first (the server lists them oldest first). Adding is the page header's action (its
+ * dialog and announcement are the page's); the section owns the deletion's live region and where the focus lands.
  */
 export function ValuationsSection({ property }: { property: PropertyDetail }) {
   const { t } = useTranslation();
   const writable = property.canWrite;
-  const [adding, setAdding] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const addButtonRef = useRef<HTMLButtonElement>(null);
-
   const announce = (message: string) => { setAnnouncement(message); headingRef.current?.focus(); };
-  const close = (message?: string) => { setAdding(false); if (message) announce(message); else addButtonRef.current?.focus(); };
   const newestFirst = [...property.valuations].reverse();
-  const cols = writable ? 4 : 3;
 
   return (
     <Section title={t('property_valuations.title')} headingRef={headingRef} announcement={announcement}>
-      {writable ? (
-        <Button ref={addButtonRef} type="button" variant="outline" onClick={() => { setAnnouncement(''); setAdding(true); }}>
-          {t('property_valuations.add')}
-        </Button>
-      ) : null}
-      {writable && adding ? <ValuationForm property={property} onDone={close} /> : null}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm" aria-label={t('property_valuations.table')}>
-          <thead>
-            <tr>
-              <th scope="col" className={th}>{t('loan_detail.col_date')}</th>
-              <th scope="col" className={th}>{t('property_valuations.value')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_note')}</th>
-              {writable ? <th scope="col" className={th}>{t('loan_detail.col_actions')}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {newestFirst.length === 0 ? (
-              <tr><td colSpan={cols} className={`${td} text-muted-foreground`}>{t('property_valuations.empty')}</td></tr>
-            ) : newestFirst.map((v) => (
-              <tr key={v.id} className="border-t">
-                <td className={td}><LocalDate value={v.asOf} /></td>
-                <td className={num}>{money(property.currency, v.amount)}</td>
-                <td className={td}>{v.note}</td>
-                {writable ? (
-                  <td className={td}>
-                    <DeleteValuation property={property} valuation={v} onDeleteStarted={() => setAnnouncement('')}
-                      onDeleted={announce} onReloaded={() => headingRef.current?.focus()} />
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table aria-label={t('property_valuations.table')}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('loan_detail.col_date')}</TableHead>
+            <TableHead className="text-right">{t('property_valuations.value')}</TableHead>
+            <TableHead>{t('loan_detail.col_note')}</TableHead>
+            {writable ? <TableHead className="w-0"><span className="sr-only">{t('loan_detail.col_actions')}</span></TableHead> : null}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {newestFirst.length === 0 ? (
+            <TableRow><TableCell colSpan={writable ? 4 : 3} className="text-muted-foreground">{t('property_valuations.empty')}</TableCell></TableRow>
+          ) : newestFirst.map((v) => (
+            <TableRow key={v.id}>
+              <TableCell><LocalDate value={v.asOf} /></TableCell>
+              <TableCell className="text-right tabular-nums">{money(property.currency, v.amount)}</TableCell>
+              <TableCell className="whitespace-normal">{v.note}</TableCell>
+              {writable ? (
+                <TableCell>
+                  <DeleteValuation property={property} valuation={v} onDeleteStarted={() => setAnnouncement('')}
+                    onDeleted={announce} onReloaded={() => headingRef.current?.focus()} />
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </Section>
   );
 }
@@ -85,20 +65,10 @@ function DeleteValuation({ property, valuation, onDeleteStarted, onDeleted, onRe
   const remove = $api.useMutation('delete', VALUATION, {
     onSuccess: () => { void invalidateProperties(queryClient); onDeleted(t('property_valuations.deleted')); },
   });
-  const problem = remove.error ? presentRefusal(t, remove.error) : null;
-
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <ConfirmAction label={t('loan_detail.delete')} confirmation={t('property_valuations.delete_confirm')} pending={remove.isPending}
-        onConfirm={() => { onDeleteStarted(); remove.mutate({ params: { path: { id: property.id, valuationId: valuation.id } } }); }} />
-      {problem ? (
-        <>
-          <ProblemMessage problem={problem} />
-          {problem.kind === 'conflict' || problem.kind === 'not_found'
-            ? <Reload onReload={() => { remove.reset(); return invalidateProperties(queryClient).then(onReloaded); }} />
-            : null}
-        </>
-      ) : null}
-    </span>
+    <RowActions menuId={`delete-valuation-${valuation.id}`} menuLabel={t('loan_detail.row_menu_what', { date: formatLocalDate(valuation.asOf), what: money(property.currency, valuation.amount) })}
+      items={[]} confirmation={t('property_valuations.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} onReloaded={onReloaded}
+      present={presentRefusal} invalidate={invalidateProperties}
+      onConfirm={() => remove.mutate({ params: { path: { id: property.id, valuationId: valuation.id } } })} />
   );
 }

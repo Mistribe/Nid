@@ -1,13 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { Ellipsis } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
-import { Button } from '@/components/ui/button';
 import { Guides } from '@/features/guides/Guides';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { TokenBanner } from '@/features/security/TokenBanner';
-import { section, visibleNav, type NavItem } from './nav';
+import { RoutineBadge } from './RoutineBadge';
+import { section, TAB_ORDER, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
+
+// The menu's Radix code stays out of the initial bundle (200 kB budget); the name shows meanwhile.
+const PersonMenu = lazy(() => import('./PersonMenu').then((m) => ({ default: m.PersonMenu })));
 
 const LINK = 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground';
 // A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review).
@@ -16,9 +20,11 @@ const TAB = 'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center g
 /** Sidebar on desktop; on mobile, four tabs and « Plus » (screens.md §1). */
 export function Shell() {
   const { t } = useTranslation();
-  const { capabilities, signOut } = useSession();
+  const { capabilities, session } = useSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = visibleNav(capabilities);
+  const side = items.filter((item) => item.group !== 'account');
+  const groups = (['follow', 'estate', 'budget'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
   const more = items.filter((item) => item.mobile === 'more');
   const inMore = pathname === '/more'
     || more.some((item) => pathname === section(item.to) || pathname.startsWith(`${section(item.to)}/`));
@@ -28,23 +34,31 @@ export function Shell() {
       <item.icon aria-hidden="true" className="size-5 shrink-0" />
       <span className="max-w-full truncate">{t(item.label)}</span>
       {item.to === '/proposals' ? <PendingBadge /> : null}
+      {item.to === '/routine' ? <RoutineBadge /> : null}
     </Link>
   );
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[14rem_1fr]">
       <nav aria-label={t('nav.sidebar')} className="hidden gap-1 border-r bg-sidebar p-4 text-sidebar-foreground md:flex md:flex-col">
-        <p className="mb-4 px-3 text-lg font-semibold">{t('app.name')}</p>
-        {items.map((item) => link(item))}
+        <p className="mb-2 px-3 text-lg font-semibold">{t('app.name')}</p>
+        {groups.map(({ group, entries }) => (
+          <div key={group} className="mt-3">
+            <h2 className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t(`nav.group_${group}`)}</h2>
+            <ul className="space-y-1">{entries.map((item) => <li key={item.to}>{link(item)}</li>)}</ul>
+          </div>
+        ))}
+        <div className="mt-auto">
+          <Suspense fallback={<p className="truncate px-3 py-2 text-sm font-medium">{session.person.name}</p>}>
+            <PersonMenu />
+          </Suspense>
+        </div>
       </nav>
       <div className="flex min-h-dvh flex-col pb-16 md:pb-0">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 md:gap-4">
           <p className="font-semibold md:invisible">{t('app.name')}</p>
           <ScopeSwitch />
-          <div className="flex items-center gap-2">
-            <Guides />
-            <Button variant="ghost" onClick={() => void signOut()}>{t('shell.sign_out')}</Button>
-          </div>
+          <Guides />
         </header>
         <TokenBanner />
         <main className="flex-1 p-4">
@@ -52,7 +66,7 @@ export function Shell() {
         </main>
       </div>
       <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex border-t bg-background md:hidden">
-        {items.filter((item) => item.mobile === 'tab').map((item) => link(item, TAB))}
+        {items.filter((item) => item.mobile === 'tab').sort((a, b) => TAB_ORDER.indexOf(a.to) - TAB_ORDER.indexOf(b.to)).map((item) => link(item, TAB))}
         <Link to="/more" aria-current={inMore ? 'page' : undefined} className={inMore ? `${TAB} font-semibold` : TAB}>
           <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
           <span className="max-w-full truncate">{t('nav.more')}</span>

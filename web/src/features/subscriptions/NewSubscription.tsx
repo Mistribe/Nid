@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/page/PageHeader';
+import { StepForm } from '@/components/page/StepForm';
 import { invalidateSubscriptions, LIST, PERSONS } from './api';
 import { useSubmitErrors } from './edits/useSubmitErrors';
 import { fieldErrorsOf } from './fieldErrors';
@@ -66,7 +67,7 @@ export function NewSubscription() {
   const { session } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const [reveal, setReveal] = useState<{ step: string } | null>(null);
   const people = $api.useQuery('get', PERSONS);
   const persons = people.data ?? [];
   const schema = useMemo(() => wizardSchema(t), [t]);
@@ -83,77 +84,58 @@ export function NewSubscription() {
     },
   });
   const errors = useSubmitErrors(form.setError, (path) => fieldOf(path, form.getValues()));
-  const [pendingErrors, setPendingErrors] = useState<unknown>(null);
   const create = $api.useMutation('post', LIST, {
     onSuccess: (created) => {
       void invalidateSubscriptions(queryClient);
       void navigate({ to: '/subscriptions/$id', params: { id: created.id } });
     },
     onError: (error) => {
+      errors.onError(error);
+      // The refusal lands on the last step: go back to the first step that holds a field it names.
       const { offer, trialVariant } = form.getValues();
       const owned = fieldErrorsOf(error)
         .map((f) => stepOfPath(offer, trialVariant, f.path))
         .filter((s): s is StepName => s !== undefined)
         .map((s) => stepsFor(offer).indexOf(s))
         .filter((i) => i >= 0);
-      if (owned.length > 0) setStep(Math.min(...owned));
-      setPendingErrors(error);
+      setReveal(owned.length > 0 ? { step: stepsFor(offer)[Math.min(...owned)]! } : null);
     },
   });
 
-  // Errors are placed once the step that owns them is on screen, so each lands on a mounted field.
-  useEffect(() => {
-    if (pendingErrors === null) return;
-    errors.onError(pendingErrors);
-    setPendingErrors(null);
-  }, [pendingErrors, step, errors]);
-
-  const offer = form.watch('offer');
-  const steps = stepsFor(offer);
-  const name = steps[step] ?? 'summary';
-  const last = step === steps.length - 1;
-  const next = async () => {
-    if (!(await form.trigger(stepFields(name, form.getValues())))) return;
-    if (name === 'offer') {
-      if (offer === 'trial') leaveTrial(form, t('wizard.offer.trial_label'));
-      if (thenMode(form.getValues()) === 'optional') fillFollowingStart(form);
-    }
-    setStep(step + 1);
-  };
+  const values = form.watch();
+  const offer = values.offer;
   const titles: Record<StepName, string> = {
     type: t('wizard.offer.legend'), common: t('wizard.step_common'), offer: t('wizard.step_offer'),
     then: t('wizard.then.title'), summary: t('wizard.step_summary'),
   };
+  const content: Record<StepName, ReactNode> = {
+    type: <TypeStep form={form} />,
+    common: <CommonStep form={form} persons={persons} />,
+    offer: <OfferForm form={form} persons={persons} offer={offer} />,
+    then: <ThenStep form={form} persons={persons} />,
+    summary: <SummaryStep form={form} persons={persons} />,
+  };
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <Link to="/subscriptions" className="text-sm underline">{t('subscription.back')}</Link>
-      <h1 className="text-2xl font-semibold">{t('wizard.title')}</h1>
-      <p aria-live="polite" className="text-sm text-muted-foreground">{t('wizard.step_progress', { n: step + 1, total: steps.length })} · {titles[name]}</p>
+    <article className="max-w-3xl space-y-4">
+      <PageHeader crumbs={[{ label: t('nav.subscriptions'), to: '/subscriptions' }]} title={t('wizard.title')} />
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       {people.error ? <ProblemMessage problem={present(toProblem(people.error))} /> : null}
       {/* The owner and payer selects are born with their options: a select registered before them would show its
           first option while the form holds the reader (final review). */}
       {!people.data ? <div aria-busy="true" aria-label={t('wizard.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /> : (
-      <form noValidate onSubmit={(e) => {
-        e.preventDefault();
-        if (!last) void next();
-        else void form.handleSubmit((values) => create.mutate({ body: toCreateBody(values) }))(e);
-      }} className="space-y-4">
-        {name === 'type' ? <TypeStep form={form} /> : null}
-        {name === 'common' ? <CommonStep form={form} persons={persons} /> : null}
-        {name === 'offer' ? <OfferForm form={form} persons={persons} offer={offer} /> : null}
-        {name === 'then' ? <ThenStep form={form} persons={persons} /> : null}
-        {name === 'summary' ? <SummaryStep form={form} persons={persons} /> : null}
-        <div className="flex gap-2">
-          {step > 0 ? <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>{t('wizard.back')}</Button> : null}
-          {!last
-            ? <Button type="submit">{t('wizard.next')}</Button>
-            : <Button type="submit" disabled={create.isPending}>{t('wizard.submit')}</Button>}
-        </div>
-      </form>
+        <StepForm
+          steps={stepsFor(offer).map((id) => ({ id, title: titles[id], fields: stepFields(id, values), content: content[id] }))}
+          trigger={(fields) => form.trigger(fields as Path<WizardValues>[])}
+          onAdvance={(id) => {
+            if (id !== 'offer') return;
+            if (offer === 'trial') leaveTrial(form, t('wizard.offer.trial_label'));
+            if (thenMode(form.getValues()) === 'optional') fillFollowingStart(form);
+          }}
+          onSubmit={() => void form.handleSubmit((v) => { errors.clear(); create.mutate({ body: toCreateBody(v) }); })()}
+          submitLabel={t('wizard.submit')} pending={create.isPending} reveal={reveal} />
       )}
-    </div>
+    </article>
   );
 }
 

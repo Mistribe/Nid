@@ -47,11 +47,11 @@ describe('the properties’ routine', () => {
 
     await waitFor(() => expect(within(biens).getByLabelText('Estimation de Maison')).toHaveValue(''));
     expect(within(biens).getByText('Dernière : 290 000,00 € au 30 juin 2024')).toBeInTheDocument();
-    expect(within(biens).getByText('Autres biens').closest('details')).not.toHaveAttribute('open');
+    expect(within(biens).getByRole('button', { name: 'Autres biens' })).toHaveAttribute('aria-expanded', 'false');
     const costs = within(biens).getByRole('region', { name: 'Charges du mois' });
     expect(within(costs).getByLabelText('Taxe foncière de Maison')).not.toBeChecked();
     expect(within(costs).getByLabelText('Montant : Taxe foncière de Maison')).toHaveValue('1200.00');
-    expect(within(costs).getByLabelText('Date : Taxe foncière de Maison')).toHaveValue('2025-09-15');
+    expect(within(costs).getByLabelText('Date : Taxe foncière de Maison')).toHaveValue('15/09/2025');
     const rents = within(biens).getByRole('region', { name: 'Loyers du mois' });
     expect(within(rents).getByLabelText('Loyer T2 de Locatif')).not.toBeChecked();
     expect(within(rents).getByLabelText('Montant : Loyer T2 de Locatif')).toHaveValue('950.00');
@@ -87,6 +87,20 @@ describe('the properties’ routine', () => {
       flows: [{ property: LOCATIF, kind: 'income', category: 'rent', occurredOn: '2025-09-01', amount: '950.00' }],
     });
     await expectNoAxeViolations(container);
+  });
+
+  it('opens the folded other estimates when a refusal lands on one of them', async () => {
+    serve(september());
+    const { user } = await renderApp('/routine');
+    const biens = await section();
+
+    await user.click(await within(biens).findByRole('button', { name: 'Autres biens' }));
+    await user.type(within(biens).getByLabelText('Estimation de Locatif'), 'abc');
+    await user.click(within(biens).getByRole('button', { name: 'Autres biens' }));
+    expect(within(biens).queryByLabelText('Estimation de Locatif')).toBeNull();
+    await user.click(within(biens).getByRole('button', { name: 'Enregistrer les biens' }));
+
+    await waitFor(() => expect(within(biens).getByLabelText('Estimation de Locatif')).toHaveAttribute('aria-invalid', 'true'));
   });
 
   it('Enter moves to the next field and never submits', async () => {
@@ -270,7 +284,7 @@ describe('the properties’ routine', () => {
     const biens = await section();
 
     await waitFor(() => expect(within(biens).getByText('Rien à saisir pour vos biens ce mois-ci.')).toBeInTheDocument());
-    expect(within(biens).getByText('Autres biens').closest('details')).toHaveAttribute('open');
+    expect(within(biens).getByRole('button', { name: 'Autres biens' })).toHaveAttribute('aria-expanded', 'true');
     expect(within(biens).getByRole('button', { name: 'Enregistrer les biens' })).toBeDisabled();
     await expectNoAxeViolations(container);
   });
@@ -295,7 +309,7 @@ describe('the properties’ routine', () => {
     server.use(http.get('*/api/v1/investments/routine', () => { envelopeReads += 1; return HttpResponse.json(routine([line()])); }));
     const { user, container } = await renderApp('/properties', { capabilities: { modules: ['realestate'], admin: false } });
 
-    await user.click(await screen.findByRole('link', { name: 'Routine' }));
+    await user.click(await within(screen.getByRole('navigation', { name: 'Navigation principale' })).findByRole('link', { name: 'Routine' }));
     const biens = await section();
     await waitFor(() => expect(within(biens).getByLabelText('Estimation de Maison')).toHaveValue(''));
     expect(screen.queryByRole('button', { name: 'Enregistrer les placements' })).not.toBeInTheDocument();

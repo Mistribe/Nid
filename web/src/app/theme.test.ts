@@ -15,15 +15,16 @@ describe('applyTheme', () => {
   });
 
   it('follows the system in system mode', () => {
-    applyTheme('neutre', 'system', root(), media(true));
+    applyTheme('sobre', 'system', root(), media(true));
     expect(root().classList.contains('dark')).toBe(true);
-    applyTheme('neutre', 'system', root(), media(false));
+    applyTheme('sobre', 'system', root(), media(false));
     expect(root().classList.contains('dark')).toBe(false);
   });
 });
 
 describe('resolving stored values', () => {
-  it('falls back to neutre for a theme this build does not ship', () => expect(resolveTheme('ocean')).toBe('neutre'));
+  it('falls back to ardoise for a theme this build does not ship', () => expect(resolveTheme('ocean')).toBe('ardoise'));
+  it('defaults to ardoise when the person never chose', () => expect(resolveTheme(undefined)).toBe('ardoise'));
   it('falls back to system for an unknown mode', () => expect(resolveMode('sepia')).toBe('system'));
 });
 
@@ -45,6 +46,6 @@ describe('theme-init.js', () => {
     localStorage.setItem('nid.theme', '"><script>');
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- runs public/theme-init.js exactly as the browser does
     new Function(source)();
-    expect(root().dataset.theme).toBe('neutre');
+    expect(root().dataset.theme).toBe('ardoise');
   });
 });

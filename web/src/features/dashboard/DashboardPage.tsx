@@ -1,206 +1,96 @@
-import { Link, useSearch } from '@tanstack/react-router';
-import { Clock } from 'lucide-react';
-import { lazy, Suspense, useId, type ReactNode } from 'react';
-import type { TFunction } from 'i18next';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
-import type { RootSearch } from '@/app/router';
+import type { DashboardSearch, RootSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
-import { formatLocalDate } from '@/components/LocalDate';
-import { formatMoney } from '@/components/Money';
+import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Direction } from '../investments/Figures';
-import { Todo, Upcoming } from './Agenda';
-import { DASHBOARD, type DashboardCommitmentSource, type DashboardFigure, type DashboardView } from './api';
-import { percent } from './format';
-import { EnvelopeSplit, Panel, PeopleSplit } from './Split';
+import { buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Notice, Upcoming } from './Agenda';
+import { DASHBOARD, type DashboardView } from './api';
+import { HouseholdMonth } from './HouseholdMonth';
+import { KeyFigures, type Panel } from './KeyFigures';
 
 // The home page is in the initial bundle; Recharts is not (spec 2D2a §5).
-const EnvelopeChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.EnvelopeChart })));
 const NetWorthCurve = lazy(() => import('./NetWorthCurve').then((m) => ({ default: m.NetWorthCurve })));
-const PeopleChart = lazy(() => import('./SplitCharts').then((m) => ({ default: m.PeopleChart })));
+const FigurePanel = lazy(() => import('./panels/FigurePanel').then((m) => ({ default: m.FigurePanel })));
 
-/** 2D1 design §5: the home page — four figures the server computed for the Foyer / Moi scope. */
+/** Spec §4.1: the home page — figures the server computed for the Foyer / Moi scope. */
 export function DashboardPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const search: RootSearch = useSearch({ strict: false });
+  const search: RootSearch & DashboardSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
   const answer = $api.useQuery('get', DASHBOARD, { params: { query: { scope } } });
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">{t('dashboard.title')}</h1>
-      <Body data={answer.data} error={answer.error} />
+      <PageHeader title={t('dashboard.title')} />
+      <Body data={answer.data} error={answer.error} scope={scope} panel={search.panel} />
     </div>
   );
 }
 
-function Body({ data, error }: { data?: DashboardView; error: unknown }) {
+function Body({ data, error, scope, panel }: { data?: DashboardView; error: unknown; scope: 'me' | 'household'; panel?: Panel }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   if (!data && error) return <ProblemMessage problem={present(toProblem(error))} />;
   if (!data)
     return (
-      <ul aria-busy="true" aria-label={t('dashboard.loading')} className="grid gap-4 md:grid-cols-2">
-        {[0, 1, 2, 3].map((i) => <li key={i} className="h-36 animate-pulse rounded-md border bg-muted" />)}
+      <ul aria-busy="true" aria-label={t('dashboard.loading')} className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => <li key={i}><Skeleton className="h-20 w-full rounded-xl" /></li>)}
       </ul>
     );
   // Counts, not amounts: nothing at all yet is a welcome, not four « inconnu ».
   if (data.envelopes + data.subscriptions + data.incomeSources === 0)
     return (
       <EmptyState title={t('dashboard.empty_title')} body={t('dashboard.empty_body')}
-        action={(
-          <ModuleLinks className="flex flex-wrap justify-center gap-3" links={[
-            { module: 'investments', to: '/investments/new', label: t('dashboard.add_envelope') },
-            { module: 'realestate', to: '/properties/new', label: t('dashboard.add_property') },
-            { module: 'subscriptions', to: '/subscriptions/new', label: t('dashboard.add_subscription') },
-            { module: 'income', to: '/income/new', label: t('dashboard.add_income') },
-          ]} />
-        )} />
+        action={<ModuleLinks />} />
     );
+  const open = (panel: Panel) => void navigate({ to: '/dashboard', search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel }) });
+  // Closing drops `panel` without a history entry, so Back leaves the page rather than reopening it.
+  const close = () => void navigate({ to: '/dashboard', replace: true, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel: undefined }) });
   return (
-    <div className="space-y-4">
-      <div data-guide="dashboard.tiles" className="grid gap-4 md:grid-cols-2">
-        <NetWorth d={data} />
-        <Commitments d={data} />
-        <Income d={data} />
-        <Change d={data} />
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="space-y-4 md:col-span-3">
+        <Notice d={data} />
+        <KeyFigures d={data} onOpen={open} />
       </div>
+      <div className="md:col-span-3"><HouseholdMonth d={data} /></div>
+      <div className={data.envelopes > 0 ? 'md:order-2' : 'md:col-span-3'}><Upcoming d={data} /></div>
+      {/* DOM order is the phone order (À venir before the curve); desktop: curve left, À venir right. */}
       {data.envelopes > 0 ? (
-        <Panel title={t('dashboard.curve.title')} guide="dashboard.curve">
-          <Suspense fallback={<div className="h-64 animate-pulse rounded-md border bg-muted" />}>
+        <div className="md:order-1 md:col-span-2" data-guide="dashboard.curve">
+          <Suspense fallback={<Skeleton className="h-80 w-full rounded-xl" />}>
             <NetWorthCurve />
           </Suspense>
-        </Panel>
+        </div>
       ) : null}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Both splits render nothing without an envelope: an empty column is no step. */}
-        <div data-guide={data.envelopeSplit.length > 0 ? 'dashboard.split' : undefined} className="space-y-4">
-          <EnvelopeSplit d={data} chart={<Suspense fallback={null}><EnvelopeChart rows={data.envelopeSplit} /></Suspense>} />
-          <PeopleSplit d={data} chart={data.people ? <Suspense fallback={null}><PeopleChart people={data.people} /></Suspense> : null} />
-        </div>
-        <div className="space-y-4">
-          <Upcoming d={data} />
-          <Todo d={data} />
-        </div>
-      </div>
+      {panel ? <Suspense fallback={null}><FigurePanel panel={panel} onClose={close} d={data} scope={scope} /></Suspense> : null}
     </div>
   );
 }
 
-type ModuleLink = {
-  module: string;
-  to: '/investments' | '/subscriptions' | '/income' | '/properties' | '/loans'
-    | '/investments/new' | '/properties/new' | '/subscriptions/new' | '/income/new';
-  label: string;
-};
+const LINKS = [
+  { module: 'investments', to: '/investments/new', label: 'dashboard.add_envelope' },
+  { module: 'realestate', to: '/properties/new', label: 'dashboard.add_property' },
+  { module: 'subscriptions', to: '/subscriptions/new', label: 'dashboard.add_subscription' },
+  { module: 'income', to: '/income/new', label: 'dashboard.add_income' },
+] as const;
 
 /** Spec 3E1 §3 and §5: each link only when its module is enabled. */
-function ModuleLinks({ links, className }: { links: ModuleLink[]; className: string }) {
+function ModuleLinks() {
+  const { t } = useTranslation();
   const { capabilities } = useSession();
   return (
-    <span className={className}>
-      {links.filter((l) => capabilities.modules.includes(l.module)).map((l) => (
-        <Link key={l.to} to={l.to} className="underline">{l.label}</Link>
+    <>
+      {LINKS.filter((l) => capabilities.modules.includes(l.module)).map((l) => (
+        <Link key={l.to} to={l.to} className={buttonVariants({ variant: 'outline' })}>{t(l.label)}</Link>
       ))}
-    </span>
-  );
-}
-
-function Card({ title, links, children }: { title: string; links: ModuleLink[]; children: ReactNode }) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="flex flex-col gap-2 rounded-md border p-4">
-      <h2 id={id} className="text-sm font-medium text-muted-foreground">{title}</h2>
-      {children}
-      <ModuleLinks className="mt-auto flex flex-wrap gap-x-3 text-sm" links={links} />
-    </section>
-  );
-}
-
-/** The big figure, or « Inconnu » with its reason (a missing rate names its currency). */
-function Big({ figure, unknown, unknownRate = 'dashboard.unknown_rate' }: { figure: DashboardFigure; unknown: string; unknownRate?: 'dashboard.unknown_rate' | 'dashboard.change_unknown_rate' }) {
-  const { t } = useTranslation();
-  if (figure.total) return <p className="text-3xl font-semibold tabular-nums">{formatMoney(figure.total)}</p>;
-  return <p className="text-lg text-muted-foreground">{figure.missingCurrency ? t(unknownRate, { code: figure.missingCurrency }) : unknown}</p>;
-}
-
-function NetWorth({ d }: { d: DashboardView }) {
-  const { t } = useTranslation();
-  return (
-    <Card title={t('dashboard.net_worth')} links={[
-      { module: 'investments', to: '/investments', label: t('dashboard.see_investments') },
-      { module: 'realestate', to: '/properties', label: t('dashboard.see_properties') },
-    ]}>
-      <Big figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} />
-      {d.valuesAsOf ? <p className="text-sm text-muted-foreground">{t('dashboard.values_as_of', { date: formatLocalDate(d.valuesAsOf) })}</p> : null}
-      {d.staleEnvelopes > 0 ? (
-        <p className="flex items-center gap-1 text-sm"><Clock aria-hidden="true" className="size-4" />{t('dashboard.stale', { count: d.staleEnvelopes })}</p>
-      ) : null}
-      {d.envelopesWithoutValue > 0 ? <p className="text-sm text-muted-foreground">{t('dashboard.without_value', { count: d.envelopesWithoutValue })}</p> : null}
-    </Card>
-  );
-}
-
-const SOURCES = ['subscriptions', 'loans', 'property_costs'] as const;
-
-/** Spec 3E1 §3: « Abonnements X · Crédits Y · Charges des biens Z », the server's amounts, only the sources it lists. */
-function sourcesText(t: TFunction, sources: DashboardCommitmentSource[]): string {
-  return sources.flatMap((s) => {
-    const k = SOURCES.find((x) => x === s.source);
-    return k && s.amortized ? [t(`dashboard.commitment_source.${k}`, { amount: formatMoney(s.amortized) })] : [];
-  }).join(' · ');
-}
-
-function Commitments({ d }: { d: DashboardView }) {
-  const { t } = useTranslation();
-  return (
-    <Card title={t('dashboard.commitments')} links={[
-      { module: 'subscriptions', to: '/subscriptions', label: t('dashboard.see_subscriptions') },
-      { module: 'realestate', to: '/loans', label: t('dashboard.see_loans') },
-    ]}>
-      {/* A source the server lists counts items: with nothing due this month it is « aucun coût », not « aucun engagement ». */}
-      <Big figure={d.commitments} unknown={t(d.commitmentSources.length > 0 ? 'dashboard.commitments_none_this_month' : 'dashboard.commitments_none')} />
-      {d.commitments.total ? <p className="text-sm text-muted-foreground">{t('dashboard.amortized_per_month')}</p> : null}
-      {d.commitments.total ? <p className="text-sm text-muted-foreground">{sourcesText(t, d.commitmentSources)}</p> : null}
-      {d.cashThisMonth.total ? <p className="text-sm">{t('dashboard.cash_this_month', { amount: formatMoney(d.cashThisMonth.total) })}</p> : null}
-      {d.committedPct != null ? <p className="text-sm">{t('dashboard.committed_share', { value: percent(d.committedPct) })}</p> : null}
-    </Card>
-  );
-}
-
-function Income({ d }: { d: DashboardView }) {
-  const { t } = useTranslation();
-  const missing = d.income.missingCurrency ?? d.commitments.missingCurrency;
-  return (
-    <Card title={t('dashboard.income')} links={[{ module: 'income', to: '/income', label: t('dashboard.see_income') }]}>
-      <Big figure={d.income} unknown={t('dashboard.income_unknown')} />
-      {d.income.total ? <p className="text-sm text-muted-foreground">{t('dashboard.smoothed_per_month')}</p> : null}
-      <p className="text-sm">{d.margin ? t('dashboard.margin', { amount: formatMoney(d.margin) }) : d.incomeSources > 0 && missing ? t('dashboard.margin_unknown_rate', { code: missing }) : t('dashboard.margin_unknown')}</p>
-    </Card>
-  );
-}
-
-function Change({ d }: { d: DashboardView }) {
-  const { t } = useTranslation();
-  const total = d.change.total;
-  return (
-    <Card title={t('dashboard.change')} links={[{ module: 'investments', to: '/investments', label: t('dashboard.see_investments') }]}>
-      {total ? (
-        <p className="text-3xl font-semibold">
-          <Direction amount={total}>
-            {d.changePct != null ? <span className="text-lg tabular-nums">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span> : null}
-          </Direction>
-        </p>
-      ) : <Big figure={d.change} unknown={t('dashboard.change_unknown')} unknownRate="dashboard.change_unknown_rate" />}
-      {d.changeContributions.total ? (
-        <p className="text-sm text-muted-foreground">{t('dashboard.of_which_paid_in', { amount: formatMoney(d.changeContributions.total) })}</p>
-      ) : null}
-      {d.envelopesWithoutStart > 0 ? (
-        <p className="text-sm text-muted-foreground">{t('dashboard.without_start', { count: d.envelopesWithoutStart })}</p>
-      ) : null}
-    </Card>
+    </>
   );
 }

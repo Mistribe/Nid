@@ -1,12 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { ConfirmAction } from '@/components/ConfirmAction';
-import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
-import { Reload } from '../../subscriptions/edits/Reload';
+import { formatLocalDate } from '@/components/LocalDate';
+import { RowActions as SharedRowActions } from '@/components/page/RowActions';
 import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '../api';
-import { isTransferLeg } from '../format';
+import { flowKindText, isTransferLeg } from '../format';
 import { presentConflict } from './entries';
 
 type RowActionsProps = {
@@ -24,9 +22,9 @@ type RowActionsProps = {
 } & ({ kind: 'value'; item: Valuation } | { kind: 'flow'; item: Flow });
 
 /**
- * A value's or a flow's row actions (2B2a design §6): « Corriger » swaps the row for its edit form; « Supprimer »
- * asks first, then deletes. A transfer leg (`category = transfer`, 2B2b owns transfers) cannot be corrected here —
- * only deleted, with a warning that its other leg keeps its own.
+ * A value's or a flow's row menu (2B2a design §6): « Corriger » opens its dialog; « Supprimer » asks first, then
+ * deletes. A transfer leg (`category = transfer`, 2B2b owns transfers) cannot be corrected here — only deleted, with
+ * a warning that its other leg keeps its own.
  */
 export function RowActions(props: RowActionsProps) {
   const { t } = useTranslation();
@@ -47,27 +45,17 @@ export function RowActions(props: RowActionsProps) {
     : transferLeg ? t('envelope.delete_transfer_leg') : t('envelope.delete_flow');
 
   const onConfirm = () => {
-    props.onDeleteStarted();
     if (props.kind === 'value') removeValuation.mutate({ params: { path: { id: props.envelope.id, valuationId: props.item.id } } });
     else removeFlow.mutate({ params: { path: { id: props.envelope.id, flowId: props.item.id } } });
   };
 
-  const problem = remove.error ? presentConflict(t, remove.error) : null;
+  const date = formatLocalDate(props.kind === 'value' ? props.item.asOf : props.item.occurredOn);
 
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      {!transferLeg ? (
-        <Button id={`correct-${props.kind}-${props.item.id}`} type="button" variant="outline" size="sm" onClick={props.onEdit}>{t('envelope.correct')}</Button>
-      ) : null}
-      <ConfirmAction label={t('envelope.delete')} confirmation={confirmation} pending={remove.isPending} onConfirm={onConfirm} />
-      {problem ? (
-        <>
-          <ProblemMessage problem={problem} />
-          {problem.kind === 'conflict' ? (
-            <Reload onReload={() => { remove.reset(); return invalidateInvestments(queryClient); }} />
-          ) : null}
-        </>
-      ) : null}
-    </span>
+    <SharedRowActions menuId={`correct-${props.kind}-${props.item.id}`}
+      menuLabel={props.kind === 'flow' ? t('envelope.row_menu_what', { date, what: flowKindText(t, props.item) }) : t('envelope.row_menu', { date })}
+      items={transferLeg ? [] : [{ label: t('envelope.correct'), onSelect: props.onEdit }]}
+      confirmation={confirmation} remove={remove} onDeleteStarted={props.onDeleteStarted} onConfirm={onConfirm}
+      present={presentConflict} invalidate={invalidateInvestments} />
   );
 }

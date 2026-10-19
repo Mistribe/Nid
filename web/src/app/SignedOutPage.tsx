@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { buttonVariants } from '@/components/ui/button';
 import { loginUrl } from './session';
 
 /** Only an http(s) address becomes a link: the value comes from the server, never from the address bar. */
@@ -16,11 +17,11 @@ export function SignedOutPage({ identityProvider }: { identityProvider: string |
       <p>{t('signed_out.sso_open')}</p>
       {isWebAddress(identityProvider) ? (
         <p>
-          <a href={identityProvider} className="underline">{t('signed_out.portal')}</a>
+          <a href={identityProvider} className={buttonVariants({ variant: 'outline' })}>{t('signed_out.portal')}</a>
         </p>
       ) : null}
       <p>
-        <a href={loginUrl({ pathname: '/', search: '' })} className="underline">{t('signed_out.sign_in_again')}</a>
+        <a href={loginUrl({ pathname: '/', search: '' })} className={buttonVariants()}>{t('signed_out.sign_in_again')}</a>
       </p>
     </main>
   );

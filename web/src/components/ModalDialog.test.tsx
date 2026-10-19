@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { createRef } from 'react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -12,7 +13,7 @@ describe('ModalDialog', () => {
       </ModalDialog>,
     );
     const dialog = screen.getByRole('dialog', { name: 'Clôturer l’enveloppe' });
-    expect(dialog).toHaveAttribute('open');
+    expect(dialog).toBeVisible();
     expect(screen.getByRole('form', { name: 'Clôturer l’enveloppe' })).toBeInTheDocument();
     await expectNoAxeViolations(document.body);
   });
@@ -30,10 +31,19 @@ describe('ModalDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('closes the native dialog when it unmounts', () => {
+  it('goes away when it unmounts', () => {
     const { unmount } = render(<ModalDialog title="Titre" onClose={() => {}}>{() => null}</ModalDialog>);
-    const dialog = screen.getByRole<HTMLDialogElement>('dialog');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     unmount();
-    expect(dialog.open).toBe(false);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('closes itself through dialogRef without calling onClose', async () => {
+    const ref = createRef<{ close: () => void }>();
+    const onClose = vi.fn();
+    render(<ModalDialog title="Titre" onClose={onClose} dialogRef={ref}>{() => null}</ModalDialog>);
+    act(() => ref.current?.close());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

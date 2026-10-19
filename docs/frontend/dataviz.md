@@ -31,6 +31,9 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Crédit : capital et intérêts par mois | Barres empilées | 2 catégories |
 | Crédit : capital restant dû | Courbe, **graphique séparé** | 1 série |
 | **Utilisation des revenus** | Barre empilée unique : engagements par catégorie, puis marge | Catégories fixes pour les engagements, **ton neutre** pour la marge |
+| **Le mois du foyer** (accueil) | Barre empilée unique : sources d'engagement puis « Reste » ; marge inconnue = raison dite, pas de barre inventée | Catégories fixes, ton neutre pour « Reste » |
+| Patrimoine (accueil) | Aire de la valeur et courbe pointillée des versements, période segmentée, bascule en tableau | 2 séries |
+| Panneaux de l'accueil (`?panel=`) | Composition du patrimoine par type ou par personne, sources de revenus et d'engagements, barre du mois | Mêmes couleurs que l'accueil |
 
 Un crédit demande **deux graphiques**, pas un axe double : les échelles (des centaines de milliers d'euros contre quelques centaines) sont trop différentes.
 

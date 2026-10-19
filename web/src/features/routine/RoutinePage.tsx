@@ -5,10 +5,15 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import type { RootSearch, RoutineSearch } from '@/app/router';
+import { Field } from '@/components/form/Field';
+import { DateField } from '@/components/form/DateField';
+import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { buttonVariants } from '@/components/ui/button';
 import { monthLabel } from '../income/expected/months';
 import { PendingLine } from '../proposals/PendingLine';
 import { todayIso } from '../subscriptions/today';
+import { ISO_DATE } from '../subscriptions/edits/amount';
 import { ROUTINE, type RoutineRecap } from './api';
 import { defaultRoutineDate } from './dates';
 import { clearDraft, loadDraft } from './draft';
@@ -29,6 +34,8 @@ export function RoutinePage() {
   const [year = 0, month = 1] = on.split('-').map(Number);
   const monthText = monthLabel(year, month);
   const answer = $api.useQuery('get', ROUTINE, { params: { query: { on } } }, { enabled: envelopes });
+  // What is typed in the date field until it is a day the routine can open (a past one).
+  const [typed, setTyped] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ recap: RoutineRecap; values: RoutineValues } | null>(null);
 
   const [restored, setRestored] = useState<RoutineValues | null>(null);
@@ -39,25 +46,31 @@ export function RoutinePage() {
   const onSaved = (recap: RoutineRecap, values: RoutineValues) => { clearDraft(on); setUndone(false); setSaved({ recap, values }); };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">{t('routine.title', { month: monthText })}</h1>
+    <div className="space-y-6">
+      <PageHeader title={t('routine.title', { month: monthText })} />
       <PendingLine />
-      <label className="flex items-center gap-2 text-sm">
-        <span>{t('routine.date')}</span>
-        <input type="date" value={on} max={today} className="rounded-md border px-3 py-2"
-          onChange={(e) => {
-            if (!e.target.value) return;
-            setSaved(null); setRestored(null); setUndone(false);
-            void navigate({ to: '/routine', replace: true,
-              search: (prev: RootSearch & RoutineSearch) => ({ ...prev, on: e.target.value === defaultRoutineDate(today) ? undefined : e.target.value }) });
-          }} />
-      </label>
+      <div className="max-w-xs">
+        <Field label={t('routine.date')} error={typed ? t('routine.date_invalid') : undefined}>
+          {(c) => (
+            <DateField {...c} value={typed ?? on} max={today} onChange={(v) => {
+              if (!ISO_DATE.test(v) || v > today) { setTyped(v); return; }
+              setTyped(null);
+              setSaved(null); setRestored(null); setUndone(false);
+              void navigate({ to: '/routine', replace: true,
+                search: (prev: RootSearch & RoutineSearch) => ({ ...prev, on: v === defaultRoutineDate(today) ? undefined : v }) });
+            }} />
+          )}
+        </Field>
+      </div>
       {envelopes ? (
         <>
           {answer.error && !answer.data ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
           {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('routine.loading')} className="h-48 animate-pulse rounded-md border bg-muted" /> : null}
           {answer.data && answer.data.lines.length === 0 ? (
-            <p>{t('routine.none')} <Link to="/investments/new" className="underline">{t('routine.create_envelope')}</Link></p>
+            <p className="flex flex-wrap items-center gap-2">
+              {t('routine.none')}
+              <Link to="/investments/new" className={buttonVariants({ variant: 'outline', size: 'sm' })}>{t('routine.create_envelope')}</Link>
+            </p>
           ) : null}
           {answer.data && answer.data.lines.length > 0 && !saved ? (
             <RoutineForm key={`${on}:${restored ? 'restored' : 'fresh'}:${answer.data.lines.map((l) => l.id).join(',')}`} view={answer.data} month={monthText} initial={startValues(answer.data, restored ?? loadDraft(on))} onSaved={onSaved} />

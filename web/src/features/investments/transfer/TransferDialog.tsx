@@ -1,24 +1,26 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { DateField } from '@/components/form/DateField';
+import { SelectField } from '@/components/form/SelectField';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
-import { Field } from '../../subscriptions/edits/Field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { toWireAmount } from '../../subscriptions/edits/amount';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { ENVELOPES, invalidateInvestments, TRANSFERS, type EnvelopeDetail, type EnvelopeSummary } from '../api';
-import { placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
+import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
 
-const input = 'rounded-md border px-3 py-2';
 const PATHS = { to: 'to', occurredOn: 'occurredOn', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'occurredOn' | 'amount' | 'to'> = {
   'core.date_in_future': 'occurredOn', 'core.amount_not_positive': 'amount', 'core.currency_mismatch': 'amount',
@@ -27,7 +29,7 @@ const FALLBACK: Record<string, 'occurredOn' | 'amount' | 'to'> = {
 
 /**
  * 2B2b design: a transfer from `source` to another open envelope of the same currency that the person can write
- * (the server checks all of it again: a destination it hides answers 404). A native modal dialog in a portal, on
+ * (the server checks all of it again: a destination it hides answers 404). A modal dialog in a portal, on
  * the `NewProviderDialog` pattern; the page owns its open state, the focus going back to its button, and the
  * announcement of the success (`onDone`), so a dialog closed by Escape or « Annuler » announces nothing.
  */
@@ -80,7 +82,7 @@ function TransferForm({ source, destinations, titleId, onClose, onDone }: {
   const queryClient = useQueryClient();
   const schema = z.object({
     to: z.string().min(1, t('edit.required')),
-    occurredOn: z.string().regex(ISO_DATE, t('edit.required')),
+    occurredOn: pastDate(t),
     amount: z.string().regex(POSITIVE_AMOUNT, t('investments_form.positive_amount_format')),
     note: z.string().max(2000, t('investments_form.note_too_long')),
   });
@@ -135,21 +137,26 @@ function TransferForm({ source, destinations, titleId, onClose, onDone }: {
           {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
         </>
       ) : null}
-      <Field label={t('envelope.transfer.to')} error={e.to?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('to')} wrapperClassName="w-full">
-            {destinations.map((d) => <NativeSelectOption key={d.id} value={d.id}>{d.displayName}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
-      <Field label={t('envelope.date')} error={e.occurredOn?.message}>
-        {(c) => <input type="date" max={todayIso()} {...c} {...form.register('occurredOn')} />}
-      </Field>
-      <Field label={t('envelope.amount')} error={e.amount?.message}>
-        {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Controller control={form.control} name="to" render={({ field }) => (
+            <Field label={t('envelope.transfer.to')} error={e.to?.message}>
+              {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+                options={destinations.map((d) => ({ value: d.id, label: d.displayName }))} />}
+            </Field>
+          )} />
+        </div>
+        <Controller control={form.control} name="occurredOn" render={({ field }) => (
+          <Field label={t('envelope.date')} error={e.occurredOn?.message}>
+            {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
+          </Field>
+        )} />
+        <Field label={t('envelope.amount')} error={e.amount?.message}>
+          {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
+        </Field>
+      </div>
       <Field label={t('envelope.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>{t('envelope.cancel')}</Button>

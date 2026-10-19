@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -16,34 +16,43 @@ function serve(body: IncomeSourceList, seen: string[] = [], withEnded: IncomeSou
   }));
 }
 
+/** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
 async function rows(): Promise<HTMLElement[]> {
-  const ul = await screen.findByRole('list', { name: 'Liste des revenus' });
-  return within(ul).getAllByRole('listitem');
+  const table = await screen.findByRole('table', { name: 'Liste des revenus' });
+  return within(table).getAllByRole('row').slice(1);
 }
 
 describe('IncomeSourcesPage', () => {
-  it('shows each source with its kind, payer, monthly equivalent, components and access, smoothed over the year', async () => {
-    serve(list([summary()]));
+  beforeAll(async () => { await import('./IncomeSourcesPage'); }, 30_000);
+
+  it('shows one table row per item with its owner', async () => {
+    const alice = '0192f0aa-0000-7000-8000-0000000000a1';
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
+    serve(list([summary({ owners: [{ personId: alice, shareBp: 10000 }] })]));
     const { container } = await renderApp('/income');
 
+    const table = await screen.findByRole('table', { name: 'Liste des revenus' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Type', 'Payeur', 'Propriétaire', 'Par mois']);
     const row = (await rows())[0]!;
-    expect(within(row).getByRole('link', { name: 'Salaire Alice' })).toHaveAttribute('href', expect.stringContaining('/income/'));
+    expect(within(row).getByRole('link', { name: /Salaire Alice/ })).toHaveAttribute('href', expect.stringContaining('/income/'));
     expect(row).toHaveTextContent('Salaire');
     expect(row).toHaveTextContent('Employeur');
-    expect(row).toHaveTextContent('2 450,00 € par mois');
-    expect(row).toHaveTextContent('2 composantes en cours');
+    await waitFor(() => expect(row).toHaveTextContent('Alice'));
+    expect(row).toHaveTextContent('2 450,00 €');
     expect(within(row).getByText('Privé')).toBeInTheDocument();
     expect(screen.getAllByText('Montants mensuels lissés sur l’année.')).toHaveLength(1);
     await expectNoAxeViolations(container);
   });
 
-  it('shows the monthly equivalent the server rounded, never computing it', async () => {
-    serve(list([summary({ monthlyEquivalent: eur('333.33'), runningPhases: 1 })]));
-    await renderApp('/income');
+  it('sorts by the monthly equivalent, as the server rounded it', async () => {
+    serve(list([summary({ displayName: 'Gros' }), summary({ id: 'b', displayName: 'Petit', monthlyEquivalent: eur('333.33') })]));
+    const { user } = await renderApp('/income');
 
-    const row = (await rows())[0]!;
-    expect(row).toHaveTextContent('333,33 € par mois');
-    expect(row).toHaveTextContent('1 composante en cours');
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(Gros|Petit)/)?.[0]);
+    expect(await names()).toEqual(['Gros', 'Petit']);
+    expect((await rows())[1]).toHaveTextContent('333,33 €');
+    await user.click(within(screen.getByRole('table', { name: 'Liste des revenus' })).getByRole('button', { name: 'Par mois' }));
+    expect(await names()).toEqual(['Petit', 'Gros']);
   });
 
   it('warns of a component ending soon with nothing after it, in words', async () => {
@@ -53,6 +62,14 @@ describe('IncomeSourcesPage', () => {
     const row = (await rows())[0]!;
     expect(within(row).getByRole('note')).toHaveTextContent('« Salaire de base » se termine bientôt sans période suivante');
     await expectNoAxeViolations(container);
+  });
+
+  it('the add link is always shown, even when no row is writable', async () => {
+    serve(list([summary({ canWrite: false })]));
+    await renderApp('/income');
+
+    await rows();
+    expect(screen.getByRole('link', { name: 'Ajouter un revenu' })).toBeInTheDocument();
   });
 
   it('invites to add the first income when there is none at all', async () => {
@@ -75,7 +92,7 @@ describe('IncomeSourcesPage', () => {
     await user.click(screen.getByRole('link', { name: 'Voir les sources terminées' }));
 
     await waitFor(() => expect(router.state.location.search).toMatchObject({ ended: 1 }));
-    expect(screen.getByRole('checkbox', { name: 'Afficher les sources terminées' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les sources terminées' })).toBeChecked();
   });
 
   it('shows a skeleton while the list loads', async () => {
@@ -114,18 +131,18 @@ describe('IncomeSourcesPage, ended sources', () => {
     serve(list([summary()]), seen, list([summary(), summary({ id: 'old', displayName: 'Ancien emploi', ended: true, endedOn: '2024-12-31' })]));
     const { user, router, container } = await renderApp('/income');
 
-    const box = await screen.findByRole('checkbox', { name: 'Afficher les sources terminées' });
+    const box = await screen.findByRole('switch', { name: 'Afficher les sources terminées' });
     expect(box).not.toBeChecked();
     await rows();
     await user.click(box);
 
     await waitFor(() => expect(seen).toContain('?scope=household&archived=true'));
     expect(router.state.location.search).toMatchObject({ ended: 1 });
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Liste des revenus' })).getAllByRole('listitem')).toHaveLength(2));
+    await waitFor(async () => expect(await rows()).toHaveLength(2));
     const items = await rows();
     expect(within(items[1]!).getByText('Terminée')).toBeInTheDocument();
     expect(within(items[0]!).queryByText('Terminée')).not.toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les sources terminées' })).toHaveFocus();
+    expect(screen.getByRole('switch', { name: 'Afficher les sources terminées' })).toHaveFocus();
     await expectNoAxeViolations(container);
   });
 
@@ -135,7 +152,7 @@ describe('IncomeSourcesPage, ended sources', () => {
     await renderApp('/income?ended=yes');
 
     await rows();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les sources terminées' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les sources terminées' })).not.toBeChecked();
     expect(seen).toEqual(['?scope=household']);
   });
 });

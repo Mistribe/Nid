@@ -10,36 +10,48 @@ const serve = (byStatus: Record<string, unknown[]>) =>
   server.use(http.get('*/api/v1/core/proposals', ({ request }) =>
     HttpResponse.json({ items: byStatus[new URL(request.url).searchParams.get('status') ?? 'pending'] ?? [] })));
 
+/** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
+async function rows(): Promise<HTMLElement[]> {
+  const table = await screen.findByRole('table', { name: 'Liste des propositions' });
+  return within(table).getAllByRole('row').slice(1);
+}
+
+const inTable = async () => within(await screen.findByRole('table', { name: 'Liste des propositions' }));
+
 describe('À valider', () => {
   beforeAll(async () => { await import('./ProposalsPage'); });
 
-  it('groups the pending proposals by statement and summarises each', async () => {
+  it('shows one table row per proposal with its statement, summary, date and state', async () => {
     serve({ pending: [
       proposal({ sourceLabel: 'Relevé PEA septembre' }),
       proposal({ targetName: 'Assurance-vie', payload: { asOf: '2025-09-30', amount: { amount: '1200.50', currency: 'EUR' } }, sourceLabel: null, createdVia: 'api' }),
     ] });
     const { container } = await renderApp('/proposals');
 
-    const statement = await screen.findByRole('region', { name: 'Relevé PEA septembre' });
-    expect(within(statement).getByRole('link', { name: /PEA — valeur au 30 sept\. 2025 : 23\s500,00\s€/ })).toBeInTheDocument();
-    expect(statement).toHaveTextContent('par l’assistant (MCP)');
-    const none = screen.getByRole('region', { name: 'Sans relevé' });
-    expect(none).toHaveTextContent('Assurance-vie');
-    expect(none).toHaveTextContent('par l’API');
+    const table = await screen.findByRole('table', { name: 'Liste des propositions' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Document', 'Élément', 'Reçue le', 'État']);
+    const [first, second] = await rows();
+    expect(first).toHaveTextContent('Relevé PEA septembre');
+    expect(within(first!).getByRole('link', { name: /PEA — valeur au 30 sept\. 2025 : 23\s500,00\s€/ })).toBeInTheDocument();
+    expect(first).toHaveTextContent('par l’assistant (MCP)');
+    expect(first).toHaveTextContent('En attente');
+    expect(second).toHaveTextContent('Sans relevé');
+    expect(second).toHaveTextContent('Assurance-vie');
+    expect(second).toHaveTextContent('par l’API');
     await expectNoAxeViolations(container);
   });
 
-  it('puts the group with the newest proposal first, « Sans relevé » included', async () => {
+  it('lists the newest proposal first and sorts by the date received', async () => {
     serve({ pending: [
       proposal({ sourceLabel: 'Relevé ancien', createdAt: '2026-10-01T08:00:00+00:00' }),
-      proposal({ sourceLabel: null, createdAt: '2026-10-15T08:00:00+00:00' }),
       proposal({ sourceLabel: 'Relevé récent', createdAt: '2026-10-10T08:00:00+00:00' }),
     ] });
-    await renderApp('/proposals');
+    const { user } = await renderApp('/proposals');
 
-    await screen.findByRole('region', { name: 'Relevé ancien' });
-    const names = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'));
-    expect(names.filter((n) => ['Sans relevé', 'Relevé récent', 'Relevé ancien'].includes(n ?? ''))).toEqual(['Sans relevé', 'Relevé récent', 'Relevé ancien']);
+    const documents = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+    expect(await documents()).toEqual(['Relevé récent', 'Relevé ancien']);
+    await user.click(within(screen.getByRole('table', { name: 'Liste des propositions' })).getByRole('button', { name: 'Reçue le' }));
+    expect(await documents()).toEqual(['Relevé ancien', 'Relevé récent']);
   });
 
   it('says when nothing waits, and shows the decided ones on their tab', async () => {
@@ -47,11 +59,11 @@ describe('À valider', () => {
     const { user } = await renderApp('/proposals');
 
     expect(await screen.findByText('Rien à valider pour l’instant.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'En attente' })).toHaveAttribute('aria-current', 'page');
-    await user.click(screen.getByRole('link', { name: 'Approuvées' }));
-    expect(await screen.findByText(/Approuvée le/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Approuvées' })).toHaveAttribute('aria-current', 'page');
-    await user.click(screen.getByRole('link', { name: 'Rejetées' }));
+    expect(screen.getByRole('radio', { name: 'En attente' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'Approuvées' }));
+    expect((await inTable()).getByText(/Approuvée le/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Approuvées' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'Rejetées' }));
     expect(await screen.findByText('Aucune proposition rejetée.')).toBeInTheDocument();
   });
 
@@ -60,7 +72,7 @@ describe('À valider', () => {
     serve({ pending: [proposal({ sourceLabel: '<img src=x onerror=alert(1)> **gras**' })] });
     const { container } = await renderApp('/proposals');
 
-    expect(await screen.findByRole('region', { name: '<img src=x onerror=alert(1)> **gras**' })).toBeInTheDocument();
+    expect((await rows())[0]).toHaveTextContent('<img src=x onerror=alert(1)> **gras**');
     expect(container.querySelector('img')).toBeNull();
   });
 
@@ -69,7 +81,7 @@ describe('À valider', () => {
     serve({ pending: [proposal({ kind: 'realestate.future_kind', payload: { x: 1 } })] });
     await renderApp('/proposals');
 
-    expect(await screen.findByRole('link', { name: /realestate\.future_kind/ })).toBeInTheDocument();
+    expect((await inTable()).getByRole('link', { name: /realestate\.future_kind/ })).toBeInTheDocument();
   });
 
   it('counts the pending proposals in the navigation, and shows nothing at zero', async () => {
@@ -116,7 +128,7 @@ describe('À valider', () => {
       ] } })] });
     await renderApp('/proposals');
 
-    expect(await screen.findByRole('link', { name: /PEA — relevé au 30 sept\. 2025 \(2 mouvements\)/ })).toBeInTheDocument();
+    expect((await inTable()).getByRole('link', { name: /PEA — relevé au 30 sept\. 2025 \(2 mouvements\)/ })).toBeInTheDocument();
   });
 
   it('summarises a payslip and an invoice', async () => {
@@ -126,8 +138,8 @@ describe('À valider', () => {
     ] });
     await renderApp('/proposals');
 
-    expect(await screen.findByRole('link', { name: /Salaire — bulletin du 28 sept\. 2025 : net 2\s400,00\s€/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Netflix — facture du 1 sept\. 2025 : 10,99\s€/ })).toBeInTheDocument();
+    expect((await inTable()).getByRole('link', { name: /Salaire — bulletin du 28 sept\. 2025 : net 2\s400,00\s€/ })).toBeInTheDocument();
+    expect((await inTable()).getByRole('link', { name: /Netflix — facture du 1 sept\. 2025 : 10,99\s€/ })).toBeInTheDocument();
   });
 
   it('summarises a bank’s table by its loan and its row count', async () => {
@@ -136,6 +148,6 @@ describe('À valider', () => {
     ] } })] });
     await renderApp('/proposals');
 
-    expect(await screen.findByRole('link', { name: /Prêt maison — tableau de la banque, 1 échéance/ })).toBeInTheDocument();
+    expect((await inTable()).getByRole('link', { name: /Prêt maison — tableau de la banque, 1 échéance/ })).toBeInTheDocument();
   });
 });

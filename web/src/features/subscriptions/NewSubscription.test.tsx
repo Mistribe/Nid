@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { aliceSession } from '@/test/fixtures';
@@ -13,7 +14,10 @@ function serve(create: Parameters<typeof http.post>[1]) {
   server.use(
     http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
     http.get('*/api/v1/subscriptions/providers', () =>
-      HttpResponse.json([{ key: 'netflix', name: 'Netflix', origin: 'catalog', labels: [], website: null, archived: false, iconUrl: null }])),
+      HttpResponse.json([
+        { key: 'netflix', name: 'Netflix', origin: 'catalog', labels: [], website: null, archived: false, iconUrl: null },
+        { key: 'spotify', name: 'Spotify', origin: 'catalog', labels: [], website: null, archived: false, iconUrl: '/api/v1/subscriptions/providers/icons/abc' },
+      ])),
     http.post('*/api/v1/subscriptions', create),
   );
 }
@@ -33,7 +37,7 @@ async function fillCommon(user: Awaited<ReturnType<typeof start>>['user']) {
 }
 
 async function fillOffer(user: Awaited<ReturnType<typeof start>>['user']) {
-  await user.type(await screen.findByLabelText('Début'), '2025-01-01');
+  await user.type(await screen.findByLabelText('Début'), '01/01/2025');
   await user.type(screen.getByLabelText('Montant'), '13,49');
   await user.click(screen.getByRole('button', { name: 'Continuer' }));
 }
@@ -77,10 +81,27 @@ describe('Abonnements › ajout', () => {
     serve(() => HttpResponse.json({ id: NEW_ID }, { status: 201 }));
     const { user } = await start();
 
-    await user.type(screen.getByLabelText('Fournisseur'), 'net');
-    await user.click(await screen.findByRole('button', { name: 'Choisir Netflix' }));
+    await pick(user, 'Fournisseur', 'Netflix');
 
     expect(screen.getByLabelText('Nom')).toHaveValue('Netflix');
+  });
+
+  it('picks a provider by typing, and offers « Nouveau fournisseur » beside the search', async () => {
+    serve(() => HttpResponse.json({ id: NEW_ID }, { status: 201 }));
+    const { user } = await start();
+
+    await user.click(screen.getByRole('combobox', { name: 'Fournisseur' }));
+    await user.type(await screen.findByPlaceholderText('Rechercher'), 'spo');
+    const list = screen.getByRole('listbox');
+    expect(within(list).queryByRole('option', { name: 'Netflix' })).not.toBeInTheDocument();
+    // Each option shows its provider's icon, or its monogram without one.
+    expect(within(list).getByRole('option', { name: 'Spotify' }).querySelector('img')).toHaveAttribute('src', '/api/v1/subscriptions/providers/icons/abc');
+    await user.click(within(list).getByRole('option', { name: 'Spotify' }));
+
+    expect(screen.getByRole('combobox', { name: 'Fournisseur' })).toHaveTextContent('Spotify');
+    expect(screen.getByLabelText('Nom')).toHaveValue('Spotify');
+    await user.click(screen.getByRole('button', { name: 'Nouveau fournisseur' }));
+    expect(await screen.findByRole('dialog', { name: 'Nouveau fournisseur' })).toBeInTheDocument();
   });
 
   it('does not go on while the step is not valid', async () => {
@@ -130,8 +151,7 @@ describe('Abonnements › ajout', () => {
     }, { status: 422 }));
     const { user } = await start();
 
-    await user.type(screen.getByLabelText('Fournisseur'), 'net');
-    await user.click(await screen.findByRole('button', { name: 'Choisir Netflix' }));
+    await pick(user, 'Fournisseur', 'Netflix');
     await user.click(screen.getByRole('button', { name: 'Continuer' }));
     await fillOffer(user);
     await user.click(await screen.findByRole('button', { name: "Ajouter l'abonnement" }));

@@ -12,7 +12,7 @@ function acceptPreferences(sent: Body[]) {
   server.use(http.patch('*/api/v1/core/me/preferences', async ({ request }) => {
     const body = (await request.json()) as Body;
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
-    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
+    return HttpResponse.json({ theme: 'sobre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
 }
 
@@ -23,7 +23,7 @@ function queuePreferences(sent: Body[]) {
     const body = (await request.json()) as Body;
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
     await new Promise<void>((resolve) => releases.push(resolve));
-    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
+    return HttpResponse.json({ theme: 'sobre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
   return releases;
 }
@@ -38,7 +38,7 @@ function queuePreferencesFailingFirst(sent: Body[]) {
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
     await new Promise<void>((resolve) => releases.push(resolve));
     if (mine === 0) return HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-03' }, { status: 500 });
-    return HttpResponse.json({ theme: 'neutre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
+    return HttpResponse.json({ theme: 'sobre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
   return releases;
 }
@@ -72,14 +72,26 @@ describe('Réglages › Apparence', () => {
     await waitFor(() => expect(sent).toEqual([{ mode: 'dark', csrf: 'csrf-alice' }]));
   });
 
+  it('saves the black-and-white theme as sobre', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { user } = await renderApp('/settings/appearance', {
+      session: { ...aliceSession, preferences: { ...aliceSession.preferences, theme: 'terre' } },
+    });
+
+    await user.click(screen.getByRole('radio', { name: 'Sobre' }));
+
+    expect(sent).toEqual([{ theme: 'sobre', csrf: 'csrf-alice' }]);
+  });
+
   it('previews a theme on hover and restores the saved one after', async () => {
     const { user } = await renderApp('/settings/appearance');
-    const terre = screen.getByRole('radio', { name: 'Terre' }).closest('label')!;
+    const terre = screen.getByRole('radio', { name: 'Terre' });
 
     await user.hover(terre);
     expect(html().dataset.theme).toBe('terre');
     await user.unhover(terre);
-    expect(html().dataset.theme).toBe('neutre');
+    expect(html().dataset.theme).toBe('sobre');
   });
 
   it('puts the saved theme back and says so when saving fails', async () => {
@@ -90,8 +102,8 @@ describe('Réglages › Apparence', () => {
     await user.click(screen.getByRole('radio', { name: 'Ardoise' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue');
-    expect(html().dataset.theme).toBe('neutre');
-    expect(screen.getByRole('radio', { name: 'Neutre' })).toBeChecked();
+    expect(html().dataset.theme).toBe('sobre');
+    expect(screen.getByRole('radio', { name: 'Sobre' })).toBeChecked();
     expect(localStorage.getItem('nid.theme')).toBeNull();
   });
 
@@ -102,7 +114,7 @@ describe('Réglages › Apparence', () => {
     fireEvent.focus(terre);
     expect(html().dataset.theme).toBe('terre');
     fireEvent.blur(terre);
-    expect(html().dataset.theme).toBe('neutre');
+    expect(html().dataset.theme).toBe('sobre');
   });
 
   it('keeps dark applied through a hover preview while a mode save is pending', async () => {
@@ -113,7 +125,7 @@ describe('Réglages › Apparence', () => {
     await user.click(screen.getByRole('radio', { name: 'Sombre' }));
     expect(html().classList.contains('dark')).toBe(true);
 
-    const terre = screen.getByRole('radio', { name: 'Terre' }).closest('label')!;
+    const terre = screen.getByRole('radio', { name: 'Terre' });
     await user.hover(terre);
     expect(html().classList.contains('dark')).toBe(true);
     await user.unhover(terre);
@@ -186,12 +198,24 @@ describe('Réglages › Apparence', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
+  it('saves theme and mode', async () => {
+    const sent: Body[] = [];
+    acceptPreferences(sent);
+    const { user } = await renderApp('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Terre' }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Terre' })).toBeChecked());
+    await user.click(screen.getByRole('radio', { name: 'Sombre' }));
+
+    await waitFor(() => expect(sent).toEqual([{ theme: 'terre', csrf: 'csrf-alice' }, { mode: 'dark', csrf: 'csrf-alice' }]));
+  });
+
   it('saves the chart patterns option', async () => {
     const sent: Body[] = [];
     acceptPreferences(sent);
     const { user } = await renderApp('/settings/appearance');
 
-    await user.click(screen.getByRole('checkbox', { name: 'Motifs dans les graphiques' }));
+    await user.click(screen.getByRole('switch', { name: 'Motifs dans les graphiques' }));
 
     await waitFor(() => expect(sent).toEqual([{ chartPatterns: true, csrf: 'csrf-alice' }]));
   });
@@ -248,7 +272,7 @@ describe('Réglages › Apparence', () => {
     // The reset's response carries the empty map from before the guide was closed.
     releases[0]?.();
     await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[1]).toEqual({ guidesSeen: { loans: 1 }, csrf: 'csrf-alice' });
+    expect(sent[1]).toEqual({ guidesSeen: { loans: 2 }, csrf: 'csrf-alice' });
     releases[1]?.();
 
     await router.navigate({ to: '/settings/appearance' });

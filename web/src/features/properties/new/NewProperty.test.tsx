@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { persons } from '../../subscriptions/testData';
@@ -16,12 +17,21 @@ function serveCreate(bodies: unknown[], answer: () => Response = () => HttpRespo
 }
 
 type User = Awaited<ReturnType<typeof renderApp>>['user'];
+const next = (user: User) => user.click(screen.getByRole('button', { name: 'Continuer' }));
 const submit = (user: User) => user.click(screen.getByRole('button', { name: 'Créer le bien' }));
+const step = () => screen.getByRole('listitem', { current: 'step' });
+const options = (user: User) => user.click(screen.getByRole('button', { name: 'Plus d’options' }));
+
+/** The first step: a name and an answered visibility. */
+async function essentials(user: User, visibility: string | null = 'Oui, partagé') {
+  await user.type(await screen.findByLabelText('Nom'), 'Maison de Nantes');
+  if (visibility) await user.click(screen.getByRole('radio', { name: visibility }));
+  await next(user);
+}
 
 /** README §12's purchase: 250 000 € with 19 000 € of notary fees on 2020-06-15. */
-async function fill(user: User) {
-  await user.type(await screen.findByLabelText('Nom'), 'Maison de Nantes');
-  await user.type(screen.getByLabelText('Date d’achat'), '2020-06-15');
+async function purchase(user: User, date = '15/06/2020') {
+  await user.type(await screen.findByLabelText('Date d’achat'), date);
   await user.type(screen.getByLabelText('Prix d’achat'), '250000');
   await user.clear(screen.getByLabelText('Frais de notaire'));
   await user.type(screen.getByLabelText('Frais de notaire'), '19000');
@@ -30,16 +40,19 @@ async function fill(user: User) {
 describe('NewProperty', () => {
   beforeAll(async () => { await import('./NewProperty'); }, 30_000);
 
-  it('creates a property in one request, its amounts as typed with a dot, then shows it', async () => {
+  it('creates the same property body as before, through two steps, its amounts as typed with a dot, then shows it', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user, router, container } = await renderApp('/properties/new');
 
-    await fill(user);
-    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
-    await user.selectOptions(screen.getByLabelText('Type de bien'), 'rental');
-    await user.type(screen.getByLabelText('Surface (m²)'), '85,5');
+    await user.type(await screen.findByLabelText('Nom'), 'Maison de Nantes');
+    await pick(user, 'Type de bien', 'Bien locatif');
     await user.type(screen.getByLabelText('Commune ou repère'), 'Nantes');
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await next(user);
+    expect(step()).toHaveTextContent('L’achat');
+    await purchase(user);
+    await user.type(screen.getByLabelText('Surface (m²)'), '85,5');
     expect(screen.getByLabelText('Frais d’agence')).toHaveValue('0');
     expect(screen.getByLabelText('Autres frais d’acquisition')).toHaveValue('0');
     await expectNoAxeViolations(container);
@@ -54,35 +67,32 @@ describe('NewProperty', () => {
     }]);
   });
 
-  it('asks the visibility question with neither answer checked, and refuses to send until it is answered', async () => {
+  it('stays on the first step until the visibility question is answered, with neither answer checked', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user } = await renderApp('/properties/new');
 
-    await fill(user);
-    expect(screen.getByRole('group', { name: 'Ce bien est-il visible de l’autre adulte ?' })).toBeInTheDocument();
+    await essentials(user, null);
+    expect(step()).toHaveTextContent('Le bien');
+    expect(screen.getByRole('radiogroup', { name: 'Ce bien est-il visible de l’autre adulte ?' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Oui, partagé' })).not.toBeChecked();
     expect(screen.getByRole('radio', { name: 'Non, privé' })).not.toBeChecked();
-    await submit(user);
-
     expect(await screen.findByText('Répondez à cette question.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
   });
 
-  it('refuses before sending a zero price, a fee with three decimals, a purchase after today and a threshold of 0 days', async () => {
+  it('stays on the purchase step with an invalid field: a zero price, three decimals, a date after today, a 0-day threshold', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user } = await renderApp('/properties/new');
 
-    await fill(user);
-    await user.click(screen.getByRole('radio', { name: 'Non, privé' }));
+    await essentials(user, 'Non, privé');
+    await purchase(user, '01/01/2999');
     await user.clear(screen.getByLabelText('Prix d’achat'));
     await user.type(screen.getByLabelText('Prix d’achat'), '0');
     await user.clear(screen.getByLabelText('Frais de notaire'));
     await user.type(screen.getByLabelText('Frais de notaire'), '19000,123');
-    await user.clear(screen.getByLabelText('Date d’achat'));
-    await user.type(screen.getByLabelText('Date d’achat'), '2999-01-01');
-    await user.click(screen.getByRole('button', { name: 'Plus d’options' }));
+    await options(user);
     await user.type(screen.getByLabelText('Périmée après (jours)'), '0');
     await submit(user);
 
@@ -90,6 +100,7 @@ describe('NewProperty', () => {
     expect(screen.getByText('Un montant positif ou nul, avec deux décimales au plus, comme 1500,50.')).toBeInTheDocument();
     expect(screen.getByText('Cette date est dans le futur.')).toBeInTheDocument();
     expect(screen.getByText('Un nombre entier de jours, de 1 à 3 650.')).toBeInTheDocument();
+    expect(step()).toHaveTextContent('L’achat');
     expect(bodies).toEqual([]);
   });
 
@@ -98,13 +109,12 @@ describe('NewProperty', () => {
     serveCreate(bodies);
     const { user, container } = await renderApp('/properties/new');
 
-    await fill(user);
-    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
-    const options = screen.getByRole('button', { name: 'Plus d’options' });
-    expect(options).toHaveAttribute('aria-expanded', 'false');
+    await essentials(user);
+    await purchase(user);
+    expect(screen.getByRole('button', { name: 'Plus d’options' })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByLabelText('Rythme des estimations')).not.toBeInTheDocument();
-    await user.click(options);
-    await user.selectOptions(screen.getByLabelText('Rythme des estimations'), 'manual');
+    await options(user);
+    await pick(user, 'Rythme des estimations', 'Manuel');
     await user.type(screen.getByLabelText('Périmée après (jours)'), '730');
     await expectNoAxeViolations(container);
     await submit(user);
@@ -113,27 +123,38 @@ describe('NewProperty', () => {
     expect(bodies[0]).toMatchObject({ valuationCadence: 'manual', staleAfterDays: 730 });
   });
 
-  it('shows a server refusal under the field it names, opens the options holding one, and keeps the visibility answered', async () => {
+  it('sends the person back to the step of a field the server refuses, which opens the folded options holding one', async () => {
     serveCreate([], () => HttpResponse.json({
       status: 422, code: 'realestate.invalid_property_field', title: 'x',
-      errors: [
-        { path: 'locationLabel', code: 'realestate.invalid_property_field', message: 'x' },
-        { path: 'staleAfterDays', code: 'realestate.invalid_property_field', message: 'x' },
-      ],
+      errors: [{ path: 'locationLabel', code: 'realestate.invalid_property_field', message: 'x' }],
     }, { status: 422 }));
     const { user } = await renderApp('/properties/new');
 
-    await fill(user);
-    await user.click(screen.getByRole('radio', { name: 'Non, privé' }));
-    await user.type(screen.getByLabelText('Commune ou repère'), 'Nantes');
+    await essentials(user, 'Non, privé');
+    await purchase(user);
     await submit(user);
 
-    expect(await screen.findAllByText('Cette valeur n’est pas acceptée.')).toHaveLength(2);
+    await waitFor(() => expect(step()).toHaveTextContent('Le bien'));
+    expect(await screen.findByText('Cette valeur n’est pas acceptée.')).toBeInTheDocument();
     expect(screen.getByLabelText('Commune ou repère')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('radio', { name: 'Non, privé' })).toBeChecked();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('opens the options holding a refused field of the purchase step', async () => {
+    serveCreate([], () => HttpResponse.json({
+      status: 422, code: 'realestate.invalid_property_field', title: 'x',
+      errors: [{ path: 'staleAfterDays', code: 'realestate.invalid_property_field', message: 'x' }],
+    }, { status: 422 }));
+    const { user } = await renderApp('/properties/new');
+
+    await essentials(user);
+    await purchase(user);
+    await submit(user);
+
+    expect(await screen.findByText('Cette valeur n’est pas acceptée.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Plus d’options' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByLabelText('Périmée après (jours)')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Non, privé' })).toBeChecked();
   });
 
   it('shows a refusal no field owns above the form', async () => {
@@ -142,8 +163,8 @@ describe('NewProperty', () => {
       { status: 422 }));
     const { user } = await renderApp('/properties/new');
 
-    await fill(user);
-    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await essentials(user);
+    await purchase(user);
     await submit(user);
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();

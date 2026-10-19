@@ -1,10 +1,11 @@
-import { CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronRightIcon, CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { EmptyState } from '@/components/EmptyState';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
@@ -217,11 +218,10 @@ function Findings({ run }: { run: Run }) {
   return (
     <div className="space-y-2">
       {run.failureCode ? (
-        <details open>
-          <summary className="cursor-pointer font-medium">{t('admin.catalog.report.failure')}</summary>
+        <Fold title={t('admin.catalog.report.failure')} defaultOpen>
           <p><code>{run.failureCode}</code></p>
           {run.failureMessage ? <p className="text-sm text-muted-foreground">{run.failureMessage}</p> : null}
-        </details>
+        </Fold>
       ) : null}
       {report ? (
         <>
@@ -251,10 +251,7 @@ function IconFindings({ icons }: { icons: Icons }) {
   const { t } = useTranslation();
   if (icons.fetched.length === 0 && icons.refused.length === 0) return null;
   return (
-    <details>
-      <summary className="cursor-pointer font-medium">
-        {t('admin.catalog.report.icons', { fetched: icons.fetched.length, unchanged: icons.unchanged, refused: icons.refused.length })}
-      </summary>
+    <Fold title={t('admin.catalog.report.icons', { fetched: icons.fetched.length, unchanged: icons.unchanged, refused: icons.refused.length })}>
       {icons.fetched.length > 0 ? (
         <>
           <p className="text-sm text-muted-foreground">{t('admin.catalog.icons.fetched')}</p>
@@ -273,31 +270,42 @@ function IconFindings({ icons }: { icons: Icons }) {
           </ul>
         </>
       ) : null}
-    </details>
+    </Fold>
+  );
+}
+
+/** A report category folded under its title; closed unless `defaultOpen`. */
+function Fold({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
+  return (
+    <Collapsible defaultOpen={defaultOpen} className="group/fold">
+      <CollapsibleTrigger className="flex items-center gap-1 rounded-sm font-medium focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+        <ChevronRightIcon aria-hidden="true" className="size-4 transition-transform group-data-[state=open]/fold:rotate-90" />
+        {title}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pl-5">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 
 function Keys({ title, keys }: { title: string; keys: readonly string[] }) {
   if (keys.length === 0) return null;
   return (
-    <details>
-      <summary className="cursor-pointer font-medium">{title}</summary>
+    <Fold title={title}>
       <ul className="list-inside list-disc">
         {keys.map((key) => <li key={key}><code>{key}</code></li>)}
       </ul>
-    </details>
+    </Fold>
   );
 }
 
 function Lines({ title, lines }: { title: string; lines: readonly { id: string; text: string }[] }) {
   if (lines.length === 0) return null;
   return (
-    <details>
-      <summary className="cursor-pointer font-medium">{title}</summary>
+    <Fold title={title}>
       <ul className="list-inside list-disc">
         {lines.map((line) => <li key={line.id}>{line.text}</li>)}
       </ul>
-    </details>
+    </Fold>
   );
 }
 

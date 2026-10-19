@@ -40,6 +40,7 @@ describe('Un tableau d’amortissement proposé', () => {
     expect(screen.getByText(/Référence.+Calcul/)).toBeInTheDocument();
     expect(within(screen.getByRole('table', { name: 'Lignes lues' })).getAllByRole('row')).toHaveLength(4);
     expect(screen.getByRole('checkbox', checkbox)).toBeChecked();
+    expect(screen.getByRole('checkbox', checkbox)).toHaveAttribute('data-slot', 'checkbox');
     await expectNoAxeViolations(container);
 
     await user.click(screen.getByRole('button', { name: 'Approuver' }));

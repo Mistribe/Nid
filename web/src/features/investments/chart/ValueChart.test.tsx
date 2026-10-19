@@ -69,10 +69,11 @@ describe('ValueChart', () => {
     );
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    const form = await screen.findByRole('form', { name: 'Nouvelle valeur' });
+    await user.click(await screen.findByRole('button', { name: 'Saisir une valeur' }));
+    const form = await screen.findByRole('dialog', { name: 'Nouvelle valeur' });
     await waitFor(() => expect(seriesCalls).toBe(1));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
-    await waitFor(() => expect(within(form).getByRole('status')).not.toBeEmptyDOMElement());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(seriesCalls).toBe(2));
   });
 });

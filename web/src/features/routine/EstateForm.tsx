@@ -1,19 +1,24 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleCheck } from 'lucide-react';
+import { ChevronDown, CircleCheck } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { DateField } from '@/components/form/DateField';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
 import { LOAN_AMOUNT } from '../loans/new/loanForm';
 import { invalidateProperties } from '../properties/api';
 import { categoryText } from '../properties/format';
 import { ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
-import { Field } from '../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { messageFor } from '../subscriptions/fieldErrors';
 import { todayIso } from '../subscriptions/today';
 import { ESTATE_ROUTINE, type EstateEstimate, type EstateRecap, type EstateRoutineView } from './api';
@@ -23,8 +28,9 @@ type Ticked = { key: string; checked: boolean; amount: string; date: string };
 type Group = 'costs' | 'rents';
 export type EstateValues = { estimates: { property: string; amount: string }[]; costs: Ticked[]; rents: Ticked[] };
 
-const input = 'w-36 rounded-md border px-3 py-2 text-right tabular-nums';
-const dateInput = 'rounded-md border px-3 py-2';
+const input = 'text-right tabular-nums md:w-36';
+/** The fields Enter moves between: Radix adds a hidden input beside each checkbox, which is not a stop. */
+const STOPS = 'input:not([aria-hidden="true"]), button[role="checkbox"]';
 
 /** Spec 3E2 §4: estimates empty; costs and rents unticked, with the server's amount and date. */
 export function freshEstate(view: EstateRoutineView): EstateValues {
@@ -67,6 +73,7 @@ export function EstateForm({ view, initial, onSaved }: {
   const form = useForm<EstateValues>({ defaultValues: initial });
   const values = useWatch({ control: form.control });
   const [problem, setProblem] = useState<ReturnType<typeof present> | null>(null);
+  const [othersOpen, setOthersOpen] = useState<boolean | null>(null);
   const save = $api.useMutation('post', ESTATE_ROUTINE, { onSuccess: () => {
     void invalidateProperties(queryClient);
     // The month's lines: what was just recorded is now « already entered », its estimate no longer due.
@@ -83,14 +90,19 @@ export function EstateForm({ view, initial, onSaved }: {
   const indexed = view.estimates.map((line, index) => ({ line, index }));
   const due = indexed.filter((x) => x.line.due);
   const others = indexed.filter((x) => !x.line.due);
+  // An error on a folded estimate opens the fold: otherwise the save would seem to do nothing.
+  const estimateError = (index: number, message: string) => {
+    form.setError(`estimates.${index}.amount`, { message });
+    if (others.some((x) => x.index === index)) setOthersOpen(true);
+  };
   const ready = (values.estimates ?? []).some((l) => (l?.amount ?? '').trim() !== '')
     || [...(values.costs ?? []), ...(values.rents ?? [])].some((l) => l?.checked === true);
   const inMonth = (date: string) => ISO_DATE.test(date) && date.slice(0, 7) === view.on.slice(0, 7) && date <= todayIso();
 
   const onKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
+    if (event.key !== 'Enter' || !(event.target instanceof HTMLElement) || !event.target.matches(STOPS)) return;
     event.preventDefault();
-    const fields = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input')).filter((el) => el.closest('details:not([open])') === null);
+    const fields = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(STOPS));
     fields[fields.indexOf(event.target) + 1]?.focus();
   };
 
@@ -98,7 +110,7 @@ export function EstateForm({ view, initial, onSaved }: {
     setProblem(null);
     let invalid = false;
     v.estimates.forEach((l, i) => {
-      if (l.amount.trim() !== '' && !LOAN_AMOUNT.test(l.amount.trim())) { form.setError(`estimates.${i}.amount`, { message: t('loan_form.amount_format') }); invalid = true; }
+      if (l.amount.trim() !== '' && !LOAN_AMOUNT.test(l.amount.trim())) { estimateError(i, t('loan_form.amount_format')); invalid = true; }
     });
     for (const group of ['costs', 'rents'] as const)
       v[group].forEach((l, i) => {
@@ -130,7 +142,7 @@ export function EstateForm({ view, initial, onSaved }: {
             const m = /^(estimates|flows)\[(\d+)\](?:\.(\w+))?$/.exec(e.path);
             const estimate = m?.[1] === 'estimates' ? estimates[Number(m[2])] : undefined;
             const flow = m?.[1] === 'flows' ? flows[Number(m[2])] : undefined;
-            if (estimate) form.setError(`estimates.${estimate.i}.amount`, { message: messageFor(t, e) });
+            if (estimate) estimateError(estimate.i, messageFor(t, e));
             else if (flow) form.setError(`${flow.group}.${flow.i}.${m?.[3] === 'occurredOn' ? 'date' : 'amount'}`, { message: messageFor(t, e) });
             return estimate !== undefined || flow !== undefined;
           });
@@ -143,22 +155,24 @@ export function EstateForm({ view, initial, onSaved }: {
   const e = form.formState.errors;
 
   const estimateRow = ({ line, index }: { line: EstateEstimate; index: number }) => (
-    <li key={line.property} className="py-3">
+    <li key={line.property}><Card className="px-4 py-4">
       <Field label={t('routine_estate.estimate', { name: line.name })} error={e.estimates?.[index]?.amount?.message}
         hint={line.lastValue && line.lastAsOf
           ? t('routine_estate.last', { value: formatMoney({ amount: line.lastValue, currency: line.currency }), date: formatLocalDate(line.lastAsOf) })
           : t('routine_estate.no_last')}>
-        {(c) => <input inputMode="decimal" {...c} {...form.register(`estimates.${index}.amount`)} className={input} />}
+        {(c) => <Input inputMode="decimal" {...c} {...form.register(`estimates.${index}.amount`)} className={input} />}
       </Field>
-    </li>
+    </Card></li>
   );
 
   const tickedRow = (group: Group, index: number, key: string, text: string, currency: string, already: string | null | undefined) => {
     const le = e[group]?.[index];
     return (
-      <li key={key} className="grid gap-2 py-3 md:grid-cols-[1fr_auto_auto] md:items-start">
+      <li key={key}><Card className="gap-3 px-4 py-4 md:grid md:grid-cols-[1fr_auto_auto] md:items-start">
         <div className="space-y-1">
-          <Field inline label={text}>{(c) => <input type="checkbox" {...c} {...form.register(`${group}.${index}.checked`)} />}</Field>
+          <Controller control={form.control} name={`${group}.${index}.checked`} render={({ field }) => (
+            <Field inline label={text}>{(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}</Field>
+          )} />
           {already ? (
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               <CircleCheck aria-hidden="true" className="size-4" />
@@ -167,12 +181,14 @@ export function EstateForm({ view, initial, onSaved }: {
           ) : null}
         </div>
         <Field label={t('routine_estate.amount_of', { line: text })} error={le?.amount?.message}>
-          {(c) => <input inputMode="decimal" {...c} {...form.register(`${group}.${index}.amount`)} className={input} />}
+          {(c) => <Input inputMode="decimal" {...c} {...form.register(`${group}.${index}.amount`)} className={input} />}
         </Field>
-        <Field label={t('routine_estate.date_of', { line: text })} error={le?.date?.message}>
-          {(c) => <input type="date" max={todayIso()} {...c} {...form.register(`${group}.${index}.date`)} className={dateInput} />}
-        </Field>
-      </li>
+        <Controller control={form.control} name={`${group}.${index}.date`} render={({ field }) => (
+          <Field label={t('routine_estate.date_of', { line: text })} error={le?.date?.message}>
+            {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
+          </Field>
+        )} />
+      </Card></li>
     );
   };
 
@@ -185,7 +201,7 @@ export function EstateForm({ view, initial, onSaved }: {
           {t('routine_estate.check_all')}
         </Button>
       </div>
-      <ul className="divide-y">{rows}</ul>
+      <ul className="space-y-3">{rows}</ul>
     </section>
   ));
 
@@ -194,19 +210,23 @@ export function EstateForm({ view, initial, onSaved }: {
       {problem ? <ProblemMessage problem={problem} /> : null}
       <section aria-labelledby={`${id}-estimates`} className="space-y-1">
         <h3 id={`${id}-estimates`} className="font-semibold">{t('routine_estate.estimates')}</h3>
-        {due.length > 0 ? <ul className="divide-y">{due.map(estimateRow)}</ul> : null}
+        {due.length > 0 ? <ul className="space-y-3">{due.map(estimateRow)}</ul> : null}
         {others.length > 0 ? (
-          <details open={due.length === 0} className="rounded-md border p-3">
-            <summary className="cursor-pointer font-medium">{t('routine_estate.others')}</summary>
-            <ul className="divide-y">{others.map(estimateRow)}</ul>
-          </details>
+          <Collapsible open={othersOpen ?? due.length === 0} onOpenChange={setOthersOpen} className="space-y-3">
+            <CollapsibleTrigger className="flex items-center gap-1 font-medium">
+              <ChevronDown aria-hidden="true" className="size-4" />{t('routine_estate.others')}
+            </CollapsibleTrigger>
+            <CollapsibleContent><ul className="space-y-3">{others.map(estimateRow)}</ul></CollapsibleContent>
+          </Collapsible>
         ) : null}
       </section>
       {groupOf('costs', t('routine_estate.costs'), view.costs.map((c, i) => tickedRow('costs', i, c.costId,
         t('routine_estate.cost_line', { category: categoryText(t, c.category), name: c.name }), c.currency, c.alreadyEntered)))}
       {groupOf('rents', t('routine_estate.rents'), view.rents.map((r, i) => tickedRow('rents', i, r.tenancyId,
         t('routine_estate.rent_line', { label: r.label, name: r.name }), r.currency, r.alreadyEntered)))}
-      <Button type="submit" disabled={!ready || save.isPending}>{t('routine_estate.save')}</Button>
+      <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
+        <Button type="submit" disabled={!ready || save.isPending}>{t('routine_estate.save')}</Button>
+      </div>
     </form>
   );
 }

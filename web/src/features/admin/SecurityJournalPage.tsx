@@ -1,4 +1,6 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -32,38 +34,41 @@ export function SecurityJournalPage() {
 
   return (
     <AdminFrame title={title}>
-      <label className="flex items-center gap-2">
-        <span>{t('admin.security.filter')}</span>
-        <NativeSelect value={event} onChange={(e) => setEvent(e.target.value)} className="min-h-11">
-          <NativeSelectOption value="">{t('admin.security.all')}</NativeSelectOption>
-          {JOURNAL_EVENTS.map((name) => <NativeSelectOption key={name} value={name}>{eventLabel(t, name)}</NativeSelectOption>)}
-        </NativeSelect>
-      </label>
+      <div className="max-w-xs">
+        <Field label={t('admin.security.filter')}>
+          {(c) => (
+            <SelectField {...c} value={event} onValueChange={setEvent} options={[
+              { value: '', label: t('admin.security.all') },
+              ...JOURNAL_EVENTS.map((name) => ({ value: name, label: eventLabel(t, name) })),
+            ]} />
+          )}
+        </Field>
+      </div>
       {!journal.data || !adults.data ? <AdminSkeleton /> : journal.data.entries.length === 0 ? (
         <EmptyState title={t('admin.security.empty')} body="" />
       ) : (
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b">
-              <th scope="col" className="py-2 pr-4">{t('admin.security.when')}</th>
-              <th scope="col" className="py-2 pr-4">{t('admin.security.event')}</th>
-              <th scope="col" className="py-2 pr-4">{t('admin.security.subject')}</th>
-              <th scope="col" className="py-2 pr-4">{t('admin.security.actor')}</th>
-              <th scope="col" className="py-2">{t('admin.security.details')}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('admin.security.when')}</TableHead>
+              <TableHead>{t('admin.security.event')}</TableHead>
+              <TableHead>{t('admin.security.subject')}</TableHead>
+              <TableHead>{t('admin.security.actor')}</TableHead>
+              <TableHead>{t('admin.security.details')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {journal.data.entries.map((entry) => (
-              <tr key={entry.seq} className="border-b">
-                <td className="py-2 pr-4">{formatInstant(entry.at)}</td>
-                <td className="py-2 pr-4">{eventLabel(t, entry.event)}</td>
-                <td className="py-2 pr-4">{name(entry.subjectPersonId)}</td>
-                <td className="py-2 pr-4">{entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system')}</td>
-                <td className="py-2 font-mono">{Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(', ')}</td>
-              </tr>
+              <TableRow key={entry.seq}>
+                <TableCell>{formatInstant(entry.at)}</TableCell>
+                <TableCell>{eventLabel(t, entry.event)}</TableCell>
+                <TableCell>{name(entry.subjectPersonId)}</TableCell>
+                <TableCell>{entry.actor.personId ? name(entry.actor.personId) : t('admin.security.system')}</TableCell>
+                <TableCell className="font-mono">{Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(', ')}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </AdminFrame>
   );

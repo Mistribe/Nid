@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
+const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
+
 /**
- * A write in the admin area is confirmed in place: the button turns into the effect it will have, and a choice
- * (screens.md §12, then every write that asks first). Inline rather than a dialog, so it stays keyboard-first and needs no focus trap. Because the
- * trigger unmounts when the confirmation group appears, focus is moved deliberately: to the Confirm button when
- * it appears, and back to the trigger once the group is dismissed (Cancel or Confirm) — otherwise it falls to
- * <body>.
+ * A write is confirmed before it happens (screens.md §12): the button opens an alert dialog that states the effect and
+ * asks. Focus lands on Confirm when it opens and comes back to the trigger once the dialog is dismissed (Cancel, Escape
+ * or Confirm). The dialog is loaded on the first click: Radix's dialog stays out of the initial bundle.
  */
 export function ConfirmAction(props: {
   label: string;
@@ -17,7 +16,6 @@ export function ConfirmAction(props: {
   /** Disables the trigger and the Confirm button while the mutation this action starts is in flight. */
   pending?: boolean;
 }) {
-  const { t } = useTranslation();
   const [asking, setAsking] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasAsking = useRef(false);
@@ -27,19 +25,15 @@ export function ConfirmAction(props: {
     wasAsking.current = asking;
   }, [asking]);
 
-  if (!asking) {
-    return (
-      <Button ref={triggerRef} variant="outline" size="sm" disabled={props.disabled || props.pending} onClick={() => setAsking(true)}>
-        {props.label}
-      </Button>
-    );
-  }
-
   return (
-    <span role="group" aria-label={props.label} className="inline-flex flex-wrap items-center gap-2">
-      <span>{props.confirmation}</span>
-      <Button autoFocus size="sm" disabled={props.pending} onClick={() => { setAsking(false); props.onConfirm(); }}>{t('common.confirm')}</Button>
-      <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>{t('common.cancel')}</Button>
-    </span>
+    <>
+      <Button ref={triggerRef} variant="outline" size="sm" disabled={props.disabled || props.pending} onClick={() => setAsking(true)}>{props.label}</Button>
+      {asking ? (
+        <Suspense fallback={null}>
+          <ConfirmDialog label={props.label} confirmation={props.confirmation} pending={props.pending} onClose={() => setAsking(false)}
+            onConfirm={() => { setAsking(false); props.onConfirm(); }} />
+        </Suspense>
+      ) : null}
+    </>
   );
 }

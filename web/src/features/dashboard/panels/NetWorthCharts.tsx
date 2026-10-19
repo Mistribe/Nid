@@ -2,16 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
-import { toPlot } from '../investments/chart/plot';
-import type { DashboardEnvelope, DashboardPerson } from './api';
-import { personColor } from './colors';
+import { toPlot } from '../../investments/chart/plot';
+import type { DashboardEnvelope, DashboardPerson } from '../api';
+import { personColor } from '../colors';
 
 type Row = { key: string; name: string; value: number; text: string };
 
 const ROW_PX = 32;
 
 /** dataviz.md §2: sorted horizontal bars, one tone; every figure read comes from the server's strings. */
-export function EnvelopeChart({ rows }: { rows: DashboardEnvelope[] }) {
+function EnvelopeChart({ rows }: { rows: DashboardEnvelope[] }) {
   const { t } = useTranslation();
   const data: Row[] = rows.flatMap((r) => (r.converted ? [{ key: r.id, name: r.name, value: toPlot(r.converted.amount), text: formatMoney(r.converted) }] : []));
   if (data.length === 0) return null;
@@ -43,7 +43,7 @@ function RowTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyA
 }
 
 /** dataviz.md §2: one stacked bar, one fixed colour per person, normalised by Recharts (`stackOffset="expand"`). */
-export function PeopleChart({ people }: { people: DashboardPerson[] }) {
+function PeopleChart({ people }: { people: DashboardPerson[] }) {
   const { t } = useTranslation();
   // A person whose loans outweigh their share has a negative amount: a share of the whole cannot draw it; the table says it.
   if (people.length === 0 || people.some((p) => p.amount.amount.startsWith('-'))) return null;
@@ -71,4 +71,9 @@ function PeopleTooltip({ people }: { people: DashboardPerson[] }) {
       {people.map((p) => <div key={p.id} className="tabular-nums">{`${p.name} · ${formatMoney(p.amount)}`}</div>)}
     </div>
   );
+}
+
+/** The two views of the net worth's composition; Recharts stays out of the home's initial chunk. */
+export function NetWorthCharts({ view, rows, people }: { view: 'type' | 'person'; rows: DashboardEnvelope[]; people: DashboardPerson[] }) {
+  return view === 'type' ? <EnvelopeChart rows={rows} /> : <PeopleChart people={people} />;
 }

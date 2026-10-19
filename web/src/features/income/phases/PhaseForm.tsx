@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -14,21 +13,18 @@ import { phaseFieldOf, phaseSchema, toWirePhase, type PhaseValues } from './phas
 import { PhaseFields } from './PhaseFields';
 
 /**
- * Adding a phase (`editing` absent: POST) or correcting one inline on its row (PUT with the `version` it read), spec
- * §7. `onDone` gets the confirmation on success — announced and focused by the page, since the row is about to change
- * — or nothing when « Annuler » abandons.
+ * Adding a phase (`editing` absent: POST) or correcting one (PUT with the `version` it read), spec §7, in a dialog.
+ * `onDone` gets the confirmation on success — announced and focused by the page, since the row is about to change — or
+ * nothing when « Annuler » abandons.
  */
-export function PhaseForm({ source, editing, initial, onDone }: {
-  source: IncomeSourceDetail; editing?: IncomePhase; initial: PhaseValues; onDone: (message?: string) => void;
+export function PhaseForm({ source, editing, initial, titleId, onDone }: {
+  source: IncomeSourceDetail; editing?: IncomePhase; initial: PhaseValues; titleId: string; onDone: (message?: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const headingId = useId();
   const form = useForm<PhaseValues>({ resolver: zodResolver(phaseSchema(t)), defaultValues: initial });
   const errors = useSubmitErrors(form.setError, phaseFieldOf);
-  // Opening the form (add, « Renseigner la suite », correct) lands the person in it.
-  useEffect(() => { form.setFocus('label'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const add = $api.useMutation('post', PHASES);
   const correct = $api.useMutation('put', PHASE);
 
@@ -48,11 +44,9 @@ export function PhaseForm({ source, editing, initial, onDone }: {
 
   // A conflict reads its own sentence (`field_error.income_phase_conflict`), never the generic one alone.
   const problem = errors.problem?.kind === 'conflict' ? presentConflict(t, editing ? correct.error : add.error) : errors.problem;
-  const title = editing ? t('income_detail.correct_phase') : t('income_detail.add_phase');
 
   return (
-    <form aria-labelledby={headingId} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
-      <h3 id={headingId} className="font-semibold">{title}</h3>
+    <form aria-labelledby={titleId} noValidate onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }} className="space-y-3">
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
@@ -60,9 +54,9 @@ export function PhaseForm({ source, editing, initial, onDone }: {
         </>
       ) : null}
       <PhaseFields form={form} prefix="" errors={form.formState.errors} />
-      <div className="flex items-center gap-2">
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('income_detail.save') : t('income_detail.add_phase_submit')}</Button>
-        <Button type="button" variant="ghost" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>
       </div>
     </form>
   );

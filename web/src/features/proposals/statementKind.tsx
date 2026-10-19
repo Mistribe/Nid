@@ -6,8 +6,12 @@ import { formatMoney } from '@/components/Money';
 import { SIGNED_AMOUNT, trimAmount } from '../investments/entries/entries';
 import { flowKindText } from '../investments/format';
 import { ISO_DATE } from '../subscriptions/edits/amount';
-import { Field } from '../subscriptions/edits/Field';
-import { ValueComparison, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import { Controller } from 'react-hook-form';
+import { Field } from '@/components/form/Field';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 
 type Movement = { on: string; kind: string; amount: string; label?: string | null; ref?: string | null };
 type StatementPayload = { asOf: string; value?: Money | null; movements: Movement[]; note?: string | null; excluded?: number[] | null };
@@ -29,29 +33,29 @@ function StatementPreviewView({ preview }: { preview: unknown }) {
     <div className="space-y-3">
       {p.value ? <ValueComparison preview={p.value} /> : null}
       {p.movements.length > 0 ? (
-        <table className="w-full">
+        <Table>
           <caption className="text-left font-semibold">{t('proposal.movements.title')}</caption>
-          <thead>
-            <tr className="border-b text-left text-sm">
-              <th scope="col" className="py-2 pr-4 font-normal">{t('proposal.movements.on')}</th>
-              <th scope="col" className="py-2 pr-4 font-normal">{t('proposal.movements.kind')}</th>
-              <th scope="col" className="py-2 pr-4 font-normal">{t('proposal.movements.label')}</th>
-              <th scope="col" className="py-2 pr-4 text-right font-normal">{t('proposal.movements.amount')}</th>
-              <th scope="col" className="py-2 font-normal">{t('proposal.movements.state')}</th>
-            </tr>
-          </thead>
-          <tbody>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">{t('proposal.movements.on')}</TableHead>
+              <TableHead scope="col">{t('proposal.movements.kind')}</TableHead>
+              <TableHead scope="col">{t('proposal.movements.label')}</TableHead>
+              <TableHead scope="col" className="text-right">{t('proposal.movements.amount')}</TableHead>
+              <TableHead scope="col">{t('proposal.movements.state')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {p.movements.map((m) => (
-              <tr key={m.index} className="border-b">
-                <td className="py-2 pr-4">{formatLocalDate(m.on)}</td>
-                <td className="py-2 pr-4">{flowKindText(t, m)}</td>
-                <td className="py-2 pr-4">{m.label ?? ''}</td>
-                <td className="py-2 pr-4 text-right">{formatMoney(m.amount)}</td>
-                <td className="py-2">{m.recorded ? t('proposal.movements.recorded') : ''}</td>
-              </tr>
+              <TableRow key={m.index}>
+                <TableCell>{formatLocalDate(m.on)}</TableCell>
+                <TableCell>{flowKindText(t, m)}</TableCell>
+                <TableCell>{m.label ?? ''}</TableCell>
+                <TableCell className="text-right">{formatMoney(m.amount)}</TableCell>
+                <TableCell>{m.recorded ? t('proposal.movements.recorded') : ''}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       ) : null}
     </div>
   );
@@ -65,8 +69,8 @@ function StatementFields({ form, original, preview }: { form: UseFormReturn<Fiel
     <>
       {o.value ? (
         <>
-          <Field label={t('proposal.edit.as_of')} error={errorOf(form, 'asOf')}>{(c) => <input type="date" {...c} {...form.register('asOf')} className={input} />}</Field>
-          <Field label={t('proposal.edit.amount', { currency: o.value.currency })} error={errorOf(form, 'amount')}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={input} />}</Field>
+          <DateInput form={form} name="asOf" label={t('proposal.edit.as_of')} />
+          <Field label={t('proposal.edit.amount', { currency: o.value.currency })} error={errorOf(form, 'amount')}>{(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}</Field>
         </>
       ) : null}
       {o.movements.length > 0 ? (
@@ -75,12 +79,14 @@ function StatementFields({ form, original, preview }: { form: UseFormReturn<Fiel
           {o.movements.map((m, i) => {
             const line = shown[i];
             return (
-              <Field key={i} inline hint={line?.recorded ? t('proposal.movements.recorded') : undefined}
-                label={t('proposal.movements.keep', {
-                  n: i + 1, date: formatLocalDate(m.on), kind: flowKindText(t, m), amount: line ? formatMoney(line.amount) : m.amount,
-                })}>
-                {(c) => <input type="checkbox" {...c} {...form.register(`keep.${i}`)} />}
-              </Field>
+              <Controller key={i} control={form.control} name={`keep.${i}`} render={({ field }) => (
+                <Field inline hint={line?.recorded ? t('proposal.movements.recorded') : undefined}
+                  label={t('proposal.movements.keep', {
+                    n: i + 1, date: formatLocalDate(m.on), kind: flowKindText(t, m), amount: line ? formatMoney(line.amount) : m.amount,
+                  })}>
+                  {(c) => <Checkbox {...c} checked={field.value === true} onCheckedChange={(v) => field.onChange(v === true)} />}
+                </Field>
+              )} />
             );
           })}
         </fieldset>

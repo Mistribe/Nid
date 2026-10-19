@@ -1,27 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { components } from '@/api/schema';
-import { ConfirmAction } from '@/components/ConfirmAction';
+import { RowMenu } from '@/components/page/RowMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { invalidateSubscriptions, type Detail, type Purchase } from '../api';
-import { PriceChangeForm } from './PriceChangeForm';
-import { PurchaseForm } from './PurchaseForm';
-import { SettingsForm } from './SettingsForm';
+
+const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
 
 type Person = components['schemas']['PersonDto'];
-
-/** The forms of the detail, shown only when the reader may write (1E2a design §4). */
-export function Edits({ detail }: { detail: Detail }) {
-  return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <SettingsForm detail={detail} />
-      <PriceChangeForm detail={detail} />
-      <PurchaseForm detail={detail} />
-    </div>
-  );
-}
 
 /** With `canWrite` false the actions are absent and the reason is written (screens.md §10), naming who can. */
 export function ReadOnly({ detail, persons }: { detail: Detail; persons: Person[] }) {
@@ -34,16 +23,23 @@ export function ReadOnly({ detail, persons }: { detail: Detail; persons: Person[
 
 const PURCHASE = '/api/v1/subscriptions/{id}/purchases/{purchaseId}' as const;
 
-export function DeletePurchase({ detail, purchase }: { detail: Detail; purchase: Purchase }) {
+/** A purchase's `⋯` menu: « Supprimer » asks first, then the page announces it. */
+export function DeletePurchase({ detail, purchase, onDeleted }: { detail: Detail; purchase: Purchase; onDeleted: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const remove = $api.useMutation('delete', PURCHASE, { onSuccess: () => void invalidateSubscriptions(queryClient) });
+  const [asking, setAsking] = useState(false);
+  const remove = $api.useMutation('delete', PURCHASE, { onSuccess: () => { void invalidateSubscriptions(queryClient); onDeleted(t('edit.purchase_deleted')); } });
   return (
-    <>
-      <ConfirmAction label={t('edit.delete_purchase', { label: purchase.label })} confirmation={t('edit.delete_confirm')} pending={remove.isPending}
-        onConfirm={() => remove.mutate({ params: { path: { id: detail.id, purchaseId: purchase.id } } })} />
+    <span className="flex flex-wrap items-center justify-end gap-2">
+      <RowMenu label={t('edit.purchase_menu', { label: purchase.label })} items={[{ label: t('edit.delete_purchase'), onSelect: () => setAsking(true), destructive: true }]} />
+      {asking ? (
+        <Suspense fallback={null}>
+          <ConfirmDialog label={t('edit.delete_purchase')} confirmation={t('edit.delete_confirm')} pending={remove.isPending} onClose={() => setAsking(false)}
+            onConfirm={() => { setAsking(false); remove.mutate({ params: { path: { id: detail.id, purchaseId: purchase.id } } }); }} />
+        </Suspense>
+      ) : null}
       {remove.error ? <ProblemMessage problem={present(toProblem(remove.error))} /> : null}
-    </>
+    </span>
   );
 }

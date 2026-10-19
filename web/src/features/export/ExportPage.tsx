@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { PageHeader } from '@/components/page/PageHeader';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { runExport } from './assemble';
 import { downloadBlob } from './download';
 
@@ -67,7 +69,7 @@ export function ExportPage() {
     body = (
       <div className="space-y-3">
         <div role="progressbar" aria-label={t('export.progress_label')} aria-valuemin={0}
-          aria-valuemax={state.total} aria-valuenow={state.received} className="h-2 w-full overflow-hidden rounded bg-muted">
+          aria-valuemax={state.total} aria-valuenow={state.received} className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
         </div>
         <p>{t('export.progress', { received: state.received, total: state.total })}</p>
@@ -119,9 +121,9 @@ export function ExportPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{t('export.title')}</h1>
+      <PageHeader title={t('export.title')} />
       <p>{t('export.rule')}</p>
-      {body}
+      <Card><CardContent>{body}</CardContent></Card>
     </div>
   );
 }

@@ -2,12 +2,13 @@ import { ChevronDown, ChevronRight, Landmark } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { LoanSchedule } from '../api';
 import { money } from '../format';
 import { monthsOf } from '../schedule';
 
-const th = 'px-2 py-1 font-medium';
-const num = 'px-2 py-1 text-right tabular-nums';
+const num = 'text-right tabular-nums';
 
 /**
  * Spec 3B1 §7: one line per year — the server's totals and the balance on 31 December — each a button with
@@ -29,64 +30,59 @@ export function ScheduleTable({ schedule, currency, nextPaymentOn }: { schedule:
   return (
     <div className="space-y-2">
       <p className="text-sm text-muted-foreground">{t('loan_detail.schedule.help')}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <caption className="sr-only">{t('loan_detail.schedule.table')}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className={`${th} text-left`}>{t('loan_detail.schedule.col_number')}</th>
-              <th scope="col" className={`${th} text-left`}>{t('loan_detail.schedule.col_date')}</th>
-              <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_payment')}</th>
-              <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_interest')}</th>
-              <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_principal')}</th>
-              <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_insurance')}</th>
-              <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_early')}</th>
-              <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_balance')}</th>
-            </tr>
-          </thead>
-          {schedule.years.map((y) => {
-            const isOpen = open.has(y.year);
-            return (
-              <tbody key={y.year} className="border-t">
-                <tr className="font-medium">
-                  <th scope="row" colSpan={2} className="px-2 py-1 text-left">
-                    <button type="button" aria-expanded={isOpen} onClick={() => toggle(y.year)} className="inline-flex items-center gap-1 hover:underline">
-                      {isOpen ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronRight aria-hidden="true" className="size-4" />}
-                      {t('loan_detail.schedule.year', { year: y.year })}
-                    </button>
-                  </th>
-                  <td className={num}>{m(y.payment)}</td>
-                  <td className={num}>{m(y.interest)}</td>
-                  <td className={num}>{m(y.principal)}</td>
-                  <td className={num}>{m(y.insurance)}</td>
-                  <td className={num}>{m(y.earlyRepayment)}</td>
-                  <td className={num}>{m(y.balance)}</td>
-                </tr>
-                {isOpen ? monthsOf(schedule.rows, y.year).map((r) => (
-                  <tr key={r.number} className={r === next ? 'bg-muted' : undefined}>
-                    <td className="px-2 py-1 tabular-nums">{r.number}</td>
-                    <td className="px-2 py-1">
-                      <LocalDate value={r.dueDate} />
-                      {r === next ? <span className="ml-2 rounded border px-1 text-xs">{t('loan_detail.schedule.next')}</span> : null}
-                      {r.fromBank ? (
-                        <span className="ml-2 inline-flex items-center gap-1 rounded border px-1 text-xs">
-                          <Landmark aria-hidden="true" className="size-3" />{t('loan_detail.schedule.bank')}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className={num}>{m(r.payment)}</td>
-                    <td className={num}>{m(r.interest)}</td>
-                    <td className={num}>{m(r.principal)}</td>
-                    <td className={num}>{m(r.insurance)}</td>
-                    <td className={num}>{r.earlyRepayment ? m(r.earlyRepayment) : null}</td>
-                    <td className={num}>{m(r.balance)}</td>
-                  </tr>
-                )) : null}
-              </tbody>
-            );
-          })}
-        </table>
-      </div>
+      <Table aria-label={t('loan_detail.schedule.table')}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('loan_detail.schedule.col_number')}</TableHead>
+            <TableHead>{t('loan_detail.schedule.col_date')}</TableHead>
+            <TableHead className="text-right">{t('loan_detail.schedule.col_payment')}</TableHead>
+            <TableHead className="text-right">{t('loan_detail.schedule.col_interest')}</TableHead>
+            <TableHead className="text-right">{t('loan_detail.schedule.col_principal')}</TableHead>
+            <TableHead className="text-right">{t('loan_detail.schedule.col_insurance')}</TableHead>
+            <TableHead className="text-right">{t('loan_detail.schedule.col_early')}</TableHead>
+            <TableHead className="text-right">{t('loan_detail.schedule.col_balance')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        {schedule.years.map((y) => {
+          const isOpen = open.has(y.year);
+          return (
+            <TableBody key={y.year}>
+              <TableRow className="font-medium">
+                <TableHead scope="row" colSpan={2}>
+                  <button type="button" aria-expanded={isOpen} onClick={() => toggle(y.year)} className="inline-flex items-center gap-1 rounded-sm hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+                    {isOpen ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronRight aria-hidden="true" className="size-4" />}
+                    {t('loan_detail.schedule.year', { year: y.year })}
+                  </button>
+                </TableHead>
+                <TableCell className={num}>{m(y.payment)}</TableCell>
+                <TableCell className={num}>{m(y.interest)}</TableCell>
+                <TableCell className={num}>{m(y.principal)}</TableCell>
+                <TableCell className={num}>{m(y.insurance)}</TableCell>
+                <TableCell className={num}>{m(y.earlyRepayment)}</TableCell>
+                <TableCell className={num}>{m(y.balance)}</TableCell>
+              </TableRow>
+              {isOpen ? monthsOf(schedule.rows, y.year).map((r) => (
+                <TableRow key={r.number} className={r === next ? 'bg-muted' : undefined}>
+                  <TableCell className="tabular-nums">{r.number}</TableCell>
+                  <TableCell>
+                    <LocalDate value={r.dueDate} />
+                    {r === next ? <Badge variant="outline" className="ml-2">{t('loan_detail.schedule.next')}</Badge> : null}
+                    {r.fromBank ? (
+                      <Badge variant="outline" className="ml-2"><Landmark aria-hidden="true" />{t('loan_detail.schedule.bank')}</Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className={num}>{m(r.payment)}</TableCell>
+                  <TableCell className={num}>{m(r.interest)}</TableCell>
+                  <TableCell className={num}>{m(r.principal)}</TableCell>
+                  <TableCell className={num}>{m(r.insurance)}</TableCell>
+                  <TableCell className={num}>{r.earlyRepayment ? m(r.earlyRepayment) : null}</TableCell>
+                  <TableCell className={num}>{m(r.balance)}</TableCell>
+                </TableRow>
+              )) : null}
+            </TableBody>
+          );
+        })}
+      </Table>
     </div>
   );
 }

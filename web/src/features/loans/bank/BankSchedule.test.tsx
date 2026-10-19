@@ -53,6 +53,7 @@ function serve(initial: LoanDetail = loanDetail(), refusals: Refusals = {}) {
 }
 
 // The section is lazy: under the full suite's load its first render can outlast findBy's default second.
+const PAGE = `/loans/${LOAN}?tab=schedule`;
 const region = () => screen.findByRole('region', { name: 'Tableau de la banque' }, { timeout: 5000 });
 const pasteForm = () => screen.getByRole('form', { name: 'Tableau de la banque à comparer' });
 
@@ -62,7 +63,7 @@ describe('the bank’s table', () => {
 
   it('pastes a table, compares it, stores it, then reads its period and comparison', async () => {
     const { sent } = serve();
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     const section = await region();
     expect(within(section).getByText('Aucun tableau de la banque enregistré.')).toBeInTheDocument();
@@ -98,7 +99,7 @@ describe('the bank’s table', () => {
         ],
       }, { status: 422 }),
     });
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await user.click(within(await region()).getByRole('button', { name: 'Importer le tableau de la banque' }));
     await user.click(within(pasteForm()).getByLabelText('Tableau copié'));
@@ -118,7 +119,7 @@ describe('the bank’s table', () => {
 
   it('warns when the stored table no longer fits the loan', async () => {
     serve(withTable({ scheduleSource: 'bank', warnings: [{ code: 'bank_schedule_unfit', row: 0 }] }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(PAGE);
 
     const warnings = within(await screen.findByRole('list', { name: 'Avertissements' })).getAllByRole('listitem');
     expect(warnings[0]).toHaveTextContent('Le tableau de la banque ne correspond plus à ce crédit : le calcul sert de référence. Remplacez ou supprimez le tableau.');
@@ -130,7 +131,7 @@ describe('the bank’s table', () => {
   it('reads the comparison, warns while the calculation is the reference, and chooses the bank', async () => {
     const diverging = agreeing({ maxGap: '1000.00', maxGapOn: '2026-01-15', divergesOn: '2026-01-15', interestGap: '12.50', rowsBeyondRounding: 1 });
     const { sent } = serve(withTable({ comparison: diverging, warnings: [{ code: 'schedule_mismatch', row: 3 }] }));
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     const warnings = within(await screen.findByRole('list', { name: 'Avertissements' })).getAllByRole('listitem');
     expect(warnings[0]).toHaveTextContent('Le calcul s’écarte du tableau de la banque à partir du 15 janvier 2026');
@@ -156,7 +157,7 @@ describe('the bank’s table', () => {
     const plan = schedule();
     server.use(http.get('*/api/v1/realestate/loans/:id/schedule',
       () => HttpResponse.json({ ...plan, rows: plan.rows.map((r) => ({ ...r, fromBank: r.number <= 3 })) })));
-    const { container } = await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(PAGE);
 
     const table = await screen.findByRole('table', { name: 'Échéancier par année' });
     const row = (date: string) => within(table).getAllByRole('row').find((r) => r.textContent?.includes(date));
@@ -169,15 +170,15 @@ describe('the bank’s table', () => {
     const { sent } = serve(withTable({ scheduleSource: 'bank' }), {
       delete: () => HttpResponse.json({ status: 409, code: 'realestate.loan_conflict', title: 'Changed.' }, { status: 409 }),
     });
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await user.click(within(await region()).getByRole('button', { name: 'Supprimer le tableau' }));
-    expect(within(await region()).getByText('Le tableau de la banque sera supprimé et le calcul redeviendra la référence.')).toBeInTheDocument();
-    await user.click(within(await region()).getByRole('button', { name: 'Confirmer' }));
+    expect(await screen.findByText('Le tableau de la banque sera supprimé et le calcul redeviendra la référence.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     expect(await within(await region()).findByText('Ce crédit a changé entre-temps : rechargez la page.')).toBeInTheDocument();
     await user.click(within(await region()).getByRole('button', { name: 'Recharger' }));
     await user.click(await within(await region()).findByRole('button', { name: 'Supprimer le tableau' }));
-    await user.click(within(await region()).getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Tableau de la banque supprimé.'));
     expect(await within(await region()).findByText('Aucun tableau de la banque enregistré.')).toBeInTheDocument();
@@ -187,7 +188,7 @@ describe('the bank’s table', () => {
 
   it('gives a reader the period, the comparison and the reference as a sentence, without any action', async () => {
     serve(withTable({ canWrite: false, scheduleSource: 'bank' }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(PAGE);
 
     const section = await region();
     expect(within(section).getByText('Référence : Tableau de la banque')).toBeInTheDocument();
@@ -199,7 +200,7 @@ describe('the bank’s table', () => {
 
   it('tells a reader no table is stored, without offering one', async () => {
     serve(loanDetail({ canWrite: false }));
-    const { container } = await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(PAGE);
 
     const section = await region();
     expect(within(section).getByText('Aucun tableau de la banque enregistré.')).toBeInTheDocument();

@@ -5,7 +5,9 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatInstant } from '@/features/admin/format';
 import { NewTokenDialog } from './NewTokenDialog';
 import { TOKEN, TOKENS } from './tokens';
@@ -36,35 +38,35 @@ export function TokensSection() {
       {revoke.error ? <ProblemMessage problem={present(toProblem(revoke.error))} /> : null}
       {tokens.data && tokens.data.length === 0 ? <p>{t('security.tokens.empty')}</p> : null}
       {tokens.data && tokens.data.length > 0 ? (
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b">
-              <th scope="col" className="py-2 pr-4">{t('security.tokens.name')}</th>
-              <th scope="col" className="py-2 pr-4">{t('security.tokens.preset_label')}</th>
-              <th scope="col" className="py-2 pr-4">{t('security.tokens.expires')}</th>
-              <th scope="col" className="py-2 pr-4">{t('security.tokens.last_used')}</th>
-              <th scope="col" className="py-2 pr-4">{t('security.tokens.status_label')}</th>
-              <th scope="col" className="py-2"><span className="sr-only">{t('security.tokens.revoke')}</span></th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('security.tokens.name')}</TableHead>
+              <TableHead>{t('security.tokens.preset_label')}</TableHead>
+              <TableHead>{t('security.tokens.expires')}</TableHead>
+              <TableHead>{t('security.tokens.last_used')}</TableHead>
+              <TableHead>{t('security.tokens.status_label')}</TableHead>
+              <TableHead><span className="sr-only">{t('security.tokens.revoke')}</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {tokens.data.map((token) => (
-              <tr key={token.id} className="border-b">
-                <td className="py-2 pr-4">{token.name}</td>
-                <td className="py-2 pr-4">{t(`security.tokens.preset.${token.preset as 'read'}`)}</td>
-                <td className="py-2 pr-4">{formatInstant(token.expiresAt)}</td>
-                <td className="py-2 pr-4">{token.lastUsedAt ? formatInstant(token.lastUsedAt) : t('security.tokens.never_used')}</td>
-                <td className="py-2 pr-4">{t(`security.tokens.status.${token.status as 'active'}`)}</td>
-                <td className="py-2">
+              <TableRow key={token.id}>
+                <TableCell>{token.name}</TableCell>
+                <TableCell>{t(`security.tokens.preset.${token.preset as 'read'}`)}</TableCell>
+                <TableCell>{formatInstant(token.expiresAt)}</TableCell>
+                <TableCell>{token.lastUsedAt ? formatInstant(token.lastUsedAt) : t('security.tokens.never_used')}</TableCell>
+                <TableCell><Badge variant={token.status === 'active' ? 'secondary' : 'outline'}>{t(`security.tokens.status.${token.status as 'active'}`)}</Badge></TableCell>
+                <TableCell>
                   {token.status === 'active' ? (
                     <ConfirmAction label={t('security.tokens.revoke')} confirmation={t('security.tokens.revoke_confirm')}
                       pending={revoke.isPending} onConfirm={() => revoke.mutate({ params: { path: { id: token.id } } })} />
                   ) : null}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       ) : null}
     </section>
   );

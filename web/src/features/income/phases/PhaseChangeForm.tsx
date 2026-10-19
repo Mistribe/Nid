@@ -1,16 +1,15 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
+import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { presentConflict } from '../../investments/entries/entries';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { fieldErrorsOf, knownConflictMessage } from '../../subscriptions/fieldErrors';
@@ -21,38 +20,33 @@ import { phaseChangeFieldOf, phaseChangeSchema, phaseChangeValuesOf, toWirePhase
 import { PhaseFields } from './PhaseFields';
 
 /**
- * Spec §3: a change of amount, inline on a phase row. The effective date is chosen among the phase's own payment dates
- * over 24 months, read from the expected income, so a date the server would refuse cannot be picked. `onDone` gets the
+ * Spec §3: a change of amount, in a dialog. The effective date is chosen among the phase's own payment dates over 24
+ * months, read from the expected income, so a date the server would refuse cannot be picked. `onDone` gets the
  * confirmation (announced and focused by the page) or nothing on « Annuler ».
  */
-export function PhaseChangeForm({ source, phase, onDone }: {
-  source: IncomeSourceDetail; phase: IncomePhase; onDone: (message?: string) => void;
+export function PhaseChangeForm({ source, phase, titleId, onDone }: {
+  source: IncomeSourceDetail; phase: IncomePhase; titleId: string; onDone: (message?: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const headingId = useId();
   const answer = $api.useQuery('get', EXPECTED, { params: { path: { id: source.id }, query: paymentWindow(todayIso()) } });
   const dates = answer.data ? paymentDates(answer.data, phase) : [];
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  // Without a form to land on (loading, error, no date) the heading takes the focus the clicked button left; never when
-  // the form shows, whose own effect focuses its select (children's effects run first).
-  const branch = answer.data ? (dates.length === 0 ? 'none' : 'form') : answer.error ? 'error' : 'loading';
-  useEffect(() => { if (branch !== 'form') headingRef.current?.focus(); }, [branch]);
-  const cancel = <Button type="button" variant="ghost" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>;
+  const cancel = <Button type="button" variant="outline" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>;
 
-  return (
-    <div className="max-w-md space-y-3">
-      <h3 id={headingId} ref={headingRef} tabIndex={-1} className="font-semibold">{t('income_detail.change.title')}</h3>
-      {!answer.data ? (answer.error ? <><ProblemMessage problem={present(toProblem(answer.error))} />{cancel}</>
-        : <div role="status" aria-busy="true" aria-label={t('income_detail.change.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />)
-          : dates.length === 0 ? (
-            <form aria-labelledby={headingId} className="space-y-3" onSubmit={(ev) => ev.preventDefault()}>
-              <p>{t('income_detail.change.no_dates')}</p>
-              {cancel}
-            </form>
-          ) : <ChangeForm source={source} phase={phase} dates={dates} labelledBy={headingId} onDone={onDone} />}
-    </div>
-  );
+  if (!answer.data) {
+    return answer.error
+      ? <div className="space-y-3"><ProblemMessage problem={present(toProblem(answer.error))} /><div className="flex justify-end">{cancel}</div></div>
+      : <div role="status" aria-busy="true" aria-label={t('income_detail.change.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />;
+  }
+  if (dates.length === 0) {
+    return (
+      <form aria-labelledby={titleId} className="space-y-3" onSubmit={(ev) => ev.preventDefault()}>
+        <p>{t('income_detail.change.no_dates')}</p>
+        <div className="flex justify-end">{cancel}</div>
+      </form>
+    );
+  }
+  return <ChangeForm source={source} phase={phase} dates={dates} labelledBy={titleId} onDone={onDone} />;
 }
 
 function ChangeForm({ source, phase, dates, labelledBy, onDone }: {
@@ -66,8 +60,6 @@ function ChangeForm({ source, phase, dates, labelledBy, onDone }: {
     defaultValues: phaseChangeValuesOf(phase, defaultEffectiveDate(dates, todayIso()) ?? ''),
   });
   const errors = useSubmitErrors(form.setError, phaseChangeFieldOf);
-  // Mount only: opening the form lands the person on its first field.
-  useEffect(() => { form.setFocus('effectiveOn'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const change = $api.useMutation('post', PHASE_CHANGES);
 
   const submit = form.handleSubmit((values) => {
@@ -91,24 +83,22 @@ function ChangeForm({ source, phase, dates, labelledBy, onDone }: {
         : errors.problem;
 
   return (
-    <form aria-labelledby={labelledBy} noValidate onSubmit={(ev) => void submit(ev)} className="space-y-3">
+    <form aria-labelledby={labelledBy} noValidate onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }} className="space-y-3">
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
           {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
         </>
       ) : null}
-      <Field label={t('income_detail.change.effective_on')} error={e.effectiveOn?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('effectiveOn')}>
-            {dates.map((d) => <NativeSelectOption key={d} value={d}>{formatLocalDate(d)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
+      <Controller control={form.control} name="effectiveOn" render={({ field }) => (
+        <Field label={t('income_detail.change.effective_on')} error={e.effectiveOn?.message}>
+          {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange} options={dates.map((d) => ({ value: d, label: formatLocalDate(d) }))} />}
+        </Field>
+      )} />
       <PhaseFields form={form} prefix="" errors={e} fields={['netAmount', 'cadence', 'grossAmount', 'note']} />
-      <div className="flex items-center gap-2">
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>
         <Button type="submit" disabled={change.isPending}>{t('income_detail.change.submit')}</Button>
-        <Button type="button" variant="ghost" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>
       </div>
     </form>
   );

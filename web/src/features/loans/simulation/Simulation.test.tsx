@@ -31,6 +31,7 @@ function serve(detail: LoanDetail = loanDetail(), answer: () => Response = () =>
   return { asked, recorded };
 }
 
+const PAGE = `/loans/${LOAN}?tab=operations`;
 const region = () => screen.findByRole('region', { name: 'Simuler un remboursement anticipé' });
 const result = () => screen.findByRole('table', { name: 'Résultat de la simulation' });
 const line = async (name: string) => within(await result()).getByRole('rowheader', { name }).closest('tr')!;
@@ -50,9 +51,9 @@ describe('the simulation', () => {
 
   it('compares both effects side by side, every figure the server’s, and announces it', async () => {
     const { asked } = serve();
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
-    expect(within(await region()).getByLabelText('Date du remboursement')).toHaveValue('2026-10-12');
+    expect(within(await region()).getByLabelText('Date du remboursement')).toHaveValue('12/10/2026');
     expect(within(await region()).getByText('Facultatif. Saisie par vous, jamais calculée.')).toBeInTheDocument();
     await simulate(user);
 
@@ -73,7 +74,7 @@ describe('the simulation', () => {
   it('shows a negative net saving with its sign', async () => {
     const outcomes = simulation().outcomes.map((o) => ({ ...o, netSaving: o.effect === 'reduce_term' ? '-1566.58' : '-1669.34' }));
     serve(loanDetail(), () => HttpResponse.json(simulation({ penalty: '8000.00', outcomes } satisfies Partial<LoanSimulation>)));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await simulate(user, '10000', '8000');
 
@@ -86,7 +87,7 @@ describe('the simulation', () => {
     serve(loanDetail(), () => HttpResponse.json(
       { status: 422, code: 'realestate.event_above_balance', title: 'x', errors: [{ path: 'amount', code: 'realestate.event_above_balance', message: 'x' }] },
       { status: 422 }));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await simulate(user, '500000', '');
 
@@ -97,7 +98,7 @@ describe('the simulation', () => {
 
   it('clears the result when an input changes', async () => {
     serve();
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await simulate(user);
     await result();
@@ -107,36 +108,41 @@ describe('the simulation', () => {
     expect(within(await region()).getByRole('status')).toBeEmptyDOMElement();
   });
 
-  it('opens the repayment form prefilled from a column, the latest press winning; nothing is sent until submitted, then the result goes', async () => {
+  it('opens the repayment dialog prefilled from a column, each press afresh; nothing is sent until submitted, then the result goes', async () => {
     const { recorded } = serve();
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await simulate(user);
     await user.click(within(await result()).getByRole('button', { name: 'Enregistrer ce remboursement en réduisant la mensualité' }));
-    const repayments = screen.getByRole('region', { name: 'Remboursements anticipés' });
-    let form = within(repayments).getByRole('form', { name: 'Nouveau remboursement anticipé' });
-    expect(within(form).getByLabelText('Date')).toHaveFocus();
-    expect(within(form).getByLabelText('Date')).toHaveValue('2026-10-12');
-    expect(within(form).getByLabelText('Montant')).toHaveValue('10000');
-    expect(within(form).getByLabelText('Pénalité')).toHaveValue('300');
-    expect(within(form).getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
+    let form = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
+    await waitFor(() => expect(form.getByLabelText('Date')).toHaveFocus());
+    expect(form.getByLabelText('Date')).toHaveValue('12/10/2026');
+    expect(form.getByLabelText('Montant')).toHaveValue('10000');
+    expect(form.getByLabelText('Pénalité')).toHaveValue('300');
+    expect(form.getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
     expect(recorded).toEqual([]);
 
+    // The dialog is modal: cancelled, the other column opens it afresh with its own effect.
+    await user.click(form.getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await user.click(within(await result()).getByRole('button', { name: 'Enregistrer ce remboursement en réduisant la durée' }));
-    form = within(repayments).getByRole('form', { name: 'Nouveau remboursement anticipé' });
-    expect(within(form).getByRole('radio', { name: 'Réduire la durée' })).toBeChecked();
+    form = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
+    expect(form.getByRole('radio', { name: 'Réduire la durée' })).toBeChecked();
 
     // Cancelled, then opened plainly: no stale simulation in it.
-    await user.click(within(form).getByRole('button', { name: 'Annuler' }));
-    await user.click(within(repayments).getByRole('button', { name: 'Ajouter un remboursement' }));
-    form = within(repayments).getByRole('form', { name: 'Nouveau remboursement anticipé' });
-    expect(within(form).getByLabelText('Montant')).toHaveValue('');
-    expect(within(form).getByRole('radio', { name: 'Réduire la durée' })).not.toBeChecked();
+    await user.click(form.getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Ajouter un remboursement' }));
+    form = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
+    expect(form.getByLabelText('Montant')).toHaveValue('');
+    expect(form.getByRole('radio', { name: 'Réduire la durée' })).not.toBeChecked();
     await expectNoAxeViolations(container);
+    await user.click(form.getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await user.click(within(await result()).getByRole('button', { name: 'Enregistrer ce remboursement en réduisant la durée' }));
-    form = within(repayments).getByRole('form', { name: 'Nouveau remboursement anticipé' });
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    form = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => expect(recorded).toEqual([{ onDate: '2026-10-12', amount: '10000', effect: 'reduce_term', penalty: '300' }]));
     // The loan changed: a comparison of the loan before it no longer holds.
@@ -144,9 +150,26 @@ describe('the simulation', () => {
     expect(within(await region()).getByRole('status')).toBeEmptyDOMElement();
   });
 
+  it('does not reopen the repayment dialog with an old prefill when the tab is left and reached again', async () => {
+    serve();
+    const { user } = await renderApp(PAGE);
+
+    await simulate(user);
+    await user.click(within(await result()).getByRole('button', { name: 'Enregistrer ce remboursement en réduisant la durée' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau remboursement anticipé' }));
+    await user.click(dialog.getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
+    await user.click(await screen.findByRole('tab', { name: 'Opérations' }));
+
+    await region();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('is shown to a reader without write access, without « Enregistrer ce remboursement »', async () => {
     serve(loanDetail({ canWrite: false }));
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await simulate(user);
 
@@ -157,7 +180,7 @@ describe('the simulation', () => {
 
   it('is absent from an ended loan', async () => {
     serve(loanDetail({ ended: true, figures: { ...loanDetail().figures, nextPaymentOn: null, nextPaymentTotal: null } }));
-    await renderApp(`/loans/${LOAN}`);
+    await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     expect(screen.queryByRole('region', { name: 'Simuler un remboursement anticipé' })).not.toBeInTheDocument();

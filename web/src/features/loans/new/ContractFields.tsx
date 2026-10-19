@@ -1,41 +1,38 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { useId, useRef, useState, type ChangeEvent } from 'react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { PlusIcon } from 'lucide-react';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { Controller, useFieldArray, useFormContext, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { DateField } from '@/components/form/DateField';
+import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ISO_DATE } from '../../subscriptions/edits/amount';
-import { Field } from '../../subscriptions/edits/Field';
 import { FIRST_PERIODS, ROUNDINGS } from '../format';
 import { Folded } from './Folded';
 import { InsuranceFields } from './InsuranceFields';
 import { MAX_INSURANCES, newInsurance, newPhase, PLAIN_HIDDEN, plusOneMonth, type ContractValues } from './loanForm';
 import { PhaseFields } from './PhaseFields';
 
-const input = 'rounded-md border px-3 py-2';
-
 /**
- * The contract's fields (3B1 design §6, 3B2 design §5), shared by the creation and the contract page: they read the
- * form from a `FormProvider` whose values extend `ContractValues`. `stored` marks a stored contract: its first payment is
- * the bank's and never follows the disbursement. `startListed` opens on the phase list (a stored
- * contract that is not a plain loan).
+ * The contract's state (3B1 design §6, 3B2 design §5), shared by the creation's steps and the contract page: owned by
+ * the screen, not by the fields, so it survives a step that unmounts them. `stored` marks a stored contract: its first
+ * payment is the bank's and never follows the disbursement. `startListed` opens on the phase list (a stored contract that
+ * is not a plain loan).
  */
-export function ContractFields({ startListed = false, stored = false }: { startListed?: boolean; stored?: boolean }) {
-  const { t } = useTranslation();
-  const form = useFormContext<ContractValues>();
-  const termsId = useId();
-  const phasesId = useId();
-  const insurancesId = useId();
+export function useContract(form: UseFormReturn<ContractValues>, { startListed = false, stored = false } = {}) {
   const addPhaseRef = useRef<HTMLButtonElement>(null);
   const addInsuranceRef = useRef<HTMLButtonElement>(null);
   // The first payment follows the disbursement until the person types in it (precision 12); a stored one never does.
   const firstTouched = useRef(stored);
   const phases = useFieldArray({ control: form.control, name: 'phases' });
   const insurances = useFieldArray({ control: form.control, name: 'insurances' });
-  const e = form.formState.errors;
   // The phase list shows from the second line on, and stays while the one line left is a deferral (its mode must be seen).
   const [listed, setListed] = useState(startListed);
+  const [phasesOpen, setPhasesOpen] = useState(startListed);
   const plain = phases.fields.length === 1 && !listed;
 
+  const addPhase = () => { setListed(true); setPhasesOpen(true); phases.append(newPhase()); };
   const removePhase = (i: number) => {
     const leftMode = form.getValues(`phases.${i === 0 ? 1 : 0}.mode`);
     phases.remove(i);
@@ -55,87 +52,124 @@ export function ContractFields({ startListed = false, stored = false }: { startL
     if (!ISO_DATE.test(value)) return;
     form.getValues('insurances').forEach((ins, i) => { if (ins.follows) form.setValue(`insurances.${i}.startsOn`, value); });
   };
-  const followDisbursement = (ev: ChangeEvent<HTMLInputElement>) => {
-    if (firstTouched.current || !ISO_DATE.test(ev.target.value)) return;
-    const first = plusOneMonth(ev.target.value);
+  const followDisbursement = (value: string) => {
+    if (firstTouched.current || !ISO_DATE.test(value)) return;
+    const first = plusOneMonth(value);
     form.setValue('firstPaymentDate', first);
     followFirst(first);
   };
-  const typeFirst = (ev: ChangeEvent<HTMLInputElement>) => {
-    firstTouched.current = true;
-    followFirst(ev.target.value);
-  };
+  const typeFirst = (value: string) => { firstTouched.current = true; followFirst(value); };
 
+  return { form, phases, insurances, plain, phasesOpen, setPhasesOpen, addPhase, removePhase, removeInsurance, addPhaseRef, addInsuranceRef, followDisbursement, typeFirst };
+}
+type Contract = ReturnType<typeof useContract>;
+
+/** « Le prêt »: the figures on a three-column grid (`children` take its last cell), the phases and calculation options folded. */
+export function LoanFields({ contract: c, children }: { contract: Contract; children?: ReactNode }) {
+  const { t } = useTranslation();
+  const { form } = c;
+  const e = form.formState.errors;
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label={t('loan_form.principal')} error={e.principal?.message}>
+          {(f) => <Input inputMode="decimal" {...f} {...form.register('principal')} />}
+        </Field>
+        {c.plain ? (
+          <Field label={t('loan_form.rate')} error={e.phases?.[0]?.rate?.message}>
+            {(f) => <Input inputMode="decimal" {...f} {...form.register('phases.0.rate')} />}
+          </Field>
+        ) : null}
+        <Field label={t('loan_form.duration')} error={e.totalPayments?.message}>
+          {(f) => <Input inputMode="numeric" {...f} {...form.register('totalPayments')} />}
+        </Field>
+        <Controller control={form.control} name="disbursedOn" render={({ field }) => (
+          <Field label={t('loan_form.disbursed_on')} error={e.disbursedOn?.message}>
+            {(f) => <DateField {...f} value={field.value} onChange={(v) => { field.onChange(v); c.followDisbursement(v); }} />}
+          </Field>
+        )} />
+        <Controller control={form.control} name="firstPaymentDate" render={({ field }) => (
+          <Field label={t('loan_form.first_payment')} hint={t('loan_form.first_payment_help')} error={e.firstPaymentDate?.message}>
+            {(f) => <DateField {...f} value={field.value} onChange={(v) => { field.onChange(v); c.typeFirst(v); }} />}
+          </Field>
+        )} />
+        {children}
+      </div>
+
+      <Folded label={t('loan_form.phases')} hasError={!c.plain && Boolean(e.phases)} open={c.phasesOpen} onOpenChange={c.setPhasesOpen}>
+        <p className="text-sm text-muted-foreground">{t('loan_form.phases_help')}</p>
+        {c.plain ? null : c.phases.fields.map((row, i) => (
+          <fieldset key={row.id} className="space-y-3 rounded-md border p-3">
+            <legend className="px-1 text-sm font-medium">{t('loan_form.phase_n', { n: i + 1 })}</legend>
+            <PhaseFields form={form} index={i} last={i === c.phases.fields.length - 1} />
+            {c.phases.fields.length > 1 ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => c.removePhase(i)}>{t('loan_form.remove_phase', { n: i + 1 })}</Button>
+            ) : null}
+          </fieldset>
+        ))}
+        <Button ref={c.addPhaseRef} type="button" variant="outline" size="sm" onClick={c.addPhase}>
+          <PlusIcon aria-hidden="true" />{t('loan_form.add_phase')}
+        </Button>
+      </Folded>
+
+      <Folded label={t('loan_form.options')} hasError={Boolean(e.rounding || e.firstPeriod)}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Controller control={form.control} name="rounding" render={({ field }) => (
+            <Field label={t('loan_form.rounding')} error={e.rounding?.message}>
+              {(f) => <SelectField {...f} value={field.value} onValueChange={field.onChange}
+                options={ROUNDINGS.map((r) => ({ value: r, label: t(`loan_form.rounding_option.${r}`) }))} />}
+            </Field>
+          )} />
+          <Controller control={form.control} name="firstPeriod" render={({ field }) => (
+            <Field label={t('loan_form.first_period')} error={e.firstPeriod?.message}>
+              {(f) => <SelectField {...f} value={field.value} onValueChange={field.onChange}
+                options={FIRST_PERIODS.map((p) => ({ value: p, label: t(`loan_form.first_period_option.${p}`) }))} />}
+            </Field>
+          )} />
+        </div>
+      </Folded>
+    </>
+  );
+}
+
+/** « Les assurances »: one block per insurance, at most twenty. */
+export function InsuranceSection({ contract: c }: { contract: Contract }) {
+  const { t } = useTranslation();
+  const { form } = c;
+  return (
+    <div className="space-y-3">
+      {c.insurances.fields.map((row, i) => (
+        <fieldset key={row.id} className="space-y-3 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">{t('loan_form.insurance_n', { n: i + 1 })}</legend>
+          <InsuranceFields form={form} index={i} />
+          <Button type="button" variant="ghost" size="sm" onClick={() => c.removeInsurance(i)}>{t('loan_form.remove_insurance', { n: i + 1 })}</Button>
+        </fieldset>
+      ))}
+      {c.insurances.fields.length < MAX_INSURANCES ? (
+        <Button ref={c.addInsuranceRef} type="button" variant="outline" size="sm"
+          onClick={() => c.insurances.append(newInsurance(form.getValues('firstPaymentDate')))}>
+          <PlusIcon aria-hidden="true" />{t('loan_form.add_insurance')}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The whole contract on one page, the contract page's: it reads its form from a `FormProvider`. */
+export function ContractFields({ startListed = false, stored = false }: { startListed?: boolean; stored?: boolean }) {
+  const { t } = useTranslation();
+  const contract = useContract(useFormContext<ContractValues>(), { startListed, stored });
+  const termsId = useId();
+  const insurancesId = useId();
   return (
     <>
       <section aria-labelledby={termsId} className="space-y-3">
         <h2 id={termsId} className="text-lg font-semibold">{t('loan_form.terms')}</h2>
-        <Field label={t('loan_form.principal')} error={e.principal?.message}>
-          {(c) => <input inputMode="decimal" {...c} {...form.register('principal')} className={`w-40 ${input}`} />}
-        </Field>
-        {plain ? (
-          <Field label={t('loan_form.rate')} error={e.phases?.[0]?.rate?.message}>
-            {(c) => <input inputMode="decimal" {...c} {...form.register('phases.0.rate')} className={`w-24 ${input}`} />}
-          </Field>
-        ) : null}
-        <Field label={t('loan_form.duration')} error={e.totalPayments?.message}>
-          {(c) => <input inputMode="numeric" {...c} {...form.register('totalPayments')} className={`w-24 ${input}`} />}
-        </Field>
-        <Field label={t('loan_form.disbursed_on')} error={e.disbursedOn?.message}>
-          {(c) => <input type="date" {...c} {...form.register('disbursedOn', { onChange: followDisbursement })} />}
-        </Field>
-        <Field label={t('loan_form.first_payment')} hint={t('loan_form.first_payment_help')} error={e.firstPaymentDate?.message}>
-          {(c) => <input type="date" {...c} {...form.register('firstPaymentDate', { onChange: typeFirst })} />}
-        </Field>
+        <LoanFields contract={contract} />
       </section>
-
-      {plain ? null : (
-        <section aria-labelledby={phasesId} className="space-y-3">
-          <h2 id={phasesId} className="text-lg font-semibold">{t('loan_form.phases')}</h2>
-          <p className="text-sm text-muted-foreground">{t('loan_form.phases_help')}</p>
-          {phases.fields.map((row, i) => (
-            <fieldset key={row.id} className="space-y-2 rounded-md border p-3">
-              <legend className="px-1 text-sm font-medium">{t('loan_form.phase_n', { n: i + 1 })}</legend>
-              <PhaseFields form={form} index={i} last={i === phases.fields.length - 1} />
-              {phases.fields.length > 1 ? (
-                <Button type="button" variant="ghost" size="sm" onClick={() => removePhase(i)}>{t('loan_form.remove_phase', { n: i + 1 })}</Button>
-              ) : null}
-            </fieldset>
-          ))}
-        </section>
-      )}
-      <Button ref={addPhaseRef} type="button" variant="outline" size="sm" onClick={() => { setListed(true); phases.append(newPhase()); }}>{t('loan_form.add_phase')}</Button>
-
-      <Folded label={t('loan_form.options')} hasError={Boolean(e.rounding || e.firstPeriod)}>
-        <Field label={t('loan_form.rounding')} error={e.rounding?.message}>
-          {(c) => (
-            <NativeSelect {...c} {...form.register('rounding')}>
-              {ROUNDINGS.map((r) => <NativeSelectOption key={r} value={r}>{t(`loan_form.rounding_option.${r}`)}</NativeSelectOption>)}
-            </NativeSelect>
-          )}
-        </Field>
-        <Field label={t('loan_form.first_period')} error={e.firstPeriod?.message}>
-          {(c) => (
-            <NativeSelect {...c} {...form.register('firstPeriod')}>
-              {FIRST_PERIODS.map((p) => <NativeSelectOption key={p} value={p}>{t(`loan_form.first_period_option.${p}`)}</NativeSelectOption>)}
-            </NativeSelect>
-          )}
-        </Field>
-      </Folded>
-
       <section aria-labelledby={insurancesId} className="space-y-3">
         <h2 id={insurancesId} className="text-lg font-semibold">{t('loan_form.insurances')}</h2>
-        {insurances.fields.map((row, i) => (
-          <fieldset key={row.id} className="space-y-2 rounded-md border p-3">
-            <legend className="px-1 text-sm font-medium">{t('loan_form.insurance_n', { n: i + 1 })}</legend>
-            <InsuranceFields form={form} index={i} />
-            <Button type="button" variant="ghost" size="sm" onClick={() => removeInsurance(i)}>{t('loan_form.remove_insurance', { n: i + 1 })}</Button>
-          </fieldset>
-        ))}
-        {insurances.fields.length < MAX_INSURANCES ? (
-          <Button ref={addInsuranceRef} type="button" variant="outline" size="sm"
-            onClick={() => insurances.append(newInsurance(form.getValues('firstPaymentDate')))}>{t('loan_form.add_insurance')}</Button>
-        ) : null}
+        <InsuranceSection contract={contract} />
       </section>
     </>
   );

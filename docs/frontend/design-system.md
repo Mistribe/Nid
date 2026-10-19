@@ -1,6 +1,6 @@
 # Design system
 
-> Statut : brouillon. Jetons, formats, composants métier, accessibilité, thèmes.
+> Statut : direction visuelle décidée (refonte 2026-10-18, `../superpowers/specs/2026-10-18-ui-redesign-design.md`). Jetons, formats, composants métier, accessibilité, thèmes.
 > Références : `README.md`, `dataviz.md`, `architecture.md`, `../core-data-model.md` (préférences de la personne).
 
 ---
@@ -9,7 +9,7 @@
 
 - **Tailwind v4 + shadcn/ui** : les composants sont copiés dans le code (`components/ui`) et stylés avec des variables CSS. Aucun style de couleur en dur dans les composants : ils ne connaissent que les jetons.
 - Le thème tient dans des **variables CSS en OKLCH** (`--background`, `--foreground`, `--primary`, `--ring`, `--border`, `--chart-N`…), avec une variante claire et une variante sombre, reliées à Tailwind par `@theme inline`. Le mode sombre s'active par la classe `.dark`.
-- **Direction visuelle** : neutre plus un seul accent en v1. La couleur d'accent et l'ambiance sont fixées par une **passe de design** avec maquettes, avant de figer les jetons.
+- **Direction visuelle** (décidée, refonte 2026-10-18) : base neutre plus un seul accent bleu ; l'ambiance « Confiance » est le thème `ardoise`, défaut de l'application (§7.2).
 
 ## 2. Jetons
 
@@ -51,6 +51,14 @@ Communs à tous les modules, dans `components/`.
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
 | `<ChartCard>` | Cadre d'un graphique : titre, légende, bouton « Afficher en tableau » |
+| `PageHeader` (`components/page/`) | Titre, retour, chiffres clés en ligne, actions de la page : l'en-tête commun des listes et des fiches |
+| `StatLine` | Ligne de chiffres sous le titre ; seulement quand le serveur donne les totaux (abonnements) |
+| `SortableTable` | Tableau dense triable, colonne « Propriétaires » (`OwnerChips`, initiales) ; base de toutes les listes |
+| `DetailTabs` / `useDetailTab` | Onglets d'une fiche, onglet courant dans l'URL (`?tab=`) |
+| `RowMenu` | Menu « … » d'une ligne : modifier, supprimer, actions propres à la ligne |
+| `StepForm` | Formulaire en étapes (crédit, revenu, bien, assistant d'abonnement) ; `reveal` replie les champs rares, `onAdvance` valide l'étape avant d'avancer |
+| `components/form/` | `Field`, `SelectField`, `ComboboxField` (devises cherchables), `CurrencyField`, `DateField` (`max`), `Segmented` |
+| `FormDialog`, `ModalDialog`, `ConfirmAction` | Boîtes de dialogue sur Radix, pour les saisies courtes et les confirmations |
 
 ## 5. Accessibilité
 
@@ -69,6 +77,14 @@ Cible **WCAG 2.2 AA**.
 - Un seul bouton `primary` par vue ; les autres actions sont `secondary` ou `ghost`.
 - Les boutons désactivés sont évités : on laisse l'action active et on répond à l'usage, ou on explique la raison.
 - Listes denses : lignes bordées, pas de cartes arrondies empilées.
+- **Aucun contrôle natif hors de `components/ui`** (`select`, `input[type=date]`, boîtes `confirm`…) : `web/src/nativeControls.test.ts` le vérifie. Les tableaux d'administration et de sécurité restent des `ui/Table` simples.
+
+### 6.1 Grammaire des pages
+
+- **Liste** : `PageHeader`, puis un `SortableTable` dense avec la colonne des propriétaires ; création par un bouton `primary` unique vers une page de formulaire.
+- **Fiche** : chiffres clés en ligne dans l'en-tête, onglets (`?tab=`), saisies en dialogues, actions de ligne dans un `RowMenu`. La vue d'ensemble tient dans environ 1 350 px de haut à 1440×900.
+- **Formulaire** : page à part, grille de champs ; `StepForm` pour un crédit, un revenu, un bien et l'assistant d'abonnement ; champs rares repliés, devises cherchables.
+- **Panneau latéral** : un chiffre de l'accueil s'ouvre dans un panneau (`?panel=`), sans quitter la page.
 
 ## 7. Thèmes
 
@@ -87,8 +103,8 @@ Un thème est un **jeu de valeurs de variables CSS**, avec sa variante claire et
 
 | Id | Intention | Valeurs |
 |---|---|---|
-| `neutre` (défaut) | Gris neutres, accent sobre | Point de départ : les valeurs neutres de shadcn/ui |
-| `ardoise` | Bleu-gris, ambiance calme | **Provisoires, fixées en 1E1** : dérivées de la base « slate » de shadcn/ui, passent le test de contraste (§7.7) ; une passe de design ultérieure peut les retoucher sans toucher au code |
+| `sobre` | Noir et blanc, accent sobre | Anciennement `neutre` (renommé le 2026-10-19 pour que le défaut `ardoise` s’applique aux personnes dont le serveur stocke encore `neutre`). Point de départ : les valeurs neutres de shadcn/ui |
+| `ardoise` (**défaut**) | Bleu « Confiance » | **Réglé par la refonte de 2026-10-18** : bleu franc, passe le test de contraste (§7.7) ; thème par défaut de l'application |
 | `sauge` | Vert désaturé, ambiance naturelle | **Provisoires, fixées en 1E1** : dérivées d'un vert désaturé de shadcn/ui, passent le test de contraste (§7.7) ; une passe de design ultérieure peut les retoucher sans toucher au code |
 | `terre` | Tons chauds, sable et terre cuite | **Provisoires, fixées en 1E1** : dérivées de la base « stone » de shadcn/ui avec un accent chaud, passent le test de contraste (§7.7) ; une passe de design ultérieure peut les retoucher sans toucher au code |
 
@@ -105,17 +121,17 @@ Raison : la palette de graphiques est validée pour le daltonisme et le contrast
 ```
 /web/src/styles
   globals.css              imports Tailwind, @theme inline, jetons communs
-  themes/neutre.css        [data-theme="neutre"], [data-theme="neutre"].dark
+  themes/sobre.css         [data-theme="sobre"], [data-theme="sobre"].dark
   themes/ardoise.css
   themes/sauge.css
   themes/terre.css
   themes/index.ts          manifeste
 ```
 
-Exemple de structure (valeurs neutres de shadcn/ui, point de départ du thème `neutre`) :
+Exemple de structure (valeurs neutres de shadcn/ui, point de départ du thème `sobre`) :
 
 ```css
-[data-theme="neutre"] {
+[data-theme="sobre"] {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -125,7 +141,7 @@ Exemple de structure (valeurs neutres de shadcn/ui, point de départ du thème `
   --border: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 }
-[data-theme="neutre"].dark {
+[data-theme="sobre"].dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
@@ -148,7 +164,7 @@ Le **manifeste** (`themes/index.ts`) liste pour chaque thème : `id`, clé de li
 
 - `person.preferences` (JSONB, Core) : `{ "theme": "sauge", "mode": "system", "chart_patterns": false, "guides_seen": { "dashboard": 1 } }` (`../core-data-model.md` §4.1).
 - Lecture : `GET /auth/session` renvoie `preferences`. Écriture : `PATCH /api/v1/core/me/preferences` (fusion des clés fournies). `guides_seen` (identifiant de guide → version vue) est remplacé en entier par le PATCH.
-- Le serveur traite `theme` comme une **chaîne opaque** (`^[a-z][a-z0-9-]{0,31}$`) : la liste des thèmes appartient au frontend. Un identifiant inconnu (thème retiré) retombe sur `neutre`.
+- Le serveur traite `theme` comme une **chaîne opaque** (`^[a-z][a-z0-9-]{0,31}$`) : la liste des thèmes appartient au frontend. Un identifiant inconnu (thème retiré) retombe sur `ardoise` (le serveur stocke `neutre` par défaut : id retiré, donc `ardoise`).
 - **Premier affichage** : une copie dans `localStorage` (`nid.theme`, `nid.mode`) alimente `theme-init.js`, qui applique thème et mode **avant le rendu** pour éviter tout flash. Au retour de `GET /auth/session`, les préférences serveur l'emportent et mettent la copie à jour.
 - Chacun des deux adultes a sa préférence. Un `dependent` n'en a pas : il ne se connecte pas.
 

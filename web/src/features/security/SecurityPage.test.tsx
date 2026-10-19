@@ -40,7 +40,7 @@ describe('Sécurité', () => {
     const { user, location } = await renderApp('/security');
 
     await user.click(await screen.findByRole('button', { name: 'Déconnecter partout' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await expect.poll(() => location.assign.mock.calls.length).toBe(1);
     expect(location.assign).toHaveBeenCalledWith('/signed-out');
@@ -58,7 +58,7 @@ describe('Sécurité', () => {
 
     await user.click(await screen.findByRole('checkbox', { name: 'Révoquer aussi mes jetons d’accès' }));
     await user.click(screen.getByRole('button', { name: 'Déconnecter partout' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await expect.poll(() => location.assign.mock.calls.length).toBe(1);
     expect(body).toEqual({ revokeTokens: true });

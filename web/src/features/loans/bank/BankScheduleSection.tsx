@@ -1,14 +1,17 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Presentation } from '@/api/errors';
+import { Segmented } from '@/components/form/Segmented';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { Section } from '../../income/Section';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { BANK_PREVIEW, BANK_SCHEDULE, invalidateLoans, LOAN, type BankRow, type LoanComparison, type LoanDetail } from '../api';
 import { money, signedMoney } from '../format';
@@ -18,8 +21,7 @@ import { toWireBody } from '../settings/settingsBody';
 const SOURCES = ['computed', 'bank'] as const;
 const COLUMNS = ['dueDate', 'payment', 'interest', 'principal', 'insurance', 'crd'] as const;
 type Column = (typeof COLUMNS)[number] | 'line';
-const th = 'px-2 py-1 font-medium';
-const num = 'px-2 py-1 text-right tabular-nums';
+const num = 'text-right tabular-nums';
 
 /** The pasted text's lines, cut as the server cuts them (`ReplaceLineEndings`): `rows[i]` is line i. */
 const linesOf = (text: string) => text.split(/\r\n|[\n\r\f\u0085\u2028\u2029]/);
@@ -50,7 +52,7 @@ export function BankScheduleSection({ loan }: { loan: LoanDetail }) {
   const table = loan.bankSchedule;
 
   return (
-    <Section title={t('loan_bank.title')} headingRef={headingRef} announcement={announcement} guide="loans.bank">
+    <Section title={t('loan_bank.title')} headingRef={headingRef} announcement={announcement}>
       {table ? (
         <>
           <p>{t('loan_bank.period', { first: formatLocalDate(table.firstDueOn), last: formatLocalDate(table.lastDueOn), count: table.rows.length })}</p>
@@ -98,6 +100,7 @@ function Reference({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () =>
   const queryClient = useQueryClient();
   const [choice, setChoice] = useState<(typeof SOURCES)[number]>(loan.scheduleSource === 'bank' ? 'bank' : 'computed');
   const save = $api.useMutation('patch', LOAN, { onSuccess: () => invalidateLoans(queryClient) });
+  const legendId = useId();
   const problem = save.error ? presentRefusal(t, save.error) : null;
   if (!loan.canWrite)
     return <p>{t('loan_bank.reference_is', { source: t(loan.scheduleSource === 'bank' ? 'loan_bank.source.bank' : 'loan_bank.source.computed') })}</p>;
@@ -110,14 +113,9 @@ function Reference({ loan, onStart, onDone }: { loan: LoanDetail; onStart: () =>
         save.mutate({ params: { path: { id: loan.id } }, body: toWireBody({ scheduleSource: choice }) },
           { onSuccess: () => onDone(t(`loan_bank.reference_saved.${choice}`)) });
       }}>
-      <fieldset className="space-y-1">
-        <legend className="text-sm">{t('loan_bank.reference')}</legend>
-        {SOURCES.map((s) => (
-          <Field key={s} inline label={t(`loan_bank.source.${s}`)}>
-            {(c) => <input {...c} type="radio" name="scheduleSource" value={s} checked={choice === s} onChange={() => setChoice(s)} />}
-          </Field>
-        ))}
-      </fieldset>
+      <span id={legendId} className="block text-sm">{t('loan_bank.reference')}</span>
+      <Segmented value={choice} onValueChange={(v) => setChoice(v === 'bank' ? 'bank' : 'computed')} aria-labelledby={legendId}
+        options={SOURCES.map((v) => ({ value: v, label: t(`loan_bank.source.${v}`) }))} />
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
@@ -177,7 +175,7 @@ function PasteForm({ loan, onDone }: { loan: LoanDetail; onDone: (message?: stri
     <form aria-label={t('loan_bank.form')} noValidate className="space-y-3"
       onSubmit={(ev) => { ev.preventDefault(); store.reset(); compare.mutate({ params: { path: { id: loan.id } }, body: { text } }); }}>
       <Field label={t('loan_bank.text')} hint={t('loan_bank.text_help')} error={refused.length > 0 ? t('loan_bank.has_refusals') : undefined}>
-        {(c) => <textarea {...c} value={text} rows={8} className="w-full rounded-md border px-3 py-2 font-mono text-sm"
+        {(c) => <Textarea {...c} value={text} rows={8} className="font-mono text-sm"
           onChange={(ev) => { setText(ev.target.value); compare.reset(); }} />}
       </Field>
       {refused.length > 0 ? (
@@ -220,34 +218,32 @@ export function PreviewRows({ rows, currency, gap }: { rows: BankRow[]; currency
   const { t } = useTranslation();
   const m = (amount: string) => money(currency, amount);
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm" aria-label={t('loan_bank.preview')}>
-        <thead>
-          <tr>
-            <th scope="col" className={`${th} text-left`}>{t('loan_detail.schedule.col_date')}</th>
-            <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_payment')}</th>
-            <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_interest')}</th>
-            <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_principal')}</th>
-            <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_insurance')}</th>
-            <th scope="col" className={`${th} text-right`}>{t('loan_detail.schedule.col_balance')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <Fragment key={r.dueDate}>
-              {gap && i === gap.after ? <tr className="border-t"><td colSpan={COLUMNS.length} className="px-2 py-1 text-center">{t('loan_bank.omitted', { count: gap.count })}</td></tr> : null}
-              <tr className="border-t">
-                <td className="px-2 py-1"><LocalDate value={r.dueDate} /></td>
-                <td className={num}>{m(r.payment)}</td>
-                <td className={num}>{m(r.interest)}</td>
-                <td className={num}>{m(r.principal)}</td>
-                <td className={num}>{r.insurance ? m(r.insurance) : null}</td>
-                <td className={num}>{m(r.crd)}</td>
-              </tr>
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table aria-label={t('loan_bank.preview')}>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t('loan_detail.schedule.col_date')}</TableHead>
+          <TableHead className="text-right">{t('loan_detail.schedule.col_payment')}</TableHead>
+          <TableHead className="text-right">{t('loan_detail.schedule.col_interest')}</TableHead>
+          <TableHead className="text-right">{t('loan_detail.schedule.col_principal')}</TableHead>
+          <TableHead className="text-right">{t('loan_detail.schedule.col_insurance')}</TableHead>
+          <TableHead className="text-right">{t('loan_detail.schedule.col_balance')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r, i) => (
+          <Fragment key={r.dueDate}>
+            {gap && i === gap.after ? <TableRow><TableCell colSpan={COLUMNS.length} className="text-center">{t('loan_bank.omitted', { count: gap.count })}</TableCell></TableRow> : null}
+            <TableRow>
+              <TableCell><LocalDate value={r.dueDate} /></TableCell>
+              <TableCell className={num}>{m(r.payment)}</TableCell>
+              <TableCell className={num}>{m(r.interest)}</TableCell>
+              <TableCell className={num}>{m(r.principal)}</TableCell>
+              <TableCell className={num}>{r.insurance ? m(r.insurance) : null}</TableCell>
+              <TableCell className={num}>{m(r.crd)}</TableCell>
+            </TableRow>
+          </Fragment>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

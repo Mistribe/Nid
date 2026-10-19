@@ -57,8 +57,8 @@ describe('PeriodPerformance', () => {
 
     const section = await screen.findByRole('region', { name: 'Performance d’une période' });
     await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
-    await user.type(within(section).getByLabelText('Du'), '2025-06-30');
-    await user.type(within(section).getByLabelText('Au'), '2025-01-31');
+    await user.type(within(section).getByLabelText('Du'), '30/06/2025');
+    await user.type(within(section).getByLabelText('Au'), '31/01/2025');
     await user.click(within(section).getByRole('button', { name: 'Calculer' }));
 
     expect(await within(section).findByText('La date de début doit précéder la date de fin.')).toBeInTheDocument();
@@ -82,10 +82,11 @@ describe('PeriodPerformance', () => {
     server.use(http.post('*/api/v1/investments/envelopes/:id/valuations', () => HttpResponse.json({ id: 'new-value' }, { status: 201 })));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    const form = await screen.findByRole('form', { name: 'Nouvelle valeur' });
+    await user.click(await screen.findByRole('button', { name: 'Saisir une valeur' }));
+    const form = await screen.findByRole('dialog', { name: 'Nouvelle valeur' });
     await waitFor(() => expect(seen).toHaveLength(1));
     await user.click(within(form).getByRole('button', { name: 'Enregistrer la valeur' }));
-    await waitFor(() => expect(within(form).getByRole('status')).not.toBeEmptyDOMElement());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(seen).toHaveLength(2));
   });
 
@@ -98,8 +99,8 @@ describe('PeriodPerformance', () => {
     await waitFor(() => expect(seen).toHaveLength(1));
     await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
     expect(seen).toHaveLength(1);
-    await user.type(within(section).getByLabelText('Du'), '2025-02-01');
-    await user.type(within(section).getByLabelText('Au'), '2025-03-01');
+    await user.type(within(section).getByLabelText('Du'), '01/02/2025');
+    await user.type(within(section).getByLabelText('Au'), '01/03/2025');
     expect(seen).toHaveLength(1);
     await user.click(within(section).getByRole('button', { name: 'Calculer' }));
     await waitFor(() => expect(seen).toContain('?from=2025-02-01&to=2025-03-01'));
@@ -113,7 +114,7 @@ describe('PeriodPerformance', () => {
 
     const section = await screen.findByRole('region', { name: 'Performance d’une période' });
     await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
-    await user.type(within(section).getByLabelText('Au'), '2025-03-01');
+    await user.type(within(section).getByLabelText('Au'), '01/03/2025');
     await user.click(within(section).getByRole('button', { name: 'Calculer' }));
     expect(await within(section).findByText('Ce champ est obligatoire.')).toBeInTheDocument();
     expect(within(section).getByLabelText('Du')).toBeInvalid();
@@ -128,8 +129,8 @@ describe('PeriodPerformance', () => {
 
     const section = await screen.findByRole('region', { name: 'Performance d’une période' });
     await user.click(within(section).getByRole('radio', { name: 'Période libre' }));
-    await user.type(within(section).getByLabelText('Du'), '2025-06-30');
-    await user.type(within(section).getByLabelText('Au'), '2025-01-31');
+    await user.type(within(section).getByLabelText('Du'), '30/06/2025');
+    await user.type(within(section).getByLabelText('Au'), '31/01/2025');
     await user.click(within(section).getByRole('button', { name: 'Calculer' }));
     expect(await within(section).findByText('La date de début doit précéder la date de fin.')).toBeInTheDocument();
     expect(within(section).queryByText('Valeur de départ')).not.toBeInTheDocument();

@@ -59,7 +59,7 @@ describe('the module guides', () => {
 
     for (let i = 1; i <= n; i++) await user.keyboard('{Enter}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 1 } }]));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 2 } }]));
   });
 
   it('does not play a guide already seen, and plays it again after a version bump', async () => {
@@ -90,7 +90,7 @@ describe('the module guides', () => {
     }
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 1 } }]));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 2 } }]));
 
     await router.navigate({ to: '/security' });
     await router.navigate({ to: '/loans' });
@@ -105,22 +105,22 @@ describe('the module guides', () => {
     await router.navigate({ to: '/income' });
     const income = await screen.findByRole('dialog', { name: 'Revenus : premiers pas' });
     expect(screen.queryByRole('dialog', { name: 'Crédits : premiers pas' })).not.toBeInTheDocument();
-    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 1 } }]));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 2 } }]));
 
     await user.click(within(income).getByRole('button', { name: 'Passer' }));
-    await waitFor(() => expect(bodies[1]).toEqual({ guidesSeen: { loans: 1, income: 1 } }));
+    await waitFor(() => expect(bodies[1]).toEqual({ guidesSeen: { loans: 2, income: 1 } }));
   });
 
   it('drops a retired guide from the saved map', async () => {
     const { bodies, user } = await render('/loans', { retired: 1, income: 1 });
     await user.click(within(await loansGuide()).getByRole('button', { name: 'Passer' }));
-    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { income: 1, loans: 1 } }]));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { income: 1, loans: 2 } }]));
   });
 
   it('plays the guide against an API that has no guidesSeen yet', async () => {
     const { bodies, user } = await render('/loans', undefined as unknown as Preferences['guidesSeen']);
     await user.click(within(await loansGuide()).getByRole('button', { name: 'Passer' }));
-    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 1 } }]));
+    await waitFor(() => expect(bodies).toEqual([{ guidesSeen: { loans: 2 } }]));
   });
 
   it('a failed save says nothing and does not replay the guide in this session', async () => {

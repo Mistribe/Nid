@@ -1,6 +1,6 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Archive } from 'lucide-react';
-import { useId } from 'react';
+import { Archive, Clock } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -9,10 +9,15 @@ import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
+import { PageHeader } from '@/components/page/PageHeader';
+import { SortableTable } from '@/components/page/SortableTable';
+import { amountKey } from '@/components/page/sortKey';
+import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { buttonVariants } from '@/components/ui/button';
 import { ENVELOPES, type EnvelopeSummary } from './api';
 import { kindText } from './format';
-import { Gain, StaleBadge } from './Figures';
+import { Gain } from './Figures';
 
 function useEnvelopes(scope: 'me' | 'household', closed: boolean) {
   const { $api } = useApi();
@@ -24,37 +29,25 @@ export function EnvelopesPage() {
   const { t } = useTranslation();
   const search: RootSearch & InvestmentsSearch = useSearch({ strict: false });
   const navigate = useNavigate();
-  const closedId = useId();
   const scope = search.scope === 'me' ? 'me' : 'household';
   const closed = search.closed === 1;
   const answer = useEnvelopes(scope, closed);
   const setClosed = (checked: boolean) =>
     void navigate({ to: '/investments', search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, closed: checked ? (1 as const) : undefined }), replace: true });
 
-  const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold">{t('investments.title')}</h1>
-      <Link to="/investments/new" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground">{t('investments.add')}</Link>
-    </div>
-  );
-  const showClosed = (
-    <div className="flex items-center gap-2 text-sm">
-      <input id={closedId} type="checkbox" checked={closed} onChange={(e) => setClosed(e.target.checked)} />
-      <label htmlFor={closedId}>{t('investments.show_closed')}</label>
-    </div>
-  );
+  const add = <Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>;
 
-  // One stable frame whatever the answer: the checkbox must survive the reload its own change causes (focus).
+  // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (
     <div className="space-y-4">
-      {header}
-      {showClosed}
-      <Body answer={answer} />
+      <PageHeader title={t('investments.title')} actions={add} />
+      <SwitchField label={t('investments.show_closed')} checked={closed} onCheckedChange={setClosed} />
+      <Body answer={answer} add={add} />
     </div>
   );
 }
 
-function Body({ answer }: { answer: ReturnType<typeof useEnvelopes> }) {
+function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: ReactNode }) {
   const { t } = useTranslation();
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
 
@@ -67,40 +60,56 @@ function Body({ answer }: { answer: ReturnType<typeof useEnvelopes> }) {
 
   const data = answer.data;
   if (data.items.length === 0)
-    return (
-      <EmptyState title={t('investments.empty_title')} body={t('investments.empty_body')}
-        action={<Link to="/investments/new" className="rounded-md bg-primary px-3 py-2 text-primary-foreground">{t('investments.add')}</Link>} />
-    );
+    return <EmptyState title={t('investments.empty_title')} body={t('investments.empty_body')} action={add} />;
 
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('investments.before_tax')}</p>
-      <ul aria-label={t('investments.list')} className="space-y-2">
-        {data.items.map((item) => <Row key={item.id} item={item} />)}
-      </ul>
+      <SortableTable<EnvelopeSummary> caption={t('investments.list')} rows={data.items} rowKey={(r) => r.id}
+        rowLink={(r) => ({ to: '/investments/$id', params: { id: r.id } })}
+        columns={[
+          { id: 'name', header: t('lists.col.name'), sort: (r) => r.displayName, cell: (r) => <Name item={r} /> },
+          { id: 'kind', header: t('lists.col.kind'), sort: (r) => kindText(t, r.kind), cell: (r) => kindText(t, r.kind) },
+          { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
+          { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.figures.value?.amount),
+            cell: (r) => r.figures.value ? <Money value={r.figures.value} tabular /> : <span className="text-muted-foreground">{t('investments.no_value')}</span> },
+          { id: 'gain', header: t('lists.col.gain'), cell: (r) => r.figures.value ? <Gain figures={r.figures} /> : <span aria-hidden="true">{t('investments.dash')}</span> },
+          { id: 'updated', header: t('lists.col.updated'), sort: (r) => r.figures.asOf ?? '', cell: (r) => <Updated item={r} /> },
+        ]}
+        mobile={(r) => (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2"><Name item={r} /><OwnerChips owners={r.owners} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              {r.figures.value ? <Money value={r.figures.value} tabular /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
+              {r.figures.value ? <Gain figures={r.figures} /> : null}
+            </div>
+          </div>
+        )} />
     </>
   );
 }
 
-function Row({ item }: { item: EnvelopeSummary }) {
+function Name({ item }: { item: EnvelopeSummary }) {
   const { t } = useTranslation();
   return (
-    <li className="space-y-1 rounded-md border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to="/investments/$id" params={{ id: item.id }} className="font-medium hover:underline">{item.displayName}</Link>
-        <span className="flex items-center gap-2 text-sm text-muted-foreground">
-          {item.closed ? <span className="flex items-center gap-1"><Archive aria-hidden="true" className="size-4" />{t('investments.closed_mark')}</span> : null}
-          {kindText(t, item.kind)}
-        </span>
-      </div>
-      <OwnerChips owners={item.owners} />
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        {item.figures.value
-          ? <span className="tabular-nums"><Money value={item.figures.value} tabular />{item.figures.asOf ? <> · <LocalDate value={item.figures.asOf} /></> : null}</span>
-          : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
-        <StaleBadge days={item.figures.staleDays} />
-        {item.figures.value ? <Gain figures={item.figures} /> : null}
-      </div>
-    </li>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span className="font-medium">{item.displayName}</span>
+      {item.closed ? <span className="inline-flex items-center gap-1 text-sm text-muted-foreground"><Archive aria-hidden="true" className="size-4" />{t('investments.closed_mark')}</span> : null}
+    </span>
+  );
+}
+
+/** The value's date; an old one carries a clock and says its age in words. */
+function Updated({ item }: { item: EnvelopeSummary }) {
+  const { t } = useTranslation();
+  const { asOf, staleDays } = item.figures;
+  if (!asOf) return <span aria-hidden="true">{t('investments.dash')}</span>;
+  const stale = staleDays !== null && staleDays !== undefined;
+  return (
+    <span className="inline-flex items-center gap-1">
+      {stale ? <Clock aria-hidden="true" className="size-4" /> : null}
+      <LocalDate value={asOf} style="short" />
+      {stale ? <span className="sr-only">{t('investments.stale', { count: staleDays })}</span> : null}
+    </span>
   );
 }

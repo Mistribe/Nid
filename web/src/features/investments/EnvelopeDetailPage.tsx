@@ -1,67 +1,80 @@
 import { Link, useParams } from '@tanstack/react-router';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
-import { LocalDate } from '@/components/LocalDate';
+import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { PageHeader } from '@/components/page/PageHeader';
+import { RowMenu } from '@/components/page/RowMenu';
+import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '../income/Section';
-import { ENVELOPE } from './api';
+import { todayIso } from '../subscriptions/today';
+import { ENVELOPE, PERFORMANCE, type Flow, type Valuation } from './api';
 import { ValueChart } from './chart/ValueChart';
 import { PeriodPerformance } from './period/PeriodPerformance';
-import { FlowForm } from './entries/FlowForm';
+import { presetRange } from './period/periods';
+import { FlowDialog, ValueDialog } from './entries/EntryDialogs';
 import { RowActions } from './entries/RowActions';
-import { ValueForm } from './entries/ValueForm';
 import { CloseDialog } from './closing/CloseDialog';
 import { ClosedBanner } from './closing/ClosedBanner';
 import { SettingsForm } from './settings/SettingsForm';
 import { TransferDialog } from './transfer/TransferDialog';
-import { Gain, StaleBadge } from './Figures';
+import { Direction, Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 
+const TABS = ['overview', 'values', 'flows', 'settings'] as const;
+const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
+  [...rows].sort((a, b) => (date(a) < date(b) ? 1 : date(a) > date(b) ? -1 : 0));
+
 /**
- * 2B2a design §6: the envelope's figures, warnings, and its values and flows, newest first — the quick-value/
- * add-flow forms and each row's « Corriger »/« Supprimer » shown only when `canWrite` (Task 5). A correction gets a
- * new id and a deletion removes the row entirely, so neither can carry its own confirmation once the refetch
- * lands: the page announces it in that table's section and moves focus to the section's heading instead.
+ * 2B2a design §6, as a tabbed page: the key figures inline under the title, the overview (curve, last values,
+ * period performance), the values and flows tables newest first, the settings. The entry forms are dialogs, opened
+ * from the header or a row's ⋯ menu, shown only when `canWrite` and the envelope is open. A correction gets a new id
+ * and a deletion removes the row entirely, so neither can carry its own confirmation once the refetch lands: the page
+ * announces it in that table's section and moves focus to the section's heading instead.
  */
 export function EnvelopeDetailPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { id } = useParams({ from: '/investments/$id' });
   const answer = $api.useQuery('get', ENVELOPE, { params: { path: { id } } });
+  // « Depuis janvier » is the year-to-date performance: the period figure the overview's block asks for too.
+  const sinceJanuary = $api.useQuery('get', PERFORMANCE, { params: { path: { id }, query: presetRange('ytd', todayIso()) } });
+  const [tab, setTab] = useDetailTab(TABS);
   const back = <Link to="/investments" className="text-sm underline">{t('envelope.back')}</Link>;
-  const [editingValueId, setEditingValueId] = useState<string | null>(null);
-  const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
-  // Bumped by the missing-opening button; a counter (not just `'opening'`) so a second click re-applies it even
-  // when the person had since changed the kind back, or the request was already 'opening'.
-  const [openingRequest, setOpeningRequest] = useState<number | undefined>(undefined);
+  // The dialogs: a new value or flow (`{}`), the correction of a row, or a new flow on « Versements antérieurs ».
+  const [valueDialog, setValueDialog] = useState<{ editing?: Valuation } | null>(null);
+  const [flowDialog, setFlowDialog] = useState<{ editing?: Flow; opening?: boolean } | null>(null);
   const [valuesAnnouncement, setValuesAnnouncement] = useState('');
   const [flowsAnnouncement, setFlowsAnnouncement] = useState('');
   const valuesHeadingRef = useRef<HTMLHeadingElement>(null);
   const flowsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const enterRef = useRef<HTMLButtonElement>(null);
+  const flowRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const bannerRef = useRef<HTMLParagraphElement>(null);
+  // Where the focus goes once a dialog handed itself back (a saved entry): the page owns it, never <body>.
+  const [focusTarget, setFocusTarget] = useState<'values' | 'flows' | 'enter' | 'flow' | null>(null);
+  // The row whose menu should regain focus once its correction dialog is cancelled: that row still exists (unlike
+  // after a save, which replaces it).
+  const [focusRow, setFocusRow] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const transferWasOpen = useRef(false);
-  const enterHeadingRef = useRef<HTMLHeadingElement>(null);
-  const transferButtonRef = useRef<HTMLButtonElement>(null);
-  // The row whose « Corriger » button should regain focus once « Annuler » closes its edit form (finding 13): that
-  // button still exists (the row just reverts), unlike after a save, which removes or replaces the row.
-  const [focusValueId, setFocusValueId] = useState<string | null>(null);
-  const [focusFlowId, setFocusFlowId] = useState<string | null>(null);
-  // Closing and reopening: the page owns the announcement (the banner and the « Saisir » section come and go with
+  // Closing and reopening: the page owns the announcement (the banner and the write actions come and go with
   // the state), and where the focus lands once the refetch has swapped them — never <body>.
   const [closeOpen, setCloseOpen] = useState(false);
+  const closeWasOpen = useRef(false);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
   // The « Réglages » status region: cleared when a save starts, filled by its outcome (no focus move: the form stays).
   const [settingsAnnouncement, setSettingsAnnouncement] = useState('');
   const [landOn, setLandOn] = useState<'banner' | 'enter' | null>(null);
-  const closeWasOpen = useRef(false);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const bannerRef = useRef<HTMLParagraphElement>(null);
   const isClosed = answer.data?.closed;
 
   // Cleared the instant an action on that section starts (opening a row's correction, confirming a deletion) and
@@ -70,19 +83,42 @@ export function EnvelopeDetailPage() {
   // what keeps a failed correction from reading a previous row's success.
   const clearValues = () => setValuesAnnouncement('');
   const clearFlows = () => setFlowsAnnouncement('');
-  const announceValues = (message: string) => { setValuesAnnouncement(message); valuesHeadingRef.current?.focus(); };
-  const announceFlows = (message: string) => { setFlowsAnnouncement(message); flowsHeadingRef.current?.focus(); };
+  const announceValues = (message: string) => { setValuesAnnouncement(message); setFocusTarget('values'); };
+  const announceFlows = (message: string) => { setFlowsAnnouncement(message); setFocusTarget('flows'); };
+  useEffect(() => {
+    if (!focusTarget) return;
+    ({ values: valuesHeadingRef, flows: flowsHeadingRef, enter: enterRef, flow: flowRef })[focusTarget].current?.focus();
+    setFocusTarget(null);
+  }, [focusTarget]);
+  useEffect(() => {
+    if (!focusRow) return;
+    document.getElementById(focusRow)?.focus();
+    setFocusRow(null);
+  }, [focusRow]);
+  const cancelValue = () => { const row = valueDialog?.editing?.id; setValueDialog(null); if (row) setFocusRow(`correct-value-${row}`); };
+  const cancelFlow = () => { const row = flowDialog?.editing?.id; setFlowDialog(null); if (row) setFocusRow(`correct-flow-${row}`); };
 
-  // Opening clears the Flux announcement like the other actions; the dialog's success is announced there, and the
-  // focus goes back to the button whichever way the dialog closed (its own `close` already ran by then).
-  const openTransfer = () => { clearFlows(); setTransferOpen(true); };
+  // A saved entry: a new one announces in the page's own region and returns to its header button; a corrected row
+  // announces in its table's section.
+  const savedValue = (editing: boolean) => (message: string) => {
+    setValueDialog(null);
+    if (editing) announceValues(message); else { setStatusAnnouncement(message); setFocusTarget('enter'); }
+  };
+  const savedFlow = (editing: boolean) => (message: string) => {
+    setFlowDialog(null);
+    if (editing) announceFlows(message); else { setStatusAnnouncement(message); setFocusTarget('flow'); }
+  };
+
+  // The focus goes back to the ⋯ menu whichever way a dialog opened from it closed (its own `close` already ran by then).
+  const focusMenu = () => (menuRef.current ?? enterRef.current ?? bannerRef.current)?.focus();
+  const openTransfer = () => { setStatusAnnouncement(''); setTransferOpen(true); };
   const closeTransfer = (message?: string) => {
     setTransferOpen(false);
-    if (message) setFlowsAnnouncement(message);
+    if (message) setStatusAnnouncement(message);
   };
   useEffect(() => {
     if (transferOpen) transferWasOpen.current = true;
-    else if (transferWasOpen.current) { transferWasOpen.current = false; (transferButtonRef.current ?? enterHeadingRef.current ?? bannerRef.current)?.focus(); }
+    else if (transferWasOpen.current) { transferWasOpen.current = false; focusMenu(); }
   }, [transferOpen]);
 
   const closeClose = (message?: string) => {
@@ -91,71 +127,77 @@ export function EnvelopeDetailPage() {
   };
   useEffect(() => {
     if (closeOpen) closeWasOpen.current = true;
-    else if (closeWasOpen.current) { closeWasOpen.current = false; if (!landOn) (closeButtonRef.current ?? enterHeadingRef.current ?? bannerRef.current)?.focus(); }
+    else if (closeWasOpen.current) { closeWasOpen.current = false; if (!landOn) focusMenu(); }
   }, [closeOpen, landOn]);
-  // A correction open when the envelope turns out closed goes away with its form: the focus it held moves to the banner.
+  // An entry form open when the envelope turns out closed goes away with its dialog: the focus it held moves to the banner.
   useEffect(() => {
-    if (isClosed && (editingValueId || editingFlowId)) {
-      setEditingValueId(null);
-      setEditingFlowId(null);
+    if (isClosed && (valueDialog || flowDialog)) {
+      setValueDialog(null);
+      setFlowDialog(null);
       setLandOn('banner');
     }
-  }, [isClosed, editingValueId, editingFlowId]);
+  }, [isClosed, valueDialog, flowDialog]);
   useEffect(() => {
     if (landOn === 'banner' && isClosed) { bannerRef.current?.focus(); setLandOn(null); }
-    else if (landOn === 'enter' && isClosed === false) { enterHeadingRef.current?.focus(); setLandOn(null); }
+    else if (landOn === 'enter' && isClosed === false) { (enterRef.current ?? bannerRef.current)?.focus(); setLandOn(null); }
   }, [landOn, isClosed]);
-
-  const startValueEdit = (id: string) => { clearValues(); setEditingValueId(id); };
-  const startFlowEdit = (id: string) => { clearFlows(); setEditingFlowId(id); };
-  const closeValueRow = (message?: string) => {
-    const id = editingValueId;
-    setEditingValueId(null);
-    if (message) announceValues(message); else setFocusValueId(id);
-  };
-  const closeFlowRow = (message?: string) => {
-    const id = editingFlowId;
-    setEditingFlowId(null);
-    if (message) announceFlows(message); else setFocusFlowId(id);
-  };
-  useEffect(() => {
-    if (!focusValueId) return;
-    document.getElementById(`correct-value-${focusValueId}`)?.focus();
-    setFocusValueId(null);
-  }, [focusValueId]);
-  useEffect(() => {
-    if (!focusFlowId) return;
-    document.getElementById(`correct-flow-${focusFlowId}`)?.focus();
-    setFocusFlowId(null);
-  }, [focusFlowId]);
 
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
   if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
 
   const detail = answer.data;
   const figures = detail.figures;
-  const values = [...detail.valuations].sort((a, b) => (a.asOf < b.asOf ? 1 : a.asOf > b.asOf ? -1 : 0));
-  const flows = [...detail.flows].sort((a, b) => (a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0));
+  const values = newestFirst(detail.valuations, (v) => v.asOf);
+  const flows = newestFirst(detail.flows, (f) => f.occurredOn);
   const sinceShown = directionOf(figures.contributionsSince.amount) !== 'flat' || directionOf(figures.withdrawalsSince.amount) !== 'flat';
-  const feesShown = !!figures.fees && directionOf(figures.fees.amount) !== 'flat';
-  const gainAfterFeesShown = !!figures.gainAfterFees && directionOf(figures.gainAfterFees.amount) !== 'flat';
-  const incomeShown = !!figures.income && directionOf(figures.income.amount) !== 'flat';
+  const absent = <span className="text-base font-normal text-muted-foreground">{t('investments.no_value')}</span>;
+  const extra = (label: string, amount: typeof figures.fees) =>
+    amount && directionOf(amount.amount) !== 'flat' ? [{ label, value: <Money value={amount} tabular /> }] : [];
   // The missing-opening button offers to add « Versements antérieurs »; hidden once one already exists (finding 9),
   // even if the server still reports `missingOpening` (an opening dated after the latest value).
   const hasOpening = detail.flows.some((f) => f.kind === 'opening');
-  // Every write affordance: the « Saisir » section, the row actions, the transfer and the close buttons.
+  // Every write affordance: the header actions, the row menus and the settings.
   const writable = detail.canWrite && !detail.closed;
-  const valueCols = writable ? 4 : 3;
-  const flowCols = writable ? 5 : 4;
+  const columns = (writable ? 1 : 0) + 3;
+  const shown = writable || tab !== 'settings' ? tab : 'overview';
+
+  const actions = writable ? (
+    <>
+      <Button ref={enterRef} data-guide="investments.enter" type="button" onClick={() => setValueDialog({})}>
+        <Plus aria-hidden="true" />{t('envelope.enter_value')}
+      </Button>
+      <Button ref={flowRef} type="button" variant="outline" onClick={() => setFlowDialog({})}>{t('envelope.add_flow_open')}</Button>
+      <RowMenu label={t('envelope.more_actions')} triggerRef={menuRef} items={[
+        { label: t('envelope.transfer.open'), onSelect: openTransfer },
+        { label: t('envelope.closing.open'), onSelect: () => { setStatusAnnouncement(''); setCloseOpen(true); } },
+      ]} />
+    </>
+  ) : null;
 
   return (
     <article className="space-y-6">
-      {back}
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{detail.displayName}</h1>
-        <span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span>
-        <AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} />
-      </header>
+      <PageHeader crumbs={[{ label: t('nav.investments'), to: '/investments' }]} title={detail.displayName} actions={actions}
+        meta={<><span className="text-sm text-muted-foreground">{kindText(t, detail.kind)}</span><AccessBadge access={detail.visibility === 'private' ? 'private' : 'shared'} /></>}>
+        <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
+          <StatLine items={[
+            { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf) }) : t('envelope.value'),
+              value: figures.value ? <><Money value={figures.value} tabular />{' '}<StaleBadge days={figures.staleDays} /></> : absent },
+            { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
+            { label: t('envelope.gain'), value: <Gain figures={figures} /> },
+            ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
+            ...extra(t('envelope.fees'), figures.fees),
+            ...extra(t('envelope.gain_after_fees'), figures.gainAfterFees),
+            ...extra(t('envelope.income'), figures.income),
+          ]} />
+          <p className="text-sm text-muted-foreground">{t('envelope.before_tax')}</p>
+          {sinceShown ? (
+            <p className="text-sm">{t('envelope.since', {
+              contributions: formatMoney(figures.contributionsSince),
+              withdrawals: formatMoney(figures.withdrawalsSince),
+            })}</p>
+          ) : null}
+        </section>
+      </PageHeader>
       {detail.canWrite ? null : <p>{t('envelope.read_only')}</p>}
       <p role="status" aria-live="polite">{statusAnnouncement}</p>
       {detail.closed ? (
@@ -163,167 +205,128 @@ export function EnvelopeDetailPage() {
           onStart={() => setStatusAnnouncement('')}
           onReopened={(message) => { setStatusAnnouncement(message); setLandOn('enter'); }} />
       ) : null}
-
-      <Section title={t('envelope.figures')} guide="investments.figures">
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-          <dt>{t('envelope.value')}</dt>
-          <dd>
-            {figures.value ? (
-              <>
-                <Money value={figures.value} tabular />
-                {figures.asOf ? <> · <LocalDate value={figures.asOf} /></> : null}
-                {' '}<StaleBadge days={figures.staleDays} />
-              </>
-            ) : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
-          </dd>
-          <dt>{t('envelope.net_contributions')}</dt>
-          <dd>
-            {figures.netContributions
-              ? <Money value={figures.netContributions} tabular />
-              : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
-          </dd>
-          <dt>{t('envelope.gain')}</dt>
-          <dd><Gain figures={figures} /> <span className="text-muted-foreground">{t('envelope.before_tax')}</span></dd>
-          {feesShown && figures.fees ? (
-            <>
-              <dt>{t('envelope.fees')}</dt>
-              <dd><Money value={figures.fees} tabular /></dd>
-            </>
-          ) : null}
-          {gainAfterFeesShown && figures.gainAfterFees ? (
-            <>
-              <dt>{t('envelope.gain_after_fees')}</dt>
-              <dd><Money value={figures.gainAfterFees} tabular /></dd>
-            </>
-          ) : null}
-          {incomeShown && figures.income ? (
-            <>
-              <dt>{t('envelope.income')}</dt>
-              <dd><Money value={figures.income} tabular /></dd>
-            </>
-          ) : null}
-        </dl>
-        {sinceShown ? (
-          <p>{t('envelope.since', {
-            contributions: formatMoney(figures.contributionsSince),
-            withdrawals: formatMoney(figures.withdrawalsSince),
-          })}</p>
-        ) : null}
-        {figures.missingOpening ? (
-          <p role="note" className="flex flex-wrap items-center gap-2">
-            <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
-            {t('envelope.missing_opening')}
-            {writable && !hasOpening ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setOpeningRequest((n) => (n ?? 0) + 1)}>
-                {t('envelope.add_opening')}
-              </Button>
-            ) : null}
-          </p>
-        ) : null}
-      </Section>
-
-      <Section title={t('envelope.evolution')} guide="investments.evolution">
-        <ValueChart envelopeId={detail.id} currency={detail.currency} />
-      </Section>
-
-      <Section title={t('envelope.period.title')}>
-        <PeriodPerformance envelopeId={detail.id} />
-      </Section>
-
-      {writable ? (
-        <Section title={t('envelope.enter')} headingRef={enterHeadingRef} guide="investments.enter">
-          <div className="grid gap-6 md:grid-cols-2">
-            <ValueForm envelope={detail} />
-            <FlowForm envelope={detail} openingRequest={openingRequest} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button ref={transferButtonRef} type="button" variant="outline" onClick={openTransfer}>
-              {t('envelope.transfer.open')}
+      {figures.missingOpening ? (
+        <p role="note" className="flex flex-wrap items-center gap-2">
+          <AlertTriangle aria-hidden="true" className="size-4 text-status-warning" />
+          {t('envelope.missing_opening')}
+          {writable && !hasOpening ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setFlowDialog({ opening: true })}>
+              {t('envelope.add_opening')}
             </Button>
-            <Button ref={closeButtonRef} type="button" variant="outline" onClick={() => { setStatusAnnouncement(''); setCloseOpen(true); }}>
-              {t('envelope.closing.open')}
-            </Button>
-          </div>
-        </Section>
+          ) : null}
+        </p>
       ) : null}
 
-      {/* Outside the « Saisir » section: a dialog open when the envelope turns out closed must outlive it. */}
+      {/* Outside the tabs: a dialog open when the envelope turns out closed must outlive the write affordances. */}
+      {writable && valueDialog ? <ValueDialog envelope={detail} editing={valueDialog.editing} onClose={cancelValue} onDone={savedValue(!!valueDialog.editing)} /> : null}
+      {writable && flowDialog ? <FlowDialog envelope={detail} editing={flowDialog.editing} opening={flowDialog.opening} onClose={cancelFlow} onDone={savedFlow(!!flowDialog.editing)} /> : null}
       {transferOpen ? <TransferDialog source={detail} onClose={() => closeTransfer()} onDone={closeTransfer} /> : null}
       {closeOpen ? <CloseDialog envelope={detail} onClose={() => closeClose()} onDone={closeClose} /> : null}
 
-      <Section title={t('envelope.values')} headingRef={valuesHeadingRef} announcement={valuesAnnouncement} guide="investments.history">
-        <table className="w-full text-sm" aria-label={t('envelope.values_table')}>
-          <thead>
-            <tr>
-              <th scope="col" className="text-left">{t('envelope.date')}</th>
-              <th scope="col" className="text-left">{t('envelope.amount')}</th>
-              <th scope="col" className="text-left">{t('envelope.note')}</th>
-              {writable ? <th scope="col" className="text-left">{t('envelope.actions')}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {values.length === 0 ? (
-              <tr><td colSpan={valueCols} className="text-muted-foreground">{t('envelope.no_values')}</td></tr>
-            ) : values.map((v) => writable && editingValueId === v.id ? (
-              <tr key={v.id}>
-                <td colSpan={valueCols}>
-                  <ValueForm envelope={detail} editing={v} onDone={closeValueRow} />
-                </td>
-              </tr>
-            ) : (
-              <tr key={v.id}>
-                <td><LocalDate value={v.asOf} /></td>
-                <td><Money value={v.amount} tabular /></td>
-                <td>{v.note}</td>
-                {writable ? (
-                  <td><RowActions kind="value" envelope={detail} item={v} onEdit={() => startValueEdit(v.id)} onDeleteStarted={clearValues} onDeleted={announceValues} /></td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
-
-      <Section title={t('envelope.flows')} headingRef={flowsHeadingRef} announcement={flowsAnnouncement}>
-        <table className="w-full text-sm" aria-label={t('envelope.flows_table')}>
-          <thead>
-            <tr>
-              <th scope="col" className="text-left">{t('envelope.date')}</th>
-              <th scope="col" className="text-left">{t('envelope.kind')}</th>
-              <th scope="col" className="text-left">{t('envelope.amount')}</th>
-              <th scope="col" className="text-left">{t('envelope.note')}</th>
-              {writable ? <th scope="col" className="text-left">{t('envelope.actions')}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {flows.length === 0 ? (
-              <tr><td colSpan={flowCols} className="text-muted-foreground">{t('envelope.no_flows')}</td></tr>
-            ) : flows.map((f) => writable && editingFlowId === f.id ? (
-              <tr key={f.id}>
-                <td colSpan={flowCols}>
-                  <FlowForm envelope={detail} editing={f} onDone={closeFlowRow} />
-                </td>
-              </tr>
-            ) : (
-              <tr key={f.id}>
-                <td><LocalDate value={f.occurredOn} /></td>
-                <td>{flowKindText(t, f)}</td>
-                <td><Money value={f.amount} tabular /></td>
-                <td>{f.note}</td>
-                {writable ? (
-                  <td><RowActions kind="flow" envelope={detail} item={f} onEdit={() => startFlowEdit(f.id)} onDeleteStarted={clearFlows} onDeleted={announceFlows} /></td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
-
-      {writable ? (
-        <Section title={t('envelope.settings.title')} announcement={settingsAnnouncement}>
-          <SettingsForm envelope={detail} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
-        </Section>
-      ) : null}
+      <DetailTabs value={shown} onChange={setTab} guide="investments.history" tabs={[
+        {
+          id: 'overview', label: t('envelope.tab.overview'),
+          content: (
+            <>
+              <Section title={t('envelope.evolution')} guide="investments.evolution">
+                <ValueChart envelopeId={detail.id} currency={detail.currency} />
+              </Section>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Section title={t('envelope.last_values')}>
+                  <Table aria-label={t('envelope.last_values')}>
+                    <TableBody>
+                      {values.length === 0 ? (
+                        <TableRow><TableCell className="text-muted-foreground">{t('envelope.no_values')}</TableCell></TableRow>
+                      ) : values.slice(0, 3).map((v) => (
+                        <TableRow key={v.id}>
+                          <TableCell><LocalDate value={v.asOf} /></TableCell>
+                          <TableCell className="text-right"><Money value={v.amount} tabular /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {values.length > 3 ? <Button type="button" variant="link" size="sm" className="px-0" onClick={() => setTab('values')}>{t('envelope.see_all_values')}</Button> : null}
+                </Section>
+                <Section title={t('envelope.period.title')}>
+                  <PeriodPerformance envelopeId={detail.id} />
+                </Section>
+              </div>
+            </>
+          ),
+        },
+        {
+          id: 'values', label: t('envelope.tab.values', { count: values.length }),
+          content: (
+            <Section title={t('envelope.values')} srTitle headingRef={valuesHeadingRef} announcement={valuesAnnouncement}>
+              <Table aria-label={t('envelope.values_table')}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('envelope.date')}</TableHead>
+                    <TableHead>{t('envelope.amount')}</TableHead>
+                    <TableHead>{t('envelope.note')}</TableHead>
+                    {writable ? <TableHead className="w-0"><span className="sr-only">{t('envelope.actions')}</span></TableHead> : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {values.length === 0 ? (
+                    <TableRow><TableCell colSpan={columns} className="text-muted-foreground">{t('envelope.no_values')}</TableCell></TableRow>
+                  ) : values.map((v) => (
+                    <TableRow key={v.id}>
+                      <TableCell><LocalDate value={v.asOf} /></TableCell>
+                      <TableCell><Money value={v.amount} tabular /></TableCell>
+                      <TableCell className="whitespace-normal">{v.note}</TableCell>
+                      {writable ? (
+                        <TableCell><RowActions kind="value" envelope={detail} item={v} onEdit={() => { clearValues(); setValueDialog({ editing: v }); }} onDeleteStarted={clearValues} onDeleted={announceValues} /></TableCell>
+                      ) : null}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ),
+        },
+        {
+          id: 'flows', label: t('envelope.tab.flows', { count: flows.length }),
+          content: (
+            <Section title={t('envelope.flows')} srTitle headingRef={flowsHeadingRef} announcement={flowsAnnouncement}>
+              <Table aria-label={t('envelope.flows_table')}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('envelope.date')}</TableHead>
+                    <TableHead>{t('envelope.kind')}</TableHead>
+                    <TableHead>{t('envelope.amount')}</TableHead>
+                    <TableHead>{t('envelope.note')}</TableHead>
+                    {writable ? <TableHead className="w-0"><span className="sr-only">{t('envelope.actions')}</span></TableHead> : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {flows.length === 0 ? (
+                    <TableRow><TableCell colSpan={columns + 1} className="text-muted-foreground">{t('envelope.no_flows')}</TableCell></TableRow>
+                  ) : flows.map((f) => (
+                    <TableRow key={f.id}>
+                      <TableCell><LocalDate value={f.occurredOn} /></TableCell>
+                      <TableCell>{flowKindText(t, f)}</TableCell>
+                      <TableCell><Money value={f.amount} tabular /></TableCell>
+                      <TableCell className="whitespace-normal">{f.note}</TableCell>
+                      {writable ? (
+                        <TableCell><RowActions kind="flow" envelope={detail} item={f} onEdit={() => { clearFlows(); setFlowDialog({ editing: f }); }} onDeleteStarted={clearFlows} onDeleted={announceFlows} /></TableCell>
+                      ) : null}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ),
+        },
+        ...(writable ? [{
+          id: 'settings' as const, label: t('envelope.tab.settings'),
+          content: (
+            <Section title={t('envelope.settings.title')} srTitle announcement={settingsAnnouncement}>
+              <SettingsForm envelope={detail} onStart={() => setSettingsAnnouncement('')} onDone={setSettingsAnnouncement} />
+            </Section>
+          ),
+        }] : []),
+      ]} />
     </article>
   );
 }

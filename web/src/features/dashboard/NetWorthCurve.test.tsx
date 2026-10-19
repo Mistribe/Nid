@@ -18,17 +18,17 @@ function serveCurve(body: NetWorthHistory, seen: string[] = []) {
 const curve = () => screen.findByRole('region', { name: 'Évolution du patrimoine' });
 
 // Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
-beforeAll(async () => { await import('./NetWorthCurve'); await import('./SplitCharts'); }, 30_000);
+beforeAll(async () => { await import('./NetWorthCurve'); }, 30_000);
 
 describe('net worth curve', () => {
-  it('asks for twelve months in the scope by default and keeps the choice in the URL', async () => {
+  it('switches period in its header: asks for twelve months in the scope by default and keeps the choice in the URL', async () => {
     const seen: string[] = [];
     serveCurve(netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-10-15' })]), seen);
     const { router, user } = await renderApp('/dashboard?scope=me');
 
     const card = await curve();
     expect(await within(card).findByRole('radio', { name: '12 mois' })).toBeChecked();
-    await screen.findByRole('button', { name: 'Afficher en tableau' });
+    await within(card).findByRole('button', { name: 'Afficher en tableau' });
     expect(seen[0]).toContain('period=12m');
     expect(seen[0]).toContain('scope=me');
 
@@ -54,6 +54,18 @@ describe('net worth curve', () => {
     expect(rows[3]).toHaveTextContent('Aujourd’hui');
     expect(rows[3]).toHaveTextContent('1 100,00 €');
     await expectNoAxeViolations(container);
+  });
+
+  it('swaps the chart for its table in place and back', async () => {
+    serveCurve(netWorth([curvePoint({ on: '2025-08-31' }), curvePoint({ on: '2025-10-15' })]));
+    const { user } = await renderApp('/dashboard');
+
+    const card = await curve();
+    await user.click(await within(card).findByRole('button', { name: 'Afficher en tableau' }));
+    expect(within(card).getByRole('table', { name: 'Évolution du patrimoine en tableau' })).toBeInTheDocument();
+    expect(within(card).getByRole('radio', { name: '3 ans' })).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Afficher la courbe' }));
+    expect(within(card).queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('says when no point has a value', async () => {
@@ -85,7 +97,7 @@ describe('net worth curve', () => {
   it('is not shown without any envelope', async () => {
     server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ envelopes: 0, envelopeSplit: [], people: [] }))));
     await renderApp('/dashboard');
-    await screen.findByRole('region', { name: 'Engagements' });
+    await screen.findByRole('button', { name: /Patrimoine net/ });
     expect(screen.queryByRole('region', { name: 'Évolution du patrimoine' })).not.toBeInTheDocument();
   });
 });

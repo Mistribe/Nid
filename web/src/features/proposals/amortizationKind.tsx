@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { formatLocalDate } from '@/components/LocalDate';
 import type { BankRow, LoanComparison } from '../loans/api';
 import { Comparison, PreviewRows } from '../loans/bank/BankScheduleSection';
-import { Field } from '../subscriptions/edits/Field';
+import { Controller } from 'react-hook-form';
+import { Field } from '@/components/form/Field';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { KindUi } from './kindParts';
 
 type AmortizationPayload = { rows: unknown[]; makeReference?: boolean };
@@ -46,9 +48,11 @@ function AmortizationFields({ form, preview }: { form: UseFormReturn<FieldValues
   const { t } = useTranslation();
   if (asPreview(preview).reference?.current === 'bank') return <p>{t('proposal.amortization.stays_bank')}</p>;
   return (
-    <Field inline label={t('proposal.amortization.make_reference')}>
-      {(c) => <input type="checkbox" {...c} {...form.register('makeReference')} />}
-    </Field>
+    <Controller control={form.control} name="makeReference" render={({ field }) => (
+      <Field inline label={t('proposal.amortization.make_reference')}>
+        {(c) => <Checkbox {...c} checked={field.value === true} onCheckedChange={(v) => field.onChange(v === true)} />}
+      </Field>
+    )} />
   );
 }
 

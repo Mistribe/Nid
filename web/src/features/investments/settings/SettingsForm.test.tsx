@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { detail, list, PEA, summary } from '../testData';
@@ -45,7 +46,7 @@ describe('an envelope\'s settings', () => {
   it('saves a renamed envelope, sending only the name, and announces it', async () => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
-    const { user, container } = await renderApp(`/investments/${PEA}`);
+    const { user, container } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     expect(form.getByLabelText('Nom')).toHaveValue('PEA');
@@ -72,13 +73,15 @@ describe('an envelope\'s settings', () => {
       }),
       http.post('*/api/v1/investments/envelopes/:id/valuations', () => HttpResponse.json({ id: PEA }, { status: 201 })),
     );
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     expect(form.getByLabelText('Établissement')).toHaveValue('Banque');
     // Recording a value invalidates the envelope: it is read again while the form stays mounted.
-    await user.click(screen.getByRole('button', { name: 'Enregistrer la valeur' }));
+    await user.click(screen.getByRole('button', { name: 'Saisir une valeur' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Nouvelle valeur' })).getByRole('button', { name: 'Enregistrer la valeur' }));
     await waitFor(() => { expect(reads).toBeGreaterThan(1); });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // The form keeps the values it started from (and any typing), whatever the refetch brought.
     expect(form.getByLabelText('Établissement')).toHaveValue('Banque');
 
@@ -93,7 +96,7 @@ describe('an envelope\'s settings', () => {
   it('clears an emptied optional field and sets a threshold', async () => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.clear(form.getByLabelText('Établissement'));
@@ -108,7 +111,7 @@ describe('an envelope\'s settings', () => {
   it('sends nothing and says so when nothing changed, then clears that before the next save', async () => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
@@ -124,7 +127,7 @@ describe('an envelope\'s settings', () => {
   it.each(['0', '4000'])('refuses a stale threshold of %s before sending', async (days) => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.type(form.getByLabelText('Seuil de péremption (jours)'), days);
@@ -137,7 +140,7 @@ describe('an envelope\'s settings', () => {
 
   it('places a refused value on the field the server names', async () => {
     serve(detail(), [], problem(422, 'investments.invalid_envelope', { errors: [{ path: 'accountHint', code: 'investments.invalid_envelope', message: 'x' }] }));
-    const { user, container } = await renderApp(`/investments/${PEA}`);
+    const { user, container } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.clear(form.getByLabelText('4 derniers caractères du compte'));
@@ -153,7 +156,7 @@ describe('an envelope\'s settings', () => {
 
   it('falls back to the one field that changed when the refusal names none', async () => {
     serve(detail(), [], problem(422, 'investments.invalid_envelope'));
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.clear(form.getByLabelText('4 derniers caractères du compte'));
@@ -165,7 +168,7 @@ describe('an envelope\'s settings', () => {
 
   it('says a refusal no single field owns in French, page-level', async () => {
     serve(detail(), [], problem(422, 'investments.invalid_envelope'));
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.type(form.getByLabelText('Établissement'), ' Bis');
@@ -181,10 +184,10 @@ describe('an envelope\'s settings', () => {
     ['investments.unknown_cadence', 'Mise à jour de la valeur', 'Choisissez une fréquence.'],
   ])('places %s on its select', async (code, label, message) => {
     serve(detail(), [], problem(422, code));
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
-    await user.selectOptions(form.getByLabelText(label), label === 'Type' ? 'savings' : 'quarterly');
+    await pick(user, label, label === 'Type' ? 'Livret' : 'Chaque trimestre');
     await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
 
     expect(await form.findByLabelText(label)).toBeInvalid();
@@ -193,7 +196,7 @@ describe('an envelope\'s settings', () => {
 
   it('says an envelope closed meanwhile, with its reload', async () => {
     serve(detail(), [], problem(409, 'investments.envelope_closed'));
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();
     await user.type(form.getByLabelText('Note'), 'x');

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { buttonVariants } from '@/components/ui/button';
 import { loginUrl } from './session';
 
 /**
@@ -14,7 +15,7 @@ export function LoginRefusedPage({ email }: { email: string | null }) {
       <p>{t('login_refused.ask_admin')}</p>
       <p>{email ? t('login_refused.email', { email }) : t('login_refused.no_email')}</p>
       <p>
-        <a href={loginUrl({ pathname: '/', search: '' })} className="underline">{t('login_refused.sign_in_again')}</a>
+        <a href={loginUrl({ pathname: '/', search: '' })} className={buttonVariants()}>{t('login_refused.sign_in_again')}</a>
       </p>
     </main>
   );

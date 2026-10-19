@@ -62,8 +62,8 @@ describe('ContractPage', () => {
     expect(screen.getByLabelText('Capital emprunté')).toHaveValue('200000.00');
     expect(screen.getByLabelText('Taux annuel (%)')).toHaveValue('3,5');
     expect(screen.getByLabelText('Durée (mois)')).toHaveValue('240');
-    expect(screen.getByLabelText('Date de déblocage')).toHaveValue('2025-10-15');
-    expect(screen.getByLabelText('Première échéance')).toHaveValue('2025-11-15');
+    expect(screen.getByLabelText('Date de déblocage')).toHaveValue('15/10/2025');
+    expect(screen.getByLabelText('Première échéance')).toHaveValue('15/11/2025');
     expect(screen.queryByRole('group', { name: /^Phase/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
@@ -72,8 +72,8 @@ describe('ContractPage', () => {
     await user.type(screen.getByLabelText('Taux annuel (%)'), '3,2');
     // The stored first payment is the bank's: a corrected disbursement does not move it.
     await user.clear(screen.getByLabelText('Date de déblocage'));
-    await user.type(screen.getByLabelText('Date de déblocage'), '2025-10-14');
-    expect(screen.getByLabelText('Première échéance')).toHaveValue('2025-11-15');
+    await user.type(screen.getByLabelText('Date de déblocage'), '14/10/2025');
+    expect(screen.getByLabelText('Première échéance')).toHaveValue('15/11/2025');
     await save(user);
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/loans/${LOAN}`));
@@ -89,21 +89,21 @@ describe('ContractPage', () => {
     const { user, container } = await renderApp(PAGE);
 
     await form();
-    expect(within(group('Phase 1')).getByLabelText('Type d’échéance')).toHaveValue('deferred_partial');
+    expect(within(group('Phase 1')).getByLabelText('Type d’échéance')).toHaveTextContent('Différé partiel (intérêts seuls)');
     expect(within(group('Phase 1')).getByLabelText('Nombre d’échéances')).toHaveValue('24');
     expect(within(group('Phase 2')).getByLabelText('Taux annuel (%)')).toHaveValue('4,12');
-    expect(within(group('Phase 2')).getByLabelText('Nature du taux')).toHaveValue('variable');
+    expect(within(group('Phase 2')).getByLabelText('Nature du taux')).toHaveTextContent('Variable');
     const stored = group('Assurance 1');
     expect(within(stored).getByLabelText('Taux annuel (%)')).toHaveValue('0,36');
     await expectNoAxeViolations(container);
 
     await user.click(screen.getByRole('button', { name: 'Ajouter une assurance' }));
     const added = group('Assurance 2');
-    expect(within(added).getByLabelText('Début')).toHaveValue('2025-11-15');
+    expect(within(added).getByLabelText('Début')).toHaveValue('15/11/2025');
     await user.clear(screen.getByLabelText('Première échéance'));
-    await user.type(screen.getByLabelText('Première échéance'), '2025-12-01');
-    expect(within(stored).getByLabelText('Début')).toHaveValue('2025-11-15');
-    expect(within(added).getByLabelText('Début')).toHaveValue('2025-12-01');
+    await user.type(screen.getByLabelText('Première échéance'), '01/12/2025');
+    expect(within(stored).getByLabelText('Début')).toHaveValue('15/11/2025');
+    expect(within(added).getByLabelText('Début')).toHaveValue('01/12/2025');
     await user.type(within(added).getByLabelText('Montant par mois'), '12');
     await save(user);
 
@@ -171,7 +171,7 @@ describe('ContractPage', () => {
 
   it('is reached from the detail’s « Modifier le contrat »', async () => {
     serve();
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(`/loans/${LOAN}?tab=contract`);
 
     await user.click(await screen.findByRole('link', { name: 'Modifier le contrat' }));
 

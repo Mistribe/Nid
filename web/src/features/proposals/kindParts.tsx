@@ -1,10 +1,13 @@
 import type { TFunction } from 'i18next';
 import type { JSX, ReactNode } from 'react';
-import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Controller, type FieldValues, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { z } from 'zod';
+import { DateField } from '@/components/form/DateField';
+import { Field } from '@/components/form/Field';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import type { FieldError, Problem } from '@/api/errors';
 import { trimAmount } from '../investments/entries/entries';
 import type { ProposalView } from './api';
@@ -35,8 +38,6 @@ export type KindUi = {
   nothing?: (values: FieldValues, original: unknown) => boolean;
 };
 
-export const input = 'rounded-md border px-3 py-2';
-
 /** The decimal typed, as the wire wants it (a comma read as a point). */
 export const wireAmount = (typed: string) => typed.trim().replace(',', '.');
 
@@ -49,13 +50,24 @@ export function errorOf(form: UseFormReturn<FieldValues>, name: string): string 
   return typeof message === 'string' ? message : undefined;
 }
 
+/** A date field of a kind's form: typed `jj/mm/aaaa` or picked, the zod schema of the kind judges the text. */
+export function DateInput({ form, name, label }: { form: UseFormReturn<FieldValues>; name: string; label: string }) {
+  return (
+    <Controller control={form.control} name={name} render={({ field }) => (
+      <Field label={label} error={errorOf(form, name)}>
+        {(c) => <DateField {...c} value={String(field.value ?? '')} onChange={field.onChange} />}
+      </Field>
+    )} />
+  );
+}
+
 /** One labelled line of a comparison. */
 export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <tr className="border-b">
-      <th scope="row" className="py-2 pr-4 text-left font-normal">{label}</th>
-      <td className="py-2 text-right">{children}</td>
-    </tr>
+    <TableRow>
+      <TableHead scope="row" className="font-normal">{label}</TableHead>
+      <TableCell className="text-right">{children}</TableCell>
+    </TableRow>
   );
 }
 
@@ -66,20 +78,20 @@ export function ValueComparison({ preview }: { preview: unknown }) {
   const { t } = useTranslation();
   const p = preview as { current?: Dated | null; previous?: Dated | null; proposed: Dated };
   const row = (label: string, v: Dated | null | undefined) => (
-    <tr className="border-b">
-      <th scope="row" className="py-2 pr-4 text-left font-normal">{label}</th>
-      <td className="py-2 pr-4">{v ? formatLocalDate(v.asOf) : t('proposal.preview.none')}</td>
-      <td className="py-2 text-right">{v ? formatMoney(v.amount) : ''}</td>
-    </tr>
+    <TableRow>
+      <TableHead scope="row" className="font-normal">{label}</TableHead>
+      <TableCell>{v ? formatLocalDate(v.asOf) : t('proposal.preview.none')}</TableCell>
+      <TableCell className="text-right">{v ? formatMoney(v.amount) : ''}</TableCell>
+    </TableRow>
   );
   return (
-    <table className="w-full">
+    <Table>
       <caption className="sr-only">{t('proposal.preview.title')}</caption>
-      <tbody>
+      <TableBody>
         {row(t('proposal.preview.current'), p.current)}
         {row(t('proposal.preview.previous'), p.previous)}
         {row(t('proposal.preview.proposed'), p.proposed)}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }

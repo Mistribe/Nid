@@ -1,9 +1,9 @@
-import { screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 
 describe('Brancher un assistant', () => {
@@ -21,10 +21,10 @@ describe('Brancher un assistant', () => {
 
   it('gives the Claude Desktop config once picked', async () => {
     server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
-    await renderApp('/security');
+    const { user } = await renderApp('/security');
 
     const section = await screen.findByRole('region', { name: 'Brancher un assistant' });
-    await userEvent.selectOptions(within(section).getByRole('combobox', { name: 'Mon assistant' }), 'Claude Desktop');
+    await pick(user, 'Mon assistant', 'Claude Desktop');
     expect(section).toHaveTextContent('claude_desktop_config.json');
     expect(section).toHaveTextContent('"args": [ "-y", "mcp-remote", "' + window.location.origin + '/mcp"');
     expect(section).toHaveTextContent('Bearer <votre jeton>');

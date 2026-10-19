@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type Issue = components['schemas']['ImportIssue'];
 type Report = components['schemas']['ImportReport'];
@@ -42,27 +43,27 @@ export function SectionCounts({ report }: { report: Report }) {
   const rows = Object.entries(report.sections);
   if (rows.length === 0) return null;
   return (
-    <table className="w-full text-left">
-      <thead>
-        <tr className="border-b">
-          <th scope="col" className="py-2 pr-4">{t('import.section')}</th>
-          <th scope="col" className="py-2 pr-4">{t('import.created')}</th>
-          <th scope="col" className="py-2 pr-4">{t('import.unchanged')}</th>
-          <th scope="col" className="py-2 pr-4">{t('import.replaced')}</th>
-          <th scope="col" className="py-2">{t('import.conflict')}</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead scope="col">{t('import.section')}</TableHead>
+          <TableHead scope="col">{t('import.created')}</TableHead>
+          <TableHead scope="col">{t('import.unchanged')}</TableHead>
+          <TableHead scope="col">{t('import.replaced')}</TableHead>
+          <TableHead scope="col">{t('import.conflict')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map(([name, counts]) => (
-          <tr key={name} className="border-b">
-            <th scope="row" className="py-2 pr-4 font-normal">{t(`export.sections.${name}`, { defaultValue: name })}</th>
-            <td className="py-2 pr-4">{counts.created}</td>
-            <td className="py-2 pr-4">{counts.unchanged}</td>
-            <td className="py-2 pr-4">{counts.replaced}</td>
-            <td className="py-2">{counts.conflict}</td>
-          </tr>
+          <TableRow key={name}>
+            <TableHead scope="row" className="font-normal">{t(`export.sections.${name}`, { defaultValue: name })}</TableHead>
+            <TableCell>{counts.created}</TableCell>
+            <TableCell>{counts.unchanged}</TableCell>
+            <TableCell>{counts.replaced}</TableCell>
+            <TableCell>{counts.conflict}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }

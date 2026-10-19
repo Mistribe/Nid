@@ -1,26 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem } from '@/api/errors';
+import { DateField } from '@/components/form/DateField';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { placeFieldError, presentConflict } from '../../investments/entries/entries';
 import { ISO_DATE } from '../../subscriptions/edits/amount';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { CLOSE_SOURCE, invalidateIncome, type IncomeSourceDetail } from '../api';
 
-const input = 'rounded-md border px-3 py-2';
 const PATHS = { endedOn: 'endedOn' } as const;
 
 /**
- * Spec §6: ending a source at a date, in a native modal dialog (the envelope's `CloseDialog` pattern). The page owns
+ * Spec §6: ending a source at a date, in a modal dialog (the envelope's `CloseDialog` pattern). The page owns
  * its open state, the focus and the announcement of the success, so a dialog closed by Escape or « Annuler » announces
  * nothing.
  */
@@ -63,24 +63,24 @@ export function EndDialog({ source, onClose, onDone }: {
   return (
     <ModalDialog title={t('income_detail.ending.title')} onClose={onClose}>
       {(titleId) => (
-        <>
-          <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
-            {problem ? (
-              <>
-                <ProblemMessage problem={problem} />
-                {problem.kind === 'conflict' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
+        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }}>
+          {problem ? (
+            <>
+              <ProblemMessage problem={problem} />
+              {problem.kind === 'conflict' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
             </>
           ) : null}
           <p>{t('income_detail.ending.effect')}</p>
-          <Field label={t('income_detail.ending.date')} error={e.endedOn?.message}>
-            {(c) => <input type="date" max={today} {...c} {...form.register('endedOn')} className={input} />}
-          </Field>
+          <Controller control={form.control} name="endedOn" render={({ field }) => (
+            <Field label={t('income_detail.ending.date')} error={e.endedOn?.message}>
+              {(c) => <DateField {...c} value={field.value} onChange={field.onChange} max={today} />}
+            </Field>
+          )} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>{t('income_detail.cancel')}</Button>
             <Button type="submit" disabled={end.isPending}>{t('income_detail.ending.submit')}</Button>
           </div>
         </form>
-        </>
       )}
     </ModalDialog>
   );

@@ -1,9 +1,18 @@
 {
   "app": { "name": "Nid" },
-  "theme": { "neutre": "Neutre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
+  "theme": { "sobre": "Sobre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
   "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" },
   "access": { "private": "Privé", "shared": "Partagé", "dependent": "Enfant" },
   "owner": { "label_one": "Propriétaire :", "label_other": "Propriétaires :", "pct": "{{value}} %" },
+  "lists": {
+    "sep": "·",
+    "col": {
+      "name": "Nom", "kind": "Type", "owner": "Propriétaire", "value": "Valeur", "gain": "Gain", "updated": "Mise à jour",
+      "net_value": "Valeur nette", "gross_yield": "Rendement brut", "property": "Bien", "remaining": "Restant dû",
+      "next_payment": "Prochaine échéance", "rate": "Taux", "end": "Fin", "payer": "Payeur", "per_month": "Par mois",
+      "cash": "Coût du mois", "amortized": "Coût amorti", "document": "Document", "item": "Élément", "received": "Reçue le", "state": "État"
+    }
+  },
   "problem": {
     "unauthenticated": "Votre session a expiré. Reconnectez-vous pour continuer.",
     "not_found": "Cet élément est introuvable.",
@@ -17,6 +26,7 @@
   "routine": {
     "title": "Routine de {{month}}",
     "date": "Valeurs au",
+    "date_invalid": "Une date passée ou d’aujourd’hui, comme 30/09/2025.",
     "loading": "Chargement de la routine",
     "due": "À relever",
     "others": "Autres enveloppes",
@@ -86,7 +96,11 @@
     "settings": "Réglages",
     "admin": "Administration",
     "security": "Sécurité",
-    "more": "Plus"
+    "more": "Plus",
+    "group_follow": "Suivi",
+    "group_estate": "Patrimoine",
+    "group_budget": "Budget",
+    "routine_badge": "{{count}} à faire"
   },
   "more": {
     "title": "Plus",
@@ -112,6 +126,21 @@
     },
     "title": "Accueil",
     "loading": "Chargement du tableau de bord",
+    "key": {
+      "net_worth": "Patrimoine net",
+      "income": "Revenus / mois",
+      "commitments": "Engagements / mois",
+      "margin": "Reste à vivre",
+      "margin_hint": "avant dépenses courantes"
+    },
+    "month": {
+      "title": "Le mois du foyer",
+      "rest": "Reste {{amount}}"
+    },
+    "notice_one": "{{count}} chose à faire",
+    "notice_other": "{{count}} choses à faire",
+    "notice_income_gap_one": "Renseigner la suite de {{count}} revenu",
+    "notice_income_gap_other": "Renseigner la suite de {{count}} revenus",
     "empty_title": "Bienvenue dans Nid",
     "empty_body": "Commencez par ajouter une enveloppe, un bien, un abonnement ou un revenu : les chiffres du foyer apparaîtront ici.",
     "add_envelope": "Ajouter une enveloppe",
@@ -119,7 +148,6 @@
     "add_income": "Ajouter un revenu",
     "add_property": "Ajouter un bien",
     "unknown_rate": "Inconnu : taux de change manquant ({{code}})",
-    "net_worth": "Patrimoine",
     "net_worth_unknown": "Inconnu : aucune valeur saisie",
     "values_as_of": "Valeurs au {{date}}",
     "stale_one": "{{count}} valeur à mettre à jour",
@@ -128,7 +156,6 @@
     "without_value_other": "{{count}} éléments sans valeur",
     "see_investments": "Voir les placements",
     "see_properties": "Voir les biens",
-    "commitments": "Engagements",
     "commitments_none": "Aucun engagement",
     "commitments_none_this_month": "Aucun coût ce mois-ci",
     "amortized_per_month": "par mois, amorti",
@@ -141,10 +168,8 @@
       "loans": "Crédits {{amount}}",
       "property_costs": "Charges des biens {{amount}}"
     },
-    "income": "Revenus et marge",
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
-    "margin": "Marge avant dépenses courantes : {{amount}}",
     "margin_unknown_rate": "Marge inconnue : taux de change manquant ({{code}})",
     "margin_unknown": "Marge inconnue tant qu’aucun revenu n’est déclaré",
     "see_income": "Voir les revenus",
@@ -155,9 +180,12 @@
     "of_which_paid_in": "dont {{amount}} versés",
     "without_start_one": "{{count}} élément sans valeur récente au 1er janvier",
     "without_start_other": "{{count}} éléments sans valeur récente au 1er janvier",
+    "panel": {
+      "view": "Composition du patrimoine",
+      "by_type": "Par type",
+      "by_person": "Par personne"
+    },
     "split": {
-      "by_envelope": "Répartition par élément",
-      "by_person": "Répartition par personne",
       "envelopes_table": "Valeur de chaque élément",
       "people_table": "Part de chaque personne",
       "col_envelope": "Élément",
@@ -184,13 +212,6 @@
       "loan_end": "Dernière échéance",
       "valuation_due": "Estimation à refaire",
       "tenancy_end": "Fin du bail « {{label}} »"
-    },
-    "todo": {
-      "title": "À faire",
-      "empty": "Rien à faire pour l’instant.",
-      "stale_value": "Mettre à jour {{name}} (dernière valeur le {{date}})",
-      "no_value": "Saisir une première valeur pour {{name}}",
-      "income_gap_soon": "Renseigner la suite de « {{label}} » ({{name}}, fin le {{date}})"
     }
   },
   "export": {
@@ -246,7 +267,9 @@
   },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
-  "common": { "confirm": "Confirmer", "cancel": "Annuler" },
+  "common": { "confirm": "Confirmer",
+    "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "breadcrumb": "Fil d’Ariane" },
+  "form": { "none": "Aucun", "search": "Rechercher", "no_result": "Aucun résultat", "loading": "Chargement…", "currency_option": "{{code}} — {{name}}", "pick_date": "Choisir une date : {{label}}", "date_placeholder": "jj/mm/aaaa" },
   "subscriptions": {
     "title": "Abonnements",
     "add": "Ajouter un abonnement",
@@ -261,18 +284,20 @@
     "status_ended": "Terminés",
     "labels": "Libellés",
     "labels_clear": "Effacer les libellés",
-    "cash": "Coût réel du mois",
-    "amortized": "Coût amorti du mois",
     "next_charge": "Prochaine échéance : {{date}}",
     "expires": "Expire le {{date}}",
     "household_totals": "Total du foyer",
     "shared_purchases_note": "Le total du foyer compte une seule fois les achats partagés entre plusieurs abonnements : il n'est donc pas la somme des lignes.",
     "loading": "Chargement des abonnements",
-    "list_label": "Liste des abonnements",
-    "findings": "Points à vérifier"
+    "list_label": "Liste des abonnements"
   },
   "subscription": {
     "back": "Retour aux abonnements",
+    "next_charge": "Prochaine échéance",
+    "expires": "Expiration",
+    "col_grants": "Temps accordé",
+    "col_label": "Libellé",
+    "col_actions": "Actions",
     "costs": "Coûts du mois",
     "cash": "Coût réel",
     "amortized": "Coût amorti",
@@ -342,12 +367,8 @@
     "cancelled_at": "Date de résiliation",
     "note": "Note",
     "provider": "Fournisseur",
-    "provider_hint": "Tapez le début d’un nom pour chercher.",
-    "provider_choose": "Choisir {{name}}",
-    "provider_clear": "Retirer le fournisseur",
-    "provider_none": "Aucun fournisseur trouvé.",
-    "provider_chosen": "Fournisseur choisi : {{name}}",
-    "provider_create": "Créer « {{name}} »",
+    "provider_hint": "Ouvrez la liste, puis tapez pour chercher.",
+    "provider_new": "Nouveau fournisseur",
     "save_settings": "Enregistrer les réglages",
     "saved": "Modification enregistrée.",
     "reload": "Recharger",
@@ -364,7 +385,9 @@
     "purchase_duration": "Durée couverte",
     "purchase_unit": "Unité",
     "purchase_submit": "Ajouter un achat",
-    "delete_purchase": "Supprimer l’achat {{label}}",
+    "delete_purchase": "Supprimer",
+    "purchase_menu": "Actions de l’achat {{label}}",
+    "purchase_deleted": "Achat supprimé.",
     "delete_confirm": "L’achat et le temps qu’il accorde seront retirés.",
     "read_only": "Cet abonnement ne peut être modifié que par {{names}}.",
     "required": "Ce champ est obligatoire.",
@@ -715,6 +738,7 @@
       "add_title": "Ajouter un adulte",
       "add_hint": "Cette adresse email sera rattachée à cet adulte à sa première connexion, ce qui permet de lui attribuer des éléments avant (un import, par exemple). Son accès à Nid se règle dans le fournisseur d'identité.",
       "add": "Ajouter",
+      "added": "Adulte ajouté.",
       "cap_reached": "Le foyer est limité à {{max}} adultes : relevez le plafond dans Foyer pour en ajouter."
     },
     "household": {
@@ -740,6 +764,7 @@
       "rate": "Taux pour 1 USD",
       "save_rate": "Enregistrer le taux",
       "rate_saved": "Taux enregistré.",
+      "date_invalid": "Une date au format jj/mm/aaaa, comme 30/09/2025.",
       "runs_title": "Journal des collectes",
       "no_runs": "Aucune collecte pour l'instant.",
       "started": "Début",
@@ -904,6 +929,7 @@
     "account_hint": "4 derniers caractères du compte",
     "account_hint_help": "Pour le reconnaître : jamais le numéro complet.",
     "cadence": "Mise à jour de la valeur",
+    "more": "Plus d’options",
     "with_opening": "Versements antérieurs",
     "with_opening_help": "Ce que vous aviez déjà versé avant de suivre l’enveloppe ici.",
     "opening_on": "Date des versements antérieurs",
@@ -970,7 +996,16 @@
     "kind": "Nature",
     "note": "Note",
     "actions": "Actions",
-    "enter": "Saisir",
+    "value_at": "Valeur au {{date}}",
+    "since_january": "Depuis janvier",
+    "enter_value": "Saisir une valeur",
+    "add_flow_open": "Ajouter un flux",
+    "more_actions": "Autres actions",
+    "row_menu": "Actions pour le {{date}}",
+    "row_menu_what": "Actions pour le {{date}} : {{what}}",
+    "last_values": "Dernières valeurs",
+    "see_all_values": "Voir toutes les valeurs",
+    "tab": { "overview": "Vue d’ensemble", "values": "Valeurs ({{count}})", "flows": "Flux ({{count}})", "settings": "Réglages" },
     "new_value": "Nouvelle valeur",
     "edit_value": "Corriger la valeur",
     "replaces": "Une valeur existe déjà à cette date : elle sera remplacée.",
@@ -1042,8 +1077,6 @@
     "none_running_body": "Toutes vos sources de revenu sont terminées.",
     "see_ended": "Voir les sources terminées",
     "per_month": "{{amount}} par mois",
-    "running_one": "{{count}} composante en cours",
-    "running_other": "{{count}} composantes en cours",
     "gap_soon": "« {{label}} » se termine bientôt sans période suivante",
     "kind": {
       "salary": "Salaire", "self_employment": "Activité indépendante", "pension": "Pension", "unemployment": "Chômage",
@@ -1065,6 +1098,8 @@
     "visibility_private": "Non, privé",
     "visibility_required": "Répondez à cette question.",
     "components": "Composantes",
+    "step_essentials": "La source",
+    "step_components": "Les composantes",
     "components_help": "Le salaire de base, une prime annuelle… chacune avec son montant et sa fréquence.",
     "component_n": "Composante {{n}}",
     "first_label": "Salaire de base",
@@ -1090,6 +1125,9 @@
   },
   "income_detail": {
     "back": "Retour aux revenus",
+    "tab": { "overview": "Vue d’ensemble", "oneoffs": "Exceptionnels", "settings": "Réglages" },
+    "more_actions": "Autres actions",
+    "phase_menu": "Actions de la période {{label}} du {{date}}",
     "loading": "Chargement du revenu",
     "read_only": "Vous pouvez consulter ce revenu, pas le modifier.",
     "ended_banner": "Source terminée",
@@ -1161,6 +1199,7 @@
       "done": "Montant changé."
     },
     "one_offs": {
+      "menu": "Actions du revenu exceptionnel du {{date}} : {{amount}}",
       "title": "Revenus exceptionnels",
       "table": "Revenus exceptionnels des 12 derniers mois",
       "add": "Ajouter un revenu exceptionnel",
@@ -1201,14 +1240,13 @@
     "none_running_title": "Aucun crédit en cours",
     "none_running_body": "Tous vos crédits sont terminés.",
     "see_ended": "Voir les crédits terminés",
-    "remaining": "Reste {{balance}} sur {{principal}}",
-    "next_payment": "Prochaine échéance le {{date}} : {{amount}}, assurance comprise",
-    "rate": "Taux {{rate}} %",
-    "ends_on": "Fin le {{date}}",
     "percent": "{{rate}} %"
   },
   "loan_form": {
     "title": "Nouveau crédit",
+    "step_essentials": "Le crédit",
+    "step_loan": "Le prêt",
+    "step_insurance": "Les assurances",
     "name": "Nom",
     "lender": "Prêteur",
     "lender_help": "La banque ou l’organisme, sans numéro de compte.",
@@ -1289,16 +1327,26 @@
       "bank_schedule_unfit": "Le tableau de la banque ne correspond plus à ce crédit : le calcul sert de référence. Remplacez ou supprimez le tableau."
     },
     "figures": "Aujourd’hui",
-    "balance": "Capital restant dû",
+    "tab": { "overview": "Vue d’ensemble", "schedule": "Échéancier", "operations": "Opérations", "contract": "Contrat et réglages" },
+    "simulate": "Simuler un remboursement",
+    "remaining": "Restant dû",
     "principal": "Capital emprunté",
     "next_payment": "Prochaine échéance",
-    "next_payment_value": "{{date}} : {{amount}}, assurance comprise",
+    "next_payment_value": "{{date}} : {{amount}}",
+    "insurance_included": "Mensualités assurance comprise.",
     "no_next_payment": "Aucune : le crédit est terminé.",
     "current_rate": "Taux actuel",
     "current_rate_value": "{{rate}} % (phase {{phase}})",
-    "payments_left": "Échéances restantes",
-    "end_date": "Dernière échéance",
+    "end": "Fin",
+    "end_value_one": "{{date}} · {{count}} échéance restante",
+    "end_value_other": "{{date}} · {{count}} échéances restantes",
+    "payments_left_one": "{{count}} échéance restante",
+    "payments_left_other": "{{count}} échéances restantes",
+    "progress": "{{repaid}} remboursés sur {{principal}}",
     "principal_repaid": "Capital remboursé",
+    "upcoming": "Prochaines échéances",
+    "cost": "Coût du crédit",
+    "row_menu_what": "Actions pour le {{date}} : {{what}}",
     "interest_paid": "Intérêts à ce jour",
     "insurance_paid": "Assurance payée",
     "fees_paid": "Frais payés",
@@ -1500,12 +1548,8 @@
     "add": "Ajouter un bien",
     "empty_title": "Aucun bien pour l’instant",
     "empty_body": "Ajoutez un bien pour suivre sa valeur, ce qu’il a coûté et ce qu’il vaut une fois ses crédits déduits.",
-    "value": "Valeur {{amount}} au {{date}}",
     "not_estimated": "Pas encore estimé",
     "stale": "À réestimer",
-    "net_value": "Valeur nette {{amount}}",
-    "gross_yield": "Rendement brut {{rate}}",
-    "vacancy": "Vacance {{rate}}",
     "unknown_rate": "—"
   },
   "property_form": {
@@ -1514,7 +1558,8 @@
     "currency": "Devise",
     "note": "Note",
     "visibility": "Ce bien est-il visible de l’autre adulte ?",
-    "the_property": "Le bien",
+    "step_essentials": "Le bien",
+    "step_purchase": "L’achat",
     "type": "Type de bien",
     "type_option": { "primary_residence": "Résidence principale", "secondary_residence": "Résidence secondaire", "rental": "Bien locatif", "parking": "Parking", "land": "Terrain", "other": "Autre" },
     "purchase_date": "Date d’achat",
@@ -1552,6 +1597,8 @@
       "rental_without_tenancy": "Bien locatif sans bail ni date de début de location"
     },
     "figures": "Aujourd’hui",
+    "tab": { "overview": "Vue d’ensemble", "rental": "Location", "valuations": "Estimations", "expenses": "Dépenses", "settings": "Réglages" },
+    "cost_title": "Coût réel",
     "value": "Valeur",
     "value_on": "{{amount}} au {{date}}",
     "value_stale": "{{amount}} au {{date}} — À réestimer",
@@ -1694,14 +1741,13 @@
         "1": { "title": "Quatre questions, une minute", "body": "L’accueil répond à ce que vous possédez, aux engagements en cours, à la façon dont les choses ont évolué et à ce qui arrive bientôt. Tout se lit sans rien ouvrir." },
         "2": { "title": "Une valeur inconnue le dit", "body": "Quand un chiffre ne peut pas être calculé, l’accueil écrit « Inconnu » ou « Inconnue » et en donne la raison : une valeur manquante, un taux de change absent. Il n’affiche jamais 0 à la place." },
         "3": { "title": "Foyer ou Moi", "body": "« Foyer » compte ce qui est partagé. « Moi » compte le partagé et, en plus, les éléments visibles de vous seulement. L’autre adulte voit ses propres chiffres de la même façon." },
-        "4": { "title": "Garder les chiffres justes", "body": "Une valeur « À mettre à jour » est devenue trop ancienne : le patrimoine reste juste en la rafraîchissant. Commencez par ouvrir une ligne de « À faire »." }
+        "4": { "title": "Garder les chiffres justes", "body": "Une valeur « À mettre à jour » est devenue trop ancienne : le patrimoine reste juste en la rafraîchissant. Commencez par ouvrir la ligne « à faire » en haut de l’accueil." }
       },
       "tour": {
-        "tiles": { "title": "Patrimoine, engagements, revenus", "body": "Ces tuiles résument ce que vous possédez, ce que vous payez chaque mois, « Revenus et marge » et « Évolution depuis le 1er janvier ». Les liens « Voir les … » mènent à la section concernée." },
+        "tiles": { "title": "Les quatre chiffres clés", "body": "Patrimoine net et son évolution depuis le 1er janvier, revenus, engagements et reste à vivre du mois. Cliquez sur un chiffre pour le détail." },
+        "month": { "title": "Le mois du foyer", "body": "Cette barre répartit vos revenus du mois entre abonnements, crédits, charges des biens et ce qu’il reste. La légende donne chaque montant." },
         "curve": { "title": "Évolution du patrimoine", "body": "La courbe compare la valeur de votre patrimoine à ce que vous y avez versé. Choisissez la période : 12 mois, 3 ans ou tout." },
-        "split": { "title": "Répartition par élément", "body": "Ce graphique montre la part de chaque enveloppe ou bien dans le total, puis la part de chaque personne. Un tableau en donne les montants exacts." },
         "upcoming": { "title": "À venir", "body": "Renouvellements, fins de phase d’un crédit, estimations à refaire : tout ce qui change dans les 60 prochains jours." },
-        "todo": { "title": "À faire", "body": "Ce sont les valeurs trop anciennes ou jamais saisies, et les revenus dont la suite reste à renseigner. Chaque ligne mène à l’endroit où agir." },
         "scope": { "title": "Portée", "body": "Ce sélecteur change la portée de tous les chiffres de la page. « Foyer » ne compte que le partagé, « Moi » y ajoute vos éléments privés." }
       }
     },
@@ -1723,8 +1769,8 @@
       "tour": {
         "figures": { "title": "Valeur et gain", "body": "Ici se lisent la dernière valeur, les versements nets et le gain, avant fiscalité. Les « Frais payés » et les « Revenus perçus » hors de l’enveloppe sont comptés à part." },
         "evolution": { "title": "Évolution", "body": "La courbe place la valeur face aux versements nets. Elle apparaît à partir de deux valeurs, et un tableau est proposé en alternative." },
-        "enter": { "title": "Saisir", "body": "Cette section réunit le formulaire d’une valeur et celui d’un flux, versement ou retrait. Une valeur saisie à une date déjà connue remplace l’ancienne." },
-        "history": { "title": "Valeurs", "body": "Ce tableau liste chaque valeur donnée, avec sa date et sa note. Vous pouvez corriger une ligne. Les flux, versements, retraits, frais et revenus, ont leur tableau juste en dessous." }
+        "enter": { "title": "Saisir une valeur", "body": "Ce bouton ouvre le formulaire d’une valeur ; « Ajouter un flux » enregistre un versement ou un retrait. Une valeur saisie à une date déjà connue remplace l’ancienne." },
+        "history": { "title": "Valeurs et flux", "body": "Les onglets séparent la vue d’ensemble, les valeurs données, les flux (versements, retraits, frais et revenus) et les réglages. Dans un tableau, le menu ⋯ d’une ligne permet de la corriger ou de la supprimer." }
       }
     },
     "income": {
@@ -1750,10 +1796,9 @@
       },
       "hint": "Ouvrez un crédit puis touchez ? pour voir la visite de sa fiche.",
       "tour": {
-        "figures": { "title": "Aujourd’hui", "body": "Capital restant dû, prochaine échéance et « Taux actuel » avec sa phase. « Coût à ce jour » additionne intérêts, assurance et frais déjà payés ; « Coût à venir » ce qu’il reste à payer." },
-        "simulation": { "title": "Simuler un remboursement anticipé", "body": "Saisissez une date, un montant et une pénalité éventuelle : la simulation compare les deux effets possibles sans rien enregistrer." },
-        "bank": { "title": "Tableau de la banque", "body": "Importez ici le tableau de votre banque pour le comparer au calcul. Vous pouvez ensuite le choisir comme référence, le remplacer ou le supprimer." },
-        "schedule": { "title": "Échéancier", "body": "L’année suffit pour suivre un crédit : le capital restant dû au 31 décembre dit ce que vous devez encore en fin d’année, et sa baisse d’une année à l’autre montre le capital vraiment remboursé, échéances et remboursements anticipés compris, hors intérêts et assurance." }
+        "figures": { "title": "Aujourd’hui", "body": "Capital restant dû, prochaine échéance, « Taux actuel » avec sa phase et fin du crédit. Dans « Vue d’ensemble », la barre montre la part du capital déjà remboursée et « Coût à ce jour » additionne intérêts, assurance et frais déjà payés ; « Coût à venir » ce qu’il reste à payer." },
+        "simulation": { "title": "Simuler un remboursement anticipé", "body": "Ce bouton ouvre l’onglet « Opérations » : saisissez une date, un montant et une pénalité éventuelle, et la simulation compare les deux effets possibles sans rien enregistrer." },
+        "schedule": { "title": "Échéancier", "body": "Une ligne par année : le capital restant dû au 31 décembre dit ce que vous devez encore en fin d’année, et sa baisse d’une année à l’autre montre le capital vraiment remboursé, échéances et remboursements anticipés compris, hors intérêts et assurance. Le tableau de votre banque s’importe aussi ici, pour le comparer au calcul et le choisir comme référence." }
       }
     },
     "routine": {
@@ -1786,6 +1831,7 @@
   "proposals": {
     "title": "À valider",
     "tabs": "Statut",
+    "list": "Liste des propositions",
     "loading": "Chargement des propositions",
     "unknown_summary": "{{kind}} — {{target}}",
     "tab": { "pending": "En attente", "approved": "Approuvées", "rejected": "Rejetées" },

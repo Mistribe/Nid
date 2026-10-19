@@ -59,7 +59,8 @@ describe('the routine', () => {
     expect(within(due).getByLabelText('Valeur de PEA')).toHaveValue('1000.00');
     expect(within(due).getByText('1 000,00 € au 31 août 2025')).toBeInTheDocument();
     expect(within(due).getByLabelText('Valeur de Livret A')).toHaveValue('');
-    expect(screen.getByText('Autres enveloppes').closest('details')).not.toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: 'Autres enveloppes' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Valeur de Manuel')).toBeNull();
     expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeEnabled();
     await expectNoAxeViolations(container);
   });
@@ -132,11 +133,25 @@ describe('the routine', () => {
     expect(livret).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('opens the folded others when a refusal lands on one of their rows', async () => {
+    serve(routine(lines()));
+    const { user } = await renderApp('/routine');
+
+    await user.click(await screen.findByRole('button', { name: 'Autres enveloppes' }));
+    await user.type(screen.getByLabelText('Valeur de Manuel'), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Autres enveloppes' }));
+    expect(screen.queryByLabelText('Valeur de Manuel')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
+
+    expect(await screen.findByText('Un montant comme 1200 ou 1200,50')).toBeInTheDocument();
+    expect(screen.getByLabelText('Valeur de Manuel')).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('says when everything is up to date and opens the others', async () => {
     serve(routine([line({ due: false, lastAsOf: '2025-09-30' })]));
     await renderApp('/routine');
     expect(await screen.findByText('Tout est à jour pour septembre 2025.')).toBeInTheDocument();
-    expect(screen.getByText('Autres enveloppes').closest('details')).toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: 'Autres enveloppes' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: 'Enregistrer les placements' })).toBeDisabled();
   });
 
@@ -146,6 +161,28 @@ describe('the routine', () => {
     await renderApp('/routine?on=2025-08-31');
     expect(await screen.findByRole('heading', { level: 1, name: 'Routine de août 2025' })).toBeInTheDocument();
     expect(seen[0]).toContain('on=2025-08-31');
+  });
+
+  it('opens the typed past date and refuses a later one', async () => {
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/investments/routine', ({ request }) => { seen.push(new URL(request.url).search); return HttpResponse.json(routine(lines(), '2025-08-31')); }));
+    const { user, router } = await renderApp('/routine');
+    const date = await screen.findByLabelText('Valeurs au');
+
+    await user.clear(date);
+    await user.type(date, '31/12/2025');
+    expect(await screen.findByText(/Une date passée ou d’aujourd’hui/)).toBeInTheDocument();
+    expect(date).toHaveAttribute('aria-invalid', 'true');
+    expect(router.state.location.search).not.toHaveProperty('on');
+
+    await user.clear(date);
+    await user.type(date, '31/08/2025');
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ on: '2025-08-31' }));
+    expect(screen.queryByText(/Une date passée ou d’aujourd’hui/)).toBeNull();
+
+    await user.clear(date);
+    expect(date).toHaveValue('');
+    expect(screen.queryByText(/Une date passée ou d’aujourd’hui/)).toBeNull();
   });
 
   it('refetches the list after a save', async () => {
@@ -230,6 +267,8 @@ describe('the routine', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
     await user.click(await screen.findByRole('button', { name: 'Annuler' }));
     expect(await screen.findByText('Routine annulée.')).toBeInTheDocument();
+    // PEA is no longer due after the save: its row is among the folded ones.
+    await user.click(screen.getByRole('button', { name: 'Autres enveloppes' }));
     expect(screen.getByLabelText('Versements du mois sur PEA')).toHaveValue('50');
     expect(screen.getByLabelText('Versements du mois sur Livret A')).toHaveValue('');
   });

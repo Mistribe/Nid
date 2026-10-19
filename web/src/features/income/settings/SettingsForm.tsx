@@ -1,17 +1,19 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Presentation } from '@/api/errors';
+import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { presentConflict } from '../../investments/entries/entries';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { knownConflictMessage } from '../../subscriptions/fieldErrors';
@@ -78,28 +80,28 @@ export function SettingsForm({ source, onStart, onDone }: { source: IncomeSource
         : errors.problem;
 
   return (
-    <form aria-label={t('income_detail.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
+    <form aria-label={t('income_detail.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-xl space-y-3">
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
           {problem.kind === 'conflict' ? <Reload onReload={() => invalidateIncome(queryClient)} /> : null}
         </>
       ) : null}
-      <Field label={t('income_form.name')} error={e.displayName?.message}>
-        {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
-      </Field>
-      <Field label={t('income_form.kind')} error={e.kind?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('kind')}>
-            {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`income.kind.${k}`)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t('income_form.name')} error={e.displayName?.message}>
+          {(c) => <Input {...c} {...form.register('displayName')} />}
+        </Field>
+        <Controller control={form.control} name="kind" render={({ field }) => (
+          <Field label={t('income_form.kind')} error={e.kind?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange} options={KINDS.map((k) => ({ value: k, label: t(`income.kind.${k}`) }))} />}
+          </Field>
+        )} />
+      </div>
       <Field label={t('income_form.payer')} hint={t('income_form.payer_help')} error={e.payerLabel?.message}>
-        {(c) => <input {...c} {...form.register('payerLabel')} className="w-full" />}
+        {(c) => <Input {...c} {...form.register('payerLabel')} />}
       </Field>
       <Field label={t('income_form.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
       <Button type="submit" disabled={save.isPending}>{t('income_detail.settings.submit')}</Button>
     </form>

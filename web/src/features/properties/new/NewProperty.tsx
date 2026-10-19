@@ -1,24 +1,35 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useId } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { useId, useState } from 'react';
+import { Controller, FormProvider, useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
+import { CurrencyField } from '@/components/form/CurrencyField';
+import { Field } from '@/components/form/Field';
+import { Segmented } from '@/components/form/Segmented';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { PageHeader } from '@/components/page/PageHeader';
+import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Folded } from '../../loans/new/Folded';
 import { PERSONS } from '../../subscriptions/api';
-import { Field } from '../../subscriptions/edits/Field';
+import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, PROPERTIES } from '../api';
 import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './propertyForm';
-import { PropertyFields } from './PropertyFields';
+import { IdentityFields, PurchaseFields } from './PropertyFields';
 
-const input = 'rounded-md border px-3 py-2';
+/** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
+const FIELDS = {
+  essentials: ['name', 'type', 'locationLabel', 'visibility', 'owners', 'currency', 'note'],
+  purchase: ['purchaseDate', 'purchasePrice', 'notaryFees', 'agencyFees', 'otherAcquisitionCosts', 'surfaceM2', 'valuationCadence', 'staleAfterDays'],
+} as const;
 
-/** 3D1 design §5: a property, its visibility answered explicitly, in one request; no estimate is asked here. */
+/** 3D1 design §5: a property, its visibility answered explicitly, in two steps and one request; no estimate is asked here. */
 export function NewProperty() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -26,8 +37,8 @@ export function NewProperty() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const people = $api.useQuery('get', PERSONS);
+  const visibilityId = useId();
   const visibilityErrorId = useId();
-  const propertyId = useId();
   const form = useForm<NewPropertyValues>({
     resolver: zodResolver(newPropertySchema(t)),
     // `visibility` is left out on purpose: neither answer is checked until the person picks one.
@@ -37,49 +48,69 @@ export function NewProperty() {
       surfaceM2: '', locationLabel: '', valuationCadence: 'yearly', staleAfterDays: '',
     },
   });
+  const [reveal, setReveal] = useState<{ step: string } | null>(null);
   const errors = useSubmitErrors(form.setError, newPropertyPath);
   const create = $api.useMutation('post', PROPERTIES, {
     onSuccess: ({ id }) => {
       void invalidateProperties(queryClient);
       void navigate({ to: '/properties/$id', params: { id } });
     },
-    onError: (error) => errors.onError(error),
+    onError: (error) => {
+      errors.onError(error);
+      // The refusal lands on the last step: go back to the first step that holds a field it names.
+      const roots = fieldErrorsOf(error).map((f) => errors.nameOf(f.path)?.split('.')[0]);
+      const step = (Object.keys(FIELDS) as (keyof typeof FIELDS)[]).find((id) => roots.some((r) => (FIELDS[id] as readonly (string | undefined)[]).includes(r)));
+      setReveal(step ? { step } : null);
+    },
   });
   const e = form.formState.errors;
 
+  const essentials = (
+    <>
+      <Field label={t('property_form.name')} error={e.name?.message}>
+        {(c) => <Input {...c} {...form.register('name')} />}
+      </Field>
+      <IdentityFields />
+      <div className="space-y-1">
+        <span id={visibilityId} className="block text-sm">{t('property_form.visibility')}</span>
+        <Controller control={form.control} name="visibility" render={({ field }) => (
+          <Segmented aria-labelledby={visibilityId} aria-describedby={e.visibility ? visibilityErrorId : undefined}
+            aria-invalid={e.visibility ? true : undefined} value={field.value ?? ''} onValueChange={field.onChange}
+            options={(['shared', 'private'] as const).map((v) => ({ value: v, label: t(`loan_form.visibility_${v}`) }))} />
+        )} />
+        {e.visibility ? <p id={visibilityErrorId} className="text-sm text-destructive">{e.visibility.message}</p> : null}
+      </div>
+      <OwnershipFields form={form} persons={people.data ?? []} withVisibility={false} />
+      <Folded label={t('loan_form.more_options')} hasError={Boolean(e.currency || e.note)}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Controller control={form.control} name="currency" render={({ field }) => (
+            <Field label={t('property_form.currency')} error={e.currency?.message}>
+              {(c) => <CurrencyField {...c} value={field.value} onValueChange={field.onChange} />}
+            </Field>
+          )} />
+        </div>
+        <Field label={t('property_form.note')} error={e.note?.message}>
+          {(c) => <Textarea {...c} {...form.register('note')} />}
+        </Field>
+      </Folded>
+    </>
+  );
+
   return (
-    <article className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-semibold">{t('property_form.title')}</h1>
+    <article className="max-w-3xl space-y-4">
+      <PageHeader crumbs={[{ label: t('nav.properties'), to: '/properties' }]} title={t('property_form.title')} />
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       {/* The property's fields are shared with the settings (3D1 design §6): they read this form from the context. */}
       <FormProvider {...form}>
-        <form noValidate onSubmit={(ev) => void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })(ev)} className="space-y-4">
-          <Field label={t('property_form.name')} error={e.name?.message}>
-            {(c) => <input {...c} {...form.register('name')} className={`w-full ${input}`} />}
-          </Field>
-          <Field label={t('property_form.currency')} error={e.currency?.message}>
-            {(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}
-          </Field>
-          <Field label={t('property_form.note')} error={e.note?.message}>
-            {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
-          </Field>
-          <fieldset aria-describedby={e.visibility ? visibilityErrorId : undefined} className="space-y-1">
-            <legend className="text-sm">{t('property_form.visibility')}</legend>
-            {(['shared', 'private'] as const).map((v) => (
-              <label key={v} className="flex items-center gap-2">
-                <input type="radio" value={v} {...form.register('visibility')} />
-                {t(`loan_form.visibility_${v}`)}
-              </label>
-            ))}
-            {e.visibility ? <p id={visibilityErrorId} className="text-sm text-destructive">{e.visibility.message}</p> : null}
-          </fieldset>
-          <OwnershipFields form={form} persons={people.data ?? []} withVisibility={false} />
-          <section aria-labelledby={propertyId} className="space-y-3">
-            <h2 id={propertyId} className="text-lg font-semibold">{t('property_form.the_property')}</h2>
-            <PropertyFields />
-          </section>
-          <Button type="submit" disabled={create.isPending}>{t('property_form.submit')}</Button>
-        </form>
+        <StepForm
+          trigger={(fields) => form.trigger(fields as Path<NewPropertyValues>[])}
+          onSubmit={() => void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })()}
+          submitLabel={t('property_form.submit')} pending={create.isPending} reveal={reveal}
+          steps={[
+            { id: 'essentials', title: t('property_form.step_essentials'), fields: [...FIELDS.essentials], content: essentials },
+            { id: 'purchase', title: t('property_form.step_purchase'), fields: [...FIELDS.purchase], content: <PurchaseFields /> },
+          ]}
+        />
       </FormProvider>
     </article>
   );

@@ -1,10 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { DateField } from '@/components/form/DateField';
+import { Field } from '@/components/form/Field';
+import { FormDialog } from '@/components/FormDialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from './format';
@@ -16,7 +21,6 @@ const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status
 const NOTICE = {
   sync_requested: 'admin.fx.sync_requested',
   already_running: 'admin.fx.already_running',
-  rate_saved: 'admin.fx.rate_saved',
 } as const;
 
 /** screens.md §12, Taux de change: manual entry, on-demand collection, and the collection journal. */
@@ -25,7 +29,9 @@ export function FxPage() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
+  const [entering, setEntering] = useState(false);
   const [notice, setNotice] = useState<keyof typeof NOTICE | null>(null);
+  const [saved, setSaved] = useState('');
   const runs = $api.useQuery('get', RUNS);
 
   const fail = (error: unknown) => {
@@ -46,25 +52,6 @@ export function FxPage() {
       } else fail(error);
     },
   });
-  const manual = $api.useMutation('put', '/api/v1/core/fx-rates/{date}/{quote}', {
-    onSuccess: () => {
-      setProblem(null);
-      setNotice('rate_saved');
-    },
-    onError: fail,
-  });
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const fields = new FormData(form);
-    const date = (fields.get('date') as string | null) ?? '';
-    const quote = ((fields.get('quote') as string | null) ?? '').trim().toUpperCase();
-    // A French keyboard types a comma; the wire wants a decimal point (rates are decimal strings, like amounts).
-    const rate = ((fields.get('rate') as string | null) ?? '').trim().replace(',', '.');
-    manual.mutate({ params: { path: { date, quote } }, body: { rate } }, { onSuccess: () => form.reset() });
-  };
-
   // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
   const kindLabel = (kind: string) => (kind in KIND ? t(KIND[kind as keyof typeof KIND]) : kind);
   const statusLabel = (status: string) => (status in STATUS ? t(STATUS[status as keyof typeof STATUS]) : status);
@@ -72,7 +59,7 @@ export function FxPage() {
   return (
     <AdminFrame title={t('admin.fx.title')}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      {notice ? <p role="status">{t(NOTICE[notice])}</p> : null}
+      {notice ? <p role="status">{t(NOTICE[notice])}</p> : saved ? <p role="status">{saved}</p> : null}
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.sync_title')}</h2>
@@ -85,22 +72,11 @@ export function FxPage() {
         />
       </section>
 
-      <form onSubmit={submit} className="max-w-md space-y-3">
+      <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.manual_title')}</h2>
-        <label className="block">
-          <span className="block text-sm">{t('admin.fx.date')}</span>
-          <input name="date" type="date" required className="w-full rounded-md border px-3 py-2" />
-        </label>
-        <label className="block">
-          <span className="block text-sm">{t('admin.fx.quote')}</span>
-          <input name="quote" required maxLength={3} className="w-full rounded-md border px-3 py-2 uppercase" />
-        </label>
-        <label className="block">
-          <span className="block text-sm">{t('admin.fx.rate')}</span>
-          <input name="rate" required inputMode="decimal" className="w-full rounded-md border px-3 py-2" />
-        </label>
-        <Button type="submit" disabled={manual.isPending}>{t('admin.fx.save_rate')}</Button>
-      </form>
+        <Button variant="outline" onClick={() => { setNotice(null); setSaved(''); setEntering(true); }}>{t('admin.fx.manual_title')}</Button>
+      </section>
+      {entering ? <ManualRateDialog onClose={() => setEntering(false)} onDone={(message) => { setEntering(false); setProblem(null); setNotice(null); setSaved(message); }} /> : null}
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">{t('admin.fx.runs_title')}</h2>
@@ -108,30 +84,74 @@ export function FxPage() {
         {!runs.data && !runs.error ? <AdminSkeleton /> : null}
         {runs.data && runs.data.length === 0 ? <p>{t('admin.fx.no_runs')}</p> : null}
         {runs.data && runs.data.length > 0 ? (
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b">
-                <th scope="col" className="py-2 pr-4">{t('admin.fx.started')}</th>
-                <th scope="col" className="py-2 pr-4">{t('admin.fx.kind')}</th>
-                <th scope="col" className="py-2 pr-4">{t('admin.fx.status')}</th>
-                <th scope="col" className="py-2 pr-4">{t('admin.fx.rows')}</th>
-                <th scope="col" className="py-2">{t('admin.fx.failure')}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('admin.fx.started')}</TableHead>
+                <TableHead>{t('admin.fx.kind')}</TableHead>
+                <TableHead>{t('admin.fx.status')}</TableHead>
+                <TableHead>{t('admin.fx.rows')}</TableHead>
+                <TableHead>{t('admin.fx.failure')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {runs.data.map((r) => (
-                <tr key={r.id} className="border-b">
-                  <td className="py-2 pr-4">{formatInstant(r.startedAt)}</td>
-                  <td className="py-2 pr-4">{kindLabel(r.kind)}</td>
-                  <td className="py-2 pr-4">{statusLabel(r.status)}</td>
-                  <td className="py-2 pr-4">{r.rowsWritten}</td>
-                  <td className="py-2">{r.failureCode}</td>
-                </tr>
+                <TableRow key={r.id}>
+                  <TableCell>{formatInstant(r.startedAt)}</TableCell>
+                  <TableCell>{kindLabel(r.kind)}</TableCell>
+                  <TableCell>{statusLabel(r.status)}</TableCell>
+                  <TableCell>{r.rowsWritten}</TableCell>
+                  <TableCell>{r.failureCode}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         ) : null}
       </section>
     </AdminFrame>
+  );
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** « Saisir un taux »: one rate for one day, in a dialog; the page owns the announcement. */
+function ManualRateDialog({ onClose, onDone }: { onClose: () => void; onDone: (message: string) => void }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [date, setDate] = useState('');
+  const [errors, setErrors] = useState({ date: '', quote: '', rate: '' });
+  const manual = $api.useMutation('put', '/api/v1/core/fx-rates/{date}/{quote}');
+  const problem = manual.error ? present(toProblem(manual.error)) : null;
+
+  return (
+    <FormDialog title={t('admin.fx.manual_title')} onClose={onClose} onDone={onDone}>
+      {({ titleId, done }) => (
+        <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const fields = new FormData(event.currentTarget);
+          const quote = ((fields.get('quote') as string | null) ?? '').trim().toUpperCase();
+          // A French keyboard types a comma; the wire wants a decimal point (rates are decimal strings, like amounts).
+          const rate = ((fields.get('rate') as string | null) ?? '').trim().replace(',', '.');
+          const errors = {
+            date: ISO_DATE.test(date) ? '' : t('admin.fx.date_invalid'),
+            quote: quote ? '' : t('edit.required'),
+            rate: rate ? '' : t('edit.required'),
+          };
+          setErrors(errors);
+          if (errors.date || errors.quote || errors.rate) return;
+          manual.mutate({ params: { path: { date, quote } }, body: { rate } }, { onSuccess: () => done(t('admin.fx.rate_saved')) });
+        }}>
+          {problem ? <ProblemMessage problem={problem} /> : null}
+          <Field label={t('admin.fx.date')} error={errors.date}>{(c) => <DateField {...c} value={date} onChange={setDate} />}</Field>
+          <Field label={t('admin.fx.quote')} error={errors.quote}>{(c) => <Input {...c} name="quote" required maxLength={3} className="uppercase" />}</Field>
+          <Field label={t('admin.fx.rate')} error={errors.rate}>{(c) => <Input {...c} name="rate" required inputMode="decimal" />}</Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
+            <Button type="submit" disabled={manual.isPending}>{t('admin.fx.save_rate')}</Button>
+          </div>
+        </form>
+      )}
+    </FormDialog>
   );
 }

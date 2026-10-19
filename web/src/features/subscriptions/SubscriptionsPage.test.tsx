@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -28,10 +28,10 @@ const two = list([
     findings: [{ code: 'subscriptions.gap', message: 'Un trou de couverture existe.', reference: null }] }),
 ]);
 
-/** The rows of the loaded list, not the skeleton's nor a row's findings. */
+/** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
 async function rows(): Promise<HTMLElement[]> {
-  const list = await screen.findByRole('list', { name: 'Liste des abonnements' });
-  return within(list).getAllByRole('listitem').filter((item) => item.parentElement === list);
+  const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
+  return within(table).getAllByRole('row').slice(1);
 }
 
 function serve(body: ListResponse, seen: string[] = []) {
@@ -42,44 +42,48 @@ function serve(body: ListResponse, seen: string[] = []) {
 }
 
 describe('Abonnements › liste', () => {
+  beforeAll(async () => { await import('./SubscriptionsPage'); }, 30_000);
   afterEach(() => vi.useRealTimers());
 
-  it('shows each subscription with its costs, next charge or expiry, findings and the household totals', async () => {
-    serve(two);
+  it('shows one table row per item with its owner, and the household totals in a stats line', async () => {
+    const alice = '0192f0aa-0000-7000-8000-0000000000a1';
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
+    serve(list([summary({ owners: [{ personId: alice, shareBp: 10000 }] }), two.items[1]!]));
     const { container } = await renderApp('/subscriptions');
 
+    const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
+      .toEqual(['Nom', 'Propriétaire', 'Coût du mois', 'Coût amorti', 'Prochaine échéance']);
     const shown = await rows();
     expect(shown).toHaveLength(2);
     expect(within(shown[0]!).getByText('Netflix')).toBeInTheDocument();
-    expect(within(shown[0]!).getAllByText('13,49 €').length).toBeGreaterThan(0);
-    expect(within(shown[0]!).getByText(/Prochaine échéance/)).toBeInTheDocument();
-    expect(within(shown[1]!).getByText(/Expire le/)).toBeInTheDocument();
-    expect(within(shown[1]!).getByText('Un trou de couverture existe.')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Total du foyer' })).toHaveTextContent('20,98 €');
+    await waitFor(() => expect(shown[0]).toHaveTextContent('Alice'));
+    expect(shown[0]).toHaveTextContent('13,49 €');
+    expect(shown[0]).toHaveTextContent('1 nov. 2025');
+    expect(shown[1]).toHaveTextContent('Expire le 1 janv. 2025');
+    const totals = screen.getAllByText('20,98 €')[0]!.closest('dl')!;
+    expect(within(totals).getByText('Coût du mois')).toBeInTheDocument();
+    expect(within(totals).getByText('Coût amorti')).toBeInTheDocument();
     expect(screen.queryByText(/compte une seule fois/)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
-  it('hides the horizon finding and reads the others in French', async () => {
-    serve(list([summary({
-      findings: [
-        { code: 'subscriptions.horizon_reached', message: 'The walk stopped at the horizon; the subscription runs beyond it.', reference: null },
-        { code: 'subscriptions.grant_overlap', message: 'A grant with an explicit start overlaps existing coverage.', reference: null },
-      ],
-    })]));
-    await renderApp('/subscriptions');
+  it('sorts by the cost of the month', async () => {
+    serve(two);
+    const { user } = await renderApp('/subscriptions');
 
-    const [row] = await rows();
-    expect(within(row!).getByText(/chevauche une couverture existante/)).toBeInTheDocument();
-    expect(screen.queryByText(/The walk stopped/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/A grant with/)).not.toBeInTheDocument();
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/Netflix|Ancien VPN/)?.[0]);
+    expect(await names()).toEqual(['Netflix', 'Ancien VPN']);
+    await user.click(within(screen.getByRole('table', { name: 'Liste des abonnements' })).getByRole('button', { name: 'Coût du mois' }));
+    expect(await names()).toEqual(['Ancien VPN', 'Netflix']);
   });
 
-  it('shows no findings list when the horizon is the only finding', async () => {
-    serve(list([summary({ findings: [{ code: 'subscriptions.horizon_reached', message: 'The walk stopped.', reference: null }] })]));
+  it('does not show the findings on the rows', async () => {
+    serve(two);
     await renderApp('/subscriptions');
 
     await rows();
+    expect(screen.queryByText('Un trou de couverture existe.')).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Points à vérifier' })).not.toBeInTheDocument();
   });
 
@@ -110,7 +114,7 @@ describe('Abonnements › liste', () => {
     expect(await rows()).toHaveLength(1);
 
     await user.clear(screen.getByLabelText('Rechercher par nom'));
-    await user.selectOptions(screen.getByLabelText('État'), 'ended');
+    await user.click(screen.getByRole('radio', { name: 'Terminés' }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ status: 'ended' }));
     expect((await rows()).map((r) => within(r).getByRole('link').textContent)).toEqual([expect.stringContaining('Ancien VPN')]);
   });
@@ -140,33 +144,39 @@ describe('Abonnements › liste', () => {
     summary({ id: '0192f0aa-0000-7000-8000-000000000003', displayName: 'Sans fournisseur' }),
   ]);
 
-  it('filters by the labels turned on, writes them into the address, and clears them', async () => {
+  const openLabels = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
+    await user.click(await screen.findByRole('button', { name: /^Libellés/ }));
+    return screen.findByRole('menu');
+  };
+
+  it('filters by the labels turned on in a multi-select menu, writes them into the address, and clears them', async () => {
     serve(labelled);
     const { user, router, container } = await renderApp('/subscriptions');
-    const group = await screen.findByRole('group', { name: 'Libellés' });
-    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Video', 'VPN']);
+    const menu = await openLabels(user);
+    expect(within(menu).getAllByRole('menuitemcheckbox').map((b) => b.textContent)).toEqual(['Video', 'VPN']);
 
-    await user.click(within(group).getByRole('button', { name: 'VPN' }));
-    expect(within(group).getByRole('button', { name: 'VPN' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(menu).getByRole('menuitemcheckbox', { name: 'VPN' }));
+    await waitFor(() => expect(within(menu).getByRole('menuitemcheckbox', { name: 'VPN' })).toBeChecked());
     expect((await rows()).map((r) => within(r).getByRole('link').textContent)).toEqual([expect.stringContaining('Proton VPN')]);
     await waitFor(() => expect(router.state.location.search).toMatchObject({ label: 'vpn' }));
 
-    await user.click(within(group).getByRole('button', { name: 'Video' }));
-    expect(await rows()).toHaveLength(2);
+    await user.click(within(menu).getByRole('menuitemcheckbox', { name: 'Video' }));
+    await waitFor(async () => expect(await rows()).toHaveLength(2));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ label: 'vpn,streaming-video' }));
     await expectNoAxeViolations(container);
 
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Effacer les libellés' }));
-    expect(await rows()).toHaveLength(3);
+    await waitFor(async () => expect(await rows()).toHaveLength(3));
     expect(screen.queryByRole('button', { name: 'Effacer les libellés' })).not.toBeInTheDocument();
   });
 
   it('reads the labels from the address and ignores an unknown or repeated one', async () => {
     serve(labelled);
-    await renderApp('/subscriptions?label=vpn,vpn,nope');
-    const group = await screen.findByRole('group', { name: 'Libellés' });
-    expect(within(group).getByRole('button', { name: 'VPN' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(group).queryByRole('button', { name: 'nope' })).not.toBeInTheDocument();
+    const { user } = await renderApp('/subscriptions?label=vpn,vpn,nope');
+    const menu = await openLabels(user);
+    expect(within(menu).getByRole('menuitemcheckbox', { name: 'VPN' })).toBeChecked();
+    expect(within(menu).queryByRole('menuitemcheckbox', { name: 'nope' })).not.toBeInTheDocument();
     expect(await rows()).toHaveLength(1);
   });
 
@@ -174,6 +184,6 @@ describe('Abonnements › liste', () => {
     serve(two);
     await renderApp('/subscriptions');
     await rows();
-    expect(screen.queryByRole('group', { name: 'Libellés' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Libellés/ })).not.toBeInTheDocument();
   });
 });

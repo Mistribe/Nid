@@ -1,6 +1,10 @@
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/page/PageHeader';
+import { Skeleton } from '@/components/ui/skeleton';
+import { tabsListVariants } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 /** The sections of screens.md §12. */
 const SECTIONS = [
@@ -18,19 +22,19 @@ export function AdminFrame({ title, children }: { title: string; children: React
   const { t } = useTranslation();
   return (
     <div className="space-y-6">
-      <nav aria-label={t('admin.nav.label')} className="flex flex-wrap gap-2 border-b pb-2">
+      <PageHeader title={title} />
+      <nav aria-label={t('admin.nav.label')} className={cn(tabsListVariants({ variant: 'line' }), 'h-auto max-w-full justify-start overflow-x-auto border-b')}>
         {SECTIONS.map((section) => (
           <Link
             key={section.to}
             to={section.to}
-            className="min-h-11 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground"
-            activeProps={{ 'aria-current': 'page', className: 'font-semibold' }}
+            className="relative inline-flex min-h-9 items-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap text-foreground/60 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            activeProps={{ 'aria-current': 'page', className: 'text-foreground after:absolute after:inset-x-0 after:-bottom-[5px] after:h-0.5 after:bg-foreground' }}
           >
             {t(section.label)}
           </Link>
         ))}
       </nav>
-      <h1 className="text-2xl font-semibold">{title}</h1>
       {children}
     </div>
   );
@@ -43,8 +47,8 @@ export function AdminFrame({ title, children }: { title: string; children: React
 export function AdminSkeleton() {
   const { t } = useTranslation();
   return (
-    <div aria-busy="true" className="h-32 animate-pulse rounded-md bg-muted">
+    <Skeleton aria-busy="true" className="h-32">
       <span className="sr-only">{t('admin.loading')}</span>
-    </div>
+    </Skeleton>
   );
 }

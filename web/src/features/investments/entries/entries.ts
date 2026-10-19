@@ -3,6 +3,7 @@ import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { z } from 'zod';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { ISO_DATE } from '../../subscriptions/edits/amount';
+import { todayIso } from '../../subscriptions/today';
 import { fieldErrorsOf, knownConflictMessage, messageFor } from '../../subscriptions/fieldErrors';
 import { FLOW_KINDS } from '../format';
 
@@ -13,14 +14,18 @@ export const SIGNED_AMOUNT = /^-?\d+([.,]\d{1,4})?$/;
  * client mirrors that bound rather than let a round trip say it. */
 export const POSITIVE_AMOUNT = /^(?!0+(?:[.,]0+)?$)\d+([.,]\d{1,4})?$/;
 
+/** A date no later than today: the native `max` of the old date inputs, now said where the form validates. */
+export const pastDate = (t: TFunction) =>
+  z.string().regex(ISO_DATE, t('edit.required')).refine((d) => d <= todayIso(), t('field_error.core_date_in_future'));
+
 export const valueSchema = (t: TFunction) => z.object({
-  asOf: z.string().regex(ISO_DATE, t('edit.required')),
+  asOf: pastDate(t),
   amount: z.string().regex(SIGNED_AMOUNT, t('investments_form.amount_format')),
   note: z.string().max(2000, t('investments_form.note_too_long')),
 });
 
 export const flowSchema = (t: TFunction) => z.object({
-  occurredOn: z.string().regex(ISO_DATE, t('edit.required')),
+  occurredOn: pastDate(t),
   kind: z.enum(FLOW_KINDS),
   amount: z.string().regex(POSITIVE_AMOUNT, t('investments_form.positive_amount_format')),
   note: z.string().max(2000, t('investments_form.note_too_long')),

@@ -82,7 +82,7 @@ export function ImportSession() {
   return (
     <section aria-labelledby="import-session-title" className="space-y-4">
       <h2 id="import-session-title" className="text-lg font-semibold">{t('import.session_title', { date: formatInstant(data.createdAt) })}</h2>
-      <p>{t('import.session_state', { state: label(state) })}</p>
+      <p className="text-muted-foreground">{t('import.session_state', { state: label(state) })}</p>
       {body}
     </section>
   );

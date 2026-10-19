@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -14,12 +14,77 @@ function serve(body: EnvelopeList, seen: string[] = []) {
   }));
 }
 
+/** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
 async function rows(): Promise<HTMLElement[]> {
-  const ul = await screen.findByRole('list', { name: 'Liste des enveloppes' });
-  return within(ul).getAllByRole('listitem');
+  const table = await screen.findByRole('table', { name: 'Liste des enveloppes' });
+  return within(table).getAllByRole('row').slice(1);
 }
 
 describe('EnvelopesPage', () => {
+  beforeAll(async () => { await import('./EnvelopesPage'); }, 30_000);
+
+  it('shows one table row per item with its owner', async () => {
+    const alice = '0192f0aa-0000-7000-8000-0000000000a1';
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
+    serve(list([summary({ owners: [{ personId: alice, shareBp: 10000 }] }), summary({ id: 'b', displayName: 'Livret A', kind: 'savings' })]));
+    const { container } = await renderApp('/investments');
+
+    const table = await screen.findByRole('table', { name: 'Liste des enveloppes' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Type', 'Propriétaire', 'Valeur', 'Gain', 'Mise à jour']);
+    const items = await rows();
+    expect(items).toHaveLength(2);
+    await waitFor(() => expect(items[0]).toHaveTextContent('Alice'));
+    expect(items[0]).toHaveTextContent('PEA');
+    expect(items[1]).toHaveTextContent('Livret A');
+    expect(items[1]).toHaveTextContent('Livret');
+    await expectNoAxeViolations(container);
+  });
+
+  it('sorts by value', async () => {
+    serve(list([
+      summary({ id: 'a', displayName: 'Gros', figures: figures({ value: eur('25000.0000') }) }),
+      summary({ id: 'b', displayName: 'Petit', figures: figures({ value: eur('500.0000') }) }),
+      summary({ id: 'c', displayName: 'Inconnu', figures: unknownFigures() }),
+    ]));
+    const { user } = await renderApp('/investments');
+
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+    expect(await names()).toEqual(['Gros', 'Petit', 'Inconnu']);
+    const table = screen.getByRole('table', { name: 'Liste des enveloppes' });
+    await user.click(within(table).getByRole('button', { name: 'Valeur' }));
+    expect(await names()).toEqual(['Inconnu', 'Petit', 'Gros']);
+    await user.click(within(table).getByRole('button', { name: 'Valeur' }));
+    expect(await names()).toEqual(['Gros', 'Petit', 'Inconnu']);
+  });
+
+  it('stale rows show their date with an icon', async () => {
+    serve(list([summary({ figures: figures({ staleDays: 62 }) }), summary({ id: 'b', displayName: 'Frais' })]));
+    await renderApp('/investments');
+
+    const [stale, fresh] = await rows();
+    const cell = within(stale!).getAllByRole('cell')[5]!;
+    expect(cell.querySelector('svg')).not.toBeNull();
+    expect(cell).toHaveTextContent('30 sept. 2025');
+    expect(within(cell).getByText('Valeur de plus de 62 jours')).toBeInTheDocument();
+    expect(within(fresh!).getAllByRole('cell')[5]!.querySelector('svg')).toBeNull();
+  });
+
+  it('the add link is always shown, even when no row is writable', async () => {
+    serve(list([summary({ canWrite: false })]));
+    await renderApp('/investments');
+
+    await rows();
+    expect(screen.getByRole('link', { name: 'Ajouter une enveloppe' })).toBeInTheDocument();
+  });
+
+  it('offers « Ajouter une enveloppe » to a writer', async () => {
+    serve(list([summary(), summary({ id: 'r', canWrite: false })]));
+    await renderApp('/investments');
+
+    await rows();
+    expect(screen.getByRole('link', { name: 'Ajouter une enveloppe' })).toHaveAttribute('href', '/investments/new');
+  });
+
   it('shows each envelope with its value, date and gain, before tax', async () => {
     serve(list([summary()]));
     const { container } = await renderApp('/investments');
@@ -28,7 +93,7 @@ describe('EnvelopesPage', () => {
     expect(within(row).getByRole('link', { name: 'PEA' })).toHaveAttribute('href', expect.stringContaining('/investments/'));
     expect(row).toHaveTextContent('PEA');
     expect(row).toHaveTextContent('25 000,00 €');
-    expect(row).toHaveTextContent('30 septembre 2025');
+    expect(row).toHaveTextContent('30 sept. 2025');
     expect(row).toHaveTextContent('+3 000,00 €');
     expect(row).toHaveTextContent('+13,6 %');
     expect(within(row).getByText('en hausse')).toBeInTheDocument();
@@ -76,7 +141,7 @@ describe('EnvelopesPage', () => {
     const { container } = await renderApp('/investments');
 
     expect(await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Ajouter une enveloppe' })[0]).toHaveAttribute('href', '/investments/new');
+    for (const link of screen.getAllByRole('link', { name: 'Ajouter une enveloppe' })) expect(link).toHaveAttribute('href', '/investments/new');
     await expectNoAxeViolations(container);
   });
 
@@ -109,17 +174,17 @@ describe('EnvelopesPage, closed envelopes', () => {
     serve(list([summary()]), seen);
     const { user, router, container } = await renderApp('/investments');
 
-    const box = await screen.findByRole('checkbox', { name: 'Afficher les clôturées' });
+    const box = await screen.findByRole('switch', { name: 'Afficher les clôturées' });
     expect(box).not.toBeChecked();
     expect(seen).toEqual(['?scope=household']);
     await user.click(box);
 
     await waitFor(() => expect(seen).toContain('?scope=household&archived=true'));
     expect(router.state.location.search).toMatchObject({ closed: 1 });
-    await screen.findByRole('list', { name: 'Liste des enveloppes' });
-    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toHaveFocus();
-    await user.click(screen.getByRole('checkbox', { name: 'Afficher les clôturées' }));
+    await rows();
+    expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).toHaveFocus();
+    await user.click(screen.getByRole('switch', { name: 'Afficher les clôturées' }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('closed'));
     await expectNoAxeViolations(container);
   });
@@ -130,7 +195,7 @@ describe('EnvelopesPage, closed envelopes', () => {
     const { container } = await renderApp('/investments?closed=1');
 
     const items = await rows();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).toBeChecked();
     expect(seen).toContain('?scope=household&archived=true');
     expect(within(items[1]!).getByText('Clôturée')).toBeInTheDocument();
     expect(within(items[0]!).queryByText('Clôturée')).not.toBeInTheDocument();
@@ -142,7 +207,7 @@ describe('EnvelopesPage, closed envelopes', () => {
     await renderApp('/investments?closed=1');
 
     expect(await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).toBeChecked();
   });
 
   it('ignores a closed value other than 1: unchecked, no archived', async () => {
@@ -151,7 +216,7 @@ describe('EnvelopesPage, closed envelopes', () => {
     await renderApp('/investments?closed=yes');
 
     await rows();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les clôturées' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).not.toBeChecked();
     expect(seen).toEqual(['?scope=household']);
   });
 
@@ -174,8 +239,9 @@ describe('EnvelopesPage, closed envelopes', () => {
     expect(items[0]).not.toHaveTextContent('Bob');
     expect(items[1]).toHaveTextContent('Bob');
     expect(items[1]).not.toHaveTextContent('Alice');
-    expect(items[2]).toHaveTextContent('Alice60 %');
-    expect(items[2]).toHaveTextContent('Bob40 %');
+    expect(items[2]).toHaveTextContent('Alice');
+    expect(items[2]).toHaveTextContent('Bob');
+    expect(items[2]).toHaveTextContent('60 % / 40 %');
     await expectNoAxeViolations(container);
   });
 });

@@ -17,6 +17,11 @@ Object.defineProperty(window, 'matchMedia', {
 window.scrollTo = () => {};
 Element.prototype.scrollIntoView = () => {};
 
+// Radix (Select, Popover, …) calls these pointer-capture methods, which jsdom lacks.
+Element.prototype.hasPointerCapture = () => false;
+Element.prototype.releasePointerCapture = () => {};
+Element.prototype.setPointerCapture = () => {};
+
 // jsdom has no modal dialog: open and close are enough for the tests; focus trapping and Escape are the browser's.
 HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.open = true; };
 HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {

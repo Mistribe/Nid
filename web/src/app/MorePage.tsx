@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/page/PageHeader';
+import { Button } from '@/components/ui/button';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { visibleNav } from './nav';
 import { useSession } from './Providers';
@@ -7,11 +9,11 @@ import { useSession } from './Providers';
 /** screens.md §1: the sections that do not fit the phone's tab bar. */
 export function MorePage() {
   const { t } = useTranslation();
-  const { capabilities } = useSession();
+  const { capabilities, signOut } = useSession();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">{t('more.title')}</h1>
-      <ul aria-label={t('more.list')} className="divide-y rounded-md border">
+      <PageHeader title={t('more.title')} />
+      <ul aria-label={t('more.list')} className="divide-y rounded-lg border">
         {visibleNav(capabilities).filter((item) => item.mobile === 'more').map((item) => (
           <li key={item.to}>
             <Link to={item.to} className="flex min-h-11 items-center gap-3 px-4 py-3 hover:bg-accent">
@@ -22,6 +24,7 @@ export function MorePage() {
           </li>
         ))}
       </ul>
+      <Button variant="outline" className="md:hidden" onClick={() => void signOut()}>{t('shell.sign_out')}</Button>
     </div>
   );
 }

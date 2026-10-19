@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { trimAmount, valueSchema, type ValueFormValues } from '../investments/entries/entries';
-import { Field } from '../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
+import { Input } from '@/components/ui/input';
 import type { ProposalView } from './api';
-import { ValueComparison, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 import { amortization } from './amortizationKind';
 import { invoice } from './invoiceKind';
 import { payslip } from './payslipKind';
@@ -27,9 +28,9 @@ function ValuationFields({ form, original }: { form: UseFormReturn<FieldValues>;
   const { t } = useTranslation();
   return (
     <>
-      <Field label={t('proposal.edit.as_of')} error={errorOf(form, 'asOf')}>{(c) => <input type="date" {...c} {...form.register('asOf')} className={input} />}</Field>
-      <Field label={t('proposal.edit.amount', { currency: asValuation(original).amount.currency })} error={errorOf(form, 'amount')}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={input} />}</Field>
-      <Field label={t('proposal.edit.note')} error={errorOf(form, 'note')}>{(c) => <input {...c} {...form.register('note')} className={input} />}</Field>
+      <DateInput form={form} name="asOf" label={t('proposal.edit.as_of')} />
+      <Field label={t('proposal.edit.amount', { currency: asValuation(original).amount.currency })} error={errorOf(form, 'amount')}>{(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}</Field>
+      <Field label={t('proposal.edit.note')} error={errorOf(form, 'note')}>{(c) => <Input {...c} {...form.register('note')} />}</Field>
     </>
   );
 }

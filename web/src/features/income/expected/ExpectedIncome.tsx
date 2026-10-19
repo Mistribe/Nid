@@ -1,14 +1,15 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { IncomeDetailSearch, RootSearch } from '@/app/router';
+import { Segmented } from '@/components/form/Segmented';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '../../investments/chart/plot';
 import { todayIso } from '../../subscriptions/today';
 import { EXPECTED, type IncomeExpected, type IncomeSourceDetail } from '../api';
@@ -23,7 +24,6 @@ export function ExpectedIncome({ source }: { source: IncomeSourceDetail }) {
   const { $api } = useApi();
   const navigate = useNavigate();
   const search: RootSearch & IncomeDetailSearch = useSearch({ strict: false });
-  const name = useId();
   // `strict: false` reads the raw search, so an unknown value is dropped here as well.
   const preset: ExpectedPreset = EXPECTED_PRESETS.find((p) => p === search.expected) ?? 'next12';
   const { from, to } = expectedRange(preset, todayIso());
@@ -36,15 +36,8 @@ export function ExpectedIncome({ source }: { source: IncomeSourceDetail }) {
 
   return (
     <div className="space-y-3">
-      <fieldset className="flex flex-wrap gap-3 text-sm">
-        <legend className="sr-only">{t('income_detail.expected.period')}</legend>
-        {EXPECTED_PRESETS.map((p) => (
-          <label key={p} className="flex items-center gap-1">
-            <input type="radio" name={name} value={p} checked={preset === p} onChange={() => choose(p)} />
-            {t(`income_detail.expected.${p}`)}
-          </label>
-        ))}
-      </fieldset>
+      <Segmented aria-label={t('income_detail.expected.period')} value={preset} onValueChange={(v) => choose(v as ExpectedPreset)}
+        options={EXPECTED_PRESETS.map((p) => ({ value: p, label: t(`income_detail.expected.${p}`) }))} />
       <Body data={answer.data} error={answer.error} />
     </div>
   );
@@ -107,43 +100,43 @@ function MonthTooltip({ active, payload }: { active?: boolean; payload?: Readonl
 function ExpectedTable({ months }: { months: Months }) {
   const { t } = useTranslation();
   return (
-    <table className="w-full text-sm" aria-label={t('income_detail.expected.table')}>
-      <thead>
-        <tr>
-          <th scope="col" className="text-left">{t('income_detail.expected.col_month')}</th>
-          <th scope="col" className="text-left">{t('income_detail.expected.col_line')}</th>
-          <th scope="col" className="text-left">{t('income_detail.expected.col_date')}</th>
-          <th scope="col" className="text-left">{t('income_detail.expected.col_amount')}</th>
-        </tr>
-      </thead>
+    <Table aria-label={t('income_detail.expected.table')}>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t('income_detail.expected.col_month')}</TableHead>
+          <TableHead>{t('income_detail.expected.col_line')}</TableHead>
+          <TableHead>{t('income_detail.expected.col_date')}</TableHead>
+          <TableHead className="text-right">{t('income_detail.expected.col_amount')}</TableHead>
+        </TableRow>
+      </TableHeader>
       {months.map((m) => {
         const lines = m.occurrences.length + m.oneOffs.length; // a count of lines, not an amount
         return (
-          <tbody key={`${m.year}-${m.month}`}>
-            <tr>
-              <th scope="rowgroup" rowSpan={Math.max(lines, 1) + 1} className="text-left align-top">{monthLabel(m.year, m.month)}</th>
-              <td className="font-medium">{t('income_detail.expected.total')}</td>
-              <td />
-              <td className="font-medium"><Money value={m.total} tabular /></td>
-            </tr>
+          <TableBody key={`${m.year}-${m.month}`}>
+            <TableRow>
+              <TableHead scope="rowgroup" rowSpan={Math.max(lines, 1) + 1} className="align-top">{monthLabel(m.year, m.month)}</TableHead>
+              <TableCell className="font-medium">{t('income_detail.expected.total')}</TableCell>
+              <TableCell />
+              <TableCell className="text-right font-medium"><Money value={m.total} tabular /></TableCell>
+            </TableRow>
             {m.occurrences.map((o) => (
-              <tr key={`${o.phaseId}-${o.on}`}>
-                <td>{o.label}</td>
-                <td><LocalDate value={o.on} /></td>
-                <td><Money value={o.amount} tabular /></td>
-              </tr>
+              <TableRow key={`${o.phaseId}-${o.on}`}>
+                <TableCell>{o.label}</TableCell>
+                <TableCell><LocalDate value={o.on} /></TableCell>
+                <TableCell className="text-right"><Money value={o.amount} tabular /></TableCell>
+              </TableRow>
             ))}
             {m.oneOffs.map((f) => (
-              <tr key={f.id}>
-                <td>{f.note ? t('income_detail.expected.one_off_note', { note: f.note }) : t('income_detail.expected.one_off')}</td>
-                <td><LocalDate value={f.occurredOn} /></td>
-                <td><Money value={f.amount} tabular /></td>
-              </tr>
+              <TableRow key={f.id}>
+                <TableCell>{f.note ? t('income_detail.expected.one_off_note', { note: f.note }) : t('income_detail.expected.one_off')}</TableCell>
+                <TableCell><LocalDate value={f.occurredOn} /></TableCell>
+                <TableCell className="text-right"><Money value={f.amount} tabular /></TableCell>
+              </TableRow>
             ))}
-            {lines === 0 ? <tr><td colSpan={3} className="text-muted-foreground">{t('income_detail.expected.none')}</td></tr> : null}
-          </tbody>
+            {lines === 0 ? <TableRow><TableCell colSpan={3} className="text-muted-foreground">{t('income_detail.expected.none')}</TableCell></TableRow> : null}
+          </TableBody>
         );
       })}
-    </table>
+    </Table>
   );
 }

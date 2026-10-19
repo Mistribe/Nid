@@ -1,12 +1,13 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { LOAN } from '../loans/testData';
 import type { PropertyDetail } from './api';
-import { PROPERTY, propertyDetail } from './testData';
+import { PROPERTY, propertyDetail, rentedFigures } from './testData';
 
 const CHF = '0192f0aa-0000-7000-8000-00000000d002';
 const USD = '0192f0aa-0000-7000-8000-00000000d003';
@@ -18,37 +19,52 @@ function serve(detail: PropertyDetail = propertyDetail()) {
 const heading = () => screen.findByRole('heading', { name: 'Maison de Nantes', level: 1 });
 const figures = () => screen.getByRole('region', { name: 'Aujourd’hui' });
 const figure = (term: string) => within(figures()).getByText(term, { selector: 'dt' }).nextElementSibling;
+// The overview's detail: its own dl, under the tab.
+const detail = (term: string) => within(screen.getByRole('region', { name: 'Coût réel' })).getByText(term, { selector: 'dt' }).nextElementSibling;
 const withFigures = (over: Partial<PropertyDetail['figures']>) => propertyDetail({ figures: { ...propertyDetail().figures, ...over } });
 
 describe('PropertyDetailPage', () => {
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('./PropertyDetailPage'); }, 30_000);
 
-  it('shows the header and every figure of today as the server computed them, the real cost’s lines in its order', async () => {
+  it('overview shows value, net value, latent gain and real cost inline, the real cost’s lines in its order', async () => {
     serve();
     const { container } = await renderApp(`/properties/${PROPERTY}`);
 
-    // The header alone: the settings (Task 7) offer the same type among their options.
-    const header = (await heading()).parentElement!;
+    // The header alone: the settings tab offers the same type among their options.
+    const header = (await heading()).closest('header')!;
     expect(header).toHaveTextContent('Résidence principale');
     expect(header).toHaveTextContent('Nantes');
     expect(within(header).getByText('Partagé')).toBeInTheDocument();
+    expect(within(header).getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/properties');
     expect(screen.queryByRole('list', { name: 'Avertissements' })).not.toBeInTheDocument();
     expect(screen.queryByText('Vous pouvez consulter ce bien, pas le modifier.')).not.toBeInTheDocument();
     expect(figure('Valeur')).toHaveTextContent('290 000,00 € au 1 juin 2026');
     expect(figure('Valeur')).not.toHaveTextContent('À réestimer');
-    expect(figure('Prix de revient')).toHaveTextContent('281 000,00 €');
-    expect(figure('Plus-value latente')).toHaveTextContent('+9 000,00 €');
-    expect(figure('Capital restant dû des crédits')).toHaveTextContent('193 564,23 €');
     expect(figure('Valeur nette')).toHaveTextContent('96 435,77 €');
+    expect(figure('Plus-value latente')).toHaveTextContent('+9 000,00 €');
     expect(figure('Coût réel')).toHaveTextContent('288 823,35 €');
-    expect(figure('Coût réel, loyers déduits')).toHaveTextContent('288 823,35 €');
-    const lines = within(figures()).getByRole('heading', { name: 'Détail du coût réel' }).nextElementSibling!;
+    expect(within(figures()).queryByText('Rendement net avant impôt')).not.toBeInTheDocument();
+    expect(detail('Prix de revient')).toHaveTextContent('281 000,00 €');
+    expect(detail('Capital restant dû des crédits')).toHaveTextContent('193 564,23 €');
+    expect(detail('Coût réel, loyers déduits')).toHaveTextContent('288 823,35 €');
+    const lines = within(screen.getByRole('region', { name: 'Coût réel' })).getByRole('heading', { name: 'Détail du coût réel' }).nextElementSibling!;
     expect([...lines.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual(
       ['Achat et frais', 'Intérêts des crédits', 'Assurance emprunteur', 'Frais de crédit', 'Travaux', 'Taxe foncière']);
-    expect(figure('Achat et frais')).toHaveTextContent('269 000,00 €');
-    expect(figure('Intérêts des crédits')).toHaveTextContent('6 323,35 €');
-    expect(figure('Travaux')).toHaveTextContent('12 000,00 €');
+    expect(detail('Achat et frais')).toHaveTextContent('269 000,00 €');
+    expect(detail('Intérêts des crédits')).toHaveTextContent('6 323,35 €');
+    expect(detail('Travaux')).toHaveTextContent('12 000,00 €');
+    await expectNoAxeViolations(container);
+  });
+
+  it('overview shows rent and yield only when rented', async () => {
+    serve(propertyDetail({ figures: rentedFigures() }));
+    const { container } = await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    expect(figure('Loyers attendus sur 12 mois')).toHaveTextContent('10 800,00 €');
+    expect(figure('Vacance sur 12 mois')).toHaveTextContent('0 jour (0 %)');
+    expect(figure('Rendement net avant impôt')).toHaveTextContent('3,31 %');
     await expectNoAxeViolations(container);
   });
 
@@ -60,7 +76,7 @@ describe('PropertyDetailPage', () => {
     expect(figure('Valeur')).toHaveTextContent('Inconnue');
     expect(figure('Plus-value latente')).toHaveTextContent('Inconnue');
     expect(figure('Valeur nette')).toHaveTextContent('Inconnue');
-    expect(figure('Prix de revient')).toHaveTextContent('281 000,00 €');
+    expect(detail('Prix de revient')).toHaveTextContent('281 000,00 €');
   });
 
   it('signs a latent loss, marks a stale value « À réestimer » in words, and reads a line it does not know as its code', async () => {
@@ -73,7 +89,7 @@ describe('PropertyDetailPage', () => {
     await heading();
     expect(figure('Plus-value latente')).toHaveTextContent('-12 000,00 €');
     expect(figure('Valeur')).toHaveTextContent('290 000,00 € au 1 juin 2026 — À réestimer');
-    expect(figure('something_new')).toHaveTextContent('10,00 €');
+    expect(detail('something_new')).toHaveTextContent('10,00 €');
   });
 
   it('lists each warning in French, a loan named from the linked loans, an unknown code as itself', async () => {
@@ -130,13 +146,98 @@ describe('PropertyDetailPage', () => {
     expect(await within(await screen.findByRole('region', { name: 'Crédits liés' })).findByText('Aucun crédit lié')).toBeInTheDocument();
   });
 
-  it('tells a reader without write access the page is read-only', async () => {
+  it('a reader sees no write action, nor the settings tab, and is told the page is read-only', async () => {
     serve(propertyDetail({ canWrite: false, visibility: 'shared' }));
-    const { container } = await renderApp(`/properties/${PROPERTY}`);
+    const { container, user } = await renderApp(`/properties/${PROPERTY}`);
 
     await heading();
     expect(screen.getByText('Vous pouvez consulter ce bien, pas le modifier.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ajouter une estimation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Réglages' })).not.toBeInTheDocument();
+    for (const tab of ['Location', 'Estimations', 'Dépenses']) {
+      await user.click(screen.getByRole('tab', { name: tab }));
+      const panel = await screen.findByRole('tabpanel');
+      expect(within(panel).queryByRole('button')).not.toBeInTheDocument();
+    }
     await expectNoAxeViolations(container);
+  });
+
+  it('adds an estimation in a dialog, and says a date already estimated will be replaced', async () => {
+    let current = propertyDetail();
+    const sent: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(current)),
+      http.post('*/api/v1/realestate/properties/:id/valuations', async ({ request }) => {
+        const body = (await request.json()) as { asOf: string; amount: string };
+        sent.push(body);
+        current = { ...current, valuations: [...current.valuations.filter((v) => v.asOf !== body.asOf), { id: 'v3', asOf: body.asOf, amount: `${body.amount}.00`, note: null }] };
+        return HttpResponse.json({ id: 'v3' }, { status: 201 });
+      }),
+    );
+    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+
+    const open = await screen.findByRole('button', { name: 'Ajouter une estimation' });
+    await user.click(open);
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nouvelle estimation' }));
+    expect(dialog.queryByText('Une estimation existe déjà à cette date : elle sera remplacée.')).not.toBeInTheDocument();
+    await user.clear(dialog.getByLabelText('Date'));
+    await user.type(dialog.getByLabelText('Date'), '01/06/2026');
+    expect(dialog.getByText('Une estimation existe déjà à cette date : elle sera remplacée.')).toBeInTheDocument();
+    await user.type(dialog.getByLabelText('Valeur'), '300000');
+    await expectNoAxeViolations(container);
+    await user.click(dialog.getByRole('button', { name: 'Ajouter' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Estimation remplacée.'));
+    expect(sent).toEqual([{ asOf: '2026-06-01', amount: '300000' }]);
+    await waitFor(() => expect(figure('Valeur')).toHaveTextContent('290 000,00 €'));
+    expect(open).toHaveFocus();
+  });
+
+  it('adds a lease, a flow and a planned charge in dialogs', async () => {
+    const current = propertyDetail();
+    const sent: { path: string; body: Record<string, unknown> }[] = [];
+    const record = (path: string) => async ({ request }: { request: Request }) => {
+      sent.push({ path, body: (await request.json()) as Record<string, unknown> });
+      return HttpResponse.json({ id: 'new' }, { status: 201 });
+    };
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(current)),
+      http.post('*/api/v1/realestate/properties/:id/tenancies', record('tenancies')),
+      http.post('*/api/v1/realestate/properties/:id/flows', record('flows')),
+      http.post('*/api/v1/realestate/properties/:id/recurring-costs', record('recurring-costs')),
+    );
+    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    await heading();
+
+    await user.click(screen.getByRole('tab', { name: 'Location' }));
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
+    let dialog = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    await user.type(dialog.getByLabelText('Libellé'), 'T2');
+    await user.clear(dialog.getByLabelText('Début'));
+    await user.type(dialog.getByLabelText('Début'), '01/01/2026');
+    await user.type(dialog.getByLabelText('Loyer mensuel'), '900');
+    await user.click(dialog.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByText('Bail ajouté.')).toBeInTheDocument();
+    expect(sent[0]).toMatchObject({ path: 'tenancies', body: { label: 'T2', startsOn: '2026-01-01', rentMonthly: '900', chargesMonthly: '0' } });
+
+    await user.click(screen.getByRole('tab', { name: 'Dépenses' }));
+    await user.click(await screen.findByRole('button', { name: 'Ajouter une dépense ou un revenu' }));
+    dialog = within(await screen.findByRole('dialog', { name: 'Nouvelle dépense ou nouveau revenu' }));
+    await pick(user, 'Type', 'Revenu');
+    await pick(user, 'Catégorie', 'Loyer');
+    await user.type(dialog.getByLabelText('Montant'), '900');
+    await user.click(dialog.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(sent[1]).toMatchObject({ path: 'flows', body: { kind: 'income', category: 'rent', amount: '900' } });
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter une charge prévue' }));
+    dialog = within(await screen.findByRole('dialog', { name: 'Nouvelle charge prévue' }));
+    await user.type(dialog.getByLabelText('Montant'), '1200');
+    await user.click(dialog.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(sent[2]).toMatchObject({ path: 'recurring-costs', body: { category: 'property_tax', amount: '1200', every: { count: 1, unit: 'year' } } });
   });
 
   it('says an unknown or unreadable property is not found', async () => {

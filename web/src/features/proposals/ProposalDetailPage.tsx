@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -10,14 +11,16 @@ import { present, toProblem } from '@/api/errors';
 import { knownConflictMessage } from '../subscriptions/fieldErrors';
 import { formatInstantDay } from '@/features/admin/format';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/page/PageHeader';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { presentConflict } from '../investments/entries/entries';
-import { Field } from '../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
 import { PERSONS } from '../subscriptions/api';
 import { APPROVE, PROPOSAL, REJECT, invalidateProposals, usePending, type ProposalView } from './api';
-import { input, type KindUi, type LinkTarget } from './kindParts';
+import type { KindUi, LinkTarget } from './kindParts';
 import { groupBySource, kindOf, originText } from './kinds';
 import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
 
@@ -44,7 +47,7 @@ export function ProposalDetailPage() {
   const { id } = useParams({ from: '/proposals/$id' });
   const message = useAnnouncement(id);
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <p role="status">{message}</p>
       <Proposal id={id} />
     </div>
@@ -74,27 +77,42 @@ function Proposal({ id }: { id: string }) {
   const warnings = p.warnings.filter((w) => !hidden.includes(w.code));
   const link = kind?.link(p);
 
-  return (
-    <div className="space-y-4">
-      <Link to="/proposals" className="underline">{t('proposal.back')}</Link>
-      <h1 tabIndex={-1} ref={heading}className="text-2xl font-semibold">{kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind })}</h1>
+  const title = kind ? t(kind.label) : t('proposal.unknown_kind', { kind: p.kind });
+  const head = (actions: ReactNode) => (
+    <PageHeader crumbs={[{ label: t('proposal.back'), to: '/proposals' }]} title={title} titleRef={heading} actions={actions}
+      meta={p.sourceLabel ? <span className="text-sm text-muted-foreground">{p.sourceLabel}</span> : undefined} />
+  );
+  const body = (
+    <>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-        <dt>{t('proposal.target')}</dt>
+        <dt className="text-muted-foreground">{t('proposal.target')}</dt>
         <dd>{link ? <Link to={link.to} params={link.params} className="underline">{p.targetName ?? t('proposals.unknown_target')}</Link> : (p.targetName ?? t('proposals.unknown_target'))}</dd>
-        {p.sourceLabel ? (<><dt>{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
+        {p.sourceLabel ? (<><dt className="text-muted-foreground">{t('proposal.statement')}</dt><dd>{p.sourceLabel}</dd></>) : null}
       </dl>
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
       {warnings.length > 0 ? (
-        <section aria-label={t('proposal.warnings')} className="rounded-md border p-3">
+        <section aria-label={t('proposal.warnings')} className="flex gap-2 rounded-md border border-amber-500/60 bg-amber-50 p-3 text-sm dark:bg-amber-950/30">
+          <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? applyFailedText(t, w.message) : w.message}</li>)}</ul>
         </section>
       ) : null}
       {kind && preview ? <kind.Preview preview={preview} /> : null}
       {!kind ? <pre className="whitespace-pre-wrap rounded-md border p-2 text-sm">{JSON.stringify(p.editedPayload ?? p.payload)}</pre> : null}
-      {p.status !== 'pending' ? <Decided p={p} target={p.status === 'approved' ? link ?? null : null} /> : !canDecide ? <p>{t('proposal.read_only')}</p>
-        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} />}
-      {next ? <Link to="/proposals/$id" params={{ id: next.id }} className="underline">{t('proposal.next')}</Link> : null}
+    </>
+  );
+  const tail = (
+    <>
+      {next ? <Link to="/proposals/$id" params={{ id: next.id }} className={buttonVariants({ variant: 'outline', size: 'sm' }) + ' self-start'}>{t('proposal.next')}</Link> : null}
       {unsupported ? <p>{t('proposal.unsupported')}</p> : null}
+    </>
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} /></>
+        : !canDecide ? <>{head(null)}{body}<p>{t('proposal.read_only')}</p></>
+        : <Decide key={`${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} head={head} body={body} />}
+      {tail}
     </div>
   );
 }
@@ -114,7 +132,11 @@ function Decided({ p, target }: { p: ProposalView; target: LinkTarget | null }) 
   );
 }
 
-function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown; next: ProposalView | null; kind: KindUi | null }) {
+/** Owns the decision: its buttons sit in the page header (`head`), under the document (`body`), the approval's form below. */
+function Decide({ p, preview, next, kind, head, body }: {
+  p: ProposalView; preview: unknown; next: ProposalView | null; kind: KindUi | null; head: (actions: ReactNode) => ReactNode; body: ReactNode;
+}) {
+  const formId = useId();
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -160,8 +182,17 @@ function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown;
     });
   });
 
+  const actions = (
+    <>
+      {kind ? <Button type="submit" form={formId} disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button> : null}
+      {rejecting ? null : <Button type="button" variant="outline" onClick={() => setRejecting(true)}>{t('proposal.reject')}</Button>}
+    </>
+  );
+
   return (
-    <div className="space-y-3">
+    <>
+      {head(actions)}
+      {body}
       {conflict ? (
         <>
           <ProblemMessage problem={{ ...presentConflict(t, conflict), detail: t('proposal.conflict') }} />
@@ -170,26 +201,25 @@ function Decide({ p, preview, next, kind }: { p: ProposalView; preview: unknown;
       ) : refusal !== null ? <div role="alert" className="rounded-md border border-destructive p-3">{refusal}</div>
         : errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       {kind ? (
-        <form noValidate className="space-y-3" aria-label={t('proposal.edit.title')} onSubmit={(ev) => void submit(ev)}>
+        <form id={formId} noValidate className="max-w-xl space-y-3" aria-label={t('proposal.edit.title')} onSubmit={(ev) => void submit(ev)}>
           <kind.Fields form={form} original={original} preview={preview} />
           {nothing ? <p id="nothing-to-record">{t('proposal.nothing_to_record')}</p> : null}
-          <Button type="submit" disabled={approve.isPending || nothing} aria-describedby={nothing ? 'nothing-to-record' : undefined}>{t('proposal.approve')}</Button>
         </form>
       ) : null}
       {rejecting ? (
-        <form className="space-y-2" onSubmit={(ev) => { ev.preventDefault(); errors.clear(); setRefusal(null); reject.mutate(
+        <form className="max-w-xl space-y-2" onSubmit={(ev) => { ev.preventDefault(); errors.clear(); setRefusal(null); reject.mutate(
           { params: { path: { id: p.id } }, body: { version: p.version, ...(note.trim() ? { note: note.trim() } : {}) } },
           { onSuccess: () => after(t('proposal.rejected')), onError: (er) => {
             if (isRace(er)) return;
             if (toProblem(er).status === 409) setRefusal(refusalText(t, er)); else errors.onError(er);
           } }); }}>
-          <Field label={t('proposal.reject_note')}>{(c) => <textarea {...c} autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} className={input} />}</Field>
+          <Field label={t('proposal.reject_note')}>{(c) => <Textarea {...c} autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} />}</Field>
           <div className="flex gap-2">
             <Button type="submit" disabled={reject.isPending}>{t('proposal.reject_confirm')}</Button>
             <Button type="button" variant="ghost" onClick={() => setRejecting(false)}>{t('proposal.cancel')}</Button>
           </div>
         </form>
-      ) : <Button type="button" variant="outline" onClick={() => setRejecting(true)}>{t('proposal.reject')}</Button>}
-    </div>
+      ) : null}
+    </>
   );
 }

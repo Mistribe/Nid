@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fillDate } from './controls';
 import { signIn } from './session';
 
 test('alice adds a recurring subscription and sees its cost; bob cannot reach her private one', async ({ browser }) => {
@@ -13,9 +14,9 @@ test('alice adds a recurring subscription and sees its cost; bob cannot reach he
   await expect(alice.getByRole('heading', { level: 1, name: 'Ajouter un abonnement' })).toBeVisible();
   await alice.getByRole('button', { name: 'Continuer' }).click(); // the type step: Récurrent is preselected
   await alice.getByLabel('Nom', { exact: true }).fill(name);
-  await alice.getByLabel('Privé', { exact: true }).check();
+  await alice.getByRole('radio', { name: 'Privé', exact: true }).click();
   await alice.getByRole('button', { name: 'Continuer' }).click();
-  await alice.getByLabel('Début', { exact: true }).fill('2025-01-01');
+  await fillDate(alice, 'Début', '2025-01-01');
   await alice.getByLabel('Montant', { exact: true }).fill('7,49');
   await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: "Ajouter l'abonnement" }).click();
@@ -23,7 +24,7 @@ test('alice adds a recurring subscription and sees its cost; bob cannot reach he
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
   const detailUrl = new URL(alice.url()).pathname;
   await alice.goto('/subscriptions?scope=me');
-  await expect(alice.getByRole('link', { name: new RegExp(name) })).toContainText('7,49');
+  await expect(alice.getByRole('table', { name: 'Liste des abonnements' }).getByRole('row').filter({ hasText: name })).toContainText('7,49');
 
   const bob = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage();
   await signIn(bob, 'bob', '/subscriptions');
@@ -38,11 +39,11 @@ test('alice records a free trial followed by a monthly price', async ({ browser 
   const alice = await browser.newPage();
   await signIn(alice, 'alice', '/subscriptions/new');
   const name = `Essai E2E ${Date.now().toString(36)}`;
-  await alice.getByRole('radio', { name: /Essai ou offre de lancement/ }).check();
+  await alice.getByRole('radio', { name: /Essai ou offre de lancement/ }).click();
   await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByLabel('Nom', { exact: true }).fill(name);
   await alice.getByRole('button', { name: 'Continuer' }).click();
-  await alice.getByLabel('Début', { exact: true }).fill('2026-01-01');
+  await fillDate(alice, 'Début', '2026-01-01');
   await alice.getByRole('button', { name: 'Continuer' }).click();
   await expect(alice.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
   await alice.getByLabel('Montant', { exact: true }).fill('9,99');
@@ -67,23 +68,24 @@ test('alice creates her own provider from the wizard, then finds the subscriptio
   await expect(page.getByRole('heading', { level: 1, name: 'Ajouter un abonnement' })).toBeVisible();
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByLabel('Nom', { exact: true }).fill(name);
-  await page.getByLabel('Fournisseur', { exact: true }).fill(provider);
-  await page.getByRole('button', { name: `Créer « ${provider} »` }).click();
+  await page.getByRole('button', { name: 'Nouveau fournisseur' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nouveau fournisseur' });
-  await expect(dialog.getByLabel('Nom', { exact: true })).toHaveValue(provider);
-  await dialog.getByRole('checkbox', { name: 'Other' }).check();
+  await dialog.getByLabel('Nom', { exact: true }).fill(provider);
+  await dialog.getByRole('checkbox', { name: 'Other' }).click();
   await dialog.getByRole('button', { name: 'Créer' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText(`Fournisseur choisi : ${provider}`)).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Fournisseur' })).toContainText(provider);
   await page.getByRole('button', { name: 'Continuer' }).click();
-  await page.getByLabel('Début', { exact: true }).fill('2025-01-01');
+  await fillDate(page, 'Début', '2025-01-01');
   await page.getByLabel('Montant', { exact: true }).fill('4,99');
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: "Ajouter l'abonnement" }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 
   await page.goto('/subscriptions');
-  await page.getByRole('group', { name: 'Libellés' }).getByRole('button', { name: 'Other' }).click();
+  await page.getByRole('button', { name: 'Libellés' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Other' }).click();
+  await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/[?&]label=other(?:&|$)/);
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible();
 });

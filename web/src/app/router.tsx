@@ -10,30 +10,20 @@ import {
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
-import { CatalogPage } from '@/features/admin/CatalogPage';
-import { FxPage } from '@/features/admin/FxPage';
-import { HouseholdPage } from '@/features/admin/HouseholdPage';
-import { JobsPage } from '@/features/admin/JobsPage';
-import { SecurityJournalPage } from '@/features/admin/SecurityJournalPage';
-import { SystemPage } from '@/features/admin/SystemPage';
-import { UsersPage } from '@/features/admin/UsersPage';
-import { IncomeSourcesPage } from '@/features/income/IncomeSourcesPage';
-import { LoansPage } from '@/features/loans/LoansPage';
-import { EnvelopesPage } from '@/features/investments/EnvelopesPage';
-import { MorePage } from './MorePage';
-import { AppearancePage } from '@/features/settings/AppearancePage';
-import { SubscriptionsPage } from '@/features/subscriptions/SubscriptionsPage';
+import type { Panel } from '@/features/dashboard/KeyFigures';
 import { ForbiddenPage } from './ForbiddenPage';
 import { NotFoundPage } from './NotFoundPage';
 import { useSession, type Capabilities } from './Providers';
 import { Shell } from './Shell';
+
+const PANELS: readonly Panel[] = ['net_worth', 'income', 'commitments', 'margin'];
 
 export type RouterContext = { capabilities: Capabilities };
 
 /** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
 export type RootSearch = { scope?: 'me' };
 export type RoutineSearch = { on?: string };
-export type DashboardSearch = { curve?: '3y' | 'all' };
+export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel };
 
 /** The list's own filters, in the URL beside the root scope (1E2a design §3; labels comma-joined, 1E2b2 design §3.3). */
 export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string; label?: string };
@@ -45,7 +35,12 @@ export type InvestmentsSearch = { closed?: 1 };
 export type IncomeSearch = { ended?: 1 };
 
 /** The income detail's own choice: the expected-income period (2C2b design §5); the default stays out of the URL. */
-export type IncomeDetailSearch = { expected?: 'year' | 'next_year' };
+export type IncomeDetailSearch = { expected?: 'year' | 'next_year'; tab?: string };
+
+/** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
+export type DetailSearch = { tab?: string };
+export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
+  (typeof search.tab === 'string' && search.tab !== '' ? { tab: search.tab } : {});
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5); anything but `1` is dropped. */
 export type LoansSearch = { ended?: 1 };
@@ -84,7 +79,10 @@ const dashboardRoute = createRoute({
   path: '/dashboard',
   beforeLoad: requireModule('core'),
   validateSearch: (search: Record<string, unknown>): DashboardSearch =>
-    (search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
+    ({
+      ...(search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
+      ...(PANELS.includes(search.panel as Panel) ? { panel: search.panel as Panel } : {}),
+    }),
   component: DashboardPage,
 });
 
@@ -97,7 +95,7 @@ const subscriptionsRoute = createRoute({
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
     ...(typeof search.label === 'string' && search.label !== '' ? { label: search.label } : {}),
   }),
-  component: SubscriptionsPage,
+  component: lazyRouteComponent(() => import('@/features/subscriptions/SubscriptionsPage'), 'SubscriptionsPage'),
 });
 
 const investmentsRoute = createRoute({
@@ -105,7 +103,7 @@ const investmentsRoute = createRoute({
   path: '/investments',
   beforeLoad: requireModule('investments'),
   validateSearch: (search: Record<string, unknown>): InvestmentsSearch => (search.closed === 1 || search.closed === '1' ? { closed: 1 } : {}),
-  component: EnvelopesPage,
+  component: lazyRouteComponent(() => import('@/features/investments/EnvelopesPage'), 'EnvelopesPage'),
 });
 
 // Loaded on demand: the wizard and its form libraries stay out of the initial bundle, as for subscriptions.
@@ -119,6 +117,7 @@ const investmentNewRoute = createRoute({
 const investmentDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/investments/$id',
+  validateSearch: detailSearch,
   beforeLoad: requireModule('investments'),
   component: lazyRouteComponent(() => import('@/features/investments/EnvelopeDetailPage'), 'EnvelopeDetailPage'),
 });
@@ -128,7 +127,7 @@ const incomeRoute = createRoute({
   path: '/income',
   beforeLoad: requireModule('income'),
   validateSearch: (search: Record<string, unknown>): IncomeSearch => (search.ended === 1 || search.ended === '1' ? { ended: 1 } : {}),
-  component: IncomeSourcesPage,
+  component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
 });
 
 const routineRoute = createRoute({
@@ -153,7 +152,7 @@ const incomeDetailRoute = createRoute({
   path: '/income/$id',
   beforeLoad: requireModule('income'),
   validateSearch: (search: Record<string, unknown>): IncomeDetailSearch =>
-    (search.expected === 'year' || search.expected === 'next_year' ? { expected: search.expected } : {}),
+    ({ ...(search.expected === 'year' || search.expected === 'next_year' ? { expected: search.expected } : {}), ...detailSearch(search) }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourceDetailPage'), 'IncomeSourceDetailPage'),
 });
 
@@ -175,6 +174,7 @@ const propertyNewRoute = createRoute({
 const propertyDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/properties/$id',
+  validateSearch: detailSearch,
   beforeLoad: requireModule('realestate'),
   component: lazyRouteComponent(() => import('@/features/properties/PropertyDetailPage'), 'PropertyDetailPage'),
 });
@@ -184,7 +184,7 @@ const loansRoute = createRoute({
   path: '/loans',
   beforeLoad: requireModule('realestate'),
   validateSearch: (search: Record<string, unknown>): LoansSearch => (search.ended === 1 || search.ended === '1' ? { ended: 1 } : {}),
-  component: LoansPage,
+  component: lazyRouteComponent(() => import('@/features/loans/LoansPage'), 'LoansPage'),
 });
 
 // Loaded on demand, as the income's: the forms, the schedule and their libraries stay out of the initial bundle.
@@ -198,6 +198,7 @@ const loanNewRoute = createRoute({
 const loanDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/loans/$id',
+  validateSearch: detailSearch,
   beforeLoad: requireModule('realestate'),
   component: lazyRouteComponent(() => import('@/features/loans/LoanDetailPage'), 'LoanDetailPage'),
 });
@@ -257,10 +258,10 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute, path: '/settings', beforeLoad: () => { redirect({ to: '/settings/appearance', throw: true }); },
 });
 
-const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/appearance', component: AppearancePage });
+const appearanceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/appearance', component: lazyRouteComponent(() => import('@/features/settings/AppearancePage'), 'AppearancePage') });
 
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
-const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', component: MorePage });
+const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', component: lazyRouteComponent(() => import('./MorePage'), 'MorePage') });
 
 const proposalsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -292,13 +293,13 @@ const adminRoute = createRoute({
   },
 });
 
-const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: UsersPage });
-const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: HouseholdPage });
-const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: FxPage });
-const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: CatalogPage });
-const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: JobsPage });
-const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: SystemPage });
-const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: SecurityJournalPage });
+const adminUsersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/users', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/UsersPage'), 'UsersPage') });
+const adminHouseholdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/household', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/HouseholdPage'), 'HouseholdPage') });
+const adminFxRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/fx', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/FxPage'), 'FxPage') });
+const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/catalog', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/CatalogPage'), 'CatalogPage') });
+const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage') });
+const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SystemPage'), 'SystemPage') });
+const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute,

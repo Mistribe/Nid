@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyDetail, PropertyFlow } from '../api';
@@ -72,16 +73,29 @@ function serve(initial: PropertyDetail = propertyDetail()) {
   return { sent, correctElsewhere };
 }
 
+const PAGE = `/properties/${PROPERTY}?tab=expenses`;
+const fr = (iso: string) => iso.split('-').reverse().join('/');
+type User = Awaited<ReturnType<typeof renderApp>>['user'];
+/** The row's ⋯ menu, opened, then the item picked. */
+const rowAction = async (user: User, row: HTMLElement, date: string, item: string) => {
+  await user.click(within(row).getByRole('button', { name: new RegExp(`^Actions pour le ${date}`) }));
+  await user.click(await screen.findByRole('menuitem', { name: item }));
+};
+const choices = async (user: User, label: string) => {
+  await user.click(screen.getByRole('combobox', { name: label }));
+  const names = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent);
+  await user.keyboard('{Escape}');
+  return names;
+};
 const region = () => screen.findByRole('region', { name: 'Dépenses et revenus' });
 const rows = async () => within(await screen.findByRole('table', { name: 'Dépenses et revenus du bien' })).getAllByRole('row').slice(1);
-const options = (select: HTMLElement) => within(select).getAllByRole('option').map((o) => o.textContent);
 
 describe('flows', () => {
   beforeAll(async () => { await import('../PropertyDetailPage'); }, 30_000);
 
   it('lists the flows newest first: date, kind, category, amount and note', async () => {
     serve();
-    const { container } = await renderApp(`/properties/${PROPERTY}`);
+    const { container } = await renderApp(PAGE);
 
     const [tax, works] = await rows();
     expect(tax).toHaveTextContent('15 octobre 2025');
@@ -95,37 +109,48 @@ describe('flows', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('names each row menu after its category when two flows share a date', async () => {
+    const flow = (id: string, category: string): PropertyFlow =>
+      ({ id, occurredOn: '2025-10-15', kind: 'expense', amount: '10.00', category, note: null });
+    serve(propertyDetail({ flows: [flow('a1', 'insurance'), flow('a2', 'energy')] }));
+    await renderApp(PAGE);
+
+    const table = await screen.findByRole('table', { name: 'Dépenses et revenus du bien' });
+    const names = within(table).getAllByRole('button', { name: /^Actions pour le/ }).map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(new Set(names).size).toBe(2);
+  });
+
   it('says when there is none', async () => {
     serve(propertyDetail({ flows: [] }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(PAGE);
 
     expect(await within(await region()).findByText('Aucune dépense ni aucun revenu')).toBeInTheDocument();
   });
 
   it('offers the categories of the kind chosen first, the category following the kind, and adds an income', async () => {
     const { sent } = serve();
-    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(PAGE);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter une dépense ou un revenu' }));
-    const form = screen.getByRole('form', { name: 'Nouvelle dépense ou nouveau revenu' });
-    const category = () => within(form).getByLabelText('Catégorie');
-    expect(within(form).getByLabelText('Type')).toHaveFocus();
-    expect(within(form).getByLabelText('Type')).toHaveValue('expense');
-    expect(within(form).getByLabelText('Date')).toHaveValue(todayIso());
-    expect(options(category())).toEqual(['Travaux', 'Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Autre']);
-    expect(category()).toHaveValue('works');
-    await user.selectOptions(category(), 'energy');
-    await user.selectOptions(within(form).getByLabelText('Type'), 'income');
-    expect(options(category())).toEqual(['Loyer', 'Autre revenu']);
-    expect(category()).toHaveValue('rent');
-    await user.selectOptions(within(form).getByLabelText('Type'), 'expense');
-    expect(category()).toHaveValue('works');
-    await user.selectOptions(within(form).getByLabelText('Type'), 'income');
-    await user.type(within(form).getByLabelText('Montant'), '850');
-    await user.clear(within(form).getByLabelText('Date'));
-    await user.type(within(form).getByLabelText('Date'), '2026-10-01');
+    const form = within(await screen.findByRole('dialog', { name: 'Nouvelle dépense ou nouveau revenu' }));
+    const category = () => form.getByRole('combobox', { name: 'Catégorie' });
+    await waitFor(() => expect(form.getByRole('combobox', { name: 'Type' })).toHaveFocus());
+    expect(form.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Dépense');
+    expect(form.getByLabelText('Date')).toHaveValue(fr(todayIso()));
+    expect(await choices(user, 'Catégorie')).toEqual(['Travaux', 'Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Autre']);
+    expect(category()).toHaveTextContent('Travaux');
+    await pick(user, 'Catégorie', 'Énergie');
+    await pick(user, 'Type', 'Revenu');
+    expect(await choices(user, 'Catégorie')).toEqual(['Loyer', 'Autre revenu']);
+    expect(category()).toHaveTextContent('Loyer');
+    await pick(user, 'Type', 'Dépense');
+    expect(category()).toHaveTextContent('Travaux');
+    await pick(user, 'Type', 'Revenu');
+    await user.type(form.getByLabelText('Montant'), '850');
+    await user.clear(form.getByLabelText('Date'));
+    await user.type(form.getByLabelText('Date'), '01/10/2026');
     await expectNoAxeViolations(container);
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Ligne ajoutée.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { occurredOn: '2026-10-01', kind: 'income', category: 'rent', amount: '850' } })]);
@@ -135,17 +160,16 @@ describe('flows', () => {
 
   it('corrects a flow inline; the correction comes back as the stored row', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[1]!).getByRole('button', { name: 'Corriger' }));
-    const form = screen.getByRole('form', { name: 'Corriger la ligne' });
-    expect(within(form).getByLabelText('Montant')).toHaveValue('12000.00');
-    expect(within(form).getByLabelText('Montant')).toHaveFocus();
-    expect(within(form).getByLabelText('Catégorie')).toHaveValue('works');
-    await user.clear(within(form).getByLabelText('Montant'));
-    await user.type(within(form).getByLabelText('Montant'), '12500');
-    await user.clear(within(form).getByLabelText('Note'));
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    await rowAction(user, (await rows())[1]!, '10 mars 2024', 'Corriger');
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger la ligne' }));
+    expect(form.getByLabelText('Montant')).toHaveValue('12000.00');
+        expect(form.getByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Travaux');
+    await user.clear(form.getByLabelText('Montant'));
+    await user.type(form.getByLabelText('Montant'), '12500');
+    await user.clear(form.getByLabelText('Note'));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Ligne corrigée.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { occurredOn: '2024-03-10', kind: 'expense', category: 'works', amount: '12500' } });
@@ -156,11 +180,11 @@ describe('flows', () => {
 
   it('deletes a flow after a confirmation', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
-    expect(screen.getByText('Cette ligne sera supprimée.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await rowAction(user, (await rows())[0]!, '15 octobre 2025', 'Supprimer');
+    expect(await screen.findByText('Cette ligne sera supprimée.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Ligne supprimée.'));
     expect(sent[0]!.url).toContain('/flows/f2');
@@ -170,38 +194,38 @@ describe('flows', () => {
   it('shows a category the server refuses under the category', async () => {
     serve();
     server.use(http.post('*/api/v1/realestate/properties/:id/flows', () => invalidCategory()));
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(PAGE);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter une dépense ou un revenu' }));
-    const form = screen.getByRole('form', { name: 'Nouvelle dépense ou nouveau revenu' });
-    await user.type(within(form).getByLabelText('Montant'), '300');
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Nouvelle dépense ou nouveau revenu' }));
+    await user.type(form.getByLabelText('Montant'), '300');
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(form).findByText('Cette catégorie ne correspond pas à ce type de ligne.')).toBeInTheDocument();
-    expect(within(form).getByLabelText('Catégorie')).toHaveAttribute('aria-invalid', 'true');
-    expect(within(form).queryByRole('alert')).not.toBeInTheDocument();
+    expect(await form.findByText('Cette catégorie ne correspond pas à ce type de ligne.')).toBeInTheDocument();
+    expect(form.getByRole('combobox', { name: 'Catégorie' })).toHaveAttribute('aria-invalid', 'true');
+    expect(form.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('says a flow corrected elsewhere is retired, and « Recharger » closes the form onto the stored row', async () => {
     const { correctElsewhere } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[1]!).getByRole('button', { name: 'Corriger' }));
+    await rowAction(user, (await rows())[1]!, '10 mars 2024', 'Corriger');
     correctElsewhere('f1', { amount: '13000.00' });
-    const form = screen.getByRole('form', { name: 'Corriger la ligne' });
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger la ligne' }));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await within(form).findByText('Cette ligne a déjà été corrigée ou supprimée.')).toBeInTheDocument();
-    await user.click(within(form).getByRole('button', { name: 'Recharger' }));
+    expect(await form.findByText('Cette ligne a déjà été corrigée ou supprimée.')).toBeInTheDocument();
+    await user.click(form.getByRole('button', { name: 'Recharger' }));
 
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Corriger la ligne' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Dépenses et revenus du bien' })).getAllByRole('row')[2]).toHaveTextContent('13 000,00 €'));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Dépenses et revenus' })).toHaveFocus());
   });
 
   it('gives a reader the flows without any action', async () => {
     serve(propertyDetail({ canWrite: false }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(PAGE);
 
     const section = await region();
     await rows();

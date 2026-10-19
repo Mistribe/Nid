@@ -1,4 +1,5 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -30,13 +31,16 @@ export function McpHelp() {
         {t('security.mcp.address')}
         <code className="break-all rounded-md border bg-muted px-1 font-mono text-sm">{address}</code>
       </p>
-      <label className="flex flex-wrap items-center gap-2">
-        {t('security.mcp.agent_label')}
-        <NativeSelect value={agent} onChange={(e) => setAgent(e.target.value as Agent)}>
-          <NativeSelectOption value="claude_code">{t('security.mcp.agent_claude_code')}</NativeSelectOption>
-          <NativeSelectOption value="claude_desktop">{t('security.mcp.agent_claude_desktop')}</NativeSelectOption>
-        </NativeSelect>
-      </label>
+      <div className="max-w-xs">
+        <Field label={t('security.mcp.agent_label')}>
+          {(c) => (
+            <SelectField {...c} value={agent} onValueChange={(v) => setAgent(v as Agent)} options={[
+              { value: 'claude_code', label: t('security.mcp.agent_claude_code') },
+              { value: 'claude_desktop', label: t('security.mcp.agent_claude_desktop') },
+            ]} />
+          )}
+        </Field>
+      </div>
       {agent === 'claude_code' ? (
         <>
           <p>{t('security.mcp.command_label')}</p>

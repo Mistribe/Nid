@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { aMonthAgo, plusMonths } from './dates';
+import { fillDate, pick } from './controls';
 import { proposeToken, signIn } from './session';
 
 // 4C2: a token proposes a value; alice sees the badge, approves it, and the envelope shows it.
@@ -7,7 +8,7 @@ test('alice approves a value an assistant proposed', async ({ page, playwright }
   const name = `PEA ${Date.now()}`;
   await signIn(page, 'alice', '/investments/new');
   await page.getByLabel('Nom', { exact: true }).fill(name);
-  await page.getByLabel('Type').selectOption('pea');
+  await pick(page, 'Type', 'PEA');
   await page.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const envelope = page.url().split('/').pop()!;
@@ -25,7 +26,7 @@ test('alice approves a value an assistant proposed', async ({ page, playwright }
 
   await page.goto('/proposals');
   await expect(page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: /À valider/ })).toContainText(/\d/);
-  await page.getByRole('region', { name: 'Relevé E2E' }).getByRole('link', { name: new RegExp(name) }).click();
+  await page.getByRole('table', { name: 'Liste des propositions' }).getByRole('row').filter({ hasText: 'Relevé E2E' }).getByRole('link', { name: new RegExp(name) }).click();
   await expect(page.getByRole('row', { name: /Valeur proposée/ })).toContainText('12 345,67');
   await page.getByRole('button', { name: 'Approuver' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Proposition approuvée.' })).toBeVisible();
@@ -39,7 +40,7 @@ test('alice approves a statement an assistant proposed, leaving one movement out
   const name = `CTO ${Date.now()}`;
   await signIn(page, 'alice', '/investments/new');
   await page.getByLabel('Nom', { exact: true }).fill(name);
-  await page.getByLabel('Type').selectOption('pea');
+  await pick(page, 'Type', 'PEA');
   await page.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const envelope = page.url().split('/').pop()!;
@@ -65,7 +66,7 @@ test('alice approves a statement an assistant proposed, leaving one movement out
   await outside.dispose();
 
   await page.goto('/proposals');
-  await page.getByRole('region', { name: 'Relevé E2E 4D1' }).getByRole('link', { name: new RegExp(name) }).click();
+  await page.getByRole('table', { name: 'Liste des propositions' }).getByRole('row').filter({ hasText: 'Relevé E2E 4D1' }).getByRole('link', { name: new RegExp(name) }).click();
   await expect(page.getByRole('table', { name: 'Mouvements du relevé' })).toContainText('Doublon E2E');
   await page.getByRole('checkbox', { name: /Mouvement 2/ }).uncheck();
   await page.getByRole('button', { name: 'Approuver' }).click();
@@ -84,10 +85,12 @@ test('alice approves the bank’s table an assistant proposed, as the loan’s r
   await signIn(page, 'alice', '/loans/new');
   await page.getByLabel('Nom', { exact: true }).fill(name);
   await page.getByRole('radio', { name: 'Non, privé' }).check();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByLabel('Capital emprunté').fill('200000');
   await page.getByLabel('Taux annuel (%)').fill('3,5');
   await page.getByLabel('Durée (mois)').fill('240');
-  await page.getByLabel('Date de déblocage').fill(disbursed);
+  await fillDate(page, 'Date de déblocage', disbursed);
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: 'Créer le crédit' }).click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
   const loan = page.url().split('/').pop()!;
@@ -111,12 +114,12 @@ test('alice approves the bank’s table an assistant proposed, as the loan’s r
   await outside.dispose();
 
   await page.goto('/proposals');
-  await page.getByRole('region', { name: 'Tableau E2E 4D2' }).getByRole('link', { name: new RegExp(name) }).click();
+  await page.getByRole('table', { name: 'Liste des propositions' }).getByRole('row').filter({ hasText: 'Tableau E2E 4D2' }).getByRole('link', { name: new RegExp(name) }).click();
   await expect(page.getByText('Les deux concordent (écarts d’arrondi seulement).')).toBeVisible();
   await expect(page.getByRole('checkbox', { name: 'Faire de ce tableau la référence' })).toBeChecked();
   await page.getByRole('button', { name: 'Approuver' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Proposition approuvée.' })).toBeVisible();
 
-  await page.goto(`/loans/${loan}`);
+  await page.goto(`/loans/${loan}?tab=schedule`);
   await expect(page.getByRole('table', { name: 'Échéancier par année' }).getByText('Banque').first()).toBeVisible();
 });

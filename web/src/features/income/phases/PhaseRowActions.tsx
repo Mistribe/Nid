@@ -1,16 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { ConfirmAction } from '@/components/ConfirmAction';
-import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
-import { presentConflict } from '../../investments/entries/entries';
-import { Reload } from '../../subscriptions/edits/Reload';
+import { formatLocalDate } from '@/components/LocalDate';
 import { invalidateIncome, PHASE, type IncomePhase, type IncomeSourceDetail } from '../api';
+import { RowActions } from '@/components/page/RowActions';
+import { presentConflict } from '../../investments/entries/entries';
 
 /**
- * A phase's row actions (spec §7): « Corriger » swaps the row for its form; « Supprimer » asks first, then deletes with
- * the version it read. The confirmation goes to the page's live region: the row disappears with the refetch.
+ * A phase's `⋯` menu (spec §7): « Changer le montant » on a running or upcoming phase, « Corriger », and « Supprimer »,
+ * which asks first and deletes with the version it read. The confirmation goes to the page's live region: the row
+ * disappears with the refetch.
  */
 export function PhaseRowActions({ source, phase, onEdit, onChangeAmount, onDeleteStarted, onDeleted }: {
   source: IncomeSourceDetail; phase: IncomePhase; onEdit: () => void; onChangeAmount?: () => void; onDeleteStarted: () => void; onDeleted: (message: string) => void;
@@ -21,25 +20,13 @@ export function PhaseRowActions({ source, phase, onEdit, onChangeAmount, onDelet
   const remove = $api.useMutation('delete', PHASE, {
     onSuccess: () => { void invalidateIncome(queryClient); onDeleted(t('income_detail.phase_deleted')); },
   });
-  const problem = remove.error ? presentConflict(t, remove.error) : null;
-
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      {onChangeAmount ? (
-        <Button id={`change-phase-${phase.id}`} type="button" variant="outline" size="sm" onClick={onChangeAmount}>{t('income_detail.change.open')}</Button>
-      ) : null}
-      <Button id={`correct-phase-${phase.id}`} type="button" variant="outline" size="sm" onClick={onEdit}>{t('income_detail.correct')}</Button>
-      <ConfirmAction label={t('income_detail.delete')} confirmation={t('income_detail.delete_confirm')} pending={remove.isPending}
-        onConfirm={() => {
-          onDeleteStarted();
-          remove.mutate({ params: { path: { id: source.id, phaseId: phase.id }, query: { version: phase.version } } });
-        }} />
-      {problem ? (
-        <>
-          <ProblemMessage problem={problem} />
-          {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => { remove.reset(); return invalidateIncome(queryClient); }} /> : null}
-        </>
-      ) : null}
-    </span>
+    <RowActions menuId={`phase-menu-${phase.id}`} menuLabel={t('income_detail.phase_menu', { label: phase.label, date: formatLocalDate(phase.startsOn) })}
+      items={[
+        ...(onChangeAmount ? [{ label: t('income_detail.change.open'), onSelect: onChangeAmount }] : []),
+        { label: t('income_detail.correct'), onSelect: onEdit },
+      ]}
+      confirmation={t('income_detail.delete_confirm')} remove={remove} onDeleteStarted={onDeleteStarted} present={presentConflict} invalidate={invalidateIncome}
+      onConfirm={() => remove.mutate({ params: { path: { id: source.id, phaseId: phase.id }, query: { version: phase.version } } })} />
   );
 }

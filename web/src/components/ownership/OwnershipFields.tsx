@@ -1,14 +1,16 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { PlusIcon, XIcon } from 'lucide-react';
 import { useId } from 'react';
-import { useFieldArray, type ArrayPath, type FieldArray, type FieldErrors, type Path, type UseFormReturn } from 'react-hook-form';
+import { Controller, useFieldArray, type ArrayPath, type FieldArray, type FieldErrors, type Path, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
+import { Segmented } from '@/components/form/Segmented';
+import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
-import { Field } from '@/features/subscriptions/edits/Field';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/form/Field';
 import type { OwnershipValues } from './ownership';
 
 type Person = components['schemas']['PersonDto'];
-const input = 'rounded-md border px-3 py-2';
 
 /**
  * The subscription wizard's visibility-and-owners block, shared with any other form whose values extend
@@ -27,44 +29,42 @@ export function OwnershipFields<T extends OwnershipValues>({ form, persons, with
   const e = form.formState.errors as FieldErrors<OwnershipValues>;
   const ownersError = e.owners?.message ?? e.owners?.root?.message;
   const visibilityId = useId();
+  const effectId = useId();
   return (
     <>
       {withVisibility ? (
-        <fieldset aria-describedby={visibilityId} className="space-y-1">
-          <legend className="text-sm">{t('wizard.visibility')}</legend>
-          {(['shared', 'private'] as const).map((v) => (
-            <label key={v} className="flex items-center gap-2">
-              <input type="radio" value={v} {...form.register('visibility' as Path<T>)} />
-              {t(`wizard.${v}`)}
-            </label>
-          ))}
-          <p id={visibilityId} className="text-sm text-muted-foreground">
+        <div className="space-y-1">
+          <span id={visibilityId} className="block text-sm">{t('wizard.visibility')}</span>
+          <Controller control={form.control} name={'visibility' as Path<T>} render={({ field }) => (
+            <Segmented aria-labelledby={visibilityId} aria-describedby={effectId} value={field.value as string} onValueChange={field.onChange}
+              options={(['shared', 'private'] as const).map((v) => ({ value: v, label: t(`wizard.${v}`) }))} />
+          )} />
+          <p id={effectId} className="text-sm text-muted-foreground">
             {form.watch('visibility' as Path<T>) === 'private' ? t('wizard.private_effect') : t('wizard.shared_effect')}
           </p>
-        </fieldset>
+        </div>
       ) : null}
       <fieldset className="space-y-2">
         <legend className="text-sm">{t('wizard.owners')}</legend>
         {owners.fields.map((row, i) => (
-          <div key={row.id} className="flex flex-wrap items-end gap-2">
-            <Field label={t('wizard.owner')} error={e.owners?.[i]?.personId?.message}>
-              {(c) => (
-                <NativeSelect {...c} {...form.register(`owners.${i}.personId` as Path<T>)}>
-                  {persons.map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.displayName}</NativeSelectOption>)}
-                </NativeSelect>
-              )}
-            </Field>
+          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_6rem_auto] items-end gap-2">
+            <Controller control={form.control} name={`owners.${i}.personId` as Path<T>} render={({ field }) => (
+              <Field label={t('wizard.owner')} error={e.owners?.[i]?.personId?.message}>
+                {(c) => <SelectField {...c} value={field.value as string} onValueChange={field.onChange}
+                  options={persons.map((p) => ({ value: p.id, label: p.displayName }))} />}
+              </Field>
+            )} />
             <Field label={t('wizard.share')} error={e.owners?.[i]?.share?.message}>
-              {(c) => <input inputMode="decimal" {...c} {...form.register(`owners.${i}.share` as Path<T>)} className={`w-24 ${input}`} />}
+              {(c) => <Input inputMode="decimal" {...c} {...form.register(`owners.${i}.share` as Path<T>)} />}
             </Field>
             {owners.fields.length > 1 ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => owners.remove(i)}>{t('wizard.remove_owner')}</Button>
-            ) : null}
+              <Button type="button" variant="ghost" size="icon" aria-label={t('wizard.remove_owner')} onClick={() => owners.remove(i)}><XIcon aria-hidden="true" /></Button>
+            ) : <span />}
           </div>
         ))}
         {ownersError ? <p role="alert" className="text-sm text-destructive">{ownersError}</p> : null}
-        <Button type="button" variant="outline" size="sm" onClick={() => owners.append({ personId: persons[0]?.id ?? '', share: '' } as FieldArray<T, ArrayPath<T>>)}>
-          {t('wizard.add_owner')}
+        <Button type="button" variant="ghost" size="sm" onClick={() => owners.append({ personId: persons[0]?.id ?? '', share: '' } as FieldArray<T, ArrayPath<T>>)}>
+          <PlusIcon aria-hidden="true" />{t('wizard.add_owner')}
         </Button>
       </fieldset>
     </>

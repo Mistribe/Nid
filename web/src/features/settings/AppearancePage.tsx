@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { CheckIcon } from 'lucide-react';
+import { RadioGroup } from 'radix-ui';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
@@ -6,17 +8,16 @@ import { useSession } from '@/app/Providers';
 import type { Preferences } from '@/app/session';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from '@/app/theme';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Segmented } from '@/components/form/Segmented';
+import { PageHeader } from '@/components/page/PageHeader';
+import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
 
 type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns' | 'guidesSeen'>>;
 
 /** The latest choice the person made, applied locally, that the server hasn't confirmed yet. */
 type Choice = { theme: ThemeId; mode: Mode };
-
-const isDark = (mode: Mode, media: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)')): boolean =>
-  mode === 'dark' || (mode === 'system' && media.matches);
 
 /** design-system.md §7.5: mode, theme, chart patterns; applied at once, saved per person on the server. */
 export function AppearancePage() {
@@ -100,67 +101,47 @@ export function AppearancePage() {
 
   const previewTheme = (theme: ThemeId) => applyTheme(theme, current.mode);
 
-  const darkNow = isDark(current.mode);
+  const modeLabel = useId();
+  const themeLabel = useId();
 
   return (
     <div className="max-w-2xl space-y-8">
-      <h1 className="text-2xl font-semibold">{t('settings.appearance.title')}</h1>
+      <PageHeader title={t('settings.appearance.title')} />
       {problem ? <ProblemMessage problem={problem} /> : null}
 
-      <fieldset className="space-y-2">
-        <legend className="mb-2 font-medium">{t('settings.appearance.mode')}</legend>
-        {modes.map((mode) => (
-          <label key={mode} className="flex min-h-11 items-center gap-2">
-            <input type="radio" name="mode" value={mode} checked={savedMode === mode} onChange={() => chooseMode(mode)} />
-            {t(`mode.${mode}`)}
-          </label>
-        ))}
-      </fieldset>
+      <section className="space-y-2">
+        <h2 id={modeLabel} className="font-medium">{t('settings.appearance.mode')}</h2>
+        <Segmented aria-labelledby={modeLabel} value={savedMode} onValueChange={(mode) => chooseMode(mode as Mode)}
+          options={modes.map((mode) => ({ value: mode, label: t(`mode.${mode}`) }))} />
+      </section>
 
-      <fieldset>
-        <legend className="mb-2 font-medium">{t('settings.appearance.theme')}</legend>
-        <div className="grid grid-cols-2 gap-3">
+      <section className="space-y-2">
+        <h2 id={themeLabel} className="font-medium">{t('settings.appearance.theme')}</h2>
+        <RadioGroup.Root aria-labelledby={themeLabel} value={savedTheme} onValueChange={(theme) => chooseTheme(theme as ThemeId)} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {themes.map((theme) => (
-            <label
+            <RadioGroup.Item
               key={theme.id}
-              data-theme={theme.id}
+              value={theme.id}
               onMouseEnter={() => previewTheme(theme.id)}
               onMouseLeave={restoreCurrent}
-              className={cn(
-                'flex cursor-pointer flex-col gap-3 rounded-lg border bg-background p-4 text-foreground',
-                'has-[:checked]:ring-2 has-[:checked]:ring-ring has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-                darkNow && 'dark',
-              )}
+              onFocus={() => previewTheme(theme.id)}
+              onBlur={restoreCurrent}
+              className="flex flex-col items-start gap-3 rounded-lg border bg-card p-4 text-left text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:border-ring data-[state=checked]:ring-2 data-[state=checked]:ring-ring"
             >
-              <input
-                type="radio"
-                name="theme"
-                value={theme.id}
-                checked={savedTheme === theme.id}
-                onChange={() => chooseTheme(theme.id)}
-                onFocus={() => previewTheme(theme.id)}
-                onBlur={restoreCurrent}
-                className="sr-only"
-              />
               <span className="flex gap-1" aria-hidden="true">
-                <span className="size-6 rounded-full bg-primary" />
-                <span className="size-6 rounded-full bg-muted" />
-                <span className="size-6 rounded-full border bg-accent" />
+                {theme.swatches.map((color) => <span key={color} className="size-6 rounded-full border" style={{ background: color }} />)}
               </span>
-              <span>{t(`theme.${theme.id}`)}</span>
-            </label>
+              <span className="flex items-center gap-1 font-medium">
+                {t(`theme.${theme.id}`)}
+                {savedTheme === theme.id ? <CheckIcon aria-hidden="true" className="size-4" /> : null}
+              </span>
+            </RadioGroup.Item>
           ))}
-        </div>
-      </fieldset>
+        </RadioGroup.Root>
+      </section>
 
-      <label className="flex min-h-11 items-center gap-2">
-        <input
-          type="checkbox"
-          checked={session.preferences.chartPatterns}
-          onChange={(event) => change({ chartPatterns: event.target.checked })}
-        />
-        {t('settings.appearance.chart_patterns')}
-      </label>
+      <SwitchField label={t('settings.appearance.chart_patterns')} checked={session.preferences.chartPatterns}
+        onCheckedChange={(chartPatterns) => change({ chartPatterns })} />
 
       <section className="space-y-2">
         <h2 className="font-medium">{t('guides.settings.title')}</h2>

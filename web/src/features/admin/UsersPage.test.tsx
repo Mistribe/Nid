@@ -10,6 +10,8 @@ import { server } from '@/test/server';
 type Adult = components['schemas']['AdultView'];
 
 // aliceSession (the default renderApp() session) is this same person: these tests exercise the self rows.
+// The menu is a lazy chunk: its real trigger (aria-expanded) replaces the plain name once loaded.
+const openerReady = () => screen.findByRole('button', { name: 'Alice Dev', expanded: false });
 const alice: Adult = { id: '01926b9e-0000-7000-8000-00000000000a', displayName: 'Alice Dev', email: 'alice@example.test', status: 'active', isAdmin: true };
 const bob: Adult = { id: '01926b9e-0000-7000-8000-00000000000b', displayName: 'Bob', email: 'bob@example.test', status: 'active', isAdmin: false };
 const carol: Adult = { id: '01926b9e-0000-7000-8000-00000000000c', displayName: 'Carol', email: 'carol@example.test', status: 'pending', isAdmin: false };
@@ -43,19 +45,21 @@ describe('Administration › Utilisateurs', () => {
     }));
     const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un adulte' }));
     await user.type(await screen.findByLabelText('Nom'), 'Carol');
     await user.type(screen.getByLabelText('Email'), 'carol@example.test');
     await user.click(screen.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => expect(sent).toEqual([{ displayName: 'Carol', email: 'carol@example.test' }]));
     await waitFor(() => expect(counter.reads()).toBe(2));
+    expect(await screen.findByRole('status')).toHaveTextContent('Adulte ajouté.');
   });
 
-  it('disables the form, with the reason, when the cap is reached', async () => {
+  it('disables the add button, with the reason, when the cap is reached', async () => {
     serve([alice, bob], 2);
     await renderApp('/admin/users', { capabilities: adminCapabilities });
 
-    expect(await screen.findByRole('button', { name: 'Ajouter' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Ajouter un adulte' })).toBeDisabled();
     expect(screen.getByText(/limité à 2 adultes/)).toBeInTheDocument();
   });
 
@@ -81,7 +85,7 @@ describe('Administration › Utilisateurs', () => {
     const carolRow = await screen.findByRole('row', { name: /Carol/ });
     await user.click(within(carolRow).getByRole('button', { name: "Annuler l'invitation" }));
     expect(deleted).toEqual([]);
-    await user.click(within(carolRow).getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toEqual([carol.id]));
   });
@@ -92,6 +96,7 @@ describe('Administration › Utilisateurs', () => {
       { status: 422, code: 'core.email_taken', title: 'Another adult already has this email address.' }, { status: 422 })));
     const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities });
 
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un adulte' }));
     await user.type(await screen.findByLabelText('Nom'), 'Alice bis');
     await user.type(screen.getByLabelText('Email'), 'alice@example.test');
     await user.click(screen.getByRole('button', { name: 'Ajouter' }));
@@ -108,9 +113,10 @@ describe('Administration › Utilisateurs', () => {
 
   it('an admin finds the admin entry in the navigation', async () => {
     serve([alice]);
-    await renderApp('/subscriptions', { capabilities: adminCapabilities });
+    const { user } = await renderApp('/subscriptions', { capabilities: adminCapabilities });
 
-    expect(screen.getAllByRole('link', { name: 'Administration' }).length).toBeGreaterThan(0);
+    await user.click(await openerReady());
+    expect(await screen.findByRole('menuitem', { name: 'Administration' })).toBeInTheDocument();
   });
 
   it('warns the admin distinctly before it signs itself out everywhere', async () => {
@@ -120,6 +126,6 @@ describe('Administration › Utilisateurs', () => {
     const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
     await user.click(within(aliceRow).getByRole('button', { name: 'Déconnecter partout' }));
 
-    expect(within(aliceRow).getByText(/vous devrez vous reconnecter/)).toBeInTheDocument();
+    expect(screen.getByText(/vous devrez vous reconnecter/)).toBeInTheDocument();
   });
 });

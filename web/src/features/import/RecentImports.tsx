@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { buttonVariants } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatInstant } from '@/features/admin/format';
+import { StepCard } from './StepCard';
 import { ACTIVE_STATES, effectiveState, useStateLabel } from './states';
 
 /** The person's recent sessions (import-format.md §11.1, `GET /imports`); an active one can be resumed. */
@@ -24,33 +27,35 @@ export function RecentImports() {
   if (list.data.length === 0) return null; // nothing to resume: the file step below is the invitation
 
   return (
+    <StepCard>
     <section aria-labelledby="import-recent-title" className="space-y-2">
       <h2 id="import-recent-title" className="text-lg font-semibold">{t('import.recent_title')}</h2>
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b">
-            <th scope="col" className="py-2 pr-4">{t('import.started')}</th>
-            <th scope="col" className="py-2 pr-4">{t('import.state_column')}</th>
-            <th scope="col" className="py-2">{t('import.action')}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">{t('import.started')}</TableHead>
+            <TableHead scope="col">{t('import.state_column')}</TableHead>
+            <TableHead scope="col">{t('import.action')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {list.data.map((session) => {
             const state = effectiveState(session);
             return (
-              <tr key={session.id} className="border-b">
-                <td className="py-2 pr-4">{formatInstant(session.createdAt)}</td>
-                <td className="py-2 pr-4">{label(state)}</td>
-                <td className="py-2">
-                  <Link to="/import/$id" params={{ id: session.id }} className="underline">
+              <TableRow key={session.id}>
+                <TableCell>{formatInstant(session.createdAt)}</TableCell>
+                <TableCell>{label(state)}</TableCell>
+                <TableCell>
+                  <Link to="/import/$id" params={{ id: session.id }} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
                     {ACTIVE_STATES.has(state) ? t('import.resume') : t('import.view')}
                   </Link>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </section>
+    </StepCard>
   );
 }

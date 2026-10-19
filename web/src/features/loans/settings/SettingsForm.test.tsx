@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { PROPERTY, propertyList, propertySummary } from '../../properties/testData';
@@ -18,6 +19,7 @@ function serve(bodies: unknown[], answer: () => Response = () => HttpResponse.js
   return reads;
 }
 
+const PAGE = `/loans/${LOAN}?tab=contract`;
 const settings = () => screen.getByRole('form', { name: 'Réglages' });
 const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
 const save = () => within(settings()).getByRole('button', { name: 'Enregistrer les réglages' });
@@ -28,7 +30,7 @@ describe('loan settings', () => {
   it('sends only what changed, every clear flag stated, says it is saved and reads the loan again', async () => {
     const bodies: unknown[] = [];
     const reads = serve(bodies);
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     await user.clear(within(settings()).getByLabelText('Prêteur'));
@@ -44,7 +46,7 @@ describe('loan settings', () => {
   it('says there is nothing to save rather than sending an empty change', async () => {
     const bodies: unknown[] = [];
     serve(bodies);
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     await user.click(save());
@@ -57,7 +59,7 @@ describe('loan settings', () => {
     serve([], () => HttpResponse.json(
       { status: 422, code: 'realestate.invalid_loan', title: 'x', errors: [{ path: 'lender', code: 'realestate.invalid_loan', message: 'x' }] },
       { status: 422 }));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     await user.type(within(settings()).getByLabelText('Prêteur'), ' SA');
@@ -70,7 +72,7 @@ describe('loan settings', () => {
   it('refuses an empty name before sending', async () => {
     const bodies: unknown[] = [];
     serve(bodies);
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
     await user.clear(within(settings()).getByLabelText('Nom'));
@@ -96,12 +98,12 @@ describe('loan settings', () => {
     const bodies: unknown[] = [];
     serve(bodies, undefined, linked());
     const propertyReads = twoProperties();
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
-    await within(settings()).findByRole('option', { name: 'Studio' });
-    expect(within(settings()).getByLabelText('Bien financé')).toHaveValue(PROPERTY);
-    await user.selectOptions(within(settings()).getByLabelText('Bien financé'), 'Studio');
+    await waitFor(() => expect(propertyReads()).toBeGreaterThan(0));
+    expect(within(settings()).getByLabelText('Bien financé')).toHaveTextContent('Maison de Nantes');
+    await pick(user, 'Bien financé', 'Studio');
     await expectNoAxeViolations(container);
     await user.click(save());
 
@@ -114,10 +116,10 @@ describe('loan settings', () => {
     const bodies: unknown[] = [];
     serve(bodies, undefined, linked());
     twoProperties();
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
-    await user.selectOptions(within(settings()).getByLabelText('Bien financé'), 'Aucun');
+    await pick(user, 'Bien financé', 'Aucun');
     await user.click(save());
 
     await saved();
@@ -127,10 +129,10 @@ describe('loan settings', () => {
   it('keeps a linked property the reader cannot read when saving something else', async () => {
     const bodies: unknown[] = [];
     serve(bodies, undefined, loanDetail({ propertyId: PROPERTY, propertyName: null }));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
-    expect(within(settings()).getByLabelText('Bien financé')).toHaveDisplayValue('Un bien que vous ne pouvez pas consulter');
+    expect(within(settings()).getByLabelText('Bien financé')).toHaveTextContent('Un bien que vous ne pouvez pas consulter');
     await user.type(within(settings()).getByLabelText('Note'), 'taux renégocié');
     await user.click(save());
 
@@ -142,10 +144,10 @@ describe('loan settings', () => {
     const bodies: unknown[] = [];
     serve(bodies, undefined, linked());
     server.use(http.get('*/api/v1/realestate/properties', async () => { await delay('infinite'); return HttpResponse.json(propertyList([])); }));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
-    expect(within(settings()).getByLabelText('Bien financé')).toHaveDisplayValue('Maison de Nantes');
+    expect(within(settings()).getByLabelText('Bien financé')).toHaveTextContent('Maison de Nantes');
     await user.type(within(settings()).getByLabelText('Note'), 'x');
     await user.click(save());
 
@@ -158,11 +160,10 @@ describe('loan settings', () => {
       { status: 422, code: 'realestate.invalid_property', title: 'x', errors: [{ path: 'propertyId', code: 'realestate.invalid_property', message: 'x' }] },
       { status: 422 }));
     twoProperties();
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
-    await within(settings()).findByRole('option', { name: 'Studio' });
-    await user.selectOptions(within(settings()).getByLabelText('Bien financé'), 'Studio');
+    await pick(user, 'Bien financé', 'Studio');
     await user.click(save());
 
     expect(await within(settings()).findByText('Ce bien n’existe pas ou n’est pas accessible.')).toBeInTheDocument();

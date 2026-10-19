@@ -30,9 +30,9 @@ async function openDialog(typed = 'Ma box') {
   await screen.findByRole('radio', { name: /Récurrent/ }); // the step waits for the household's persons before it shows
   await utils.user.click(screen.getByRole('button', { name: 'Continuer' }));
   await screen.findByRole('group', { name: 'Propriétaires' });
-  await utils.user.type(screen.getByLabelText('Fournisseur'), typed);
-  await utils.user.click(await screen.findByRole('button', { name: `Créer « ${typed} »` }));
+  await utils.user.click(screen.getByRole('button', { name: 'Nouveau fournisseur' }));
   const dialog = await screen.findByRole('dialog', { name: 'Nouveau fournisseur' });
+  await utils.user.type(within(dialog).getByLabelText('Nom'), typed);
   return { ...utils, dialog };
 }
 
@@ -40,17 +40,18 @@ async function openDialog(typed = 'Ma box') {
 beforeAll(async () => { await import('./NewSubscription'); }, 30_000);
 
 describe('Abonnements › nouveau fournisseur', () => {
-  it('offers the creation under the results once a text is typed, even when nothing matches', async () => {
+  it('offers « Nouveau fournisseur » beside the provider search, even when nothing matches', async () => {
     serve(() => HttpResponse.json({}, { status: 500 }));
     const utils = await renderApp('/subscriptions/new');
     await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
     await screen.findByRole('radio', { name: /Récurrent/ }); // the step waits for the household's persons before it shows
     await utils.user.click(screen.getByRole('button', { name: 'Continuer' }));
     await screen.findByRole('group', { name: 'Propriétaires' });
-    expect(screen.queryByRole('button', { name: /^Créer/ })).not.toBeInTheDocument();
-    await utils.user.type(screen.getByLabelText('Fournisseur'), 'Ma box');
-    expect(await screen.findByText('Aucun fournisseur trouvé.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Créer « Ma box »' })).toBeInTheDocument();
+    await utils.user.click(screen.getByRole('combobox', { name: 'Fournisseur' }));
+    await utils.user.type(await screen.findByPlaceholderText('Rechercher'), 'Ma box');
+    expect(await screen.findByText('Aucun résultat')).toBeInTheDocument();
+    await utils.user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Nouveau fournisseur' })).toBeInTheDocument();
   });
 
   it('creates the provider, chooses it, never submits the wizard, and gives the focus back to the search', async () => {
@@ -70,11 +71,10 @@ describe('Abonnements › nouveau fournisseur', () => {
     // bubbled submit from the dialog would otherwise silently fail the wizard's own validation and advance nothing,
     // proving nothing about the dialog's stopPropagation.
     await utils.user.type(screen.getByLabelText('Nom'), 'Ma box mensuelle');
-    await utils.user.type(screen.getByLabelText('Fournisseur'), 'Ma box');
-    await utils.user.click(await screen.findByRole('button', { name: 'Créer « Ma box »' }));
+    await utils.user.click(screen.getByRole('button', { name: 'Nouveau fournisseur' }));
     const dialog = await screen.findByRole('dialog', { name: 'Nouveau fournisseur' });
 
-    expect(within(dialog).getByLabelText('Nom')).toHaveValue('Ma box');
+    await utils.user.type(within(dialog).getByLabelText('Nom'), 'Ma box');
     await expectNoAxeViolations(utils.container);
     await utils.user.click(within(dialog).getByRole('checkbox', { name: 'Internet' }));
     await utils.user.type(within(dialog).getByLabelText('Site web'), 'https://ma-box.example');
@@ -82,7 +82,7 @@ describe('Abonnements › nouveau fournisseur', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent).toEqual([{ name: 'Ma box', website: 'https://ma-box.example', pricingPage: null, labelKeys: ['internet'] }]);
-    expect(screen.getByText('Fournisseur choisi : Ma box')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Fournisseur' })).toHaveTextContent('Ma box');
     expect(screen.getByLabelText('Fournisseur')).toHaveFocus();
     expect(subscriptions).toEqual([]);
     // The wizard itself never submitted or advanced: still the common step, not the offer step.
@@ -111,7 +111,7 @@ describe('Abonnements › nouveau fournisseur', () => {
     resolveCreate();
     await waitFor(() => expect(responded).toBe(true)); // let the (now unmounted) dialog's request land
 
-    expect(screen.queryByText(/Fournisseur choisi/)).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Fournisseur' })).not.toHaveTextContent('Ma box');
     expect(screen.getByLabelText('Fournisseur')).toHaveFocus();
   });
 
@@ -156,6 +156,6 @@ describe('Abonnements › nouveau fournisseur', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent).toEqual([]);
     expect(screen.getByLabelText('Fournisseur')).toHaveFocus();
-    expect(screen.queryByText(/Fournisseur choisi/)).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Fournisseur' })).not.toHaveTextContent('Ma box');
   });
 });

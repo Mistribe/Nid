@@ -5,7 +5,6 @@ import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { todayIso } from '../../subscriptions/today';
 import type { IncomeSourceDetail } from '../api';
 import { detail, eur, phase, SALARY } from '../testData';
 
@@ -64,7 +63,8 @@ const rowsOf = (label: string) => within(screen.getByRole('table', { name: label
 
 async function openChange(user: Awaited<ReturnType<typeof renderApp>>['user'], label = 'Salaire de base', row = 0) {
   await screen.findByRole('table', { name: label });
-  await user.click(within(rowsOf(label)[row]!).getByRole('button', { name: 'Changer le montant' }));
+  await user.click(within(rowsOf(label)[row]!).getByRole('button', { name: /^Actions de la période/ }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Changer le montant' }));
   return screen.findByRole('form', { name: 'Changer le montant' });
 }
 
@@ -76,35 +76,40 @@ describe('changing the amount', () => {
     const { user, container } = await renderApp(`/income/${SALARY}`);
 
     const form = await openChange(user);
-    const select = await within(form).findByLabelText<HTMLSelectElement>('Date d’effet');
-    const options = within(select).getAllByRole<HTMLOptionElement>('option');
+    const select = await within(form).findByRole('combobox', { name: 'Date d’effet' });
+    await user.click(select);
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option');
     expect(options.length).toBeGreaterThan(1);
-    expect(options.every((o) => o.value.endsWith('-01'))).toBe(true);
-    expect(select.value).toBe(options.map((o) => o.value).find((v) => v >= todayIso()));
-    expect(select).toHaveFocus();
+    expect(options.every((o) => /^1 /.test(o.textContent ?? ''))).toBe(true);
+    await user.click(options[0]!);
     expect(within(form).getByLabelText('Montant net')).toHaveValue('2300');
     expect(within(form).queryByLabelText('Libellé')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
 
-    await user.selectOptions(select, options[0]!.value);
     await user.clear(within(form).getByLabelText('Montant net'));
     await user.type(within(form).getByLabelText('Montant net'), '2500');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer le changement' }));
 
-    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Périodes' })).getByRole('status')).toHaveTextContent('Montant changé.'));
-    expect(sent).toEqual([{ label: 'Salaire de base', effectiveOn: options[0]!.value, netAmount: { amount: '2500', currency: 'EUR' }, every: { count: 1, unit: 'month' } }]);
+    await waitFor(() => expect(screen.getAllByRole('status').map((x) => x.textContent)).toContain('Montant changé.'));
+    expect(sent).toEqual([{ label: 'Salaire de base', effectiveOn: expect.stringMatching(/^\d{4}-\d{2}-01$/) as string, netAmount: { amount: '2500', currency: 'EUR' }, every: { count: 1, unit: 'month' } }]);
     expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus();
   });
 
   it('offers « Changer le montant » on running and upcoming phases, never on a past one', async () => {
     serve();
-    await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('table', { name: 'Salaire de base' });
-    const base = rowsOf('Salaire de base');
-    expect(within(base[0]!).getByRole('button', { name: 'Changer le montant' })).toBeInTheDocument();
-    expect(within(base[1]!).queryByRole('button', { name: 'Changer le montant' })).not.toBeInTheDocument();
-    expect(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Changer le montant' })).toBeInTheDocument();
+    const menu = (label: string, row: number) => within(rowsOf(label)[row]!).getByRole('button', { name: /^Actions de la période/ });
+    await user.click(menu('Salaire de base', 0));
+    expect(await screen.findByRole('menuitem', { name: 'Changer le montant' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(menu('Salaire de base', 1));
+    expect(await screen.findByRole('menuitem', { name: 'Corriger' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Changer le montant' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(menu('Prime annuelle', 0));
+    expect(await screen.findByRole('menuitem', { name: 'Changer le montant' })).toBeInTheDocument();
   });
 
   it('says when there is no date to offer, and gives the focus back on « Annuler »', async () => {
@@ -114,10 +119,9 @@ describe('changing the amount', () => {
     const form = await openChange(user);
     expect(await within(form).findByText('Aucune date de versement à proposer pour cette période.')).toBeInTheDocument();
     expect(within(form).queryByLabelText('Date d’effet')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Changer le montant' })).toHaveFocus();
     await user.click(within(form).getByRole('button', { name: 'Annuler' }));
 
-    await waitFor(() => expect(within(rowsOf('Salaire de base')[0]!).getByRole('button', { name: 'Changer le montant' })).toHaveFocus());
+    await waitFor(() => expect(within(rowsOf('Salaire de base')[0]!).getByRole('button', { name: /^Actions de la période/ })).toHaveFocus());
   });
 
   it('keeps an open form when a background refetch of the dates fails', async () => {

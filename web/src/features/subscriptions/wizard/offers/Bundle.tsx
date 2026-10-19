@@ -1,8 +1,8 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { useId } from 'react';
-import { useFieldArray } from 'react-hook-form';
+import { Controller, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
 import { LIST } from '../../api';
 import { AmountField, DateField, DurationFields, LabelField, PayerFields, type Form, type Person } from './fields';
@@ -18,11 +18,12 @@ function Other({ form, index, options, onRemove }: {
   return (
     <fieldset className="space-y-2 rounded-md border p-3">
       <legend id={legendId} className="text-sm">{label}</legend>
-      <NativeSelect aria-labelledby={legendId} aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined}
-        {...form.register(`others.${index}.subscriptionId`)}>
-        <NativeSelectOption value="">{t('wizard.none')}</NativeSelectOption>
-        {options.map((o) => <NativeSelectOption key={o.id} value={o.id}>{o.displayName}</NativeSelectOption>)}
-      </NativeSelect>
+      <Controller control={form.control} name={`others.${index}.subscriptionId`} render={({ field }) => (
+        // The legend names the select (`aria-labelledby` is not part of FieldControl: a spread carries it to the trigger).
+        <SelectField {...{ 'aria-labelledby': legendId }} id={`${legendId}-select`} aria-describedby={error ? errorId : undefined}
+          aria-invalid={error ? true : undefined} value={field.value} onValueChange={field.onChange}
+          options={[{ value: '', label: t('wizard.none') }, ...options.map((o) => ({ value: o.id, label: o.displayName }))]} />
+      )} />
       {error ? <span id={errorId} className="block text-sm text-destructive">{error}</span> : null}
       <DurationFields form={form} count={`others.${index}.count`} unit={`others.${index}.unit`} label={t('wizard.offer.included')} />
       <Button type="button" variant="ghost" size="sm" onClick={onRemove}>{t('wizard.offer.remove_covered')}</Button>
@@ -39,8 +40,10 @@ export function Bundle({ form, persons }: { form: Form; persons: Person[] }) {
   const options = list.data?.items ?? [];
   return (
     <div className="space-y-4">
-      <DateField form={form} name="offerDate" label={t('wizard.offer.purchase_date')} />
-      <LabelField form={form} initial={t('wizard.offer.bundle')} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <DateField form={form} name="offerDate" label={t('wizard.offer.purchase_date')} />
+        <LabelField form={form} initial={t('wizard.offer.bundle')} />
+      </div>
       <AmountField form={form} name="offerAmount" label={t('wizard.offer.total_price')} withCurrency />
       <PayerFields form={form} persons={persons} />
       <AmountField form={form} name="allocated" label={t('wizard.offer.allocated')} hint={t('wizard.offer.allocated_hint')} />

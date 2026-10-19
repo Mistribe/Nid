@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Clock } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui/badge';
 import type { Figures } from './api';
 import { directionOf } from './format';
 
@@ -41,9 +42,9 @@ export function StaleBadge({ days }: { days: number | null | undefined }) {
   const { t } = useTranslation();
   if (days === null || days === undefined) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm">
-      <Clock aria-hidden="true" className="size-4" />
+    <Badge variant="outline">
+      <Clock aria-hidden="true" />
       {t('investments.stale', { count: days })}
-    </span>
+    </Badge>
   );
 }

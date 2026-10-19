@@ -1,42 +1,53 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Fragment, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { formatLocalDate } from '@/components/LocalDate';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
-import { Field } from '../edits/Field';
+import { Field } from '@/components/form/Field';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { durationText } from '../format';
 import { ProviderPicker } from '../ProviderPicker';
 import { ISO_DATE } from '../edits/amount';
 import { addDuration } from './offers';
+import { AmountField, Choice, DateField, PersonSelect, UnitSelect } from './offers/fields';
 import type { Unit, WizardValues } from './schema';
 
 type Person = components['schemas']['PersonDto'];
 type Form = UseFormReturn<WizardValues>;
-const UNITS = ['day', 'week', 'month', 'year'] as const;
-const input = 'rounded-md border px-3 py-2';
 
 export function CommonStep({ form, persons }: { form: Form; persons: Person[] }) {
   const { t } = useTranslation();
   const e = form.formState.errors;
   return (
     <div className="space-y-4">
-      <Controller control={form.control} name="provider" render={({ field, fieldState }) => (
-        <ProviderPicker label={t('edit.provider')} value={field.value} error={fieldState.error?.message} onChange={(p) => {
-          field.onChange(p);
-          if (p && form.getValues('displayName').trim() === '') form.setValue('displayName', p.name, { shouldValidate: true });
-        }} />
-      )} />
-      <Field label={t('wizard.name')} error={e.displayName?.message}>{(c) => <input {...c} {...form.register('displayName')} className="w-full" />}</Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Controller control={form.control} name="provider" render={({ field, fieldState }) => (
+          <ProviderPicker label={t('edit.provider')} value={field.value} error={fieldState.error?.message} onChange={(p) => {
+            field.onChange(p);
+            if (p && form.getValues('displayName').trim() === '') form.setValue('displayName', p.name, { shouldValidate: true });
+          }} />
+        )} />
+        <Field label={t('wizard.name')} error={e.displayName?.message}>{(c) => <Input {...c} {...form.register('displayName')} />}</Field>
+      </div>
       <OwnershipFields form={form} persons={persons} />
       <fieldset className="space-y-1">
         <legend className="text-sm">{t('wizard.users')}</legend>
-        {persons.map((p) => (
-          <label key={p.id} className="flex items-center gap-2"><input type="checkbox" value={p.id} {...form.register('users')} />{p.displayName}</label>
-        ))}
+        <Controller control={form.control} name="users" render={({ field }) => (
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {persons.map((p) => (
+              <label key={p.id} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={field.value.includes(p.id)}
+                  onCheckedChange={(on) => field.onChange(on === true ? [...field.value, p.id] : field.value.filter((id) => id !== p.id))} />
+                {p.displayName}
+              </label>
+            ))}
+          </div>
+        )} />
       </fieldset>
-      <Field label={t('wizard.note')}>{(c) => <textarea {...c} {...form.register('note')} className="w-full" />}</Field>
+      <Field label={t('wizard.note')}>{(c) => <Textarea {...c} {...form.register('note')} />}</Field>
     </div>
   );
 }
@@ -49,45 +60,27 @@ export function RecurringOffer({ form, persons, withStart = true }: { form: Form
   const payerType = form.watch('payerType');
   return (
     <div className="space-y-4">
-      {withStart ? (
-        <Field label={t('wizard.starts')} error={e.startsOn?.message}>{(c) => <input type="date" {...c} {...form.register('startsOn')} />}</Field>
-      ) : null}
-      <div className="flex gap-3">
-        <Field label={t('wizard.amount')} error={e.amount?.message}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}</Field>
-        <Field label={t('wizard.currency')} error={e.currency?.message}>{(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}</Field>
+      {withStart ? <DateField form={form} name="startsOn" label={t('wizard.starts')} /> : null}
+      <AmountField form={form} name="amount" label={t('wizard.amount')} withCurrency />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t('wizard.every')} error={e.everyCount?.message}>{(c) => <Input inputMode="numeric" {...c} {...form.register('everyCount')} />}</Field>
+        <Field label={t('wizard.unit')}>{(c) => <UnitSelect form={form} name="everyUnit" control={c} />}</Field>
       </div>
-      <div className="flex gap-3">
-        <Field label={t('wizard.every')} error={e.everyCount?.message}>{(c) => <input inputMode="numeric" {...c} {...form.register('everyCount')} className={`w-20 ${input}`} />}</Field>
-        <Field label={t('wizard.unit')}>
-          {(c) => <NativeSelect {...c} {...form.register('everyUnit')}>{UNITS.map((u) => <NativeSelectOption key={u} value={u}>{t(`edit.unit.${u}`)}</NativeSelectOption>)}</NativeSelect>}
-        </Field>
-      </div>
-      <Field label={t('wizard.same_covers')} inline>{(c) => <input type="checkbox" {...c} {...form.register('sameCovers')} />}</Field>
+      <Field label={t('wizard.same_covers')} inline>
+        {(c) => <Controller control={form.control} name="sameCovers" render={({ field }) => (
+          <Checkbox {...c} checked={field.value} onCheckedChange={(on) => field.onChange(on === true)} />
+        )} />}
+      </Field>
       {sameCovers ? null : (
-        <div className="flex gap-3">
-          <Field label={t('wizard.covers')} error={e.coversCount?.message}>{(c) => <input inputMode="numeric" {...c} {...form.register('coversCount')} className={`w-20 ${input}`} />}</Field>
-          <Field label={t('wizard.unit')}>
-            {(c) => <NativeSelect {...c} {...form.register('coversUnit')}>{UNITS.map((u) => <NativeSelectOption key={u} value={u}>{t(`edit.unit.${u}`)}</NativeSelectOption>)}</NativeSelect>}
-          </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('wizard.covers')} error={e.coversCount?.message}>{(c) => <Input inputMode="numeric" {...c} {...form.register('coversCount')} />}</Field>
+          <Field label={t('wizard.unit')}>{(c) => <UnitSelect form={form} name="coversUnit" control={c} />}</Field>
         </div>
       )}
-      <Field label={t('wizard.cycles')} error={e.maxCycles?.message}>{(c) => <input inputMode="numeric" {...c} {...form.register('maxCycles')} className={`w-20 ${input}`} />}</Field>
-      <fieldset className="space-y-1">
-        <legend className="text-sm">{t('wizard.payer')}</legend>
-        {(['household', 'person'] as const).map((p) => (
-          <label key={p} className="flex items-center gap-2"><input type="radio" value={p} {...form.register('payerType')} />{t(`wizard.payer_${p}`)}</label>
-        ))}
-      </fieldset>
-      {payerType === 'person' ? (
-        <Field label={t('wizard.payer_who')} error={e.payerPerson?.message}>
-          {(c) => (
-            <NativeSelect {...c} {...form.register('payerPerson')}>
-              <NativeSelectOption value="">{t('wizard.none')}</NativeSelectOption>
-              {persons.map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.displayName}</NativeSelectOption>)}
-            </NativeSelect>
-          )}
-        </Field>
-      ) : null}
+      <Field label={t('wizard.cycles')} error={e.maxCycles?.message}>{(c) => <Input inputMode="numeric" {...c} {...form.register('maxCycles')} />}</Field>
+      <Choice label={t('wizard.payer')} value={payerType} onValueChange={(v) => form.setValue('payerType', v as typeof payerType)}
+        options={(['household', 'person'] as const).map((p) => ({ value: p, label: t(`wizard.payer_${p}`) }))} />
+      {payerType === 'person' ? <PersonSelect form={form} name="payerPerson" persons={persons} /> : null}
     </div>
   );
 }

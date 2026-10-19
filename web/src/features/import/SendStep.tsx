@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CancelImport } from './CancelImport';
 import type { ReadyFile } from './draft';
 import type { PreparedBatch } from './prepare';
+import { StepCard } from './StepCard';
 import { IssueList } from './ReportView';
 import { sendBatches, type BatchView, type PutResult } from './sender';
 
@@ -121,9 +122,10 @@ export function SendStep({ id, file, onChanged, onOtherFile, onCancelled }: {
   );
 
   return (
+    <StepCard>
     <section aria-labelledby="import-send-title" className="space-y-4">
       <h2 id="import-send-title" className="text-lg font-semibold">{t('import.send_title')}</h2>
-      <progress value={sent} max={total} aria-label={t('import.progress_label')} className="w-full" />
+      <progress value={sent} max={total} aria-label={t('import.progress_label')} className="h-2 w-full accent-primary" />
       <div role="status" aria-live="polite" className="space-y-1">
         <p>{t('import.progress', { sent, total })}</p>
         {phase.kind === 'retrying' ? <p>{t('import.retrying')}</p> : null}
@@ -158,5 +160,6 @@ export function SendStep({ id, file, onChanged, onOtherFile, onCancelled }: {
           : cancel(t('import.cancel'))}
       </div>
     </section>
+    </StepCard>
   );
 }

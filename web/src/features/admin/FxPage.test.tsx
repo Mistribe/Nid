@@ -39,11 +39,11 @@ describe('Administration › Taux de change', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Synchroniser' }));
     expect(calls).toBe(0);
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Collecte demandée'));
 
     await user.click(screen.getByRole('button', { name: 'Synchroniser' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une collecte est déjà en cours'));
   });
 
@@ -58,12 +58,37 @@ describe('Administration › Taux de change', () => {
     );
     const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
 
-    await user.type(await screen.findByLabelText('Date'), '2025-10-01');
+    await user.click(await screen.findByRole('button', { name: 'Saisir un taux' }));
+    await user.type(await screen.findByLabelText('Date'), '01/10/2025');
     await user.type(screen.getByLabelText('Devise'), 'eur');
     await user.type(screen.getByLabelText('Taux pour 1 USD'), '0,8612');
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
 
     await waitFor(() => expect(sent).toEqual([{ path: '2025-10-01/EUR', body: { rate: '0.8612' } }]));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Taux enregistré'));
+  });
+
+  it('sends nothing, and says why, when the date, the currency or the rate is missing', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/core/fx-rates/runs', () => HttpResponse.json([])),
+      http.put('*/api/v1/core/fx-rates/:date/:quote', () => { calls += 1; return HttpResponse.json({}); }),
+    );
+    const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Saisir un taux' }));
+    await user.type(await screen.findByLabelText('Date'), '31/02/2025');
+    await user.type(screen.getByLabelText('Taux pour 1 USD'), '0,86');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
+    expect(await screen.findByText(/au format jj\/mm\/aaaa/)).toBeInTheDocument();
+    expect(screen.getByText('Ce champ est obligatoire.')).toBeInTheDocument(); // the currency
+
+    await user.clear(screen.getByLabelText('Date'));
+    await user.type(screen.getByLabelText('Date'), '01/10/2025');
+    await user.type(screen.getByLabelText('Devise'), 'eur');
+    await user.clear(screen.getByLabelText('Taux pour 1 USD'));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
+    expect(await screen.findByText('Ce champ est obligatoire.')).toBeInTheDocument(); // the rate
+    expect(calls).toBe(0);
   });
 });

@@ -1,17 +1,24 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useForm, type Path } from 'react-hook-form';
+import { ChevronRightIcon } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Controller, useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import { ownershipPath } from '@/components/ownership/ownership';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { CurrencyField } from '@/components/form/CurrencyField';
+import { DateField } from '@/components/form/DateField';
+import { SelectField } from '@/components/form/SelectField';
+import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { Field } from '../subscriptions/edits/Field';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { Field } from '@/components/form/Field';
 import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
 import { fieldErrorsOf, messageFor } from '../subscriptions/fieldErrors';
 import { PERSONS } from '../subscriptions/api';
@@ -19,8 +26,6 @@ import { todayIso } from '../subscriptions/today';
 import { ENVELOPES, invalidateInvestments } from './api';
 import { CADENCES, KINDS } from './format';
 import { newEnvelopeSchema, NEW_ENVELOPE_PATHS, toCreateBody, type NewEnvelopeValues } from './newEnvelopeSchema';
-
-const input = 'rounded-md border px-3 py-2';
 
 /** A pathless refusal (the Core fact codes carry no path, 2A) attributed to the one date/amount field it can
  * concern: the first-value field before the opening one, and only when exactly one such field was filled. */
@@ -79,67 +84,86 @@ export function NewEnvelope() {
   const e = form.formState.errors;
   const withOpening = form.watch('withOpening');
   const withFirstValue = form.watch('withFirstValue');
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
-    <article className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-semibold">{t('investments_form.title')}</h1>
+    <article className="max-w-3xl space-y-4">
+      <PageHeader crumbs={[{ label: t('nav.investments'), to: '/investments' }]} title={t('investments_form.title')} />
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <form noValidate onSubmit={(e) => void form.handleSubmit((values) => create.mutate({ body: toCreateBody(values) }))(e)} className="space-y-4">
-        <Field label={t('investments_form.name')} error={e.displayName?.message}>
-          {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
-        </Field>
-        <Field label={t('investments_form.kind')} error={e.kind?.message}>
-          {(c) => (
-            <NativeSelect {...c} {...form.register('kind')}>
-              {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`investments.kind.${k}`)}</NativeSelectOption>)}
-            </NativeSelect>
-          )}
-        </Field>
-        <Field label={t('investments_form.currency')} error={e.currency?.message}>
-          {(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}
-        </Field>
-        <Field label={t('investments_form.institution')} error={e.institution?.message}>
-          {(c) => <input {...c} {...form.register('institution')} className="w-full" />}
-        </Field>
-        <Field label={t('investments_form.account_hint')} hint={t('investments_form.account_hint_help')} error={e.accountHint?.message}>
-          {(c) => <input {...c} {...form.register('accountHint')} className={`w-24 ${input}`} />}
-        </Field>
-        <Field label={t('investments_form.cadence')} error={e.valuationCadence?.message}>
-          {(c) => (
-            <NativeSelect {...c} {...form.register('valuationCadence')}>
-              {CADENCES.map((cadence) => <NativeSelectOption key={cadence} value={cadence}>{t(`investments.cadence.${cadence}`)}</NativeSelectOption>)}
-            </NativeSelect>
-          )}
-        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('investments_form.name')} error={e.displayName?.message}>
+            {(c) => <Input {...c} {...form.register('displayName')} />}
+          </Field>
+          <Controller control={form.control} name="kind" render={({ field }) => (
+            <Field label={t('investments_form.kind')} error={e.kind?.message}>
+              {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+                options={KINDS.map((k) => ({ value: k, label: t(`investments.kind.${k}`) }))} />}
+            </Field>
+          )} />
+          <Field label={t('investments_form.institution')} error={e.institution?.message}>
+            {(c) => <Input {...c} {...form.register('institution')} />}
+          </Field>
+          <Field label={t('investments_form.account_hint')} hint={t('investments_form.account_hint_help')} error={e.accountHint?.message}>
+            {(c) => <Input {...c} {...form.register('accountHint')} />}
+          </Field>
+          <Controller control={form.control} name="valuationCadence" render={({ field }) => (
+            <Field label={t('investments_form.cadence')} error={e.valuationCadence?.message}>
+              {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+                options={CADENCES.map((cadence) => ({ value: cadence, label: t(`investments.cadence.${cadence}`) }))} />}
+            </Field>
+          )} />
+        </div>
         <OwnershipFields form={form} persons={persons} />
-        <Field label={t('investments_form.with_opening')} hint={t('investments_form.with_opening_help')} inline>
-          {(c) => <input type="checkbox" {...c} {...form.register('withOpening')} />}
-        </Field>
-        {withOpening ? (
-          <>
+        <Fold label={t('investments_form.with_opening')} hint={t('investments_form.with_opening_help')} open={withOpening}
+          onOpenChange={(open) => form.setValue('withOpening', open)}>
+          <Controller control={form.control} name="openingOn" render={({ field }) => (
             <Field label={t('investments_form.opening_on')} error={e.openingOn?.message}>
-              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('openingOn')} />}
+              {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
             </Field>
-            <Field label={t('investments_form.opening_amount')} error={e.openingAmount?.message}>
-              {(c) => <input inputMode="decimal" {...c} {...form.register('openingAmount')} className={`w-32 ${input}`} />}
-            </Field>
-          </>
-        ) : null}
-        <Field label={t('investments_form.with_first_value')} inline>
-          {(c) => <input type="checkbox" {...c} {...form.register('withFirstValue')} />}
-        </Field>
-        {withFirstValue ? (
-          <>
+          )} />
+          <Field label={t('investments_form.opening_amount')} error={e.openingAmount?.message}>
+            {(c) => <Input inputMode="decimal" {...c} {...form.register('openingAmount')} />}
+          </Field>
+        </Fold>
+        <Fold label={t('investments_form.with_first_value')} open={withFirstValue}
+          onOpenChange={(open) => form.setValue('withFirstValue', open)}>
+          <Controller control={form.control} name="firstValueOn" render={({ field }) => (
             <Field label={t('investments_form.first_value_on')} error={e.firstValueOn?.message}>
-              {(c) => <input type="date" max={todayIso()} {...c} {...form.register('firstValueOn')} />}
+              {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
             </Field>
-            <Field label={t('investments_form.first_value_amount')} error={e.firstValueAmount?.message}>
-              {(c) => <input inputMode="decimal" {...c} {...form.register('firstValueAmount')} className={`w-32 ${input}`} />}
+          )} />
+          <Field label={t('investments_form.first_value_amount')} error={e.firstValueAmount?.message}>
+            {(c) => <Input inputMode="decimal" {...c} {...form.register('firstValueAmount')} />}
+          </Field>
+        </Fold>
+        <Fold label={t('investments_form.more')} open={moreOpen || !!e.currency} onOpenChange={setMoreOpen}>
+          <Controller control={form.control} name="currency" render={({ field }) => (
+            <Field label={t('investments_form.currency')} error={e.currency?.message}>
+              {(c) => <CurrencyField {...c} value={field.value} onValueChange={field.onChange} />}
             </Field>
-          </>
-        ) : null}
+          )} />
+        </Fold>
         <Button type="submit" disabled={create.isPending}>{t('investments_form.submit')}</Button>
       </form>
     </article>
+  );
+}
+
+/** A folded group of fields: the trigger names it, its fields (two per row on desktop) show once it is open. */
+function Fold({ label, hint, open, onOpenChange, children }: {
+  label: string; hint?: string; open: boolean; onOpenChange: (open: boolean) => void; children: ReactNode;
+}) {
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} className="space-y-2">
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className="group -ml-3">
+          <ChevronRightIcon aria-hidden="true" className="transition-transform group-data-[state=open]:rotate-90" />
+          {label}
+        </Button>
+      </CollapsibleTrigger>
+      {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
+      <CollapsibleContent className="grid gap-3 sm:grid-cols-2">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }

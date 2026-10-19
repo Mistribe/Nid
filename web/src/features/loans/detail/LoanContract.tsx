@@ -1,13 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { LoanDetail } from '../api';
 import { firstPeriodText, insuranceModeText, modeText, money, percent, rateTypeText, roundingText } from '../format';
 import { Terms } from './Terms';
 
-const th = 'px-2 py-1 text-left font-medium';
-const td = 'px-2 py-1';
-const num = 'px-2 py-1 text-right tabular-nums';
-const caption = 'text-left font-medium';
+const num = 'text-right tabular-nums';
+const caption = 'mt-0 mb-1 text-left font-medium text-foreground';
 
 /** Spec §7: the contract as read (its edition is 3B2) — the terms, the phases, the insurances. */
 export function LoanContract({ loan }: { loan: LoanDetail }) {
@@ -24,66 +23,62 @@ export function LoanContract({ loan }: { loan: LoanDetail }) {
         [t('loan_detail.rounding'), roundingText(t, c.rounding)],
         [t('loan_detail.first_period'), firstPeriodText(t, c.firstPeriod)],
       ]} />
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <caption className={caption}>{t('loan_detail.phases')}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className={th}>{t('loan_detail.col_seq')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_mode')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_rate')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_rate_type')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_payments')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_override')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_opening')}</th>
-              <th scope="col" className={th}>{t('loan_detail.col_note')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {c.phases.map((p) => (
-              <tr key={p.seq} className="border-t">
-                <td className={td}>{p.seq}</td>
-                <td className={td}>{modeText(t, p.mode)}</td>
-                <td className={num}>{percent(t, p.annualRate)}</td>
-                <td className={td}>{rateTypeText(t, p.rateType)}</td>
-                <td className={td}>{p.payments ?? t('loan_detail.to_term')}</td>
-                <td className={num}>{p.paymentOverride ? m(p.paymentOverride) : null}</td>
-                <td className={num}>{p.openingBalanceOverride ? m(p.openingBalanceOverride) : null}</td>
-                <td className={td}>{p.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table className="caption-top">
+        <TableCaption className={caption}>{t('loan_detail.phases')}</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('loan_detail.col_seq')}</TableHead>
+            <TableHead>{t('loan_detail.col_mode')}</TableHead>
+            <TableHead>{t('loan_detail.col_rate')}</TableHead>
+            <TableHead>{t('loan_detail.col_rate_type')}</TableHead>
+            <TableHead>{t('loan_detail.col_payments')}</TableHead>
+            <TableHead>{t('loan_detail.col_override')}</TableHead>
+            <TableHead>{t('loan_detail.col_opening')}</TableHead>
+            <TableHead>{t('loan_detail.col_note')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {c.phases.map((p) => (
+            <TableRow key={p.seq}>
+              <TableCell>{p.seq}</TableCell>
+              <TableCell>{modeText(t, p.mode)}</TableCell>
+              <TableCell className={num}>{percent(t, p.annualRate)}</TableCell>
+              <TableCell>{rateTypeText(t, p.rateType)}</TableCell>
+              <TableCell>{p.payments ?? t('loan_detail.to_term')}</TableCell>
+              <TableCell className={num}>{p.paymentOverride ? m(p.paymentOverride) : null}</TableCell>
+              <TableCell className={num}>{p.openingBalanceOverride ? m(p.openingBalanceOverride) : null}</TableCell>
+              <TableCell className="whitespace-normal">{p.note}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       {c.insurances.length === 0 ? <p className="text-muted-foreground">{t('loan_detail.no_insurance')}</p> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <caption className={caption}>{t('loan_detail.insurances')}</caption>
-            <thead>
-              <tr>
-                <th scope="col" className={th}>{t('loan_detail.col_insurance_mode')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_insurance_value')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_start')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_end')}</th>
-                <th scope="col" className={th}>{t('loan_detail.col_note')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {c.insurances.map((ins, i) => (
-                // An insurance has no id on the wire; its rank is stable within one read.
-                <tr key={i} className="border-t">
-                  <td className={td}>{insuranceModeText(t, ins.mode)}</td>
-                  <td className={num}>
-                    {ins.monthlyAmount ? t('loan_detail.per_month', { amount: m(ins.monthlyAmount) }) : ins.annualRate ? percent(t, ins.annualRate) : null}
-                  </td>
-                  <td className={td}><LocalDate value={ins.startsOn} /></td>
-                  <td className={td}>{ins.endsOn ? <LocalDate value={ins.endsOn} /> : t('loan_detail.no_end')}</td>
-                  <td className={td}>{ins.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table className="caption-top">
+          <TableCaption className={caption}>{t('loan_detail.insurances')}</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('loan_detail.col_insurance_mode')}</TableHead>
+              <TableHead>{t('loan_detail.col_insurance_value')}</TableHead>
+              <TableHead>{t('loan_detail.col_start')}</TableHead>
+              <TableHead>{t('loan_detail.col_end')}</TableHead>
+              <TableHead>{t('loan_detail.col_note')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {c.insurances.map((ins, i) => (
+              // An insurance has no id on the wire; its rank is stable within one read.
+              <TableRow key={i}>
+                <TableCell>{insuranceModeText(t, ins.mode)}</TableCell>
+                <TableCell className={num}>
+                  {ins.monthlyAmount ? t('loan_detail.per_month', { amount: m(ins.monthlyAmount) }) : ins.annualRate ? percent(t, ins.annualRate) : null}
+                </TableCell>
+                <TableCell><LocalDate value={ins.startsOn} /></TableCell>
+                <TableCell>{ins.endsOn ? <LocalDate value={ins.endsOn} /> : t('loan_detail.no_end')}</TableCell>
+                <TableCell className="whitespace-normal">{ins.note}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

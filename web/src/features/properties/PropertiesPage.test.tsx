@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -14,8 +14,9 @@ function serve(body: PropertyList, seen: string[] = []) {
   }));
 }
 
+/** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
 async function rows(): Promise<HTMLElement[]> {
-  return within(await screen.findByRole('list', { name: 'Liste des biens' })).getAllByRole('listitem');
+  return within(await screen.findByRole('table', { name: 'Liste des biens' })).getAllByRole('row').slice(1);
 }
 
 const parking = propertySummary({
@@ -27,45 +28,67 @@ describe('PropertiesPage', () => {
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('./PropertiesPage'); }, 30_000);
 
-  it('shows each property: its name linking to its detail, its type, its value today with its date, its net value and access', async () => {
+  it('shows one table row per item with its owner', async () => {
+    const alice = '0192f0aa-0000-7000-8000-0000000000a1';
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
     const seen: string[] = [];
-    serve(propertyList([propertySummary()]), seen);
+    serve(propertyList([propertySummary({ owners: [{ personId: alice, shareBp: 10000 }] })]), seen);
     const { container } = await renderApp('/properties');
 
+    const table = await screen.findByRole('table', { name: 'Liste des biens' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Type', 'Propriétaire', 'Valeur', 'Valeur nette', 'Rendement brut']);
     const row = (await rows())[0]!;
-    expect(within(row).getByRole('link', { name: 'Maison de Nantes' })).toHaveAttribute('href', `/properties/${PROPERTY}`);
+    expect(within(row).getByRole('link', { name: /Maison de Nantes/ })).toHaveAttribute('href', `/properties/${PROPERTY}`);
     expect(row).toHaveTextContent('Résidence principale');
-    expect(row).toHaveTextContent('Valeur 290 000,00 € au 1 juin 2026');
-    expect(row).toHaveTextContent('Valeur nette 96 435,77 €');
-    expect(within(row).getByText('Partagé')).toBeInTheDocument();
+    await waitFor(() => expect(row).toHaveTextContent('Alice'));
+    expect(row).toHaveTextContent('290 000,00 €');
+    expect(row).toHaveTextContent('1 juin 2026');
+    expect(row).toHaveTextContent('96 435,77 €');
     expect(row).not.toHaveTextContent('À réestimer');
     expect(seen).toEqual(['?scope=household']);
     await expectNoAxeViolations(container);
   });
 
-  it('marks a stale estimate « À réestimer » in words, and a property never estimated « Pas encore estimé »', async () => {
+  it('sorts by value', async () => {
+    serve(propertyList([propertySummary(), parking, propertySummary({ id: 'x', name: 'Studio', value: '90000.00' })]));
+    const { user } = await renderApp('/properties');
+
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+    expect(await names()).toEqual(['Maison de NantesPartagé', 'Parking garePrivé', 'StudioPartagé']);
+    await user.click(within(screen.getByRole('table', { name: 'Liste des biens' })).getByRole('button', { name: 'Valeur' }));
+    expect(await names()).toEqual(['Parking garePrivé', 'StudioPartagé', 'Maison de NantesPartagé']);
+  });
+
+  it('stale rows show their date with an icon and « À réestimer » in words; a property never estimated says so', async () => {
     serve(propertyList([propertySummary({ stale: true }), parking]));
     const { container } = await renderApp('/properties');
 
     const [stale, never] = await rows();
-    expect(stale).toHaveTextContent('À réestimer');
-    expect(stale).toHaveTextContent('Valeur 290 000,00 € au 1 juin 2026');
+    const cell = within(stale!).getAllByRole('cell')[3]!;
+    expect(cell.querySelector('svg')).not.toBeNull();
+    expect(cell).toHaveTextContent('À réestimer');
+    expect(cell).toHaveTextContent('1 juin 2026');
     expect(never).toHaveTextContent('Pas encore estimé');
-    expect(never).not.toHaveTextContent('Valeur');
-    expect(within(never!).getByText('Privé')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
-  it('shows the gross yield and the vacancy in %, « — » when the server gives none', async () => {
-    serve(propertyList([propertySummary({ grossYield: '0.0384', vacancyRate: '0.0822' }), parking]));
+  it('shows the gross yield in %, « — » when the server gives none, and the access of a private property', async () => {
+    serve(propertyList([propertySummary({ grossYield: '0.0384' }), parking]));
     const { container } = await renderApp('/properties');
 
     const [rented, unknown] = await rows();
-    expect(rented).toHaveTextContent('Rendement brut 3,84 %');
-    expect(rented).toHaveTextContent('Vacance 8,22 %');
-    expect(unknown).toHaveTextContent('Rendement brut —');
-    expect(unknown).toHaveTextContent('Vacance —');
+    expect(within(rented!).getAllByRole('cell')[5]).toHaveTextContent('3,84 %');
+    expect(within(unknown!).getAllByRole('cell')[5]).toHaveTextContent('—');
+    expect(within(unknown!).getByText('Privé')).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('the add link is always shown, even when no row is writable', async () => {
+    serve(propertyList([propertySummary({ canWrite: false })]));
+    await renderApp('/properties');
+
+    await rows();
+    expect(screen.getByRole('link', { name: 'Ajouter un bien' })).toBeInTheDocument();
   });
 
   it('offers « Ajouter un bien » above the list', async () => {

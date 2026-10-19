@@ -1,16 +1,18 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Presentation } from '@/api/errors';
+import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { Field } from '../../subscriptions/edits/Field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { knownConflictMessage } from '../../subscriptions/fieldErrors';
@@ -19,7 +21,6 @@ import { placeFieldError, presentConflict } from '../entries/entries';
 import { CADENCES, KINDS } from '../format';
 import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
 
-const input = 'rounded-md border px-3 py-2';
 const PATHS = {
   displayName: 'displayName', kind: 'kind', institution: 'institution', accountHint: 'accountHint',
   valuationCadence: 'valuationCadence', staleAfterDays: 'staleAfterDays', note: 'note',
@@ -117,41 +118,41 @@ export function SettingsForm({ envelope, onStart, onDone }: {
         : errors.problem;
 
   return (
-    <form aria-label={t('envelope.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
+    <form aria-label={t('envelope.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-2xl space-y-3">
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
           {problem.kind === 'conflict' ? <Reload onReload={() => invalidateInvestments(queryClient)} /> : null}
         </>
       ) : null}
-      <Field label={t('investments_form.name')} error={e.displayName?.message}>
-        {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
-      </Field>
-      <Field label={t('investments_form.kind')} error={e.kind?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('kind')}>
-            {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`investments.kind.${k}`)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
-      <Field label={t('investments_form.institution')} error={e.institution?.message}>
-        {(c) => <input {...c} {...form.register('institution')} className="w-full" />}
-      </Field>
-      <Field label={t('investments_form.account_hint')} hint={t('investments_form.account_hint_help')} error={e.accountHint?.message}>
-        {(c) => <input {...c} {...form.register('accountHint')} className={`w-24 ${input}`} />}
-      </Field>
-      <Field label={t('investments_form.cadence')} error={e.valuationCadence?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('valuationCadence')}>
-            {CADENCES.map((cadence) => <NativeSelectOption key={cadence} value={cadence}>{t(`investments.cadence.${cadence}`)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
-      <Field label={t('envelope.settings.stale_after')} hint={t('envelope.settings.stale_help')} error={e.staleAfterDays?.message}>
-        {(c) => <input inputMode="numeric" {...c} {...form.register('staleAfterDays')} className={`w-24 ${input}`} />}
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t('investments_form.name')} error={e.displayName?.message}>
+          {(c) => <Input {...c} {...form.register('displayName')} />}
+        </Field>
+        <Controller control={form.control} name="kind" render={({ field }) => (
+          <Field label={t('investments_form.kind')} error={e.kind?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={KINDS.map((k) => ({ value: k, label: t(`investments.kind.${k}`) }))} />}
+          </Field>
+        )} />
+        <Field label={t('investments_form.institution')} error={e.institution?.message}>
+          {(c) => <Input {...c} {...form.register('institution')} />}
+        </Field>
+        <Field label={t('investments_form.account_hint')} hint={t('investments_form.account_hint_help')} error={e.accountHint?.message}>
+          {(c) => <Input {...c} {...form.register('accountHint')} />}
+        </Field>
+        <Controller control={form.control} name="valuationCadence" render={({ field }) => (
+          <Field label={t('investments_form.cadence')} error={e.valuationCadence?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={CADENCES.map((cadence) => ({ value: cadence, label: t(`investments.cadence.${cadence}`) }))} />}
+          </Field>
+        )} />
+        <Field label={t('envelope.settings.stale_after')} hint={t('envelope.settings.stale_help')} error={e.staleAfterDays?.message}>
+          {(c) => <Input inputMode="numeric" {...c} {...form.register('staleAfterDays')} />}
+        </Field>
+      </div>
       <Field label={t('envelope.settings.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
       <Button type="submit" disabled={save.isPending}>{t('envelope.settings.submit')}</Button>
     </form>

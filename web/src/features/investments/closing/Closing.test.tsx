@@ -43,9 +43,12 @@ function serve(initial = detail(), bodies: unknown[] = [], answer: Answer = () =
 const problem = (status: number, code: string | null, extra: object = {}) => () =>
   HttpResponse.json({ status, code, title: 'Problem', ...extra }, { status, headers: { 'Content-Type': 'application/problem+json' } });
 
+const frToday = () => todayIso().split('-').reverse().join('/');
+
 const openDialog = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
-  await user.click(await screen.findByRole('button', { name: 'Clôturer l’enveloppe' }));
-  return screen.getByRole('dialog', { name: 'Clôturer l’enveloppe' });
+  await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Clôturer l’enveloppe' }));
+  return screen.findByRole('dialog', { name: 'Clôturer l’enveloppe' });
 };
 
 describe('closing an envelope', () => {
@@ -59,7 +62,7 @@ describe('closing an envelope', () => {
 
     const dialog = await openDialog(user);
     expect(within(dialog).getByText('Une valeur de 0 sera enregistrée à cette date, et l’enveloppe quittera la liste. Vous pourrez la rouvrir.')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Date de clôture')).toHaveValue(todayIso());
+    expect(within(dialog).getByLabelText('Date de clôture')).toHaveValue(frToday());
     await expectNoAxeViolations(document.body);
     await user.click(within(dialog).getByRole('button', { name: 'Clôturer' }));
 
@@ -67,7 +70,7 @@ describe('closing an envelope', () => {
     expect(bodies).toEqual([{ closedOn: todayIso() }]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const banner = await screen.findByText('Enveloppe clôturée');
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clôturer l’enveloppe' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument());
     await waitFor(() => expect(banner).toHaveFocus());
     await expectNoAxeViolations(container);
   });
@@ -83,6 +86,7 @@ describe('closing an envelope', () => {
 
     await screen.findByText('Enveloppe clôturée.');
     expect(bodies).toEqual([{ closedOn: todayIso(), finalWithdrawal: { amount: '510', currency: 'EUR' } }]);
+    await user.click(await screen.findByRole('tab', { name: /^Flux/ }));
     await waitFor(() => expect(screen.getByRole('table', { name: 'Flux de l’enveloppe' })).toHaveTextContent('510,00 €'));
     await expectNoAxeViolations(container);
   });
@@ -124,13 +128,14 @@ describe('closing an envelope', () => {
     expect(within(dialog).getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
   });
 
-  it('hands the focus back to the button when the dialog is cancelled', async () => {
+  it('hands the focus back to the ⋯ menu when the dialog is cancelled', async () => {
     serve();
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    const button = await screen.findByRole('button', { name: 'Clôturer l’enveloppe' });
+    const button = await screen.findByRole('button', { name: 'Autres actions' });
     await user.click(button);
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Annuler' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Clôturer l’enveloppe' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Annuler' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(() => expect(button).toHaveFocus());
@@ -141,18 +146,19 @@ describe('a correction open when the envelope closes', () => {
   it('goes away with its form, the focus landing on the banner', async () => {
     serve();
     server.use(http.post('*/api/v1/investments/envelopes/:id/valuations', problem(409, 'investments.envelope_closed')));
-    const { user } = await renderApp(`/investments/${PEA}`);
+    const { user } = await renderApp(`/investments/${PEA}?tab=values`);
 
     const values = await screen.findByRole('table', { name: 'Valeurs de l’enveloppe' });
-    await user.click(within(values).getAllByRole('button', { name: 'Corriger' })[0]!);
+    await user.click(within(values).getByRole('button', { name: /^Actions pour le 30 septembre 2025/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Corriger' }));
     const form = await screen.findByRole('form', { name: 'Corriger la valeur' });
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail({ closed: true }))));
     await user.click(await within(form).findByRole('button', { name: 'Recharger' }));
 
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Corriger la valeur' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Enveloppe clôturée')).toHaveFocus());
-    expect(screen.queryByRole('button', { name: 'Corriger' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Actions pour/ })).not.toBeInTheDocument();
   });
 });
 
@@ -165,22 +171,22 @@ describe('a closed envelope', () => {
     expect(await within(article).findByText('Enveloppe clôturée')).toBeInTheDocument();
     expect(within(article).getByRole('button', { name: 'Rouvrir' })).toBeInTheDocument();
     for (const name of ['Nouvelle valeur', 'Nouveau flux', 'Réglages']) expect(within(article).queryByRole('form', { name })).not.toBeInTheDocument();
-    for (const name of ['Corriger', 'Supprimer', 'Virer vers une autre enveloppe', 'Clôturer l’enveloppe', 'Saisir les versements antérieurs'])
+    for (const name of ['Saisir une valeur', 'Ajouter un flux', 'Autres actions', 'Saisir les versements antérieurs'])
       expect(within(article).queryByRole('button', { name })).not.toBeInTheDocument();
-    expect(within(article).queryByRole('heading', { name: 'Saisir' })).not.toBeInTheDocument();
+    expect(within(article).queryByRole('tab', { name: 'Réglages' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
-  it('reopens and announces it, the focus going to « Saisir »', async () => {
+  it('reopens and announces it, the focus going to « Saisir une valeur »', async () => {
     serve(detail({ closed: true }));
     const { user, container } = await renderApp(`/investments/${PEA}`);
 
     await user.click(await screen.findByRole('button', { name: 'Rouvrir' }));
 
     expect(await screen.findByText('Enveloppe rouverte.')).toHaveAttribute('role', 'status');
-    expect(await screen.findByRole('button', { name: 'Clôturer l’enveloppe' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
     expect(screen.queryByText('Enveloppe clôturée')).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Saisir' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Saisir une valeur' })).toHaveFocus());
     await expectNoAxeViolations(container);
   });
 

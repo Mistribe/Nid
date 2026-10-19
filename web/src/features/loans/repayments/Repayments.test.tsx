@@ -57,7 +57,16 @@ function serve(initial: LoanDetail = loanDetail({ repayments: [BONUS] }), refuse
   return { sent, bump };
 }
 
+const PAGE = `/loans/${LOAN}?tab=operations`;
+const ROW = '20 mars 2026';
 const region = () => screen.findByRole('region', { name: 'Remboursements anticipés' });
+type User = Awaited<ReturnType<typeof renderApp>>['user'];
+/** The row's ⋯ menu, opened, then the item picked. */
+const rowAction = async (user: User, row: HTMLElement, item: string) => {
+  await user.click(within(row).getByRole('button', { name: new RegExp(`^Actions pour le ${ROW}`) }));
+  await user.click(await screen.findByRole('menuitem', { name: item }));
+};
+const dialogOf = async (name: string) => within(await screen.findByRole('dialog', { name }));
 const rows = async () => within(await screen.findByRole('table', { name: 'Remboursements anticipés du crédit' })).getAllByRole('row').slice(1);
 
 describe('early repayments', () => {
@@ -65,7 +74,7 @@ describe('early repayments', () => {
 
   it('lists each repayment with its amount, effect, penalty and note', async () => {
     serve();
-    const { container } = await renderApp(`/loans/${LOAN}`);
+    const { container } = await renderApp(PAGE);
 
     const [bonus] = await rows();
     expect(bonus).toHaveTextContent('20 mars 2026');
@@ -78,48 +87,49 @@ describe('early repayments', () => {
 
   it('says when there is none', async () => {
     serve(loanDetail());
-    await renderApp(`/loans/${LOAN}`);
+    await renderApp(PAGE);
 
     expect(await within(await region()).findByText('Aucun remboursement anticipé')).toBeInTheDocument();
   });
 
   it('adds a repayment with its penalty once its effect is picked', async () => {
     const { sent } = serve(loanDetail());
-    const { user, container } = await renderApp(`/loans/${LOAN}`);
+    const { user, container } = await renderApp(PAGE);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter un remboursement' }));
-    const form = screen.getByRole('form', { name: 'Nouveau remboursement anticipé' });
-    expect(within(form).getByLabelText('Date')).toHaveFocus();
-    expect(within(form).getByLabelText('Date')).toHaveValue(todayIso());
-    expect(within(form).getByRole('radio', { name: 'Réduire la durée' })).not.toBeChecked();
-    expect(within(form).getByRole('radio', { name: 'Réduire la mensualité' })).not.toBeChecked();
-    expect(within(form).getByText('Facultatif. Saisie par vous, jamais calculée.')).toBeInTheDocument();
-    await user.type(within(form).getByLabelText('Montant'), '5000');
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    const form = await dialogOf('Nouveau remboursement anticipé');
+    await waitFor(() => expect(form.getByLabelText('Date')).toHaveFocus());
+    expect(form.getByLabelText('Date')).toHaveValue(todayIso().split('-').reverse().join('/'));
+    expect(form.getByRole('radio', { name: 'Réduire la durée' })).not.toBeChecked();
+    expect(form.getByRole('radio', { name: 'Réduire la mensualité' })).not.toBeChecked();
+    expect(form.getByText('Facultatif. Saisie par vous, jamais calculée.')).toBeInTheDocument();
+    await user.type(form.getByLabelText('Montant'), '5000');
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(form).findByText('Choisissez l’effet du remboursement.')).toBeInTheDocument();
+    expect(await form.findByText('Choisissez l’effet du remboursement.')).toBeInTheDocument();
     expect(sent).toEqual([]);
-    await user.click(within(form).getByRole('radio', { name: 'Réduire la durée' }));
-    await user.type(within(form).getByLabelText('Pénalité'), '150');
+    await user.click(form.getByRole('radio', { name: 'Réduire la durée' }));
+    await user.type(form.getByLabelText('Pénalité'), '150');
     await expectNoAxeViolations(container);
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé ajouté.'));
     expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { onDate: todayIso(), amount: '5000', effect: 'reduce_term', penalty: '150' } })]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Remboursements anticipés' })).toHaveFocus();
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('5 000,00 €'));
   });
 
   it('corrects a repayment with its penalty prefilled, and leaves an emptied penalty out so the server deletes it', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
-    const form = screen.getByRole('form', { name: 'Corriger le remboursement anticipé' });
-    expect(within(form).getByLabelText('Pénalité')).toHaveValue('300.00');
-    expect(within(form).getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
-    await user.clear(within(form).getByLabelText('Pénalité'));
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    await rowAction(user, (await rows())[0]!, 'Corriger');
+    const form = await dialogOf('Corriger le remboursement anticipé');
+    expect(form.getByLabelText('Pénalité')).toHaveValue('300.00');
+    expect(form.getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
+    await user.clear(form.getByLabelText('Pénalité'));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé corrigé.'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { onDate: '2026-03-20', amount: '10000.00', effect: 'reduce_payment', note: 'prime', version: 3 } });
@@ -129,26 +139,26 @@ describe('early repayments', () => {
 
   it('sends the version the form opened on, so a change made meanwhile is a conflict, not an overwrite', async () => {
     const { sent, bump } = serve();
-    const { user, queryClient } = await renderApp(`/loans/${LOAN}`);
+    const { user, queryClient } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
-    const form = screen.getByRole('form', { name: 'Corriger le remboursement anticipé' });
+    await rowAction(user, (await rows())[0]!, 'Corriger');
+    const form = await dialogOf('Corriger le remboursement anticipé');
     bump();
     await queryClient.invalidateQueries();
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await within(form).findByText('Ce remboursement a changé entre-temps : rechargez la page.')).toBeInTheDocument();
-    expect(within(form).getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
+    expect(await form.findByText('Ce remboursement a changé entre-temps : rechargez la page.')).toBeInTheDocument();
+    expect(form.getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
     expect(sent[0]!.body).toMatchObject({ version: 3 });
   });
 
   it('deletes a repayment after a confirmation that says its penalty goes with it', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
-    expect(screen.getByText('Ce remboursement anticipé et sa pénalité de 300,00 € seront supprimés.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await rowAction(user, (await rows())[0]!, 'Supprimer');
+    expect(await screen.findByText('Ce remboursement anticipé et sa pénalité de 300,00 € seront supprimés.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Remboursement anticipé supprimé.'));
     expect(await within(await region()).findByText('Aucun remboursement anticipé')).toBeInTheDocument();
@@ -157,33 +167,33 @@ describe('early repayments', () => {
 
   it('asks a plain confirmation for a repayment without penalty', async () => {
     serve(loanDetail({ repayments: [{ ...BONUS, penalty: null }] }));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
+    await rowAction(user, (await rows())[0]!, 'Supprimer');
 
     expect(screen.getByText('Ce remboursement anticipé sera supprimé.')).toBeInTheDocument();
   });
 
   it('shows a refusal under the field it names', async () => {
     serve(loanDetail(), (method) => (method === 'POST' ? refusal('amount', 'realestate.event_above_balance') : undefined));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter un remboursement' }));
-    const form = screen.getByRole('form', { name: 'Nouveau remboursement anticipé' });
-    await user.type(within(form).getByLabelText('Montant'), '500000');
-    await user.click(within(form).getByRole('radio', { name: 'Réduire la durée' }));
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    const form = await dialogOf('Nouveau remboursement anticipé');
+    await user.type(form.getByLabelText('Montant'), '500000');
+    await user.click(form.getByRole('radio', { name: 'Réduire la durée' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
-    expect(await within(form).findByText('Ce remboursement dépasse le capital restant dû.')).toBeInTheDocument();
-    expect(within(form).getByLabelText('Montant')).toHaveAttribute('aria-invalid', 'true');
+    expect(await form.findByText('Ce remboursement dépasse le capital restant dû.')).toBeInTheDocument();
+    expect(form.getByLabelText('Montant')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('shows in the section an engine refusal of a deletion', async () => {
     serve(undefined, (method) => (method === 'DELETE' ? refusal('phases[0].paymentOverride', 'realestate.payment_below_interest') : undefined));
-    const { user } = await renderApp(`/loans/${LOAN}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await rowAction(user, (await rows())[0]!, 'Supprimer');
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     expect(await within(await region()).findByText('Cette mensualité ne couvre pas les intérêts : le prêt ne finirait jamais.')).toBeInTheDocument();
     expect((await rows())[0]).toHaveTextContent('10 000,00 €');
@@ -191,7 +201,7 @@ describe('early repayments', () => {
 
   it('gives a reader the repayments without any action', async () => {
     serve(loanDetail({ canWrite: false, repayments: [BONUS] }));
-    await renderApp(`/loans/${LOAN}`);
+    await renderApp(PAGE);
 
     const section = await region();
     await rows();

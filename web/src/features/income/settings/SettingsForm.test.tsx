@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { detail, SALARY } from '../testData';
@@ -22,10 +23,10 @@ describe('income settings', () => {
   it('sends only what changed, every clear flag stated, and says it is saved', async () => {
     const bodies: unknown[] = [];
     serve(bodies);
-    const { user, container } = await renderApp(`/income/${SALARY}`);
+    const { user, container } = await renderApp(`/income/${SALARY}?tab=settings`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
-    await user.selectOptions(within(settings()).getByLabelText('Type'), 'pension');
+    await pick(user, 'Type', 'Pension');
     await user.clear(within(settings()).getByLabelText(/Payeur/));
     await expectNoAxeViolations(container);
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
@@ -37,7 +38,7 @@ describe('income settings', () => {
   it('says there is nothing to save rather than sending an empty change', async () => {
     const bodies: unknown[] = [];
     serve(bodies);
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
@@ -50,7 +51,7 @@ describe('income settings', () => {
     serve([], () => HttpResponse.json(
       { status: 422, code: 'income.invalid_source', title: 'x', errors: [{ path: 'payerLabel', code: 'income.invalid_source', message: 'x' }] },
       { status: 422 }));
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await user.type(within(settings()).getByLabelText(/Payeur/), ' SA');
@@ -63,7 +64,7 @@ describe('income settings', () => {
   it('refuses an empty name before sending', async () => {
     const bodies: unknown[] = [];
     serve(bodies);
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
     await user.clear(within(settings()).getByLabelText('Nom'));
@@ -75,10 +76,10 @@ describe('income settings', () => {
 
   it('clears the previous « saved » status when a later save is refused client-side', async () => {
     serve([]);
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
-    await user.selectOptions(within(settings()).getByLabelText('Type'), 'pension');
+    await pick(user, 'Type', 'Pension');
     await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
     await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
     await user.clear(within(settings()).getByLabelText('Nom'));

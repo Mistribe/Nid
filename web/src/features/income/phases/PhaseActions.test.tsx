@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { IncomeSourceDetail } from '../api';
@@ -42,8 +43,14 @@ function serveStateful(initial: IncomeSourceDetail = detail()) {
   return { sent, bump: (id: string, netAmount?: string) => { current = { ...current, phases: current.phases.map((p) => (p.id === id ? { ...p, version: p.version + 1, ...(netAmount ? { netAmount: { amount: netAmount, currency: 'EUR' } } : {}) } : p)) }; } };
 }
 
-const phasesRegion = () => screen.getByRole('region', { name: 'Périodes' });
 const rowsOf = (label: string) => within(screen.getByRole('table', { name: label })).getAllByRole('row').slice(1);
+const statuses = () => screen.getAllByRole('status').map((s) => s.textContent);
+const menuOf = (label: string, row = 0) => within(rowsOf(label)[row]!).getByRole('button', { name: /^Actions de la période/ });
+/** The row's `⋯` menu, then its item. */
+const choose = async (user: Awaited<ReturnType<typeof renderApp>>['user'], label: string, item: string, row = 0) => {
+  await user.click(menuOf(label, row));
+  await user.click(await screen.findByRole('menuitem', { name: item }));
+};
 
 describe('phase actions', () => {
   beforeAll(async () => { await import('../IncomeSourceDetailPage'); }, 30_000);
@@ -56,46 +63,46 @@ describe('phase actions', () => {
     const form = screen.getByRole('form', { name: 'Ajouter une période' });
     await user.type(within(form).getByLabelText('Libellé'), 'Prime de vacances');
     await user.type(within(form).getByLabelText('Montant net'), '500');
-    await user.selectOptions(within(form).getByLabelText('Fréquence'), 'yearly');
+    await pick(user, 'Fréquence', 'Chaque année');
     await user.clear(within(form).getByLabelText('Début'));
     await user.type(within(form).getByLabelText('Début'), '2026-07-01');
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter la période' }));
 
-    await waitFor(() => expect(within(phasesRegion()).getByRole('status')).toHaveTextContent('Période ajoutée.'));
+    await waitFor(() => expect(statuses()).toContain('Période ajoutée.'));
     expect(await screen.findByRole('table', { name: 'Prime de vacances' })).toBeInTheDocument();
     expect(sent[0]).toMatchObject({ method: 'POST', body: { label: 'Prime de vacances', startsOn: '2026-07-01', netAmount: { amount: '500', currency: 'EUR' }, every: { count: 1, unit: 'year' } } });
     expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus();
   });
 
-  it('corrects a phase inline with the version it read, then announces it', async () => {
+  it('corrects a phase with the version it read, then announces it', async () => {
     const { sent } = serveStateful();
     const { user, container } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 'Prime annuelle', 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger la période' });
     expect(within(form).getByLabelText('Montant net')).toHaveValue('1800');
-    expect(within(form).getByLabelText('Fréquence')).toHaveValue('yearly');
+    expect(within(form).getByLabelText('Fréquence')).toHaveTextContent('Chaque année');
     await user.clear(within(form).getByLabelText('Montant net'));
     await user.type(within(form).getByLabelText('Montant net'), '1900');
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(within(phasesRegion()).getByRole('status')).toHaveTextContent('Période corrigée.'));
+    await waitFor(() => expect(statuses()).toContain('Période corrigée.'));
     await waitFor(() => expect(rowsOf('Prime annuelle')[0]).toHaveTextContent('1 900,00 €'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { label: 'Prime annuelle', version: 0, netAmount: { amount: '1900', currency: 'EUR' } } });
   });
 
-  it('gives the focus back to « Corriger » when the correction is cancelled', async () => {
+  it('gives the focus back to the row menu when the correction is cancelled', async () => {
     serveStateful();
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 'Prime annuelle', 'Corriger');
     await user.click(within(screen.getByRole('form', { name: 'Corriger la période' })).getByRole('button', { name: 'Annuler' }));
 
-    await waitFor(() => expect(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Corriger' })).toHaveFocus());
+    await waitFor(() => expect(menuOf('Prime annuelle')).toHaveFocus());
   });
 
   it('deletes a phase after a confirmation, with the version it read', async () => {
@@ -103,11 +110,11 @@ describe('phase actions', () => {
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Supprimer' }));
-    expect(screen.getByText('Cette période sera retirée.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await choose(user, 'Prime annuelle', 'Supprimer');
+    expect(await screen.findByText('Cette période sera retirée.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    await waitFor(() => expect(within(phasesRegion()).getByRole('status')).toHaveTextContent('Période supprimée.'));
+    await waitFor(() => expect(statuses()).toContain('Période supprimée.'));
     await waitFor(() => expect(screen.queryByRole('table', { name: 'Prime annuelle' })).not.toBeInTheDocument());
     expect(new URL(sent[0]!.url).searchParams.get('version')).toBe('0');
   });
@@ -118,7 +125,7 @@ describe('phase actions', () => {
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
     bump('p2');
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 'Prime annuelle', 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger la période' });
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
@@ -131,7 +138,7 @@ describe('phase actions', () => {
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 'Prime annuelle', 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger la période' });
     bump('p2', '2000.00');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
@@ -149,8 +156,8 @@ describe('phase actions', () => {
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
     bump('p2');
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Supprimer' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await choose(user, 'Prime annuelle', 'Supprimer');
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     expect(await screen.findByText('Cette période a changé entre-temps : rechargez la page.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
@@ -162,8 +169,8 @@ describe('phase actions', () => {
     const { user } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('table', { name: 'Prime annuelle' });
-    await user.click(within(rowsOf('Prime annuelle')[0]!).getByRole('button', { name: 'Supprimer' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await choose(user, 'Prime annuelle', 'Supprimer');
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Recharger' })).toBeInTheDocument();
@@ -191,9 +198,9 @@ describe('phase actions', () => {
     await user.click(await screen.findByRole('button', { name: 'Renseigner la suite' }));
     const form = screen.getByRole('form', { name: 'Ajouter une période' });
     expect(within(form).getByLabelText('Libellé')).toHaveValue('Salaire de base');
-    expect(within(form).getByLabelText('Début')).toHaveValue('2026-12-31');
+    expect(within(form).getByLabelText('Début')).toHaveValue('31/12/2026');
     expect(within(form).getByLabelText('Montant net')).toHaveValue('900');
-    expect(within(form).getByLabelText('Fréquence')).toHaveValue('quarterly');
+    expect(within(form).getByLabelText('Fréquence')).toHaveTextContent('Chaque trimestre');
   });
 
   it('shows a server overlap under the start date of the add form', async () => {

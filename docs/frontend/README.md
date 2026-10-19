@@ -45,7 +45,7 @@
 
 ## 4. Questions ouvertes
 
-- **Direction visuelle** : couleur d'accent, ambiance et valeurs des quatre thèmes. Passe de design à part, avec maquettes.
+- ~~Direction visuelle~~ Décidée par la refonte du 2026-10-18 : thème `ardoise` bleu « Confiance » par défaut, grammaire de pages dans `design-system.md` §6.1.
 - Compatibilité de Recharts v3 (et du composant `Chart` de shadcn/ui) avec la version de React retenue.
 - Bibliothèques à choisir : analyse CSV en flux, archive ZIP pour l'export CSV, canonicalisation JSON (RFC 8785).
 - Claims de Pocket ID : `name` est dans l'ID token ; ils impactent l'affichage du nom (`../identity-and-access/authentication.md`).

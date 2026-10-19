@@ -21,7 +21,7 @@ describe('rental figures', () => {
 
   it('shows the rental start and the last 12 months as the server computed them, its rates in %', async () => {
     serve(propertyDetail({ figures: rentedFigures() }));
-    const { container } = await renderApp(`/properties/${PROPERTY}`);
+    const { container } = await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
     expect(figure('Début de location')).toHaveTextContent('1 janvier 2021');
@@ -41,7 +41,7 @@ describe('rental figures', () => {
       rentedSince: '2026-03-01', expectedRent: '6300.00', rentReceived: '7200.00', arrears: '-900.00', vacantDays: 30,
       vacancyRate: '0.0822', grossYield: null, netYieldBeforeTax: null,
     }) }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
     expect(figure('Impayés sur 12 mois')).toHaveTextContent('-900,00 € (plus perçu que prévu)');
@@ -52,7 +52,7 @@ describe('rental figures', () => {
 
   it('shows a negative net yield with its sign, as -1,2 %', async () => {
     serve(propertyDetail({ figures: rentedFigures({ netYieldBeforeTax: '-0.0120' }) }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
     expect(figure('Rendement net avant impôt')).toHaveTextContent('-1,2 %');
@@ -60,7 +60,7 @@ describe('rental figures', () => {
 
   it('signs arrears still owed', async () => {
     serve(propertyDetail({ figures: rentedFigures({ rentReceived: '9900.00', arrears: '900.00' }) }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
     expect(figure('Impayés sur 12 mois')).toHaveTextContent('+900,00 €');
@@ -71,7 +71,7 @@ describe('rental figures', () => {
       rentedSince: '2099-01-01', expectedRent: '0.00', rentReceived: '0.00', arrears: '0.00', vacantDays: null, vacancyRate: null,
       grossYield: null, netYieldBeforeTax: null,
     }) }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
     expect(figure('Début de location')).toHaveTextContent('1 janvier 2099');
@@ -82,7 +82,7 @@ describe('rental figures', () => {
 
   it('says a property without a rental start is not rented, with no figure', async () => {
     serve(propertyDetail());
-    const { container } = await renderApp(`/properties/${PROPERTY}`);
+    const { container } = await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
     expect(within(region()).getByText('Ce bien n’est pas loué.')).toBeInTheDocument();

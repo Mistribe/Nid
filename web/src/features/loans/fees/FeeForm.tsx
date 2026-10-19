@@ -1,36 +1,51 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { DateField } from '@/components/form/DateField';
+import { SelectField } from '@/components/form/SelectField';
+import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { Field } from '../../subscriptions/edits/Field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { FEE, FEES, invalidateLoans, type LoanDetail, type LoanFee } from '../api';
 import { presentRefusal } from '../refusal';
 import { FEE_PATHS, feeSchema, feeValuesOf, NEW_FEE_KINDS, toFeeBody, type FeeValues } from './fee';
 
-const input = 'rounded-md border px-3 py-2';
-
 /**
- * 3B2 design §6: adding fees (`editing` absent: POST) or correcting them inline on their row (PUT, with the version
- * read). The section announces and places the focus: this form is gone by then.
+ * The fee dialog, open while mounted: adding fees (`editing` absent: POST) or correcting one (PUT, with the version
+ * read). A save hands the dialog back (`close()`) and the page-side section announces and places the focus; « Annuler » and
+ * Escape just call `onClose`.
  */
-export function FeeForm({ loan, editing, onDone }: { loan: LoanDetail; editing?: LoanFee; onDone: (message?: string) => void }) {
+export function FeeDialog({ loan, editing, onClose, onDone }: {
+  loan: LoanDetail; editing?: LoanFee; onClose: () => void; onDone: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  const dialog = useRef<{ close: () => void }>(null);
+  return (
+    <ModalDialog title={editing ? t('loan_fees.edit_title') : t('loan_fees.add_title')} onClose={onClose} dialogRef={dialog}>
+      {(titleId) => (
+        <FeeForm loan={loan} editing={editing} titleId={titleId}
+          onDone={(message) => { if (message) { dialog.current?.close(); onDone(message); } else onClose(); }} />
+      )}
+    </ModalDialog>
+  );
+}
+
+function FeeForm({ loan, editing, titleId, onDone }: { loan: LoanDetail; editing?: LoanFee; titleId: string; onDone: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const headingId = useId();
   // The version the form opened on: a refetch meanwhile must not turn the expected 409 into an overwrite.
   const [version] = useState(editing?.version);
   const form = useForm<FeeValues>({ resolver: zodResolver(feeSchema(t)), defaultValues: feeValuesOf(editing) });
   const errors = useSubmitErrors(form.setError, FEE_PATHS);
-  // Mount only: opening the form lands the person in it (the kind when adding, the amount when correcting).
-  useEffect(() => { form.setFocus(editing ? 'amount' : 'kind'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const add = $api.useMutation('post', FEES);
   const correct = $api.useMutation('put', FEE);
   // An unlinked penalty keeps its kind when corrected; a new fee is never one.
@@ -53,34 +68,36 @@ export function FeeForm({ loan, editing, onDone }: { loan: LoanDetail; editing?:
   const problem = errors.problem ? presentRefusal(t, editing ? correct.error : add.error) : null;
 
   return (
-    <form aria-labelledby={headingId} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
-      <h3 id={headingId} className="font-semibold">{editing ? t('loan_fees.edit_title') : t('loan_fees.add_title')}</h3>
+    <form aria-labelledby={titleId} noValidate onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }} className="space-y-3">
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
-          {/* The row changed or went: reading it again closes the form onto what is now stored. */}
+          {/* The row changed or went: reading it again closes the dialog onto what is now stored. */}
           {problem.kind === 'conflict' || problem.kind === 'not_found' ? <Reload onReload={() => invalidateLoans(queryClient).then(() => onDone())} /> : null}
         </>
       ) : null}
-      <Field label={t('loan_fees.kind')} error={e.kind?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('kind')}>
-            {kinds.map((k) => <NativeSelectOption key={k} value={k}>{t(`loan_detail.fee_kind.${k}`)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
-      <Field label={t('loan_fees.amount')} error={e.amount?.message}>
-        {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
-      </Field>
-      <Field label={t('loan_fees.date')} error={e.onDate?.message}>
-        {(c) => <input type="date" {...c} {...form.register('onDate')} />}
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Controller control={form.control} name="kind" render={({ field }) => (
+          <Field label={t('loan_fees.kind')} error={e.kind?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={kinds.map((k) => ({ value: k, label: t(`loan_detail.fee_kind.${k}`) }))} />}
+          </Field>
+        )} />
+        <Field label={t('loan_fees.amount')} error={e.amount?.message}>
+          {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
+        </Field>
+        <Controller control={form.control} name="onDate" render={({ field }) => (
+          <Field label={t('loan_fees.date')} error={e.onDate?.message}>
+            {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+          </Field>
+        )} />
+      </div>
       <Field label={t('loan_fees.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
-      <div className="flex items-center gap-2">
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => onDone()}>{t('loan_detail.cancel')}</Button>
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('loan_detail.save') : t('loan_fees.submit')}</Button>
-        <Button type="button" variant="ghost" onClick={() => onDone()}>{t('loan_detail.cancel')}</Button>
       </div>
     </form>
   );

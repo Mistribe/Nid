@@ -10,7 +10,9 @@ import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { LABELS, PROVIDERS } from './api';
-import { Field } from './edits/Field';
+import { Field } from '@/components/form/Field';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 /** The server's bounds (`CatalogLimits`, `ProviderRules`): the server checks them again. */
 const MAX_NAME = 100;
@@ -26,13 +28,13 @@ const isHttpUrl = (value: string) => {
 };
 
 /**
- * 1E2b2 design §2.2: a custom provider, created right away and handed back to the picker. A native modal dialog in a
+ * 1E2b2 design §2.2: a custom provider, created right away and handed back to the picker. A modal dialog in a
  * portal: the wizard is a form, and a form never nests another. React still bubbles `submit` through the portal, so the
  * dialog's form stops it. Closing goes through `finish`, which closes the dialog before the picker moves the focus:
  * the browser's own focus restoration would otherwise run last.
  */
-export function NewProviderDialog({ initialName, onCreated, onClose }: {
-  initialName: string; onCreated: (provider: { key: string; name: string }) => void; onClose: () => void;
+export function NewProviderDialog({ onCreated, onClose }: {
+  onCreated: (provider: { key: string; name: string }) => void; onClose: () => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -48,7 +50,7 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
     website: z.string().trim().max(MAX_URL, t('provider_new.website_too_long', { max: MAX_URL }))
       .refine((value) => value === '' || isHttpUrl(value), t('provider_new.website_invalid')),
   });
-  const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: initialName, labelKeys: [] as string[], website: '' } });
+  const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: '', labelKeys: [] as string[], website: '' } });
 
   // The browser focuses the first field itself; jsdom does not, and Escape reaches the dialog only from inside it.
   // ModalDialog (a child) has opened the dialog by now: child effects run before the parent's.
@@ -85,7 +87,7 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => { event.stopPropagation(); void submit(event); }}>
           {problem ? <ProblemMessage problem={problem} /> : null}
           <Field label={t('provider_new.name')} error={form.formState.errors.name?.message}>
-            {(c) => <input {...c} {...form.register('name')} className="w-full rounded-md border px-3 py-2" />}
+            {(c) => <Input {...c} {...form.register('name')} />}
           </Field>
           <fieldset aria-describedby={labelsError ? labelsErrorId : undefined} className="space-y-1">
             <legend className="text-sm">{t('provider_new.labels')}</legend>
@@ -98,8 +100,8 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {labels.data.map((label) => (
                     <label key={label.key} className="inline-flex items-center gap-1.5 text-sm">
-                      <input type="checkbox" checked={field.value.includes(label.key)}
-                        onChange={(event) => field.onChange(event.target.checked
+                      <Checkbox checked={field.value.includes(label.key)}
+                        onCheckedChange={(on) => field.onChange(on === true
                           ? [...field.value, label.key] : field.value.filter((key) => key !== label.key))} />
                       <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
                       {label.name}
@@ -111,7 +113,7 @@ export function NewProviderDialog({ initialName, onCreated, onClose }: {
             {labelsError ? <span id={labelsErrorId} className="block text-sm text-destructive">{labelsError}</span> : null}
           </fieldset>
           <Field label={t('provider_new.website')} hint={t('provider_new.website_hint')} error={form.formState.errors.website?.message}>
-            {(c) => <input type="url" {...c} {...form.register('website')} className="w-full rounded-md border px-3 py-2" />}
+            {(c) => <Input type="url" {...c} {...form.register('website')} />}
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => finish(onClose)}>{t('provider_new.cancel')}</Button>

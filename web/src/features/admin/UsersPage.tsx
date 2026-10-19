@@ -1,12 +1,17 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Field } from '@/components/form/Field';
+import { FormDialog } from '@/components/FormDialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 
@@ -21,6 +26,11 @@ export function UsersPage() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const { session } = useSession();
+  const [adding, setAdding] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  // The opener is disabled once the cap is reached: the page, not the trigger, takes the focus back.
+  useEffect(() => { if (announcement) statusRef.current?.focus(); }, [announcement]);
   const [problem, setProblem] = useState<Presentation | null>(null);
   const adults = $api.useQuery('get', USERS);
   const household = $api.useQuery('get', HOUSEHOLD);
@@ -33,7 +43,6 @@ export function UsersPage() {
     },
     onError: (error: unknown) => setProblem(present(toProblem(error))),
   };
-  const add = $api.useMutation('post', USERS, settle);
   const remove = $api.useMutation('delete', '/api/v1/admin/users/{id}', settle);
   const revoke = $api.useMutation('post', '/api/v1/admin/users/{id}/revoke-sessions', settle);
 
@@ -44,31 +53,16 @@ export function UsersPage() {
 
   const capReached = household.data.adultCount >= household.data.maxAdults;
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const fields = new FormData(form);
-    add.mutate(
-      {
-        body: {
-          displayName: (fields.get('displayName') as string | null) ?? '',
-          email: (fields.get('email') as string | null) ?? '',
-        },
-      },
-      { onSuccess: () => form.reset() },
-    );
-  };
-
   const row = (adult: Adult) => {
     const isSelf = adult.id === session.person.id;
     const target = { params: { path: { id: adult.id } } };
     return (
-      <tr key={adult.id} className="border-b align-top">
-        <td className="py-2 pr-4">{adult.displayName}</td>
-        <td className="py-2 pr-4">{adult.email}</td>
-        <td className="py-2 pr-4">{t(adult.status === 'pending' ? 'admin.users.pending' : 'admin.users.active')}</td>
-        <td className="py-2 pr-4">{adult.isAdmin ? t('admin.users.admin') : null}</td>
-        <td className="flex flex-col items-start gap-2 py-2">
+      <TableRow key={adult.id}>
+        <TableCell>{adult.displayName}</TableCell>
+        <TableCell>{adult.email}</TableCell>
+        <TableCell>{t(adult.status === 'pending' ? 'admin.users.pending' : 'admin.users.active')}</TableCell>
+        <TableCell>{adult.isAdmin ? <Badge variant="secondary">{t('admin.users.admin')}</Badge> : null}</TableCell>
+        <TableCell>
           {adult.status === 'pending' ? (
             <ConfirmAction
               label={t('admin.users.cancel_invitation')}
@@ -84,46 +78,70 @@ export function UsersPage() {
               onConfirm={() => revoke.mutate(target)}
             />
           )}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   };
 
   return (
     <AdminFrame title={title}>
       {problem ? <ProblemMessage problem={problem} /> : null}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b">
-              <th scope="col" className="py-2 pr-4">{t('admin.users.name')}</th>
-              <th scope="col" className="py-2 pr-4">{t('admin.users.email')}</th>
-              <th scope="col" className="py-2 pr-4">{t('admin.users.status')}</th>
-              <th scope="col" className="py-2 pr-4">{t('admin.users.role')}</th>
-              <th scope="col" className="py-2">{t('admin.users.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>{adults.data.map(row)}</tbody>
-        </table>
-      </div>
-      <p className="max-w-prose text-sm text-muted-foreground">{t('admin.users.managed_hint')}</p>
-
-      <form onSubmit={submit} className="max-w-md space-y-3">
-        <h2 className="text-lg font-semibold">{t('admin.users.add_title')}</h2>
-        <p className="text-sm text-muted-foreground">{t('admin.users.add_hint')}</p>
-        <fieldset disabled={capReached || add.isPending} className="space-y-3">
-          <label className="block">
-            <span className="block text-sm">{t('admin.users.name')}</span>
-            <input name="displayName" required autoComplete="off" className="w-full rounded-md border px-3 py-2" />
-          </label>
-          <label className="block">
-            <span className="block text-sm">{t('admin.users.email')}</span>
-            <input name="email" type="email" required autoComplete="off" className="w-full rounded-md border px-3 py-2" />
-          </label>
-          <Button type="submit">{t('admin.users.add')}</Button>
-        </fieldset>
+      {announcement ? <p ref={statusRef} role="status" tabIndex={-1} className="outline-none">{announcement}</p> : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button disabled={capReached} onClick={() => { setAnnouncement(''); setAdding(true); }}>{t('admin.users.add_title')}</Button>
         {capReached ? <p className="text-sm text-muted-foreground">{t('admin.users.cap_reached', { max: household.data.maxAdults })}</p> : null}
-      </form>
+      </div>
+      {adding ? <AddAdultDialog onClose={() => setAdding(false)} onDone={(message) => { setAdding(false); setAnnouncement(message); }} /> : null}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('admin.users.name')}</TableHead>
+            <TableHead>{t('admin.users.email')}</TableHead>
+            <TableHead>{t('admin.users.status')}</TableHead>
+            <TableHead>{t('admin.users.role')}</TableHead>
+            <TableHead>{t('admin.users.actions')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{adults.data.map(row)}</TableBody>
+      </Table>
+      <p className="max-w-prose text-sm text-muted-foreground">{t('admin.users.managed_hint')}</p>
     </AdminFrame>
+  );
+}
+
+/** « Ajouter un adulte »: the pre-registration, in a dialog; the page owns the announcement. */
+function AddAdultDialog({ onClose, onDone }: { onClose: () => void; onDone: (message: string) => void }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const add = $api.useMutation('post', USERS);
+  const problem = add.error ? present(toProblem(add.error)) : null;
+
+  return (
+    <FormDialog title={t('admin.users.add_title')} onClose={onClose} onDone={onDone}>
+      {({ titleId, done }) => (
+        <form aria-labelledby={titleId} className="space-y-3" onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const fields = new FormData(event.currentTarget);
+          add.mutate({ body: { displayName: (fields.get('displayName') as string | null) ?? '', email: (fields.get('email') as string | null) ?? '' } }, {
+            onSuccess: () => {
+              void queryClient.invalidateQueries({ queryKey: ['get', USERS] });
+              void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD] });
+              done(t('admin.users.added'));
+            },
+          });
+        }}>
+          <p className="text-sm text-muted-foreground">{t('admin.users.add_hint')}</p>
+          {problem ? <ProblemMessage problem={problem} /> : null}
+          <Field label={t('admin.users.name')}>{(c) => <Input {...c} name="displayName" required autoComplete="off" />}</Field>
+          <Field label={t('admin.users.email')}>{(c) => <Input {...c} name="email" type="email" required autoComplete="off" />}</Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
+            <Button type="submit" disabled={add.isPending}>{t('admin.users.add')}</Button>
+          </div>
+        </form>
+      )}
+    </FormDialog>
   );
 }

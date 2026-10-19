@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -16,9 +16,10 @@ function serve(body: LoanList, seen: string[] = [], withEnded: LoanList = body) 
   }));
 }
 
+/** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
 async function rows(): Promise<HTMLElement[]> {
-  const ul = await screen.findByRole('list', { name: 'Liste des crédits' });
-  return within(ul).getAllByRole('listitem');
+  const table = await screen.findByRole('table', { name: 'Liste des crédits' });
+  return within(table).getAllByRole('row').slice(1);
 }
 
 const ended = summary({
@@ -27,20 +28,48 @@ const ended = summary({
 });
 
 describe('LoansPage', () => {
-  it('shows each loan: name and lender, balance on principal, next payment with insurance, rate, end and access', async () => {
-    serve(list([summary()]));
+  beforeAll(async () => { await import('./LoansPage'); }, 30_000);
+
+  it('shows one table row per item with its owner', async () => {
+    const alice = '0192f0aa-0000-7000-8000-0000000000a1';
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
+    serve(list([summary({ propertyName: 'Maison de Nantes', owners: [{ personId: alice, shareBp: 10000 }] })]));
     const { container } = await renderApp('/loans');
 
+    const table = await screen.findByRole('table', { name: 'Liste des crédits' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
+      .toEqual(['Nom', 'Bien', 'Propriétaire', 'Restant dû', 'Prochaine échéance', 'Taux', 'Fin']);
     const row = (await rows())[0]!;
-    expect(within(row).getByRole('link', { name: 'Prêt maison' })).toHaveAttribute('href', expect.stringContaining(`/loans/${LOAN}`));
+    expect(within(row).getByRole('link', { name: /Prêt maison/ })).toHaveAttribute('href', expect.stringContaining(`/loans/${LOAN}`));
     expect(row).toHaveTextContent('Banque');
-    expect(row).toHaveTextContent('Reste 193 564,23 € sur 200 000,00 €');
-    expect(row).toHaveTextContent('Prochaine échéance le 15 octobre 2026 : 1 159,92 €, assurance comprise');
-    expect(row).toHaveTextContent('Taux 3,5 %');
-    expect(row).toHaveTextContent('Fin le 15 octobre 2045');
+    expect(row).toHaveTextContent('Maison de Nantes');
+    await waitFor(() => expect(row).toHaveTextContent('Alice'));
+    expect(row).toHaveTextContent('193 564,23 €');
+    expect(row).toHaveTextContent('15 oct. 2026');
+    expect(row).toHaveTextContent('1 159,92 €');
+    expect(row).toHaveTextContent('3,5 %');
+    expect(row).toHaveTextContent('15 oct. 2045');
     expect(within(row).getByText('Privé')).toBeInTheDocument();
     expect(within(row).queryByText('Terminé')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('sorts by the balance left', async () => {
+    serve(list([summary({ name: 'Gros' }), summary({ id: 'b', name: 'Petit', remainingBalance: '1000.00' })]));
+    const { user } = await renderApp('/loans');
+
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(Gros|Petit)/)?.[0]);
+    expect(await names()).toEqual(['Gros', 'Petit']);
+    await user.click(within(screen.getByRole('table', { name: 'Liste des crédits' })).getByRole('button', { name: 'Restant dû' }));
+    expect(await names()).toEqual(['Petit', 'Gros']);
+  });
+
+  it('the add link is always shown, even when no row is writable', async () => {
+    serve(list([summary({ canWrite: false })]));
+    await renderApp('/loans');
+
+    await rows();
+    expect(screen.getByRole('link', { name: 'Ajouter un crédit' })).toBeInTheDocument();
   });
 
   it('offers « Ajouter un crédit » above the list', async () => {
@@ -73,7 +102,7 @@ describe('LoansPage', () => {
     await user.click(screen.getByRole('link', { name: 'Voir les crédits terminés' }));
 
     await waitFor(() => expect(router.state.location.search).toMatchObject({ ended: 1 }));
-    expect(screen.getByRole('checkbox', { name: 'Afficher les crédits terminés' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les crédits terminés' })).toBeChecked();
   });
 
   it('shows a skeleton while the list loads', async () => {
@@ -106,20 +135,20 @@ describe('LoansPage, ended loans', () => {
     serve(list([summary()]), seen, list([summary(), ended]));
     const { user, router, container } = await renderApp('/loans');
 
-    const box = await screen.findByRole('checkbox', { name: 'Afficher les crédits terminés' });
+    const box = await screen.findByRole('switch', { name: 'Afficher les crédits terminés' });
     expect(box).not.toBeChecked();
     await rows();
     await user.click(box);
 
     await waitFor(() => expect(seen).toContain('?scope=household&ended=true'));
     expect(router.state.location.search).toMatchObject({ ended: 1 });
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Liste des crédits' })).getAllByRole('listitem')).toHaveLength(2));
+    await waitFor(async () => expect(await rows()).toHaveLength(2));
     const items = await rows();
     expect(within(items[1]!).getByText('Terminé')).toBeInTheDocument();
-    expect(items[1]).not.toHaveTextContent('Prochaine échéance');
-    expect(items[1]).not.toHaveTextContent('Taux');
-    expect(items[1]).toHaveTextContent('Fin le 15 janvier 2025');
-    expect(screen.getByRole('checkbox', { name: 'Afficher les crédits terminés' })).toHaveFocus();
+    expect(within(items[1]!).getAllByRole('cell')[4]).toHaveTextContent('—');
+    expect(within(items[1]!).getAllByRole('cell')[5]).toHaveTextContent('—');
+    expect(items[1]).toHaveTextContent('15 janv. 2025');
+    expect(screen.getByRole('switch', { name: 'Afficher les crédits terminés' })).toHaveFocus();
     await expectNoAxeViolations(container);
   });
 
@@ -129,7 +158,7 @@ describe('LoansPage, ended loans', () => {
     await renderApp('/loans?ended=yes');
 
     await rows();
-    expect(screen.getByRole('checkbox', { name: 'Afficher les crédits terminés' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Afficher les crédits terminés' })).not.toBeChecked();
     expect(seen).toEqual(['?scope=household']);
   });
 });

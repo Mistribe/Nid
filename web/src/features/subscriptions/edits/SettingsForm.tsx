@@ -5,12 +5,15 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
+import { DateField } from '@/components/form/DateField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { DETAIL, invalidateSubscriptions, type Detail } from '../api';
 import { ProviderPicker } from '../ProviderPicker';
 import { ISO_DATE } from './amount';
-import { Field } from './Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
 import { useSubmitErrors } from './useSubmitErrors';
 
@@ -59,19 +62,22 @@ export function SettingsForm({ detail }: { detail: Detail }) {
   });
 
   return (
-    <form aria-label={t('edit.settings_title')} onSubmit={(e) => void submit(e)} className="max-w-md space-y-3" noValidate>
-      <h3 className="font-semibold">{t('edit.settings_title')}</h3>
+    <form aria-label={t('edit.settings_title')} onSubmit={(e) => void submit(e)} className="max-w-xl space-y-3" noValidate>
       {errors.problem ? <><ProblemMessage problem={errors.problem} />{errors.problem.kind === 'conflict' ? <Reload /> : null}</> : null}
       {saved ? <p role="status">{t('edit.saved')}</p> : null}
-      <Field label={t('edit.auto_renew')} inline>{(c) => <input type="checkbox" {...c} {...form.register('autoRenew')} />}</Field>
-      <Field label={t('edit.cancelled_at')} error={form.formState.errors.cancelledAt?.message}>
-        {(c) => <input type="date" {...c} {...form.register('cancelledAt')} className="rounded-md border px-3 py-2" />}
-      </Field>
+      <Controller control={form.control} name="autoRenew" render={({ field }) => (
+        <Field label={t('edit.auto_renew')} inline>{(c) => <Switch {...c} checked={field.value} onCheckedChange={field.onChange} />}</Field>
+      )} />
+      <Controller control={form.control} name="cancelledAt" render={({ field }) => (
+        <Field label={t('edit.cancelled_at')} error={form.formState.errors.cancelledAt?.message}>
+          {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+        </Field>
+      )} />
       <Controller control={form.control} name="provider" render={({ field, fieldState }) => (
         <ProviderPicker label={t('edit.provider')} value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
       )} />
       <Field label={t('edit.note')} error={form.formState.errors.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className="w-full rounded-md border px-3 py-2" />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
       <Button type="submit" disabled={save.isPending}>{t('edit.save_settings')}</Button>
     </form>

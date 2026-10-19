@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { persons } from '../../testData';
@@ -52,7 +53,7 @@ describe('Abonnements › ajout › offres', () => {
   it('records a prepaid term with free months, followed by a phase', async () => {
     const fake = serve();
     const { user, container } = await begin(/Prépayé/);
-    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText("Date d'achat"), '01/01/2025');
     await user.type(screen.getByLabelText('Prix payé'), '179,86');
     await user.clear(screen.getByLabelText('Durée payée'));
     await user.type(screen.getByLabelText('Durée payée'), '24');
@@ -88,14 +89,14 @@ describe('Abonnements › ajout › offres', () => {
   it('keeps the following phase\'s start in step with a purchase date changed after "Et ensuite ?"', async () => {
     const fake = serve();
     const { user } = await begin(/Prépayé/);
-    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText("Date d'achat"), '01/01/2025');
     await user.type(screen.getByLabelText('Prix payé'), '179,86'); // paidCount defaults to 12 months, no bonus
     await next(user); // -> "Et ensuite ?": computes startsOn from the 2025-01-01 purchase
     expect(screen.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
     await user.type(screen.getByLabelText('Montant'), '9,99');
     await user.click(screen.getByRole('button', { name: 'Retour' })); // -> offer, unvalidated
     await user.clear(screen.getByLabelText("Date d'achat"));
-    await user.type(screen.getByLabelText("Date d'achat"), '2025-06-01');
+    await user.type(screen.getByLabelText("Date d'achat"), '01/06/2025');
     await next(user); // -> "Et ensuite ?" again: startsOn must follow the new date, not the stale one
     await next(user); // -> summary
 
@@ -111,12 +112,12 @@ describe('Abonnements › ajout › offres', () => {
     const fake = serve();
     const { user, container } = await begin(/Essai ou offre de lancement/);
     await user.click(screen.getByRole('radio', { name: 'Prix de lancement' }));
-    await user.type(screen.getByLabelText('Début'), '2025-01-31');
+    await user.type(screen.getByLabelText('Début'), '31/01/2025');
     await user.type(screen.getByLabelText('Prix réduit'), '0,99');
     await user.type(screen.getByLabelText('Nombre de cycles'), '1');
     await expectNoAxeViolations(container);
     await next(user);
-    expect(screen.getByLabelText('Début du prix normal')).toHaveValue('2025-02-28');
+    expect(screen.getByLabelText('Début du prix normal')).toHaveValue('28/02/2025');
     await user.type(screen.getByLabelText('Montant'), '9,99');
     await expectNoAxeViolations(container);
     await next(user);
@@ -129,7 +130,7 @@ describe('Abonnements › ajout › offres', () => {
   it('records a received gift card without a following phase by default', async () => {
     const fake = serve();
     const { user } = await begin(/Carte cadeau/);
-    await user.type(screen.getByLabelText('Date'), '2025-01-01');
+    await user.type(screen.getByLabelText('Date'), '01/01/2025');
     await next(user);
     expect(screen.getByRole('radio', { name: "Rien pour l'instant" })).toBeChecked();
     await next(user);
@@ -142,12 +143,11 @@ describe('Abonnements › ajout › offres', () => {
   it('records a bought gift card in the currency typed next to its price', async () => {
     const fake = serve();
     const { user, container } = await begin(/Carte cadeau/);
-    await user.type(screen.getByLabelText('Date'), '2025-01-01');
+    await user.type(screen.getByLabelText('Date'), '01/01/2025');
     await expectNoAxeViolations(container); // received
     await user.click(screen.getByRole('radio', { name: 'Achetée' }));
     await user.type(screen.getByLabelText('Prix'), '30');
-    await user.clear(screen.getByLabelText('Devise'));
-    await user.type(screen.getByLabelText('Devise'), 'usd');
+    await pick(user, 'Devise', /USD/);
     await expectNoAxeViolations(container); // bought
     await next(user);
     await next(user);
@@ -160,7 +160,7 @@ describe('Abonnements › ajout › offres', () => {
   it('records a free trial, its steps clean for assistive technology', async () => {
     const fake = serve();
     const { user, container } = await begin(/Essai ou offre de lancement/);
-    await user.type(screen.getByLabelText('Début'), '2025-01-01');
+    await user.type(screen.getByLabelText('Début'), '01/01/2025');
     await expectNoAxeViolations(container);
     await next(user);
     await user.click(screen.getByRole('radio', { name: "Rien pour l'instant" }));
@@ -176,12 +176,12 @@ describe('Abonnements › ajout › offres', () => {
   it('brings a refused bundle target back to its row on the offer step', async () => {
     const fake = serve();
     const { user, container } = await begin(/Bundle/);
-    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText("Date d'achat"), '01/01/2025');
     await user.type(screen.getByLabelText('Prix total'), '88,99');
     await user.click(screen.getByRole('button', { name: 'Ajouter un abonnement couvert' }));
-    await user.selectOptions(screen.getByLabelText('Abonnement couvert 1'), OTHER.id);
+    await pick(user, 'Abonnement couvert 1', OTHER.displayName);
     await user.click(screen.getByRole('button', { name: 'Ajouter un abonnement couvert' }));
-    await user.selectOptions(screen.getByLabelText('Abonnement couvert 2'), OTHER.id);
+    await pick(user, 'Abonnement couvert 2', OTHER.displayName);
     await expectNoAxeViolations(container);
     await next(user);
     await next(user);
@@ -197,7 +197,7 @@ describe('Abonnements › ajout › offres', () => {
     const fake = serve();
     const { user } = await begin(/Essai ou offre de lancement/);
     await user.click(screen.getByRole('radio', { name: 'Prix de lancement' }));
-    await user.type(screen.getByLabelText('Début'), '2025-01-01');
+    await user.type(screen.getByLabelText('Début'), '01/01/2025');
     await user.type(screen.getByLabelText('Prix réduit'), '0,99');
     await user.type(screen.getByLabelText('Nombre de cycles'), '3');
     await next(user);
@@ -214,7 +214,7 @@ describe('Abonnements › ajout › offres', () => {
   it('does not block "Continuer" on a hidden payer left empty after turning the following phase off', async () => {
     serve();
     const { user } = await begin(/Prépayé/);
-    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText("Date d'achat"), '01/01/2025');
     await user.type(screen.getByLabelText('Prix payé'), '179,86');
     await next(user); // -> "Et ensuite ?": prepaid defaults it on
     expect(screen.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
@@ -230,7 +230,7 @@ describe('Abonnements › ajout › offres', () => {
   it('does not block "Continuer" on a hidden gift payer left empty after switching back to "Reçue"', async () => {
     serve();
     const { user } = await begin(/Carte cadeau/);
-    await user.type(screen.getByLabelText('Date'), '2025-01-01');
+    await user.type(screen.getByLabelText('Date'), '01/01/2025');
     await user.click(screen.getByRole('radio', { name: 'Achetée' }));
     await user.click(screen.getByRole('radio', { name: 'Une personne' })); // offerPayerPerson left on "Aucun"
     await user.click(screen.getByRole('radio', { name: 'Reçue' })); // the payer fields are now hidden
@@ -244,7 +244,7 @@ describe('Abonnements › ajout › offres', () => {
   it('submits a recurring offer after a stale hidden payer was left from a prepaid offer', async () => {
     const fake = serve();
     const { user } = await begin(/Prépayé/);
-    await user.type(screen.getByLabelText("Date d'achat"), '2025-01-01');
+    await user.type(screen.getByLabelText("Date d'achat"), '01/01/2025');
     await user.type(screen.getByLabelText('Prix payé'), '179,86');
     await user.click(screen.getByRole('radio', { name: 'Une personne' })); // offerPayerPerson left on "Aucun"
     await user.click(screen.getByRole('button', { name: 'Retour' })); // -> common, unvalidated
@@ -252,7 +252,7 @@ describe('Abonnements › ajout › offres', () => {
     await user.click(screen.getByRole('radio', { name: /Récurrent/ }));
     await next(user); // -> common
     await next(user); // -> offer (recurring)
-    await user.type(await screen.findByLabelText('Début'), '2025-01-01');
+    await user.type(await screen.findByLabelText('Début'), '01/01/2025');
     await user.type(screen.getByLabelText('Montant'), '9,99');
     await next(user); // -> summary
     await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));

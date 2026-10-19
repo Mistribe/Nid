@@ -5,8 +5,10 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { POSITIVE_AMOUNT, trimAmount } from '../investments/entries/entries';
 import { ISO_DATE } from '../subscriptions/edits/amount';
-import { Field } from '../subscriptions/edits/Field';
-import { Row, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import { Field } from '@/components/form/Field';
+import { Table, TableBody } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { DateInput, Row, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 
 type Pay = { net: Money; gross?: Money | null };
 type PayslipPayload = Pay & { paidOn: string; phaseLabel: string; effectiveOn?: string };
@@ -25,9 +27,9 @@ function PayslipPreviewView({ preview }: { preview: unknown }) {
   const p = preview as PayslipPreview;
   const shown = (m: Money | null | undefined) => (m ? formatMoney(m) : t('proposal.preview.none'));
   return (
-    <table className="w-full">
+    <Table>
       <caption className="sr-only">{t('proposal.preview.title')}</caption>
-      <tbody>
+      <TableBody>
         <Row label={t('proposal.payslip.expected_net')}>{shown(p.expected?.net)}</Row>
         <Row label={t('proposal.payslip.proposed_net')}>{shown(p.proposed?.net)}</Row>
         {p.expected?.gross || p.proposed?.gross ? (
@@ -37,8 +39,8 @@ function PayslipPreviewView({ preview }: { preview: unknown }) {
           </>
         ) : null}
         <Row label={t('proposal.payslip.effective_on')}>{p.effectiveOn ? formatLocalDate(p.effectiveOn) : t('proposal.preview.none')}</Row>
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
 
@@ -47,9 +49,9 @@ function PayslipFields({ form, original }: { form: UseFormReturn<FieldValues>; o
   const currency = asPayslip(original).net.currency;
   return (
     <>
-      <Field label={t('proposal.payslip.effective_on')} error={errorOf(form, 'effectiveOn')}>{(c) => <input type="date" {...c} {...form.register('effectiveOn')} className={input} />}</Field>
-      <Field label={t('proposal.payslip.net', { currency })} error={errorOf(form, 'net')}>{(c) => <input inputMode="decimal" {...c} {...form.register('net')} className={input} />}</Field>
-      <Field label={t('proposal.payslip.gross', { currency })} error={errorOf(form, 'gross')}>{(c) => <input inputMode="decimal" {...c} {...form.register('gross')} className={input} />}</Field>
+      <DateInput form={form} name="effectiveOn" label={t('proposal.payslip.effective_on')} />
+      <Field label={t('proposal.payslip.net', { currency })} error={errorOf(form, 'net')}>{(c) => <Input inputMode="decimal" {...c} {...form.register('net')} />}</Field>
+      <Field label={t('proposal.payslip.gross', { currency })} error={errorOf(form, 'gross')}>{(c) => <Input inputMode="decimal" {...c} {...form.register('gross')} />}</Field>
     </>
   );
 }

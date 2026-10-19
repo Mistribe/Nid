@@ -1,26 +1,27 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem } from '@/api/errors';
+import { DateField } from '@/components/form/DateField';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
-import { Field } from '../../subscriptions/edits/Field';
+import { Input } from '@/components/ui/input';
+import { toWireAmount } from '../../subscriptions/edits/amount';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { CLOSE, invalidateInvestments, type EnvelopeDetail } from '../api';
-import { placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
+import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
 
-const input = 'rounded-md border px-3 py-2';
 const PATHS = { closedOn: 'closedOn', 'finalWithdrawal.amount': 'finalWithdrawal' } as const;
 
 /**
- * 2B2b design: closing an envelope at a date, with an optional last withdrawal. A native modal dialog in a portal
+ * 2B2b design: closing an envelope at a date, with an optional last withdrawal. A modal dialog in a portal
  * (the `TransferDialog` pattern); the page owns its open state, the focus and the announcement of the success
  * (`onDone`), so a dialog closed by Escape or « Annuler » announces nothing.
  */
@@ -32,7 +33,7 @@ export function CloseDialog({ envelope, onClose, onDone }: {
   const queryClient = useQueryClient();
 
   const schema = z.object({
-    closedOn: z.string().regex(ISO_DATE, t('edit.required')),
+    closedOn: pastDate(t),
     finalWithdrawal: z.string().regex(new RegExp(`^$|${POSITIVE_AMOUNT.source}`), t('investments_form.positive_amount_format')),
   });
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { closedOn: todayIso(), finalWithdrawal: '' } });
@@ -81,12 +82,16 @@ export function CloseDialog({ envelope, onClose, onDone }: {
             </>
           ) : null}
           <p>{t('envelope.closing.effect')}</p>
-          <Field label={t('envelope.closing.date')} error={e.closedOn?.message}>
-            {(c) => <input type="date" max={todayIso()} {...c} {...form.register('closedOn')} className={input} />}
-          </Field>
-          <Field label={t('envelope.closing.withdrawal')} hint={t('envelope.closing.withdrawal_help')} error={e.finalWithdrawal?.message}>
-            {(c) => <input inputMode="decimal" {...c} {...form.register('finalWithdrawal')} className={`w-32 ${input}`} />}
-          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Controller control={form.control} name="closedOn" render={({ field }) => (
+              <Field label={t('envelope.closing.date')} error={e.closedOn?.message}>
+                {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
+              </Field>
+            )} />
+            <Field label={t('envelope.closing.withdrawal')} hint={t('envelope.closing.withdrawal_help')} error={e.finalWithdrawal?.message}>
+              {(c) => <Input inputMode="decimal" {...c} {...form.register('finalWithdrawal')} />}
+            </Field>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>{t('envelope.cancel')}</Button>
             <Button type="submit" disabled={close.isPending}>{t('envelope.closing.submit')}</Button>

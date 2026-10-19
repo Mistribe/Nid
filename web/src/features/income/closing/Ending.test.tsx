@@ -29,9 +29,15 @@ function serve(initial: IncomeSourceDetail = detail()) {
       return HttpResponse.json({ id: SALARY });
     }),
   );
-  return { bodies };
+  return { bodies, end: () => { current = { ...current, ended: true, endedOn: '2025-06-30' }; } };
 }
 
+/** The header's `⋯` menu, then « Terminer cette source ». */
+const openEnd = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
+  await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Terminer cette source' }));
+};
+const frDate = (iso: string) => iso.split('-').reverse().join('/');
 const banner = () => screen.getByText('Source terminée', { exact: true }).closest('p')!;
 
 describe('ending and reopening a source', () => {
@@ -41,17 +47,17 @@ describe('ending and reopening a source', () => {
     const { bodies } = serve();
     const { user, container } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Terminer cette source' }));
+    await openEnd(user);
     const dialog = screen.getByRole('dialog', { name: 'Terminer la source' });
     expect(within(dialog).getByText('Les périodes en cours s’arrêteront à cette date ; la source passera dans les sources terminées.')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Date de fin')).toHaveValue(todayIso());
+    expect(within(dialog).getByLabelText('Date de fin')).toHaveValue(frDate(todayIso()));
     await expectNoAxeViolations(dialog);
     await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
 
     await waitFor(() => expect(banner()).toHaveFocus());
     expect(bodies).toEqual([{ endedOn: todayIso() }]);
     expect(screen.getByText('Source terminée.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Terminer cette source' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
     expect(within(banner()).getByRole('button', { name: 'Rouvrir' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
@@ -60,7 +66,7 @@ describe('ending and reopening a source', () => {
     serve(detail({ phases: [...detail().phases, phase({ id: 'p3', startsOn: '2099-01-01', status: 'upcoming' })] }));
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Terminer cette source' }));
+    await openEnd(user);
     const dialog = screen.getByRole('dialog', { name: 'Terminer la source' });
     await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
 
@@ -72,7 +78,7 @@ describe('ending and reopening a source', () => {
     const { bodies } = serve();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Terminer cette source' }));
+    await openEnd(user);
     const dialog = screen.getByRole('dialog', { name: 'Terminer la source' });
     await user.clear(within(dialog).getByLabelText('Date de fin'));
     await user.type(within(dialog).getByLabelText('Date de fin'), todayIso(new Date(Date.now() + 86_400_000)));
@@ -82,31 +88,31 @@ describe('ending and reopening a source', () => {
     expect(bodies).toEqual([]);
   });
 
-  it('closes a form left open, and never loses the focus', async () => {
-    serve();
-    const { user } = await renderApp(`/income/${SALARY}`);
+  it('closes a dialog left open when the source turns ended elsewhere, and never loses the focus', async () => {
+    const state = serve();
+    const { user, queryClient } = await renderApp(`/income/${SALARY}`);
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter une période' }));
-    expect(screen.getByRole('form', { name: 'Ajouter une période' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Terminer cette source' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Terminer la source' })).getByRole('button', { name: 'Terminer' }));
+    expect(screen.getByRole('dialog', { name: 'Ajouter une période' })).toBeInTheDocument();
+    state.end();
+    await queryClient.invalidateQueries();
 
     await waitFor(() => expect(banner()).toHaveFocus());
-    expect(screen.queryByRole('form', { name: 'Ajouter une période' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it.each([['Annuler'], ['Escape']])('closes on %s without ending, the focus back on « Terminer cette source »', async (how) => {
+  it.each([['Annuler'], ['Escape']])('closes on %s without ending, the focus back on the ⋯ menu', async (how) => {
     const { bodies } = serve();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Terminer cette source' }));
+    await openEnd(user);
     // The browser focuses the first field of a modal dialog itself; jsdom does not, and Escape reaches the dialog only from inside it.
     if (how === 'Escape') { await user.click(screen.getByLabelText('Date de fin')); await user.keyboard('{Escape}'); }
     else await user.click(within(screen.getByRole('dialog', { name: 'Terminer la source' })).getByRole('button', { name: 'Annuler' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(bodies).toEqual([]);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Terminer cette source' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Autres actions' })).toHaveFocus());
   });
 
   it('reopens an ended source, says the cut phases stay cut, and lands on the periods', async () => {
@@ -117,7 +123,7 @@ describe('ending and reopening a source', () => {
 
     expect(await screen.findByText('Source rouverte. Les périodes arrêtées à la fin restent arrêtées : ajoutez la suite si besoin.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus());
-    expect(screen.getByRole('button', { name: 'Terminer cette source' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 

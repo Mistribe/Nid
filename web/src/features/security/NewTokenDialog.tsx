@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -9,10 +9,12 @@ import { present, toProblem } from '@/api/errors';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { Field } from '../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
+import { Segmented } from '@/components/form/Segmented';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { EXPIRIES, PRESETS, TOKENS, type Preset } from './tokens';
-
-const input = 'rounded-md border px-3 py-2';
 
 /**
  * Spec 4A §8: name, rights (« Lecture + propositions » by default) and validity, then the secret shown once. The secret
@@ -40,6 +42,9 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
     },
   });
   const preset = form.watch('preset');
+  const expiresInDays = form.watch('expiresInDays');
+  const presetId = useId();
+  const expiryId = useId();
   const problem = create.error ? toProblem(create.error) : null;
 
   if (secret) {
@@ -72,30 +77,28 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
             ? <p role="alert">{t('security.tokens.limit_reached')}</p>
             : problem ? <ProblemMessage problem={present(problem)} /> : null}
           <Field label={t('security.tokens.name')} error={form.formState.errors.name?.message}>
-            {(c) => <input {...c} {...form.register('name')} maxLength={80} className={input} />}
+            {(c) => <Input {...c} {...form.register('name')} maxLength={80} />}
           </Field>
-          <fieldset className="space-y-2">
-            <legend className="font-medium">{t('security.tokens.preset_label')}</legend>
-            {PRESETS.map((p) => (
-              <label key={p} className="flex items-start gap-2">
-                <input type="radio" value={p} {...form.register('preset')} className="mt-1" />
-                <span>
-                  <span className="font-medium">{t(`security.tokens.preset.${p}`)}</span>
-                  <span className="block text-sm text-muted-foreground">{t(`security.tokens.preset_hint.${p}`)}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
+          <div className="space-y-2">
+            <p id={presetId} className="font-medium">{t('security.tokens.preset_label')}</p>
+            <RadioGroup aria-labelledby={presetId} value={preset} onValueChange={(v) => form.setValue('preset', v as Preset)}>
+              {PRESETS.map((p) => (
+                <Label key={p} className="items-start gap-2 font-normal">
+                  <RadioGroupItem value={p} className="mt-1" />
+                  <span>
+                    <span className="font-medium">{t(`security.tokens.preset.${p}`)}</span>
+                    <span className="block text-sm text-muted-foreground">{t(`security.tokens.preset_hint.${p}`)}</span>
+                  </span>
+                </Label>
+              ))}
+            </RadioGroup>
+          </div>
           {preset === 'direct' ? <p role="note" className="rounded-md border p-2">{t('security.tokens.direct_warning')}</p> : null}
-          <fieldset className="space-y-2">
-            <legend className="font-medium">{t('security.tokens.expiry_label')}</legend>
-            {EXPIRIES.map((days) => (
-              <label key={days} className="mr-4 inline-flex items-center gap-2">
-                <input type="radio" value={days} {...form.register('expiresInDays')} />
-                {t(`security.tokens.expiry.${days}`)}
-              </label>
-            ))}
-          </fieldset>
+          <div className="space-y-2">
+            <p id={expiryId} className="font-medium">{t('security.tokens.expiry_label')}</p>
+            <Segmented aria-labelledby={expiryId} value={String(expiresInDays)} onValueChange={(v) => form.setValue('expiresInDays', Number(v))}
+              options={EXPIRIES.map((days) => ({ value: String(days), label: t(`security.tokens.expiry.${days}`) }))} />
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>{t('security.tokens.cancel')}</Button>
             <Button type="submit" disabled={create.isPending}>{t('security.tokens.submit')}</Button>

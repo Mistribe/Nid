@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { Detail } from '../api';
@@ -12,6 +13,7 @@ function serve(body: Detail, extra: Parameters<typeof server.use> = []) {
   // The test's own handlers first: `:id` would also match /subscriptions/providers.
   server.use(
     ...extra,
+    http.get('*/api/v1/subscriptions/providers', () => HttpResponse.json([])), // the settings form's provider list
     http.get('*/api/v1/subscriptions/:id', () => HttpResponse.json(current)),
     http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
   );
@@ -96,7 +98,8 @@ describe('Abonnements › modifications', () => {
     })]);
     const { user } = await open();
 
-    const form = screen.getByRole('form', { name: 'Changer le prix' });
+    await user.click(screen.getByRole('button', { name: 'Changer le prix' }));
+    const form = await screen.findByRole('form', { name: 'Changer le prix' });
     await user.type(within(form).getByLabelText('À partir du'), '2026-02-28');
     await user.type(within(form).getByLabelText('Nouveau montant'), '15,99');
     await user.click(within(form).getByRole('button', { name: 'Changer le prix' }));
@@ -111,7 +114,8 @@ describe('Abonnements › modifications', () => {
     }, { status: 422 }))]);
     const { user } = await open();
 
-    const form = screen.getByRole('form', { name: 'Changer le prix' });
+    await user.click(screen.getByRole('button', { name: 'Changer le prix' }));
+    const form = await screen.findByRole('form', { name: 'Changer le prix' });
     await user.type(within(form).getByLabelText('À partir du'), '2020-01-01');
     await user.type(within(form).getByLabelText('Nouveau montant'), '15');
     await user.click(within(form).getByRole('button', { name: 'Changer le prix' }));
@@ -129,10 +133,11 @@ describe('Abonnements › modifications', () => {
     })]);
     const { user } = await open();
 
-    const form = screen.getByRole('form', { name: 'Ajouter un achat' });
+    await user.click(screen.getByRole('button', { name: 'Ajouter un achat' }));
+    const form = await screen.findByRole('form', { name: 'Ajouter un achat' });
     await user.type(within(form).getByLabelText('Libellé'), 'Carte cadeau');
     await user.type(within(form).getByLabelText('Date'), '2025-12-01');
-    await user.selectOptions(within(form).getByLabelText('Type'), 'gift');
+    await pick(user, 'Type', 'Carte cadeau');
     await user.type(within(form).getByLabelText('Montant'), '0');
     await user.clear(within(form).getByLabelText('Durée couverte'));
     await user.type(within(form).getByLabelText('Durée couverte'), '2');
@@ -154,11 +159,14 @@ describe('Abonnements › modifications', () => {
     })]);
     const { user } = await open();
 
-    await user.click(screen.getByRole('button', { name: 'Supprimer l’achat Carte cadeau 3 mois' }));
+    await user.click(screen.getByRole('button', { name: 'Actions de l’achat Carte cadeau 3 mois' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
     expect(deleted).toEqual([]);
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toEqual([PURCHASE]));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Achat supprimé.'));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Achats' })).toHaveFocus());
   });
 
   it('shows no action and says who can write when the reader may not', async () => {
@@ -166,7 +174,7 @@ describe('Abonnements › modifications', () => {
     const { container } = await open();
 
     expect(container.querySelector('form')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Supprimer/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Actions de l’achat/ })).not.toBeInTheDocument();
     expect(screen.getByText('Cet abonnement ne peut être modifié que par Alice Dev.')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
@@ -189,13 +197,10 @@ describe('ProviderPicker', () => {
   afterEach(() => vi.useRealTimers());
 
   it('searches the visible providers and links the one chosen', async () => {
-    const queries: string[] = [];
     const sent: unknown[] = [];
     serve(detail(), [
-      http.get('*/api/v1/subscriptions/providers', ({ request }) => {
-        queries.push(new URL(request.url).searchParams.get('q') ?? '');
-        return HttpResponse.json([{ key: 'spotify', name: 'Spotify', origin: 'catalog', labels: [], website: null, archived: false, iconUrl: null }]);
-      }),
+      http.get('*/api/v1/subscriptions/providers', () =>
+        HttpResponse.json([{ key: 'spotify', name: 'Spotify', origin: 'catalog', labels: [], website: null, archived: false, iconUrl: null }])),
       http.patch('*/api/v1/subscriptions/:id', async ({ request }) => {
         sent.push(await request.json());
         return HttpResponse.json({ id: SUB });
@@ -203,12 +208,29 @@ describe('ProviderPicker', () => {
     ]);
     const { user } = await open();
 
-    await user.type(screen.getByLabelText('Fournisseur'), 'spo');
-    await user.click(await screen.findByRole('button', { name: 'Choisir Spotify' }));
+    await pick(user, 'Fournisseur', 'Spotify');
     await user.click(screen.getByRole('button', { name: 'Enregistrer les réglages' }));
 
-    expect(queries.at(-1)).toBe('spo');
     await waitFor(() => expect(sent).toEqual([{ providerKey: 'spotify', clearCancelledAt: false, clearProviderKey: false }]));
+  });
+
+  it('says the providers are loading rather than that there are none', async () => {
+    serve(detail(), [http.get('*/api/v1/subscriptions/providers', () => new Promise<Response>(() => {}))]);
+    const { user } = await open();
+
+    await user.click(screen.getByRole('combobox', { name: 'Fournisseur' }));
+    await user.type(await screen.findByRole('combobox', { name: 'Rechercher' }), 'zzz');
+
+    expect(await screen.findByText('Chargement…')).toBeInTheDocument();
+    expect(screen.queryByText('Aucun résultat')).not.toBeInTheDocument();
+  });
+
+  it('says so, and offers no new provider, when the providers cannot be read', async () => {
+    serve(detail(), [http.get('*/api/v1/subscriptions/providers', () => HttpResponse.json({ status: 403, title: 'no', traceId: '00-t-09' }, { status: 403 }))]);
+    await open();
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nouveau fournisseur' })).toBeDisabled();
   });
 
   it('creates a custom provider from the settings form and links it', async () => {
@@ -222,9 +244,9 @@ describe('ProviderPicker', () => {
     ]);
     const { user } = await open();
 
-    await user.type(screen.getByLabelText('Fournisseur'), 'Ma box');
-    await user.click(await screen.findByRole('button', { name: 'Créer « Ma box »' }));
+    await user.click(screen.getByRole('button', { name: 'Nouveau fournisseur' }));
     const dialog = await screen.findByRole('dialog', { name: 'Nouveau fournisseur' });
+    await user.type(within(dialog).getByLabelText('Nom'), 'Ma box');
     await user.click(within(dialog).getByRole('checkbox', { name: 'Other' }));
     await user.click(within(dialog).getByRole('button', { name: 'Créer' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

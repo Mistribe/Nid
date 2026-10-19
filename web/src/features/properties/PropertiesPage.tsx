@@ -1,14 +1,18 @@
 import { Link, useSearch } from '@tanstack/react-router';
-import { AlertTriangle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/app/router';
 import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
-import { formatLocalDate } from '@/components/LocalDate';
+import { LocalDate } from '@/components/LocalDate';
 import { OwnerChips } from '@/components/OwnerChips';
+import { PageHeader } from '@/components/page/PageHeader';
+import { SortableTable } from '@/components/page/SortableTable';
+import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { buttonVariants } from '@/components/ui/button';
 import { money, percent } from '../loans/format';
 import { PROPERTIES, type PropertySummary } from './api';
 import { typeText } from './format';
@@ -20,57 +24,62 @@ export function PropertiesPage() {
   const search: RootSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
   const answer = $api.useQuery('get', PROPERTIES, { params: { query: { scope } } });
-  const add = <Link to="/properties/new" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground">{t('properties.add')}</Link>;
+  const items = answer.data?.items;
+  const add = <Link to="/properties/new" className={buttonVariants()}>{t('properties.add')}</Link>;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t('properties.title')}</h1>
-        {add}
-      </div>
+      <PageHeader title={t('properties.title')} actions={add} />
       {answer.error ? (
         <ProblemMessage problem={present(toProblem(answer.error))} />
-      ) : !answer.data ? (
+      ) : !items ? (
         <ul aria-busy="true" aria-label={t('properties.loading')} className="space-y-2">
           {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
         </ul>
-      ) : answer.data.items.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState title={t('properties.empty_title')} body={t('properties.empty_body')} action={add} />
       ) : (
-        <ul aria-label={t('properties.list')} className="space-y-2">
-          {answer.data.items.map((item) => <Row key={item.id} item={item} />)}
-        </ul>
+        <SortableTable<PropertySummary> caption={t('properties.list')} rows={items} rowKey={(r) => r.id}
+          rowLink={(r) => ({ to: '/properties/$id', params: { id: r.id } })}
+          columns={[
+            { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: (r) => <span className="inline-flex flex-wrap items-center gap-2"><span className="font-medium">{r.name}</span><AccessBadge access={r.visibility === 'private' ? 'private' : 'shared'} /></span> },
+            { id: 'type', header: t('lists.col.kind'), sort: (r) => typeText(t, r.type), cell: (r) => typeText(t, r.type) },
+            { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
+            { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.value), cell: (r) => <Value item={r} /> },
+            { id: 'net', header: t('lists.col.net_value'), align: 'end', sort: (r) => amountKey(r.netValue), cell: (r) => r.netValue ? money(r.currency, r.netValue) : <Dash /> },
+            // Spec 3D2 §5: the server's fractions in %, « — » when it gives none.
+            { id: 'yield', header: t('lists.col.gross_yield'), align: 'end', sort: (r) => amountKey(r.grossYield), cell: (r) => r.grossYield ? percent(t, r.grossYield) : <Dash /> },
+          ]}
+          mobile={(r) => (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.name}</span><OwnerChips owners={r.owners} /></div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <Value item={r} />
+                {r.netValue ? <span className="tabular-nums text-muted-foreground">{money(r.currency, r.netValue)}</span> : null}
+              </div>
+            </div>
+          )} />
       )}
     </div>
   );
 }
 
-function Row({ item }: { item: PropertySummary }) {
+function Dash() {
   const { t } = useTranslation();
+  return <span aria-hidden="true">{t('properties.unknown_rate')}</span>;
+}
+
+/** The estimate with its date; a stale one carries a clock and says « À réestimer » in words. */
+function Value({ item }: { item: PropertySummary }) {
+  const { t } = useTranslation();
+  if (!item.value || !item.valueOn) return <span className="text-muted-foreground">{t('properties.not_estimated')}</span>;
   return (
-    <li className="space-y-1 rounded-md border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex flex-wrap items-baseline gap-2">
-          <Link to="/properties/$id" params={{ id: item.id }} className="font-medium hover:underline">{item.name}</Link>
-          <span className="text-sm text-muted-foreground">{typeText(t, item.type)}</span>
-        </span>
-        <AccessBadge access={item.visibility === 'private' ? 'private' : 'shared'} />
-      </div>
-      <OwnerChips owners={item.owners} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
-        {item.value && item.valueOn ? (
-          <span>{t('properties.value', { amount: money(item.currency, item.value), date: formatLocalDate(item.valueOn) })}</span>
-        ) : (
-          <span>{t('properties.not_estimated')}</span>
-        )}
-        {item.stale ? (
-          <span className="flex items-center gap-1"><AlertTriangle aria-hidden="true" className="size-4" />{t('properties.stale')}</span>
-        ) : null}
-        {item.netValue ? <span>{t('properties.net_value', { amount: money(item.currency, item.netValue) })}</span> : null}
-        {/* Spec 3D2 §5: the server's fractions in %, « — » when it gives none. */}
-        <span>{t('properties.gross_yield', { rate: item.grossYield ? percent(t, item.grossYield) : t('properties.unknown_rate') })}</span>
-        <span>{t('properties.vacancy', { rate: item.vacancyRate ? percent(t, item.vacancyRate) : t('properties.unknown_rate') })}</span>
-      </div>
-    </li>
+    <span className="inline-flex flex-col items-end">
+      <span className="tabular-nums">{money(item.currency, item.value)}</span>
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        {item.stale ? <><Clock aria-hidden="true" className="size-3.5" />{t('properties.stale')}<span aria-hidden="true">{t('lists.sep')}</span></> : null}
+        <LocalDate value={item.valueOn} />
+      </span>
+    </span>
   );
 }

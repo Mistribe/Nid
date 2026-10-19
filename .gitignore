@@ -21,3 +21,6 @@ deploy/backups/
 
 # Playwright MCP's local console logs and snapshots; never committed
 .playwright-mcp/
+
+# Brainstorming mockups (superpowers visual companion); never committed
+.superpowers/

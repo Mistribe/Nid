@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ConfirmAction } from './ConfirmAction';
@@ -9,10 +9,10 @@ describe('ConfirmAction', () => {
     render(<ConfirmAction label="Rendre admin" confirmation="Bob pourra gérer le foyer." onConfirm={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Rendre admin' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmer' })).toHaveFocus());
 
     await user.click(screen.getByRole('button', { name: 'Annuler' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Rendre admin' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rendre admin' })).toHaveFocus());
   });
 
   it('moves focus back to the trigger after Confirm', async () => {
@@ -20,9 +20,9 @@ describe('ConfirmAction', () => {
     render(<ConfirmAction label="Rendre admin" confirmation="Bob pourra gérer le foyer." onConfirm={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Rendre admin' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Rendre admin' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rendre admin' })).toHaveFocus());
   });
 
   it('disables the trigger while pending', () => {
@@ -40,6 +40,6 @@ describe('ConfirmAction', () => {
 
     rerender(<ConfirmAction label="Rendre admin" confirmation="Bob pourra gérer le foyer." onConfirm={vi.fn()} pending />);
 
-    expect(screen.getByRole('button', { name: 'Confirmer' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Confirmer' })).toBeDisabled();
   });
 });

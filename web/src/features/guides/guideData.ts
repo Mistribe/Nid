@@ -13,16 +13,16 @@ export type Guide = {
   hint: boolean;
 };
 
-const guide = (id: string, screens: number, tour: readonly string[] = [], hint = false): Guide =>
-  ({ id, section: `/${id}`, version: 1, screens, tour, hint });
+const guide = (id: string, screens: number, tour: readonly string[] = [], hint = false, version = 1): Guide =>
+  ({ id, section: `/${id}`, version, screens, tour, hint });
 
 export const GUIDES: readonly Guide[] = [
-  guide('dashboard', 4, ['tiles', 'curve', 'split', 'upcoming', 'todo', 'scope']),
+  guide('dashboard', 4, ['tiles', 'month', 'curve', 'upcoming', 'scope'], false, 2),
   guide('subscriptions', 3),
-  guide('investments', 4, ['figures', 'evolution', 'enter', 'history'], true),
+  guide('investments', 4, ['figures', 'evolution', 'enter', 'history'], true, 2),
   guide('income', 3),
   guide('properties', 3),
-  guide('loans', 4, ['figures', 'simulation', 'bank', 'schedule'], true),
+  guide('loans', 4, ['figures', 'simulation', 'schedule'], true, 2),
   guide('routine', 3, ['due', 'save', 'estate']),
   guide('import', 3),
   guide('export', 3),

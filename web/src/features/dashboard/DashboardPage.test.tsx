@@ -7,38 +7,38 @@ import { allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { DashboardView } from './api';
-import { dashboard, emptyDashboard, figure } from './testData';
+import { dashboard, emptyDashboard, figure, todoItem } from './testData';
 
 function serve(body: DashboardView, seen: string[] = []) {
   server.use(http.get('*/api/v1/dashboard', ({ request }) => { seen.push(new URL(request.url).search); return HttpResponse.json(body); }));
 }
 
-const card = (name: string) => screen.findByRole('region', { name });
+const tile = (name: string) => screen.findByRole('button', { name: new RegExp(name) });
 
 // Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
-beforeAll(async () => { await import('./NetWorthCurve'); await import('./SplitCharts'); }, 30_000);
+beforeAll(async () => { await import('./NetWorthCurve'); }, 30_000);
 
 describe('DashboardPage', () => {
-  it('shows the four figures the server computed', async () => {
+  it('shows the four key figures in one row', async () => {
     serve(dashboard());
-    const { container } = await renderApp('/dashboard');
+    const { container, router, user } = await renderApp('/dashboard');
 
-    const worth = await card('Patrimoine');
+    const worth = await tile('Patrimoine net');
     expect(worth).toHaveTextContent('12 900,00 €');
-    expect(worth).toHaveTextContent('Valeurs au 30 septembre 2025');
-    const commitments = await card('Engagements');
+    expect(worth).toHaveTextContent('+1 000,00 €');
+    expect(worth).toHaveTextContent('+9,1 %');
+    expect(worth).toHaveTextContent('en hausse');
+    expect(await tile('Revenus / mois')).toHaveTextContent('2 500,00 €');
+    const commitments = await tile('Engagements / mois');
     expect(commitments).toHaveTextContent('250,56 €');
-    expect(commitments).toHaveTextContent('120,00 € prélevés ce mois-ci');
     expect(commitments).toHaveTextContent('10 % des revenus');
-    const income = await card('Revenus et marge');
-    expect(income).toHaveTextContent('2 500,00 €');
-    expect(income).toHaveTextContent('Marge avant dépenses courantes : 2 249,45 €');
-    const change = await card('Évolution depuis le 1er janvier');
-    expect(change).toHaveTextContent('+1 000,00 €');
-    expect(change).toHaveTextContent('+9,1 %');
-    expect(within(change).getByText('en hausse')).toBeInTheDocument();
-    expect(change).toHaveTextContent('dont 1 000,00 € versés');
+    const margin = await tile('Reste à vivre');
+    expect(margin).toHaveTextContent('2 249,45 €');
+    expect(margin).toHaveTextContent('avant dépenses courantes');
     await expectNoAxeViolations(container);
+
+    await user.click(worth);
+    expect(router.state.location.search).toEqual({ panel: 'net_worth' });
   });
 
   it('says « inconnu » with its reason, never 0', async () => {
@@ -49,15 +49,13 @@ describe('DashboardPage', () => {
     }));
     const { container } = await renderApp('/dashboard');
 
-    const worth = await card('Patrimoine');
+    const worth = await tile('Patrimoine net');
     expect(worth).toHaveTextContent('Inconnu : aucune valeur saisie');
-    expect(worth).toHaveTextContent('1 élément sans valeur');
+    expect(worth).toHaveTextContent('Inconnue : aucune valeur au 1er janvier');
     expect(worth).not.toHaveTextContent('0,00 €');
-    const income = await card('Revenus et marge');
-    expect(income).toHaveTextContent('Inconnu : aucun revenu déclaré');
-    expect(income).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
-    expect(await card('Engagements')).not.toHaveTextContent('% des revenus');
-    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('Inconnue : aucune valeur au 1er janvier');
+    expect(await tile('Revenus / mois')).toHaveTextContent('Inconnu : aucun revenu déclaré');
+    expect(await tile('Reste à vivre')).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
+    expect(await tile('Engagements / mois')).not.toHaveTextContent('% des revenus');
     await expectNoAxeViolations(container);
   });
 
@@ -65,17 +63,16 @@ describe('DashboardPage', () => {
     serve(dashboard({ netWorth: figure(null, { perCurrency: [{ amount: '1000.00', currency: 'USD' }], missingCurrency: 'USD' }) }));
     await renderApp('/dashboard');
 
-    expect(await card('Patrimoine')).toHaveTextContent('Inconnu : taux de change manquant (USD)');
+    expect(await tile('Patrimoine net')).toHaveTextContent('Inconnu : taux de change manquant (USD)');
   });
 
-  it('flags stale values in words, and a loss as « en baisse »', async () => {
-    serve(dashboard({ staleEnvelopes: 2, change: figure('-500.00'), changePct: -4.5 }));
+  it('shows a loss as « en baisse »', async () => {
+    serve(dashboard({ change: figure('-500.00'), changePct: -4.5 }));
     await renderApp('/dashboard');
 
-    expect(await card('Patrimoine')).toHaveTextContent('2 valeurs à mettre à jour');
-    const change = await card('Évolution depuis le 1er janvier');
-    expect(change).toHaveTextContent('-500,00 €');
-    expect(within(change).getByText('en baisse')).toBeInTheDocument();
+    const worth = await tile('Patrimoine net');
+    expect(worth).toHaveTextContent('-500,00 €');
+    expect(within(worth).getByText('en baisse')).toBeInTheDocument();
   });
 
   it('says « Aucun coût ce mois-ci » when a source costs nothing this month', async () => {
@@ -85,66 +82,141 @@ describe('DashboardPage', () => {
     }));
     await renderApp('/dashboard');
 
-    const commitments = await card('Engagements');
+    const commitments = await tile('Engagements / mois');
     expect(commitments).toHaveTextContent('Aucun coût ce mois-ci');
     expect(commitments).not.toHaveTextContent('Aucun engagement');
-    expect(commitments).not.toHaveTextContent('Crédits');
   });
 
   it('says « Aucun engagement » with no source at all', async () => {
     serve(dashboard({ commitments: figure(null), cashThisMonth: figure(null), committedPct: null, subscriptions: 0, commitmentSources: [] }));
     await renderApp('/dashboard');
 
-    expect(await card('Engagements')).toHaveTextContent('Aucun engagement');
-  });
-
-  it('details the commitments by source under the total, as the server computed them, with a link to the loans', async () => {
-    serve(dashboard({
-      commitments: figure('1279.99'),
-      commitmentSources: [
-        { source: 'subscriptions', amortized: { amount: '9.99', currency: 'EUR' } },
-        { source: 'loans', amortized: { amount: '1020.00', currency: 'EUR' } },
-        { source: 'property_costs', amortized: { amount: '250.00', currency: 'EUR' } },
-      ],
-    }));
-    const { container } = await renderApp('/dashboard');
-
-    const commitments = await card('Engagements');
-    expect(commitments).toHaveTextContent('1 279,99 €');
-    expect(commitments).toHaveTextContent('Abonnements 9,99 € · Crédits 1 020,00 € · Charges des biens 250,00 €');
-    expect(within(commitments).getByRole('link', { name: 'Voir les abonnements' })).toHaveAttribute('href', '/subscriptions');
-    expect(within(commitments).getByRole('link', { name: 'Voir les crédits' })).toHaveAttribute('href', '/loans');
-    await expectNoAxeViolations(container);
+    expect(await tile('Engagements / mois')).toHaveTextContent('Aucun engagement');
   });
 
   it('names the missing rate when the margin is unknown though income is declared', async () => {
     serve(dashboard({ commitments: figure(null, { missingCurrency: 'GBP' }), margin: null, committedPct: null }));
     await renderApp('/dashboard');
 
-    expect(await card('Revenus et marge')).toHaveTextContent('Marge inconnue : taux de change manquant (GBP)');
+    expect(await tile('Reste à vivre')).toHaveTextContent('Marge inconnue : taux de change manquant (GBP)');
   });
 
   it('says the margin is unknown without income, even when a commitment misses a rate', async () => {
     serve(dashboard({ income: figure(null), incomeSources: 0, commitments: figure(null, { missingCurrency: 'GBP' }), margin: null, committedPct: null }));
     await renderApp('/dashboard');
 
-    const income = await card('Revenus et marge');
-    expect(income).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
-    expect(income).not.toHaveTextContent('taux de change manquant');
+    const margin = await tile('Reste à vivre');
+    expect(margin).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
+    expect(margin).not.toHaveTextContent('taux de change manquant');
   });
 
-  it('names the missing rate on the change card in the feminine', async () => {
+  it('names the missing rate on the change in the feminine', async () => {
     serve(dashboard({ change: figure(null, { missingCurrency: 'USD' }), changePct: null }));
     await renderApp('/dashboard');
 
-    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('Inconnue : taux de change manquant (USD)');
+    expect(await tile('Patrimoine net')).toHaveTextContent('Inconnue : taux de change manquant (USD)');
+  });
+
+  it('splits the month into its sources', async () => {
+    serve(dashboard({
+      income: figure('4100.00'), margin: { amount: '1185.00', currency: 'EUR' },
+      commitments: figure('2605.00'), cashThisMonth: figure('120.00'),
+      commitmentSources: [
+        { source: 'subscriptions', amortized: { amount: '125.00', currency: 'EUR' } },
+        { source: 'loans', amortized: { amount: '2250.00', currency: 'EUR' } },
+        { source: 'property_costs', amortized: { amount: '230.00', currency: 'EUR' } },
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const month = await screen.findByRole('region', { name: 'Le mois du foyer' });
+    expect(month).toHaveTextContent('120,00 € prélevés ce mois-ci');
+    const labels = within(month).getAllByRole('listitem').map((li) => li.textContent?.replace(/[\u00a0\u202f]/g, ' '));
+    expect(labels).toEqual(['Abonnements 125,00 €', 'Crédits 2 250,00 €', 'Charges des biens 230,00 €', 'Reste 1 185,00 €']);
+    const widths = Array.from(month.querySelectorAll<HTMLElement>('[data-segment]')).map((el) => el.style.flexGrow);
+    expect(widths).toEqual(['125.00', '2250.00', '230.00', '1185.00']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('draws no segment for a source without an amortized amount, nor for an unknown income', async () => {
+    serve(dashboard({
+      commitmentSources: [{ source: 'subscriptions', amortized: null }, { source: 'loans', amortized: { amount: '100.00', currency: 'EUR' } }],
+    }));
+    await renderApp('/dashboard');
+    const labels = within(await screen.findByRole('region', { name: 'Le mois du foyer' })).getAllByRole('listitem').map((li) => li.textContent?.replace(/[\u00a0\u202f]/g, ' '));
+    expect(labels).toEqual(['Crédits 100,00 €', 'Reste 2 249,45 €']);
+  });
+
+  it('shows the margin reason instead of a bar that looks complete when only the margin is unknown', async () => {
+    serve(dashboard({ commitments: figure(null, { missingCurrency: 'GBP' }), margin: null, committedPct: null, commitmentSources: [] }));
+    await renderApp('/dashboard');
+    const month = await screen.findByRole('region', { name: 'Le mois du foyer' });
+    expect(month).toHaveTextContent('Marge inconnue : taux de change manquant (GBP)');
+    expect(month).not.toHaveTextContent('aucun revenu déclaré');
+    expect(month.querySelector('[data-segment]')).toBeNull();
+  });
+
+  it('shows the plain margin reason when income is known and no rate is missing', async () => {
+    serve(dashboard({ margin: null, committedPct: null }));
+    await renderApp('/dashboard');
+    const month = await screen.findByRole('region', { name: 'Le mois du foyer' });
+    expect(month).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
+    expect(month.querySelector('[data-segment]')).toBeNull();
+  });
+
+  it('writes a negative margin in its legend without drawing a segment for it', async () => {
+    serve(dashboard({ margin: { amount: '-300.00', currency: 'EUR' } }));
+    await renderApp('/dashboard');
+    const month = await screen.findByRole('region', { name: 'Le mois du foyer' });
+    expect(month).toHaveTextContent(/Reste -300,00/);
+    expect(Array.from(month.querySelectorAll<HTMLElement>('[data-segment]')).map((el) => el.style.flexGrow)).toEqual(['250.56']);
+  });
+
+  it('says the month is unknown without income', async () => {
+    serve(dashboard({ income: figure(null), incomeSources: 0, margin: null, committedPct: null }));
+    await renderApp('/dashboard');
+    const month = await screen.findByRole('region', { name: 'Le mois du foyer' });
+    expect(month).toHaveTextContent('Inconnu : aucun revenu déclaré');
+    expect(within(month).queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('shows one notice line when something is due', async () => {
+    serve(dashboard({ todo: [todoItem(), todoItem({ kind: 'no_value', id: '00000000-0000-7000-8000-0000000000e5', name: 'PER', on: null })] }));
+    await renderApp('/dashboard');
+
+    expect(await screen.findByRole('link', { name: '2 choses à faire' })).toHaveAttribute('href', '/routine');
+  });
+
+  const gap = (id: string, name: string) => todoItem({ kind: 'income_gap_soon', module: 'income', id, name, on: '2025-12-31' });
+
+  it('counts only the stale and missing values in the routine link', async () => {
+    serve(dashboard({ todo: [todoItem(), gap('00000000-0000-7000-8000-0000000000f1', 'Salaire')] }));
+    await renderApp('/dashboard');
+
+    expect(await screen.findByRole('link', { name: '1 chose à faire' })).toHaveAttribute('href', '/routine');
+    expect(screen.getByRole('link', { name: 'Renseigner la suite de 1 revenu' })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000f1');
+  });
+
+  it('offers only the income link when the household has just a gap', async () => {
+    serve(dashboard({ todo: [gap('00000000-0000-7000-8000-0000000000f1', 'Salaire'), gap('00000000-0000-7000-8000-0000000000f2', 'Loyer')] }));
+    await renderApp('/dashboard');
+
+    expect(await screen.findByRole('link', { name: 'Renseigner la suite de 2 revenus' })).toHaveAttribute('href', '/income');
+    expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
+  });
+
+  it('shows no notice when nothing is due', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard');
+    await tile('Patrimoine net');
+    expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
   });
 
   it('refetches after a write', async () => {
     const seen: string[] = [];
     serve(dashboard(), seen);
     const { queryClient } = await renderApp('/dashboard');
-    await card('Patrimoine');
+    await tile('Patrimoine net');
 
     await invalidateInvestments(queryClient);
 
@@ -163,23 +235,12 @@ describe('DashboardPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('links the net worth to the investments and to the properties', async () => {
-    serve(dashboard());
-    const { container } = await renderApp('/dashboard');
-
-    const worth = await card('Patrimoine');
-    expect(within(worth).getByRole('link', { name: 'Voir les placements' })).toHaveAttribute('href', '/investments');
-    expect(within(worth).getByRole('link', { name: 'Voir les biens' })).toHaveAttribute('href', '/properties');
-    await expectNoAxeViolations(container);
-  });
-
-  it('offers no link to a module that is off', async () => {
-    serve(dashboard());
+  it('offers no link to a module that is off in the welcome', async () => {
+    serve(emptyDashboard);
     await renderApp('/dashboard', { capabilities: { ...allCapabilities, modules: ['core', 'subscriptions', 'investments', 'income'] } });
 
-    const worth = await card('Patrimoine');
-    expect(within(worth).getByRole('link', { name: 'Voir les placements' })).toBeInTheDocument();
-    expect(within(worth).queryByRole('link', { name: 'Voir les biens' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Ajouter une enveloppe' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ajouter un bien' })).not.toBeInTheDocument();
   });
 
   it('shows skeletons while loading', async () => {
@@ -199,7 +260,7 @@ describe('DashboardPage', () => {
     serve(dashboard(), seen);
     await renderApp('/dashboard?scope=me');
 
-    await card('Patrimoine');
+    await tile('Patrimoine net');
     expect(seen).toEqual(['?scope=me']);
   });
 
@@ -207,14 +268,8 @@ describe('DashboardPage', () => {
     serve(dashboard());
     const { router } = await renderApp('/');
 
-    await card('Patrimoine');
+    await tile('Patrimoine net');
     expect(router.state.location.pathname).toBe('/dashboard');
     expect(screen.getAllByRole('link', { name: 'Accueil' }).length).toBeGreaterThan(0);
-  });
-
-  it('says how many envelopes have no recent value at 1 January', async () => {
-    serve(dashboard({ envelopesWithoutStart: 2 }));
-    await renderApp('/dashboard');
-    expect(await card('Évolution depuis le 1er janvier')).toHaveTextContent('2 éléments sans valeur récente au 1er janvier');
   });
 });

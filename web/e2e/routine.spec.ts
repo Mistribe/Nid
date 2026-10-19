@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pick } from './controls';
 import { signIn } from './session';
 
 test('alice does her routine on a new envelope, reads the gain, then cancels', async ({ browser }) => {
@@ -6,7 +7,7 @@ test('alice does her routine on a new envelope, reads the gain, then cancels', a
   const alice = await browser.newPage();
   await signIn(alice, 'alice', '/investments/new');
   await alice.getByLabel('Nom').fill(name);
-  await alice.getByLabel('Type').selectOption('savings');
+  await pick(alice, 'Type', 'Livret');
   await alice.getByRole('radio', { name: /Partagé/ }).check();
   await alice.getByRole('button', { name: 'Créer l’enveloppe' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
@@ -17,7 +18,7 @@ test('alice does her routine on a new envelope, reads the gain, then cancels', a
   await due.getByLabel(`Versements du mois sur ${name}`).fill('100');
   // Other journeys add envelopes of alice's: skip every other due line so only this one is recorded.
   for (const skip of await due.getByRole('checkbox').all()) {
-    const label = await skip.locator('xpath=ancestor::label').textContent();
+    const label = await alice.locator(`label[for="${await skip.getAttribute('id')}"]`).textContent();
     if (label !== `Passer ${name}`) await skip.check();
   }
   await alice.getByRole('button', { name: 'Enregistrer les placements' }).click();

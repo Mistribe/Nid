@@ -45,7 +45,7 @@ describe('Import › one session', () => {
 
     expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: "Annuler l'import" }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
     expect(fake.calls).toEqual(['cancel']);
   });
@@ -136,7 +136,7 @@ describe('Import › sending', () => {
     expect(fake.calls).not.toContain('validate');
 
     await user.click(screen.getByRole('button', { name: 'Corriger' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
     expect(fake.calls).toContain('cancel');
   });
@@ -150,7 +150,7 @@ describe('Import › sending', () => {
     await user.click(await screen.findByRole('link', { name: 'Reprendre' }));
     await upload(user, nidFile());
     await user.click(await screen.findByRole('button', { name: 'Corriger' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     expect(await screen.findByRole('row', { name: /annulé/ })).toHaveTextContent('Voir');
     expect(screen.queryByRole('row', { name: /en cours/ })).not.toBeInTheDocument();
@@ -232,7 +232,7 @@ describe('Import › sending', () => {
     await upload(user, nidFile());
     await waitFor(() => expect(fake.calls).toEqual(['put persons/0']));
     await user.click(screen.getByRole('button', { name: "Annuler l'import" }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
 
     // Longer than the remaining batches' PUTs would take: a loop still running would have sent more by now.
@@ -335,7 +335,7 @@ describe('Import › report, confirmation and commit', () => {
     expect(screen.queryByRole('button', { name: 'Importer' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Corriger' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
   });
 

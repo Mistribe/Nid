@@ -1,14 +1,14 @@
 # Écrans et navigation
 
-> Statut : brouillon. Carte des écrans, routine mensuelle, boîte de validation, assistants d'import et d'export, états et erreurs.
+> Statut : direction visuelle décidée (refonte 2026-10-18, `../superpowers/specs/2026-10-18-ui-redesign-design.md`). Carte des écrans, routine mensuelle, boîte de validation, assistants d'import et d'export, états et erreurs.
 > Références : `README.md`, `design-system.md`, `dataviz.md`, `../Project.md` §5 à §8, `../import-format.md` §10 et §11.
 
 ---
 
 ## 1. Navigation
 
-- **Mobile** : barre d'onglets en bas : Accueil, Abonnements, Placements, Revenus, Plus. « Plus » mène à une page qui liste les autres sections (Biens, Crédits, Routine, Import, Export, Sécurité, Réglages, et **Administration** pour un admin) ; l’onglet « Plus » est marqué courant sur ces pages (2E1). L’entrée « À valider » (boîte de validation, 4C2) vient après « Routine » : dans la barre latérale et dans « Plus » sur mobile, avec son badge du nombre de propositions en attente.
-- **Bureau** : barre latérale avec toutes les entrées d’un coup (celles des onglets et celles de « Plus ») ; « Crédits » y est depuis 3B1, « Biens » juste avant depuis 3D1.
+- **Mobile** : barre d'onglets en bas : Accueil, Placements, Abonnements, Routine, Plus. « Plus » liste À valider (avec son badge), Biens, Crédits, Revenus, Import, Export, Sécurité, Réglages et, pour un admin, Administration ; la déconnexion y est aussi ; l'onglet « Plus » est marqué courant sur ces pages. Source : `web/src/app/nav.ts`.
+- **Bureau** : barre latérale en trois groupes : **Suivi** (Accueil, Routine, À valider), **Patrimoine** (Placements, Biens, Crédits), **Budget** (Revenus, Abonnements). Badges sur « Routine » (nombre de tâches du tableau de bord) et « À valider ». Le **menu de la personne**, en bas, porte Import, Export, Sécurité, Réglages, Administration (admin) et Se déconnecter. Le sélecteur Foyer / Moi reste dans l'en-tête.
 - **Administration** n'apparaît (barre latérale sur bureau, page « Plus » sur mobile) que si `capabilities.admin`. Un non-admin qui saisit une URL `/admin/*` voit la page « accès refusé » ; le serveur refuse de toute façon (`../identity-and-access/authorization.md` §6).
 - Un module désactivé côté backend disparaît (`capabilities`, `architecture.md` §2).
 - **Sélecteur Foyer / Moi** dans l'en-tête, conservé dans l'URL (`?scope=`). Il correspond à `IVisibleItems` : `Household` (éléments partagés) ou `Me` (partagés et mes privés). Défaut : Foyer. Le choix Foyer / Moi est conservé par tous les liens internes et par « Retour » (2D2a).
@@ -57,11 +57,17 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 - **Une seule requête** agrégée : `GET /api/v1/dashboard`, calculée par le serveur (tuiles et listes ; la courbe a sa route, `GET /api/v1/dashboard/net-worth`, rechargée seule au changement de période).
 - Une valeur inconnue s'affiche « inconnue », **jamais 0**.
 - Une valeur périmée (`../core-data-model.md` §5.2) est signalée : la tuile du patrimoine compte les « N valeurs à mettre à jour », chaque enveloppe ayant son propre seuil (spec 2D1 §7.2).
-- Mobile : une colonne de cartes ; bureau : grille de trois tuiles puis deux colonnes.
+- Mobile : une colonne ; bureau : quatre chiffres clés, « Le mois du foyer », puis la courbe et « À venir » côte à côte.
+
+**Refonte du 2026-10-18** (remplace la composition ci-dessus pour l'affichage) : quatre chiffres clés en tête (Patrimoine net, Revenus / mois, Reste à vivre, Engagements / mois) ; « Le mois du foyer », une barre empilée (sources d'engagement puis « Reste » ; une marge inconnue en dit la raison) ; la courbe du patrimoine (aire, versements en pointillés, période segmentée, bascule en tableau dans l'en-tête) ; « À venir » ; une seule ligne d'avis pour les tâches. Chaque chiffre ouvre un panneau latéral (`?panel=`) : patrimoine net (composition par type ou par personne, valeurs périmées, lien vers la routine), revenus (sources), engagements (sources), marge (la barre du mois).
+
+### Grammaire des écrans (refonte)
+
+Listes : tableaux denses triables avec colonne des propriétaires. Fiches : chiffres clés en ligne, onglets (`?tab=`), dialogues, menus de ligne. Formulaires : pages à part en grille ; étapes pour crédit, revenu, bien et assistant d'abonnement ; champs rares repliés ; devises cherchables. Détail : `design-system.md` §4 et §6.1.
 
 ## 4. Abonnements
 
-- **Liste** : filtre par libellé et par actif. Carte : nom, icône (ou monogramme), coût mensuel réel et amorti, prochaine échéance ou expiration.
+- **Liste** : filtre par libellé et par actif. Ligne du tableau dense : nom, icône (ou monogramme), propriétaires, coût mensuel réel et amorti, prochaine échéance ou expiration.
 - **Détail** : bande de couverture dans le temps (`dataviz.md` §5), historique des prix, paiements, valeur des mois offerts.
 - **Ajout par assistant selon le type d'offre** plutôt que par formulaire générique :
   - récurrent (une phase de facturation, sans étape « Et ensuite ? ») ;

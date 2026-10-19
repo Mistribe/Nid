@@ -27,7 +27,7 @@ describe('Mes jetons', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('creates a token with « Lecture + propositions » by default and shows its secret once', async () => {
+  it('creates a token in a dialog and shows the secret once, « Lecture + propositions » by default', async () => {
     let sent: unknown;
     server.use(
       http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
@@ -126,7 +126,7 @@ describe('Mes jetons', () => {
 
     const row = await screen.findByRole('row', { name: /Claude sur mon laptop/ });
     await user.click(within(row).getByRole('button', { name: 'Révoquer' }));
-    await user.click(within(row).getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toBe('t1'));
     await waitFor(() => expect(within(screen.getByRole('region', { name: 'Mes jetons' })).getByRole('status')).toHaveTextContent('Jeton révoqué.'));

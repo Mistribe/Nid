@@ -85,10 +85,14 @@ describe('Administration › Catalogue', () => {
 
   it('lists the report by category, each refused entry with its reason', async () => {
     serveRuns([succeeded]);
-    await render();
+    const { user } = await render();
 
     const last = await lastCard();
-    expect(within(last).getByText('Fournisseurs adoptés restants (1)')).toBeInTheDocument();
+    expect(within(last).queryByText('wow')).not.toBeInTheDocument(); // a category is folded until opened
+    await user.click(within(last).getByRole('button', { name: 'Fournisseurs adoptés restants (1)' }));
+    await user.click(within(last).getByRole('button', { name: 'Libellés créés (1)' }));
+    await user.click(within(last).getByRole('button', { name: /^Clés en double/ }));
+    await user.click(within(last).getByRole('button', { name: /^Entrées refusées/ }));
     expect(within(last).getByText('wow')).toBeInTheDocument();
     expect(within(last).getByText('Libellés créés (1)')).toBeInTheDocument();
     expect(within(last).getByText('labels : hosting')).toBeInTheDocument();
@@ -98,10 +102,10 @@ describe('Administration › Catalogue', () => {
 
   it('lists the icons fetched and refused, each with its reason', async () => {
     serveRuns([succeeded]);
-    await render();
+    const { user } = await render();
 
     const last = await lastCard();
-    expect(within(last).getByText('Icônes (récupérées : 1, inchangées : 14, refusées : 2)')).toBeInTheDocument();
+    await user.click(within(last).getByRole('button', { name: 'Icônes (récupérées : 1, inchangées : 14, refusées : 2)' }));
     expect(within(last).getByText('netflix')).toBeInTheDocument();
     expect(within(last).getByText('nounou-top : format non pris en charge (SVG compris)')).toBeInTheDocument();
     expect(within(last).getByText("ovh-cloud : réponse en erreur de l'hôte")).toBeInTheDocument();
@@ -156,7 +160,7 @@ describe('Administration › Catalogue', () => {
 
     await user.click(syncButton());
     expect(calls).toBe(0);
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Synchronisation demandée'));
     expect(csrf).toBe('csrf-alice');
     await waitFor(() => expect(syncButton()).toBeDisabled());
@@ -182,7 +186,7 @@ describe('Administration › Catalogue', () => {
     await lastCard();
 
     await user.click(syncButton());
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(syncButton()).toBeDisabled());
 
     await vi.advanceTimersByTimeAsync(27_000);
@@ -204,7 +208,7 @@ describe('Administration › Catalogue', () => {
     await lastCard();
 
     await user.click(syncButton());
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Une synchronisation est déjà en cours'));
     expect(syncButton()).toBeEnabled();

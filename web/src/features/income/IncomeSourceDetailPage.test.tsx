@@ -1,11 +1,11 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { IncomeSourceDetail } from './api';
-import { detail, phase, SALARY } from './testData';
+import { detail, eur, phase, SALARY } from './testData';
 
 const serve = (body: IncomeSourceDetail) => server.use(http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(body)));
 const rowsOf = (label: string) => within(screen.getByRole('table', { name: label })).getAllByRole('row').slice(1);
@@ -95,5 +95,67 @@ describe('IncomeSourceDetailPage', () => {
     await renderApp(`/income/${SALARY}`);
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
+  });
+
+  it('changes a component\u2019s amount from its row menu', async () => {
+    const sent: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
+      http.get('*/api/v1/income/sources/:id/expected', ({ request, params }) => {
+        const url = new URL(request.url);
+        const [y, m] = [Number(url.searchParams.get('from')!.slice(0, 4)), Number(url.searchParams.get('from')!.slice(5, 7))];
+        return HttpResponse.json({
+          id: params.id, from: url.searchParams.get('from'), to: url.searchParams.get('to'),
+          months: [{ year: y, month: m, oneOffs: [], total: eur('2300.00'), occurrences: [{ phaseId: 'p1', label: 'Salaire de base', on: `${y}-${String(m).padStart(2, '0')}-28`, amount: eur('2300.00') }] }],
+        });
+      }),
+      http.post('*/api/v1/income/sources/:id/phase-changes', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json({ id: 'p10' }, { status: 201 }); }),
+    );
+    const { user, container } = await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('table', { name: 'Salaire de base' });
+    await user.click(screen.getAllByRole('button', { name: /Actions de la période Salaire de base du 1 janvier 2025/ })[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Changer le montant' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Changer le montant' });
+    await within(dialog).findByRole('combobox', { name: 'Date d\u2019effet' });
+    await user.clear(within(dialog).getByLabelText('Montant net'));
+    await user.type(within(dialog).getByLabelText('Montant net'), '2500');
+    await expectNoAxeViolations(dialog);
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le changement' }));
+
+    await waitFor(() => expect(sent).toEqual([expect.objectContaining({ label: 'Salaire de base', netAmount: { amount: '2500', currency: 'EUR' } })]));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Montant chang\u00e9.'));
+    await expectNoAxeViolations(container);
+  });
+
+  it('ends and reopens the source from the \u22ef menu', async () => {
+    let current = detail();
+    server.use(
+      http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(current)),
+      http.post('*/api/v1/income/sources/:id/close', () => { current = { ...current, ended: true, endedOn: '2025-06-30' }; return HttpResponse.json({ id: SALARY }); }),
+      http.post('*/api/v1/income/sources/:id/reopen', () => { current = { ...current, ended: false, endedOn: null }; return HttpResponse.json({ id: SALARY }); }),
+    );
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Terminer cette source' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Terminer la source' })).getByRole('button', { name: 'Terminer' }));
+    expect(await screen.findByText('Source termin\u00e9e', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Rouvrir' }));
+    expect(await screen.findByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Source rouverte.');
+  });
+
+  it('a reader sees no write action', async () => {
+    serve(detail({ canWrite: false, visibility: 'shared' }));
+    const { container } = await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+    const article = screen.getByRole('article');
+    expect(within(article).queryAllByRole('button')).toEqual([]);
+    expect(within(article).queryByRole('tab', { name: 'R\u00e9glages' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 });

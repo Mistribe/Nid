@@ -5,8 +5,11 @@ import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/form/Field';
 import { CancelImport } from './CancelImport';
 import { IssueList, SectionCounts } from './ReportView';
+import { StepCard } from './StepCard';
 
 type Session = components['schemas']['ImportSessionView'];
 
@@ -61,6 +64,7 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
   });
 
   return (
+    <StepCard>
     <section aria-labelledby="import-report-title" className="space-y-4">
       <h2 id="import-report-title" className="text-lg font-semibold">{t('import.report_title')}</h2>
       {notCommitted ? <p role="alert">{t('import.not_committed')}</p> : null}
@@ -69,15 +73,16 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
       {offerReplace ? (
         <div className="space-y-1 rounded-md border p-3">
           {conflictCount > 0 ? <p role="alert">{t('import.replace_found', { count: conflictCount })}</p> : null}
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={replace}
-              aria-disabled={validate.isPending}
-              onChange={(e) => { if (!validate.isPending) toggleReplace(e.target.checked); }}
-            />
-            {t('import.replace_label')}
-          </label>
+          <Field inline label={t('import.replace_label')}>
+            {(c) => (
+              <Checkbox
+                {...c}
+                checked={replace}
+                aria-disabled={validate.isPending}
+                onCheckedChange={(next) => { if (!validate.isPending) toggleReplace(next === true); }}
+              />
+            )}
+          </Field>
           <p className="text-sm text-muted-foreground">{t('import.replace_note')}</p>
         </div>
       ) : null}
@@ -93,5 +98,6 @@ export function ValidationStep({ session, onChanged, onCancelled }: { session: S
         <CancelImport id={session.id} label={t('import.fix')} onCancelled={onCancelled} />
       </div>
     </section>
+    </StepCard>
   );
 }

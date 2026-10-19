@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -8,7 +8,13 @@ import { messageFor } from '../subscriptions/fieldErrors';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { ChevronDown } from 'lucide-react';
+import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
 import { invalidateInvestments } from '../investments/api';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { ROUTINE, type RoutineLine, type RoutineRecap, type RoutineView } from './api';
@@ -17,7 +23,9 @@ import { clearDraft, saveDraft } from './draft';
 export type RoutineValues = { lines: { id: string; value: string; contribution: string; skip: boolean }[] };
 
 const POSITIVE = /^(?!0+(?:[.,]0+)?$)\d+([.,]\d{1,4})?$/;
-const input = 'w-32 rounded-md border px-3 py-2 text-right tabular-nums';
+const input = 'text-right tabular-nums md:w-36';
+/** The fields Enter moves between: Radix adds a hidden input beside each checkbox, which is not a stop. */
+const STOPS = 'input:not([aria-hidden="true"]), button[role="checkbox"]';
 const filled = (l: RoutineValues['lines'][number]) => !l.skip && (l.value.trim() !== '' || l.contribution.trim() !== '');
 
 /** The values a line starts with: the draft's if any, else the last value for a due envelope, empty otherwise. */
@@ -38,6 +46,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   const form = useForm<RoutineValues>({ defaultValues: initial });
   const values = useWatch({ control: form.control });
   const [problem, setProblem] = useState<ReturnType<typeof present> | null>(null);
+  const [othersOpen, setOthersOpen] = useState<boolean | null>(null);
   const save = $api.useMutation('post', ROUTINE, { onSuccess: () => {
     void invalidateInvestments(queryClient);
     // The list of the month: what was just recorded is no longer due.
@@ -54,12 +63,17 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   const indexed = useMemo(() => view.lines.map((line, index) => ({ line, index })), [view.lines]);
   const due = indexed.filter((x) => x.line.due);
   const others = indexed.filter((x) => !x.line.due);
+  // An error on a folded row opens the fold: otherwise the save would seem to do nothing.
+  const place = (index: number, field: 'value' | 'contribution', message: string) => {
+    form.setError(`lines.${index}.${field}`, { message });
+    if (others.some((x) => x.index === index)) setOthersOpen(true);
+  };
   const count = (values.lines ?? []).filter((l) => l && filled(l as RoutineValues['lines'][number])).length;
 
   const onKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
+    if (event.key !== 'Enter' || !(event.target instanceof HTMLElement) || !event.target.matches(STOPS)) return;
     event.preventDefault();
-    const fields = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input')).filter((el) => el.closest('details:not([open])') === null);
+    const fields = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(STOPS));
     fields[fields.indexOf(event.target) + 1]?.focus();
   };
 
@@ -68,9 +82,9 @@ export function RoutineForm({ view, month, initial, onSaved }: {
     let invalid = false;
     v.lines.forEach((l, i) => {
       if (!filled(l)) return;
-      if (l.value.trim() !== '' && !AMOUNT.test(l.value.trim())) { form.setError(`lines.${i}.value`, { message: t('routine.amount_format') }); invalid = true; }
+      if (l.value.trim() !== '' && !AMOUNT.test(l.value.trim())) { place(i, 'value', t('routine.amount_format')); invalid = true; }
       if (l.contribution.trim() !== '' && !POSITIVE.test(l.contribution.trim())) {
-        form.setError(`lines.${i}.contribution`, { message: AMOUNT.test(l.contribution.trim()) ? t('routine.positive') : t('routine.amount_format') });
+        place(i, 'contribution', AMOUNT.test(l.contribution.trim()) ? t('routine.positive') : t('routine.amount_format'));
         invalid = true;
       }
     });
@@ -92,7 +106,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
             const m = /^lines\[(\d+)\](?:\.(value|contribution))?$/.exec(e.path);
             const at = m ? sent[Number(m[1])] : undefined;
             if (!at) return false;
-            form.setError(`lines.${at.i}.${m?.[2] === 'contribution' ? 'contribution' : 'value'}`, { message: messageFor(t, e) });
+            place(at.i, m?.[2] === 'contribution' ? 'contribution' : 'value', messageFor(t, e));
             return true;
           });
           if (placed.length < errors.length || errors.length === 0) setProblem(present(p));
@@ -104,31 +118,26 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   const row = ({ line, index }: { line: RoutineLine; index: number }) => {
     const e = form.formState.errors.lines?.[index];
     return (
-      <li key={line.id} className="grid gap-2 py-3 md:grid-cols-[1fr_auto_auto_auto] md:items-end">
-        <div>
-          <p className="font-medium">{line.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {line.lastValue && line.lastAsOf ? t('routine.last', { amount: formatMoney(line.lastValue), date: formatLocalDate(line.lastAsOf) }) : t('routine.no_last')}
-          </p>
-        </div>
-        <div className="grid gap-1 text-sm">
-          <label className="grid gap-1">
-            <span>{t('routine.value', { name: line.name })}</span>
-            <input inputMode="decimal" aria-invalid={e?.value ? 'true' : undefined} aria-describedby={e?.value ? `${line.id}-value` : undefined} {...form.register(`lines.${index}.value`)} className={input} />
-          </label>
-          {e?.value ? <span id={`${line.id}-value`} className="text-destructive">{e.value.message}</span> : null}
-        </div>
-        <div className="grid gap-1 text-sm">
-          <label className="grid gap-1">
-            <span>{t('routine.contribution', { name: line.name })}</span>
-            <input inputMode="decimal" aria-invalid={e?.contribution ? 'true' : undefined} aria-describedby={e?.contribution ? `${line.id}-contribution` : undefined} {...form.register(`lines.${index}.contribution`)} className={input} />
-          </label>
-          {e?.contribution ? <span id={`${line.id}-contribution`} className="text-destructive">{e.contribution.message}</span> : null}
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" {...form.register(`lines.${index}.skip`)} />
-          <span>{t('routine.skip', { name: line.name })}</span>
-        </label>
+      <li key={line.id}>
+        <Card className="gap-3 px-4 py-4 md:grid md:grid-cols-[1fr_auto_auto_auto] md:items-end">
+          <div>
+            <p className="font-medium">{line.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {line.lastValue && line.lastAsOf ? t('routine.last', { amount: formatMoney(line.lastValue), date: formatLocalDate(line.lastAsOf) }) : t('routine.no_last')}
+            </p>
+          </div>
+          <Field label={t('routine.value', { name: line.name })} error={e?.value?.message}>
+            {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.value`)} className={input} />}
+          </Field>
+          <Field label={t('routine.contribution', { name: line.name })} error={e?.contribution?.message}>
+            {(c) => <Input inputMode="decimal" {...c} {...form.register(`lines.${index}.contribution`)} className={input} />}
+          </Field>
+          <Controller control={form.control} name={`lines.${index}.skip`} render={({ field }) => (
+            <Field inline label={t('routine.skip', { name: line.name })}>
+              {(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
+            </Field>
+          )} />
+        </Card>
       </li>
     );
   };
@@ -136,19 +145,22 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   return (
     <form noValidate onKeyDown={onKeyDown} onSubmit={(ev) => void submit(ev)} className="space-y-4">
       {problem ? <ProblemMessage problem={problem} /> : null}
-      <section aria-label={t('routine.due')} data-guide="routine.due" className="space-y-1">
-        <h2 className="text-lg font-semibold">{t('routine.due')}</h2>
-        {due.length === 0 ? <p className="text-muted-foreground">{t('routine.all_done', { month })}</p> : <ul className="divide-y">{due.map(row)}</ul>}
+      <section aria-label={t('routine.due')} data-guide="routine.due" className="space-y-3">        <h2 className="text-lg font-semibold">{t('routine.due')}</h2>
+        {due.length === 0 ? <p className="text-muted-foreground">{t('routine.all_done', { month })}</p> : <ul className="space-y-3">{due.map(row)}</ul>}
       </section>
       {others.length > 0 ? (
-        <details open={due.length === 0} className="rounded-md border p-3">
-          <summary className="cursor-pointer font-medium">{t('routine.others')}</summary>
-          <ul className="divide-y">{others.map(row)}</ul>
-        </details>
+        <Collapsible open={othersOpen ?? due.length === 0} onOpenChange={setOthersOpen} className="space-y-3">
+          <CollapsibleTrigger className="flex items-center gap-1 font-medium">
+            <ChevronDown aria-hidden="true" className="size-4" />{t('routine.others')}
+          </CollapsibleTrigger>
+          <CollapsibleContent><ul className="space-y-3">{others.map(row)}</ul></CollapsibleContent>
+        </Collapsible>
       ) : null}
-      <Button type="submit" disabled={count === 0 || save.isPending} data-guide="routine.save">
-        {t('routine.save')}
-      </Button>
+      <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
+        <Button type="submit" disabled={count === 0 || save.isPending} data-guide="routine.save">
+          {t('routine.save')}
+        </Button>
+      </div>
     </form>
   );
 }

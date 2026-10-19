@@ -1,37 +1,51 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { DateField } from '@/components/form/DateField';
+import { SelectField } from '@/components/form/SelectField';
+import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { presentRefusal } from '../../loans/refusal';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, RECURRING_COST, RECURRING_COSTS, type PropertyDetail, type PropertyRecurringCost } from '../api';
 import { EVERY_UNITS, RECURRING_CATEGORIES } from '../format';
 import { COST_PATHS, costSchema, costValuesOf, toCostBody, type CostValues } from './cost';
 
-const input = 'rounded-md border px-3 py-2';
-
 /**
- * Spec 3D2 §4: a planned cost added (`editing` absent: POST) or corrected inline on its row (PUT, with the version read).
- * The section announces and places the focus: this form is gone by then.
+ * Spec 3D2 §4: a planned cost added (`editing` absent: POST) or corrected (PUT, with the version read) in a dialog. A save
+ * hands the dialog back (`close()`) and the section announces and places the focus; « Annuler » and Escape call `onClose`.
  */
-export function CostForm({ property, editing, onDone }: { property: PropertyDetail; editing?: PropertyRecurringCost; onDone: (message?: string) => void }) {
+export function CostDialog({ property, editing, onClose, onDone }: {
+  property: PropertyDetail; editing?: PropertyRecurringCost; onClose: () => void; onDone: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  const dialog = useRef<{ close: () => void }>(null);
+  return (
+    <ModalDialog title={editing ? t('property_costs.edit_title') : t('property_costs.add_title')} onClose={onClose} dialogRef={dialog}>
+      {(titleId) => (
+        <CostForm property={property} editing={editing} titleId={titleId}
+          onDone={(message) => { if (message) { dialog.current?.close(); onDone(message); } else onClose(); }} />
+      )}
+    </ModalDialog>
+  );
+}
+
+function CostForm({ property, editing, titleId, onDone }: { property: PropertyDetail; editing?: PropertyRecurringCost; titleId: string; onDone: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const headingId = useId();
   // The version the form opened on: a refetch meanwhile must not turn the expected 409 into an overwrite.
   const [version] = useState(editing?.version);
   const form = useForm<CostValues>({ resolver: zodResolver(costSchema(t)), defaultValues: costValuesOf(editing) });
   const errors = useSubmitErrors(form.setError, COST_PATHS);
-  // Mount only: opening the form lands the person in it (the category when adding, the amount when correcting).
-  useEffect(() => { form.setFocus(editing ? 'amount' : 'category'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const add = $api.useMutation('post', RECURRING_COSTS);
   const correct = $api.useMutation('put', RECURRING_COST);
 
@@ -50,51 +64,53 @@ export function CostForm({ property, editing, onDone }: { property: PropertyDeta
 
   const e = form.formState.errors;
   const problem = errors.problem ? presentRefusal(t, editing ? correct.error : add.error) : null;
+  const date = (name: 'startsOn' | 'endsOn', label: string, hint?: string) => (
+    <Controller control={form.control} name={name} render={({ field }) => (
+      <Field label={label} hint={hint} error={e[name]?.message}>
+        {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+      </Field>
+    )} />
+  );
 
   return (
-    <form aria-labelledby={headingId} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
-      <h3 id={headingId} className="font-semibold">{editing ? t('property_costs.edit_title') : t('property_costs.add_title')}</h3>
+    <form aria-labelledby={titleId} noValidate onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }} className="space-y-3">
       {problem ? (
         <>
           <ProblemMessage problem={problem} />
-          {/* The row changed or went: reading it again closes the form onto what is now stored. */}
+          {/* The row changed or went: reading it again closes the dialog onto what is now stored. */}
           {problem.kind === 'conflict' || problem.kind === 'not_found'
             ? <Reload onReload={() => invalidateProperties(queryClient).then(() => onDone())} />
             : null}
         </>
       ) : null}
-      <Field label={t('property_costs.category')} error={e.category?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('category')}>
-            {RECURRING_CATEGORIES.map((k) => <NativeSelectOption key={k} value={k}>{t(`property_flows.category_option.${k}`)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
-      <Field label={t('property_costs.amount')} error={e.amount?.message}>
-        {(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={`w-32 ${input}`} />}
-      </Field>
-      <Field label={t('wizard.every')} error={e.everyCount?.message}>
-        {(c) => <input inputMode="numeric" {...c} {...form.register('everyCount')} className={`w-20 ${input}`} />}
-      </Field>
-      <Field label={t('wizard.unit')} error={e.everyUnit?.message}>
-        {(c) => (
-          <NativeSelect {...c} {...form.register('everyUnit')}>
-            {EVERY_UNITS.map((k) => <NativeSelectOption key={k} value={k}>{t(`property_costs.unit_option.${k}`)}</NativeSelectOption>)}
-          </NativeSelect>
-        )}
-      </Field>
-      <Field label={t('property_costs.starts')} error={e.startsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register('startsOn')} />}
-      </Field>
-      <Field label={t('property_costs.ends')} hint={t('loan_form.optional')} error={e.endsOn?.message}>
-        {(c) => <input type="date" {...c} {...form.register('endsOn')} />}
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Controller control={form.control} name="category" render={({ field }) => (
+          <Field label={t('property_costs.category')} error={e.category?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={RECURRING_CATEGORIES.map((k) => ({ value: k, label: t(`property_flows.category_option.${k}`) }))} />}
+          </Field>
+        )} />
+        <Field label={t('property_costs.amount')} error={e.amount?.message}>
+          {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
+        </Field>
+        <Field label={t('wizard.every')} error={e.everyCount?.message}>
+          {(c) => <Input inputMode="numeric" {...c} {...form.register('everyCount')} />}
+        </Field>
+        <Controller control={form.control} name="everyUnit" render={({ field }) => (
+          <Field label={t('wizard.unit')} error={e.everyUnit?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={EVERY_UNITS.map((k) => ({ value: k, label: t(`property_costs.unit_option.${k}`) }))} />}
+          </Field>
+        )} />
+        {date('startsOn', t('property_costs.starts'))}
+        {date('endsOn', t('property_costs.ends'), t('loan_form.optional'))}
+      </div>
       <Field label={t('property_costs.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
-      <div className="flex items-center gap-2">
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => onDone()}>{t('loan_detail.cancel')}</Button>
         <Button type="submit" disabled={add.isPending || correct.isPending}>{editing ? t('loan_detail.save') : t('property_costs.submit')}</Button>
-        <Button type="button" variant="ghost" onClick={() => onDone()}>{t('loan_detail.cancel')}</Button>
       </div>
     </form>
   );

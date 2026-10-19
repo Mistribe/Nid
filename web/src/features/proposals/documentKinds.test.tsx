@@ -39,7 +39,7 @@ describe('Un bulletin de paie et une facture proposés', () => {
     expect(screen.getByRole('row', { name: /Net du bulletin/ })).toHaveTextContent(/2\s400,00\s€/);
     expect(screen.queryByRole('row', { name: /Brut/ })).toBeNull();
     expect(screen.getByRole('row', { name: /À partir du/ })).toHaveTextContent('1 septembre 2025');
-    expect(screen.getByLabelText('À partir du')).toHaveValue('2025-09-01');
+    expect(screen.getByLabelText('À partir du')).toHaveValue('01/09/2025');
     await expectNoAxeViolations(container);
 
     await user.click(screen.getByRole('button', { name: 'Approuver' }));

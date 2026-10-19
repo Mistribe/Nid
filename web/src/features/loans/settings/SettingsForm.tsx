@@ -2,15 +2,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
 import { toProblem, type Presentation } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { presentConflict } from '../../investments/entries/entries';
-import { Field } from '../../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { knownConflictMessage } from '../../subscriptions/fieldErrors';
@@ -19,7 +21,6 @@ import { invalidateLoans, LOAN, type LoanDetail } from '../api';
 import { PropertySelect } from '../PropertySelect';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 
-const input = 'rounded-md border px-3 py-2';
 const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId' } as const;
 
 const schema = (t: TFunction) => z.object({
@@ -89,16 +90,18 @@ export function SettingsForm({ loan, onStart, onDone }: { loan: LoanDetail; onSt
         </>
       ) : null}
       <Field label={t('loan_form.name')} error={e.name?.message}>
-        {(c) => <input {...c} {...form.register('name')} className={`w-full ${input}`} />}
+        {(c) => <Input {...c} {...form.register('name')} />}
       </Field>
       <Field label={t('loan_form.lender')} hint={t('loan_form.lender_help')} error={e.lender?.message}>
-        {(c) => <input {...c} {...form.register('lender')} className={`w-full ${input}`} />}
+        {(c) => <Input {...c} {...form.register('lender')} />}
       </Field>
       {/* What the form opened on (or last saved) is linked: its option stays whatever the list says (precision 10). */}
-      <PropertySelect registration={form.register('propertyId')} error={e.propertyId?.message}
-        linked={baseline.current.propertyId ? { id: baseline.current.propertyId, name: baseline.current.propertyName ?? null } : undefined} />
+      <Controller control={form.control} name="propertyId" render={({ field }) => (
+        <PropertySelect value={field.value} onValueChange={field.onChange} error={e.propertyId?.message}
+          linked={baseline.current.propertyId ? { id: baseline.current.propertyId, name: baseline.current.propertyName ?? null } : undefined} />
+      )} />
       <Field label={t('loan_form.note')} error={e.note?.message}>
-        {(c) => <textarea {...c} {...form.register('note')} className={`w-full ${input}`} />}
+        {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
       <Button type="submit" disabled={save.isPending}>{t('loan_detail.settings.submit')}</Button>
     </form>

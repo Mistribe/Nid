@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { fakeImportServer, householdPersons, session, SESSION_ID } from '@/test/importServer';
 import { nidFile, upload, workedExample } from '@/test/nidFile';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -69,7 +70,7 @@ describe('Import › home', () => {
 describe('Import › adults and start', () => {
   const [alice, bob] = householdPersons;
   /** The field exists before the household persons arrive; its proposal only once they have. */
-  const proposed = (label: string, id: string) => waitFor(() => expect(screen.getByLabelText(label)).toHaveValue(id));
+  const proposed = (label: string, shown: string) => waitFor(() => expect(screen.getByLabelText(label)).toHaveTextContent(shown));
   const startEnabled = () => waitFor(() => expect(screen.getByRole('button', { name: "Commencer l'import" })).toBeEnabled());
 
   it('proposes the household adult with the same email, and no one otherwise', async () => {
@@ -77,10 +78,13 @@ describe('Import › adults and start', () => {
     const { user, container } = await renderApp('/import');
 
     await upload(user, nidFile());
-    await proposed('Adulte 1 (adult-1)', alice!.id);
-    expect(screen.getByLabelText('Adulte 2 (adult-2)')).toHaveValue('');
+    await proposed('Adulte 1 (adult-1)', 'Alice Dev — alice@example.test');
+    expect(screen.getByLabelText('Adulte 2 (adult-2)')).toHaveTextContent('Non associé');
     // Only adults are offered: a dependent is never an account.
+    await user.click(screen.getByLabelText('Adulte 2 (adult-2)'));
+    expect(await screen.findByRole('option', { name: /Bob Dev/ })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /Léo/ })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
     await expectNoAxeViolations(container);
   });
 
@@ -90,7 +94,7 @@ describe('Import › adults and start', () => {
 
     const file = { ...workedExample, persons: [{ ref: 'moi', kind: 'adult', display_name: 'Moi', email: 'ALICE@Example.test' }] };
     await upload(user, nidFile(file));
-    await proposed('Moi (moi)', alice!.id);
+    await proposed('Moi (moi)', 'Alice Dev — alice@example.test');
   });
 
   it('starts the session with the adult map and opens it', async () => {
@@ -99,8 +103,8 @@ describe('Import › adults and start', () => {
     const { user, router } = await renderApp('/import');
 
     await upload(user, nidFile());
-    await proposed('Adulte 1 (adult-1)', alice!.id);
-    await user.selectOptions(screen.getByLabelText('Adulte 2 (adult-2)'), bob!.id);
+    await proposed('Adulte 1 (adult-1)', 'Alice Dev — alice@example.test');
+    await pick(user, 'Adulte 2 (adult-2)', /Bob Dev/);
     await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));

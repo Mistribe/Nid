@@ -1,17 +1,26 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useId, useRef } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { PlusIcon } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { Controller, useFieldArray, useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
+import { CurrencyField } from '@/components/form/CurrencyField';
+import { Field } from '@/components/form/Field';
+import { Segmented } from '@/components/form/Segmented';
+import { SelectField } from '@/components/form/SelectField';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { PageHeader } from '@/components/page/PageHeader';
+import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Folded } from '../loans/new/Folded';
 import { PERSONS } from '../subscriptions/api';
-import { Field } from '../subscriptions/edits/Field';
+import { fieldErrorsOf } from '../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
 import { invalidateIncome, SOURCES } from './api';
 import { KINDS } from './format';
@@ -19,9 +28,13 @@ import { newIncomePath, newIncomeSchema, toCreateBody, type NewIncomeValues } fr
 import { newPhase } from './phases/phase';
 import { PhaseFields } from './phases/PhaseFields';
 
-const input = 'rounded-md border px-3 py-2';
+/** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
+const FIELDS = {
+  essentials: ['displayName', 'kind', 'payerLabel', 'visibility', 'owners', 'currency', 'note'],
+  components: ['phases'],
+} as const;
 
-/** 2C2a design §5: a source, its visibility answered explicitly, and its components, in one request. */
+/** 2C2a design §5: a source, its visibility answered explicitly, and its components, in two steps and one request. */
 export function NewIncomeSource() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -29,8 +42,8 @@ export function NewIncomeSource() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const people = $api.useQuery('get', PERSONS);
+  const visibilityId = useId();
   const visibilityErrorId = useId();
-  const componentsId = useId();
   const addRef = useRef<HTMLButtonElement>(null);
   const form = useForm<NewIncomeValues>({
     resolver: zodResolver(newIncomeSchema(t)),
@@ -42,65 +55,93 @@ export function NewIncomeSource() {
     },
   });
   const lines = useFieldArray({ control: form.control, name: 'phases' });
+  const [reveal, setReveal] = useState<{ step: string } | null>(null);
   const errors = useSubmitErrors(form.setError, newIncomePath);
   const create = $api.useMutation('post', SOURCES, {
     onSuccess: ({ id }) => {
       void invalidateIncome(queryClient);
       void navigate({ to: '/income/$id', params: { id } });
     },
-    onError: (error) => errors.onError(error),
+    onError: (error) => {
+      errors.onError(error);
+      // The refusal lands on the last step: go back to the first step that holds a field it names.
+      const roots = fieldErrorsOf(error).map((f) => errors.nameOf(f.path)?.split('.')[0]);
+      const step = (Object.keys(FIELDS) as (keyof typeof FIELDS)[]).find((id) => roots.some((r) => (FIELDS[id] as readonly (string | undefined)[]).includes(r)));
+      setReveal(step ? { step } : null);
+    },
   });
   const e = form.formState.errors;
 
-  return (
-    <article className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-semibold">{t('income_form.title')}</h1>
-      {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
-      <form noValidate onSubmit={(ev) => void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })(ev)} className="space-y-4">
+  const essentials = (
+    <>
+      <div className="grid gap-3 sm:grid-cols-3">
         <Field label={t('income_form.name')} error={e.displayName?.message}>
-          {(c) => <input {...c} {...form.register('displayName')} className="w-full" />}
+          {(c) => <Input {...c} {...form.register('displayName')} />}
         </Field>
-        <Field label={t('income_form.kind')} error={e.kind?.message}>
-          {(c) => (
-            <NativeSelect {...c} {...form.register('kind')}>
-              {KINDS.map((k) => <NativeSelectOption key={k} value={k}>{t(`income.kind.${k}`)}</NativeSelectOption>)}
-            </NativeSelect>
-          )}
-        </Field>
-        <Field label={t('income_form.currency')} error={e.currency?.message}>
-          {(c) => <input maxLength={3} {...c} {...form.register('currency')} className={`w-20 uppercase ${input}`} />}
-        </Field>
+        <Controller control={form.control} name="kind" render={({ field }) => (
+          <Field label={t('income_form.kind')} error={e.kind?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={KINDS.map((k) => ({ value: k, label: t(`income.kind.${k}`) }))} />}
+          </Field>
+        )} />
         <Field label={t('income_form.payer')} hint={t('income_form.payer_help')} error={e.payerLabel?.message}>
-          {(c) => <input {...c} {...form.register('payerLabel')} className="w-full" />}
+          {(c) => <Input {...c} {...form.register('payerLabel')} />}
         </Field>
+      </div>
+      <div className="space-y-1">
+        <span id={visibilityId} className="block text-sm">{t('income_form.visibility')}</span>
+        <Controller control={form.control} name="visibility" render={({ field }) => (
+          <Segmented aria-labelledby={visibilityId} aria-describedby={e.visibility ? visibilityErrorId : undefined}
+            aria-invalid={e.visibility ? true : undefined} value={field.value ?? ''} onValueChange={field.onChange}
+            options={(['shared', 'private'] as const).map((v) => ({ value: v, label: t(`income_form.visibility_${v}`) }))} />
+        )} />
+        {e.visibility ? <p id={visibilityErrorId} className="text-sm text-destructive">{e.visibility.message}</p> : null}
+      </div>
+      <OwnershipFields form={form} persons={people.data ?? []} withVisibility={false} />
+      <Folded label={t('loan_form.more_options')} hasError={Boolean(e.currency || e.note)}>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Controller control={form.control} name="currency" render={({ field }) => (
+            <Field label={t('income_form.currency')} error={e.currency?.message}>
+              {(c) => <CurrencyField {...c} value={field.value} onValueChange={field.onChange} />}
+            </Field>
+          )} />
+        </div>
         <Field label={t('income_form.note')} error={e.note?.message}>
-          {(c) => <textarea {...c} {...form.register('note')} className="w-full" />}
+          {(c) => <Textarea {...c} {...form.register('note')} />}
         </Field>
-        <fieldset aria-describedby={e.visibility ? visibilityErrorId : undefined} className="space-y-1">
-          <legend className="text-sm">{t('income_form.visibility')}</legend>
-          {(['shared', 'private'] as const).map((v) => (
-            <label key={v} className="flex items-center gap-2">
-              <input type="radio" value={v} {...form.register('visibility')} />
-              {t(`income_form.visibility_${v}`)}
-            </label>
-          ))}
-          {e.visibility ? <p id={visibilityErrorId} className="text-sm text-destructive">{e.visibility.message}</p> : null}
+      </Folded>
+    </>
+  );
+
+  const components = (
+    <>
+      <p className="text-sm text-muted-foreground">{t('income_form.components_help')}</p>
+      {lines.fields.map((row, i) => (
+        <fieldset key={row.id} className="space-y-3 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">{t('income_form.component_n', { n: i + 1 })}</legend>
+          <PhaseFields form={form} prefix={`phases.${i}.`} errors={e.phases?.[i]} fold />
+          <Button type="button" variant="ghost" size="sm" onClick={() => { lines.remove(i); addRef.current?.focus(); }}>{t('income_form.remove_component', { n: i + 1 })}</Button>
         </fieldset>
-        <OwnershipFields form={form} persons={people.data ?? []} withVisibility={false} />
-        <section aria-labelledby={componentsId} className="space-y-3">
-          <h2 id={componentsId} className="text-lg font-semibold">{t('income_form.components')}</h2>
-          <p className="text-sm text-muted-foreground">{t('income_form.components_help')}</p>
-          {lines.fields.map((row, i) => (
-            <fieldset key={row.id} className="space-y-2 rounded-md border p-3">
-              <legend className="px-1 text-sm font-medium">{t('income_form.component_n', { n: i + 1 })}</legend>
-              <PhaseFields form={form} prefix={`phases.${i}.`} errors={e.phases?.[i]} />
-              <Button type="button" variant="ghost" size="sm" onClick={() => { lines.remove(i); addRef.current?.focus(); }}>{t('income_form.remove_component', { n: i + 1 })}</Button>
-            </fieldset>
-          ))}
-          <Button ref={addRef} type="button" variant="outline" size="sm" onClick={() => lines.append(newPhase())}>{t('income_form.add_component')}</Button>
-        </section>
-        <Button type="submit" disabled={create.isPending}>{t('income_form.submit')}</Button>
-      </form>
+      ))}
+      <Button ref={addRef} type="button" variant="outline" size="sm" onClick={() => lines.append(newPhase())}>
+        <PlusIcon aria-hidden="true" />{t('income_form.add_component')}
+      </Button>
+    </>
+  );
+
+  return (
+    <article className="max-w-3xl space-y-4">
+      <PageHeader crumbs={[{ label: t('nav.income'), to: '/income' }]} title={t('income_form.title')} />
+      {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
+      <StepForm
+        trigger={(fields) => form.trigger(fields as Path<NewIncomeValues>[])}
+        onSubmit={() => void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })()}
+        submitLabel={t('income_form.submit')} pending={create.isPending} reveal={reveal}
+        steps={[
+          { id: 'essentials', title: t('income_form.step_essentials'), fields: [...FIELDS.essentials], content: essentials },
+          { id: 'components', title: t('income_form.step_components'), fields: [...FIELDS.components], content: components },
+        ]}
+      />
     </article>
   );
 }

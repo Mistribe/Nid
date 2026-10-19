@@ -46,7 +46,8 @@ async function startTour(path: string, section: string, ready: () => Promise<unk
   return app;
 }
 
-const loanReady = () => screen.findByRole('region', { name: 'Tableau de la banque' });
+// The intro is a modal dialog: the page behind it is out of the accessibility tree until it closes.
+const loanReady = () => screen.findByRole('tab', { name: 'Échéancier', hidden: true });
 const active = () => document.querySelectorAll('[data-guide-active]');
 const target = (name: string) => document.querySelector(`[data-guide="${name}"]`);
 
@@ -70,20 +71,21 @@ describe('the on-screen tour', () => {
     const { user } = await startTour(`/loans/${LOAN}`, '/loans', loanReady);
 
     const card = await screen.findByRole('dialog', { name: 'Aujourd’hui' });
-    expect(within(card).getByText('1 sur 4')).toBeInTheDocument();
-    expect(card).toHaveAccessibleDescription(/^1 sur 4 Capital restant dû/);
+    expect(within(card).getByText('1 sur 3')).toBeInTheDocument();
+    expect(card).toHaveAccessibleDescription(/^1 sur 3 Capital restant dû/);
     expect(card).not.toHaveAttribute('aria-modal');
     await waitFor(() => expect(target('loans.figures')).toHaveAttribute('data-guide-active'));
     await waitFor(() => expect(card).toHaveFocus());
 
     await user.click(within(card).getByRole('button', { name: 'Suivant' }));
-    expect(await screen.findByRole('dialog', { name: 'Simuler un remboursement anticipé' })).toHaveTextContent('2 sur 4');
+    expect(await screen.findByRole('dialog', { name: 'Simuler un remboursement anticipé' })).toHaveTextContent('2 sur 3');
     await waitFor(() => expect(target('loans.simulation')).toHaveAttribute('data-guide-active'));
     expect(target('loans.figures')).not.toHaveAttribute('data-guide-active');
 
     await user.click(within(card).getByRole('button', { name: 'Suivant' }));
-    await user.click(within(card).getByRole('button', { name: 'Suivant' }));
-    expect(within(card).getByText('4 sur 4')).toBeInTheDocument();
+    expect(within(card).getByText('3 sur 3')).toBeInTheDocument();
+    await waitFor(() => expect(target('loans.schedule')).toHaveAttribute('data-guide-active'));
+    expect(target('loans.schedule')).toHaveAttribute('role', 'tab');
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
     await user.click(within(card).getByRole('button', { name: 'Terminer' }));
 
@@ -98,14 +100,14 @@ describe('the on-screen tour', () => {
   });
 
   it('hides « Me montrer à l’écran » and gives the hint on an empty page', async () => {
-    const { intro } = await lastScreen('/loans', '/loans', () => screen.findByRole('heading', { name: 'Crédits', level: 1 }));
+    const { intro } = await lastScreen('/loans', '/loans', () => screen.findByRole('heading', { name: 'Crédits', level: 1, hidden: true }));
     expect(within(intro).queryByRole('button', { name: 'Me montrer à l’écran' })).not.toBeInTheDocument();
     expect(intro).toHaveTextContent('Ouvrez un crédit puis touchez ? pour voir la visite de sa fiche.');
   });
 
   it('skips a target that is not in the page', async () => {
     server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ envelopes: 0 }))));
-    const { user } = await startTour('/dashboard', '/dashboard', () => screen.findByRole('region', { name: 'Patrimoine' }));
+    const { user } = await startTour('/dashboard', '/dashboard', () => screen.findByRole('button', { name: /Patrimoine net/, hidden: true }));
 
     const steps = await walk(user);
     expect(steps.map((s) => s.target)).not.toContain('dashboard.curve');
@@ -171,8 +173,8 @@ describe('the on-screen tour', () => {
   it('the routine’s tour', async () => {
     server.use(http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([line()]))));
     const { user } = await startTour('/routine', '/routine', async () => {
-      await screen.findByRole('button', { name: 'Enregistrer les placements' });
-      await screen.findByRole('region', { name: 'Biens' });
+      await screen.findByRole('button', { name: 'Enregistrer les placements', hidden: true });
+      await screen.findByRole('region', { name: 'Biens', hidden: true });
     });
 
     expect((await walk(user)).map((s) => s.target)).toEqual(['routine.due', 'routine.save', 'routine.estate']);

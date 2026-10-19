@@ -59,6 +59,22 @@ describe('bootstrap', () => {
     act(() => reactRoot?.unmount());
   });
 
+  it('shows Ardoise for the retired neutre theme the server still stores', async () => {
+    server.use(http.get('*/auth/session', () => HttpResponse.json({
+      ...aliceSessionResponse, preferences: { theme: 'neutre', mode: 'light', chartPatterns: false, guidesSeen: allGuidesSeen() },
+    })));
+    const root = document.body.appendChild(document.createElement('div'));
+    container = root;
+
+    const reactRoot = await bootstrap({ root, location: fakeLocation('/') });
+
+    expect(await screen.findAllByText('Nid')).toHaveLength(2);
+    expect(document.documentElement.dataset.theme).toBe('ardoise');
+    expect(localStorage.getItem('nid.theme')).toBe('ardoise');
+
+    act(() => reactRoot?.unmount());
+  });
+
   it('says so and offers to retry when the session cannot be read', async () => {
     server.use(http.get('*/auth/session', () => HttpResponse.json({ status: 500, traceId: '00-t-05' }, { status: 500 })));
     const root = document.body.appendChild(document.createElement('div'));
@@ -130,7 +146,7 @@ describe('bootstrap', () => {
     const reactRoot = await bootstrap({ root, location });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Déconnecter partout' }));
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await vi.waitFor(() => expect(lateAnswers).toBeGreaterThan(0));
     await new Promise((resolve) => setTimeout(resolve, 50)); // the late answer reaches the client
 

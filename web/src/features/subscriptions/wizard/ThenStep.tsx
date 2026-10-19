@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DateField, type Form, type Person } from './offers/fields';
+import { Choice, DateField, type Form, type Person } from './offers/fields';
 import { thenMode } from './offers';
 import { RecurringOffer } from './steps';
 
@@ -26,15 +26,8 @@ export function ThenStep({ form, persons }: { form: Form; persons: Person[] }) {
   }
   return (
     <div className="space-y-4">
-      <fieldset className="space-y-1">
-        <legend className="text-sm">{t('wizard.then.title')}</legend>
-        {([false, true] as const).map((value) => (
-          <label key={String(value)} className="flex items-center gap-2">
-            <input type="radio" name="then" checked={on === value} onChange={() => form.setValue('then', value)} />
-            {t(value ? 'wizard.then.recurring' : 'wizard.then.none')}
-          </label>
-        ))}
-      </fieldset>
+      <Choice label={t('wizard.then.title')} value={String(on)} onValueChange={(v) => form.setValue('then', v === 'true')}
+        options={[{ value: 'false', label: t('wizard.then.none') }, { value: 'true', label: t('wizard.then.recurring') }]} />
       {on ? (
         <>
           <DateField form={form} name="startsOn" label={t('wizard.offer.start')} hint={t('wizard.then.hint')} />

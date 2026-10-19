@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { persons } from '../subscriptions/testData';
@@ -26,14 +27,14 @@ describe('NewEnvelope', () => {
     const { user, container } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.selectOptions(screen.getByLabelText('Type'), 'pea');
-    await user.click(screen.getByRole('radio', { name: /Privé/ }));
-    await user.click(screen.getByRole('checkbox', { name: 'Versements antérieurs' }));
-    await user.type(screen.getByLabelText('Date des versements antérieurs'), '2024-12-31');
+    await pick(user, 'Type', 'PEA');
+    await user.click(screen.getByRole('radio', { name: 'Privé' }));
+    await user.click(screen.getByRole('button', { name: 'Versements antérieurs' }));
+    await user.type(screen.getByLabelText('Date des versements antérieurs'), '31/12/2024');
     await user.type(screen.getByLabelText('Montant des versements antérieurs'), '20000,00');
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
     await user.clear(screen.getByLabelText('Date de la première valeur'));
-    await user.type(screen.getByLabelText('Date de la première valeur'), '2024-12-31');
+    await user.type(screen.getByLabelText('Date de la première valeur'), '31/12/2024');
     await user.type(screen.getByLabelText('Montant de la première valeur'), '21000,50');
     await expectNoAxeViolations(container);
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
@@ -52,7 +53,7 @@ describe('NewEnvelope', () => {
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'Livret A');
-    await user.selectOptions(screen.getByLabelText('Type'), 'savings');
+    await pick(user, 'Type', 'Livret');
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
     await screen.findByRole('heading', { level: 1 });
@@ -67,7 +68,7 @@ describe('NewEnvelope', () => {
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
     await user.type(screen.getByLabelText(/4 derniers caractères/), '12345');
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
     await user.type(screen.getByLabelText('Montant de la première valeur'), '1 000');
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
@@ -83,7 +84,7 @@ describe('NewEnvelope', () => {
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
     await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
@@ -106,8 +107,8 @@ describe('NewEnvelope', () => {
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('checkbox', { name: 'Versements antérieurs' }));
-    await user.type(screen.getByLabelText('Date des versements antérieurs'), '2024-12-31');
+    await user.click(screen.getByRole('button', { name: 'Versements antérieurs' }));
+    await user.type(screen.getByLabelText('Date des versements antérieurs'), '31/12/2024');
     await user.type(screen.getByLabelText('Montant des versements antérieurs'), zero);
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
@@ -121,8 +122,8 @@ describe('NewEnvelope', () => {
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'Compte courant');
-    await user.selectOptions(screen.getByLabelText('Type'), 'checking');
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await pick(user, 'Type', 'Compte courant');
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
     await user.type(screen.getByLabelText('Montant de la première valeur'), '-120,50');
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
@@ -132,32 +133,50 @@ describe('NewEnvelope', () => {
     })]);
   });
 
-  it('gives the opening and first-value dates a max of today', async () => {
-    serveCreate([]);
-    const { user } = await renderApp('/investments/new');
-
-    await screen.findByLabelText('Nom');
-    await user.click(screen.getByRole('checkbox', { name: 'Versements antérieurs' }));
-    expect(screen.getByLabelText('Date des versements antérieurs')).toHaveAttribute('max', todayIso());
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
-    expect(screen.getByLabelText('Date de la première valeur')).toHaveAttribute('max', todayIso());
-  });
-
-  it('reads a lowercase currency as capitals, for the envelope and its first value', async () => {
+  it('refuses a future date before sending', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.clear(screen.getByLabelText('Devise'));
-    await user.type(screen.getByLabelText('Devise'), 'eur');
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
+    await user.clear(screen.getByLabelText('Date de la première valeur'));
+    await user.type(screen.getByLabelText('Date de la première valeur'), '01/01/2999');
+    await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
+    await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
+
+    expect(await screen.findByText('Cette date est dans le futur.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Date de la première valeur')).toBeInvalid();
+    expect(bodies).toEqual([]);
+  });
+
+  it('folds the opening and the currency away until they are asked for', async () => {
+    serveCreate([]);
+    const { user } = await renderApp('/investments/new');
+
+    await screen.findByLabelText('Nom');
+    for (const label of ['Date des versements antérieurs', 'Date de la première valeur', 'Devise']) expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Versements antérieurs' }));
+    expect(screen.getByLabelText('Date des versements antérieurs')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Plus d’options' }));
+    expect(screen.getByLabelText('Devise')).toHaveTextContent('EUR — euro');
+  });
+
+  it('sends the picked currency, for the envelope and its first value', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user } = await renderApp('/investments/new');
+
+    await user.type(await screen.findByLabelText('Nom'), 'PEA');
+    await user.click(screen.getByRole('button', { name: 'Plus d’options' }));
+    await pick(user, 'Devise', /^USD/);
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
     await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
     await screen.findByRole('heading', { level: 1 });
     expect(bodies).toEqual([expect.objectContaining({
-      currency: 'EUR', firstValuation: { asOf: todayIso(), amount: { amount: '10', currency: 'EUR' } },
+      currency: 'USD', firstValuation: { asOf: todayIso(), amount: { amount: '10', currency: 'USD' } },
     })]);
   });
 
@@ -168,11 +187,26 @@ describe('NewEnvelope', () => {
     const { user } = await renderApp('/investments/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'PEA');
-    await user.click(screen.getByRole('checkbox', { name: 'Première valeur' }));
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
     await user.type(screen.getByLabelText('Montant de la première valeur'), '10');
     await user.click(screen.getByRole('button', { name: 'Créer l’enveloppe' }));
 
     expect(await screen.findByText('Cette date est dans le futur.')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+  it('lays the visibility out as a segmented control and folds the first value away', async () => {
+    serveCreate([]);
+    const { user } = await renderApp('/investments/new');
+
+    await screen.findByLabelText('Nom');
+    expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Partagé' })).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toHaveAccessibleDescription('L’autre adulte y a accès, et le total du foyer en tient compte.');
+    await user.click(screen.getByRole('radio', { name: 'Privé' }));
+    expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toHaveAccessibleDescription('Visible de vous seulement, avec un seul propriétaire.');
+    await user.click(screen.getByRole('radio', { name: 'Partagé' }));
+    expect(screen.queryByLabelText('Montant de la première valeur')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Première valeur' }));
+    expect(screen.getByLabelText('Montant de la première valeur')).toBeInTheDocument();
   });
 });

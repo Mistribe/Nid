@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fillDate } from './controls';
 import { aMonthAgo, plusMonths } from './dates';
 import { signIn } from './session';
 
@@ -12,21 +13,24 @@ test('alice creates a private loan and reads its schedule; bob never sees it', a
 
   await alice.getByLabel('Nom', { exact: true }).fill(name);
   await alice.getByRole('radio', { name: 'Non, privé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByLabel('Capital emprunté').fill('200000');
   await alice.getByLabel('Taux annuel (%)').fill('3,5');
   await alice.getByLabel('Durée (mois)').fill('240');
-  await alice.getByLabel('Date de déblocage').fill(aMonthAgo());
+  await fillDate(alice, 'Date de déblocage', aMonthAgo());
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer le crédit' }).click();
 
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
   const url = alice.url();
   // The year of the next payment is the one open, and that payment is marked.
+  await alice.getByRole('tab', { name: 'Échéancier' }).click();
   const schedule = alice.getByRole('table', { name: 'Échéancier par année' });
   await expect(schedule.getByRole('button', { expanded: true })).toHaveCount(1);
   await expect(schedule.getByText('prochaine échéance')).toBeVisible();
 
   await alice.goto('/loans?scope=me');
-  await expect(alice.getByRole('listitem').filter({ hasText: name })).toContainText('1 159,92 €');
+  await expect(alice.getByRole('table', { name: 'Liste des crédits' }).getByRole('row').filter({ hasText: name })).toContainText('1 159,92 €');
 
   const bob = await browser.newPage();
   await signIn(bob, 'bob', '/loans');
@@ -45,10 +49,12 @@ test('alice simulates an early repayment, records it from the simulation, then c
 
   await alice.getByLabel('Nom', { exact: true }).fill(name);
   await alice.getByRole('radio', { name: 'Non, privé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByLabel('Capital emprunté').fill('200000');
   await alice.getByLabel('Taux annuel (%)').fill('3,5');
   await alice.getByLabel('Durée (mois)').fill('240');
-  await alice.getByLabel('Date de déblocage').fill(aMonthAgo());
+  await fillDate(alice, 'Date de déblocage', aMonthAgo());
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer le crédit' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
@@ -57,6 +63,7 @@ test('alice simulates an early repayment, records it from the simulation, then c
   await expect(nextPayment).toContainText('1 159,92 €');
 
   // Simulated today: the repayment applies after the payment due on or before today, so the next payment is after it.
+  await alice.getByRole('button', { name: 'Simuler un remboursement' }).click();
   const simulation = alice.getByRole('region', { name: 'Simuler un remboursement anticipé' });
   await simulation.getByLabel('Montant à rembourser').fill('20000');
   await simulation.getByRole('button', { name: 'Simuler' }).click();
@@ -64,7 +71,7 @@ test('alice simulates an early repayment, records it from the simulation, then c
   await simulation.getByRole('button', { name: 'Enregistrer ce remboursement en réduisant la mensualité' }).click();
 
   const repayments = alice.getByRole('region', { name: 'Remboursements anticipés' });
-  const form = repayments.getByRole('form', { name: 'Nouveau remboursement anticipé' });
+  const form = alice.getByRole('dialog', { name: 'Nouveau remboursement anticipé' });
   await expect(form.getByLabel('Montant')).toHaveValue('20000');
   await expect(form.getByRole('radio', { name: 'Réduire la mensualité' })).toBeChecked();
   await form.getByRole('button', { name: 'Ajouter' }).click();
@@ -77,6 +84,7 @@ test('alice simulates an early repayment, records it from the simulation, then c
   const reduced = (await nextPayment.textContent()) ?? '';
   expect(reduced).toMatch(amount);
 
+  await alice.getByRole('tab', { name: 'Contrat et réglages' }).click();
   await alice.getByRole('link', { name: 'Modifier le contrat' }).click();
   const rate = alice.getByLabel('Taux annuel (%)');
   await expect(rate).toHaveValue('3,5');
@@ -98,10 +106,12 @@ test('alice pastes her bank’s table, reads the comparison and takes the bank a
 
   await alice.getByLabel('Nom', { exact: true }).fill(name);
   await alice.getByRole('radio', { name: 'Non, privé' }).check();
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByLabel('Capital emprunté').fill('200000');
   await alice.getByLabel('Taux annuel (%)').fill('3,5');
   await alice.getByLabel('Durée (mois)').fill('240');
-  await alice.getByLabel('Date de déblocage').fill(disbursed);
+  await fillDate(alice, 'Date de déblocage', disbursed);
+  await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('button', { name: 'Créer le crédit' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
@@ -111,6 +121,7 @@ test('alice pastes her bank’s table, reads the comparison and takes the bank a
     `${french(plusMonths(disbursed, 1))};1 159,92;583,33;576,59;199 423,41`,
     `${french(plusMonths(disbursed, 2))};1 159,92;581,65;578,27;198 845,14`,
   ].join('\n');
+  await alice.getByRole('tab', { name: 'Échéancier' }).click();
   const bank = alice.getByRole('region', { name: 'Tableau de la banque' });
   await expect(bank.getByText('Aucun tableau de la banque enregistré.')).toBeVisible();
   await bank.getByRole('button', { name: 'Importer le tableau de la banque' }).click();

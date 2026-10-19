@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { z } from 'zod';
 import { checkOwnership, ownershipShape, ownershipToWire, type OwnershipValues } from '@/components/ownership/ownership';
 import { CURRENCY, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
+import { todayIso } from '../subscriptions/today';
 import { POSITIVE_AMOUNT, SIGNED_AMOUNT } from './entries/entries';
 import { CADENCES, KINDS } from './format';
 
@@ -23,7 +24,10 @@ export function newEnvelopeSchema(t: TFunction) {
     firstValueAmount: z.string(),
   }).superRefine((v, ctx) => {
     checkOwnership(v, ctx, t);
-    const date = (on: string, path: string) => { if (!ISO_DATE.test(on)) ctx.addIssue({ code: 'custom', path: [path], message: required }); };
+    const date = (on: string, path: string) => {
+      if (!ISO_DATE.test(on)) ctx.addIssue({ code: 'custom', path: [path], message: required });
+      else if (on > todayIso()) ctx.addIssue({ code: 'custom', path: [path], message: t('field_error.core_date_in_future') });
+    };
     // The opening (a flow) must be positive, like any other flow (finding 3); the first value may be negative (an
     // overdrawn current account, finding 10) — it stays a value, not a flow.
     const openingAmount = (text: string, path: string) => { if (!POSITIVE_AMOUNT.test(text)) ctx.addIssue({ code: 'custom', path: [path], message: t('investments_form.positive_amount_format') }); };

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "./themes/neutre.css";
+@import "./themes/sobre.css";
 @import "./themes/ardoise.css";
 @import "./themes/sauge.css";
 @import "./themes/terre.css";
@@ -60,7 +60,7 @@
 }
 
 /* Native controls (the <select> popup above all) draw their own surface from `color-scheme`: without it the dark themes
-   put light text on the browser's white popup, and `Canvas` in ui/native-select.tsx stays light. */
+   put light text on the browser's white popup. */
 :root { color-scheme: light; }
 .dark { color-scheme: dark; }
 

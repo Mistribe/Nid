@@ -7,6 +7,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { invalidateProperties } from '../properties/api';
 import { categoryText } from '../properties/format';
 import { ESTATE_ROUTINE, ESTATE_ROUTINE_UNDO, type EstateRecap } from './api';
@@ -48,20 +49,20 @@ export function EstateRecapPanel({ recap, onUndone }: { recap: EstateRecap; onUn
         ) : null}
       </div>
       {undo.error ? <ProblemMessage problem={present(toProblem(undo.error))} /> : null}
-      <table className="w-full text-sm" aria-label={t('routine_estate.recap')}>
-        <thead>
-          <tr>
-            <th scope="col" className="text-left">{t('routine_estate.col_property')}</th>
-            <th scope="col" className="text-right">{t('routine_estate.col_estimate')}</th>
-            <th scope="col" className="text-left">{t('routine_estate.col_flows')}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table aria-label={t('routine_estate.recap')}>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">{t('routine_estate.col_property')}</TableHead>
+            <TableHead scope="col" className="text-right">{t('routine_estate.col_estimate')}</TableHead>
+            <TableHead scope="col">{t('routine_estate.col_flows')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {recap.lines.map((l) => (
-            <tr key={l.property}>
-              <th scope="row" className="text-left font-normal">{l.name}</th>
-              <td className="text-right tabular-nums">{l.estimate ? formatMoney({ amount: l.estimate, currency: l.currency }) : null}</td>
-              <td>
+            <TableRow key={l.property}>
+              <TableHead scope="row" className="font-normal">{l.name}</TableHead>
+              <TableCell className="text-right tabular-nums">{l.estimate ? formatMoney({ amount: l.estimate, currency: l.currency }) : null}</TableCell>
+              <TableCell>
                 <ul>
                   {l.flows.map((f) => (
                     <li key={f.flowId}>
@@ -71,11 +72,11 @@ export function EstateRecapPanel({ recap, onUndone }: { recap: EstateRecap; onUn
                     </li>
                   ))}
                 </ul>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

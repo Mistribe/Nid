@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Field } from '../../edits/Field';
+import { Field } from '@/components/form/Field';
+import { Input } from '@/components/ui/input';
 import { addDuration } from '../offers';
-import { AmountField, DateField, DurationFields, input, type Form } from './fields';
+import { AmountField, Choice, DateField, DurationFields, type Form } from './fields';
 
 /**
  * Leaving the trial step: the free trial's purchase is labelled "Essai"; the launch price's normal price starts
@@ -24,14 +25,8 @@ export function Trial({ form }: { form: Form }) {
   const cyclesError = form.formState.errors.launchCycles?.message;
   return (
     <div className="space-y-4">
-      <fieldset className="space-y-1">
-        <legend className="text-sm">{t('wizard.offer.trial_variant')}</legend>
-        {(['free', 'launch'] as const).map((v) => (
-          <label key={v} className="flex items-center gap-2">
-            <input type="radio" value={v} {...form.register('trialVariant')} />{t(`wizard.offer.trial_${v}`)}
-          </label>
-        ))}
-      </fieldset>
+      <Choice label={t('wizard.offer.trial_variant')} value={variant} onValueChange={(v) => form.setValue('trialVariant', v as typeof variant)}
+        options={(['free', 'launch'] as const).map((v) => ({ value: v, label: t(`wizard.offer.trial_${v}`) }))} />
       <DateField form={form} name="offerDate" label={t('wizard.offer.start')} />
       {variant === 'free' ? (
         <DurationFields form={form} count="durationCount" unit="durationUnit" label={t('wizard.offer.trial_duration')} />
@@ -40,7 +35,7 @@ export function Trial({ form }: { form: Form }) {
           <AmountField form={form} name="launchAmount" label={t('wizard.offer.launch_price')} withCurrency />
           <DurationFields form={form} count="everyCount" unit="everyUnit" label={t('wizard.every')} />
           <Field label={t('wizard.offer.launch_cycles')} error={cyclesError}>
-            {(c) => <input inputMode="numeric" {...c} {...form.register('launchCycles')} className={`w-20 ${input}`} />}
+            {(c) => <Input inputMode="numeric" {...c} {...form.register('launchCycles')} />}
           </Field>
         </>
       )}

@@ -42,6 +42,12 @@ const fourDecimals = (amount: string) => {
   return `${whole}.${decimals.padEnd(4, '0')}`;
 };
 
+const openTransfer = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
+  await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Virer vers une autre enveloppe' }));
+  await screen.findByRole('dialog', { name: 'Virement' });
+};
+
 const problem = (status: number, code: string | null) => () =>
   HttpResponse.json({ status, code, title: 'Problem' }, { status, headers: { 'Content-Type': 'application/problem+json' } });
 
@@ -60,11 +66,13 @@ describe('TransferDialog', () => {
     ], bodies);
     const { user, container } = await renderApp(`/investments/${PEA}`);
 
-    const open = await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' });
-    await user.click(open);
+    const open = await screen.findByRole('button', { name: 'Autres actions' });
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
-    const options = within(await within(dialog).findByLabelText('Vers')).getAllByRole('option').map((o) => o.textContent);
+    await user.click(await within(dialog).findByRole('combobox', { name: 'Vers' }));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent);
     expect(options).toEqual(['Livret A']);
+    await user.keyboard('{Escape}');
     await user.type(await within(dialog).findByLabelText('Montant'), '500');
     await expectNoAxeViolations(document.body);
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
@@ -72,20 +80,20 @@ describe('TransferDialog', () => {
     expect(await screen.findByText('Virement enregistré.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(bodies).toEqual([expect.objectContaining({ from: PEA, to: LIVRET, amount: { amount: '500', currency: 'EUR' } })]);
-    // The announcement is the Flux section's live region, and the source's refetch shows its withdrawal leg.
-    const flows = screen.getByRole('table', { name: 'Flux de l’enveloppe' });
-    expect(await within(flows).findByText('Virement')).toBeInTheDocument();
-    expect(screen.getByText('Virement enregistré.')).toHaveAttribute('role', 'status');
     await waitFor(() => expect(open).toHaveFocus());
+    // The announcement is the page's live region, and the source's refetch shows its withdrawal leg under « Flux ».
+    expect(screen.getByText('Virement enregistré.')).toHaveAttribute('role', 'status');
+    await user.click(await screen.findByRole('tab', { name: 'Flux (3)' }));
+    expect(await within(await screen.findByRole('table', { name: 'Flux de l’enveloppe' })).findByText('Virement')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
-  it('hands the focus back to the button when the dialog is closed', async () => {
+  it('hands the focus back to the ⋯ menu when the dialog is closed', async () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })]);
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    const open = await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' });
-    await user.click(open);
+    const open = await screen.findByRole('button', { name: 'Autres actions' });
+    await openTransfer(user);
     await user.click(within(screen.getByRole('dialog', { name: 'Virement' })).getByRole('button', { name: 'Annuler' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -96,7 +104,7 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: 'usd', displayName: 'Brokerage', currency: 'USD' })]);
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     expect(await within(dialog).findByText('Aucune autre enveloppe en EUR que vous pouvez modifier.')).toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: 'Virer' })).not.toBeInTheDocument();
@@ -110,7 +118,7 @@ describe('TransferDialog', () => {
     server.use(http.get('*/api/v1/investments/envelopes', problem(403, null)));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.click(await within(dialog).findByRole('button', { name: 'Fermer' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -120,7 +128,7 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], [], problem(404, null));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '10');
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
@@ -132,7 +140,7 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], [], problem(409, 'investments.envelope_closed'));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '10');
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
@@ -145,16 +153,16 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], [], problem(409, 'investments.envelope_closed'));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '10');
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail({ closed: true }))));
     await user.click(await within(dialog).findByRole('button', { name: 'Recharger' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Virer vers une autre enveloppe' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Autres actions', hidden: true })).not.toBeInTheDocument());
     await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
 
-    // « Saisir » is gone with the write affordances of a closed envelope: the banner is where the focus lands.
+    // The ⋯ menu is gone with the write affordances of a closed envelope: the banner is where the focus lands.
     await waitFor(() => expect(screen.getByText('Enveloppe clôturée')).toHaveFocus());
   });
 
@@ -162,7 +170,7 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], [], problem(422, 'investments.transfer_same_envelope'));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '10');
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
@@ -175,7 +183,7 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], [], problem(422, 'core.date_in_future'));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '10');
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
@@ -189,14 +197,15 @@ describe('TransferDialog', () => {
     serve(items, [], problem(404, null));
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '10');
     server.use(http.get('*/api/v1/investments/envelopes', () => HttpResponse.json(list([items[0]!, items[2]!]))));
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
 
-    await waitFor(() => expect(within(within(dialog).getByLabelText('Vers')).getAllByRole('option').map((o) => o.textContent)).toEqual(['PEL']));
-    expect(within(dialog).getByLabelText('Vers')).toHaveValue('pel');
+    await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Vers' })).toHaveTextContent('PEL'));
+    await user.click(within(dialog).getByRole('combobox', { name: 'Vers' }));
+    expect(within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['PEL']);
   });
 
   it('refuses a zero amount before sending', async () => {
@@ -204,7 +213,7 @@ describe('TransferDialog', () => {
     serve([summary(), summary({ id: LIVRET, displayName: 'Livret A' })], bodies);
     const { user } = await renderApp(`/investments/${PEA}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Virer vers une autre enveloppe' }));
+    await openTransfer(user);
     const dialog = screen.getByRole('dialog', { name: 'Virement' });
     await user.type(await within(dialog).findByLabelText('Montant'), '0');
     await user.click(within(dialog).getByRole('button', { name: 'Virer' }));
@@ -219,6 +228,6 @@ describe('TransferDialog', () => {
     await renderApp(`/investments/${PEA}`);
 
     await screen.findByRole('heading', { name: 'PEA', level: 1 });
-    expect(screen.queryByRole('button', { name: 'Virer vers une autre enveloppe' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autres actions' })).not.toBeInTheDocument();
   });
 });

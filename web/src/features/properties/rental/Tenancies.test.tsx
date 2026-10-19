@@ -79,6 +79,14 @@ function serve(initial: PropertyDetail = propertyDetail({ figures: rentedFigures
   };
 }
 
+const PAGE = `/properties/${PROPERTY}?tab=rental`;
+const fr = (iso: string) => iso.split('-').reverse().join('/');
+type User = Awaited<ReturnType<typeof renderApp>>['user'];
+/** The row's ⋯ menu, opened, then the item picked. */
+const rowAction = async (user: User, row: HTMLElement, date: string, item: string) => {
+  await user.click(within(row).getByRole('button', { name: new RegExp(`^Actions pour le ${date}`) }));
+  await user.click(await screen.findByRole('menuitem', { name: item }));
+};
 const region = () => screen.findByRole('region', { name: 'Location' });
 const rows = async () => within(await screen.findByRole('table', { name: 'Baux du bien' })).getAllByRole('row').slice(1);
 
@@ -88,7 +96,7 @@ describe('tenancies', () => {
 
   it('lists the tenancies newest first: label, period, rent, charges, deposit, note, « En cours » on the one covering today', async () => {
     serve();
-    const { container } = await renderApp(`/properties/${PROPERTY}`);
+    const { container } = await renderApp(PAGE);
 
     const [running, ended] = await rows();
     expect(running).toHaveTextContent('T2 meublé');
@@ -107,23 +115,23 @@ describe('tenancies', () => {
 
   it('adds a tenancy to a property not rented: the rent typed with a comma goes out with a dot, charges 0, no deposit nor end', async () => {
     const { sent } = serve(propertyDetail());
-    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(PAGE);
 
     const section = await region();
     expect(within(section).getByText('Ce bien n’est pas loué.')).toBeInTheDocument();
     expect(within(section).queryByRole('table')).not.toBeInTheDocument();
     await user.click(within(section).getByRole('button', { name: 'Ajouter un bail' }));
-    const form = screen.getByRole('form', { name: 'Nouveau bail' });
-    expect(within(form).getByLabelText('Libellé')).toHaveFocus();
-    expect(within(form).getByText('Pas de nom de locataire : une colocation est un seul bail.')).toBeInTheDocument();
-    expect(within(form).getByLabelText('Début')).toHaveValue(todayIso());
-    expect(within(form).getByLabelText('Charges mensuelles')).toHaveValue('0');
-    await user.type(within(form).getByLabelText('Libellé'), 'T2 meublé');
-    await user.clear(within(form).getByLabelText('Début'));
-    await user.type(within(form).getByLabelText('Début'), '2021-01-01');
-    await user.type(within(form).getByLabelText('Loyer mensuel'), '900,5');
+    const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    await waitFor(() => expect(form.getByLabelText('Libellé')).toHaveFocus());
+    expect(form.getByText('Pas de nom de locataire : une colocation est un seul bail.')).toBeInTheDocument();
+    expect(form.getByLabelText('Début')).toHaveValue(fr(todayIso()));
+    expect(form.getByLabelText('Charges mensuelles')).toHaveValue('0');
+    await user.type(form.getByLabelText('Libellé'), 'T2 meublé');
+    await user.clear(form.getByLabelText('Début'));
+    await user.type(form.getByLabelText('Début'), '01/01/2021');
+    await user.type(form.getByLabelText('Loyer mensuel'), '900,5');
     await expectNoAxeViolations(container);
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail ajouté.'));
     await waitFor(() => {
@@ -138,16 +146,15 @@ describe('tenancies', () => {
 
   it('ends a tenancy by correcting it with an end, the version it opened with, an emptied deposit left out', async () => {
     const { sent } = serve();
-    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
-    const form = screen.getByRole('form', { name: 'Corriger le bail' });
-    expect(within(form).getByLabelText('Fin')).toHaveFocus();
-    expect(within(form).getByLabelText('Loyer mensuel')).toHaveValue('900.00');
+    await rowAction(user, (await rows())[0]!, '1 janvier 2023', 'Corriger');
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+        expect(form.getByLabelText('Loyer mensuel')).toHaveValue('900.00');
     await expectNoAxeViolations(container);
-    await user.type(within(form).getByLabelText('Fin'), '2025-12-31');
-    await user.clear(within(form).getByLabelText('Dépôt de garantie'));
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    await user.type(form.getByLabelText('Fin'), '31/12/2025');
+    await user.clear(form.getByLabelText('Dépôt de garantie'));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail corrigé.'));
     await waitFor(() => {
@@ -167,17 +174,17 @@ describe('tenancies', () => {
 
   it('reopening an ended tenancy sends no end, and the overlap it creates reads under « Début »', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[1]!).getByRole('button', { name: 'Corriger' }));
-    const form = screen.getByRole('form', { name: 'Corriger le bail' });
-    await user.clear(within(form).getByLabelText('Fin'));
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    await rowAction(user, (await rows())[1]!, '1 janvier 2021', 'Corriger');
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.clear(form.getByLabelText('Fin'));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => {
-      expect(within(form).getByText('Ce bail chevauche un autre bail du bien.')).toBeInTheDocument();
-      expect(within(form).getByLabelText('Début')).toHaveAttribute('aria-invalid', 'true');
-      expect(within(form).queryByRole('alert')).not.toBeInTheDocument();
+      expect(form.getByText('Ce bail chevauche un autre bail du bien.')).toBeInTheDocument();
+      expect(form.getByLabelText('Début')).toHaveAttribute('aria-invalid', 'true');
+      expect(form.queryByRole('alert')).not.toBeInTheDocument();
       expect(sent[0]!.body).not.toHaveProperty('endsOn');
       expect(sent[0]!.body).toMatchObject({ version: 1 });
     });
@@ -185,31 +192,31 @@ describe('tenancies', () => {
 
   it('refuses an end on or before the start before sending', async () => {
     const { sent } = serve(propertyDetail());
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(PAGE);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter un bail' }));
-    const form = screen.getByRole('form', { name: 'Nouveau bail' });
-    await user.type(within(form).getByLabelText('Libellé'), 'T2');
-    await user.clear(within(form).getByLabelText('Début'));
-    await user.type(within(form).getByLabelText('Début'), '2024-01-01');
-    await user.type(within(form).getByLabelText('Fin'), '2024-01-01');
-    await user.type(within(form).getByLabelText('Loyer mensuel'), '900');
-    await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    await user.type(form.getByLabelText('Libellé'), 'T2');
+    await user.clear(form.getByLabelText('Début'));
+    await user.type(form.getByLabelText('Début'), '01/01/2024');
+    await user.type(form.getByLabelText('Fin'), '01/01/2024');
+    await user.type(form.getByLabelText('Loyer mensuel'), '900');
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => {
-      expect(within(form).getByText('La fin doit venir après le début.')).toBeInTheDocument();
-      expect(within(form).getByLabelText('Fin')).toHaveAttribute('aria-invalid', 'true');
+      expect(form.getByText('La fin doit venir après le début.')).toBeInTheDocument();
+      expect(form.getByLabelText('Fin')).toHaveAttribute('aria-invalid', 'true');
     });
     expect(sent).toEqual([]);
   });
 
   it('deletes a tenancy after a confirmation, with the version it read', async () => {
     const { sent } = serve();
-    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
-    expect(screen.getByText('Ce bail sera supprimé.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await rowAction(user, (await rows())[0]!, '1 janvier 2023', 'Supprimer');
+    expect(await screen.findByText('Ce bail sera supprimé.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail supprimé.'));
     await waitFor(async () => {
@@ -221,27 +228,27 @@ describe('tenancies', () => {
 
   it('sends the version it opened with though the property was read again meanwhile, and « Recharger » closes onto the stored row', async () => {
     const { sent, change, reads } = serve();
-    const { user, queryClient } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, queryClient } = await renderApp(PAGE);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
+    await rowAction(user, (await rows())[0]!, '1 janvier 2023', 'Corriger');
     change('t2', { rentMonthly: '950.00', version: 4 });
     await queryClient.invalidateQueries();
     await waitFor(() => expect(reads.detail).toBeGreaterThan(1));
-    const form = screen.getByRole('form', { name: 'Corriger le bail' });
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(within(form).getByText('Ce bail a changé entre-temps : rechargez la page.')).toBeInTheDocument());
+    await waitFor(() => expect(form.getByText('Ce bail a changé entre-temps : rechargez la page.')).toBeInTheDocument());
     await waitFor(() => expect(sent.map((s) => s.body?.version)).toEqual([3]));
-    await user.click(within(form).getByRole('button', { name: 'Recharger' }));
+    await user.click(form.getByRole('button', { name: 'Recharger' }));
 
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Corriger le bail' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('950,00 €'));
-    await waitFor(async () => expect(within((await rows())[0]!).getByRole('button', { name: 'Corriger' })).toHaveFocus());
+    await waitFor(async () => expect(within((await rows())[0]!).getByRole('button', { name: /^Actions pour le 1 janvier 2023/ })).toHaveFocus());
   });
 
   it('gives a reader the figures and the tenancies without any action', async () => {
     serve(propertyDetail({ canWrite: false, figures: rentedFigures(), tenancies: [ENDED, tenancy()] }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(PAGE);
 
     const section = await region();
     await rows();

@@ -23,7 +23,7 @@ test('an unseen guide plays once, « Passer » records it and « Guide de cette 
   await expect(intro).toBeVisible();
   await intro.getByRole('button', { name: 'Passer' }).click();
   await expect(intro).toBeHidden();
-  expect(sent.at(-1)?.guidesSeen.dashboard).toBe(1);
+  expect(sent.at(-1)?.guidesSeen.dashboard).toBe(2);
 
   await alice.getByRole('button', { name: 'Guide de cette page' }).click();
   await expect(alice.getByRole('dialog', { name: 'Accueil : premiers pas' })).toBeVisible();

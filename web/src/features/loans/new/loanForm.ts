@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { Path } from 'react-hook-form';
+import type { Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { checkOwnership, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
@@ -115,6 +115,12 @@ export function newLoanSchema(t: TFunction) {
 }
 
 export type NewLoanValues = z.infer<ReturnType<typeof newLoanSchema>>;
+/** The contract's slice of the creation form, for the shared contract fields; RHF's form type is invariant, so the cast lives here, and the line below breaks the build if the creation values stop extending the contract's. */
+export const contractFormOf = (form: UseFormReturn<NewLoanValues>) => form as unknown as UseFormReturn<ContractValues>;
+export type ContractIsSliceOfNewLoan = NewLoanValues extends ContractValues ? true : never;
+const sliceCheck: ContractIsSliceOfNewLoan = true;
+void sliceCheck;
+
 export type PhaseLine = ContractValues['phases'][number];
 export type InsuranceLine = ContractValues['insurances'][number];
 

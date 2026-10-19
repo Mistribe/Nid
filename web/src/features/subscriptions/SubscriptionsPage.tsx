@@ -1,21 +1,27 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { AlertTriangle } from 'lucide-react';
+import { ChevronDownIcon } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch, SubscriptionsSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
-import { formatLocalDate } from '@/components/LocalDate';
-import { Money } from '@/components/Money';
+import { formatLocalDate, LocalDate } from '@/components/LocalDate';
+import { Money, type MoneyValue } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
+import { Segmented } from '@/components/form/Segmented';
+import { PageHeader } from '@/components/page/PageHeader';
+import { SortableTable } from '@/components/page/SortableTable';
+import { amountKey } from '@/components/page/sortKey';
+import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { LIST, type Summary } from './api';
 import { filterSubscriptions, labelParam, labelsInUse, labelsOf } from './filter';
-import { findingText, visibleFindings } from './findings';
 import { todayIso } from './today';
 
 /** 1E2a design §3: scope (the shell's switch) goes to the server, name and status filter the answer in the browser. */
@@ -26,8 +32,8 @@ export function SubscriptionsPage() {
   const navigate = useNavigate();
   const searchId = useId();
   const statusId = useId();
-  const totalsId = useId();
   const labelsId = useId();
+  const totalsId = useId();
   const scope = search.scope === 'me' ? 'me' : 'household';
   const answer = $api.useQuery('get', LIST, { params: { query: { scope } } });
 
@@ -39,70 +45,86 @@ export function SubscriptionsPage() {
   const toggle = (key: string) =>
     setSearch({ label: labelParam(active.includes(key) ? active.filter((k) => k !== key) : [...active, key]) });
 
-  const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold">{t('subscriptions.title')}</h1>
-      <Link to="/subscriptions/new" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground">{t('subscriptions.add')}</Link>
-    </div>
-  );
+  const add = <Link to="/subscriptions/new" className={buttonVariants()}>{t('subscriptions.add')}</Link>;
+  const data = answer.data;
+  // Server totals only (no client sum): a StatLine under the title.
+  const totals = data && data.items.length > 0 ? (
+    <section aria-labelledby={totalsId} className="space-y-1">
+      <h2 id={totalsId} className="text-sm font-semibold">{t('subscriptions.household_totals')}</h2>
+      <StatLine items={[
+        { label: t('lists.col.cash'), value: <Moneys values={data.householdCashCost} /> },
+        { label: t('lists.col.amortized'), value: <Moneys values={data.householdAmortizedCost} /> },
+      ]} />
+      {data.sharedPurchaseIds.length > 0 ? <p className="text-sm text-muted-foreground">{t('subscriptions.shared_purchases_note')}</p> : null}
+    </section>
+  ) : undefined;
+  const header = <PageHeader title={t('subscriptions.title')} actions={add}>{totals}</PageHeader>;
 
-  if (answer.error) return <>{header}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
+  if (answer.error) return <div className="space-y-4">{header}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
 
   const filters = (
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1">
-        <label htmlFor={searchId} className="block text-sm">{t('subscriptions.search')}</label>
-        <input id={searchId} type="search" value={search.q ?? ''} onChange={(e) => setSearch({ q: e.target.value || undefined })}
-          />
+        <Label htmlFor={searchId}>{t('subscriptions.search')}</Label>
+        <Input id={searchId} type="search" value={search.q ?? ''} onChange={(e) => setSearch({ q: e.target.value || undefined })} />
       </div>
       <div className="space-y-1">
-        <label htmlFor={statusId} className="block text-sm">{t('subscriptions.status_label')}</label>
-        <NativeSelect id={statusId} value={search.status ?? ''}
-          onChange={(e) => setSearch({ status: e.target.value === 'active' || e.target.value === 'ended' ? e.target.value : undefined })}>
-          <NativeSelectOption value="">{t('subscriptions.status_all')}</NativeSelectOption>
-          <NativeSelectOption value="active">{t('subscriptions.status_active')}</NativeSelectOption>
-          <NativeSelectOption value="ended">{t('subscriptions.status_ended')}</NativeSelectOption>
-        </NativeSelect>
+        <Label id={statusId}>{t('subscriptions.status_label')}</Label>
+        <div>
+          <Segmented aria-labelledby={statusId} value={search.status ?? 'all'}
+            onValueChange={(v) => setSearch({ status: v === 'active' || v === 'ended' ? v : undefined })}
+            options={[
+              { value: 'all', label: t('subscriptions.status_all') },
+              { value: 'active', label: t('subscriptions.status_active') },
+              { value: 'ended', label: t('subscriptions.status_ended') },
+            ]} />
+        </div>
       </div>
       {offered.length > 0 ? (
-        <div role="group" aria-labelledby={labelsId} className="space-y-1">
-          <span id={labelsId} className="block text-sm">{t('subscriptions.labels')}</span>
-          <div className="flex flex-wrap items-center gap-2">
-            {offered.map((label) => (
-              <button key={label.key} type="button" aria-pressed={active.includes(label.key)} onClick={() => toggle(label.key)}
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm aria-pressed:border-primary aria-pressed:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
-                <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
-                {label.name}
-              </button>
-            ))}
-            {active.length > 0 ? (
-              <Button type="button" size="sm" variant="ghost" onClick={() => setSearch({ label: undefined })}>{t('subscriptions.labels_clear')}</Button>
-            ) : null}
-          </div>
+        <div className="flex items-center gap-2">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button id={labelsId} type="button" variant="outline">
+                {t('subscriptions.labels')}{active.length > 0 ? ` (${active.length})` : ''}
+                <ChevronDownIcon aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {offered.map((label) => (
+                <DropdownMenuCheckboxItem key={label.key} checked={active.includes(label.key)}
+                  onCheckedChange={() => toggle(label.key)} onSelect={(e) => e.preventDefault()}>
+                  <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />
+                  {label.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {active.length > 0 ? (
+            <Button type="button" size="sm" variant="ghost" onClick={() => setSearch({ label: undefined })}>{t('subscriptions.labels_clear')}</Button>
+          ) : null}
         </div>
       ) : null}
     </div>
   );
 
-  if (!answer.data)
+  if (!data)
     return (
-      <>
+      <div className="space-y-4">
         {header}
         <ul aria-busy="true" aria-label={t('subscriptions.loading')} className="space-y-2">
           {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
         </ul>
-      </>
+      </div>
     );
 
-  const data = answer.data;
   if (data.items.length === 0)
     return (
-      <>
+      <div className="space-y-4">
         {header}
         {filters}
         <EmptyState title={t('subscriptions.empty_title')} body={t('subscriptions.empty_body')}
-          action={<Link to="/subscriptions/new" className="rounded-md bg-primary px-3 py-2 text-primary-foreground">{t('subscriptions.empty_action')}</Link>} />
-      </>
+          action={<Link to="/subscriptions/new" className={buttonVariants()}>{t('subscriptions.empty_action')}</Link>} />
+      </div>
     );
 
   const shown = filterSubscriptions(data.items, { ...search, labels: active }, todayIso());
@@ -110,57 +132,47 @@ export function SubscriptionsPage() {
     <div className="space-y-4">
       {header}
       {filters}
-      <section aria-labelledby={totalsId} className="rounded-md border p-3">
-        <h2 id={totalsId} className="text-sm font-semibold">{t('subscriptions.household_totals')}</h2>
-        <p className="flex flex-wrap gap-x-4">
-          {data.householdCashCost.map((m) => <span key={m.currency}><Money value={m} /></span>)}
-        </p>
-        {data.sharedPurchaseIds.length > 0 ? <p className="text-sm text-muted-foreground">{t('subscriptions.shared_purchases_note')}</p> : null}
-      </section>
       {shown.length === 0 ? <p>{t('subscriptions.no_match')}</p> : (
-        <ul aria-label={t('subscriptions.list_label')} className="space-y-2">
-          {shown.map((item) => <Row key={item.id} item={item} />)}
-        </ul>
+        <SortableTable<Summary> caption={t('subscriptions.list_label')} rows={shown} rowKey={(r) => r.id}
+          rowLink={(r) => ({ to: '/subscriptions/$id', params: { id: r.id } })}
+          columns={[
+            { id: 'name', header: t('lists.col.name'), sort: (r) => r.displayName, cell: (r) => <Name item={r} /> },
+            { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
+            { id: 'cash', header: t('lists.col.cash'), align: 'end', sort: (r) => amountKey(r.cashCost[0]?.amount), cell: (r) => <Moneys values={r.cashCost} /> },
+            { id: 'amortized', header: t('lists.col.amortized'), align: 'end', sort: (r) => amountKey(r.amortizedCost[0]?.amount), cell: (r) => <Moneys values={r.amortizedCost} /> },
+            { id: 'next', header: t('lists.col.next_payment'), sort: (r) => r.nextChargeOn ?? r.expiresOn ?? '', cell: (r) => <Next item={r} /> },
+          ]}
+          mobile={(r) => (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2"><Name item={r} /><OwnerChips owners={r.owners} /></div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <Moneys values={r.cashCost} />
+                <span className="text-muted-foreground"><Next item={r} /></span>
+              </div>
+            </div>
+          )} />
       )}
     </div>
   );
 }
 
-function Row({ item }: { item: Summary }) {
-  const { t } = useTranslation();
-  const findings = visibleFindings(item.findings);
+function Moneys({ values }: { values: MoneyValue[] }) {
+  return <span className="inline-flex flex-col items-end">{values.map((m) => <Money key={m.currency} value={m} tabular />)}</span>;
+}
+
+function Name({ item }: { item: Summary }) {
   return (
-    <li className="rounded-md border">
-      <Link to="/subscriptions/$id" params={{ id: item.id }} className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted">
-        <ProviderIcon name={item.provider?.name ?? item.displayName} iconUrl={item.provider?.iconUrl} color={item.provider?.labels[0]?.color} />
-        <span className="min-w-40 flex-1">
-          <span className="block font-medium">{item.displayName}</span>
-          <OwnerChips owners={item.owners} />
-        </span>
-        <span className="text-sm">
-          <span className="text-muted-foreground">{t('subscriptions.cash')} </span>
-          {item.cashCost.map((m) => <Money key={m.currency} value={m} tabular />)}
-        </span>
-        <span className="text-sm">
-          <span className="text-muted-foreground">{t('subscriptions.amortized')} </span>
-          {item.amortizedCost.map((m) => <Money key={m.currency} value={m} tabular />)}
-        </span>
-        <span className="text-sm">
-          {item.nextChargeOn
-            ? t('subscriptions.next_charge', { date: formatLocalDate(item.nextChargeOn) })
-            : item.expiresOn ? t('subscriptions.expires', { date: formatLocalDate(item.expiresOn) }) : null}
-        </span>
-      </Link>
-      {findings.length > 0 ? (
-        <ul aria-label={t('subscriptions.findings')} className="flex flex-wrap gap-2 px-3 pb-3">
-          {findings.map((f) => (
-            <li key={`${f.code}-${f.reference ?? ''}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm">
-              <AlertTriangle aria-hidden="true" className="size-4" />
-              {findingText(t, f)}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </li>
+    <span className="inline-flex items-center gap-3">
+      <ProviderIcon name={item.provider?.name ?? item.displayName} iconUrl={item.provider?.iconUrl} color={item.provider?.labels[0]?.color} />
+      <span className="font-medium">{item.displayName}</span>
+    </span>
   );
+}
+
+/** The next charge, or the day it expires when nothing is due. */
+function Next({ item }: { item: Summary }) {
+  const { t } = useTranslation();
+  if (item.nextChargeOn) return <LocalDate value={item.nextChargeOn} style="short" />;
+  if (item.expiresOn) return <>{t('subscriptions.expires', { date: formatLocalDate(item.expiresOn, 'short') })}</>;
+  return null;
 }

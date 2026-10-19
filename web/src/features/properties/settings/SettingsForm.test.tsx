@@ -54,7 +54,7 @@ describe('property settings', () => {
 
   it('sends only what changed with the version it opened on, says it is saved and shows the stored property', async () => {
     const { sent, reads } = serve();
-    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     await user.clear(within(settings()).getByLabelText('Prix d’achat'));
@@ -75,7 +75,7 @@ describe('property settings', () => {
 
   it('says there is nothing to save rather than sending an empty change', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     await user.click(save());
@@ -86,7 +86,7 @@ describe('property settings', () => {
 
   it('saves twice in a row, the second time with the version the first produced', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     await user.type(within(settings()).getByLabelText('Note'), 'agrandie');
@@ -103,7 +103,7 @@ describe('property settings', () => {
 
   it('sends the version it opened on though the property was read again meanwhile, says the conflict, and « Recharger » shows what is stored', async () => {
     const { sent, change, reads } = serve();
-    const { user, queryClient } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, queryClient } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     await user.type(within(settings()).getByLabelText('Note'), 'ma note');
@@ -126,7 +126,7 @@ describe('property settings', () => {
     server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
       { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'purchaseDate', code: 'realestate.invalid_property_field', message: 'x' }] },
       { status: 422 })));
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     await user.clear(within(settings()).getByLabelText('Date d’achat'));
@@ -140,16 +140,16 @@ describe('property settings', () => {
 
   it('sends the rental start typed, then its clearing once emptied, each with the version it opened on', async () => {
     const { sent } = serve();
-    const { user, container } = await renderApp(`/properties/${PROPERTY}`);
+    const { user, container } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     expect(within(settings()).getByText('Date de mise en location, si elle précède le premier bail.')).toBeInTheDocument();
-    await user.type(within(settings()).getByLabelText('Début de location'), '2021-01-01');
+    await user.type(within(settings()).getByLabelText('Début de location'), '01/01/2021');
     await expectNoAxeViolations(container);
     await user.click(save());
 
     await waitFor(() => expect(within(settingsRegion()).getByRole('status')).toHaveTextContent('Réglages enregistrés.'));
-    await waitFor(() => expect(within(settings()).getByLabelText('Début de location')).toHaveValue('2021-01-01'));
+    await waitFor(() => expect(within(settings()).getByLabelText('Début de location')).toHaveValue('01/01/2021'));
     await user.clear(within(settings()).getByLabelText('Début de location'));
     await user.click(save());
 
@@ -166,10 +166,10 @@ describe('property settings', () => {
     server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
       { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'rentalStartsOn', code: 'realestate.invalid_property_field', message: 'x' }] },
       { status: 422 })));
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
-    await user.type(within(settings()).getByLabelText('Début de location'), '2019-01-01');
+    await user.type(within(settings()).getByLabelText('Début de location'), '01/01/2019');
     await user.click(save());
 
     await waitFor(() => {
@@ -181,7 +181,7 @@ describe('property settings', () => {
 
   it('refuses an empty name before sending', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/properties/${PROPERTY}`);
+    const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     await user.clear(within(settings()).getByLabelText('Nom'));
@@ -193,7 +193,7 @@ describe('property settings', () => {
 
   it('gives a reader no settings', async () => {
     serve(propertyDetail({ canWrite: false }));
-    await renderApp(`/properties/${PROPERTY}`);
+    await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
     expect(screen.queryByRole('region', { name: 'Réglages' })).not.toBeInTheDocument();

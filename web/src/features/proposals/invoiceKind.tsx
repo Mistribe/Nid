@@ -5,9 +5,11 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { trimAmount } from '../investments/entries/entries';
 import { ISO_DATE } from '../subscriptions/edits/amount';
-import { Field } from '../subscriptions/edits/Field';
+import { Field } from '@/components/form/Field';
+import { Table, TableBody } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { durationText } from '../subscriptions/format';
-import { Row, errorOf, input, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import { DateInput, Row, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 
 type InvoicePayload = { chargedOn: string; amount: Money };
 type InvoicePreview = { current: { price: Money; every: { count: number; unit: string } } | null; proposed: { price: Money } | null; startsOn: string | null };
@@ -27,15 +29,15 @@ function InvoicePreviewView({ preview }: { preview: unknown }) {
   const p = preview as InvoicePreview;
   const shown = (m: Money | null | undefined) => (m ? formatMoney(m) : t('proposal.preview.none'));
   return (
-    <table className="w-full">
+    <Table>
       <caption className="sr-only">{t('proposal.preview.title')}</caption>
-      <tbody>
+      <TableBody>
         <Row label={t('proposal.invoice.current')}>{shown(p.current?.price)}</Row>
         {p.current ? <Row label={t('proposal.invoice.every')}>{durationText(t, p.current.every)}</Row> : null}
         <Row label={t('proposal.invoice.proposed')}>{shown(p.proposed?.price)}</Row>
         <Row label={t('proposal.invoice.starts_on')}>{p.startsOn ? formatLocalDate(p.startsOn) : t('proposal.preview.none')}</Row>
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
 
@@ -43,8 +45,8 @@ function InvoiceFields({ form, original }: { form: UseFormReturn<FieldValues>; o
   const { t } = useTranslation();
   return (
     <>
-      <Field label={t('proposal.invoice.starts_on')} error={errorOf(form, 'chargedOn')}>{(c) => <input type="date" {...c} {...form.register('chargedOn')} className={input} />}</Field>
-      <Field label={t('proposal.invoice.amount', { currency: asInvoice(original).amount.currency })} error={errorOf(form, 'amount')}>{(c) => <input inputMode="decimal" {...c} {...form.register('amount')} className={input} />}</Field>
+      <DateInput form={form} name="chargedOn" label={t('proposal.invoice.starts_on')} />
+      <Field label={t('proposal.invoice.amount', { currency: asInvoice(original).amount.currency })} error={errorOf(form, 'amount')}>{(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}</Field>
     </>
   );
 }

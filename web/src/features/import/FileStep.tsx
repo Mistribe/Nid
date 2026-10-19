@@ -1,7 +1,10 @@
+import { UploadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ReadyFile } from './draft';
+import { StepCard } from './StepCard';
 import type { LocalProblem } from './prepare';
 import { prepareInBackground } from './prepareInBackground';
 
@@ -32,6 +35,7 @@ export function FileStep({ title, hint, onReady }: { title: string; hint: string
     // No `aria-labelledby` here: its text is the picker's own label text (both are "Choisir un fichier" in
     // fr.json), and `getByLabelText` also matches non-form elements labelled that way, which made the section
     // itself a second match for the label query alongside the input.
+    <StepCard>
     <section className="space-y-3">
       <h2 id="import-file-title" className="text-lg font-semibold">{title}</h2>
       <div
@@ -44,10 +48,11 @@ export function FileStep({ title, hint, onReady }: { title: string; hint: string
           const file = event.dataTransfer.files[0];
           if (file) void read(file);
         }}
-        className={cn('space-y-3 rounded-md border-2 border-dashed p-6 text-center', over && 'border-primary')}
+        className={cn('flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 text-center transition-colors', over && 'border-primary bg-accent')}
       >
+        <UploadIcon aria-hidden="true" className="size-8 text-muted-foreground" />
         <p className="text-muted-foreground">{hint}</p>
-        <label className="inline-block cursor-pointer rounded-md border px-3 py-2 focus-within:ring-2">
+        <label className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer focus-within:ring-[3px] focus-within:ring-ring/50')}>
           {t('import.file_pick')}
           <input
             type="file"
@@ -68,6 +73,7 @@ export function FileStep({ title, hint, onReady }: { title: string; hint: string
       ) : null}
       {reading.status === 'failed' ? <LocalProblems problems={reading.problems} /> : null}
     </section>
+    </StepCard>
   );
 }
 

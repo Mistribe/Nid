@@ -1,13 +1,16 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { buttonVariants } from '@/components/ui/button';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import type { components } from '@/api/schema';
+import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import type { ReadyFile } from './draft';
+import { StepCard } from './StepCard';
 import { useRefreshImports } from './queries';
 import { ACTIVE_STATES, effectiveState } from './states';
 
@@ -57,6 +60,7 @@ export function StartImport({ file }: { file: ReadyFile }) {
   };
 
   return (
+    <StepCard>
     <form onSubmit={submit} className="space-y-4">
       <fieldset className="space-y-3">
         <legend className="text-lg font-semibold">{t('import.adults_title')}</legend>
@@ -64,27 +68,27 @@ export function StartImport({ file }: { file: ReadyFile }) {
         {persons.error ? <ProblemMessage problem={present(toProblem(persons.error))} /> : null}
         {file.adults.length === 0 ? <p>{t('import.adults_empty')}</p> : null}
         {file.adults.map((adult) => (
-          <label key={adult.ref} className="block max-w-md">
-            <span className="block text-sm">{t('import.adult_label', { name: adult.displayName, ref: adult.ref })}</span>
-            <NativeSelect
-              value={choice(adult.ref, adult.email)}
-              onChange={(event) => setChosen({ ...chosen, [adult.ref]: event.target.value })}
-              className="w-full rounded-md border px-3 py-2"
-            >
-              <NativeSelectOption value="">{t('import.adults_none')}</NativeSelectOption>
-              {adults.map((person) => (
-                <NativeSelectOption key={person.id} value={person.id}>
-                  {person.email ? t('import.person_option', { name: person.displayName, email: person.email }) : person.displayName}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </label>
+          <div key={adult.ref} className="max-w-md">
+            <Field label={t('import.adult_label', { name: adult.displayName, ref: adult.ref })}>
+              {(c) => (
+                <SelectField {...c} value={choice(adult.ref, adult.email)} onValueChange={(v) => setChosen({ ...chosen, [adult.ref]: v })}
+                  options={[
+                    { value: '', label: t('import.adults_none') },
+                    ...adults.map((person) => ({
+                      value: person.id,
+                      label: person.email ? t('import.person_option', { name: person.displayName, email: person.email }) : person.displayName,
+                    })),
+                  ]} />
+              )}
+            </Field>
+          </div>
         ))}
       </fieldset>
       {problem ? <ProblemMessage problem={problem} /> : null}
       {active ? <ActiveImport /> : null}
       <Button type="submit" disabled={start.isPending || persons.isPending}>{t('import.start')}</Button>
     </form>
+    </StepCard>
   );
 }
 
@@ -99,7 +103,7 @@ function ActiveImport() {
     <div role="alert" className="space-y-1 rounded-md border border-destructive p-3">
       <p>{t('import.session_active')}</p>
       {current ? (
-        <Link to="/import/$id" params={{ id: current.id }} className="underline">{t('import.resume_active')}</Link>
+        <Link to="/import/$id" params={{ id: current.id }} className={buttonVariants({ variant: 'outline', size: 'sm' })}>{t('import.resume_active')}</Link>
       ) : null}
     </div>
   );

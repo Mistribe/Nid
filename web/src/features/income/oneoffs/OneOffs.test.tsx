@@ -48,6 +48,11 @@ function serve(initial: IncomeSourceDetail = detail({ oneOffs: [OLDER, PROJECT] 
 }
 
 const region = () => screen.findByRole('region', { name: 'Revenus exceptionnels' });
+/** The row's `⋯` menu, then its item. */
+const choose = async (user: Awaited<ReturnType<typeof renderApp>>['user'], row: number, item: string) => {
+  await user.click(within((await rows())[row]!).getByRole('button', { name: /^Actions du revenu exceptionnel/ }));
+  await user.click(await screen.findByRole('menuitem', { name: item }));
+};
 const rows = async () => within(await screen.findByRole('table', { name: 'Revenus exceptionnels des 12 derniers mois' })).getAllByRole('row').slice(1);
 
 describe('one-off income', () => {
@@ -55,7 +60,7 @@ describe('one-off income', () => {
 
   it('lists the last twelve months’ one-offs, newest first', async () => {
     serve();
-    const { container } = await renderApp(`/income/${SALARY}`);
+    const { container } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
     const [first, second] = await rows();
     expect(first).toHaveTextContent('10 mars 2026');
@@ -67,18 +72,18 @@ describe('one-off income', () => {
 
   it('says when there is none', async () => {
     serve(detail({ oneOffs: [] }));
-    await renderApp(`/income/${SALARY}`);
+    await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
     expect(await within(await region()).findByText('Aucun revenu exceptionnel sur les 12 derniers mois.')).toBeInTheDocument();
   });
 
   it('adds a one-off dated today by default, announces it and focuses the section', async () => {
     const { sent } = serve();
-    const { user, container } = await renderApp(`/income/${SALARY}`);
+    const { user, container } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter un revenu exceptionnel' }));
     const form = screen.getByRole('form', { name: 'Nouveau revenu exceptionnel' });
-    expect(within(form).getByLabelText('Date')).toHaveValue(todayIso());
+    expect(within(form).getByLabelText('Date')).toHaveValue(todayIso().split('-').reverse().join('/'));
     expect(within(form).getByLabelText('Date')).toHaveFocus();
     expect(within(form).getByText('Une prime à venir se saisit une fois versée.')).toBeInTheDocument();
     await user.type(within(form).getByLabelText('Montant'), '250,50');
@@ -94,7 +99,7 @@ describe('one-off income', () => {
 
   it('refuses a date after today before sending', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
     await user.click(await within(await region()).findByRole('button', { name: 'Ajouter un revenu exceptionnel' }));
     const form = screen.getByRole('form', { name: 'Nouveau revenu exceptionnel' });
@@ -108,11 +113,11 @@ describe('one-off income', () => {
     expect(sent).toEqual([]);
   });
 
-  it('corrects a one-off inline: a new id, the change announced', async () => {
+  it('corrects a one-off: a new id, the change announced', async () => {
     const { sent } = serve();
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 0, 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger le revenu exceptionnel' });
     expect(within(form).getByLabelText('Montant')).toHaveValue('400');
     await user.clear(within(form).getByLabelText('Montant'));
@@ -125,23 +130,23 @@ describe('one-off income', () => {
     expect(sent[0]!.url).toContain('/one-offs/o1');
   });
 
-  it('gives the focus back to « Corriger » when the correction is cancelled', async () => {
+  it('gives the focus back to the row menu when the correction is cancelled', async () => {
     serve();
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 0, 'Corriger');
     await user.click(within(screen.getByRole('form', { name: 'Corriger le revenu exceptionnel' })).getByRole('button', { name: 'Annuler' }));
 
-    await waitFor(async () => expect(within((await rows())[0]!).getByRole('button', { name: 'Corriger' })).toHaveFocus());
+    await waitFor(async () => expect(within((await rows())[0]!).getByRole('button', { name: /^Actions du revenu exceptionnel/ })).toHaveFocus());
   });
 
   it('deletes a one-off after a confirmation', async () => {
     serve(detail({ oneOffs: [PROJECT] }));
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
-    expect(screen.getByText('Ce revenu exceptionnel sera retiré.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await choose(user, 0, 'Supprimer');
+    expect(await screen.findByText('Ce revenu exceptionnel sera retiré.')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel supprimé.'));
     expect(await within(await region()).findByText('Aucun revenu exceptionnel sur les 12 derniers mois.')).toBeInTheDocument();
@@ -149,9 +154,9 @@ describe('one-off income', () => {
 
   it('shows a correction of a one-off changed meanwhile with its own sentence and « Recharger »', async () => {
     const { retire } = serve();
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Corriger' }));
+    await choose(user, 0, 'Corriger');
     retire('o1');
     const form = screen.getByRole('form', { name: 'Corriger le revenu exceptionnel' });
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
@@ -167,11 +172,11 @@ describe('one-off income', () => {
 
   it('puts the focus on the section when « Recharger » removes the row of a deletion refused as gone', async () => {
     const { retire } = serve();
-    const { user } = await renderApp(`/income/${SALARY}`);
+    const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
-    await user.click(within((await rows())[0]!).getByRole('button', { name: 'Supprimer' }));
+    await choose(user, 0, 'Supprimer');
     retire('o1');
-    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await user.click(await screen.findByRole('button', { name: 'Recharger' }));
 
     await waitFor(async () => expect(await rows()).toHaveLength(1));
@@ -180,7 +185,7 @@ describe('one-off income', () => {
 
   it('gives a reader the list without any action', async () => {
     serve(detail({ canWrite: false, visibility: 'shared', oneOffs: [PROJECT] }));
-    await renderApp(`/income/${SALARY}`);
+    await renderApp(`/income/${SALARY}?tab=oneoffs`);
 
     const section = await region();
     await rows();
