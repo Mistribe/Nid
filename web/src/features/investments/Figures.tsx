@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import type { Figures } from './api';
 import { directionOf } from './format';
 
+const pct = (value: number) => new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+
 const ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } as const;
 const TONE = { up: 'text-status-good', down: 'text-status-critical', flat: 'text-muted-foreground' } as const;
 const signed = (locale: string, currency: string, amount: string) =>
@@ -33,9 +35,15 @@ export function Gain({ figures }: { figures: Figures }) {
     <Direction amount={figures.gain}>
       {figures.gainPct === null || figures.gainPct === undefined
         ? <><span aria-hidden="true">{t('investments.dash')}</span><span className="sr-only">{t('investments.pct_undefined')}</span></>
-        : <span className="tabular-nums">{t('investments.pct', { value: new Intl.NumberFormat('fr-FR', { signDisplay: 'exceptZero', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(figures.gainPct) })}</span>}
+        : <span className="tabular-nums">{t('investments.pct', { value: pct(figures.gainPct) })}</span>}
     </Direction>
   );
+}
+
+/** The money-weighted annual return the server computed (XIRR), already rounded. */
+export function AnnualReturn({ value }: { value: number }) {
+  const { t } = useTranslation();
+  return <span className="tabular-nums">{t('investments.pct_per_year', { value: pct(value) })}</span>;
 }
 
 export function StaleBadge({ days }: { days: number | null | undefined }) {

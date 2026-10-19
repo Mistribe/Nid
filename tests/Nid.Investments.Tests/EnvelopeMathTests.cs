@@ -32,6 +32,7 @@ public class EnvelopeMathTests
         Assert.Equal(Eur(22_000m), f.NetContributions);
         Assert.Equal(Eur(3_000m), f.Gain);
         Assert.Equal(13.6m, f.GainPct);
+        Assert.Equal(14.2m, f.AnnualReturnPct);
         Assert.False(f.MissingOpening);
         Assert.Null(f.StaleDays);
     }
@@ -68,14 +69,50 @@ public class EnvelopeMathTests
     }
 
     [Fact]
-    public void Withdrawals_above_contributions_leave_the_percent_undefined()
+    public void The_percent_is_over_the_total_paid_in_so_withdrawals_do_not_inflate_it()
     {
         var f = At([Value(2025, 6, 30, 100m)], [Flow(2025, 1, 1, FlowKind.Opening, 1_000m), Flow(2025, 3, 1, FlowKind.Withdrawal, 1_500m)], new LocalDate(2025, 6, 30));
 
         Assert.Equal(Eur(-500m), f.NetContributions);
         Assert.Equal(Eur(600m), f.Gain);
-        Assert.Null(f.GainPct);
+        Assert.Equal(60.0m, f.GainPct);
         Assert.False(f.MissingOpening);
+    }
+
+    [Fact]
+    public void Issue_20_a_life_insurance_with_large_withdrawals_reads_about_2_7_percent_a_year()
+    {
+        var flows = Enumerable.Range(0, 30).Select(i => Flow(2020, 8, 1, FlowKind.Contribution, 200m) with { OccurredOn = new LocalDate(2020, 8, 1).PlusMonths(i) })
+            .Append(Flow(2020, 7, 1, FlowKind.Opening, 30_000m)).Append(Flow(2024, 6, 1, FlowKind.Withdrawal, 12_500.00m)).ToList();
+
+        var f = At([Value(2026, 10, 1, 27_900.00m)], flows, new LocalDate(2026, 10, 1));
+
+        Assert.Equal(Eur(4_400.00m), f.Gain);
+        Assert.Equal(15.2m, f.GainPct);
+        Assert.Equal(2.7m, f.AnnualReturnPct);
+    }
+
+    [Fact]
+    public void A_steady_ten_percent_over_one_year_is_ten_percent_a_year()
+    {
+        var f = At([Value(2024, 1, 1, 1_100m)], [Flow(2023, 1, 1, FlowKind.Opening, 1_000m)], new LocalDate(2024, 1, 1));
+
+        Assert.Equal(10.0m, f.AnnualReturnPct);
+    }
+
+    [Fact]
+    public void The_annual_return_is_not_meaningful_under_twelve_months_or_without_a_payment()
+    {
+        Assert.Null(At([Value(2025, 12, 30, 1_100m)], [Flow(2025, 1, 1, FlowKind.Opening, 1_000m)], new LocalDate(2025, 12, 30)).AnnualReturnPct);
+        Assert.Null(At([Value(2026, 6, 30, 1_000m)], [Flow(2025, 1, 1, FlowKind.Income, 50m)], new LocalDate(2026, 6, 30)).AnnualReturnPct);
+    }
+
+    [Fact]
+    public void A_value_of_zero_leaves_payments_only_and_no_annual_return()
+    {
+        var f = At([Value(2026, 1, 1, 0m)], [Flow(2024, 1, 1, FlowKind.Opening, 1_000m)], new LocalDate(2026, 1, 1));
+
+        Assert.Null(f.AnnualReturnPct);
     }
 
     [Fact]

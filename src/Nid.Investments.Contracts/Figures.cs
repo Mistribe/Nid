@@ -4,12 +4,13 @@ using NodaTime;
 namespace Nid.Investments.Contracts;
 
 /// <summary>
-/// 2B1a spec §4, at date d. Null means unknown (no value on or before d) — never zero. <see cref="GainPct"/> is null
-/// when unknown or undefined (net contributions ≤ 0): <see cref="Value"/> tells which.
+/// 2B1a spec §4, at date d. Null means unknown (no value on or before d) — never zero. <see cref="GainPct"/> is the gain
+/// over the total paid in (opening and contributions), null when unknown or undefined (nothing paid in): <see cref="Value"/>
+/// tells which. <see cref="AnnualReturnPct"/> is the XIRR in percent, null when not meaningful (data model §6).
 /// </summary>
 public sealed record EnvelopeFigures(
     Money? Value, LocalDate? AsOf,
-    Money? NetContributions, Money? Gain, decimal? GainPct,
+    Money? NetContributions, Money? Gain, decimal? GainPct, decimal? AnnualReturnPct,
     Money? Fees, Money? GainAfterFees, Money? Income,
     Money ContributionsSince, Money WithdrawalsSince,
     bool MissingOpening, int? StaleDays);

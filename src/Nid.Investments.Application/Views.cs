@@ -13,12 +13,12 @@ public sealed record AmountView(string Amount, string Currency)
 }
 
 public sealed record FiguresView(
-    AmountView? Value, LocalDate? AsOf, AmountView? NetContributions, AmountView? Gain, decimal? GainPct,
+    AmountView? Value, LocalDate? AsOf, AmountView? NetContributions, AmountView? Gain, decimal? GainPct, decimal? AnnualReturnPct,
     AmountView? Fees, AmountView? GainAfterFees, AmountView? Income,
     AmountView ContributionsSince, AmountView WithdrawalsSince, bool MissingOpening, int? StaleDays)
 {
     public static FiguresView From(EnvelopeFigures f) => new(
-        AmountView.From(f.Value), f.AsOf, AmountView.From(f.NetContributions), AmountView.From(f.Gain), f.GainPct,
+        AmountView.From(f.Value), f.AsOf, AmountView.From(f.NetContributions), AmountView.From(f.Gain), f.GainPct, f.AnnualReturnPct,
         AmountView.From(f.Fees), AmountView.From(f.GainAfterFees), AmountView.From(f.Income),
         AmountView.From(f.ContributionsSince), AmountView.From(f.WithdrawalsSince), f.MissingOpening, f.StaleDays);
 }

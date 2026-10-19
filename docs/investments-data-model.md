@@ -63,7 +63,7 @@ Fonctions pures dans `Domain`, montants en décimal exact, à la date d (par dé
 | Valeur, `as_of` | Dernière valorisation courante à la date d (`IValuations.Latest`) ; `v` est sa date. **Inconnue** si aucune valorisation n'existe avant d |
 | **Versements nets** à `v` | `opening` + Σ `contribution` − Σ `withdrawal`, flux courants datés au plus tard `v` (un flux daté du jour de la valorisation est inclus) |
 | **Gain** à `v` | valeur(`v`) − versements nets(`v`) |
-| **Gain en %** | gain ÷ versements nets. **Indéfini** (« n/a ») si les versements nets sont ≤ 0. Arrondi à 0,1 % (demi supérieur) à l'affichage |
+| **Gain en %** | gain ÷ total versé (`opening` + Σ `contribution` au plus tard `v`). Les retraits n'entrent pas au dénominateur : rapporté aux versements nets, le pourcentage montait à chaque rachat (issue #20). **Indéfini** (« n/a ») si rien n'a été versé. Arrondi à 0,1 % (demi s'éloignant de zéro) par le serveur |
 | **Depuis la dernière valeur** | Versements et retraits datés **après** `v`, affichés à part. Un versement postérieur à la dernière valorisation ne fausse jamais le gain |
 | **Performance d'une période** [a, b] | variation de valeur − versements nets de la période, entre les valorisations `va` et `vb`. **Additive** : la performance sur [a, c] est la somme des performances sur [a, b] et [b, c] |
 | Frais payés hors enveloppe | Σ `expense` jusqu'à `v` |
@@ -87,7 +87,8 @@ Règles :
 Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant compte du moment des versements.
 
 - **Flux** : `opening` et `contribution` négatifs, `withdrawal` positifs, valeur finale positive à `v`. Base **Actual/365**.
-- **Résolution** : recherche de racine bornée, Newton avec repli sur la bissection, tolérance 10⁻⁹ sur le taux, 100 itérations au plus ; affichage à 0,1 %.
+- **Résolution** : bissection sur ]−99,99 %, +10 000 %], tolérance 10⁻⁹ sur le taux, 100 itérations au plus ; arrondi par le serveur à 0,1 %. Pas de changement de signe de la VAN sur l'intervalle → non significatif.
+- **Livré** avec l'issue #20 : `annual_return_pct` dans les chiffres d'une enveloppe (`annualReturnPct` sur le fil), affiché « Rendement annuel » sur sa fiche.
 - **Non significatif** si tous les flux ont le même signe ou si la période couvre moins de 12 mois.
 - **Seule exception aux montants décimaux** : la puissance non entière impose un calcul en flottant. Il reste **à la frontière du calcul** : les montants restent décimaux, le taux est reconverti en décimal.
 
@@ -139,7 +140,7 @@ Section `envelopes` de `import-format.md` (les sections `valuations` et `flows` 
 
 | Contrat | Rôle |
 |---|---|
-| `IEnvelopePerformance` | `Get(item, asOf?)` → métriques du §5 ; `Period(item, a, b)` → performance ; `Xirr(item, asOf?)` (étape 6) |
+| `IEnvelopePerformance` | `Get(item, asOf?)` → métriques du §5, dont le TRI (§6) ; `Period(item, a, b)` → performance |
 | `INetWorthContribution` | Valeur, `as_of` et indicateur de péremption de chaque enveloppe |
 | `IUpcomingEvents` | Valorisations attendues |
 | `IProposalHandler<…>` | Voir §8 |
@@ -179,7 +180,7 @@ Enveloppe `pea`, un propriétaire à 100 %, partagée, devise `EUR`.
 | **Gain** | **+3 000 €** |
 | **Gain en %** | **+13,6 %** |
 | Performance sur l'année (de 21 000 à 25 000) | +4 000 € de variation, dont 2 000 € de versements et **2 000 € de gain** |
-| Rendement annualisé (TRI, étape 6) | **14,25 %** |
+| Rendement annualisé (TRI) | **+14,2 %** |
 
 ### 12.2 Import d'une enveloppe
 
@@ -214,7 +215,7 @@ Enveloppe `pea`, un propriétaire à 100 %, partagée, devise `EUR`.
 
 | Test | Vérifie |
 |---|---|
-| Cas doré (§12.1) | Gain +3 000 €, +13,6 %, performance de l'année, TRI 14,25 % |
+| Cas doré (§12.1) | Gain +3 000 €, +13,6 %, performance de l'année, TRI +14,2 % |
 | **Additivité** (propriété) | Performance sur [a, c] = somme sur [a, b] et [b, c] |
 | Flux après la dernière valeur | Le gain reste calculé à `v` ; le flux apparaît dans « depuis la dernière valeur » |
 | Flux du jour de la valorisation | Inclus dans les versements nets |

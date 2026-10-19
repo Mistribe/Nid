@@ -125,7 +125,7 @@ describe('EnvelopesPage', () => {
 
     const row = (await rows())[0]!;
     expect(row).toHaveTextContent('—');
-    expect(within(row).getByText('Pourcentage non calculable : versements nets nuls ou négatifs')).toBeInTheDocument();
+    expect(within(row).getByText('Pourcentage non calculable : aucun versement enregistré')).toBeInTheDocument();
   });
 
   it('flags a stale value with its age', async () => {

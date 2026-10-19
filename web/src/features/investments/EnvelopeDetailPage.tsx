@@ -26,7 +26,7 @@ import { CloseDialog } from './closing/CloseDialog';
 import { ClosedBanner } from './closing/ClosedBanner';
 import { SettingsForm } from './settings/SettingsForm';
 import { TransferDialog } from './transfer/TransferDialog';
-import { Direction, Gain, StaleBadge } from './Figures';
+import { AnnualReturn, Direction, Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 
 const TABS = ['overview', 'values', 'flows', 'settings'] as const;
@@ -184,6 +184,7 @@ export function EnvelopeDetailPage() {
               value: figures.value ? <><Money value={figures.value} tabular />{' '}<StaleBadge days={figures.staleDays} /></> : absent },
             { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
             { label: t('envelope.gain'), value: <Gain figures={figures} /> },
+            ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
             ...extra(t('envelope.fees'), figures.fees),
             ...extra(t('envelope.gain_after_fees'), figures.gainAfterFees),

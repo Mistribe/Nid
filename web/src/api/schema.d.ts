@@ -11123,6 +11123,8 @@ export interface components {
             gain?: null | components["schemas"]["AmountView"];
             /** Format: double */
             gainPct?: null | number;
+            /** Format: double */
+            annualReturnPct?: null | number;
             fees?: null | components["schemas"]["AmountView"];
             gainAfterFees?: null | components["schemas"]["AmountView"];
             income?: null | components["schemas"]["AmountView"];

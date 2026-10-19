@@ -13348,6 +13348,13 @@
             ],
             "format": "double"
           },
+          "annualReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "fees": {
             "oneOf": [
               {

@@ -24,7 +24,7 @@ describe('EnvelopeDetailPage', () => {
     expect(figuresBlock).toHaveTextContent('25 000,00 €');
     expect(figuresBlock).toHaveTextContent('22 000,00 €');
     expect(figuresBlock).toHaveTextContent('+3 000,00 €');
-    expect(figuresBlock).toHaveTextContent('avant fiscalité');
+    expect(figuresBlock).toHaveTextContent('Avant fiscalité');
     await expectNoAxeViolations(container);
 
     await user.click(screen.getByRole('tab', { name: 'Valeurs (2)' }));
@@ -100,6 +100,7 @@ describe('EnvelopeDetailPage', () => {
     expect(line).toHaveTextContent('25 000,00 €');
     expect(within(line).getByText('Versements nets').nextElementSibling).toHaveTextContent('22 000,00 €');
     expect(within(line).getByText('Gain').nextElementSibling).toHaveTextContent(/\+3\s000,00\s€.*\+13,6\s%/);
+    expect(within(line).getByText('Rendement annuel').nextElementSibling).toHaveTextContent(/\+14,2\s%\spar an/);
     await waitFor(() => expect(within(line).getByText('Depuis janvier').nextElementSibling).toHaveTextContent('+439,00 €'));
   });
 

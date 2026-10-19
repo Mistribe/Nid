@@ -4,12 +4,12 @@ export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
 export const figures = (over: Partial<Figures> = {}): Figures => ({
   value: eur('25000.0000'), asOf: '2025-09-30', netContributions: eur('22000.0000'), gain: eur('3000.0000'),
-  gainPct: 13.6, fees: eur('0.0000'), gainAfterFees: eur('3000.0000'), income: eur('0.0000'),
+  gainPct: 13.6, annualReturnPct: 14.2, fees: eur('0.0000'), gainAfterFees: eur('3000.0000'), income: eur('0.0000'),
   contributionsSince: eur('0.0000'), withdrawalsSince: eur('0.0000'), missingOpening: false, staleDays: null, ...over,
 });
 
 export const unknownFigures = (): Figures => ({
-  value: null, asOf: null, netContributions: null, gain: null, gainPct: null, fees: null, gainAfterFees: null,
+  value: null, asOf: null, netContributions: null, gain: null, gainPct: null, annualReturnPct: null, fees: null, gainAfterFees: null,
   income: null, contributionsSince: eur('0'), withdrawalsSince: eur('0'), missingOpening: false, staleDays: null,
 });
 

@@ -920,7 +920,8 @@
     "no_value": "Aucune valeur pour l’instant",
     "dash": "—",
     "pct": "{{value}} %",
-    "pct_undefined": "Pourcentage non calculable : versements nets nuls ou négatifs",
+    "pct_undefined": "Pourcentage non calculable : aucun versement enregistré",
+    "pct_per_year": "{{value}} % par an",
     "stale_one": "Valeur de plus de {{count}} jour",
     "stale_other": "Valeur de plus de {{count}} jours",
     "direction": { "up": "en hausse", "down": "en baisse", "flat": "stable" },
@@ -986,7 +987,8 @@
     "value": "Valeur",
     "net_contributions": "Versements nets",
     "gain": "Gain",
-    "before_tax": "avant fiscalité",
+    "before_tax": "Avant fiscalité. Le pourcentage du gain se calcule sur le total versé ; le rendement annuel tient compte des dates des versements et des retraits, après 12 mois de suivi.",
+    "annual_return": "Rendement annuel",
     "since": "Depuis la dernière valeur : {{contributions}} versés, {{withdrawals}} retirés",
     "fees": "Frais payés hors de l’enveloppe",
     "gain_after_fees": "Gain après frais",
@@ -1774,13 +1776,13 @@
     "investments": {
       "screens": {
         "1": { "title": "Une enveloppe est un compte", "body": "Un livret, un PEA, une assurance-vie : chacun est une enveloppe. Vous y donnez de temps en temps sa valeur, et les sommes que vous y mettez ou en retirez." },
-        "2": { "title": "Le gain se calcule seul", "body": "Nid compare la valeur aux versements nets pour en tirer le gain, toujours « avant fiscalité ». Sans versements nets positifs, le pourcentage n’est pas calculable et reste vide." },
+        "2": { "title": "Le gain se calcule seul", "body": "Nid compare la valeur aux versements nets pour en tirer le gain, toujours « avant fiscalité ». Le pourcentage rapporte ce gain au total versé ; sans versement, il reste vide." },
         "3": { "title": "Une valeur vieillit", "body": "Une valeur devient trop ancienne selon la « Mise à jour de la valeur » choisie pour l’enveloppe : chaque mois, chaque trimestre, chaque année ou à la demande. La routine mensuelle est le moyen le plus rapide de tout garder à jour." },
         "4": { "title": "Par où commencer", "body": "Commencez par « Ajouter une enveloppe », puis donnez-lui sa première valeur." }
       },
       "hint": "Ouvrez une enveloppe puis touchez ? pour voir la visite de sa fiche.",
       "tour": {
-        "figures": { "title": "Valeur et gain", "body": "Ici se lisent la dernière valeur, les versements nets et le gain, avant fiscalité. Les « Frais payés » et les « Revenus perçus » hors de l’enveloppe sont comptés à part." },
+        "figures": { "title": "Valeur et gain", "body": "Ici se lisent la dernière valeur, les versements nets, le gain et, après 12 mois, le rendement annuel, avant fiscalité. Les « Frais payés » et les « Revenus perçus » hors de l’enveloppe sont comptés à part." },
         "evolution": { "title": "Évolution", "body": "La courbe place la valeur face aux versements nets. Elle apparaît à partir de deux valeurs, et un tableau est proposé en alternative." },
         "enter": { "title": "Saisir une valeur", "body": "Ce bouton ouvre le formulaire d’une valeur ; « Ajouter un flux » enregistre un versement ou un retrait. Une valeur saisie à une date déjà connue remplace l’ancienne." },
         "history": { "title": "Valeurs et flux", "body": "Les onglets séparent la vue d’ensemble, les valeurs données, les flux (versements, retraits, frais et revenus) et les réglages. Dans un tableau, le menu ⋯ d’une ligne permet de la corriger ou de la supprimer." }

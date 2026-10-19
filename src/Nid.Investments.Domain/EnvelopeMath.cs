@@ -12,13 +12,14 @@ public static class EnvelopeMath
     {
         var latest = LastOnOrBefore(values, d);
         if (latest is null)
-            return new EnvelopeFigures(null, null, null, null, null, null, null, null,
+            return new EnvelopeFigures(null, null, null, null, null, null, null, null, null,
                 Sum(flows, currency, f => f.Kind == FlowKind.Contribution && f.OccurredOn <= d),
                 Sum(flows, currency, f => f.Kind == FlowKind.Withdrawal && f.OccurredOn <= d),
                 false, null);
 
         var v = latest.AsOf;
         var net = NetContributions(flows, f => f.OccurredOn <= v);
+        var paidIn = Total(flows, f => f.OccurredOn <= v && f.Kind is FlowKind.Opening or FlowKind.Contribution);
         var value = latest.Value.Amount;
         var gain = value - net;
         var fees = Total(flows, f => f.Kind == FlowKind.Expense && f.OccurredOn <= v);
@@ -29,7 +30,8 @@ public static class EnvelopeMath
 
         return new EnvelopeFigures(
             latest.Value, v,
-            M(net, currency), M(gain, currency), net > 0 ? RoundPercent(gain / net * 100m) : null,
+            M(net, currency), M(gain, currency), paidIn > 0 ? RoundPercent(gain / paidIn * 100m) : null,
+            AnnualReturn(flows, latest),
             M(fees, currency), M(gain - fees, currency),
             Sum(flows, currency, f => f.Kind == FlowKind.Income && f.OccurredOn <= v),
             Sum(flows, currency, f => f.Kind == FlowKind.Contribution && f.OccurredOn > v && f.OccurredOn <= d),
@@ -56,6 +58,34 @@ public static class EnvelopeMath
         => values.OrderBy(v => v.AsOf)
             .Select(v => new SeriesPointFigures(v.AsOf, v.Value, M(NetContributions(flows, f => f.OccurredOn <= v.AsOf), currency)))
             .ToList();
+
+    /// <summary>
+    /// <c>investments-data-model.md</c> §6: the money-weighted annual return (XIRR, Actual/365) up to the value at <c>v</c>, in percent;
+    /// null when not meaningful (under 12 months, or cash flows all of one sign).
+    /// </summary>
+    public static decimal? AnnualReturn(IReadOnlyList<Flow> flows, Valuation latest)
+    {
+        var cash = flows.Where(f => f.OccurredOn <= latest.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution or FlowKind.Withdrawal)
+            .Select(f => (On: f.OccurredOn, Amount: f.Kind == FlowKind.Withdrawal ? f.Amount.Amount : -f.Amount.Amount))
+            .Append((On: latest.AsOf, Amount: latest.Value.Amount))
+            .Where(c => c.Amount != 0)
+            .ToList();
+        if (cash.Count < 2 || cash.All(c => c.Amount > 0) || cash.All(c => c.Amount < 0)) return null;
+        var first = cash.Min(c => c.On);
+        if (first.PlusYears(1) > latest.AsOf) return null;
+
+        // The one floating-point calculation (§6): a non-integer power. Amounts stay decimal up to here.
+        var points = cash.Select(c => (Years: NodaTime.Period.DaysBetween(first, c.On) / 365.0, Amount: (double)c.Amount)).ToList();
+        double Npv(double rate) => points.Sum(p => p.Amount / Math.Pow(1 + rate, p.Years));
+        double low = -0.9999, high = 100;
+        if (Math.Sign(Npv(low)) == Math.Sign(Npv(high))) return null;
+        for (var i = 0; i < 100 && high - low > 1e-9; i++)
+        {
+            var mid = (low + high) / 2;
+            if (Math.Sign(Npv(mid)) == Math.Sign(Npv(low))) low = mid; else high = mid;
+        }
+        return RoundPercent((decimal)((low + high) / 2 * 100));
+    }
 
     public static decimal RoundPercent(decimal percent) => Math.Round(percent, 1, MidpointRounding.AwayFromZero);
 
