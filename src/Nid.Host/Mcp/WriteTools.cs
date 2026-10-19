@@ -17,6 +17,28 @@ public sealed record StatementMovement(
     [property: Description("The line's text as printed, 200 characters at most.")] string? Label,
     [property: Description("The bank's reference for the line, if printed, 100 characters at most.")] string? Ref);
 
+/// <summary>One line of a holdings statement, as printed (issue #34 §6).</summary>
+public sealed record HoldingsLine(
+    [property: Description("The holding's name as printed, e.g. 'R-Co Valor C EUR'.")] string? Name,
+    [property: Description("The ISIN, if printed (12 characters).")] string? Isin,
+    [property: Description("Only for a holding Nid does not have yet: 'euro_fund', 'fund', 'etf', 'equity', 'bond', 'structured', 'cash' or 'other'.")] string? Kind,
+    [property: Description("The units, if printed, a decimal string with a point; none for a euro fund or cash.")] string? Units,
+    [property: Description("The unit price, if printed, a decimal string with a point; none for a euro fund or cash.")] string? UnitPrice,
+    [property: Description("The line's value as printed, a decimal string with a point, in the envelope's currency.")] string? Value,
+    [property: Description("The average cost per unit (PRU), if printed.")] string? CostBasisPerUnit);
+
+/// <summary>One movement on a holding, as printed.</summary>
+public sealed record HoldingsMovement(
+    [property: Description("The holding's ISIN or name, as a line or the envelope names it.")] string? Holding,
+    [property: Description("The value date, ISO (yyyy-mm-dd).")] string? On,
+    [property: Description("'allocation_in' (a payment's share), 'allocation_out' (a withdrawal's share), 'maturity', 'fee' (taken in units), "
+        + "'interest' (profit sharing) or 'income' (a dividend). Switches are left out.")] string? Kind,
+    [property: Description("The units, if printed, a decimal string with a point; Nid gives them the kind's sign.")] string? Units,
+    [property: Description("The unit price, if printed.")] string? UnitPrice,
+    [property: Description("A positive decimal string with a point, in the envelope's currency.")] string? Amount,
+    [property: Description("The line's text as printed, 200 characters at most.")] string? Label,
+    [property: Description("The insurer's reference for the line, if printed, 200 characters at most.")] string? Ref);
+
 /// <summary>One row of a bank's amortisation table, as printed (spec 4D2 §2, 3F2's <c>BankRow</c>).</summary>
 public sealed record AmortizationRow(
     [property: Description("The due date, ISO (yyyy-mm-dd).")] string? DueDate,
@@ -46,6 +68,22 @@ public sealed class WriteTools
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, new { asOf, value, movements }, sourceLabel, apply, ct);
+
+    [McpServerTool(Name = "propose_holdings_snapshot", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("A statement's holdings for one envelope: each holding's line on the statement's date and the movements it lists per "
+        + "holding. One call per envelope and statement. Holdings are matched by ISIN, then by exact name; any other line is proposed as a "
+        + "new holding. A snapshot of the same date is replaced. Movements already in Nid are flagged and left out. " + Rules)]
+    public static Task<CallToolResult> ProposeHoldingsSnapshot(IServiceProvider services,
+        [Description("The envelope's id (list_envelopes).")] Guid envelopeId,
+        [Description("The statement's date, ISO (yyyy-mm-dd).")] string asOf,
+        [Description("Every holding line of the statement, at most 100.")] HoldingsLine[] lines,
+        [Description("The statement's movements per holding, at most 200.")] HoldingsMovement[]? movements = null,
+        [Description("true: also record the lines' sum as the envelope's value on asOf.")] bool recordValuation = false,
+        [Description("The document's name, e.g. 'Information trimestrielle 30/06/2026', 200 characters at most.")] string? sourceLabel = null,
+        [Description("true: write directly instead of proposing.")] bool apply = false,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "investments.record_holdings_snapshot", envelopeId,
+            new { asOf, sourceLabel, lines, movements, recordValuation }, sourceLabel, apply, ct);
 
     [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "

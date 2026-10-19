@@ -149,6 +149,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IUpcomingEvents, Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
+        services.AddScoped<IProposalHandler, Nid.Investments.Application.HoldingsSnapshotProposal>();
 
         services.AddDbContext<IncomeDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

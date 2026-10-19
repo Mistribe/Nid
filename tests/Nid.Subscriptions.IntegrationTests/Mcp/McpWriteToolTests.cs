@@ -76,6 +76,42 @@ public class McpWriteToolTests(PostgresFixture fixture)
         Assert.Equal(1, await ProposalCountAsync(app));
     }
 
+    // Issue #34 §6.
+    [Fact]
+    public async Task A_holdings_snapshot_is_proposed_applied_directly_and_read_as_rest_does()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var url = $"/api/v1/investments/envelopes/{envelope}";
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/holdings", new { name = "Fonds A", kind = "fund", isin = "FR0000120271" });
+        var fund = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        object Snapshot(bool apply) => new
+        {
+            envelopeId = envelope, asOf = "2025-09-30", sourceLabel = "Information trimestrielle", apply,
+            lines = new object[] { new { name = "Fonds A", isin = "FR0000120271", units = "200", unitPrice = "105", value = "21000.00" } },
+            movements = new object[] { new { holding = "FR0000120271", on = "2025-09-15", kind = "fee", units = "0.5", amount = "52.50", @ref = "F-9" } },
+        };
+
+        await using (var propose = await ClientAsync(app, TokenPresets.Propose))
+        {
+            var proposed = await AnswerAsync(propose, "propose_holdings_snapshot", Snapshot(apply: false));
+            Assert.Equal(("proposed", "investments.record_holdings_snapshot"),
+                (proposed.GetProperty("outcome").GetString(), proposed.GetProperty("proposal").GetProperty("kind").GetString()));
+        }
+        Assert.Equal(1, await ProposalCountAsync(app));
+
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        Assert.Equal(2, (await AnswerAsync(direct, "propose_holdings_snapshot", Snapshot(apply: true))).GetProperty("appliedRefs").GetArrayLength());
+        var again = await AnswerAsync(direct, "propose_holdings_snapshot", Snapshot(apply: true));
+        Assert.Equal(1, again.GetProperty("appliedRefs").GetArrayLength()); // the snapshot replaced, the fee left out
+        Assert.Equal("payload.movements[0]", again.GetProperty("skipped")[0].GetProperty("field").GetString());
+
+        Assert.Equal(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{url}/holdings")).RootElement.ToString(),
+            (await AnswerAsync(direct, "get_envelope_holdings", new { id = envelope })).ToString());
+        Assert.Equal(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{url}/holdings/{fund}/performance?from=2025-01-01&to=2025-09-30")).RootElement.ToString(),
+            (await AnswerAsync(direct, "get_holding_performance", new { id = envelope, holdingId = fund, from = "2025-01-01", to = "2025-09-30" })).ToString());
+    }
+
     // Final fix 2: a write answer echoes its input (bounded per field); the result limit is the read tools'.
     [Fact]
     public async Task A_write_answer_is_never_refused_as_too_large()

@@ -117,9 +117,10 @@ Le module implémente `IProposalHandler` pour :
 |---|---|---|
 | `investments.record_valuation` | `{ as_of, value: { amount, currency }, note? }` sur une enveloppe cible | `IValuations.Record` |
 | `investments.record_flow` | `{ occurred_on, kind, amount: { amount, currency }, category?, external_ref?, note? }` sur une enveloppe cible | `IFlows.Record` |
+| `investments.record_holdings_snapshot` | `{ asOf, sourceLabel?, lines: [{ name, isin?, kind?, units?, unitPrice?, value, costBasisPerUnit? }], movements: [{ holding, on, kind, units?, unitPrice?, amount, label?, ref? }], recordValuation? }` sur une enveloppe cible (§16) | Crée les supports inconnus, enregistre le relevé (qui remplace celui de la date) et les mouvements absents, par les commandes de l'API, dans la transaction de l'approbation |
 | `investments.open_envelope` | `{ name, kind, institution?, currency, opened_on?, opening?: { occurred_on, amount }, first_valuation?: { as_of, value } }` | Crée l'enveloppe (propriétaire : celui qui a déposé le document), puis ses faits |
 
-Clé de dédoublonnage (`subject_key`) : la date de valorisation (`record_valuation`), ou la date et le montant (`record_flow`).
+Clé de dédoublonnage (`subject_key`) : la date de valorisation (`record_valuation`), ou la date et le montant (`record_flow`), ou la date du relevé (`record_holdings_snapshot`).
 
 ## 9. Sections d'import
 
@@ -300,4 +301,6 @@ Chiffres d'un support (`HoldingMath`, depuis ses seules données) : entrées (`a
 
 Frais et part UC : **coût implicite estimé** d'une année = frais totaux du rapport × moyenne des valeurs du support au 31 décembre précédent et au 31 décembre de l'année (au centime, null sans les deux), toujours présenté comme une estimation ; `cost_report_inconsistent` quand |brut − frais − net| > 0,01 pt. **Parts inexpliquées** entre deux relevés consécutifs qui donnent les parts d'un support : Δparts − Σ parts des mouvements (tolérance 0,0001) → `unexplained_units`, avec, pour des parts disparues, un `fee` **proposé** (parts × prix du relevé le plus récent, jamais écrit). **Part UC** du relevé lu (lignes ni fonds en euros ni liquidités, 0,1 %) ; sous le plancher, `uc_share_below_floor`, aussi dans la routine. Un support ouvert dont `matures_on` tombe dans les 60 jours est un événement « À venir » (`holding_maturity`).
 
-**Livré** : supports et relevés (PR 1) ; mouvements, arbitrages et performance par support (PR 2) ; rapports de frais, parts inexpliquées, part UC et échéances (PR 3) ; import et export des supports, relevés et mouvements (PR 4, §9). API `/api/v1/investments/envelopes/{id}/holdings`, `/holding-snapshots`, `/holdings/{holdingId}/movements|series|performance|cost-reports/{year}` et `/switches`. **À venir** : la section d'import `holding_cost_reports`, proposition dédiée, écrans.
+Proposition `investments.record_holdings_snapshot` (§8, spec §7) : un relevé de supports copié d'un document. Une ligne est le support de son ISIN, sinon de son nom exact, sinon un **nouveau support** proposé (son type est alors exigé). Les mouvements déjà connus (même référence, ou même support, date, type et montant) sont signalés `already_recorded` et laissés de côté ; une ligne dont la valeur bouge de plus de **30 %** depuis le relevé précédent, nette des entrées et sorties, est signalée `large_change`. Outils MCP `propose_holdings_snapshot`, `get_envelope_holdings` et `get_holding_performance`.
+
+**Livré** : supports et relevés (PR 1) ; mouvements, arbitrages et performance par support (PR 2) ; rapports de frais, parts inexpliquées, part UC et échéances (PR 3) ; import et export des supports, relevés et mouvements (PR 4, §9) ; proposition dédiée et outils MCP (PR 5). API `/api/v1/investments/envelopes/{id}/holdings`, `/holding-snapshots`, `/holdings/{holdingId}/movements|series|performance|cost-reports/{year}` et `/switches`. **À venir** : la section d'import `holding_cost_reports`, écrans.

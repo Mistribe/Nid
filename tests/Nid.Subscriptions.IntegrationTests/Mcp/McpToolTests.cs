@@ -14,9 +14,9 @@ public class McpToolTests(PostgresFixture fixture)
 {
     private static readonly string[] Expected =
     [
-        "get_dashboard", "get_envelope", "get_envelope_performance", "get_income_source", "get_loan", "get_loan_schedule",
+        "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule",
         "get_net_worth_history", "get_property", "get_property_routine", "get_routine", "get_subscription", "list_envelopes",
-        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment",
+        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
