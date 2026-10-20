@@ -36,6 +36,18 @@ public sealed class InvestmentTools
         [Description("ISO date, default today.")] string? on = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetHoldingsQuery(new ItemId(id), SubscriptionEndpoints.OptionalDate(on)), ct);
 
+    [McpServerTool(Name = "list_holding_snapshots", ReadOnly = true)]
+    [Description("An envelope's recorded compositions (snapshots), with their ids and lines. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> ListHoldingSnapshots(IServiceProvider services, [Description("The envelope's id.")] Guid id,
+        CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new ListHoldingsSnapshotsQuery(new ItemId(id)), ct);
+
+    [McpServerTool(Name = "list_holding_movements", ReadOnly = true)]
+    [Description("The movements of one holding of an envelope (allocations, switches, fees, interest). " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> ListHoldingMovements(IServiceProvider services, [Description("The envelope's id.")] Guid id,
+        [Description("The holding's id (get_envelope_holdings).")] Guid holdingId, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new ListHoldingMovementsQuery(new ItemId(id), holdingId), ct);
+
     [McpServerTool(Name = "get_holding_performance", ReadOnly = true)]
     [Description("One holding's performance between two dates: start and end values, money in − out, gain. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetHoldingPerformance(IServiceProvider services, [Description("The envelope's id.")] Guid id,

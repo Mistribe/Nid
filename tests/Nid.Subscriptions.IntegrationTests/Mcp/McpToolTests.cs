@@ -16,7 +16,7 @@ public class McpToolTests(PostgresFixture fixture)
     [
         "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule",
         "get_net_worth_history", "get_property", "get_property_routine", "get_routine", "get_subscription", "list_envelopes",
-        "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment",
+        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -105,6 +105,16 @@ public class McpToolTests(PostgresFixture fixture)
             SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}"), await CallAsync(client, "get_envelope", new { id = envelope }));
             SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/performance?from=2025-01-01&to=2025-10-01"),
                 await CallAsync(client, "get_envelope_performance", new { id = envelope, from = "2025-01-01", to = "2025-10-01" }));
+            var created = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/holdings", new { name = "Fonds euros", kind = "euro_fund" });
+            Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync());
+            var holding = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+            SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/holdings?on=2025-10-01"),
+                await CallAsync(client, "get_envelope_holdings", new { id = envelope, on = "2025-10-01" }));
+            SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/holding-snapshots"), await CallAsync(client, "list_holding_snapshots", new { id = envelope }));
+            SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/holdings/{holding}/movements"),
+                await CallAsync(client, "list_holding_movements", new { id = envelope, holdingId = holding }));
+            SameJson(await app.GetRawAsync(a, $"/api/v1/investments/envelopes/{envelope}/holdings/{holding}/performance?from=2025-01-01&to=2025-10-01"),
+                await CallAsync(client, "get_holding_performance", new { id = envelope, holdingId = holding, from = "2025-01-01", to = "2025-10-01" }));
             SameJson(await app.GetRawAsync(a, $"/api/v1/income/sources/{income}"), await CallAsync(client, "get_income_source", new { id = income }));
             SameJson(await app.GetRawAsync(a, $"/api/v1/realestate/loans/{loan}"), await CallAsync(client, "get_loan", new { id = loan }));
             SameJson(await app.GetRawAsync(a, $"/api/v1/realestate/loans/{loan}/schedule"), await CallAsync(client, "get_loan_schedule", new { id = loan }));
