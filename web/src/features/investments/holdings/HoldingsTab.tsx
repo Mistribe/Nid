@@ -1,22 +1,27 @@
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { AlertTriangle, ChevronRightIcon, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
+import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { RowMenu } from '@/components/page/RowMenu';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
+import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
 import { HOLDINGS, type EnvelopeDetail, type Holding } from '../api';
 import { AnnualReturn, Direction, pct } from '../Figures';
 import { directionOf } from '../format';
 import { CloseHoldingDialog, HoldingDialog } from './HoldingDialog';
-import { formatUnits, holdingKindText, percent, warningText } from './holdingFormat';
+import { formatUnits, HOLDING_KINDS, holdingKindText, percent, warningText } from './holdingFormat';
 import { MovementDialog } from './MovementDialog';
 import { SnapshotDialog } from './SnapshotDialog';
 import { SwitchDialog } from './SwitchDialog';
@@ -35,6 +40,9 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
   const answer = $api.useQuery('get', HOLDINGS, { params: { path: { id: envelope.id } } });
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [query, setQuery] = useState('');
+  const [kind, setKind] = useState('');
+  const [showClosed, setShowClosed] = useState(false);
   const open = (next: Dialog) => { setAnnouncement(''); setDialog(next); };
   const done = (message: string) => { setDialog(null); setAnnouncement(message); };
   const close = () => setDialog(null);
@@ -45,6 +53,10 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
   const view = answer.data;
   const holdings = view.holdings;
   const openHoldings = holdings.filter((h) => !h.closedOn);
+  const needle = query.trim().toLocaleLowerCase('fr');
+  const shown = holdings.filter((h) => (showClosed || !h.closedOn) && (!kind || h.kind === kind)
+    && (!needle || h.name.toLocaleLowerCase('fr').includes(needle) || h.isin?.toLocaleLowerCase('fr').includes(needle)));
+  const kinds = HOLDING_KINDS.filter((k) => holdings.some((h) => h.kind === k));
   const nameOf = (id: string) => holdings.find((h) => h.id === id)?.name;
   const dash = <span className="text-muted-foreground">{t('investments.dash')}</span>;
 
@@ -83,58 +95,90 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
             ) : null}
           </div>
           {view.complete === false ? <p className="text-sm text-muted-foreground">{t('holdings.partial')}</p> : null}
-          <SortableTable caption={t('holdings.table')} rows={holdings} rowKey={(h) => h.id} initialSort={{ id: 'value', desc: true }}
-            columns={[
-              { id: 'name', header: t('holdings.name'), sort: (h) => h.name, cell: (h) => <HoldingLink envelope={envelope.id} holding={h} /> },
-              { id: 'kind', header: t('holdings.kind_label'), sort: (h) => holdingKindText(t, h.kind), cell: (h) => holdingKindText(t, h.kind) },
-              { id: 'units', header: t('holdings.units'), align: 'end', cell: (h) => (h.line?.units ? formatUnits(h.line.units) : dash) },
-              { id: 'price', header: t('holdings.unit_price'), align: 'end', cell: (h) => (h.line?.unitPrice ? formatUnits(h.line.unitPrice) : dash) },
-              { id: 'value', header: t('holdings.value'), align: 'end', sort: (h) => amountKey(h.line?.value.amount), cell: (h) => (h.line ? <Money value={h.line.value} tabular /> : dash) },
-              { id: 'weight', header: t('holdings.weight'), align: 'end', sort: (h) => h.line?.weightPct ?? -1,
-                cell: (h) => (h.line?.weightPct != null ? t('investments.pct', { value: percent(h.line.weightPct) }) : dash) },
-              { id: 'gain', header: t('holdings.gain'), align: 'end', sort: (h) => amountKey(h.figures?.gain.amount), cell: (h) => (h.figures ? <Direction amount={h.figures.gain} /> : dash) },
-              { id: 'gainPct', header: t('holdings.gain_pct'), align: 'end', sort: (h) => h.figures?.gainPct ?? Number.NEGATIVE_INFINITY,
-                cell: (h) => (h.figures?.gainPct != null ? t('investments.pct', { value: pct(h.figures.gainPct) }) : dash) },
-              { id: 'annual', header: t('holdings.annual_return'), align: 'end', sort: (h) => h.figures?.annualReturnPct ?? Number.NEGATIVE_INFINITY,
-                cell: (h) => (h.figures?.annualReturnPct != null ? <AnnualReturn value={h.figures.annualReturnPct} /> : dash) },
-              ...(writable ? [{
-                id: 'actions', header: t('envelope.actions'),
-                cell: (h: Holding) => (
-                  <RowMenu label={t('holdings.row_menu', { name: h.name })} items={[
-                    { label: t('holdings.edit'), onSelect: () => open({ kind: 'holding', editing: h }) },
-                    ...(h.closedOn ? [] : [
-                      { label: t('holdings.movement.open'), onSelect: () => open({ kind: 'movement', holding: h }) },
-                      { label: t('holdings.close.open'), onSelect: () => open({ kind: 'close', holding: h }) },
-                    ]),
-                  ]} />
-                ),
-              }] : []),
-            ]}
-            mobile={(h) => (
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <HoldingLink envelope={envelope.id} holding={h} />
-                  <p className="text-sm text-muted-foreground">{holdingKindText(t, h.kind)}</p>
-                </div>
-                <div className="text-right">
-                  {h.line ? <Money value={h.line.value} tabular /> : dash}
-                  {h.figures ? <p className="text-sm"><Direction amount={h.figures.gain} /></p> : null}
-                </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label={t('holdings.search')}>
+              {(control) => <Input {...control} type="search" value={query} onChange={(e) => setQuery(e.target.value)} />}
+            </Field>
+            {kinds.length > 1 ? (
+              <div className="w-48">
+                <Field label={t('holdings.kind_label')}>
+                  {(control) => (
+                    <SelectField {...control} value={kind} onValueChange={setKind}
+                      options={[{ value: '', label: t('holdings.kind_all') }, ...kinds.map((k) => ({ value: k, label: holdingKindText(t, k) }))]} />
+                  )}
+                </Field>
               </div>
-            )} />
+            ) : null}
+            {openHoldings.length < holdings.length ? (
+              <div className="pb-2"><SwitchField label={t('holdings.show_closed')} checked={showClosed} onCheckedChange={setShowClosed} /></div>
+            ) : null}
+          </div>
+          {shown.length === 0 ? <p className="text-sm text-muted-foreground">{t('holdings.no_match')}</p> : (
+            <SortableTable caption={t('holdings.table')} rows={shown} rowKey={(h) => h.id} initialSort={{ id: 'value', desc: true }}
+              columns={[
+                { id: 'name', header: t('holdings.name'), sort: (h) => h.name, cell: (h) => <HoldingLink envelope={envelope.id} holding={h} /> },
+                { id: 'kind', header: t('holdings.kind_label'), sort: (h) => holdingKindText(t, h.kind), cell: (h) => holdingKindText(t, h.kind) },
+                { id: 'units', header: t('holdings.units'), align: 'end', cell: (h) => (h.line?.units ? formatUnits(h.line.units) : dash) },
+                { id: 'price', header: t('holdings.unit_price'), align: 'end', cell: (h) => (h.line?.unitPrice ? formatUnits(h.line.unitPrice) : dash) },
+                { id: 'value', header: t('holdings.value'), align: 'end', sort: (h) => amountKey(h.line?.value.amount), cell: (h) => (h.line ? <Money value={h.line.value} tabular /> : dash) },
+                { id: 'weight', header: t('holdings.weight'), align: 'end', sort: (h) => h.line?.weightPct ?? -1,
+                  cell: (h) => (h.line?.weightPct != null ? t('investments.pct', { value: percent(h.line.weightPct) }) : dash) },
+                { id: 'gain', header: t('holdings.gain'), align: 'end', sort: (h) => amountKey(h.figures?.gain.amount), cell: (h) => (h.figures ? <Direction amount={h.figures.gain} /> : dash) },
+                { id: 'gainPct', header: t('holdings.gain_pct'), align: 'end', sort: (h) => h.figures?.gainPct ?? Number.NEGATIVE_INFINITY,
+                  cell: (h) => (h.figures?.gainPct != null ? t('investments.pct', { value: pct(h.figures.gainPct) }) : dash) },
+                { id: 'annual', header: t('holdings.annual_return'), align: 'end', sort: (h) => h.figures?.annualReturnPct ?? Number.NEGATIVE_INFINITY,
+                  cell: (h) => (h.figures?.annualReturnPct != null ? <AnnualReturn value={h.figures.annualReturnPct} /> : dash) },
+                ...(writable ? [{
+                  id: 'actions', header: t('envelope.actions'),
+                  cell: (h: Holding) => (
+                    <RowMenu label={t('holdings.row_menu', { name: h.name })} items={[
+                      { label: t('holdings.edit'), onSelect: () => open({ kind: 'holding', editing: h }) },
+                      ...(h.closedOn ? [] : [
+                        { label: t('holdings.movement.open'), onSelect: () => open({ kind: 'movement', holding: h }) },
+                        { label: t('holdings.close.open'), onSelect: () => open({ kind: 'close', holding: h }) },
+                      ]),
+                    ]} />
+                  ),
+                }] : []),
+              ]}
+              mobile={(h) => (
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <HoldingLink envelope={envelope.id} holding={h} />
+                    <p className="text-sm text-muted-foreground">{holdingKindText(t, h.kind)}</p>
+                  </div>
+                  <div className="text-right">
+                    {h.line ? <Money value={h.line.value} tabular /> : dash}
+                    {h.figures ? <p className="text-sm"><Direction amount={h.figures.gain} /></p> : null}
+                  </div>
+                </div>
+              )} />
+          )}
           {view.unallocated && directionOf(view.unallocated.amount) !== 'flat' ? (
             <p className="flex justify-between gap-4 border-t pt-2 text-sm">
               <span>{t('holdings.unallocated')}</span><Money value={view.unallocated} tabular />
             </p>
           ) : null}
           {view.warnings.length > 0 ? (
-            <ul aria-label={t('holdings.warnings')} className="space-y-1">
-              {view.warnings.map((w, i) => (
-                <li key={`${w.code}-${w.holdingId ?? ''}-${w.on ?? ''}-${i}`} className="flex items-start gap-2 text-sm">
-                  <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-warning" />{warningText(t, w, nameOf)}
-                </li>
-              ))}
-            </ul>
+            // Folded: a long history can carry hundreds of unit differences, which would dwarf the table (#47).
+            <Collapsible className="space-y-2">
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="group -ml-3">
+                  <ChevronRightIcon aria-hidden="true" className="transition-transform group-data-[state=open]:rotate-90" />
+                  <AlertTriangle aria-hidden="true" className="text-status-warning" />
+                  {t('holdings.warnings_toggle', { count: view.warnings.length })}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+              <ul aria-label={t('holdings.warnings')} className="space-y-1">
+                {view.warnings.map((w, i) => (
+                  <li key={`${w.code}-${w.holdingId ?? ''}-${w.on ?? ''}-${i}`} className="flex items-start gap-2 text-sm">
+                    <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-warning" />{warningText(t, w, nameOf)}
+                  </li>
+                ))}
+              </ul>
+              </CollapsibleContent>
+            </Collapsible>
           ) : null}
         </section>
       )}

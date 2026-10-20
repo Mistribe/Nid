@@ -93,7 +93,7 @@ describe('the « Supports » tab', () => {
 
   it('lists the holdings with the server’s figures, the unallocated rest, the UC share and the warnings', async () => {
     serve(view());
-    const { container } = await renderApp(`/investments/${PEA}?tab=holdings`);
+    const { user, container } = await renderApp(`/investments/${PEA}?tab=holdings`);
 
     const table = await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
     const rows = within(table).getAllByRole('row').slice(1);
@@ -107,9 +107,30 @@ describe('the « Supports » tab', () => {
     const figures = screen.getByRole('region', { name: 'Valeur et gain' });
     expect(figures).toHaveTextContent('Part UC55,6 %sous le plancher de 60 %');
     expect(figures).toHaveTextContent('Frais prélevés12,00 €');
+    expect(screen.queryByRole('list', { name: 'Avertissements des supports' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '2 avertissements' }));
     const warnings = screen.getByRole('list', { name: 'Avertissements des supports' });
     expect(warnings).toHaveTextContent('Monde ESG : 0,8 parts disparues sans mouvement au 30 septembre 2025, soit environ 60,00 € de frais à enregistrer ?');
     await expectNoAxeViolations(container);
+  });
+
+  it('filters the holdings by name or ISIN and by type, the closed ones on demand', async () => {
+    const closed = holding({ id: 'closed', name: 'Ancien fonds', closedOn: '2024-06-30', line: null, figures: null });
+    serve(view({ holdings: [holding(), euroFund, closed] }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    const table = await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
+    const names = () => within(table).getAllByRole('row').slice(1).map((r) => r.textContent);
+    expect(names()).toHaveLength(2);
+    await user.click(screen.getByRole('switch', { name: 'Afficher les supports clôturés' }));
+    expect(names()).toHaveLength(3);
+    await pick(user, 'Type', 'Fonds en euros');
+    expect(names()).toEqual([expect.stringContaining('Fonds euros')]);
+    await pick(user, 'Type', 'Tous les types');
+    await user.type(screen.getByRole('searchbox', { name: 'Rechercher un support' }), 'esg');
+    expect(names()).toEqual([expect.stringContaining('Monde ESG')]);
+    await user.type(screen.getByRole('searchbox', { name: 'Rechercher un support' }), 'zzz');
+    expect(screen.getByText('Aucun support ne correspond aux filtres.')).toBeInTheDocument();
   });
 
   it('records a snapshot prefilled with the previous units, partial when a row is left empty, with the envelope’s value on demand', async () => {
