@@ -52,7 +52,7 @@ describe('EnvelopesPage', () => {
     expect(await names()).toEqual(['Gros', 'Petit', 'Inconnu']);
     const table = screen.getByRole('table', { name: 'Liste des enveloppes' });
     await user.click(within(table).getByRole('button', { name: 'Valeur' }));
-    expect(await names()).toEqual(['Inconnu', 'Petit', 'Gros']);
+    expect(await names()).toEqual(['Petit', 'Gros', 'Inconnu']);
     await user.click(within(table).getByRole('button', { name: 'Valeur' }));
     expect(await names()).toEqual(['Gros', 'Petit', 'Inconnu']);
   });

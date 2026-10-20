@@ -26,6 +26,10 @@ public sealed record CoverageView(LocalDate Start, LocalDate EndBefore, string S
 
 public sealed record ChargeView(LocalDate Date, MoneyView Price, bool IsProjected, Guid? PurchaseId);
 
+/// <param name="AnnualCostConverted">
+/// The 12 months from the 1st of the current month, converted; charges past the walk horizon (<c>?horizon=</c>) are not
+/// projected, so a horizon under 12 months understates it.
+/// </param>
 public sealed record SubscriptionSummary(
     ItemId Id,
     string DisplayName,
@@ -41,7 +45,8 @@ public sealed record SubscriptionSummary(
     bool ConvertedIsEstimate,
     int FreeDays,
     IReadOnlyList<FindingView> Findings,
-    IReadOnlyList<ItemOwnerView> Owners);
+    IReadOnlyList<ItemOwnerView> Owners,
+    MoneyView? AnnualCostConverted);
 
 /// <summary>
 /// The household totals are NOT the sum of the rows: a purchase granting to several subscriptions shows in
@@ -61,7 +66,9 @@ public sealed record SubscriptionList(
     MoneyView? HouseholdAmortizedCostConverted,
     bool HouseholdConvertedIsEstimate,
     IReadOnlyList<Guid> SharedPurchaseIds,
-    IReadOnlyList<FindingView> Findings) : IExposesItems
+    IReadOnlyList<GroupView> Groups,
+    IReadOnlyList<FindingView> Findings,
+    MoneyView? HouseholdAnnualCostConverted) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }

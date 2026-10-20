@@ -25,8 +25,13 @@ export type RootSearch = { scope?: 'me' };
 export type RoutineSearch = { on?: string };
 export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel };
 
-/** The list's own filters, in the URL beside the root scope (1E2a design §3; labels comma-joined, 1E2b2 design §3.3). */
-export type SubscriptionsSearch = { status?: 'active' | 'ended'; q?: string; label?: string };
+/**
+ * The list's own filters, in the URL beside the root scope (labels comma-joined, 1E2b2 design §3.3), and its tab. The
+ * defaults stay out of the URL: `status` active, `group` provider (subscriptions dashboard design §3.3).
+ */
+export type SubscriptionsSearch = {
+  status?: 'active' | 'ended' | 'all'; q?: string; label?: string; group?: 'provider' | 'label' | 'person' | 'none'; tab?: string;
+};
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
 export type InvestmentsSearch = { closed?: 1 };
@@ -94,9 +99,11 @@ const subscriptionsRoute = createRoute({
   path: '/subscriptions',
   beforeLoad: requireModule('subscriptions'),
   validateSearch: (search: Record<string, unknown>): SubscriptionsSearch => ({
-    ...(search.status === 'active' || search.status === 'ended' ? { status: search.status } : {}),
+    ...(search.status === 'ended' || search.status === 'all' ? { status: search.status } : {}),
+    ...(search.group === 'label' || search.group === 'person' || search.group === 'none' ? { group: search.group } : {}),
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
     ...(typeof search.label === 'string' && search.label !== '' ? { label: search.label } : {}),
+    ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/subscriptions/SubscriptionsPage'), 'SubscriptionsPage'),
 });

@@ -15,10 +15,12 @@ public static class SubscriptionEndpoints
         var api = routes.MapGroup("/api/v1/subscriptions").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        api.MapGet("", async (string? scope, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
+        api.MapGet("", async (string? scope, string? from, string? to, string? horizon, string? q, string? status, string? label, string? group,
+                IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new ListSubscriptionsQuery(
-                        ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
+                        ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon),
+                        new ListFilter(q, ParseStatus(status), ParseLabels(label)), ParseGroup(group)), ct))
                 .ToHttp(list => list))
             .Returns<SubscriptionList>();
 
@@ -97,6 +99,27 @@ public static class SubscriptionEndpoints
         _ when string.Equals(scope, "household", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Household,
         _ => throw new BadHttpRequestException($"'{scope}' is not a scope: send 'household' or 'me'."),
     };
+
+    /// <summary>An absent or unknown status is "all", like the web's missing <c>status</c>.</summary>
+    internal static ListStatus ParseStatus(string? status) => status?.ToLowerInvariant() switch
+    {
+        "active" => ListStatus.Active,
+        "ended" => ListStatus.Ended,
+        _ => ListStatus.All,
+    };
+
+    /// <summary>An absent or unknown group is "none": a flat list.</summary>
+    internal static ListGroup ParseGroup(string? group) => group?.ToLowerInvariant() switch
+    {
+        "provider" => ListGroup.Provider,
+        "label" => ListGroup.Label,
+        "person" => ListGroup.Person,
+        _ => ListGroup.None,
+    };
+
+    /// <summary><c>label=a,b</c>: a label key never holds a comma. Blanks and duplicates are dropped.</summary>
+    internal static IReadOnlyList<string> ParseLabels(string? label)
+        => (label ?? "").Split(',').Select(k => k.Trim()).Where(k => k != "").Distinct().ToList();
 
     /// <summary>
     /// Absent stays absent, and keeps the documented default. Present-but-unreadable is a bad request, never

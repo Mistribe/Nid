@@ -12,7 +12,7 @@ export type ItemOwner = { personId: string; shareBp: number };
  * principle 6). The colour rank is the dashboard's: adults by creation, then dependents (the persons list comes in
  * creation order). A child is shown by their first name.
  */
-export function OwnerChips({ owners }: { owners: ItemOwner[] }) {
+export function OwnerChips({ owners, shares: showShares = true }: { owners: ItemOwner[]; shares?: boolean }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const people = $api.useQuery('get', PERSONS);
@@ -28,8 +28,8 @@ export function OwnerChips({ owners }: { owners: ItemOwner[] }) {
 
   // Equal shares read once (« 50 % »), unequal ones in the chips' order (« 70 % / 30 % »).
   const shares = shown.map((o) => t('owner.pct', { value: percent(o.shareBp / 100) }));
-  const equal = new Set(shares).size === 1;
-  const split = shown.length > 1 ? (equal ? shares[0] : shares.join(' / ')) : null;
+  const equal = !showShares || new Set(shares).size === 1;
+  const split = showShares && shown.length > 1 ? (equal ? shares[0] : shares.join(' / ')) : null;
 
   return (
     <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">

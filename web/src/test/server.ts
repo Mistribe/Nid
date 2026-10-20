@@ -19,8 +19,10 @@ export const handlers = [
   // The subscriptions list is read by every test that lands on it.
   http.get('*/api/v1/subscriptions', () => HttpResponse.json({
     items: [], householdCashCost: [], householdAmortizedCost: [], householdCashCostConverted: null,
-    householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], findings: [],
+    householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], groups: [], findings: [],
   })),
+  // ... and the labels its filter offers.
+  http.get('*/api/v1/subscriptions/labels', () => HttpResponse.json([])),
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/realestate/routine', () => HttpResponse.json(estateRoutine())),

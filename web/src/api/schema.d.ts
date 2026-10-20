@@ -1172,6 +1172,10 @@ export interface paths {
                     from?: string;
                     to?: string;
                     horizon?: string;
+                    q?: string;
+                    status?: string;
+                    label?: string;
+                    group?: string;
                 };
                 header?: never;
                 path?: never;
@@ -13045,6 +13049,21 @@ export interface components {
             /** Format: date */
             startsOn?: null | string;
         };
+        GroupItemView: {
+            /** Format: uuid */
+            id: string;
+            amortizedCostConverted?: null | components["schemas"]["MoneyView"];
+            annualCostConverted?: null | components["schemas"]["MoneyView"];
+        };
+        GroupView: {
+            key: string;
+            name?: null | string;
+            itemIds: string[];
+            items: components["schemas"]["GroupItemView"][];
+            amortizedCostConverted?: null | components["schemas"]["MoneyView"];
+            annualCostConverted?: null | components["schemas"]["MoneyView"];
+            convertedIsEstimate: boolean;
+        };
         HoldingBody: {
             name?: null | string;
             isin?: null | string;
@@ -14455,7 +14474,9 @@ export interface components {
             householdAmortizedCostConverted?: null | components["schemas"]["MoneyView"];
             householdConvertedIsEstimate: boolean;
             sharedPurchaseIds: string[];
+            groups: components["schemas"]["GroupView"][];
             findings: components["schemas"]["FindingView"][];
+            householdAnnualCostConverted?: null | components["schemas"]["MoneyView"];
         };
         SubscriptionSummary: {
             /** Format: uuid */
@@ -14477,6 +14498,7 @@ export interface components {
             freeDays: number;
             findings: components["schemas"]["FindingView"][];
             owners: components["schemas"]["ItemOwnerView"][];
+            annualCostConverted?: null | components["schemas"]["MoneyView"];
         };
         SwitchBody: {
             occurredOn?: null | string;

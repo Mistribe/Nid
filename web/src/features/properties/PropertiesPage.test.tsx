@@ -56,7 +56,7 @@ describe('PropertiesPage', () => {
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
     expect(await names()).toEqual(['Maison de NantesPartagé', 'Parking garePrivé', 'StudioPartagé']);
     await user.click(within(screen.getByRole('table', { name: 'Liste des biens' })).getByRole('button', { name: 'Valeur' }));
-    expect(await names()).toEqual(['Parking garePrivé', 'StudioPartagé', 'Maison de NantesPartagé']);
+    expect(await names()).toEqual(['StudioPartagé', 'Maison de NantesPartagé', 'Parking garePrivé']);
   });
 
   it('stale rows show their date with an icon and « À réestimer » in words; a property never estimated says so', async () => {

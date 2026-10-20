@@ -18,6 +18,10 @@ public static class CostWindow
             ? range
             : DateRange.Create(start, start.PlusDays(1)).TryGetValue(out var fallback) ? fallback : default;
     }
+
+    /// <summary>The annual cost window: 12 months from the 1st of the current month.</summary>
+    public static DateRange Year(LocalDate today)
+        => Resolve(today, null, new LocalDate(today.Year, today.Month, 1).PlusMonths(12));
 }
 
 /// <summary>The cash and amortized totals of one subscription or of the household, converted.</summary>
@@ -34,9 +38,13 @@ public sealed record Converted(ConvertedTotal Cash, ConvertedTotal Amortized)
 
 public static class SubscriptionViews
 {
+    /// <summary>The missing-rate findings of the month totals and of the annual figure, one per rate.</summary>
+    public static IEnumerable<FindingView> FxFindings(Converted converted, ConvertedTotal annual)
+        => converted.Findings.Concat(annual.Missing.Select(FindingView.From)).DistinctBy(f => f.Reference);
+
     public static SubscriptionSummary Summarise(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
-        IReadOnlyList<ItemOwnerView> owners)
+        IReadOnlyList<ItemOwnerView> owners, ConvertedTotal annual)
         => new(
             input.Subscription.Id,
             displayName,
@@ -51,8 +59,9 @@ public static class SubscriptionViews
             converted.AmortizedView,
             converted.IsEstimate,
             timeline.FreeDays(window),
-            timeline.Warnings.Select(FindingView.From).Concat(converted.Findings).ToList(),
-            owners);
+            timeline.Warnings.Select(FindingView.From).Concat(FxFindings(converted, annual)).ToList(),
+            owners,
+            annual.Total is { } m ? MoneyView.From(m) : null);
 
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,

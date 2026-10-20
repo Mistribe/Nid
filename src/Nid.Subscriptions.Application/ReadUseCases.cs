@@ -24,7 +24,8 @@ public static class Horizons
 }
 
 public sealed record ListSubscriptionsQuery(
-    VisibilityScope Scope, LocalDate? From, LocalDate? To, LocalDate? Horizon) : IQuery<SubscriptionList>;
+    VisibilityScope Scope, LocalDate? From, LocalDate? To, LocalDate? Horizon, ListFilter? Filter = null,
+    ListGroup Group = ListGroup.None) : IQuery<SubscriptionList>;
 
 public sealed record GetSubscriptionQuery(
     ItemId ItemId, LocalDate? From, LocalDate? To, LocalDate? Horizon) : IQuery<SubscriptionDetail>, IItemScoped
@@ -61,24 +62,35 @@ public sealed class ListSubscriptionsHandler(
         // One provider query for the whole list; every subscription in it is visible, so is its provider (design §5).
         var providerViews = await ProviderLookup.ForAsync(store, providers, built.Select(b => b.Input.Subscription.Id).ToList(), ct);
 
+        // The filter narrows the rows and, with them, the household totals below.
+        var filter = query.Filter ?? ListFilter.None;
+        built = built.Where(b => filter.Matches(
+            b.DisplayName, providerViews.GetValueOrDefault(b.Input.Subscription.Id), b.Timeline.ExpiresOn(), today)).ToList();
+
         var timelines = built.Select(b => b.Timeline).ToList();
         var reference = await household.ReferenceCurrencyAsync(ct);
         var householdCash = HouseholdCost.CashPieces(timelines, window);
         var householdAmortized = HouseholdCost.AmortizedPieces(timelines, window);
+        var year = CostWindow.Year(today);
+        var householdAnnual = HouseholdCost.AmortizedPieces(timelines, year);
         var rates = await Conversion.LoadAsync(
-            fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized), reference, today, ct);
+            fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized).Concat(householdAnnual), reference, today, ct);
 
         var summaries = built.Select(b => SubscriptionViews.Summarise(
             b.Input, b.Timeline, b.DisplayName, providerViews.GetValueOrDefault(b.Input.Subscription.Id), window,
-            Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners)).ToList();
+            Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
+            FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference))).ToList();
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
         var householdConverted = Conversion.Of(householdCash, householdAmortized, reference, rates);
+        var annual = FxConversion.Convert(householdAnnual, rates, reference);
         return Result.Success(new SubscriptionList(
             summaries, cash, amortized,
             householdConverted.CashView, householdConverted.AmortizedView, householdConverted.IsEstimate,
             shared,
-            HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(householdConverted.Findings).ToList()));
+            ListGrouping.Group(query.Group, summaries),
+            HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(SubscriptionViews.FxFindings(householdConverted, annual)).ToList(),
+            annual.Total is { } t ? MoneyView.From(t) : null));
     }
 }
 
