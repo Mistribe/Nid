@@ -3,6 +3,8 @@ import { defaultEffectiveDate, expectedRange, monthLabel, paymentDates, paymentW
 
 describe('expectedRange', () => {
   it.each([
+    ['last12', '2026-10-07', { from: '2025-11-01', to: '2026-10-31' }],
+    ['last12', '2026-01-31', { from: '2025-02-01', to: '2026-01-31' }],
     ['next12', '2026-10-07', { from: '2026-10-01', to: '2027-09-30' }],
     ['next12', '2026-01-31', { from: '2026-01-01', to: '2026-12-31' }],
     ['year', '2026-10-07', { from: '2026-01-01', to: '2026-12-31' }],

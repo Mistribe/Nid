@@ -36,14 +36,17 @@ export type SubscriptionsSearch = {
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
 export type InvestmentsSearch = { closed?: 1 };
 
-/** The income list's own filter: ended sources shown on demand (2C2a design §4); anything but `1` is dropped. */
-export type IncomeSearch = { ended?: 1 };
+/**
+ * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
+ * default and stays out of the URL), person, kind and isolated source; anything invalid is dropped.
+ */
+export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string };
 
 /**
- * The income detail's own choices: the expected-income period (2C2b design §5) and the one-offs listed (issue #22); the
- * defaults stay out of the URL.
+ * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
+ * #22) and the evolution chart's period (income dashboard §4, `12m` by default); the defaults stay out of the URL.
  */
-export type IncomeDetailSearch = { expected?: 'year' | 'next_year'; oneOffs?: 'all'; tab?: string };
+export type IncomeDetailSearch = { expected?: 'next12' | 'year' | 'next_year'; oneOffs?: 'all'; period?: '3y' | 'all'; tab?: string };
 
 /** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
 export type DetailSearch = { tab?: string };
@@ -143,7 +146,13 @@ const incomeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/income',
   beforeLoad: requireModule('income'),
-  validateSearch: (search: Record<string, unknown>): IncomeSearch => (search.ended === 1 || search.ended === '1' ? { ended: 1 } : {}),
+  validateSearch: (search: Record<string, unknown>): IncomeSearch => ({
+    ...(search.ended === 1 || search.ended === '1' ? { ended: 1 as const } : {}),
+    ...(search.period === '12m' || search.period === '3y' ? { period: search.period } : {}),
+    ...(typeof search.person === 'string' && search.person ? { person: search.person } : {}),
+    ...(typeof search.kind === 'string' && search.kind ? { kind: search.kind } : {}),
+    ...(typeof search.source === 'string' && search.source ? { source: search.source } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
 });
 
@@ -179,7 +188,8 @@ const incomeDetailRoute = createRoute({
   beforeLoad: requireModule('income'),
   validateSearch: (search: Record<string, unknown>): IncomeDetailSearch =>
     ({
-      ...(search.expected === 'year' || search.expected === 'next_year' ? { expected: search.expected } : {}),
+      ...(search.expected === 'next12' || search.expected === 'year' || search.expected === 'next_year' ? { expected: search.expected } : {}),
+      ...(search.period === '3y' || search.period === 'all' ? { period: search.period } : {}),
       ...(search.oneOffs === 'all' ? { oneOffs: 'all' as const } : {}), ...detailSearch(search),
     }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourceDetailPage'), 'IncomeSourceDetailPage'),

@@ -183,6 +183,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
         services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
         services.AddScoped<ITaxContribution, Nid.RealEstate.Application.RentalTax>();
+        services.AddScoped<Nid.RealEstate.Application.RealEstateRents>();
+        services.AddScoped<IRentIncome>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateRents>());
+        services.AddScoped<IIncomeContribution>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateRents>());
         services.AddScoped<IProposalHandler, Nid.RealEstate.Application.AmortizationProposal>();
         services.AddSingleton<IFactConventions, Nid.RealEstate.Application.RealEstateFactConventions>();
 

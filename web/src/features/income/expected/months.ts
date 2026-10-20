@@ -13,13 +13,14 @@ const firstDay = ({ year, month }: Month) => `${pad(year, 4)}-${pad(month)}-01`;
 // Day 0 of the next month is this month's last day.
 const lastDay = ({ year, month }: Month) => `${pad(year, 4)}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`;
 
-export const EXPECTED_PRESETS = ['next12', 'year', 'next_year'] as const;
+export const EXPECTED_PRESETS = ['last12', 'next12', 'year', 'next_year'] as const;
 export type ExpectedPreset = (typeof EXPECTED_PRESETS)[number];
 
-/** Spec §5: the current month and the eleven after; this calendar year; next calendar year. */
+/** Spec §5: the current month and the eleven before or after; this calendar year; next calendar year. */
 export function expectedRange(preset: ExpectedPreset, today: string): { from: string; to: string } {
   const now = monthOf(today);
   switch (preset) {
+    case 'last12': return { from: firstDay(shift(now, -11)), to: lastDay(now) };
     case 'next12': return { from: firstDay(now), to: lastDay(shift(now, 11)) };
     case 'year': return { from: firstDay({ year: now.year, month: 1 }), to: lastDay({ year: now.year, month: 12 }) };
     case 'next_year': return { from: firstDay({ year: now.year + 1, month: 1 }), to: lastDay({ year: now.year + 1, month: 12 }) };

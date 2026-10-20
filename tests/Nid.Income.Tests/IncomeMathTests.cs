@@ -171,4 +171,103 @@ public class IncomeMathTests
         Assert.Null(IncomeMath.EffectiveEnd(phase));
         Assert.True(IncomeMath.IsActive(phase, D(2030, 1, 1)));
     }
+
+    [Fact]
+    public void A_raise_is_a_change_with_its_previous_amount_and_percent()
+    {
+        var before = P("Salaire", D(2024, 1, 1), D(2025, 1, 1), 2860m, Months(1));
+        var after = P("Salaire", D(2025, 1, 1), null, 3030m, Months(1));
+
+        var changes = IncomeMath.Changes([after, before], D(2025, 10, 15));
+
+        Assert.Equal(["change", "start"], changes.Select(c => c.Kind));
+        var raise = changes[0];
+        Assert.Equal((D(2025, 1, 1), after.Id, 2860m, 3030m, 5.9m),
+            (raise.On, raise.PhaseId, raise.Before!.Value.Amount, raise.After!.Value.Amount, raise.Percent));
+        Assert.Equal((D(2024, 1, 1), before.Id, (Money?)null), (changes[1].On, changes[1].PhaseId, changes[1].Before));
+        // Another cadence makes the amounts incomparable.
+        var quarterly = P("Salaire", D(2025, 1, 1), null, 9000m, Months(3));
+        Assert.Null(IncomeMath.Changes([before, quarterly], D(2025, 10, 15))[0].Percent);
+    }
+
+    [Fact]
+    public void A_new_label_is_added_and_an_unfollowed_end_is_ended()
+    {
+        var phases = new[]
+        {
+            P("Salaire", D(2024, 1, 1), null, 2000m, Months(1)),
+            P("Prime", D(2024, 6, 1), D(2025, 6, 1), 100m, Months(1)),
+        };
+
+        var changes = IncomeMath.Changes(phases, D(2025, 10, 15));
+
+        Assert.Equal([("ended", D(2025, 6, 1), "Prime"), ("added", D(2024, 6, 1), "Prime"), ("start", D(2024, 1, 1), "Salaire")],
+            changes.Select(c => (c.Kind, c.On, c.Label)));
+        Assert.All(changes, c => Assert.False(c.Upcoming));
+    }
+
+    [Fact]
+    public void Changes_after_today_are_upcoming()
+    {
+        var phases = new[]
+        {
+            P("Salaire", D(2025, 1, 1), D(2026, 1, 1), 2000m, Months(1)),
+            P("Salaire", D(2026, 1, 1), null, 2100m, Months(1)),
+        };
+
+        var changes = IncomeMath.Changes(phases, D(2025, 10, 15));
+
+        Assert.Equal([(true, "change"), (false, "start")], changes.Select(c => (c.Upcoming, c.Kind)));
+    }
+
+    [Fact]
+    public void Every_phase_starting_on_the_first_day_starts_the_source()
+    {
+        var phases = new[]
+        {
+            P("Salaire", D(2024, 1, 1), null, 2000m, Months(1)),
+            P("Allocations", D(2024, 1, 1), null, 130m, Months(1)),
+        };
+
+        Assert.Equal([("start", "Allocations"), ("start", "Salaire")],
+            IncomeMath.Changes(phases, D(2025, 10, 15)).Select(c => (c.Kind, c.Label)));
+    }
+
+    [Fact]
+    public void A_label_resumed_after_a_gap_has_ended_then_changed()
+    {
+        var phases = new[]
+        {
+            P("Contrat", D(2024, 1, 1), D(2024, 7, 1), 1800m, Months(1)),
+            P("Contrat", D(2024, 9, 1), null, 1900m, Months(1)),
+        };
+
+        Assert.Equal([("change", D(2024, 9, 1)), ("ended", D(2024, 7, 1)), ("start", D(2024, 1, 1))],
+            IncomeMath.Changes(phases, D(2025, 10, 15)).Select(c => (c.Kind, c.On)));
+    }
+
+    [Fact]
+    public void The_next_payment_gathers_every_label_on_the_first_date_after_today()
+    {
+        var phases = new[]
+        {
+            P("Salaire", D(2025, 1, 28), null, 2000m, Months(1)),
+            P("Prime", D(2024, 10, 28), null, 1800m, Year),
+            P("Loyer", D(2025, 1, 5), null, 700m, Months(1)),
+        };
+
+        var next = IncomeMath.Next(phases, D(2025, 10, 15));
+
+        Assert.Equal([("Prime", D(2025, 10, 28)), ("Salaire", D(2025, 10, 28))], next.Select(o => (o.Label, o.On)));
+        Assert.Equal([D(2025, 10, 28)], IncomeMath.Next(phases, D(2025, 10, 27)).Select(o => o.On).Distinct());
+        Assert.Empty(IncomeMath.Next([P("Fini", D(2024, 1, 1), D(2025, 1, 1), 10m, Months(1))], D(2025, 10, 15)));
+    }
+
+    [Fact]
+    public void A_phase_starting_months_ahead_has_its_start_as_next_payment()
+    {
+        var next = IncomeMath.Next([P("Nouveau poste", D(2026, 3, 1), null, 2500m, Months(1))], D(2025, 10, 15));
+
+        Assert.Equal([("Nouveau poste", D(2026, 3, 1))], next.Select(o => (o.Label, o.On)));
+    }
 }

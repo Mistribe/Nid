@@ -7,7 +7,7 @@ import { server } from '@/test/server';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeExpected, IncomeSourceDetail } from '../api';
 import { detail, eur, SALARY } from '../testData';
-import { expectedRange } from './months';
+import { expectedRange } from '../expected/months';
 
 type Month = IncomeExpected['months'][number];
 const month = (year: number, m: number, over: Partial<Month> = {}): Month => ({ year, month: m, occurrences: [], oneOffs: [], total: eur('0'), ...over });
@@ -29,39 +29,39 @@ const QUARTER = [
   month(2026, 12),
 ];
 
+const HISTORY = `/income/${SALARY}?tab=history`;
+const region = () => screen.findByRole('region', { name: 'Versements' });
 const groups = async () => {
-  const region = await screen.findByRole('region', { name: 'Revenu attendu' });
-  const table = await within(region).findByRole('table', { name: 'Revenu attendu, mois par mois' });
+  const table = await within(await region()).findByRole('table', { name: 'Versements, mois par mois' });
   return within(table).getAllByRole('rowgroup').slice(1);
 };
 
-describe('expected income', () => {
+describe('history', () => {
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('../IncomeSourceDetailPage'); }, 30_000);
 
-  it('asks for the twelve months from this one, and shows each month’s total as the server gives it', async () => {
+  it('asks for the last twelve months, and shows each month’s total as the server gives it, newest first, without a chart', async () => {
     const seen: string[] = [];
     serve(QUARTER, seen);
-    const { container } = await renderApp(`/income/${SALARY}`);
+    const { container } = await renderApp(HISTORY);
 
-    const [october, november, december] = await groups();
-    const { from, to } = expectedRange('next12', todayIso());
+    const [december, november, october] = await groups();
+    const { from, to } = expectedRange('last12', todayIso());
     expect(seen).toEqual([`?from=${from}&to=${to}`]);
     expect(october).toHaveTextContent('octobre 2026');
     expect(october).toHaveTextContent('Total');
     expect(october).toHaveTextContent('1 000,00 €');
     expect(october).toHaveTextContent('Prime trimestrielle');
     expect(october).toHaveTextContent('15 octobre 2026');
-    expect(november).toHaveTextContent('Aucun versement attendu');
-    expect(december).toHaveTextContent('Aucun versement attendu');
-    const region = screen.getByRole('region', { name: 'Revenu attendu' });
-    expect(within(region).getByRole('application', { name: 'Revenu attendu chaque mois' })).toBeInTheDocument();
+    expect(november).toHaveTextContent('Aucun versement');
+    expect(december).toHaveTextContent('Aucun versement');
+    expect(within(await region()).queryByRole('application')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
   it('names a one-off line with its note', async () => {
     serve([month(2026, 10, { oneOffs: [{ id: 'o1', occurredOn: '2026-10-03', amount: eur('400.00'), note: 'Prime de projet' }], total: eur('400.00') })]);
-    await renderApp(`/income/${SALARY}`);
+    await renderApp(HISTORY);
 
     const [october] = await groups();
     expect(october).toHaveTextContent('Revenu exceptionnel — Prime de projet');
@@ -72,7 +72,7 @@ describe('expected income', () => {
   it('keeps the chosen period in the URL and asks for it', async () => {
     const seen: string[] = [];
     serve(QUARTER, seen);
-    const { user, router, container } = await renderApp(`/income/${SALARY}`);
+    const { user, router, container } = await renderApp(HISTORY);
 
     await groups();
     await user.click(screen.getByRole('radio', { name: 'Année en cours' }));
@@ -81,6 +81,8 @@ describe('expected income', () => {
     await waitFor(() => expect(seen).toContain(`?from=${year.from}&to=${year.to}`));
     expect(screen.getByRole('radio', { name: 'Année en cours' })).toBeChecked();
     await user.click(screen.getByRole('radio', { name: '12 prochains mois' }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ expected: 'next12' }));
+    await user.click(screen.getByRole('radio', { name: '12 derniers mois' }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('expected'));
     await expectNoAxeViolations(container);
   });
@@ -88,7 +90,7 @@ describe('expected income', () => {
   it('starts from the period in the URL', async () => {
     const seen: string[] = [];
     serve(QUARTER, seen);
-    await renderApp(`/income/${SALARY}?expected=next_year`);
+    await renderApp(`${HISTORY}&expected=next_year`);
 
     await groups();
     const next = expectedRange('next_year', todayIso());
@@ -99,37 +101,34 @@ describe('expected income', () => {
   it('ignores an unknown period in the URL', async () => {
     const seen: string[] = [];
     serve(QUARTER, seen);
-    await renderApp(`/income/${SALARY}?expected=forever`);
+    await renderApp(`${HISTORY}&expected=forever`);
 
     await groups();
-    const twelve = expectedRange('next12', todayIso());
+    const twelve = expectedRange('last12', todayIso());
     expect(seen).toEqual([`?from=${twelve.from}&to=${twelve.to}`]);
-    expect(screen.getByRole('radio', { name: '12 prochains mois' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '12 derniers mois' })).toBeChecked();
   });
 
-  it('says when nothing is expected, without a chart', async () => {
+  it('says when there is no payment', async () => {
     serve([month(2026, 10), month(2026, 11)]);
-    const { container } = await renderApp(`/income/${SALARY}`);
+    const { container } = await renderApp(HISTORY);
 
-    const region = await screen.findByRole('region', { name: 'Revenu attendu' });
-    expect(await within(region).findByText('Rien n’est attendu sur cette période.')).toBeInTheDocument();
-    expect(within(region).queryByRole('table')).not.toBeInTheDocument();
-    expect(within(region).queryByRole('application')).not.toBeInTheDocument();
+    expect(await within(await region()).findByText('Aucun versement sur cette période.')).toBeInTheDocument();
+    expect(within(await region()).queryByRole('table')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
   it('shows a failed read as a problem', async () => {
     serve(QUARTER);
     server.use(http.get('*/api/v1/income/sources/:id/expected', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
-    await renderApp(`/income/${SALARY}`);
+    await renderApp(HISTORY);
 
-    const region = await screen.findByRole('region', { name: 'Revenu attendu' });
-    expect(await within(region).findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await within(await region()).findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
   });
 
   it('is shown to a reader and on an ended source', async () => {
     serve(QUARTER, [], detail({ canWrite: false, ended: true, endedOn: '2025-06-30' }));
-    await renderApp(`/income/${SALARY}`);
+    await renderApp(HISTORY);
 
     expect(await groups()).toHaveLength(3);
   });

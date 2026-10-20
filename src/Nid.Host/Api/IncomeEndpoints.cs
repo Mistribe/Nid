@@ -1,7 +1,10 @@
 using Nid.Core.Contracts;
 using Nid.Income.Application;
 using Nid.Income.Contracts;
+using Nid.Income.Domain;
 using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 
@@ -85,6 +88,22 @@ public static class IncomeEndpoints
         api.MapGet("/sources/{id:guid}/expected", async (Guid id, string from, string to, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetIncomeExpectedQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(e => e))
             .Returns<IncomeExpected>();
+
+        api.MapGet("/sources/{id:guid}/overview", async (Guid id, string? period, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetIncomeSourceOverviewQuery(new ItemId(id), period ?? "12m"), ct)).ToHttp(o => o))
+            .Returns<IncomeSourceOverview>();
+
+        api.MapGet("/overview", async (string? scope, string? period, Guid? person, string? kind, Guid? source, bool? ended,
+                IInvoker invoker, CancellationToken ct) =>
+            {
+                if (!OverviewPeriods.TryParse(period ?? "year", out var p))
+                    return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.InvalidPeriod, "A period is year, 12m or 3y.", null)).ToHttp(o => o);
+                if (kind is not null && kind != GetIncomeOverviewHandler.RentKind && !IncomeWire.TryKind(kind, out _))
+                    return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.UnknownKind, $"'{kind}' is not an income kind.", null)).ToHttp(o => o);
+                var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false);
+                return (await invoker.InvokeAsync(query, ct)).ToHttp(o => o);
+            })
+            .Returns<IncomeOverview>();
 
         api.MapPost("/sources/{id:guid}/one-offs", async (Guid id, IncomeOneOffBody body, IInvoker invoker, CancellationToken ct) =>
             {

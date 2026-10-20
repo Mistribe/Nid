@@ -27,8 +27,8 @@ const yearButton = (y: number) => within(table()).getByRole('button', { name: `A
 const bodyRows = (scope: HTMLElement, name: string) => within(within(scope).getByRole('table', { name })).getAllByRole('row').slice(1);
 
 describe('LoanDetailPage', () => {
-  // The lazy route chunk loaded cold inside the first test races its timeouts under load.
-  beforeAll(async () => { await import('./LoanDetailPage'); }, 30_000);
+  // The lazy route chunk and the lazy schedule chart loaded cold inside the first test race their timeouts under load.
+  beforeAll(async () => { await import('./LoanDetailPage'); await import('./chart/ScheduleChart'); }, 30_000);
   // Today's payment and the open year read the browser's today: pinned to 2026-10-12.
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 9, 12, 12)); });
   afterEach(() => { vi.useRealTimers(); });

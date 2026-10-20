@@ -1,71 +1,85 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { AlertTriangle, Archive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { IncomeSearch, RootSearch } from '@/app/router';
-import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
-import { formatMoney } from '@/components/Money';
-import { OwnerChips } from '@/components/OwnerChips';
 import { PageHeader } from '@/components/page/PageHeader';
-import { SortableTable } from '@/components/page/SortableTable';
-import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { SOURCES, type IncomeSourceSummary } from './api';
-import { kindText } from './format';
+import { MonthsChart } from './overview/MonthsChart';
+import { OverviewFigures } from './overview/OverviewFigures';
+import { OverviewFilters } from './overview/OverviewFilters';
+import { SourcesTable } from './overview/SourcesTable';
+import { SplitBar } from './overview/SplitBar';
+import { useOverview } from './overview/useOverview';
 
-function useSources(scope: 'me' | 'household', ended: boolean, enabled = true) {
-  const { $api } = useApi();
-  return $api.useQuery('get', SOURCES, { params: { query: { scope, ...(ended ? { archived: true } : {}) } } }, { enabled });
-}
-
-/** The income sources with their monthly equivalent, running components and gap warnings (2C2a design §4). */
+/** The income dashboard: filters, key figures, split, months, then the sources (overview design). */
 export function IncomeSourcesPage() {
   const { t } = useTranslation();
   const search: RootSearch & IncomeSearch = useSearch({ strict: false });
   const navigate = useNavigate();
-  const scope = search.scope === 'me' ? 'me' : 'household';
   const ended = search.ended === 1;
-  const answer = useSources(scope, ended);
-  // An empty list without the ended sources asks once more with them (archived=true returns open and ended alike),
-  // to tell « nothing yet » from « nothing running » (spec §10.4).
-  const withEnded = useSources(scope, true, !ended && answer.data?.items.length === 0);
+  const { data, error } = useOverview();
+  // An empty list without the ended sources asks once more with them, to tell « nothing yet » from « nothing running » (spec §10.4).
+  const withEnded = useOverview({ ended: true, enabled: !ended && data?.sources.length === 0 });
   const setEnded = (checked: boolean) =>
-    void navigate({ to: '/income', search: (prev: RootSearch & IncomeSearch) => ({ ...prev, ended: checked ? (1 as const) : undefined }), replace: true });
+    void navigate({ from: '/income', to: '/income', search: (prev: RootSearch & IncomeSearch) => ({ ...prev, ended: checked ? (1 as const) : undefined }), replace: true });
+  const select = (source?: string) =>
+    void navigate({ from: '/income', to: '/income', replace: true, search: (prev: RootSearch & IncomeSearch) => ({ ...prev, source }) });
+  const period = data?.period as '12m' | 'year' | '3y' | undefined;
+  const filtered = Boolean(search.person || search.kind || search.source);
+  // A brand-new household (no row, no share, no ended source) gets the invitation alone, without 0,00 € figures (spec §4).
+  const blank = !filtered && data?.sources.length === 0 && data.split.length === 0 && !withEnded.data?.sources.length;
 
-  // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
+  // One stable frame whatever the answer: the filters and the switch must survive the reload their own change causes (focus).
   return (
     <div className="space-y-4">
       <PageHeader title={t('income.title')} actions={<Link to="/income/new" className={buttonVariants()}>{t('income.add')}</Link>} />
+      <OverviewFilters />
+      {data && period && !blank ? (
+        <>
+          <OverviewFigures figures={data.figures} missingRates={data.missingRates} period={period} year={Number(data.to.slice(0, 4))} />
+          <SplitBar split={data.split} missingRates={data.missingRates} selected={search.source} onSelect={select} />
+          <MonthsChart months={data.months} missingRates={data.missingRates} period={period} year={Number(data.to.slice(0, 4))} />
+        </>
+      ) : null}
       <SwitchField label={t('income.show_ended')} checked={ended} onCheckedChange={setEnded} />
-      <Body answer={answer} withEnded={ended ? null : withEnded} />
+      {error ? <ProblemMessage problem={present(toProblem(error))} />
+        : <Sources data={data} filtered={filtered} withEnded={ended ? null : withEnded.data} deciding={!ended && data?.sources.length === 0 && !withEnded.data && !withEnded.error} />}
     </div>
   );
 }
 
-function Body({ answer, withEnded }: { answer: ReturnType<typeof useSources>; withEnded: ReturnType<typeof useSources> | null }) {
-  const { t } = useTranslation();
-  if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
+type Overview = ReturnType<typeof useOverview>['data'];
 
-  const empty = answer.data?.items.length === 0;
-  // The second request decides which empty state; a failure of it falls back to « nothing yet ».
-  const deciding = empty && withEnded !== null && !withEnded.data && !withEnded.error;
-  if (!answer.data || deciding)
+function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filtered: boolean; withEnded: Overview | null; deciding: boolean }) {
+  const { t } = useTranslation();
+  if (!data || deciding)
     return (
       <ul aria-busy="true" aria-label={t('income.loading')} className="space-y-2">
         {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
       </ul>
     );
 
-  if (empty && (withEnded?.data?.items.length ?? 0) > 0)
+  // Empty: no row and no share, ended ones included.
+  const nothingRunning = data.sources.length === 0 && (withEnded?.sources.length ?? 0) > 0;
+  if (nothingRunning)
     return (
       <EmptyState title={t('income.none_running_title')} body={t('income.none_running_body')}
-        action={<Link to="/income" search={(prev: RootSearch & IncomeSearch) => ({ ...prev, ended: 1 as const })} className={buttonVariants({ variant: 'outline' })}>{t('income.see_ended')}</Link>} />
+        action={<Link from="/income" to="/income" search={(prev: RootSearch & IncomeSearch) => ({ ...prev, ended: 1 as const })} className={buttonVariants({ variant: 'outline' })}>{t('income.see_ended')}</Link>} />
     );
-  if (empty)
+  if (data.sources.length === 0 && data.split.length === 0 && filtered)
+    return (
+      <EmptyState title={t('income.empty_filter_title')} body={t('income.empty_filter_body')}
+        action={(
+          <Link from="/income" to="/income" className={buttonVariants({ variant: 'outline' })}
+            search={(prev: RootSearch & IncomeSearch) => ({ ...prev, person: undefined, kind: undefined, source: undefined })}>
+            {t('income.clear_filters')}
+          </Link>
+        )} />
+    );
+  if (data.sources.length === 0 && data.split.length === 0)
     return (
       <EmptyState title={t('income.empty_title')} body={t('income.empty_body')}
         action={<Link to="/income/new" className={buttonVariants()}>{t('income.add')}</Link>} />
@@ -74,47 +88,7 @@ function Body({ answer, withEnded }: { answer: ReturnType<typeof useSources>; wi
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('income.smoothed')}</p>
-      <SortableTable<IncomeSourceSummary> caption={t('income.list')} rows={answer.data.items} rowKey={(r) => r.id}
-        rowLink={(r) => ({ to: '/income/$id', params: { id: r.id } })}
-        columns={[
-          { id: 'name', header: t('lists.col.name'), sort: (r) => r.displayName, cell: (r) => <Name item={r} /> },
-          { id: 'kind', header: t('lists.col.kind'), sort: (r) => kindText(t, r.kind), cell: (r) => kindText(t, r.kind) },
-          { id: 'payer', header: t('lists.col.payer'), sort: (r) => r.payerLabel ?? '', cell: (r) => r.payerLabel },
-          { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
-          { id: 'month', header: t('lists.col.per_month'), align: 'end', sort: (r) => amountKey(r.monthlyEquivalent.amount),
-            cell: (r) => <span className="inline-flex flex-col items-end"><span>{formatMoney(r.monthlyEquivalent)}</span><Gaps item={r} /></span> },
-        ]}
-        mobile={(r) => (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2"><Name item={r} /><OwnerChips owners={r.owners} /></div>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">{kindText(t, r.kind)}</span>
-              <span className="tabular-nums">{formatMoney(r.monthlyEquivalent)}</span>
-            </div>
-            <Gaps item={r} />
-          </div>
-        )} />
+      <SourcesTable rows={data.sources} />
     </>
   );
-}
-
-function Name({ item }: { item: IncomeSourceSummary }) {
-  const { t } = useTranslation();
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <span className="font-medium">{item.displayName}</span>
-      {item.ended ? <span className="inline-flex items-center gap-1 text-sm text-muted-foreground"><Archive aria-hidden="true" className="size-4" />{t('income.ended_mark')}</span> : null}
-      <AccessBadge access={item.visibility === 'private' ? 'private' : 'shared'} />
-    </span>
-  );
-}
-
-function Gaps({ item }: { item: IncomeSourceSummary }) {
-  const { t } = useTranslation();
-  return item.gapSoon.map((label) => (
-    <span key={label} role="note" className="flex items-center gap-1 text-xs font-normal">
-      <AlertTriangle aria-hidden="true" className="size-3.5 text-status-warning" />
-      {t('income.gap_soon', { label })}
-    </span>
-  ));
 }

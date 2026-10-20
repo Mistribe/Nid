@@ -5700,6 +5700,195 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/income/sources/{id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    period?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IncomeSourceOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/income/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    period?: string;
+                    person?: string;
+                    kind?: string;
+                    source?: string;
+                    ended?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IncomeOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/income/sources/{id}/one-offs": {
         parameters: {
             query?: never;
@@ -13231,6 +13420,19 @@ export interface components {
             amount: string;
             currency: string;
         };
+        IncomeChangeView: {
+            /** Format: date */
+            on: string;
+            kind: string;
+            /** Format: uuid */
+            phaseId: string;
+            label: string;
+            before?: null | components["schemas"]["IncomeMoneyView"];
+            after?: null | components["schemas"]["IncomeMoneyView"];
+            /** Format: double */
+            percent?: null | number;
+            upcoming: boolean;
+        };
         IncomeDurationView: {
             /** Format: int32 */
             count: number;
@@ -13259,6 +13461,10 @@ export interface components {
             /** Format: date */
             endsOn: string;
         };
+        IncomeLabelAmount: {
+            label: string;
+            amount: components["schemas"]["IncomeMoneyView"];
+        };
         IncomeMoneyView: {
             amount: string;
             currency: string;
@@ -13283,6 +13489,80 @@ export interface components {
             occurredOn: string;
             amount: components["schemas"]["IncomeMoneyView"];
             note?: null | string;
+        };
+        IncomeOverview: {
+            period: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            currency: string;
+            figures: components["schemas"]["IncomeOverviewFigures"];
+            split: components["schemas"]["IncomeOverviewShare"][];
+            months: components["schemas"]["IncomeOverviewMonth"][];
+            sources: components["schemas"]["IncomeOverviewRow"][];
+            kinds: string[];
+            missingRates: string[];
+        };
+        IncomeOverviewFigures: {
+            monthlyNow?: null | components["schemas"]["IncomeAmountView"];
+            /** Format: double */
+            monthlyChange1y?: null | number;
+            total?: null | components["schemas"]["IncomeAmountView"];
+            elapsed?: null | components["schemas"]["IncomeAmountView"];
+            changeVsPrevious?: null | components["schemas"]["IncomeAmountView"];
+            /** Format: double */
+            changeVsPreviousPct?: null | number;
+            /** Format: double */
+            change3y?: null | number;
+            /** Format: double */
+            change3yYearly?: null | number;
+        };
+        IncomeOverviewMonth: {
+            /** Format: int32 */
+            year: number;
+            /** Format: int32 */
+            month: number;
+            upcoming: boolean;
+            recurring?: null | components["schemas"]["IncomeAmountView"];
+            oneOff?: null | components["schemas"]["IncomeAmountView"];
+            total?: null | components["schemas"]["IncomeAmountView"];
+            previousYear?: null | components["schemas"]["IncomeAmountView"];
+            bySource: components["schemas"]["IncomeOverviewPart"][];
+        };
+        IncomeOverviewPart: {
+            /** Format: uuid */
+            item: string;
+            name: string;
+            amount: components["schemas"]["IncomeAmountView"];
+        };
+        IncomeOverviewRow: {
+            /** Format: uuid */
+            id: string;
+            module: string;
+            name: string;
+            kind: string;
+            visibility: string;
+            owners: components["schemas"]["ItemOwnerView"][];
+            perMonth?: null | components["schemas"]["IncomeAmountView"];
+            /** Format: double */
+            change1y?: null | number;
+            /** Format: date */
+            nextOn?: null | string;
+            nextAmount?: null | components["schemas"]["IncomeAmountView"];
+            /** Format: date */
+            gapOn?: null | string;
+            ended: boolean;
+        };
+        IncomeOverviewShare: {
+            /** Format: uuid */
+            item?: null | string;
+            name: string;
+            kind: string;
+            total: components["schemas"]["IncomeAmountView"];
+            perMonth: components["schemas"]["IncomeAmountView"];
+            /** Format: double */
+            percent: number;
         };
         IncomePhaseBody: {
             label: string;
@@ -13353,8 +13633,46 @@ export interface components {
             gapSoon: components["schemas"]["IncomeGapView"][];
             oneOffs: components["schemas"]["IncomeOneOffView"][];
         };
+        IncomeSourceFigures: {
+            monthlyNow: components["schemas"]["IncomeAmountView"];
+            monthlyParts: components["schemas"]["IncomeOverviewPart"][];
+            /** Format: date */
+            nextOn?: null | string;
+            nextAmount?: null | components["schemas"]["IncomeMoneyView"];
+            nextLabel?: null | string;
+            /** Format: double */
+            change1y?: null | number;
+            /** Format: double */
+            changeSinceStart?: null | number;
+            receivedThisYear: components["schemas"]["IncomeMoneyView"];
+            oneOffsThisYear: components["schemas"]["IncomeMoneyView"];
+        };
         IncomeSourceList: {
             items: components["schemas"]["IncomeSourceSummary"][];
+        };
+        IncomeSourceMonth: {
+            /** Format: int32 */
+            year: number;
+            /** Format: int32 */
+            month: number;
+            upcoming: boolean;
+            parts: components["schemas"]["IncomeLabelAmount"][];
+            oneOff: components["schemas"]["IncomeMoneyView"];
+            total: components["schemas"]["IncomeMoneyView"];
+        };
+        IncomeSourceOverview: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            currency: string;
+            figures: components["schemas"]["IncomeSourceFigures"];
+            months: components["schemas"]["IncomeSourceMonth"][];
+            changes: components["schemas"]["IncomeChangeView"][];
+            lastPayments: components["schemas"]["IncomeOccurrenceView"][];
+            lastOneOffs: components["schemas"]["IncomeOneOffView"][];
         };
         IncomeSourceSummary: {
             /** Format: uuid */

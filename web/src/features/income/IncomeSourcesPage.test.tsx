@@ -4,15 +4,18 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { IncomeSourceList } from './api';
-import { eur, list, summary } from './testData';
+import type { IncomeOverview } from './api';
+import { eur, overview, sourceRow } from './testData';
 
-/** `withEnded` answers `archived=true`; the plain list answers everything else. */
-function serve(body: IncomeSourceList, seen: string[] = [], withEnded: IncomeSourceList = body) {
-  server.use(http.get('*/api/v1/income/sources', ({ request }) => {
+type Row = IncomeOverview['sources'][number];
+
+/** `withEnded` answers `ended=true`; `body` every other request. A list without rows has no share either. */
+function serve(body: Row[], seen: string[] = [], withEnded: Row[] = body) {
+  server.use(http.get('*/api/v1/income/overview', ({ request }) => {
     const search = new URL(request.url).search;
     seen.push(search);
-    return HttpResponse.json(search.includes('archived=true') ? withEnded : body);
+    const sources = search.includes('ended=true') ? withEnded : body;
+    return HttpResponse.json(overview({ sources, ...(sources.length === 0 ? { split: [] } : {}) }));
   }));
 }
 
@@ -25,47 +28,46 @@ async function rows(): Promise<HTMLElement[]> {
 describe('IncomeSourcesPage', () => {
   beforeAll(async () => { await import('./IncomeSourcesPage'); }, 30_000);
 
-  it('shows one table row per item with its owner', async () => {
+  it('shows one table row per source with its owner, change, next payment and gap', async () => {
     const alice = '0192f0aa-0000-7000-8000-0000000000a1';
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
-    serve(list([summary({ owners: [{ personId: alice, shareBp: 10000 }] })]));
+    serve([sourceRow({ owners: [{ personId: alice, shareBp: 10000 }], gapOn: '2026-12-31' })]);
     const { container } = await renderApp('/income');
 
     const table = await screen.findByRole('table', { name: 'Liste des revenus' });
-    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Type', 'Payeur', 'Propriétaire', 'Par mois']);
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
+      .toEqual(['Nom', 'Propriétaires', 'Par mois', 'Sur 1 an', 'Prochain versement', 'Fin de période']);
     const row = (await rows())[0]!;
     expect(within(row).getByRole('link', { name: /Salaire Alice/ })).toHaveAttribute('href', expect.stringContaining('/income/'));
-    expect(row).toHaveTextContent('Salaire');
-    expect(row).toHaveTextContent('Employeur');
     await waitFor(() => expect(row).toHaveTextContent('Alice'));
     expect(row).toHaveTextContent('2 450,00 €');
+    expect(row).toHaveTextContent('+4,1 %');
+    expect(row).toHaveTextContent('2 300,00 €');
+    expect(within(row).getByRole('note')).toHaveTextContent('sans suite');
     expect(within(row).getByText('Privé')).toBeInTheDocument();
-    expect(screen.getAllByText('Montants mensuels lissés sur l’année.')).toHaveLength(1);
     await expectNoAxeViolations(container);
   });
 
-  it('sorts by the monthly equivalent, as the server rounded it', async () => {
-    serve(list([summary({ displayName: 'Gros' }), summary({ id: 'b', displayName: 'Petit', monthlyEquivalent: eur('333.33') })]));
+  it('sorts by the monthly equivalent, biggest first', async () => {
+    serve([sourceRow({ id: 'b', name: 'Petit', perMonth: eur('333.33') }), sourceRow({ name: 'Gros' })]);
     const { user } = await renderApp('/income');
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(Gros|Petit)/)?.[0]);
     expect(await names()).toEqual(['Gros', 'Petit']);
-    expect((await rows())[1]).toHaveTextContent('333,33 €');
     await user.click(within(screen.getByRole('table', { name: 'Liste des revenus' })).getByRole('button', { name: 'Par mois' }));
     expect(await names()).toEqual(['Petit', 'Gros']);
   });
 
-  it('warns of a component ending soon with nothing after it, in words', async () => {
-    serve(list([summary({ gapSoon: ['Salaire de base'] })]));
-    const { container } = await renderApp('/income');
+  it('a rent row links to its property', async () => {
+    serve([sourceRow({ id: 'p1', module: 'realestate', name: 'Appartement Lyon' })]);
+    await renderApp('/income');
 
     const row = (await rows())[0]!;
-    expect(within(row).getByRole('note')).toHaveTextContent('« Salaire de base » se termine bientôt sans période suivante');
-    await expectNoAxeViolations(container);
+    expect(within(row).getByRole('link', { name: /Appartement Lyon/ })).toHaveAttribute('href', '/properties/p1?tab=rental');
   });
 
-  it('the add link is always shown, even when no row is writable', async () => {
-    serve(list([summary({ canWrite: false })]));
+  it('the add link is always shown', async () => {
+    serve([sourceRow()]);
     await renderApp('/income');
 
     await rows();
@@ -73,7 +75,7 @@ describe('IncomeSourcesPage', () => {
   });
 
   it('invites to add the first income when there is none at all', async () => {
-    serve(list([]));
+    serve([]);
     const { container } = await renderApp('/income');
 
     expect(await screen.findByRole('heading', { name: 'Aucun revenu pour l’instant' })).toBeInTheDocument();
@@ -81,13 +83,32 @@ describe('IncomeSourcesPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows no figures or chart above the invitation of a brand-new household', async () => {
+    serve([]);
+    await renderApp('/income');
+
+    await screen.findByRole('heading', { name: 'Aucun revenu pour l’instant' });
+    expect(screen.queryByText('Revenu / mois')).toBeNull();
+    expect(screen.queryByRole('region', { name: /Mois par mois/ })).toBeNull();
+  });
+
+  it('says the filter is empty, not the household, and offers to clear it', async () => {
+    serve([]);
+    const { user, router } = await renderApp('/income?kind=rent');
+
+    expect(await screen.findByRole('heading', { name: 'Aucun revenu pour ce filtre' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Aucun revenu pour l’instant' })).toBeNull();
+    await user.click(screen.getByRole('link', { name: 'Retirer les filtres' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('kind'));
+  });
+
   it('says nothing is running when only ended sources exist, with a link that shows them', async () => {
     const seen: string[] = [];
-    serve(list([]), seen, list([summary({ ended: true, endedOn: '2025-06-30' })]));
+    serve([], seen, [sourceRow({ ended: true })]);
     const { user, router, container } = await renderApp('/income');
 
     expect(await screen.findByRole('heading', { name: 'Aucun revenu en cours' })).toBeInTheDocument();
-    expect(seen).toEqual(['?scope=household', '?scope=household&archived=true']);
+    expect(seen.some((s) => s.includes('ended=true'))).toBe(true);
     await expectNoAxeViolations(container);
     await user.click(screen.getByRole('link', { name: 'Voir les sources terminées' }));
 
@@ -95,48 +116,49 @@ describe('IncomeSourcesPage', () => {
     expect(screen.getByRole('switch', { name: 'Afficher les sources terminées' })).toBeChecked();
   });
 
-  it('shows a skeleton while the list loads', async () => {
-    server.use(http.get('*/api/v1/income/sources', async () => { await delay('infinite'); return HttpResponse.json(list([])); }));
+  it('shows a skeleton while the overview loads', async () => {
+    server.use(http.get('*/api/v1/income/overview', async () => { await delay('infinite'); return HttpResponse.json(overview()); }));
     await renderApp('/income');
 
     expect(await screen.findByLabelText('Chargement des revenus')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('shows a failed load as a problem', async () => {
-    server.use(http.get('*/api/v1/income/sources', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
+    server.use(http.get('*/api/v1/income/overview', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp('/income');
 
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect((await screen.findAllByRole('alert', {}, { timeout: 8000 })).length).toBeGreaterThan(0);
   });
 
   it('passes the Moi scope to the API', async () => {
     const seen: string[] = [];
-    serve(list([summary()]), seen);
+    serve([sourceRow()], seen);
     await renderApp('/income?scope=me');
 
     await rows();
-    expect(seen).toEqual(['?scope=me']);
+    expect(seen[0]).toContain('scope=me');
   });
 
   it('appears in the navigation, after Placements', async () => {
-    serve(list([]));
+    serve([]);
     await renderApp('/income');
     expect(screen.getAllByRole('link', { name: 'Revenus' }).length).toBeGreaterThan(0);
   });
 });
 
 describe('IncomeSourcesPage, ended sources', () => {
-  it('asks for the ended ones only when the box is checked, keeps that in the URL, and marks them in words', async () => {
+  it('shows ended sources on demand: asks ended=true, keeps it in the URL, marks them in words', async () => {
     const seen: string[] = [];
-    serve(list([summary()]), seen, list([summary(), summary({ id: 'old', displayName: 'Ancien emploi', ended: true, endedOn: '2024-12-31' })]));
+    serve([sourceRow()], seen, [sourceRow(), sourceRow({ id: 'old', name: 'Ancien emploi', ended: true })]);
     const { user, router, container } = await renderApp('/income');
 
     const box = await screen.findByRole('switch', { name: 'Afficher les sources terminées' });
     expect(box).not.toBeChecked();
     await rows();
+    expect(seen.some((s) => s.includes('ended=true'))).toBe(false);
     await user.click(box);
 
-    await waitFor(() => expect(seen).toContain('?scope=household&archived=true'));
+    await waitFor(() => expect(seen.some((s) => s.includes('ended=true'))).toBe(true));
     expect(router.state.location.search).toMatchObject({ ended: 1 });
     await waitFor(async () => expect(await rows()).toHaveLength(2));
     const items = await rows();
@@ -148,11 +170,11 @@ describe('IncomeSourcesPage, ended sources', () => {
 
   it('starts checked from the URL and ignores any value other than 1', async () => {
     const seen: string[] = [];
-    serve(list([summary()]), seen);
+    serve([sourceRow()], seen);
     await renderApp('/income?ended=yes');
 
     await rows();
     expect(screen.getByRole('switch', { name: 'Afficher les sources terminées' })).not.toBeChecked();
-    expect(seen).toEqual(['?scope=household']);
+    expect(seen.some((s) => s.includes('ended=true'))).toBe(false);
   });
 });

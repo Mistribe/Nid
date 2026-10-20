@@ -92,7 +92,8 @@ describe('ending and reopening a source', () => {
     const state = serve();
     const { user, queryClient } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Ajouter une période' }));
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Ajouter une composante' }));
     expect(screen.getByRole('dialog', { name: 'Ajouter une période' })).toBeInTheDocument();
     state.end();
     await queryClient.invalidateQueries();
@@ -122,7 +123,7 @@ describe('ending and reopening a source', () => {
     await user.click(await screen.findByRole('button', { name: 'Rouvrir' }));
 
     expect(await screen.findByText('Source rouverte. Les périodes arrêtées à la fin restent arrêtées : ajoutez la suite si besoin.')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Changements' })).toHaveFocus());
     expect(screen.getByRole('button', { name: 'Autres actions' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });

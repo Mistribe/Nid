@@ -1,17 +1,11 @@
 import type { TFunction } from 'i18next';
 
 export const KINDS = ['salary', 'self_employment', 'pension', 'unemployment', 'family_allowance', 'social_benefit', 'alimony', 'other'] as const;
-export const STATUSES = ['running', 'upcoming', 'past'] as const;
 
 /** A kind the server added later reads as its raw name rather than breaking the page (as investments' kindText). */
 export function kindText(t: TFunction, kind: string): string {
   const known = KINDS.find((k) => k === kind);
   return known ? t(`income.kind.${known}`) : kind;
-}
-
-export function statusText(t: TFunction, status: string): string {
-  const known = STATUSES.find((s) => s === status);
-  return known ? t(`income.status.${known}`) : status;
 }
 
 /** A phase's cadence in words; a unit the screen does not know reads as its raw form. */

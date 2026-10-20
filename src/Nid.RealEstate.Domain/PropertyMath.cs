@@ -99,6 +99,10 @@ public static class PropertyMath
     /// <summary>Spec 3C2 §4: a tenancy covers its days from its start (inclusive) to its end (exclusive).</summary>
     public static bool Covers(Tenancy tenancy, LocalDate d) => tenancy.StartsOn <= d && (tenancy.EndsOn is not { } end || d < end);
 
+    /// <summary>The monthly rent (without charges) of the tenancy covering <paramref name="on"/>, 0 when none does.</summary>
+    public static decimal MonthlyRentAt(IEnumerable<Tenancy> tenancies, LocalDate on)
+        => tenancies.FirstOrDefault(t => Covers(t, on))?.RentMonthly ?? 0m;
+
     /// <summary>Spec 3E2 §2: the cost's occurrence in the calendar month of <paramref name="month"/> — a cost comes every month or more, so at most one.</summary>
     public static LocalDate? DueIn(RecurringCost cost, LocalDate month)
     {
@@ -107,16 +111,16 @@ public static class PropertyMath
     }
 
     /// <summary>
-    /// Spec 3E2 §2: the rent a tenancy expects in the calendar month of <paramref name="month"/> — rent plus charges, prorated for a
+    /// Spec 3E2 §2: the rent a tenancy expects in the calendar month of <paramref name="month"/> — rent plus charges (rent alone when <paramref name="charges"/> is false), prorated for a
     /// partial month exactly as the arrears' figure — and the first day of that month it covers; null when it covers none.
     /// </summary>
-    public static (decimal Amount, LocalDate From)? RentIn(Tenancy tenancy, LocalDate month)
+    public static (decimal Amount, LocalDate From)? RentIn(Tenancy tenancy, LocalDate month, bool charges = true)
     {
         var first = new LocalDate(month.Year, month.Month, 1);
         var last = first.PlusMonths(1).PlusDays(-1);
         if (Covered(tenancy, first, last) == 0)
             return null;
-        return (Expected(tenancy, first, last), tenancy.StartsOn > first ? tenancy.StartsOn : first);
+        return (Expected(tenancy, first, last, charges), tenancy.StartsOn > first ? tenancy.StartsOn : first);
     }
 
     /// <summary>Spec 3C2 §4 over W = (d − 12 months, d].</summary>
@@ -151,9 +155,9 @@ public static class PropertyMath
     }
 
     /// <summary>Month by month over W: a month the tenancy covers whole counts in full, a partial one prorated to its days, half up to the cent.</summary>
-    private static decimal Expected(Tenancy tenancy, LocalDate first, LocalDate d)
+    private static decimal Expected(Tenancy tenancy, LocalDate first, LocalDate d, bool charges = true)
     {
-        var monthly = tenancy.RentMonthly + tenancy.ChargesMonthly;
+        var monthly = tenancy.RentMonthly + (charges ? tenancy.ChargesMonthly : 0m);
         var total = 0m;
         for (var month = new LocalDate(first.Year, first.Month, 1); month <= d; month = month.PlusMonths(1))
         {

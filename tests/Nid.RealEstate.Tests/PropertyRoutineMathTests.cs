@@ -91,4 +91,23 @@ public class PropertyRoutineMathTests
         Assert.Equal<(decimal, LocalDate)?>((450m, new LocalDate(2024, 2, 15)),
             PropertyMath.RentIn(Lease(new LocalDate(2024, 2, 15), rent: 870m), new LocalDate(2024, 2, 1)));
     }
+
+    [Fact]
+    public void Rent_without_charges_is_prorated_and_dated_on_the_first_covered_day()
+    {
+        var t = new Tenancy("Bail", new LocalDate(2026, 1, 16), null, 1000m, 100m, null, null);
+        var rent = PropertyMath.RentIn(t, new LocalDate(2026, 1, 1), charges: false);
+        Assert.Equal((516.13m, new LocalDate(2026, 1, 16)), rent);   // 1000 × 16 / 31, half up
+        Assert.Equal(1000m, PropertyMath.RentIn(t, new LocalDate(2026, 2, 1), charges: false)!.Value.Amount);
+    }
+
+    [Fact]
+    public void Monthly_rent_at_a_date_is_the_covering_tenancys_rent_or_zero()
+    {
+        var ts = new[] { new Tenancy("A", new LocalDate(2025, 1, 1), new LocalDate(2026, 1, 1), 700m, 50m, null, null),
+                         new Tenancy("B", new LocalDate(2026, 2, 1), null, 720m, 50m, null, null) };
+        Assert.Equal(700m, PropertyMath.MonthlyRentAt(ts, new LocalDate(2025, 6, 1)));
+        Assert.Equal(0m, PropertyMath.MonthlyRentAt(ts, new LocalDate(2026, 1, 15)));
+        Assert.Equal(720m, PropertyMath.MonthlyRentAt(ts, new LocalDate(2026, 2, 1)));
+    }
 }

@@ -32,17 +32,18 @@ test('alice keeps a private salary up to date and bob never sees it', async ({ b
   await expect(alice.getByRole('table', { name: 'Liste des revenus' }).getByRole('row').filter({ hasText: name })).toContainText('2 450,00 €');
 
   await alice.goto(url);
-  const prime = alice.getByRole('table', { name: 'Prime annuelle' });
-  await prime.getByRole('button', { name: /^Actions de la période/ }).first().click();
+  const timeline = alice.getByRole('list', { name: 'Changements, du plus récent au plus ancien' });
+  await timeline.getByRole('button', { name: /^Actions de la période Prime annuelle/ }).first().click();
   await alice.getByRole('menuitem', { name: 'Corriger' }).click();
   const correction = alice.getByRole('form', { name: 'Corriger la période' });
   await correction.getByLabel('Montant net').fill('1900');
   await correction.getByRole('button', { name: 'Enregistrer' }).click();
   const status = alice.getByRole('status').filter({ hasText: /\S/ });
   await expect(status).toHaveText('Période corrigée.');
-  await expect(alice.getByRole('table', { name: 'Prime annuelle' })).toContainText('1 900,00 €');
+  await expect(timeline).toContainText('1 900,00 €');
 
-  await alice.getByRole('button', { name: 'Ajouter une période' }).click();
+  await alice.getByRole('button', { name: 'Autres actions' }).click();
+  await alice.getByRole('menuitem', { name: 'Ajouter une composante' }).click();
   const added = alice.getByRole('form', { name: 'Ajouter une période' });
   await added.getByLabel('Libellé').fill('Prime de vacances');
   await added.getByLabel('Montant net').fill('500');
@@ -51,7 +52,7 @@ test('alice keeps a private salary up to date and bob never sees it', async ({ b
   await fillDate(added, 'Début', '2026-07-01');
   await added.getByRole('button', { name: 'Ajouter la période' }).click();
   await expect(status).toHaveText('Période ajoutée.');
-  await expect(alice.getByRole('table', { name: 'Prime de vacances' })).toBeVisible();
+  await expect(timeline).toContainText('Prime de vacances');
 
   const bob = await browser.newPage();
   await signIn(bob, 'bob', '/income?scope=me');
@@ -76,7 +77,8 @@ test('alice changes an amount, records a one-off, ends a source and reopens it',
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
   // A raise at the first payment date offered (a past one, so ending today stays possible).
-  await alice.getByRole('table', { name: 'Salaire de base' }).getByRole('button', { name: /^Actions de la période/ }).first().click();
+  const timeline = alice.getByRole('list', { name: 'Changements, du plus récent au plus ancien' });
+  await timeline.getByRole('button', { name: /^Actions de la période Salaire de base/ }).first().click();
   await alice.getByRole('menuitem', { name: 'Changer le montant' }).click();
   const change = alice.getByRole('form', { name: 'Changer le montant' });
   await change.getByRole('combobox', { name: 'Date d’effet' }).click();
@@ -84,16 +86,18 @@ test('alice changes an amount, records a one-off, ends a source and reopens it',
   await change.getByLabel('Montant net').fill('2500');
   await change.getByRole('button', { name: 'Enregistrer le changement' }).click();
   await expect(alice.getByRole('status').filter({ hasText: /\S/ })).toHaveText('Montant changé.');
-  await expect(alice.getByRole('table', { name: 'Salaire de base' })).toContainText('2 500,00 €');
+  await expect(timeline).toContainText('2 500,00 €');
 
   await alice.getByRole('tab', { name: 'Exceptionnels' }).click();
-  await alice.getByRole('button', { name: 'Ajouter un revenu exceptionnel' }).click();
+  // The header's « + Exceptionnel » bears the same name: the section's own button.
+  await alice.getByRole('region', { name: 'Revenus exceptionnels' }).getByRole('button', { name: 'Ajouter un revenu exceptionnel' }).click();
   const oneOff = alice.getByRole('form', { name: 'Nouveau revenu exceptionnel' });
   await oneOff.getByLabel('Montant').fill('400');
   await oneOff.getByRole('button', { name: 'Ajouter', exact: true }).click();
   await expect(alice.getByRole('region', { name: 'Revenus exceptionnels' }).getByRole('status')).toHaveText('Revenu exceptionnel ajouté.');
-  await alice.getByRole('tab', { name: 'Vue d’ensemble' }).click();
-  const thisMonth = alice.getByRole('table', { name: 'Revenu attendu, mois par mois' }).getByRole('rowgroup').nth(1);
+  // The history lists the newest month first: this one.
+  await alice.getByRole('tab', { name: 'Historique' }).click();
+  const thisMonth = alice.getByRole('table', { name: 'Versements, mois par mois' }).getByRole('rowgroup').nth(1);
   await expect(thisMonth).toContainText('Revenu exceptionnel');
   await expect(thisMonth).toContainText('400,00 €');
 

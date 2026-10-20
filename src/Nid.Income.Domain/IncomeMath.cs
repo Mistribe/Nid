@@ -9,6 +9,10 @@ public sealed record Occurrence(Guid PhaseId, string Label, LocalDate On, Money 
 public sealed record ExpectedMonth(int Year, int Month, IReadOnlyList<Occurrence> Occurrences, IReadOnlyList<Flow> OneOffs, Money Total);
 public sealed record GapWarning(string Label, LocalDate EndsOn);
 
+/// <param name="Kind"><c>start</c>, <c>change</c>, <c>added</c> or <c>ended</c>.</param>
+/// <param name="Percent">The change from <paramref name="Before"/> to <paramref name="After"/>; null unless both repeat alike.</param>
+public sealed record PhaseChange(LocalDate On, string Kind, Guid PhaseId, string Label, Money? Before, Money? After, decimal? Percent, bool Upcoming);
+
 /// <summary>income-data-model.md §4 and spec §3: pure, exact decimals.</summary>
 public static class IncomeMath
 {
@@ -101,5 +105,35 @@ public static class IncomeMath
             .Select(p => new GapWarning(p.Label, EffectiveEnd(p)!.Value))
             .OrderBy(g => g.EndsOn).ThenBy(g => g.Label, StringComparer.Ordinal)
             .ToList();
+    }
+
+    /// <summary>The occurrences of the first date after today with any; a phase's next one is at most one cadence after today or after its start.</summary>
+    public static IReadOnlyList<Occurrence> Next(IEnumerable<IncomePhase> phases, LocalDate today)
+        => phases.SelectMany(p => Occurrences(p, today.PlusDays(1), p.Every.AddTo(LocalDate.Max(p.StartsOn, today), 1).PlusDays(1)))
+            .GroupBy(o => o.On).MinBy(g => g.Key)?.OrderBy(o => o.Label, StringComparer.Ordinal).ToList() ?? [];
+
+    /// <summary>
+    /// Income dashboard spec §4, the timeline of a source, newest first: the phases starting on its first day <c>start</c> it,
+    /// the first of a later label is <c>added</c>, a phase after one of its label is a <c>change</c>, a phase no other continues
+    /// has <c>ended</c> — so a label resumed after a gap reads <c>ended</c>, then <c>change</c>.
+    /// </summary>
+    public static IReadOnlyList<PhaseChange> Changes(IEnumerable<IncomePhase> phases, LocalDate today)
+    {
+        var list = phases.OrderBy(p => p.StartsOn).ThenBy(p => p.Id).ToList();
+        var changes = new List<PhaseChange>();
+        for (var i = 0; i < list.Count; i++)
+        {
+            var phase = list[i];
+            var previous = list.Take(i).LastOrDefault(p => p.Label == phase.Label);
+            changes.Add(previous is null
+                ? new PhaseChange(phase.StartsOn, phase.StartsOn == list[0].StartsOn ? "start" : "added", phase.Id, phase.Label,
+                    null, phase.NetAmount, null, phase.StartsOn > today)
+                : new PhaseChange(phase.StartsOn, "change", phase.Id, phase.Label, previous.NetAmount, phase.NetAmount,
+                    previous.Every == phase.Every ? OverviewMath.ChangePct(phase.NetAmount.Amount, previous.NetAmount.Amount) : null,
+                    phase.StartsOn > today));
+            if (EffectiveEnd(phase) is { } end && !IsContinued(phase, list))
+                changes.Add(new PhaseChange(end, "ended", phase.Id, phase.Label, phase.NetAmount, null, null, end > today));
+        }
+        return changes.OrderByDescending(c => c.On).ThenBy(c => c.Label, StringComparer.Ordinal).ThenBy(c => c.Kind, StringComparer.Ordinal).ToList();
     }
 }

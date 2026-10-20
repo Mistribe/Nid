@@ -5,7 +5,7 @@ import { allCapabilities } from '@/test/fixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { list, summary } from '../../income/testData';
+import { overview, sourceRow } from '../../income/testData';
 import type { DashboardView } from '../api';
 import { commitment, dashboard, envelope, person } from '../testData';
 import { NetWorthCharts } from './NetWorthCharts';
@@ -145,10 +145,12 @@ describe('key figure panels', () => {
     serve(dashboard());
     server.use(
       http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: '01926b9e-0000-7000-8000-00000000000a', kind: 'adult', displayName: 'Alice Dev', email: null }])),
-      http.get('*/api/v1/income/sources', () => HttpResponse.json(list([
-        summary({ owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }] }),
-        summary({ id: '0192f0aa-0000-7000-8000-00000000c002', displayName: 'Ancien poste', ended: true }),
-      ]))),
+      http.get('*/api/v1/income/overview', () => HttpResponse.json(overview({
+        sources: [
+          sourceRow({ owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }] }),
+          sourceRow({ id: PROPERTY, module: 'realestate', name: 'Studio Lyon', kind: 'rent', perMonth: eur('800.00') }),
+        ],
+      }))),
     );
     const { container, user } = await renderApp('/dashboard?panel=income');
 
@@ -156,7 +158,9 @@ describe('key figure panels', () => {
     const item = (await within(panel).findByRole('link', { name: 'Salaire Alice' })).closest('li')!;
     expect(item).toHaveTextContent('2 450,00 €');
     expect(await within(item).findByText('Alice Dev')).toBeInTheDocument();
-    expect(within(panel).queryByText('Ancien poste')).toBeNull();
+    const rent = within(panel).getByRole('link', { name: 'Studio Lyon' });
+    expect(rent).toHaveAttribute('href', `/properties/${PROPERTY}?tab=rental`);
+    expect(rent.closest('li')).toHaveTextContent('800,00 €');
     expect(within(panel).getByRole('link', { name: 'Voir les revenus' })).toHaveAttribute('href', '/income');
     await expectNoAxeViolations(container);
     await user.keyboard('{Escape}');

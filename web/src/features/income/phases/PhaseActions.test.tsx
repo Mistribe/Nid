@@ -43,9 +43,15 @@ function serveStateful(initial: IncomeSourceDetail = detail()) {
   return { sent, bump: (id: string, netAmount?: string) => { current = { ...current, phases: current.phases.map((p) => (p.id === id ? { ...p, version: p.version + 1, ...(netAmount ? { netAmount: { amount: netAmount, currency: 'EUR' } } : {}) } : p)) }; } };
 }
 
-const rowsOf = (label: string) => within(screen.getByRole('table', { name: label })).getAllByRole('row').slice(1);
 const statuses = () => screen.getAllByRole('status').map((s) => s.textContent);
-const menuOf = (label: string, row = 0) => within(rowsOf(label)[row]!).getByRole('button', { name: /^Actions de la période/ });
+/** The `⋯` of a label's `row`-th phase in the timeline, newest first. */
+const menuOf = (label: string, row = 0) => screen.getAllByRole('button', { name: new RegExp(`^Actions de la période ${label}`) })[row]!;
+const findMenu = (label: string) => screen.findAllByRole('button', { name: new RegExp(`^Actions de la période ${label}`) });
+/** The header's `⋯`, then « Ajouter une composante ». */
+const openAdd = async (user: Awaited<ReturnType<typeof renderApp>>['user']) => {
+  await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Ajouter une composante' }));
+};
 /** The row's `⋯` menu, then its item. */
 const choose = async (user: Awaited<ReturnType<typeof renderApp>>['user'], label: string, item: string, row = 0) => {
   await user.click(menuOf(label, row));
@@ -55,11 +61,11 @@ const choose = async (user: Awaited<ReturnType<typeof renderApp>>['user'], label
 describe('phase actions', () => {
   beforeAll(async () => { await import('../IncomeSourceDetailPage'); }, 30_000);
 
-  it('adds a phase, announces it and shows its new table', async () => {
+  it('adds a phase from the header menu and announces it', async () => {
     const { sent } = serveStateful();
     const { user, container } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Ajouter une période' }));
+    await openAdd(user);
     const form = screen.getByRole('form', { name: 'Ajouter une période' });
     await user.type(within(form).getByLabelText('Libellé'), 'Prime de vacances');
     await user.type(within(form).getByLabelText('Montant net'), '500');
@@ -70,16 +76,15 @@ describe('phase actions', () => {
     await user.click(within(form).getByRole('button', { name: 'Ajouter la période' }));
 
     await waitFor(() => expect(statuses()).toContain('Période ajoutée.'));
-    expect(await screen.findByRole('table', { name: 'Prime de vacances' })).toBeInTheDocument();
     expect(sent[0]).toMatchObject({ method: 'POST', body: { label: 'Prime de vacances', startsOn: '2026-07-01', netAmount: { amount: '500', currency: 'EUR' }, every: { count: 1, unit: 'year' } } });
-    expect(screen.getByRole('heading', { name: 'Périodes' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Changements' })).toHaveFocus();
   });
 
   it('corrects a phase with the version it read, then announces it', async () => {
     const { sent } = serveStateful();
     const { user, container } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     await choose(user, 'Prime annuelle', 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger la période' });
     expect(within(form).getByLabelText('Montant net')).toHaveValue('1800');
@@ -90,7 +95,6 @@ describe('phase actions', () => {
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(statuses()).toContain('Période corrigée.'));
-    await waitFor(() => expect(rowsOf('Prime annuelle')[0]).toHaveTextContent('1 900,00 €'));
     expect(sent[0]).toMatchObject({ method: 'PUT', body: { label: 'Prime annuelle', version: 0, netAmount: { amount: '1900', currency: 'EUR' } } });
   });
 
@@ -98,7 +102,7 @@ describe('phase actions', () => {
     serveStateful();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     await choose(user, 'Prime annuelle', 'Corriger');
     await user.click(within(screen.getByRole('form', { name: 'Corriger la période' })).getByRole('button', { name: 'Annuler' }));
 
@@ -109,13 +113,13 @@ describe('phase actions', () => {
     const { sent } = serveStateful();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     await choose(user, 'Prime annuelle', 'Supprimer');
     expect(await screen.findByText('Cette période sera retirée.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(statuses()).toContain('Période supprimée.'));
-    await waitFor(() => expect(screen.queryByRole('table', { name: 'Prime annuelle' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Actions de la période Prime annuelle/ })).not.toBeInTheDocument());
     expect(new URL(sent[0]!.url).searchParams.get('version')).toBe('0');
   });
 
@@ -123,7 +127,7 @@ describe('phase actions', () => {
     const { bump } = serveStateful();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     bump('p2');
     await choose(user, 'Prime annuelle', 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger la période' });
@@ -137,7 +141,7 @@ describe('phase actions', () => {
     const { bump } = serveStateful();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     await choose(user, 'Prime annuelle', 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger la période' });
     bump('p2', '2000.00');
@@ -154,7 +158,7 @@ describe('phase actions', () => {
     const { bump } = serveStateful();
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     bump('p2');
     await choose(user, 'Prime annuelle', 'Supprimer');
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
@@ -168,7 +172,7 @@ describe('phase actions', () => {
     server.use(http.delete('*/api/v1/income/sources/:id/phases/:phaseId', () => HttpResponse.json({ status: 404, title: 'Not found' }, { status: 404 })));
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await screen.findByRole('table', { name: 'Prime annuelle' });
+    await findMenu('Prime annuelle');
     await choose(user, 'Prime annuelle', 'Supprimer');
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
@@ -209,7 +213,7 @@ describe('phase actions', () => {
       { status: 422, code: 'income.phase_overlap', title: 'x', errors: [{ path: 'startsOn', code: 'income.phase_overlap', message: 'x' }] }, { status: 422 })));
     const { user } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Ajouter une période' }));
+    await openAdd(user);
     const form = screen.getByRole('form', { name: 'Ajouter une période' });
     await user.type(within(form).getByLabelText('Libellé'), 'Salaire de base');
     await user.type(within(form).getByLabelText('Montant net'), '2400');
@@ -220,17 +224,18 @@ describe('phase actions', () => {
   });
 
   it.each([
-    ['the other adult', { canWrite: false, visibility: 'shared' }, []],
-    ['an ended source', { ended: true, endedOn: '2025-06-30' }, ['Rouvrir']],
-  ] as const)('gives %s no form, no phase action and no Actions column', async (_who, over, buttons) => {
+    ['the other adult', { canWrite: false, visibility: 'shared' }, ['Afficher le tableau']],
+    ['an ended source', { ended: true, endedOn: '2025-06-30' }, ['Rouvrir', 'Afficher le tableau']],
+  ] as const)('gives %s no form and no phase action', async (_who, over, buttons) => {
     serveStateful(detail({ ...over, gapSoon: [{ label: 'Salaire de base', endsOn: '2026-12-31' }] }));
     const { container } = await renderApp(`/income/${SALARY}`);
 
     await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+    await screen.findByRole('list', { name: 'Changements, du plus récent au plus ancien' });
     const article = screen.getByRole('article');
+    // Only the chart's table toggle (and « Rouvrir » on an ended source).
     expect(within(article).queryAllByRole('button').map((b) => b.textContent)).toEqual(buttons);
     expect(within(article).queryByRole('textbox')).not.toBeInTheDocument();
-    expect(within(article).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 });

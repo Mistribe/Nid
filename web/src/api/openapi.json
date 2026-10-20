@@ -6198,6 +6198,228 @@
         }
       }
     },
+    "/api/v1/income/sources/{id}/overview": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeSourceOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/income/overview": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "person",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "ended",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/income/sources/{id}/one-offs": {
       "post": {
         "tags": [
@@ -16713,6 +16935,62 @@
           }
         }
       },
+      "IncomeChangeView": {
+        "required": [
+          "on",
+          "kind",
+          "phaseId",
+          "label",
+          "upcoming"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "phaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "before": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeMoneyView"
+              }
+            ]
+          },
+          "after": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeMoneyView"
+              }
+            ]
+          },
+          "percent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "upcoming": {
+            "type": "boolean"
+          }
+        }
+      },
       "IncomeDurationView": {
         "required": [
           "count",
@@ -16809,6 +17087,21 @@
           }
         }
       },
+      "IncomeLabelAmount": {
+        "required": [
+          "label",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/IncomeMoneyView"
+          }
+        }
+      },
       "IncomeMoneyView": {
         "required": [
           "amount",
@@ -16900,6 +17193,346 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "IncomeOverview": {
+        "required": [
+          "period",
+          "from",
+          "to",
+          "currency",
+          "figures",
+          "split",
+          "months",
+          "sources",
+          "kinds",
+          "missingRates"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/IncomeOverviewFigures"
+          },
+          "split": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewShare"
+            }
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewMonth"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewRow"
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missingRates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "IncomeOverviewFigures": {
+        "type": "object",
+        "properties": {
+          "monthlyNow": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "monthlyChange1y": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "total": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "elapsed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "changeVsPrevious": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "changeVsPreviousPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "change3y": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "change3yYearly": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "IncomeOverviewMonth": {
+        "required": [
+          "year",
+          "month",
+          "upcoming",
+          "bySource"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "month": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "upcoming": {
+            "type": "boolean"
+          },
+          "recurring": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "oneOff": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "total": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "previousYear": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "bySource": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewPart"
+            }
+          }
+        }
+      },
+      "IncomeOverviewPart": {
+        "required": [
+          "item",
+          "name",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/IncomeAmountView"
+          }
+        }
+      },
+      "IncomeOverviewRow": {
+        "required": [
+          "id",
+          "module",
+          "name",
+          "kind",
+          "visibility",
+          "owners",
+          "ended"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "perMonth": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "change1y": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "nextOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "nextAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeAmountView"
+              }
+            ]
+          },
+          "gapOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "ended": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IncomeOverviewShare": {
+        "required": [
+          "name",
+          "kind",
+          "total",
+          "perMonth",
+          "percent"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/IncomeAmountView"
+          },
+          "perMonth": {
+            "$ref": "#/components/schemas/IncomeAmountView"
+          },
+          "percent": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -17243,6 +17876,69 @@
           }
         }
       },
+      "IncomeSourceFigures": {
+        "required": [
+          "monthlyNow",
+          "monthlyParts",
+          "receivedThisYear",
+          "oneOffsThisYear"
+        ],
+        "type": "object",
+        "properties": {
+          "monthlyNow": {
+            "$ref": "#/components/schemas/IncomeAmountView"
+          },
+          "monthlyParts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewPart"
+            }
+          },
+          "nextOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "nextAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeMoneyView"
+              }
+            ]
+          },
+          "nextLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "change1y": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "changeSinceStart": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "receivedThisYear": {
+            "$ref": "#/components/schemas/IncomeMoneyView"
+          },
+          "oneOffsThisYear": {
+            "$ref": "#/components/schemas/IncomeMoneyView"
+          }
+        }
+      },
       "IncomeSourceList": {
         "required": [
           "items"
@@ -17253,6 +17949,100 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/IncomeSourceSummary"
+            }
+          }
+        }
+      },
+      "IncomeSourceMonth": {
+        "required": [
+          "year",
+          "month",
+          "upcoming",
+          "parts",
+          "oneOff",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "month": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "upcoming": {
+            "type": "boolean"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeLabelAmount"
+            }
+          },
+          "oneOff": {
+            "$ref": "#/components/schemas/IncomeMoneyView"
+          },
+          "total": {
+            "$ref": "#/components/schemas/IncomeMoneyView"
+          }
+        }
+      },
+      "IncomeSourceOverview": {
+        "required": [
+          "id",
+          "from",
+          "to",
+          "currency",
+          "figures",
+          "months",
+          "changes",
+          "lastPayments",
+          "lastOneOffs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/IncomeSourceFigures"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeSourceMonth"
+            }
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeChangeView"
+            }
+          },
+          "lastPayments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOccurrenceView"
+            }
+          },
+          "lastOneOffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOneOffView"
             }
           }
         }

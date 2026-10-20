@@ -9,6 +9,7 @@ using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Income.Application;
 using Nid.Income.Contracts;
+using Nid.Income.Domain;
 using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Platform;
@@ -300,6 +301,7 @@ public static class RequestCatalogue
         new(typeof(UndoRoutineCommand), false, (_, _) => new UndoRoutineCommand([])),
 
         new(typeof(ListIncomeSourcesQuery), false, (_, _) => new ListIncomeSourcesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetIncomeOverviewQuery), false, (_, _) => new GetIncomeOverviewQuery(VisibilityScope.Me, OverviewPeriod.Year, null, null, null, true)),
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
@@ -322,6 +324,7 @@ public static class RequestCatalogue
         new(typeof(ChangeIncomePhaseCommand), true, (_, item) => new ChangeIncomePhaseCommand(item, "Salaire", new LocalDate(2025, 6, 1),
             Money.Create(1m, Currency.Eur).Ok(), null, null, null)),
         new(typeof(GetIncomeExpectedQuery), true, (_, item) => new GetIncomeExpectedQuery(item, new LocalDate(2025, 1, 1), new LocalDate(2025, 12, 31))),
+        new(typeof(GetIncomeSourceOverviewQuery), true, (_, item) => new GetIncomeSourceOverviewQuery(item, "12m")),
 
         // A flow id is looked up on the route's source only (IFlows.ListAsync by item), so a flow id alone can never reach another item.
         new(typeof(RecordIncomeOneOffCommand), true, (_, item) => new RecordIncomeOneOffCommand(item, new LocalDate(2025, 1, 1),

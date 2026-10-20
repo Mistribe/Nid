@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { dashboard, todoItem } from '@/features/dashboard/testData';
-import { detail, list, SALARY, summary } from '@/features/income/testData';
+import { detail, overview, SALARY, sourceRow } from '@/features/income/testData';
 import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
@@ -121,7 +121,7 @@ describe('the shell', () => {
 
   it('keeps Moi through a link to a detail and through the breadcrumb', async () => {
     server.use(
-      http.get('*/api/v1/income/sources', () => HttpResponse.json(list([summary()]))),
+      http.get('*/api/v1/income/overview', () => HttpResponse.json(overview({ sources: [sourceRow()] }))),
       http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail())),
     );
     const { router, user } = await renderApp('/income?scope=me');

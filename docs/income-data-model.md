@@ -84,12 +84,13 @@ Le tableau de bord additionne trois origines par le contrat `IIncomeContribution
 | Origine | Ce qu'elle apporte |
 |---|---|
 | **Module Revenus** | Équivalent mensuel des phases actives, plus flux exceptionnels |
-| **RealEstate** | **Loyer prévu** des baux en cours (`rent_monthly`), **sans** les provisions de charges (`realestate/README.md` §6) |
+| **RealEstate** | **Loyer prévu** des baux en cours (`rent_monthly`), **sans** les provisions de charges (`realestate/README.md` §6) ; compté dans « Revenus / mois » de l'accueil (un bien dont tous les baux sont terminés n'est plus une source) |
 | **Investments** | Revenus du patrimoine réellement **encaissés** sur 12 mois (flux `income`), affichés **à part**, hors équivalent mensuel |
 
 - Chaque contribution est émise **par élément**, pour que les droits et la répartition par personne soient justes.
 - Les montants d'une autre devise sont convertis au taux de la date (`core-data-model.md` §8).
 - Une source dont la date de fin est passée n'apporte plus rien à d.
+- La **vue d'ensemble des revenus** (`GET /api/v1/income/overview`) compte aussi les loyers des baux (loyer seul, sans les charges), mois par mois, proratisé au jour pour un mois partiel ; les baux terminés comptent pour les mois où ils ont couru.
 
 ## 6. Part engagée et marge
 
