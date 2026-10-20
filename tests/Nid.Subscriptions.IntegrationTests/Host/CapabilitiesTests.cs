@@ -28,4 +28,14 @@ public class CapabilitiesTests(PostgresFixture fixture)
         Assert.True(a.GetProperty("admin").GetBoolean());
         Assert.False(b.GetProperty("admin").GetBoolean());
     }
+
+    [Fact]
+    public async Task Version_is_the_api_build_version()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var version = await app.GetAsync<JsonElement>(app.AdultB, "/api/v1/platform/version");
+
+        Assert.Matches(@"^\d+\.\d+\.\d+", version.GetProperty("version").GetString());
+    }
 }

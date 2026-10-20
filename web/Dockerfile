@@ -6,6 +6,9 @@ RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.npmrc ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm pnpm install --frozen-lockfile
 COPY web/ ./
+# The release version, shown in the sidebar (set by the images job of ci.yml).
+ARG VERSION=0.0.0
+ENV VITE_NID_VERSION=$VERSION
 # The headers come from src/security-headers.ts, the one source (frontend/architecture.md §9); Node 24 strips its types.
 RUN pnpm build && node scripts/caddy-headers.mjs > /headers.caddy
 

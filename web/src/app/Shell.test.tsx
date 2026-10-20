@@ -28,6 +28,13 @@ describe('the shell', () => {
     expect(groups).toEqual([['Accueil', 'Routine', 'À valider'], ['Placements', 'Biens', 'Crédits'], ['Revenus', 'Abonnements']]);
   });
 
+  it('shows the API version when hovering the web version', async () => {
+    server.use(http.get('*/api/v1/platform/version', () => HttpResponse.json({ version: '1.2.3' })));
+    const { user } = await renderApp('/subscriptions');
+    await user.hover(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('API : 1.2.3');
+  });
+
   it('puts account pages in the person menu', async () => {
     const { user } = await renderApp('/subscriptions');
     await user.click(await openerReady());

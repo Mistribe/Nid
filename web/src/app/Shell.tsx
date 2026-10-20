@@ -12,6 +12,8 @@ import { useSession } from './Providers';
 
 // The menu's Radix code stays out of the initial bundle (200 kB budget); the name shows meanwhile.
 const PersonMenu = lazy(() => import('./PersonMenu').then((m) => ({ default: m.PersonMenu })));
+const VersionInfo = lazy(() => import('./VersionInfo').then((m) => ({ default: m.VersionInfo })));
+const VERSION = import.meta.env.VITE_NID_VERSION ?? 'dev';
 
 const LINK = 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 hover:bg-accent hover:text-accent-foreground';
 // A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review).
@@ -51,6 +53,9 @@ export function Shell() {
         <div className="mt-auto">
           <Suspense fallback={<p className="truncate px-3 py-2 text-sm font-medium">{session.person.name}</p>}>
             <PersonMenu />
+          </Suspense>
+          <Suspense fallback={<p className="px-3 pt-1 text-xs text-muted-foreground">{t('app.version', { version: VERSION })}</p>}>
+            <VersionInfo version={VERSION} />
           </Suspense>
         </div>
       </nav>

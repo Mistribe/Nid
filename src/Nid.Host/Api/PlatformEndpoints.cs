@@ -1,3 +1,4 @@
+using System.Reflection;
 using Nid.Core.Contracts;
 using Nid.Platform;
 using Nid.Platform.Audit;
@@ -16,6 +17,11 @@ public static class PlatformEndpoints
                 => (await invoker.InvokeAsync(new GetCapabilitiesQuery(), ct)).ToHttp(c => c))
             .Returns<CapabilitiesView>();
 
+        // The version CI builds with (-p:Version); the "+commit" suffix the SDK appends is dropped.
+        api.MapGet("/version", () => new VersionView(typeof(PlatformEndpoints).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0]))
+            .Returns<VersionView>();
+
         api.MapGet("/audit/items/{id:guid}", async (Guid id, long? before, int? limit, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ItemHistoryQuery(new ItemId(id), before, limit), ct)).ToHttp(p => p))
             .Returns<ItemHistoryPage>();
@@ -27,3 +33,5 @@ public static class PlatformEndpoints
         return routes;
     }
 }
+
+public sealed record VersionView(string Version);

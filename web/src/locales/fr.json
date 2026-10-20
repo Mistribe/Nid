@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Nid" },
+  "app": { "name": "Nid", "version": "Version {{version}}", "api_version": "API : {{version}}", "api_version_unknown": "indisponible" },
   "theme": { "sobre": "Sobre", "ardoise": "Ardoise", "sauge": "Sauge", "terre": "Terre" },
   "mode": { "system": "Système", "light": "Clair", "dark": "Sombre" },
   "access": { "private": "Privé", "shared": "Partagé", "dependent": "Enfant" },
