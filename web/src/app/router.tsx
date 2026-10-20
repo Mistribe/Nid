@@ -140,6 +140,15 @@ const incomeRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
 });
 
+// Tax estimate spec §9: one page, its tabs in `?tab=`.
+const taxRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/tax',
+  beforeLoad: requireModule('income'),
+  validateSearch: detailSearch,
+  component: lazyRouteComponent(() => import('@/features/tax/TaxPage'), 'TaxPage'),
+});
+
 const routineRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/routine',
@@ -316,7 +325,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

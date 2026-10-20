@@ -643,6 +643,26 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.TaxProfileRow", b =>
+                {
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.HasKey("Year")
+                        .HasName("pk_tax_profile");
+
+                    b.ToTable("tax_profile", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>
                 {
                     b.Property<Guid>("Id")

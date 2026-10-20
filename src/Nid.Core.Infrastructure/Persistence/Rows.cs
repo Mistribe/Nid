@@ -12,6 +12,12 @@ public sealed class HouseholdSettingsRow
     public int MaxAdults { get; set; } = 2;
 }
 
+public sealed class TaxProfileRow
+{
+    public int Year { get; set; }
+    public string Data { get; set; } = "{}";
+}
+
 public sealed class PersonRow
 {
     public Guid Id { get; set; }

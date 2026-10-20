@@ -10151,6 +10151,298 @@
         }
       }
     },
+    "/api/v1/tax": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxEstimateView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tax/profile/{year}": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaxProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxEstimateView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tax/simulate": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaxInputsView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/imports": {
       "post": {
         "tags": [
@@ -14590,6 +14882,25 @@
           }
         }
       },
+      "DeclarantWithholdingView": {
+        "required": [
+          "name",
+          "salaries",
+          "monthly"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "salaries": {
+            "type": "string"
+          },
+          "monthly": {
+            "type": "string"
+          }
+        }
+      },
       "DurationBody": {
         "required": [
           "count",
@@ -18768,6 +19079,39 @@
           }
         }
       },
+      "PinelCommitment": {
+        "required": [
+          "property",
+          "initialYears",
+          "totalYears",
+          "plus"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initialYears": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalYears": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startYear": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "plus": {
+            "type": "boolean"
+          }
+        }
+      },
       "Preferences": {
         "required": [
           "theme",
@@ -21712,6 +22056,548 @@
           }
         }
       },
+      "TaxAdultView": {
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "TaxDeclarantResultView": {
+        "required": [
+          "name",
+          "netSalary",
+          "netTaxableIncome",
+          "allowance",
+          "taxable",
+          "perDeducted"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "netSalary": {
+            "type": "string"
+          },
+          "netTaxableIncome": {
+            "type": "string"
+          },
+          "allowance": {
+            "type": "string"
+          },
+          "taxable": {
+            "type": "string"
+          },
+          "perDeducted": {
+            "type": "string"
+          }
+        }
+      },
+      "TaxDeclarantView": {
+        "required": [
+          "name",
+          "salaryGross",
+          "status",
+          "otherTaxable",
+          "perContributions"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "salaryGross": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "otherTaxable": {
+            "type": "string"
+          },
+          "perContributions": {
+            "type": "string"
+          },
+          "contributionRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actualExpenses": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TaxEstimateView": {
+        "required": [
+          "year",
+          "profile",
+          "inputs",
+          "result",
+          "notices",
+          "adults",
+          "dependents",
+          "rentalProperties"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/TaxProfileView"
+          },
+          "profileFrom": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/TaxInputsView"
+          },
+          "result": {
+            "$ref": "#/components/schemas/TaxResultView"
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxNoticeView"
+            }
+          },
+          "adults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxAdultView"
+            }
+          },
+          "dependents": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rentalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxPropertyView"
+            }
+          }
+        }
+      },
+      "TaxInputsView": {
+        "required": [
+          "year",
+          "declarants",
+          "dependents",
+          "childrenUnder6",
+          "rentalGross",
+          "rentalInterest",
+          "rentalCharges",
+          "capitalIncome",
+          "nonTaxableIncome",
+          "pinelReduction",
+          "childcareOutsideHome",
+          "homeEmployment",
+          "donations",
+          "donationsAid"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "declarants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxDeclarantView"
+            }
+          },
+          "dependents": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "childrenUnder6": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rentalGross": {
+            "type": "string"
+          },
+          "rentalInterest": {
+            "type": "string"
+          },
+          "rentalCharges": {
+            "type": "string"
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "capitalIncome": {
+            "type": "string"
+          },
+          "nonTaxableIncome": {
+            "type": "string"
+          },
+          "pinelReduction": {
+            "type": "string"
+          },
+          "childcareOutsideHome": {
+            "type": "string"
+          },
+          "homeEmployment": {
+            "type": "string"
+          },
+          "donations": {
+            "type": "string"
+          },
+          "donationsAid": {
+            "type": "string"
+          }
+        }
+      },
+      "TaxNoticeView": {
+        "required": [
+          "code",
+          "item",
+          "name",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "item": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        }
+      },
+      "TaxProfileBody": {
+        "required": [
+          "childrenUnder6"
+        ],
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "dependents": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "childrenUnder6": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pinel": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PinelCommitment"
+            }
+          },
+          "childcareOutsideHome": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "homeEmployment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "donations": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "donationsAid": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contributionRates": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "actualExpenses": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TaxProfileView": {
+        "required": [
+          "statuses",
+          "childrenUnder6",
+          "pinel",
+          "childcareOutsideHome",
+          "homeEmployment",
+          "donations",
+          "donationsAid",
+          "contributionRates",
+          "actualExpenses"
+        ],
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "dependents": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "childrenUnder6": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pinel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinelCommitment"
+            }
+          },
+          "childcareOutsideHome": {
+            "type": "string"
+          },
+          "homeEmployment": {
+            "type": "string"
+          },
+          "donations": {
+            "type": "string"
+          },
+          "donationsAid": {
+            "type": "string"
+          },
+          "contributionRates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "actualExpenses": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TaxPropertyView": {
+        "required": [
+          "id",
+          "name",
+          "acquiredIn"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "acquiredIn": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "TaxResultView": {
+        "required": [
+          "year",
+          "rulesYear",
+          "parts",
+          "declarants",
+          "rentalRegime",
+          "rentalTaxable",
+          "rentalDeficit",
+          "netTaxableIncome",
+          "grossTax",
+          "familyCapApplied",
+          "decote",
+          "pinelReduction",
+          "donationReduction",
+          "childcareCredit",
+          "homeEmploymentCredit",
+          "nicheCapExcess",
+          "incomeTax",
+          "capitalFlatTax",
+          "socialLevies",
+          "totalTax",
+          "marginalRate",
+          "netBeforeTax",
+          "netAfterTax",
+          "netAfterTaxMonthly",
+          "warnings",
+          "withholding"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rulesYear": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "parts": {
+            "type": "string"
+          },
+          "declarants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxDeclarantResultView"
+            }
+          },
+          "rentalRegime": {
+            "type": "string"
+          },
+          "rentalTaxable": {
+            "type": "string"
+          },
+          "rentalDeficit": {
+            "type": "string"
+          },
+          "netTaxableIncome": {
+            "type": "string"
+          },
+          "grossTax": {
+            "type": "string"
+          },
+          "familyCapApplied": {
+            "type": "boolean"
+          },
+          "decote": {
+            "type": "string"
+          },
+          "pinelReduction": {
+            "type": "string"
+          },
+          "donationReduction": {
+            "type": "string"
+          },
+          "childcareCredit": {
+            "type": "string"
+          },
+          "homeEmploymentCredit": {
+            "type": "string"
+          },
+          "nicheCapExcess": {
+            "type": "string"
+          },
+          "incomeTax": {
+            "type": "string"
+          },
+          "capitalFlatTax": {
+            "type": "string"
+          },
+          "socialLevies": {
+            "type": "string"
+          },
+          "totalTax": {
+            "type": "string"
+          },
+          "marginalRate": {
+            "type": "string"
+          },
+          "averageRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBeforeTax": {
+            "type": "string"
+          },
+          "netAfterTax": {
+            "type": "string"
+          },
+          "netAfterTaxMonthly": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "withholding": {
+            "$ref": "#/components/schemas/WithholdingView"
+          }
+        }
+      },
       "TokenView": {
         "required": [
           "id",
@@ -21862,6 +22748,52 @@
         "type": "object",
         "properties": {
           "version": {
+            "type": "string"
+          }
+        }
+      },
+      "WithholdingView": {
+        "required": [
+          "rate",
+          "taxBase",
+          "income",
+          "declarants",
+          "rentalDeclared",
+          "rentalMonthly",
+          "annual",
+          "leftOut",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "rate": {
+            "type": "string"
+          },
+          "taxBase": {
+            "type": "string"
+          },
+          "income": {
+            "type": "string"
+          },
+          "declarants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeclarantWithholdingView"
+            }
+          },
+          "rentalDeclared": {
+            "type": "string"
+          },
+          "rentalMonthly": {
+            "type": "string"
+          },
+          "annual": {
+            "type": "string"
+          },
+          "leftOut": {
+            "type": "string"
+          },
+          "balance": {
             "type": "string"
           }
         }

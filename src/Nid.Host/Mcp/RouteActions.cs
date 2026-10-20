@@ -32,7 +32,8 @@ public sealed record RouteAction(
 /// <summary>
 /// Spec 4D3: what the assistant can propose beyond the documents of 4D1, nearly every write of the web. Left out: the admin
 /// area, tokens and sessions, preferences, the import, the FX and catalog syncs (admin or browser-only), the reads sent as
-/// POST (simulations, the bank table's preview), and the bank table (<c>propose_amortization</c>).
+/// POST (simulations, the bank table's preview), the bank table (<c>propose_amortization</c>), and the tax profile (replaced
+/// whole, and no tool reads it yet).
 /// </summary>
 public static class RouteActions
 {

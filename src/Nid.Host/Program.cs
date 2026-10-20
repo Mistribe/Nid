@@ -116,6 +116,7 @@ app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
+app.MapTaxEndpoints();
 app.MapImportEndpoints();
 app.MapExportEndpoints();
 app.MapPlatformEndpoints();

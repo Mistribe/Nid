@@ -1,3 +1,5 @@
+using Nid.Core.Application.Tax;
+using Nid.Core.Domain.Tax;
 using System.Reflection;
 using System.Text.Json;
 using Nid.Core.Application;
@@ -300,6 +302,10 @@ public static class RequestCatalogue
         new(typeof(ListIncomeSourcesQuery), false, (_, _) => new ListIncomeSourcesQuery(VisibilityScope.Me, true)),
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
+        new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
+        new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
+        new(typeof(SimulateTaxQuery), false, (_, _) => new SimulateTaxQuery(new TaxInputs(
+            2025, [new TaxDeclarant("bench", 1m, EmploymentStatus.NonExecutive, 0m, 0m)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m, 0m, 0m, 0m, 0m))),
         new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
         new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,

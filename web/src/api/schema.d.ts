@@ -9336,6 +9336,288 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tax": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    year?: number;
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxEstimateView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tax/profile/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path: {
+                    year: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TaxProfileBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxEstimateView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tax/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TaxInputsView"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxResultView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/imports": {
         parameters: {
             query?: never;
@@ -12520,6 +12802,11 @@ export interface components {
             envelopesWithoutStart: number;
             commitmentSources: components["schemas"]["DashboardCommitmentSourceView"][];
         };
+        DeclarantWithholdingView: {
+            name: string;
+            salaries: string;
+            monthly: string;
+        };
         DurationBody: {
             /** Format: int32 */
             count: number;
@@ -13518,6 +13805,17 @@ export interface components {
             payer: components["schemas"]["PayerView"];
             note?: null | string;
         };
+        PinelCommitment: {
+            /** Format: uuid */
+            property: string;
+            /** Format: int32 */
+            initialYears: number;
+            /** Format: int32 */
+            totalYears: number;
+            /** Format: int32 */
+            startYear?: null | number;
+            plus: boolean;
+        };
         Preferences: {
             theme: string;
             mode: string;
@@ -14214,6 +14512,149 @@ export interface components {
             /** Format: int64 */
             databaseSizeBytes?: null | number;
         };
+        TaxAdultView: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+        };
+        TaxDeclarantResultView: {
+            name: string;
+            netSalary: string;
+            netTaxableIncome: string;
+            allowance: string;
+            taxable: string;
+            perDeducted: string;
+        };
+        TaxDeclarantView: {
+            name: string;
+            salaryGross: string;
+            status: string;
+            otherTaxable: string;
+            perContributions: string;
+            contributionRate?: null | string;
+            actualExpenses?: null | string;
+        };
+        TaxEstimateView: {
+            /** Format: int32 */
+            year: number;
+            profile: components["schemas"]["TaxProfileView"];
+            /** Format: int32 */
+            profileFrom?: null | number;
+            inputs: components["schemas"]["TaxInputsView"];
+            result: components["schemas"]["TaxResultView"];
+            notices: components["schemas"]["TaxNoticeView"][];
+            adults: components["schemas"]["TaxAdultView"][];
+            /** Format: int32 */
+            dependents: number;
+            rentalProperties: components["schemas"]["TaxPropertyView"][];
+        };
+        TaxInputsView: {
+            /** Format: int32 */
+            year: number;
+            declarants: components["schemas"]["TaxDeclarantView"][];
+            /** Format: int32 */
+            dependents: number;
+            /** Format: int32 */
+            childrenUnder6: number;
+            rentalGross: string;
+            rentalInterest: string;
+            rentalCharges: string;
+            rentalRegime?: null | string;
+            capitalIncome: string;
+            nonTaxableIncome: string;
+            pinelReduction: string;
+            childcareOutsideHome: string;
+            homeEmployment: string;
+            donations: string;
+            donationsAid: string;
+        };
+        TaxNoticeView: {
+            code: string;
+            /** Format: uuid */
+            item: string;
+            name: string;
+            amount: string;
+        };
+        TaxProfileBody: {
+            statuses?: null | {
+                [key: string]: string;
+            };
+            /** Format: int32 */
+            dependents?: null | number;
+            /** Format: int32 */
+            childrenUnder6: number;
+            rentalRegime?: null | string;
+            pinel?: null | components["schemas"]["PinelCommitment"][];
+            childcareOutsideHome?: null | string;
+            homeEmployment?: null | string;
+            donations?: null | string;
+            donationsAid?: null | string;
+            contributionRates?: null | {
+                [key: string]: string;
+            };
+            actualExpenses?: null | {
+                [key: string]: string;
+            };
+        };
+        TaxProfileView: {
+            statuses: {
+                [key: string]: string;
+            };
+            /** Format: int32 */
+            dependents?: null | number;
+            /** Format: int32 */
+            childrenUnder6: number;
+            rentalRegime?: null | string;
+            pinel: components["schemas"]["PinelCommitment"][];
+            childcareOutsideHome: string;
+            homeEmployment: string;
+            donations: string;
+            donationsAid: string;
+            contributionRates: {
+                [key: string]: string;
+            };
+            actualExpenses: {
+                [key: string]: string;
+            };
+        };
+        TaxPropertyView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            acquiredIn: number;
+        };
+        TaxResultView: {
+            /** Format: int32 */
+            year: number;
+            /** Format: int32 */
+            rulesYear: number;
+            parts: string;
+            declarants: components["schemas"]["TaxDeclarantResultView"][];
+            rentalRegime: string;
+            rentalTaxable: string;
+            rentalDeficit: string;
+            netTaxableIncome: string;
+            grossTax: string;
+            familyCapApplied: boolean;
+            decote: string;
+            pinelReduction: string;
+            donationReduction: string;
+            childcareCredit: string;
+            homeEmploymentCredit: string;
+            nicheCapExcess: string;
+            incomeTax: string;
+            capitalFlatTax: string;
+            socialLevies: string;
+            totalTax: string;
+            marginalRate: string;
+            averageRate?: null | string;
+            netBeforeTax: string;
+            netAfterTax: string;
+            netAfterTaxMonthly: string;
+            warnings: string[];
+            withholding: components["schemas"]["WithholdingView"];
+        };
         TokenView: {
             /** Format: uuid */
             id: string;
@@ -14254,6 +14695,17 @@ export interface components {
         };
         VersionView: {
             version: string;
+        };
+        WithholdingView: {
+            rate: string;
+            taxBase: string;
+            income: string;
+            declarants: components["schemas"]["DeclarantWithholdingView"][];
+            rentalDeclared: string;
+            rentalMonthly: string;
+            annual: string;
+            leftOut: string;
+            balance: string;
         };
     };
     responses: never;

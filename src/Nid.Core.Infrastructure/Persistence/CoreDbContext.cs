@@ -19,6 +19,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<FlowRow> Flows => Set<FlowRow>();
     public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
     public DbSet<ProposalRow> Proposals => Set<ProposalRow>();
+    public DbSet<TaxProfileRow> TaxProfiles => Set<TaxProfileRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,6 +36,15 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.ReferenceCurrency).HasColumnType("char(3)");
             e.Property(x => x.MaxAdults).HasDefaultValue(2);
+        });
+
+        // Tax estimate spec §7: one household document per revenue year.
+        modelBuilder.Entity<TaxProfileRow>(e =>
+        {
+            e.ToTable("tax_profile", t => t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100"));
+            e.HasKey(x => x.Year);
+            e.Property(x => x.Year).ValueGeneratedNever();
+            e.Property(x => x.Data).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<PersonRow>(e =>

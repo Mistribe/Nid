@@ -23,6 +23,7 @@ public class McpRouteToolTests(PostgresFixture fixture)
         "/api/v1/admin/", "/api/v1/platform/imports", "/api/v1/core/proposals", "/api/v1/core/me/", "/api/v1/core/fx-rates/",
         "/api/v1/subscriptions/catalog/sync", "/api/v1/realestate/loans/{id:guid}/simulations",
         "/api/v1/realestate/loans/{id:guid}/bank-schedule/preview", "PUT /api/v1/realestate/loans/{id:guid}/bank-schedule",
+        "/api/v1/tax/",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)

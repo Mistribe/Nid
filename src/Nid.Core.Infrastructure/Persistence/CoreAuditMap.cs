@@ -11,6 +11,7 @@ public sealed class CoreAuditMap : IAuditMap
         [typeof(OwnershipRow)] = new(e => AuditItems.Of(e, nameof(OwnershipRow.ItemId))),
         [typeof(PersonRow)] = AuditRule.NoItem,
         [typeof(HouseholdSettingsRow)] = AuditRule.NoItem,
+        [typeof(TaxProfileRow)] = AuditRule.NoItem,
         [typeof(ValuationRow)] = new(e => AuditItems.Of(e, nameof(ValuationRow.ItemId))),
         [typeof(FlowRow)] = new(e => AuditItems.Of(e, nameof(FlowRow.ItemId))),
         [typeof(ProposalRow)] = new(e => AuditItems.Of(e, nameof(ProposalRow.TargetItemId))),

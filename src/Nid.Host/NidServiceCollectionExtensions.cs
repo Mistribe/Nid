@@ -117,6 +117,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IFxRunLog, FxRunLog>();
         services.AddScoped<IFxRates, FxRates>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
+        services.AddScoped<ITaxProfileStore, TaxProfileStore>();
+        services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
@@ -146,6 +148,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
+        services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
         services.AddScoped<IUpcomingEvents, Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
@@ -161,6 +164,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
+        services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
         services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
 
@@ -178,6 +182,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
         services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
+        services.AddScoped<ITaxContribution, Nid.RealEstate.Application.RentalTax>();
         services.AddScoped<IProposalHandler, Nid.RealEstate.Application.AmortizationProposal>();
         services.AddSingleton<IFactConventions, Nid.RealEstate.Application.RealEstateFactConventions>();
 
