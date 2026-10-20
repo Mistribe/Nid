@@ -42,7 +42,7 @@ export function Shell() {
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[14rem_minmax(0,1fr)]">
-      <nav aria-label={t('nav.sidebar')} className="hidden gap-1 border-r bg-sidebar p-4 text-sidebar-foreground md:flex md:flex-col">
+      <nav aria-label={t('nav.sidebar')} className="hidden gap-1 border-r bg-sidebar p-4 text-sidebar-foreground md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:overflow-y-auto">
         <p className="mb-2 px-3 text-lg font-semibold">{t('app.name')}</p>
         {groups.map(({ group, entries }) => (
           <div key={group} className="mt-3">
