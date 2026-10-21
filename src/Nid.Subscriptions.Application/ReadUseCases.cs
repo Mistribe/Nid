@@ -99,6 +99,30 @@ public sealed class GetSubscriptionsOverviewHandler(
     }
 }
 
+public sealed record GetSubscriptionChargesQuery(VisibilityScope Scope, YearMonth? Month) : IQuery<SubscriptionCharges>;
+
+[RequestHandler<GetSubscriptionChargesQuery, SubscriptionCharges>]
+public sealed class GetSubscriptionChargesHandler(
+    SubscriptionSet set, IActorAccessor actor, IClock clock, IFxRates fx, IHouseholdSettings household)
+    : IRequestHandler<GetSubscriptionChargesQuery, SubscriptionCharges>
+{
+    public async ValueTask<Result<SubscriptionCharges>> HandleAsync(GetSubscriptionChargesQuery query, CancellationToken ct = default)
+    {
+        var person = actor.Current!.PersonId!.Value;
+        var today = clock.GetCurrentInstant().InUtc().Date;
+        var month = query.Month ?? new YearMonth(today.Year, today.Month);
+        var first = month.OnDayOfMonth(1);
+        var ceiling = today.PlusYears(Horizons.MaxYearsAhead);
+        var beyond = first > ceiling; // decided before any PlusMonths: it throws past year 9999
+        // The walk reaches the 1st of the month after the requested one, capped at the ceiling.
+        var truncated = !beyond && first.PlusMonths(1) > ceiling;
+        IReadOnlyList<BuiltSubscription> built = beyond ? [] : await set.LoadAsync(person, query.Scope, today, Horizons.Resolve(today, first.PlusMonths(1)), ct);
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var rates = await Conversion.LoadAsync(fx, MonthCharges.RatePieces(built, month), reference, today, ct);
+        return Result.Success(MonthCharges.Build(built, month, reference, rates, beyond, truncated));
+    }
+}
+
 [RequestHandler<GetSubscriptionQuery, SubscriptionDetail>]
 public sealed class GetSubscriptionHandler(
     ISubscriptionStore store, IItemRegistry items, IClock clock, IFxRates fx, IHouseholdSettings household, IProviderStore providers,

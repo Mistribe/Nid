@@ -28,6 +28,10 @@ public static class SubscriptionEndpoints
             => (await invoker.InvokeAsync(new GetSubscriptionsOverviewQuery(ParseScope(scope)), ct)).ToHttp(overview => overview))
             .Returns<SubscriptionsOverview>();
 
+        api.MapGet("/charges", async (string? scope, string? month, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetSubscriptionChargesQuery(ParseScope(scope), OptionalMonth(month)), ct)).ToHttp(c => c))
+            .Returns<SubscriptionCharges>();
+
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new GetSubscriptionQuery(
@@ -132,6 +136,12 @@ public static class SubscriptionEndpoints
     /// </summary>
     internal static LocalDate? OptionalDate(string? value)
         => value is null ? null : RequireDate(value);
+
+    internal static YearMonth? OptionalMonth(string? value)
+        => value is null ? null
+            : YearMonthPattern.Iso.Parse(value) is { Success: true } parsed
+                ? parsed.Value
+                : throw new BadHttpRequestException($"'{value}' is not a month (yyyy-mm).");
 
     internal static LocalDate RequireDate(string value)
         => LocalDatePattern.Iso.Parse(value) is { Success: true } parsed

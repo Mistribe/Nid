@@ -27,10 +27,12 @@ export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel };
 
 /**
  * The list's own filters, in the URL beside the root scope (labels comma-joined, 1E2b2 design §3.3), and its tab. The
- * defaults stay out of the URL: `status` active, `group` provider (subscriptions dashboard design §3.3).
+ * defaults stay out of the URL: `status` active, `group` provider (subscriptions dashboard design §3.3), `month` (the
+ * calendar's, `yyyy-mm`) the current one.
  */
 export type SubscriptionsSearch = {
   status?: 'active' | 'ended' | 'all'; q?: string; label?: string; group?: 'provider' | 'label' | 'person' | 'none'; tab?: string;
+  month?: string;
 };
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
@@ -106,6 +108,9 @@ const subscriptionsRoute = createRoute({
     ...(search.group === 'label' || search.group === 'person' || search.group === 'none' ? { group: search.group } : {}),
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
     ...(typeof search.label === 'string' && search.label !== '' ? { label: search.label } : {}),
+    // A malformed month would be a 400: it is overwritten (the raw key would survive a mere omission), and the calendar
+    // shows the current one.
+    month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined,
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/subscriptions/SubscriptionsPage'), 'SubscriptionsPage'),

@@ -89,3 +89,31 @@ test('alice creates her own provider from the wizard, then finds the subscriptio
   await expect(page).toHaveURL(/[?&]label=other(?:&|$)/);
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible();
 });
+
+test('alice opens the calendar from the overview and reaches a subscription from a charge', async ({ browser }) => {
+  const alice = await browser.newPage();
+  const name = `Calendrier E2E ${Date.now().toString(36)}`;
+  await signIn(alice, 'alice', '/subscriptions/new');
+  await alice.getByRole('button', { name: 'Continuer' }).click(); // the type step: Récurrent is preselected
+  await alice.getByLabel('Nom', { exact: true }).fill(name);
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await fillDate(alice, 'Début', '2025-01-01');
+  await alice.getByLabel('Montant', { exact: true }).fill('4,32');
+  await alice.getByRole('button', { name: 'Continuer' }).click();
+  await alice.getByRole('button', { name: "Ajouter l'abonnement" }).click();
+  await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
+
+  await alice.goto('/subscriptions');
+  await alice.getByRole('region', { name: 'Prochains prélèvements' }).getByRole('link', { name: 'Calendrier', exact: true }).click();
+  await expect(alice).toHaveURL(/tab=calendar/);
+  // Monthly since 2025-01-01: charged on the 1st of the current month. The shared database holds many charges on the
+  // 1st, so the day cell may only show a few and fold the rest into « +N »: open that popover when the link is not there.
+  const cell = alice.getByRole('group', { name: 'Calendrier du mois' }).getByRole('group', { name: /^[^\d]+ 1(er)? [^\d]+$/ }).first();
+  await expect(cell).toBeVisible(); // the grid renders once the month has loaded
+  const charge = cell.getByRole('link', { name });
+  if (!(await charge.isVisible())) {
+    await cell.getByRole('button', { name: /autres? prélèvements?$/ }).click();
+    await alice.getByRole('dialog').getByRole('link', { name }).click();
+  } else await charge.click();
+  await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
+});

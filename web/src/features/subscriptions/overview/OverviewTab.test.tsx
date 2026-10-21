@@ -103,6 +103,24 @@ describe('Abonnements › vue d’ensemble', () => {
     expect(second).toHaveTextContent(/69,90 \$US/);
   });
 
+  it('Upcoming_links_to_the_calendar', async () => {
+    serve(overview({ activeCount: 1 }));
+    await renderApp('/subscriptions?scope=me');
+
+    const link = within(await region('Prochains prélèvements')).getByRole('link', { name: 'Calendrier' });
+    expect(link).toHaveAttribute('href', '/subscriptions?scope=me&tab=calendar');
+  });
+
+  it('Clicking_a_month_opens_the_calendar_on_it', async () => {
+    serve(overview({ activeCount: 1, months: [{ month: '2026-05', recurring: eur('17.20'), longCycle: eur('0.00') }] }));
+    const { router, user } = await renderApp('/subscriptions');
+
+    const link = await within(await region('12 prochains mois')).findByRole('link', { name: 'mai' });
+    expect(link).toHaveAttribute('href', '/subscriptions?tab=calendar&month=2026-05');
+    await user.click(link);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: 'calendar', month: '2026-05' }));
+  });
+
   it('shows the first eight upcoming charges and counts the others', async () => {
     const charge = (n: number) => ({ date: '2026-10-28', itemId: SPOTIFY, displayName: `Charge ${n}`, provider: null, price: eur('1.00'), converted: null });
     serve(overview({ activeCount: 1, upcoming: Array.from({ length: 10 }, (_, n) => charge(n)) }));

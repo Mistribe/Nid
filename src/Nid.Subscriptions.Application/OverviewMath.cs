@@ -47,7 +47,7 @@ public static class OverviewMath
         var monthCash = View(HouseholdCost.CashPieces(timelines, window));
         var monthCashRemaining = View(HouseholdCost.CashPieces(timelines, CostWindow.Resolve(today, today, nextMonth)));
 
-        var ahead = HouseholdCharges(active).ToList();
+        var ahead = ChargeCycles.HouseholdCharges(active).ToList();
         var months = Enumerable.Range(0, 12).Select(i =>
         {
             var start = nextMonth.PlusMonths(i);
@@ -122,16 +122,6 @@ public static class OverviewMath
             var group = ListGrouping.Group(ListGroup.Provider, provider.ToList()).Single();
             yield return new WatchView(OverviewCodes.SameProvider, group.ItemIds, null, group.AmortizedCostConverted);
         }
-    }
-
-    // Each charge of the set once: a purchase granting to several subscriptions left the account once (D5).
-    private static IEnumerable<(BuiltSubscription Sub, Charge Charge)> HouseholdCharges(IEnumerable<BuiltSubscription> set)
-    {
-        var seen = new HashSet<PurchaseId>();
-        foreach (var b in set)
-        foreach (var charge in b.Timeline.Charges)
-            if (charge.Origin is not ChargeOrigin.FromPurchase p || seen.Add(p.PurchaseId))
-                yield return (b, charge);
     }
 
     private static CostPiece Piece(Charge charge) => new(charge.Date, charge.Price.Currency, charge.Price.Amount, charge.IsProjected);

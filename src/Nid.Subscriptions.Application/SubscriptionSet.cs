@@ -47,6 +47,16 @@ public static class ChargeCycles
         _ => every.Count > 31,
     };
 
+    // Each charge of the set once: a purchase granting to several subscriptions left the account once (D5).
+    internal static IEnumerable<(BuiltSubscription Sub, Charge Charge)> HouseholdCharges(IEnumerable<BuiltSubscription> set)
+    {
+        var seen = new HashSet<PurchaseId>();
+        foreach (var b in set)
+        foreach (var charge in b.Timeline.Charges)
+            if (charge.Origin is not ChargeOrigin.FromPurchase p || seen.Add(p.PurchaseId))
+                yield return (b, charge);
+    }
+
     /// <summary>The phase a charge comes from; null for a purchase.</summary>
     public static BillingPhase? PhaseOf(SubscriptionInput input, Charge charge)
         => charge.Origin is ChargeOrigin.FromPhase from ? input.Phases.FirstOrDefault(p => p.Id == from.PhaseId) : null;
