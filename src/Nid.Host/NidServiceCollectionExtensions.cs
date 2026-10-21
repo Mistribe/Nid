@@ -135,6 +135,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
+        services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
         services.AddScoped<IUpcomingEvents, Nid.Subscriptions.Application.SubscriptionsUpcoming>();
 
         services.AddDbContext<InvestmentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>

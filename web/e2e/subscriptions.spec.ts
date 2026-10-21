@@ -23,12 +23,12 @@ test('alice adds a recurring subscription and sees its cost; bob cannot reach he
 
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
   const detailUrl = new URL(alice.url()).pathname;
-  await alice.goto('/subscriptions?scope=me');
+  await alice.goto('/subscriptions?scope=me&tab=list&group=none');
   await expect(alice.getByRole('table', { name: 'Liste des abonnements' }).getByRole('row').filter({ hasText: name })).toContainText('7,49');
 
   const bob = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage();
   await signIn(bob, 'bob', '/subscriptions');
-  await bob.goto('/subscriptions?scope=me');
+  await bob.goto('/subscriptions?scope=me&tab=list&group=none');
   await expect(bob.getByRole('heading', { level: 1, name: 'Abonnements' })).toBeVisible();
   await expect(bob.getByText(name)).toHaveCount(0);
   await bob.goto(detailUrl);
@@ -82,7 +82,7 @@ test('alice creates her own provider from the wizard, then finds the subscriptio
   await page.getByRole('button', { name: "Ajouter l'abonnement" }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 
-  await page.goto('/subscriptions');
+  await page.goto('/subscriptions?tab=list&group=none');
   await page.getByRole('button', { name: 'Libellés' }).click();
   await page.getByRole('menuitemcheckbox', { name: 'Other' }).click();
   await page.keyboard.press('Escape');

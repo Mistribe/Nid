@@ -35,8 +35,7 @@ public sealed record GetSubscriptionQuery(
 
 [RequestHandler<ListSubscriptionsQuery, SubscriptionList>]
 public sealed class ListSubscriptionsHandler(
-    IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IActorAccessor actor, IClock clock,
-    IFxRates fx, IHouseholdSettings household, IProviderStore providers)
+    SubscriptionSet set, IActorAccessor actor, IClock clock, IFxRates fx, IHouseholdSettings household)
     : IRequestHandler<ListSubscriptionsQuery, SubscriptionList>
 {
     public async ValueTask<Result<SubscriptionList>> HandleAsync(ListSubscriptionsQuery query, CancellationToken ct = default)
@@ -46,26 +45,11 @@ public sealed class ListSubscriptionsHandler(
         var horizon = Horizons.Resolve(today, query.Horizon);
         var window = CostWindow.Resolve(today, query.From, query.To);
 
-        var ids = await visible.ForAsync(person, query.Scope, ct);
-        var inputs = await store.LoadManyAsync(ids.ToList(), ct);
-
-        var built = new List<(SubscriptionInput Input, Timeline Timeline, string DisplayName, IReadOnlyList<ItemOwnerView> Owners)>(inputs.Count);
-        foreach (var input in inputs)
-        {
-            if (!SubscriptionTimeline.Build(input, today, horizon).TryGetValue(out var timeline))
-                continue; // a refused subscription is reported by its own detail endpoint, not by hiding the list
-
-            var item = await items.FindAsync(input.Subscription.Id, ct);
-            built.Add((input, timeline!, item?.DisplayName ?? "", item?.OwnerViews() ?? []));
-        }
-
-        // One provider query for the whole list; every subscription in it is visible, so is its provider (design §5).
-        var providerViews = await ProviderLookup.ForAsync(store, providers, built.Select(b => b.Input.Subscription.Id).ToList(), ct);
+        var all = await set.LoadAsync(person, query.Scope, today, horizon, ct);
 
         // The filter narrows the rows and, with them, the household totals below.
         var filter = query.Filter ?? ListFilter.None;
-        built = built.Where(b => filter.Matches(
-            b.DisplayName, providerViews.GetValueOrDefault(b.Input.Subscription.Id), b.Timeline.ExpiresOn(), today)).ToList();
+        var built = all.Where(b => filter.Matches(b.DisplayName, b.Provider, b.Timeline.ExpiresOn(), today)).ToList();
 
         var timelines = built.Select(b => b.Timeline).ToList();
         var reference = await household.ReferenceCurrencyAsync(ct);
@@ -77,7 +61,7 @@ public sealed class ListSubscriptionsHandler(
             fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized).Concat(householdAnnual), reference, today, ct);
 
         var summaries = built.Select(b => SubscriptionViews.Summarise(
-            b.Input, b.Timeline, b.DisplayName, providerViews.GetValueOrDefault(b.Input.Subscription.Id), window,
+            b.Input, b.Timeline, b.DisplayName, b.Provider, window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
             FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference))).ToList();
 
@@ -91,6 +75,27 @@ public sealed class ListSubscriptionsHandler(
             ListGrouping.Group(query.Group, summaries),
             HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(SubscriptionViews.FxFindings(householdConverted, annual)).ToList(),
             annual.Total is { } t ? MoneyView.From(t) : null));
+    }
+}
+
+public sealed record GetSubscriptionsOverviewQuery(VisibilityScope Scope) : IQuery<SubscriptionsOverview>;
+
+[RequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>]
+public sealed class GetSubscriptionsOverviewHandler(
+    SubscriptionSet set, IActorAccessor actor, IClock clock, IFxRates fx, IHouseholdSettings household, IPersonRegistry persons)
+    : IRequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>
+{
+    public async ValueTask<Result<SubscriptionsOverview>> HandleAsync(GetSubscriptionsOverviewQuery query, CancellationToken ct = default)
+    {
+        var person = actor.Current!.PersonId!.Value;
+        var today = clock.GetCurrentInstant().InUtc().Date;
+        // `months` runs over the 12 months after this one: the walk must reach the end of the last (today + 12 months would stop mid-month).
+        var horizon = new LocalDate(today.Year, today.Month, 1).PlusMonths(13);
+
+        var built = await set.LoadAsync(person, query.Scope, today, horizon, ct);
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var rates = await Conversion.LoadAsync(fx, OverviewMath.RatePieces(built, today), reference, today, ct);
+        return Result.Success(OverviewMath.Build(built, await persons.ListAsync(ct), reference, rates, today));
     }
 }
 

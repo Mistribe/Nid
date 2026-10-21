@@ -26,6 +26,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Répartition par personne | Barre empilée | Une couleur fixe par personne |
 | Engagements mensuels | Barre empilée par catégorie | Catégorielle fixe |
 | Coût mensuel par libellé d'abonnement | Barres horizontales triées **et tableau** | Un seul ton : au-delà de 7 classes, pas de couleurs supplémentaires |
+| Abonnements, 12 mois : barres empilées | Barres empilées : mensuels puis annuels, étiquette des deux chaînes du serveur au-dessus des mois à annuels, tableau masqué | Catégories 1 et 2 |
 | Coûts réel et amorti | Paires de barres | 2 tons |
 | Couverture d'un abonnement | **Bande temporelle en SVG** | 5 catégories fixes, libellé direct sur chaque période |
 | Crédit : capital et intérêts par mois | Barres empilées | 2 catégories |

@@ -169,6 +169,8 @@ public static class RequestCatalogue
 
         new(typeof(ListSubscriptionsQuery), false,
             (_, _) => new ListSubscriptionsQuery(VisibilityScope.Me, null, null, null)),
+        new(typeof(GetSubscriptionsOverviewQuery), false,
+            (_, _) => new GetSubscriptionsOverviewQuery(VisibilityScope.Me)),
         new(typeof(GetSubscriptionQuery), true,
             (_, item) => new GetSubscriptionQuery(item, null, null, null)),
         new(typeof(CreateSubscriptionCommand), false,

@@ -1338,6 +1338,94 @@
         }
       }
     },
+    "/api/v1/subscriptions/overview": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/subscriptions/{id}": {
       "get": {
         "tags": [
@@ -14012,6 +14100,51 @@
           }
         }
       },
+      "ChargeLineView": {
+        "required": [
+          "date",
+          "itemId",
+          "displayName",
+          "price"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "provider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProviderSummaryView"
+              }
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "converted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          }
+        }
+      },
       "ChargeView": {
         "required": [
           "date",
@@ -18260,6 +18393,39 @@
         }
       },
       "JsonElement": { },
+      "LabelShareView": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amortized": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          }
+        }
+      },
       "LabelView": {
         "required": [
           "key",
@@ -19401,6 +19567,37 @@
           }
         }
       },
+      "MonthView": {
+        "required": [
+          "month"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "recurring": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "longCycle": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          }
+        }
+      },
       "MovementBody": {
         "type": "object",
         "properties": {
@@ -19813,6 +20010,38 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "PersonShareView": {
+        "required": [
+          "personId",
+          "ownedAlone",
+          "shared"
+        ],
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amortized": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "ownedAlone": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "shared": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -22721,6 +22950,113 @@
           }
         }
       },
+      "SubscriptionsOverview": {
+        "required": [
+          "currency",
+          "convertedIsEstimate",
+          "activeCount",
+          "endedCount",
+          "months",
+          "byPerson",
+          "byLabel",
+          "upcoming",
+          "watch",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "convertedIsEstimate": {
+            "type": "boolean"
+          },
+          "monthlyAmortized": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "annualAmortized": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "monthCash": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "monthCashRemaining": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "activeCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthView"
+            }
+          },
+          "byPerson": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonShareView"
+            }
+          },
+          "byLabel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelShareView"
+            }
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChargeLineView"
+            }
+          },
+          "watch": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WatchView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FindingView"
+            }
+          }
+        }
+      },
       "SubscriptionSummary": {
         "required": [
           "id",
@@ -23682,6 +24018,42 @@
         "properties": {
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "WatchView": {
+        "required": [
+          "code",
+          "itemIds"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "itemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "date": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },

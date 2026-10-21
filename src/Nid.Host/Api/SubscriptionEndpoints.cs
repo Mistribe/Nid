@@ -24,6 +24,10 @@ public static class SubscriptionEndpoints
                 .ToHttp(list => list))
             .Returns<SubscriptionList>();
 
+        api.MapGet("/overview", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetSubscriptionsOverviewQuery(ParseScope(scope)), ct)).ToHttp(overview => overview))
+            .Returns<SubscriptionsOverview>();
+
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(
                     new GetSubscriptionQuery(

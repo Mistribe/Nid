@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node';
 import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
 import { estateRoutine, routine } from '@/features/routine/testData';
+import { overview } from '@/features/subscriptions/testData';
 import { aliceSessionResponse, allCapabilities } from './fixtures';
 
 export const handlers = [
@@ -22,6 +23,8 @@ export const handlers = [
     items: [], householdCashCost: [], householdAmortizedCost: [], householdCashCostConverted: null,
     householdAmortizedCostConverted: null, householdConvertedIsEstimate: false, sharedPurchaseIds: [], groups: [], findings: [],
   })),
+  // ... its overview, the tab it opens on (an empty household) ...
+  http.get('*/api/v1/subscriptions/overview', () => HttpResponse.json(overview())),
   // ... and the labels its filter offers.
   http.get('*/api/v1/subscriptions/labels', () => HttpResponse.json([])),
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),

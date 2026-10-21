@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import { aliceSession } from '@/test/fixtures';
-import type { Detail } from './api';
+import type { Detail, ListResponse, Overview, Summary } from './api';
 
 export const ALICE = aliceSession.person.id;
 export const BOB = '01926b9e-0000-7000-8000-00000000000b';
@@ -50,3 +50,24 @@ export function detail(over: Partial<Detail> = {}): Detail {
     ...over,
   };
 }
+
+export const summary = (over: Partial<Summary>): Summary => ({
+  id: '0192f0aa-0000-7000-8000-000000000001', displayName: 'Netflix', provider: null, autoRenew: true,
+  expiresOn: null, nextChargeOn: '2025-11-01', nextChargeAmount: eur('13.49'),
+  cashCost: [eur('13.49')], amortizedCost: [eur('13.49')], cashCostConverted: null, amortizedCostConverted: eur('13.49'),
+  annualCostConverted: eur('161.88'), convertedIsEstimate: false, freeDays: 0, findings: [], owners: [], ...over,
+});
+
+export const list = (items: Summary[], over: Partial<ListResponse> = {}): ListResponse => ({
+  items, householdCashCost: [eur('20.98')], householdAmortizedCost: [eur('20.98')],
+  householdCashCostConverted: null, householdAmortizedCostConverted: eur('20.98'), householdAnnualCostConverted: eur('251.76'),
+  householdConvertedIsEstimate: false,
+  sharedPurchaseIds: [], groups: [], findings: [], ...over,
+});
+
+/** The overview of a household without subscriptions: empty lists, zero totals (overview plan, Review Focus 1). */
+export const overview = (over: Partial<Overview> = {}): Overview => ({
+  currency: 'EUR', convertedIsEstimate: false, monthlyAmortized: eur('0.00'), annualAmortized: eur('0.00'),
+  monthCash: eur('0.00'), monthCashRemaining: eur('0.00'), activeCount: 0, endedCount: 0,
+  months: [], byPerson: [], byLabel: [], upcoming: [], watch: [], findings: [], ...over,
+});

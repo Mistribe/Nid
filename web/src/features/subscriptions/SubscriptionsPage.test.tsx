@@ -5,22 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { ListResponse, Summary } from './api';
-
-const eur = (amount: string) => ({ amount, currency: 'EUR' });
-
-const summary = (over: Partial<Summary>): Summary => ({
-  id: '0192f0aa-0000-7000-8000-000000000001', displayName: 'Netflix', provider: null, autoRenew: true,
-  expiresOn: null, nextChargeOn: '2025-11-01', nextChargeAmount: eur('13.49'),
-  cashCost: [eur('13.49')], amortizedCost: [eur('13.49')], cashCostConverted: null, amortizedCostConverted: eur('13.49'),
-  annualCostConverted: eur('161.88'), convertedIsEstimate: false, freeDays: 0, findings: [], owners: [], ...over,
-});
-
-const list = (items: Summary[], over: Partial<ListResponse> = {}): ListResponse => ({
-  items, householdCashCost: [eur('20.98')], householdAmortizedCost: [eur('20.98')],
-  householdCashCostConverted: null, householdAmortizedCostConverted: eur('20.98'), householdAnnualCostConverted: eur('251.76'),
-  householdConvertedIsEstimate: false,
-  sharedPurchaseIds: [], groups: [], findings: [], ...over,
-});
+import { eur, list, overview, summary } from './testData';
 
 const two = list([
   summary({}),
@@ -56,7 +41,7 @@ describe('Abonnements › liste', () => {
     const alice = '0192f0aa-0000-7000-8000-0000000000a1';
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
     serve(list([summary({ owners: [{ personId: alice, shareBp: 10000 }] }), two.items[1]!], { householdCashCostConverted: eur('18.50') }));
-    const { container } = await renderApp('/subscriptions');
+    const { container } = await renderApp('/subscriptions?tab=list');
 
     const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
@@ -80,7 +65,7 @@ describe('Abonnements › liste', () => {
 
   it('sorts by the cost of the month', async () => {
     serve(two);
-    const { user } = await renderApp('/subscriptions');
+    const { user } = await renderApp('/subscriptions?tab=list');
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/Netflix|Ancien VPN/)?.[0]);
     expect(await names()).toEqual(['Netflix', 'Ancien VPN']);
@@ -90,7 +75,7 @@ describe('Abonnements › liste', () => {
 
   it('does not show the findings on the rows', async () => {
     serve(two);
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     await rows();
     expect(screen.queryByText('Un trou de couverture existe.')).not.toBeInTheDocument();
@@ -99,14 +84,14 @@ describe('Abonnements › liste', () => {
 
   it('says why the totals are not the sum of the rows when purchases are shared', async () => {
     serve(list([summary({})], { sharedPurchaseIds: ['0192f0aa-0000-7000-8000-00000000000f'] }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     expect(await screen.findByText(/« Décaissé du mois » compte une seule fois/)).toBeInTheDocument();
   });
 
   it('invites to add the first subscription when there is none', async () => {
     serve(list([], { householdCashCost: [], householdAmortizedCost: [] }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     const action = await screen.findByRole('link', { name: 'Ajouter votre premier abonnement' });
     expect(action).toHaveAttribute('href', '/subscriptions/new');
@@ -115,11 +100,12 @@ describe('Abonnements › liste', () => {
   it('writes the name and the status into the address and asks the server for them', async () => {
     const seen: string[] = [];
     serve(two, seen);
-    const { user, router } = await renderApp('/subscriptions');
+    const { user, router } = await renderApp('/subscriptions?tab=list');
 
     await rows();
     await user.type(screen.getByLabelText('Rechercher par nom'), 'vpn');
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'vpn' }));
+    // The filters keep the list open (overview plan, Review Focus 5).
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: 'list', q: 'vpn' }));
     await waitFor(() => expect(seen.at(-1)).toContain('q=vpn'));
 
     await user.click(screen.getByRole('radio', { name: 'Finis' }));
@@ -130,7 +116,7 @@ describe('Abonnements › liste', () => {
   it('asks the server for the scope in the URL', async () => {
     const seen: string[] = [];
     serve(two, seen);
-    await renderApp('/subscriptions?scope=me');
+    await renderApp('/subscriptions?tab=list&scope=me');
 
     await rows();
     expect(seen.at(-1)).toContain('scope=me');
@@ -138,7 +124,7 @@ describe('Abonnements › liste', () => {
 
   it('shows the problem when the list cannot be read', { timeout: 10_000 }, async () => {
     server.use(http.get('*/api/v1/subscriptions', () => HttpResponse.json({ status: 500 }, { status: 500 })));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     // A 5xx is retried twice with backoff before the error shows (createQueryClient).
     expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent('Une erreur inattendue');
@@ -160,7 +146,7 @@ describe('Abonnements › liste', () => {
     serveLabels();
     const seen: string[] = [];
     serve(labelled, seen);
-    const { user, router, container } = await renderApp('/subscriptions');
+    const { user, router, container } = await renderApp('/subscriptions?tab=list');
     const menu = await openLabels(user);
     expect(within(menu).getAllByRole('menuitemcheckbox').map((b) => b.textContent)).toEqual(['Video', 'VPN']);
 
@@ -185,7 +171,7 @@ describe('Abonnements › liste', () => {
     serveLabels();
     const seen: string[] = [];
     serve(labelled, seen);
-    const { user } = await renderApp('/subscriptions?label=vpn,vpn,nope');
+    const { user } = await renderApp('/subscriptions?tab=list&label=vpn,vpn,nope');
     const menu = await openLabels(user);
     expect(within(menu).getByRole('menuitemcheckbox', { name: 'VPN' })).toBeChecked();
     expect(within(menu).queryByRole('menuitemcheckbox', { name: 'nope' })).not.toBeInTheDocument();
@@ -194,7 +180,7 @@ describe('Abonnements › liste', () => {
 
   it('shows no label menu when no label exists', async () => {
     serve(two);
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
     await rows();
     expect(screen.queryByRole('button', { name: /^Libellés/ })).not.toBeInTheDocument();
   });
@@ -212,13 +198,41 @@ const group = (key: string, items: Summary[], over: Partial<ListResponse['groups
 });
 const grouped = list([claude, api, netflix], { groups: [group('Anthropic', [claude, api]), group('Netflix', [netflix])] });
 
+describe('Abonnements › onglets', () => {
+  beforeAll(async () => { await import('./SubscriptionsPage'); }, 30_000);
+
+  it('The_overview_is_the_default_tab', async () => {
+    const seen: string[] = [];
+    server.use(http.get('*/api/v1/subscriptions/overview', ({ request }) => {
+      seen.push(new URL(request.url).search);
+      return HttpResponse.json(overview({ activeCount: 1, monthlyAmortized: eur('13.49') }));
+    }));
+    const { router } = await renderApp('/subscriptions?scope=me');
+
+    expect(await screen.findByText('Par mois')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
+    expect(param(seen, 'scope')).toBe('me');
+    expect(router.state.location.search).not.toHaveProperty('tab');
+  });
+
+  it('The_list_tab_keeps_its_filters', async () => {
+    const seen: string[] = [];
+    serve(grouped, seen);
+    await renderApp('/subscriptions?tab=list&group=label');
+
+    await rows();
+    expect(screen.getByRole('tab', { name: 'Liste' })).toHaveAttribute('aria-selected', 'true');
+    expect(param(seen, 'group')).toBe('label');
+  });
+});
+
 describe('Abonnements › liste groupée', () => {
   beforeAll(async () => { await import('./SubscriptionsPage'); }, 30_000);
 
   it('It_asks_the_server_for_active_subscriptions_grouped_by_provider_by_default', async () => {
     const seen: string[] = [];
     serve(grouped, seen);
-    const { router } = await renderApp('/subscriptions');
+    const { router } = await renderApp('/subscriptions?tab=list');
 
     await rows();
     expect(param(seen, 'status')).toBe('active');
@@ -229,7 +243,7 @@ describe('Abonnements › liste groupée', () => {
 
   it('A_provider_with_two_subscriptions_is_one_expandable_row', async () => {
     serve(grouped);
-    const { user } = await renderApp('/subscriptions');
+    const { user } = await renderApp('/subscriptions?tab=list');
 
     const shown = await rows();
     expect(shown).toHaveLength(2);
@@ -244,7 +258,7 @@ describe('Abonnements › liste groupée', () => {
 
   it('A_single_subscription_group_links_to_its_detail', async () => {
     serve(grouped);
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     const shown = await rows();
     expect(within(shown[1]!).getByRole('link')).toHaveAttribute('href', `/subscriptions/${netflix.id}`);
@@ -255,7 +269,7 @@ describe('Abonnements › liste groupée', () => {
   it('Group_by_is_kept_in_the_address', async () => {
     const seen: string[] = [];
     serve(grouped, seen);
-    const { user, router } = await renderApp('/subscriptions');
+    const { user, router } = await renderApp('/subscriptions?tab=list');
 
     await rows();
     await user.click(screen.getByRole('radio', { name: 'Libellé' }));
@@ -271,7 +285,7 @@ describe('Abonnements › liste groupée', () => {
     serve(list([claude, api, netflix], { groups: [
       group(alice, [claude, api], { name: null }), group(bob, [netflix], { name: null, amortizedCostConverted: eur('6.75'),
         items: [{ id: netflix.id, amortizedCostConverted: eur('6.75'), annualCostConverted: eur('81.00') }] })] }));
-    await renderApp('/subscriptions?group=person');
+    await renderApp('/subscriptions?tab=list&group=person');
 
     const shown = await rows();
     await waitFor(() => expect(shown[0]).toHaveTextContent('Alice · 2 abonnements'));
@@ -286,7 +300,7 @@ describe('Abonnements › liste groupée', () => {
     serve(list([claude, api], { groups: [group(alice, [claude, api], { name: null, amortizedCostConverted: eur('9.00'), items: [
       { id: claude.id, amortizedCostConverted: eur('6.745'), annualCostConverted: eur('80.94') },
       { id: api.id, amortizedCostConverted: eur('2.25'), annualCostConverted: eur('27.00') }] })] }));
-    const { user } = await renderApp('/subscriptions?group=person');
+    const { user } = await renderApp('/subscriptions?tab=list&group=person');
 
     const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
     expect(within(table).getAllByRole('columnheader')[0]).toHaveTextContent('Personne');
@@ -299,7 +313,7 @@ describe('Abonnements › liste groupée', () => {
 
   it('names the group without provider, and without label', async () => {
     serve(list([claude, api], { groups: [group('none', [claude, api], { name: null })] }));
-    const { user } = await renderApp('/subscriptions');
+    const { user } = await renderApp('/subscriptions?tab=list');
 
     expect((await rows())[0]).toHaveTextContent('Sans fournisseur · 2 abonnements');
     await user.click(screen.getByRole('radio', { name: 'Libellé' }));
@@ -309,7 +323,7 @@ describe('Abonnements › liste groupée', () => {
   it('says no subscription matches when every subscription has ended, rather than inviting to add the first', async () => {
     server.use(http.get('*/api/v1/subscriptions', ({ request }) =>
       HttpResponse.json(new URL(request.url).searchParams.get('status') === 'all' ? grouped : list([]))));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     expect(await screen.findByText('Aucun abonnement ne correspond à ces filtres.')).toBeInTheDocument();
     expect(screen.queryByText('Aucun abonnement pour l\'instant')).not.toBeInTheDocument();
@@ -317,7 +331,7 @@ describe('Abonnements › liste groupée', () => {
 
   it('No_match_is_not_the_first_subscription_invite', async () => {
     serve(list([], { householdCashCost: [], householdAmortizedCost: [] }));
-    await renderApp('/subscriptions?q=zzz');
+    await renderApp('/subscriptions?tab=list&q=zzz');
 
     expect(await screen.findByText('Aucun abonnement ne correspond à ces filtres.')).toBeInTheDocument();
     expect(screen.queryByText('Aucun abonnement pour l\'instant')).not.toBeInTheDocument();
@@ -331,7 +345,7 @@ describe('Abonnements › liste groupée', () => {
       if (new URL(request.url).searchParams.get('q')) { asked = true; await later; }
       return HttpResponse.json(grouped);
     }));
-    const { user } = await renderApp('/subscriptions');
+    const { user } = await renderApp('/subscriptions?tab=list');
 
     expect(await rows()).toHaveLength(2);
     await user.type(screen.getByLabelText('Rechercher par nom'), 'c');
@@ -344,7 +358,7 @@ describe('Abonnements › liste groupée', () => {
 
   it('A_null_group_amount_shows_a_dash', async () => {
     serve(list([claude, api], { groups: [group('Anthropic', [claude, api], { amortizedCostConverted: null, annualCostConverted: null })] }));
-    await renderApp('/subscriptions');
+    await renderApp('/subscriptions?tab=list');
 
     const [row] = await rows();
     const cells = within(row!).getAllByRole('cell');

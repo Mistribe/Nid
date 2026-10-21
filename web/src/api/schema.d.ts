@@ -1333,6 +1333,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subscriptions/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SubscriptionsOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/{id}": {
         parameters: {
             query?: never;
@@ -12742,6 +12833,16 @@ export interface components {
             failureMessage?: null | string;
             report?: null | components["schemas"]["CatalogReport"];
         };
+        ChargeLineView: {
+            /** Format: date */
+            date: string;
+            /** Format: uuid */
+            itemId: string;
+            displayName: string;
+            provider?: null | components["schemas"]["ProviderSummaryView"];
+            price: components["schemas"]["MoneyView"];
+            converted?: null | components["schemas"]["MoneyView"];
+        };
         ChargeView: {
             /** Format: date */
             date: string;
@@ -13728,6 +13829,12 @@ export interface components {
             state: string;
         };
         JsonElement: unknown;
+        LabelShareView: {
+            key: string;
+            name?: null | string;
+            color?: null | string;
+            amortized?: null | components["schemas"]["MoneyView"];
+        };
         LabelView: {
             key: string;
             name: string;
@@ -14006,6 +14113,11 @@ export interface components {
             amount: string;
             currency: string;
         };
+        MonthView: {
+            month: string;
+            recurring?: null | components["schemas"]["MoneyView"];
+            longCycle?: null | components["schemas"]["MoneyView"];
+        };
         MovementBody: {
             occurredOn?: null | string;
             kind?: null | string;
@@ -14105,6 +14217,15 @@ export interface components {
         PersonIdResponse: {
             /** Format: uuid */
             id: string;
+        };
+        PersonShareView: {
+            /** Format: uuid */
+            personId: string;
+            amortized?: null | components["schemas"]["MoneyView"];
+            /** Format: int32 */
+            ownedAlone: number;
+            /** Format: int32 */
+            shared: number;
         };
         PhaseBody: {
             startsOn: string;
@@ -14796,6 +14917,24 @@ export interface components {
             findings: components["schemas"]["FindingView"][];
             householdAnnualCostConverted?: null | components["schemas"]["MoneyView"];
         };
+        SubscriptionsOverview: {
+            currency: string;
+            convertedIsEstimate: boolean;
+            monthlyAmortized?: null | components["schemas"]["MoneyView"];
+            annualAmortized?: null | components["schemas"]["MoneyView"];
+            monthCash?: null | components["schemas"]["MoneyView"];
+            monthCashRemaining?: null | components["schemas"]["MoneyView"];
+            /** Format: int32 */
+            activeCount: number;
+            /** Format: int32 */
+            endedCount: number;
+            months: components["schemas"]["MonthView"][];
+            byPerson: components["schemas"]["PersonShareView"][];
+            byLabel: components["schemas"]["LabelShareView"][];
+            upcoming: components["schemas"]["ChargeLineView"][];
+            watch: components["schemas"]["WatchView"][];
+            findings: components["schemas"]["FindingView"][];
+        };
         SubscriptionSummary: {
             /** Format: uuid */
             id: string;
@@ -15035,6 +15174,13 @@ export interface components {
         };
         VersionView: {
             version: string;
+        };
+        WatchView: {
+            code: string;
+            itemIds: string[];
+            /** Format: date */
+            date?: null | string;
+            amount?: null | components["schemas"]["MoneyView"];
         };
         WithholdingView: {
             rate: string;

@@ -8,17 +8,21 @@ export type Detail = components['schemas']['SubscriptionDetail'];
 export type Phase = components['schemas']['PhaseView'];
 export type Purchase = components['schemas']['PurchaseView'];
 export type Coverage = components['schemas']['CoverageView'];
+export type Overview = components['schemas']['SubscriptionsOverview'];
+export type MonthView = Overview['months'][number];
 
 export const LIST = '/api/v1/subscriptions' as const;
+export const OVERVIEW = '/api/v1/subscriptions/overview' as const;
 export const DETAIL = '/api/v1/subscriptions/{id}' as const;
 export const PROVIDERS = '/api/v1/subscriptions/providers' as const;
 export const LABELS = '/api/v1/subscriptions/labels' as const;
 export const PERSONS = '/api/v1/core/persons' as const;
 
-/** Every write invalidates the list and every detail (1E2a design §4): pessimistic, then targeted. */
+/** Every write invalidates the list, the overview and every detail (1E2a design §4): pessimistic, then targeted. */
 export function invalidateSubscriptions(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', LIST] }),
+    queryClient.invalidateQueries({ queryKey: ['get', OVERVIEW] }),
     queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', DETAIL] }),
   ]).then(() => undefined);

@@ -1,7 +1,7 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronDownIcon } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { lazy, Suspense, useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -22,6 +22,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { components } from '@/api/schema';
 import { LABELS, LIST, PERSONS, type ListResponse, type Summary } from './api';
 import { labelParam, labelsOf } from './filter';
@@ -59,19 +60,38 @@ function rowsOf(data: ListResponse, nameOf: (g: Group) => string, groupBy: Group
   });
 }
 
-/** Subscriptions dashboard design §3: scope, name, status, labels and grouping all go to the server, which groups and totals. */
+const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
+
+/** Subscriptions dashboard design §4.2: the overview opens first; the list keeps its filters under `?tab=list`. */
 export function SubscriptionsPage() {
   const { t } = useTranslation();
+  const search: RootSearch = useSearch({ strict: false });
+  const [tab, setTab] = useDetailTab(['overview', 'list'] as const);
+  const scope = search.scope === 'me' ? 'me' : 'household';
+  const add = <Link to="/subscriptions/new" className={buttonVariants()}>{t('subscriptions.add')}</Link>;
+  return (
+    <div className="space-y-4">
+      <PageHeader title={t('subscriptions.title')} actions={add} />
+      <DetailTabs value={tab} onChange={setTab} tabs={[
+        { id: 'overview', label: t('subscriptions.tab_overview'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} /></Suspense> },
+        { id: 'list', label: t('subscriptions.tab_list'), content: <ListTab scope={scope} /> },
+      ]} />
+    </div>
+  );
+}
+
+/** Subscriptions dashboard design §3: scope, name, status, labels and grouping all go to the server, which groups and totals. */
+function ListTab({ scope }: { scope: 'household' | 'me' }) {
+  const { t } = useTranslation();
   const { $api } = useApi();
-  const search: RootSearch & SubscriptionsSearch = useSearch({ strict: false });
+  const search: SubscriptionsSearch = useSearch({ strict: false });
   const navigate = useNavigate();
-  const [tab, setTab] = useDetailTab(['list'] as const);
   const searchId = useId();
   const statusId = useId();
   const groupId = useId();
   const labelsId = useId();
   const totalsId = useId();
-  const scope = search.scope === 'me' ? 'me' : 'household';
   const status = search.status ?? 'active';
   const groupBy: GroupBy = search.group ?? 'provider';
 
@@ -93,9 +113,8 @@ export function SubscriptionsPage() {
   const toggle = (key: string) =>
     setSearch({ label: labelParam(active.includes(key) ? active.filter((k) => k !== key) : [...active, key]) });
 
-  const add = <Link to="/subscriptions/new" className={buttonVariants()}>{t('subscriptions.add')}</Link>;
   const data = answer.data;
-  // Server totals only (no client sum): a StatLine under the title.
+  // Server totals only (no client sum): a StatLine at the top of the list.
   const totals = data && data.items.length > 0 ? (
     <section aria-labelledby={totalsId} className="space-y-1">
       <h2 id={totalsId} className="text-sm font-semibold">{t('subscriptions.household_totals')}</h2>
@@ -106,10 +125,9 @@ export function SubscriptionsPage() {
       ]} />
       {data.sharedPurchaseIds.length > 0 ? <p className="text-sm text-muted-foreground">{t('subscriptions.shared_purchases_note')}</p> : null}
     </section>
-  ) : undefined;
-  const header = <PageHeader title={t('subscriptions.title')} actions={add}>{totals}</PageHeader>;
+  ) : null;
 
-  if (answer.error) return <div className="space-y-4">{header}<ProblemMessage problem={present(toProblem(answer.error))} /></div>;
+  if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
 
   const filters = (
     <div className="flex flex-wrap items-end gap-3">
@@ -169,12 +187,7 @@ export function SubscriptionsPage() {
     </div>
   );
 
-  const page = (content: ReactNode) => (
-    <div className="space-y-4">
-      {header}
-      <DetailTabs value={tab} onChange={setTab} tabs={[{ id: 'list', label: t('subscriptions.tab_list'), content: <>{filters}{content}</> }]} />
-    </div>
-  );
+  const page = (content: ReactNode) => <>{totals}{filters}{content}</>;
 
   if (!data || (data.items.length === 0 && bare && !everything.data && !everything.error))
     return page(

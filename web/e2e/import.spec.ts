@@ -33,7 +33,7 @@ test('imports a small nid.data file and finds its subscription', async ({ page }
   await page.getByRole('button', { name: 'Importer' }).click();
   await expect(page.getByRole('heading', { name: 'Import terminé' })).toBeVisible();
 
-  await page.goto('/subscriptions?scope=me');
+  await page.goto('/subscriptions?scope=me&tab=list&group=none');
   await expect(page.getByRole('table', { name: 'Liste des abonnements' }).getByText(name)).toBeVisible();
 });
 
@@ -69,7 +69,7 @@ test('re-imports a renamed subscription with « Remplacer » and finds the new n
   await page.getByRole('button', { name: 'Importer' }).click();
   await expect(page.getByText('Remplacement : oui')).toBeVisible();
 
-  await page.goto('/subscriptions');
+  await page.goto('/subscriptions?tab=list&group=none');
   await expect(page.getByRole('link', { name: new RegExp(`Après ${stamp}`) })).toBeVisible();
   await expect(page.getByText(`Avant ${stamp}`)).toHaveCount(0);
 });
