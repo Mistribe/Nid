@@ -7,8 +7,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
 /// <summary>3E1 spec §3: the loans' and the planned costs' commitments, each its own source. This month is October 2025.</summary>
-[Collection("postgres")]
-public class RealEstateCommitmentsTests(PostgresFixture fixture)
+public class RealEstateCommitmentsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<JsonElement> DashboardAsync(NidApp app, PersonId reader, string scope = "household")
         => JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/dashboard?scope={scope}")).RootElement;

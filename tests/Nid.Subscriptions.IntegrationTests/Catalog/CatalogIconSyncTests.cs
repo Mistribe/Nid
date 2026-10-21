@@ -14,8 +14,7 @@ using UnambitiousFx.Functional;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>1C2c design §5: the icon pass after the merge, through <see cref="NidApp.Icons"/> unless a test says otherwise.</summary>
-[Collection("postgres")]
-public class CatalogIconSyncTests(PostgresFixture fixture)
+public class CatalogIconSyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string NetflixIcon = "https://1000logos.net/netflix.png";
     private const string SpotifyIcon = "https://upload.wikimedia.org/spotify.png";

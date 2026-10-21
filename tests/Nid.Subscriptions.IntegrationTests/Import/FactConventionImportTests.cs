@@ -7,8 +7,7 @@ using static Nid.Subscriptions.IntegrationTests.Import.EnvelopesImportTests;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>3F1 spec §3: the Core's <c>flows</c> section consults the conventions modules declare, and only those.</summary>
-[Collection("postgres")]
-public class FactConventionImportTests(PostgresFixture fixture)
+public class FactConventionImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>A convention on envelopes, as a module would declare one: expenses of category « fees » only, a category required.</summary>
     private sealed class EnvelopeFees : IFactConventions

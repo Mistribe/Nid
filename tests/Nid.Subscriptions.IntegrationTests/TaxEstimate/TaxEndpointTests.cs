@@ -7,8 +7,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.TaxEstimate;
 
 /// <summary>Tax estimate spec §6 to §8, through the real API.</summary>
-[Collection("postgres")]
-public class TaxEndpointTests(PostgresFixture fixture)
+public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<JsonElement> EstimateAsync(NidApp app, PersonId reader, int year, string scope = "me")
         => JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/tax?year={year}&scope={scope}")).RootElement;

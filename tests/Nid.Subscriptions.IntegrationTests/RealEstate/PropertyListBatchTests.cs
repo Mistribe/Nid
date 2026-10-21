@@ -9,8 +9,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Batched reads spec §3: the list reads its properties as one block, and each row still reads as its detail.</summary>
-[Collection("postgres")]
-public class PropertyListBatchTests(PostgresFixture fixture)
+public class PropertyListBatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<Guid> EstimatedAsync(NidApp app, Dictionary<string, object?> body, string amount, PersonId? actor = null)
     {

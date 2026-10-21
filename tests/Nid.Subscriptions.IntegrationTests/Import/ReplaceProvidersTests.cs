@@ -9,8 +9,7 @@ using NodaTime;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>1F3b: with <c>replace</c>, an import's own custom providers are replaced in place; an archived one stays a conflict.</summary>
-[Collection("postgres")]
-public class ReplaceProvidersTests(PostgresFixture fixture)
+public class ReplaceProvidersTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string SoloSpotify = """[{"key":"spotify","name":"Music Central","website":"https://www.spotify.com","label_keys":["other","streaming"]}]""";
 

@@ -3,8 +3,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class ListFilterEndpointTests(PostgresFixture fixture)
+public class ListFilterEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string January = "from=2025-01-01&to=2025-02-01";
 

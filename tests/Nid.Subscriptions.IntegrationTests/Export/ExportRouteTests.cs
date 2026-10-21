@@ -4,8 +4,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Export;
 
-[Collection("postgres")]
-public class ExportRouteTests(PostgresFixture fixture)
+public class ExportRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task The_manifest_lists_every_section_in_file_order()

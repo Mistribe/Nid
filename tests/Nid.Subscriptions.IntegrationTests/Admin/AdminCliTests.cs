@@ -10,8 +10,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Admin;
 
 /// <summary>1F4 design §3 and §4: the CLI called as a function, against the real host's services and a real base.</summary>
-[Collection("postgres")]
-public class AdminCliTests(PostgresFixture fixture)
+public class AdminCliTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private sealed record Run(int Exit, string Out, string Error);
 

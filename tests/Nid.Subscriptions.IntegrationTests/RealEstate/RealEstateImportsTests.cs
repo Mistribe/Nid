@@ -9,8 +9,7 @@ using Duration = Nid.Core.Contracts.Duration;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3F1 §2: the import marks of the module's tables, through <see cref="IRealEstateImports"/> and the stores.</summary>
-[Collection("postgres")]
-public class RealEstateImportsTests(PostgresFixture fixture)
+public class RealEstateImportsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly PersonId Alice = PersonId.New();
     private static readonly PersonId Bob = PersonId.New();

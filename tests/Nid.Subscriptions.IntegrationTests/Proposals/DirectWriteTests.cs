@@ -12,8 +12,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Spec 4D1 §5: a document written directly — validated and applied in one unit of work, no proposal row.</summary>
-[Collection("postgres")]
-public class DirectWriteTests(PostgresFixture fixture)
+public class DirectWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     internal static readonly HashSet<string> Direct = [ScopeNames.Read, ScopeNames.Write, ScopeNames.WriteDirect];
 

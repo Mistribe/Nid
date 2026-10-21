@@ -9,8 +9,7 @@ using NodaTime;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>2B1b spec §4: the <c>envelopes</c> section, asserted through the real investments API.</summary>
-[Collection("postgres")]
-public class EnvelopesImportTests(PostgresFixture fixture)
+public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public const string Envelopes = """
         [{"id":"env-pea","name":"PEA","kind":"pea","institution":"Banque","account_hint":"1234","opened_on":"2019-03-01",

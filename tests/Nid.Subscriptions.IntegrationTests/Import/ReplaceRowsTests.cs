@@ -10,8 +10,7 @@ using NodaTime;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>1F3b: with <c>replace</c>, billing phases and purchases imported before with other content are replaced in place.</summary>
-[Collection("postgres")]
-public class ReplaceRowsTests(PostgresFixture fixture)
+public class ReplaceRowsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>The price of the golden ph-spotify-1, the only "15.17" of the file, and another.</summary>
     private const string OldAmount = "15.17";

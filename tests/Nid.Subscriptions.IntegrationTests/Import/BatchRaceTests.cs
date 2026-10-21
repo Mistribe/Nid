@@ -18,8 +18,7 @@ namespace Nid.Subscriptions.IntegrationTests.Import;
 /// batch answered <c>Accepted: true</c> is either applied by the commit or still staged on a session that can
 /// be validated and committed again — never accepted and then silently dropped.
 /// </summary>
-[Collection("postgres")]
-public class BatchRaceTests(PostgresFixture fixture)
+public class BatchRaceTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly TimeSpan Bound = TimeSpan.FromSeconds(30);
 

@@ -6,8 +6,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Income;
 
 /// <summary>Income dashboard spec §4: a source's page, its figures, months per component and changes. Today is 2025-10-15.</summary>
-[Collection("postgres")]
-public class SourceOverviewEndpointTests(PostgresFixture fixture)
+public class SourceOverviewEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Sources = "/api/v1/income/sources";
 

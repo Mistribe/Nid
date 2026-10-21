@@ -7,8 +7,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
 /// <summary>3E1 spec §4: the loans' and properties' events of « À venir », [2025-10-15, 2025-12-14].</summary>
-[Collection("postgres")]
-public class RealEstateUpcomingTests(PostgresFixture fixture)
+public class RealEstateUpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<Guid> PostAsync(NidApp app, PersonId actor, Guid property, string route, object body)
         => await CreatedAsync(await app.RawAsync(actor, HttpMethod.Post, $"{Properties}/{property}/{route}", body));

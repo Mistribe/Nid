@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class SubscriptionsImportTests(PostgresFixture fixture)
+public class SubscriptionsImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record MoneyResponse(decimal Amount, string Currency);
     public sealed record SummaryResponse(Guid Id, string DisplayName);

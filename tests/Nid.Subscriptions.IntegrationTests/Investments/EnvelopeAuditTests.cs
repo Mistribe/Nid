@@ -5,8 +5,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
 /// <summary>2B1a spec §8, Important 2 of the final review: the audit of an envelope change.</summary>
-[Collection("postgres")]
-public class EnvelopeAuditTests(PostgresFixture fixture)
+public class EnvelopeAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static JsonElement Json(string body) => JsonDocument.Parse(body).RootElement;
 

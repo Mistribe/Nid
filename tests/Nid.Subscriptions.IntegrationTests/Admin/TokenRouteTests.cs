@@ -9,8 +9,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Admin;
 
 /// <summary>Spec 4A §6: « Mes jetons » through a browser session.</summary>
-[Collection("postgres")]
-public class TokenRouteTests(PostgresFixture fixture)
+public class TokenRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public const string Tokens = "/api/v1/core/me/tokens";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

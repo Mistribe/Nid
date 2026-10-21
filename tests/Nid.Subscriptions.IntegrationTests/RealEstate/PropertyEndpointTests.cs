@@ -9,8 +9,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C1 §4 and §7: the property's reads, creation, PATCH, and the 404s.</summary>
-[Collection("postgres")]
-public class PropertyEndpointTests(PostgresFixture fixture)
+public class PropertyEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_property_is_created_and_read_back_with_its_figures_before_any_estimate() // Review Focus #2: amounts go out invariant

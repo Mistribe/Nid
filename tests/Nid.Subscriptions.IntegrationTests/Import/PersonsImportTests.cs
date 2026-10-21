@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class PersonsImportTests(PostgresFixture fixture)
+public class PersonsImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Adults_are_resolved_by_the_map_given_at_the_start()

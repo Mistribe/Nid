@@ -9,8 +9,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>Design §3.3: a custom key is generated, never chosen, so it can neither collide with nor reveal another one.</summary>
-[Collection("postgres")]
-public class ProviderCreationTests(PostgresFixture fixture)
+public class ProviderCreationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private sealed class QueuedSuffixes(params string[] suffixes) : IProviderKeySuffix
     {

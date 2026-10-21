@@ -11,8 +11,7 @@ namespace Nid.Subscriptions.IntegrationTests.Import;
 /// An id another adult used privately is answered as an unused one and imported as new; a visible row is still
 /// recognised, the importer's own first.
 /// </summary>
-[Collection("postgres")]
-public class ImportProvenanceTests(PostgresFixture fixture)
+public class ImportProvenanceTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Adults(NidApp app) => new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value };
 

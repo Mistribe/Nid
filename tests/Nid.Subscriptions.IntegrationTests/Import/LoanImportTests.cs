@@ -13,8 +13,7 @@ using static Nid.Subscriptions.IntegrationTests.Import.PropertiesImportTests;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>Spec 3F1 §2–§4: the loan sections, through the real loan and property API.</summary>
-[Collection("postgres")]
-public class LoanImportTests(PostgresFixture fixture)
+public class LoanImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<List<JsonElement>> LoansAsync(NidApp app, PersonId reader)
         => (await JsonAsync(app, reader, "/api/v1/realestate/loans?scope=me")).GetProperty("items").EnumerateArray().ToList();

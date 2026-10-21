@@ -15,8 +15,7 @@ namespace Nid.Subscriptions.IntegrationTests.Proposals;
 /// Spec 4D2 §3: the bank's table proposed on a loan — checked by 3F2's rules, compared with the calculation, approved as the
 /// reference or not. The golden loan (loans.md §4) falls due on the 15th from 2020-11-15.
 /// </summary>
-[Collection("postgres")]
-public class AmortizationProposalTests(PostgresFixture fixture)
+public class AmortizationProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Kind = "realestate.import_amortization";
 

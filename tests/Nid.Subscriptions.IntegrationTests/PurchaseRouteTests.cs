@@ -8,8 +8,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>1E2b1 design §3.2: the purchase route reads its body by field and answers every refusal with a path.</summary>
-[Collection("postgres")]
-public class PurchaseRouteTests(PostgresFixture fixture)
+public class PurchaseRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Purchase(
         string kind = "prepaid_term", string amount = "59.88", string? allocatedAmount = null, string date = "2025-01-01",

@@ -6,8 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
-[Collection("postgres")]
-public class RoutineTests(PostgresFixture fixture)
+public class RoutineTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Url = "/api/v1/investments/routine";
 

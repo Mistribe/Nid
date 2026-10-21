@@ -5,8 +5,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>GET /subscriptions/overview (the app clock is fixed at 2025-10-15).</summary>
-[Collection("postgres")]
-public class OverviewEndpointTests(PostgresFixture fixture)
+public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record Money(string Amount, string Currency);
     public sealed record PersonShare(Guid PersonId, Money? Amortized);

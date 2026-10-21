@@ -18,8 +18,7 @@ namespace Nid.Subscriptions.IntegrationTests.Import;
 /// remaining ways a commit can fail to be all-or-nothing: a section reporting a failed Result (not a throw),
 /// two commits racing the same session, and a conflict that appears only when commit re-validates.
 /// </summary>
-[Collection("postgres")]
-public class CommitRobustnessTests(PostgresFixture fixture)
+public class CommitRobustnessTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Last = "zz_last";
 

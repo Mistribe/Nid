@@ -6,8 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class ItemReplaceTests(PostgresFixture fixture)
+public class ItemReplaceTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Replace_updates_name_visibility_and_owners_in_place_and_the_audit_keeps_the_old_values()

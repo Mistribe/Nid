@@ -7,8 +7,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
-[Collection("postgres")]
-public class EnvelopeEndpointTests(PostgresFixture fixture)
+public class EnvelopeEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Create(NidApp app, string name = "PEA", object? opening = null, object? firstValuation = null, string visibility = "shared")
         => new

@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
-[Collection("postgres")]
-public class SeriesEndpointTests(PostgresFixture fixture)
+public class SeriesEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

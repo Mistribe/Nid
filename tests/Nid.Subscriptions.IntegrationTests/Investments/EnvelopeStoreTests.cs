@@ -9,8 +9,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
-[Collection("postgres")]
-public class EnvelopeStoreTests(PostgresFixture fixture)
+public class EnvelopeStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task An_envelope_round_trips_and_a_change_touches_only_what_it_names()

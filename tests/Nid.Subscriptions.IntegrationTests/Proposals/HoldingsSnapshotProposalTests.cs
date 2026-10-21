@@ -8,8 +8,7 @@ using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Issue #34 §6: a statement's holdings for one envelope — lines matched by ISIN then name, new holdings, movements, the 30 % flag.</summary>
-[Collection("postgres")]
-public class HoldingsSnapshotProposalTests(PostgresFixture fixture)
+public class HoldingsSnapshotProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Kind = "investments.record_holdings_snapshot";
     private const string FundIsin = "FR0000120271";

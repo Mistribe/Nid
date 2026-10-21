@@ -13,8 +13,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>1F3a spec §9 test 3: no write path is left out of the log without a decision recorded here.</summary>
-[Collection("postgres")]
-public partial class AuditCompletenessTests(PostgresFixture fixture)
+public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Every_mapped_entity_is_audited_or_excluded()

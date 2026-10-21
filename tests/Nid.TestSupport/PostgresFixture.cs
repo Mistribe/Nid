@@ -10,20 +10,25 @@ using Testcontainers.PostgreSql;
 
 namespace Nid.TestSupport;
 
-/// <summary>One PostgreSQL container for the whole test run; each test gets a database with all three schemas.</summary>
+/// <summary>
+/// One PostgreSQL container for the whole test run; each test gets a database with all three schemas. The container is
+/// the process's, not the fixture's: test classes each holding a fixture run in parallel against it.
+/// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
     // One database per test and a connection pool per database: the default limit of 100 clients is reached
     // well before the suite is, and the tests that happen to run last fail with "sorry, too many clients
     // already" rather than on their own merits.
-    private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17")
+    private static readonly PostgreSqlContainer Container = new PostgreSqlBuilder("postgres:17")
         .WithCommand("-c", "max_connections=500")
         .Build();
-    private int databaseCounter;
+    private static readonly Lazy<Task> Started = new(() => Container.StartAsync());
+    private static int databaseCounter;
 
-    public Task InitializeAsync() => container.StartAsync();
+    public Task InitializeAsync() => Started.Value;
 
-    public Task DisposeAsync() => container.DisposeAsync().AsTask();
+    // Testcontainers' reaper removes the container when the test process ends.
+    public Task DisposeAsync() => Task.CompletedTask;
 
     public async Task<CoreDbContext> NewDatabaseAsync() => NewCoreContext(await NewConnectionStringAsync());
 
@@ -52,7 +57,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     public async Task<string> NewEmptyConnectionStringAsync()
     {
         var name = $"nid_test_{Interlocked.Increment(ref databaseCounter)}";
-        await using (var admin = new Npgsql.NpgsqlConnection(container.GetConnectionString()))
+        await using (var admin = new Npgsql.NpgsqlConnection(Container.GetConnectionString()))
         {
             await admin.OpenAsync();
             await using var command = admin.CreateCommand();
@@ -62,7 +67,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         // One pool per test database, kept by every context that names this string (EF builds its own data source for it):
         // idle connections close after 2 s, or hundreds of finished tests exhaust the server (1F4, 606 tests).
-        return new Npgsql.NpgsqlConnectionStringBuilder(container.GetConnectionString())
+        return new Npgsql.NpgsqlConnectionStringBuilder(Container.GetConnectionString())
         {
             Database = name, ConnectionIdleLifetime = 2, ConnectionPruningInterval = 1,
         }.ToString();

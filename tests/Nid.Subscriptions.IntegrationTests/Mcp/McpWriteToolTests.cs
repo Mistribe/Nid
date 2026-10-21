@@ -10,8 +10,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Mcp;
 
 /// <summary>Spec 4D1 §5–§6: the write tools end to end — conforme, proposed, applied, refused.</summary>
-[Collection("postgres")]
-public class McpWriteToolTests(PostgresFixture fixture)
+public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<McpClient> ClientAsync(NidApp app, string preset)
         => await McpHarness.ClientAsync(app, (await TokenRouteTests.CreateAsync(app, app.AdultA, preset)).Secret);

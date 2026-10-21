@@ -11,8 +11,7 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Subscriptions.IntegrationTests.Admin;
 
-[Collection("postgres")]
-public class AdminUsersTests(PostgresFixture fixture)
+public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Users = "/api/v1/admin/users";
     private const string Household = "/api/v1/admin/household";

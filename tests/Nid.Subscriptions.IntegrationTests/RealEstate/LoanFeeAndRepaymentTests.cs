@@ -5,8 +5,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3A2 §5: fees, early repayments and their penalty, the simulation, conflicts and the row lock.</summary>
-[Collection("postgres")]
-public class LoanFeeAndRepaymentTests(PostgresFixture fixture)
+public class LoanFeeAndRepaymentTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_fee_is_added_corrected_and_deleted_against_its_version()

@@ -7,8 +7,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C1 §5–§7: the readable linked loans in a property's figures, their currencies, and what another adult never sees.</summary>
-[Collection("postgres")]
-public class PropertyFiguresTests(PostgresFixture fixture)
+public class PropertyFiguresTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>README §12's purchase, estimated 290 000 on 2025-06-01.</summary>
     private static async Task<Guid> EstimatedAsync(NidApp app)

@@ -14,8 +14,7 @@ using NodaTime;
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
 /// <summary>Spec 4A §3, §4, §7: a bearer token on /api.</summary>
-[Collection("postgres")]
-public class BearerTokenTests(PostgresFixture fixture)
+public class BearerTokenTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const string Capabilities = "/api/v1/platform/capabilities";

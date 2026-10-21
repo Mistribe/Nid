@@ -5,8 +5,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>The annual cost: amortized over the 12 months from the 1st of the current month (the app clock is fixed at 2025-10-15).</summary>
-[Collection("postgres")]
-public class AnnualCostTests(PostgresFixture fixture)
+public class AnnualCostTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record Money(string Amount, string Currency);
     public sealed record FindingResponse(string Code, string? Reference);

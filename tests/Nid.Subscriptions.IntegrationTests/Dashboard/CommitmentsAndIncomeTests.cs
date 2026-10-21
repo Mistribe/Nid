@@ -11,8 +11,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
-[Collection("postgres")]
-public class CommitmentsAndIncomeTests(PostgresFixture fixture)
+public class CommitmentsAndIncomeTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<JsonElement> DashboardAsync(NidApp app, PersonId reader, string scope)
         => JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/dashboard?scope={scope}")).RootElement;

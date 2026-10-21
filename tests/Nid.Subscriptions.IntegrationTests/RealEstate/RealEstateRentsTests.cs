@@ -10,8 +10,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Income dashboard spec §5: the rents RealEstate exposes to Income — rent only, prorated, dated on the first covered day. Today is 2025-10-15.</summary>
-[Collection("postgres")]
-public class RealEstateRentsTests(PostgresFixture fixture)
+public class RealEstateRentsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly DateRange Autumn = DateRange.Create(new LocalDate(2025, 9, 1), new LocalDate(2025, 12, 1)).Ok();
 

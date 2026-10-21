@@ -12,8 +12,7 @@ using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Income;
 
-[Collection("postgres")]
-public class PhaseEndpointTests(PostgresFixture fixture)
+public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Sources = "/api/v1/income/sources";
 

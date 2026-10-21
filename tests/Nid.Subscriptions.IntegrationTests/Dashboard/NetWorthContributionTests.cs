@@ -9,8 +9,7 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
-[Collection("postgres")]
-public class NetWorthContributionTests(PostgresFixture fixture)
+public class NetWorthContributionTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

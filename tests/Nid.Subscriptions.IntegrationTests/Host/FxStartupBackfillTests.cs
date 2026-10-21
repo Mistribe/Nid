@@ -11,8 +11,7 @@ namespace Nid.Subscriptions.IntegrationTests.Host;
 /// The startup check on its own, against the host's real stores: the backfill is owed until one has succeeded,
 /// whatever the daily job wrote in the meantime (a failed or interrupted ECB fetch must be retried).
 /// </summary>
-[Collection("postgres")]
-public class FxStartupBackfillTests(PostgresFixture fixture)
+public class FxStartupBackfillTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private sealed class RecordingTrigger : IFxJobTrigger
     {

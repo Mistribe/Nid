@@ -10,8 +10,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class CatalogSyncTests(PostgresFixture fixture)
+public class CatalogSyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<Result<CatalogSyncRun>> SyncAsync(NidApp app, CancellationToken ct = default)
     {

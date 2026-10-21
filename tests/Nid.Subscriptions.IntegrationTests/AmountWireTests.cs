@@ -10,8 +10,7 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// Amounts cross the HTTP API as decimal strings, both ways (frontend/README.md §2, principle 1): a JSON
 /// number is read by a browser as a binary double, and 0.1 + 0.2 is where a household's totals start lying.
 /// </summary>
-[Collection("postgres")]
-public class AmountWireTests(PostgresFixture fixture)
+public class AmountWireTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Amounts_leave_the_api_as_strings_with_their_scale()

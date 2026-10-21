@@ -5,8 +5,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>Issue #34 §5: the sections <c>holdings</c>, <c>holding_snapshots</c> and <c>holding_movements</c>, asserted through the API.</summary>
-[Collection("postgres")]
-public class HoldingsImportTests(PostgresFixture fixture)
+public class HoldingsImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Envelope = """
         [{"id":"env-av","name":"Assurance-vie","kind":"life_insurance","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}]}]

@@ -6,8 +6,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class SchemaTests(PostgresFixture fixture)
+public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>
     /// The property under test is that both modules genuinely coexist on the same database: a write through

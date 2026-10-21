@@ -6,8 +6,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C2 §4: a property's rental figures in its detail and the list, over the 12 rolling months before the host's today (2025-10-15).</summary>
-[Collection("postgres")]
-public class PropertyRentalFiguresTests(PostgresFixture fixture)
+public class PropertyRentalFiguresTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task PostAsync(NidApp app, Guid property, string route, object body)
         => await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/{route}", body));

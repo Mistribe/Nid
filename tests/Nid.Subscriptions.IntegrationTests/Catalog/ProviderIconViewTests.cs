@@ -9,8 +9,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>1C2c design §7: the server gives the icon's relative path; the web never builds one.</summary>
-[Collection("postgres")]
-public class ProviderIconViewTests(PostgresFixture fixture)
+public class ProviderIconViewTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

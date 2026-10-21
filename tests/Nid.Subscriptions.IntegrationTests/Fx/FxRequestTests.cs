@@ -7,8 +7,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.IntegrationTests.Fx;
 
-[Collection("postgres")]
-public class FxRequestTests(PostgresFixture fixture)
+public class FxRequestTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private sealed class RecordingTrigger : IFxJobTrigger
     {

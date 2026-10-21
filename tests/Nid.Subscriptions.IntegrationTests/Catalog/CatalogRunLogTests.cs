@@ -8,8 +8,7 @@ using Duration = NodaTime.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class CatalogRunLogTests(PostgresFixture fixture)
+public class CatalogRunLogTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Commit = "df0146a8f3532f5c790aa54a34d4871e96b62a95";
 

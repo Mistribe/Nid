@@ -7,8 +7,7 @@ using NodaTime;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>Spec §3: one append-only table, owned by Platform, that every module's context can write.</summary>
-[Collection("postgres")]
-public class AuditSchemaTests(PostgresFixture fixture)
+public class AuditSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static AuditEntryRow Entry(Guid item) => new()
     {

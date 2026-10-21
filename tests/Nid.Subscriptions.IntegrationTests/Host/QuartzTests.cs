@@ -5,8 +5,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
-[Collection("postgres")]
-public class QuartzTests(PostgresFixture fixture)
+public class QuartzTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static Dictionary<string, string> JobsOn() => new()
     {

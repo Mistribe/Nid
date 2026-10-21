@@ -14,8 +14,7 @@ using Duration = NodaTime.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class CatalogEndpointTests(PostgresFixture fixture)
+public class CatalogEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Root = "/api/v1/subscriptions";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

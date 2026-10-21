@@ -13,8 +13,7 @@ using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Spec 4D1 §3: a payslip corrects the expected pay; within the tolerance it is « conforme ». Today is 2025-10-15.</summary>
-[Collection("postgres")]
-public class PayslipProposalTests(PostgresFixture fixture)
+public class PayslipProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Kind = "income.change_pay";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

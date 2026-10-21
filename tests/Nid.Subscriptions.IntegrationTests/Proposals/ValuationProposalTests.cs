@@ -9,8 +9,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Spec 4C1 §6: an envelope's value, proposed by a token and approved in the browser.</summary>
-[Collection("postgres")]
-public class ValuationProposalTests(PostgresFixture fixture)
+public class ValuationProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Kind = "investments.record_valuation";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

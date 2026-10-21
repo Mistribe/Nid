@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
-[Collection("postgres")]
-public class UpcomingTests(PostgresFixture fixture)
+public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<JsonElement> DashboardAsync(NidApp app, PersonId reader, string scope = "household")
         => JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/dashboard?scope={scope}")).RootElement;

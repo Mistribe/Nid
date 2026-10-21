@@ -11,8 +11,7 @@ namespace Nid.Subscriptions.IntegrationTests.Host;
 /// The SPA's client is generated from the committed document (design §3), so an endpoint that declares no
 /// typed response is an endpoint the browser cannot call without writing HTTP by hand.
 /// </summary>
-[Collection("postgres")]
-public class OpenApiTests(PostgresFixture fixture)
+public class OpenApiTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Every_api_endpoint_declares_a_typed_success_response()

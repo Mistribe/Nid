@@ -6,8 +6,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
-[Collection("postgres")]
-public class LoanStoreTests(PostgresFixture fixture)
+public class LoanStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly LocalDate Disbursed = new(2020, 10, 15);
 

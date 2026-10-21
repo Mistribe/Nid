@@ -22,8 +22,7 @@ namespace Nid.Subscriptions.IntegrationTests.BatchedReads;
 /// cost and a tenancy, a loan linked to it reading its bank's table (3F2) and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription and an income source with a phase: the same shapes each
 /// round, so every branch a route takes is taken alike for N and 2N.
 /// </summary>
-[Collection("postgres")]
-public class CommandCountTests(PostgresFixture fixture)
+public class CommandCountTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const int N = 2;
 

@@ -8,8 +8,7 @@ using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class SubscriptionStoreTests(PostgresFixture fixture)
+public class SubscriptionStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static Money Eur(decimal amount) => Money.Create(amount, Currency.Eur).Ok();
 

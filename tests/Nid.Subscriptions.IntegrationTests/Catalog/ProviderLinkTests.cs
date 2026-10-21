@@ -9,8 +9,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>Design §5: a new link names a provider visible to the actor and not archived, or it is the same 422.</summary>
-[Collection("postgres")]
-public class ProviderLinkTests(PostgresFixture fixture)
+public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

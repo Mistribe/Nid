@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class ProviderStoreTests(PostgresFixture fixture)
+public class ProviderStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static Provider Custom(string key, PersonId creator)
         => new(key, ProviderOrigin.Custom, "Tinder", "https://tinder.com", null, [CatalogLimits.OtherLabel], null, creator, null, null);

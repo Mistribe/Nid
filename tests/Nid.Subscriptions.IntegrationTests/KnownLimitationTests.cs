@@ -21,8 +21,7 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// <c>subscriptions.amortized_double_count</c> whenever a shared purchase contributed, on the same findings
 /// channel the engine's own warnings use, so a caller reading the two totals can see why they disagree.
 /// </summary>
-[Collection("postgres")]
-public class KnownLimitationTests(PostgresFixture fixture)
+public class KnownLimitationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Household_amortized_cost_still_double_counts_a_shared_purchase()

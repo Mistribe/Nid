@@ -9,8 +9,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>1C2c design §6.</summary>
-[Collection("postgres")]
-public class ProviderIconEndpointTests(PostgresFixture fixture)
+public class ProviderIconEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Icons = IconLimits.PathPrefix;
 

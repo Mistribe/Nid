@@ -8,8 +8,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>1E2a design §2.3: close the open phase and open the next, all or nothing.</summary>
-[Collection("postgres")]
-public class PriceChangeTests(PostgresFixture fixture)
+public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Change(string startsOn, string amount = "15.99") => new { startsOn, price = new { amount, currency = "EUR" } };
 

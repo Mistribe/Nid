@@ -12,8 +12,7 @@ using static Nid.Subscriptions.IntegrationTests.Import.EstateFile;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>Spec 3F1 §2–§4: the <c>properties</c>, <c>property_recurring_costs</c> and <c>tenancies</c> sections, through the real property API.</summary>
-[Collection("postgres")]
-public class PropertiesImportTests(PostgresFixture fixture)
+public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     internal static async Task<List<JsonElement>> PropertiesAsync(NidApp app, PersonId reader)
         => (await JsonAsync(app, reader, "/api/v1/realestate/properties?scope=me")).GetProperty("items").EnumerateArray().ToList();

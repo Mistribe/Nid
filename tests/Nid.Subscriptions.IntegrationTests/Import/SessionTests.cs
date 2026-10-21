@@ -8,8 +8,7 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class SessionTests(PostgresFixture fixture)
+public class SessionTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_session_starts_open_and_lives_24_hours()

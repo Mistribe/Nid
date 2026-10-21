@@ -8,8 +8,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
 /// <summary>3E1 spec §2: properties and loans in the net worth, its split, its change since 1 January and its curve.</summary>
-[Collection("postgres")]
-public class RealEstateNetWorthTests(PostgresFixture fixture)
+public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<Guid> EstimateAsync(NidApp app, Guid property, string asOf, string amount)
         => await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/valuations", new { asOf, amount }));

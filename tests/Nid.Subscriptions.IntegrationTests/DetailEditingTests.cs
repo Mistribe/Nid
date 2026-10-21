@@ -5,8 +5,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>1E2a design §2.4.</summary>
-[Collection("postgres")]
-public class DetailEditingTests(PostgresFixture fixture)
+public class DetailEditingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task The_detail_carries_owners_phases_and_whether_the_reader_may_write()

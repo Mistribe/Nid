@@ -7,8 +7,7 @@ using Npgsql;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class CatalogSchemaTests(PostgresFixture fixture)
+public class CatalogSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>
     /// Design §3.4: keys written before any catalog (1C1's API, 1D3's import) become adopted providers in the

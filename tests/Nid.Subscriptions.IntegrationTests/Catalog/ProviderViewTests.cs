@@ -35,8 +35,7 @@ public class CountingProxy<T> : DispatchProxy where T : class
     }
 }
 
-[Collection("postgres")]
-public class ProviderViewTests(PostgresFixture fixture)
+public class ProviderViewTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

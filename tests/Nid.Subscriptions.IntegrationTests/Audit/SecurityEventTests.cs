@@ -12,8 +12,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>1F3a spec §5 and §9 test 6: each event where stated, once, with identifiers only.</summary>
-[Collection("postgres")]
-public class SecurityEventTests(PostgresFixture fixture)
+public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public static async Task<List<AuditEntryRow>> EventsAsync(NidApp app, string name)
     {

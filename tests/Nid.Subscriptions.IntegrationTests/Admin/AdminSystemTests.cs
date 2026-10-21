@@ -4,8 +4,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Admin;
 
-[Collection("postgres")]
-public class AdminSystemTests(PostgresFixture fixture)
+public class AdminSystemTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record Job(string Key, DateTimeOffset? LastRunAt, DateTimeOffset? NextRunAt, string State);
     public sealed record Health(string Database, string IdentityProvider);

@@ -11,8 +11,7 @@ using static Nid.Subscriptions.IntegrationTests.Import.EnvelopesImportTests;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>2B1b spec §5: the Core's <c>valuations</c> and <c>flows</c> sections, asserted through the real API and the database.</summary>
-[Collection("postgres")]
-public class FactsImportTests(PostgresFixture fixture)
+public class FactsImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public const string Valuations = """
         [{"id":"v-pea-1","item":"env-pea","as_of":"2024-12-31","amount":{"amount":"21000","currency":"EUR"}},

@@ -8,8 +8,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>1E2b1 design §3.1: one request creates a subscription with its phases and purchases, or nothing.</summary>
-[Collection("postgres")]
-public class CreateWithOffersTests(PostgresFixture fixture)
+public class CreateWithOffersTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Body(NidApp app, object[]? phases = null, object[]? purchases = null) => new
     {

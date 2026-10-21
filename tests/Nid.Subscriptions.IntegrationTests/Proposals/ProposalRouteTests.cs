@@ -12,8 +12,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Spec 4C1 §3–§5, §7 with a test kind: the queue itself.</summary>
-[Collection("postgres")]
-public class ProposalRouteTests(PostgresFixture fixture)
+public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public const string Proposals = "/api/v1/core/proposals";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

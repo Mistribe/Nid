@@ -6,8 +6,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3A2 §5: the reads, the creation, the PATCH, the contract, and the 404s.</summary>
-[Collection("postgres")]
-public class LoanEndpointTests(PostgresFixture fixture)
+public class LoanEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_loan_is_created_and_read_back_at_its_60th_payment()

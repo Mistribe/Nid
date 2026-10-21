@@ -6,8 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Export;
 
-[Collection("postgres")]
-public class ExportPrivacyTests(PostgresFixture fixture)
+public class ExportPrivacyTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task The_other_adults_private_edits_do_not_move_the_readers_revision()

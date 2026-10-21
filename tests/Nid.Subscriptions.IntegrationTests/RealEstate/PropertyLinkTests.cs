@@ -9,8 +9,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C1 §3–§4: the loan → property link, set on the loan.</summary>
-[Collection("postgres")]
-public class PropertyLinkTests(PostgresFixture fixture)
+public class PropertyLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static Dictionary<string, object?> LinkedTo(Guid property, Dictionary<string, object?> loan)
     {

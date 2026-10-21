@@ -8,8 +8,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
-[Collection("postgres")]
-public class DashboardAggregationTests(PostgresFixture fixture)
+public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Url = "/api/v1/dashboard";
     private static readonly LocalDate Today = new(2025, 10, 15); // NidApp's fixed clock

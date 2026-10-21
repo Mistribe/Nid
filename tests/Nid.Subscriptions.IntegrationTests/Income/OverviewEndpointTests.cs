@@ -9,8 +9,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.Income;
 
 /// <summary>Income dashboard spec §4: the household overview, salaries and rents together. Today is 2025-10-15.</summary>
-[Collection("postgres")]
-public class OverviewEndpointTests(PostgresFixture fixture)
+public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Overview = "/api/v1/income/overview";
 

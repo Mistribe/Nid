@@ -12,8 +12,7 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// <c>Writers</c> of the item written, so every grant — the ones a create carries and the ones a delete
 /// cascades into — is checked against the actor, and §6 says a refusal never discloses existence.
 /// </summary>
-[Collection("postgres")]
-public class GrantAccessTests(PostgresFixture fixture)
+public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_purchase_cannot_grant_to_the_other_adults_private_subscription()

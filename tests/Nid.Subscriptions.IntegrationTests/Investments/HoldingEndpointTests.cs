@@ -6,8 +6,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
 /// <summary>Holdings spec (issue #34, PR 1): holdings and snapshots of an envelope through the API.</summary>
-[Collection("postgres")]
-public class HoldingEndpointTests(PostgresFixture fixture)
+public class HoldingEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string FundIsin = "FR0000120271";
 

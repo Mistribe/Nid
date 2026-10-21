@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class WriteEndpointTests(PostgresFixture fixture)
+public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task An_adult_creates_a_subscription_and_reads_it_back()

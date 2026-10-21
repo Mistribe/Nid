@@ -9,8 +9,7 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
-[Collection("postgres")]
-public class NetWorthHistoryTests(PostgresFixture fixture)
+public class NetWorthHistoryTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly LocalDate Today = new(2025, 10, 15);
 

@@ -7,8 +7,7 @@ using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
-[Collection("postgres")]
-public class PropertyStoreTests(PostgresFixture fixture)
+public class PropertyStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>Every optional field set, cent-precise amounts and a half square metre: what the columns must keep.</summary>
     private static PropertyDetails Home() => new(PropertyType.Rental, new LocalDate(2020, 6, 15), 250_000.5m, 19_000m, 3_500.25m, 0m,

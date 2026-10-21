@@ -5,8 +5,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
 /// <summary>1C2c design §3: the host binds <c>Assets:Root</c>, and every test host gets a folder of its own.</summary>
-[Collection("postgres")]
-public class AssetStoreConfigurationTests(PostgresFixture fixture)
+public class AssetStoreConfigurationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task The_host_stores_assets_under_Assets_Root()

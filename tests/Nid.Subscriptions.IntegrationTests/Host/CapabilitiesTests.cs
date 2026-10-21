@@ -3,8 +3,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
-[Collection("postgres")]
-public class CapabilitiesTests(PostgresFixture fixture)
+public class CapabilitiesTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task Stage_one_enables_core_subscriptions_and_import()

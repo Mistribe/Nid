@@ -6,8 +6,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
 /// <summary>Issue #34 (PR 3): cost reports, unexplained units, the units-of-account floor and maturities through the API (today: 2025-10-15).</summary>
-[Collection("postgres")]
-public class HoldingCostEndpointTests(PostgresFixture fixture)
+public class HoldingCostEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

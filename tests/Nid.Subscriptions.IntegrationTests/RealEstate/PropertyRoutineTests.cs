@@ -11,8 +11,7 @@ namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 /// Spec 3E2 §2–§3: the real estate routine — what it proposes for a month, recording all or nothing, undoing. The host's today is
 /// 2025-10-15: the default month is September 2025.
 /// </summary>
-[Collection("postgres")]
-public class PropertyRoutineTests(PostgresFixture fixture)
+public class PropertyRoutineTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Url = "/api/v1/realestate/routine";
 

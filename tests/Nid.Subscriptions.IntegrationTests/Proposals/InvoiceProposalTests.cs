@@ -8,8 +8,7 @@ using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Spec 4D1 §4: an invoice compared with the price of the phase open that day, to the cent.</summary>
-[Collection("postgres")]
-public class InvoiceProposalTests(PostgresFixture fixture)
+public class InvoiceProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Kind = "subscriptions.change_price";
 

@@ -7,8 +7,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>1F3a spec §5.1, §6 and §9 tests 4, 5 and 7.</summary>
-[Collection("postgres")]
-public class AuditReadTests(PostgresFixture fixture)
+public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static JsonElement Json(string body) => JsonDocument.Parse(body).RootElement;
 

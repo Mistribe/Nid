@@ -8,8 +8,7 @@ using NodaTime;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>1C2c design §5: the merge stores the declared URL; only the icon pass links an asset, and a sync keeps it.</summary>
-[Collection("postgres")]
-public class ProviderIconStoreTests(PostgresFixture fixture)
+public class ProviderIconStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string First = "https://1000logos.net/netflix.png";
     private const string Second = "https://upload.wikimedia.org/netflix.png";

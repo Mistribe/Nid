@@ -11,8 +11,7 @@ using Duration = NodaTime.Duration;
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
 /// <summary>Design §4 "Trigger": at startup, a sync is owed until one has succeeded — failed ones do not count.</summary>
-[Collection("postgres")]
-public class CatalogStartupSyncTests(PostgresFixture fixture)
+public class CatalogStartupSyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private sealed class RecordingTrigger : ICatalogJobTrigger
     {

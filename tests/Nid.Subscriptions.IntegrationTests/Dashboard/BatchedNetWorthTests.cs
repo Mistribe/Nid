@@ -12,8 +12,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
 /// <summary>Batched reads spec §2–§3: the net worth reads its facts as one block per module, and only the reader's items.</summary>
-[Collection("postgres")]
-public class BatchedNetWorthTests(PostgresFixture fixture)
+public class BatchedNetWorthTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

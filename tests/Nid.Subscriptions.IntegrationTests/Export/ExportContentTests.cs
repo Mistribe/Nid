@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Export;
 
-[Collection("postgres")]
-public class ExportContentTests(PostgresFixture fixture)
+public class ExportContentTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Adults(NidApp app) => new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value };
 

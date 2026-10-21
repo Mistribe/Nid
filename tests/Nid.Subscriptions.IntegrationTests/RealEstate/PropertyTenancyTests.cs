@@ -6,8 +6,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C2 §2–§3: a property's tenancies — versions, refusals, no overlap under the property's row lock, the purchase date.</summary>
-[Collection("postgres")]
-public class PropertyTenancyTests(PostgresFixture fixture)
+public class PropertyTenancyTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Lease(string startsOn, string? endsOn = null, uint? version = null)
         => new { label = "T2 meublé", startsOn, endsOn, rentMonthly = "900", version };

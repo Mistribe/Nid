@@ -11,8 +11,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Export;
 
 /// <summary>The criterion of 1D2 (stage-1 overview): an export re-imported into a fresh instance exports the same again.</summary>
-[Collection("postgres")]
-public class RoundTripTests(PostgresFixture fixture)
+public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>
     /// Same catalog and same adult names in both instances, since the file carries the adults' names. The seeded

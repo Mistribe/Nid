@@ -7,8 +7,7 @@ using static Nid.Subscriptions.IntegrationTests.Import.EnvelopesImportTests;
 namespace Nid.Subscriptions.IntegrationTests.Export;
 
 /// <summary>Spec 3F1 §4 and §6: a household's real estate, exported, imported into a fresh instance, exports the same again.</summary>
-[Collection("postgres")]
-public class RealEstateRoundTripTests(PostgresFixture fixture)
+public class RealEstateRoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>The file carries the adults' names: the same in both instances.</summary>
     private static async Task NameAdultsAsync(NidApp app)

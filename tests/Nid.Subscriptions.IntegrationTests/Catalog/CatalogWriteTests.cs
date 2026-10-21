@@ -9,8 +9,7 @@ using Npgsql;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class CatalogWriteTests(PostgresFixture fixture)
+public class CatalogWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly Instant Now = Instant.FromUtc(2026, 9, 24, 7, 0);
 

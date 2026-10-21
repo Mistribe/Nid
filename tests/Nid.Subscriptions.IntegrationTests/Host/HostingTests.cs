@@ -8,8 +8,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
 /// <summary>1F1 design §2.3: what the reference compose needs from the host, in an environment that is not Development.</summary>
-[Collection("postgres")]
-public class HostingTests(PostgresFixture fixture)
+public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Theory]
     [InlineData("/health/live")]

@@ -6,8 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Host;
 
-[Collection("postgres")]
-public class PreferencesTests(PostgresFixture fixture)
+public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_new_session_carries_the_default_preferences()

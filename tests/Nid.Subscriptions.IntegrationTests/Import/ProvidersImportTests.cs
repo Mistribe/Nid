@@ -9,8 +9,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class ProvidersImportTests(PostgresFixture fixture)
+public class ProvidersImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Owner = "\"ownership\":[{\"person\":\"adult-1\",\"share_bp\":10000}]";
 

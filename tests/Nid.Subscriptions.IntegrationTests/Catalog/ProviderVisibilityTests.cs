@@ -7,8 +7,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>Design §3.5, computed from IVisibleItems: a provider can say no more than the subscriptions that use it.</summary>
-[Collection("postgres")]
-public class ProviderVisibilityTests(PostgresFixture fixture)
+public class ProviderVisibilityTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     internal static async Task<string> CreateCustomAsync(NidApp app, PersonId actor, string name)
     {

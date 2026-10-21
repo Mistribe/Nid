@@ -12,8 +12,7 @@ using Duration = Nid.Core.Contracts.Duration;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>1F3a spec §4 and §9 tests 1–2: what a write leaves in the log, and when it leaves nothing.</summary>
-[Collection("postgres")]
-public class WriteAuditTests(PostgresFixture fixture)
+public class WriteAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<List<AuditEntryRow>> WritesAsync(NidApp app, string entity)
     {

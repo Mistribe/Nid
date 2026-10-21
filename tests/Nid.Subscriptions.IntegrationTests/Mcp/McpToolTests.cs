@@ -9,8 +9,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Mcp;
 
 /// <summary>Spec 4B §3: the 18 tools, the same JSON as REST, the same rights.</summary>
-[Collection("postgres")]
-public class McpToolTests(PostgresFixture fixture)
+public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly string[] Expected =
     [

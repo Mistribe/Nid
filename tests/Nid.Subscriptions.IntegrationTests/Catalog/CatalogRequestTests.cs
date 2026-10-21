@@ -15,8 +15,7 @@ using Duration = NodaTime.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-[Collection("postgres")]
-public class CatalogRequestTests(PostgresFixture fixture)
+public class CatalogRequestTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private sealed class RecordingTrigger : ICatalogJobTrigger
     {

@@ -13,8 +13,7 @@ using NodaTime.Text;
 
 namespace Nid.Subscriptions.IntegrationTests.Income;
 
-[Collection("postgres")]
-public class OneOffAndClosingTests(PostgresFixture fixture)
+public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Sources = "/api/v1/income/sources";
 

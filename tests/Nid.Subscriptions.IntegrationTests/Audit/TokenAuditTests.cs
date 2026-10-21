@@ -9,8 +9,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>Spec 4A §5: every audit writer names the token its actor used.</summary>
-[Collection("postgres")]
-public class TokenAuditTests(PostgresFixture fixture)
+public class TokenAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_write_and_a_security_event_made_with_a_token_carry_its_id()

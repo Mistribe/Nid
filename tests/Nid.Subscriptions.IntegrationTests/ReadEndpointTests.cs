@@ -6,8 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class ReadEndpointTests(PostgresFixture fixture)
+public class ReadEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task The_list_shows_a_shared_subscription_to_both_adults()

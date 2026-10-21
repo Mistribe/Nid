@@ -9,8 +9,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
-[Collection("postgres")]
-public class TransferAndCloseTests(PostgresFixture fixture)
+public class TransferAndCloseTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

@@ -7,8 +7,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C2 §2–§3: a property's planned costs, their monthly equivalent and next due date, versions and refusals.</summary>
-[Collection("postgres")]
-public class PropertyRecurringCostTests(PostgresFixture fixture)
+public class PropertyRecurringCostTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Tax(uint? version = null) => new
     {

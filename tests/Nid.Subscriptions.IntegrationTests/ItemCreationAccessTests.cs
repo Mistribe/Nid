@@ -9,8 +9,7 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// sont des <c>dependent</c>. On ne crée pas un élément au seul nom de l'autre adulte." Without it an adult
 /// can plant an item in the other's private space — created, then invisible to its own author.
 /// </summary>
-[Collection("postgres")]
-public class ItemCreationAccessTests(PostgresFixture fixture)
+public class ItemCreationAccessTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task An_adult_cannot_create_a_private_item_owned_by_the_other()

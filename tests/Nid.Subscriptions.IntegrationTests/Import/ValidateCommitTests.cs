@@ -9,8 +9,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class ValidateCommitTests(PostgresFixture fixture)
+public class ValidateCommitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string OneDependent = """[{"ref":"kid","kind":"dependent","display_name":"Léa"}]""";
 

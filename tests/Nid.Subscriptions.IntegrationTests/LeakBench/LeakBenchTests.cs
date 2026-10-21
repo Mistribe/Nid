@@ -23,8 +23,7 @@ namespace Nid.Subscriptions.IntegrationTests.LeakBench;
 /// row-level (<c>architecture.md</c> D15), so the guarantee rests on these tests failing automatically when
 /// a query or a command lets through an item it should not.
 /// </summary>
-[Collection("postgres")]
-public class LeakBenchTests(PostgresFixture fixture)
+public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly string[] Scopes = ["household", "me"];
 

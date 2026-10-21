@@ -7,8 +7,7 @@ namespace Nid.Subscriptions.IntegrationTests.Host;
 /// Every test starts its own host: one a library keeps alive after disposal (a running timer, a static cache holding its
 /// container) stays for the whole run, ~7 MB and a ticking timer each, and the suite slowed from 1 s to 3 s a test.
 /// </summary>
-[Collection("postgres")]
-public class HostLifetimeTests(PostgresFixture fixture)
+public class HostLifetimeTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_disposed_host_is_collected()

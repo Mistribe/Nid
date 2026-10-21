@@ -4,8 +4,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class ListGroupingEndpointTests(PostgresFixture fixture)
+public class ListGroupingEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record GroupResponse(string Key, string? Name, List<Guid> ItemIds);
     public sealed record ListResponse(List<GroupResponse> Groups);

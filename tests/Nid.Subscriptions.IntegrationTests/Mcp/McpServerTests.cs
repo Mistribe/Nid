@@ -12,8 +12,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Mcp;
 
 /// <summary>Spec 4B §2, §4, §5: the server, its door and its audit.</summary>
-[Collection("postgres")]
-public class McpServerTests(PostgresFixture fixture)
+public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Fact]
     public async Task A_token_lists_read_only_tools_and_reads_the_persons_as_rest_does()

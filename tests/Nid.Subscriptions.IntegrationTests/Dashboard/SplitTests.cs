@@ -5,8 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Dashboard;
 
-[Collection("postgres")]
-public class SplitTests(PostgresFixture fixture)
+public class SplitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task ValueAsync(NidApp app, PersonId writer, ItemId envelope, string asOf, string amount, string currency = "EUR")
         => Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(writer, HttpMethod.Post,

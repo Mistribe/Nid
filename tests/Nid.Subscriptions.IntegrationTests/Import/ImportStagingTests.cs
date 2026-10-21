@@ -6,8 +6,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class ImportStagingTests(PostgresFixture fixture)
+public class ImportStagingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly Instant Now = Instant.FromUtc(2025, 10, 15, 12, 0);
     private static readonly Instant Tomorrow = Now.Plus(NodaTime.Duration.FromHours(24));

@@ -6,8 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class BatchTests(PostgresFixture fixture)
+public class BatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private Task<NidApp> StartAsync()
         => NidApp.StartAsync(fixture, services => services.AddScoped<IImportSection, StubSection>());

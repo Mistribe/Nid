@@ -11,8 +11,7 @@ using static Nid.Subscriptions.IntegrationTests.Proposals.ProposalKindHelpers;
 namespace Nid.Subscriptions.IntegrationTests.Proposals;
 
 /// <summary>Spec 4D1 §2: a statement for one envelope — its value and its movements. The envelope: opening 20 000 € and a value of 21 000 € on 2025-01-31.</summary>
-[Collection("postgres")]
-public class StatementProposalTests(PostgresFixture fixture)
+public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Kind = "investments.record_statement";
 

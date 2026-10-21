@@ -10,8 +10,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>1F3a spec §5: the events of the OIDC callback and of sign-out; the groups of the identity provider decide access and the admin role.</summary>
-[Collection("postgres")]
-public class SignInEventTests(PostgresFixture fixture)
+public class SignInEventTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly string[] Member = ["nid-users"];
     private static readonly string[] Administrator = ["nid-users", "nid-admins"];

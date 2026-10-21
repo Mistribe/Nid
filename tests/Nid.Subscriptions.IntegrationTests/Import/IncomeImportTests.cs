@@ -11,8 +11,7 @@ using static Nid.Subscriptions.IntegrationTests.Import.EnvelopesImportTests;
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
 /// <summary>2C1 spec §5: the <c>income_sources</c> and <c>income_phases</c> sections, asserted through the real income API.</summary>
-[Collection("postgres")]
-public class IncomeImportTests(PostgresFixture fixture)
+public class IncomeImportTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Salary = """
         {"id":"inc-salary-1","name":"Salaire","kind":"salary","payer_label":"Employeur","currency":"EUR",

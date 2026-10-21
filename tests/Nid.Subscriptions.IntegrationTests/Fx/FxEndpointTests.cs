@@ -9,8 +9,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Subscriptions.IntegrationTests.Fx;
 
-[Collection("postgres")]
-public class FxEndpointTests(PostgresFixture fixture)
+public class FxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Root = "/api/v1/core/fx-rates";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

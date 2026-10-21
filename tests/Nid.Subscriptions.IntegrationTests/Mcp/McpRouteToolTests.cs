@@ -14,8 +14,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Mcp;
 
 /// <summary>Spec 4D3: every web write as a tool, proposed by default and approved by replaying its route.</summary>
-[Collection("postgres")]
-public class McpRouteToolTests(PostgresFixture fixture)
+public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>The writes no tool proposes, on purpose (<see cref="RouteActions"/>' summary).</summary>
     private static readonly string[] NotProposed =

@@ -11,8 +11,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3F2 §2: with the bank as the reference, every reader of a loan follows its table — the loan, its property, the net worth.</summary>
-[Collection("postgres")]
-public class BankScheduleReadingTests(PostgresFixture fixture)
+public class BankScheduleReadingTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>The golden loan's 60th payment (the host's today) as a bank that owes 1 000 less: 161 253.12 left.</summary>
     internal static readonly BankRow Sixtieth = new(new LocalDate(2025, 10, 15), 1_159.92m, 475.24m, 684.68m, null, 161_253.12m);

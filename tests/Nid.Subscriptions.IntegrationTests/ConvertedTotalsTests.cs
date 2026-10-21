@@ -6,8 +6,7 @@ using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-[Collection("postgres")]
-public class ConvertedTotalsTests(PostgresFixture fixture)
+public class ConvertedTotalsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record Money(string Amount, string Currency);
     public sealed record FindingResponse(string Code, string? Reference);

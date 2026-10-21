@@ -6,8 +6,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3C1 §2 and §4: a property's estimates and flows, the category convention, and the figures they shape.</summary>
-[Collection("postgres")]
-public class PropertyFactTests(PostgresFixture fixture)
+public class PropertyFactTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<Guid> PostAsync(NidApp app, Guid property, string route, object body)
         => await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{property}/{route}", body));

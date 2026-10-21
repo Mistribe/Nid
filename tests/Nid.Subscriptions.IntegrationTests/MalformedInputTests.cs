@@ -12,8 +12,7 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// question asked was not the question answered. A present-but-malformed value is a bad request; an absent
 /// one keeps its documented default.
 /// </summary>
-[Collection("postgres")]
-public class MalformedInputTests(PostgresFixture fixture)
+public class MalformedInputTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     [Theory]
     [InlineData("?from=oops&to=oops")]

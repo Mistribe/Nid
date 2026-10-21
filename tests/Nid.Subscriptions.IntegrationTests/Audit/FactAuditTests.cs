@@ -12,8 +12,7 @@ using Npgsql;
 namespace Nid.Subscriptions.IntegrationTests.Audit;
 
 /// <summary>2A spec §6 and §8: a fact's audit, and the caller's unit of work, through the host's own wiring.</summary>
-[Collection("postgres")]
-public class FactAuditTests(PostgresFixture fixture)
+public class FactAuditTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly LocalDate Day = new(2025, 10, 1);
 

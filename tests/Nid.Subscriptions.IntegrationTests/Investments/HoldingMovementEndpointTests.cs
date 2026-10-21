@@ -6,8 +6,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
 /// <summary>Issue #34 (PR 2): movements, switches and a holding's figures through the API.</summary>
-[Collection("postgres")]
-public class HoldingMovementEndpointTests(PostgresFixture fixture)
+public class HoldingMovementEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

@@ -10,8 +10,7 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
 
-[Collection("postgres")]
-public class UnitOfWorkTests(PostgresFixture fixture)
+public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>The Core item and the subscription row are one write: the second failing takes the first back.</summary>
     [Fact]

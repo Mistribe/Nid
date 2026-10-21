@@ -7,8 +7,7 @@ using Nid.TestSupport;
 namespace Nid.Subscriptions.IntegrationTests;
 
 /// <summary>1E2a design §2.1 and §2.2: one request creates a subscription with its first phase, or nothing.</summary>
-[Collection("postgres")]
-public class CreateWithPhaseTests(PostgresFixture fixture)
+public class CreateWithPhaseTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static object Body(NidApp app, object? phase, string visibility = "shared", string? providerKey = null) => new
     {

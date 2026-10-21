@@ -11,8 +11,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Subscriptions.IntegrationTests.Admin;
 
 /// <summary>1F4 design §3: rebinding an adult's OIDC subject, and listing every person.</summary>
-[Collection("postgres")]
-public class RebindSubjectTests(PostgresFixture fixture)
+public class RebindSubjectTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task<Result<T>> AsCliAsync<T>(NidApp app, IRequest<T> request) where T : notnull
     {

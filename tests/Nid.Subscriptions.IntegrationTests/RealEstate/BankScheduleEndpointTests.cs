@@ -11,8 +11,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
 /// <summary>Spec 3F2 §3: the bank's table pasted on a loan — previewed, stored, chosen as the reference, replaced and deleted.</summary>
-[Collection("postgres")]
-public class BankScheduleEndpointTests(PostgresFixture fixture)
+public class BankScheduleEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static string Table(Guid id) => $"{Loans}/{id}/bank-schedule";
 
