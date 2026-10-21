@@ -123,7 +123,7 @@ describe('history', () => {
     server.use(http.get('*/api/v1/income/sources/:id/expected', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp(HISTORY);
 
-    expect(await within(await region()).findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await within(await region()).findByRole('alert', {})).toBeInTheDocument();
   });
 
   it('is shown to a reader and on an ended source', async () => {

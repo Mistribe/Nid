@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import '@/app/i18n';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { server } from './server';
 
@@ -41,6 +41,9 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+
+// findBy* waits 1 s by default: a lazy route, cmdk or the confirmation dialog imported cold in a worker took over 5 s under load.
+configure({ asyncUtilTimeout: 10_000 });
 
 // Any request no test expects is a failure, not a silent network call.
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));

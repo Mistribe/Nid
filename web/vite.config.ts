@@ -21,6 +21,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // A form test typing through jsdom takes 1–3 s on an idle machine, a cold import of a lazy part (calendar, cmdk) more:
+    // the 5 s and 10 s defaults timed out under load (two suites at once, CI runners).
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     include: ['src/**/*.test.{ts,tsx}', 'eslint-rules/**/*.test.js', 'scripts/**/*.test.js'],
   },
 });

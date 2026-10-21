@@ -104,7 +104,7 @@ describe('Import › sending', () => {
     const { user } = await renderApp(`/import/${SESSION_ID}`);
 
     await upload(user, nidFile());
-    await waitFor(() => expect(fake.calls).toContain('validate'), { timeout: 5000 });
+    await waitFor(() => expect(fake.calls).toContain('validate'));
     expect(fake.calls.filter((c) => c === 'put persons/0')).toHaveLength(2);
   });
 

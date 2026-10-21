@@ -252,7 +252,7 @@ describe('DashboardPage', () => {
   it('shows a failed load as a problem', async () => {
     server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp('/dashboard');
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByRole('alert', {})).toBeInTheDocument();
   });
 
   it('passes the Moi scope to the API', async () => {

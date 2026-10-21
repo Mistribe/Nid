@@ -158,7 +158,7 @@ describe('EnvelopesPage', () => {
     server.use(http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp('/investments');
 
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByRole('alert', {})).toBeInTheDocument();
   });
 
   it('appears in the navigation only when the module is enabled', async () => {

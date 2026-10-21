@@ -116,7 +116,7 @@ describe('LoansPage', () => {
     server.use(http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp('/loans');
 
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByRole('alert', {})).toBeInTheDocument();
   });
 
   it('passes the Moi scope to the API', async () => {

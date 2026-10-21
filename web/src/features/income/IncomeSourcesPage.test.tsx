@@ -127,7 +127,7 @@ describe('IncomeSourcesPage', () => {
     server.use(http.get('*/api/v1/income/overview', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp('/income');
 
-    expect((await screen.findAllByRole('alert', {}, { timeout: 8000 })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('alert', {})).length).toBeGreaterThan(0);
   });
 
   it('passes the Moi scope to the API', async () => {

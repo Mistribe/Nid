@@ -264,7 +264,7 @@ describe('LoanDetailPage', () => {
 
     const marked = (await within(await screen.findByRole('table', { name: 'Échéancier par année' })).findByText('prochaine échéance')).closest('tr')!;
     expect(marked).toHaveTextContent('15 octobre 2026');
-    const bank = await screen.findByRole('region', { name: 'Tableau de la banque' }, { timeout: 5000 });
+    const bank = await screen.findByRole('region', { name: 'Tableau de la banque' });
     expect(within(bank).getByRole('list', { name: 'Comparaison avec le calcul' })).toHaveTextContent('Les deux concordent');
     await expectNoAxeViolations(container);
   });

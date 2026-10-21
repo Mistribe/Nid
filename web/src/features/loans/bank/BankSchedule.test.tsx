@@ -54,7 +54,7 @@ function serve(initial: LoanDetail = loanDetail(), refusals: Refusals = {}) {
 
 // The section is lazy: under the full suite's load its first render can outlast findBy's default second.
 const PAGE = `/loans/${LOAN}?tab=schedule`;
-const region = () => screen.findByRole('region', { name: 'Tableau de la banque' }, { timeout: 5000 });
+const region = () => screen.findByRole('region', { name: 'Tableau de la banque' });
 const pasteForm = () => screen.getByRole('form', { name: 'Tableau de la banque à comparer' });
 
 describe('the bank’s table', () => {

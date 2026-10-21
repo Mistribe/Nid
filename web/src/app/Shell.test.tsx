@@ -130,7 +130,7 @@ describe('the shell', () => {
     expect(router.state.location.pathname).toBe(`/income/${SALARY}`);
     expect(router.state.location.search).toEqual({ scope: 'me' });
 
-    await screen.findByRole('heading', { level: 1, name: 'Salaire Alice' }, { timeout: 5000 });
+    await screen.findByRole('heading', { level: 1, name: 'Salaire Alice' });
     await user.click(within(await screen.findByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Revenus' }));
     expect(router.state.location.pathname).toBe('/income');
     expect(router.state.location.search).toEqual({ scope: 'me' });

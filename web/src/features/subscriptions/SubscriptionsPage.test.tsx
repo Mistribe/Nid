@@ -122,12 +122,12 @@ describe('Abonnements › liste', () => {
     expect(seen.at(-1)).toContain('scope=me');
   });
 
-  it('shows the problem when the list cannot be read', { timeout: 10_000 }, async () => {
+  it('shows the problem when the list cannot be read', async () => {
     server.use(http.get('*/api/v1/subscriptions', () => HttpResponse.json({ status: 500 }, { status: 500 })));
     await renderApp('/subscriptions?tab=list');
 
     // A 5xx is retried twice with backoff before the error shows (createQueryClient).
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent('Une erreur inattendue');
+    expect(await screen.findByRole('alert', {})).toHaveTextContent('Une erreur inattendue');
   });
 
   const labelled = list([

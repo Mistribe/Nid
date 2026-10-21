@@ -126,7 +126,7 @@ describe('Abonnements › calendrier', () => {
     server.use(http.get('*/api/v1/subscriptions/charges', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
     await renderApp('/subscriptions?tab=calendar');
 
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByRole('alert', {})).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'novembre 2026' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mois suivant' })).toBeInTheDocument();
   });

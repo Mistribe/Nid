@@ -157,7 +157,7 @@ describe('Abonnements › vue d’ensemble', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('still says what to watch when the names cannot be read', { timeout: 10_000 }, async () => {
+  it('still says what to watch when the names cannot be read', async () => {
     serve(overview({ activeCount: 2, watch: [
       { code: 'subscriptions.ends_without_renewal', itemIds: [SPOTIFY], date: '2026-12-31', amount: null },
       { code: 'subscriptions.same_provider', itemIds: [CLAUDE_PRO, CLAUDE_API], date: null, amount: eur('40.00') },
@@ -167,7 +167,7 @@ describe('Abonnements › vue d’ensemble', () => {
 
     const watch = await region('À surveiller');
     // A 5xx is retried twice with backoff before the error shows (createQueryClient).
-    expect(await within(watch).findByRole('link', { name: 'Un abonnement se termine le 31 décembre 2026 sans renouvellement' }, { timeout: 8000 }))
+    expect(await within(watch).findByRole('link', { name: 'Un abonnement se termine le 31 décembre 2026 sans renouvellement' }))
       .toHaveAttribute('href', `/subscriptions/${SPOTIFY}`);
     expect(within(watch).getByRole('link', { name: /^2 abonnements chez un même fournisseur : 40,00\s€ par mois$/ })).toBeInTheDocument();
   });

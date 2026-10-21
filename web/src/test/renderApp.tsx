@@ -15,6 +15,8 @@ export async function renderApp(path: string, options: { capabilities?: Capabili
   const capabilities = options.capabilities ?? allCapabilities;
   const location = { pathname: '/', search: '', assign: vi.fn(), reload: vi.fn() };
   const queryClient = createQueryClient();
+  // The app's retry rule without its backoff: a failed read would wait 1 s + 2 s of real time before the problem shows.
+  queryClient.setDefaultOptions({ queries: { ...queryClient.getDefaultOptions().queries, retryDelay: 0 } });
   const api = createApi({ getCsrf: () => session.csrf, onUnauthenticated: vi.fn() });
   const router = createAppRouter({ capabilities }, createMemoryHistory({ initialEntries: [path] }));
 
