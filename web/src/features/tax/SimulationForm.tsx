@@ -8,7 +8,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import { REGIMES, regimeText } from './format';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResult } from './api';

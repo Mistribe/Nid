@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import type { TaxEstimate } from './api';
 import { percentText } from './format';
 import { eur } from './ResultTable';

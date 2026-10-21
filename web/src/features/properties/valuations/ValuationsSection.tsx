@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { money } from '../../loans/format';
 import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '../api';
 import { RowActions } from '@/components/page/RowActions';

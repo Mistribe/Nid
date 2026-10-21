@@ -11,7 +11,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { Field } from '@/components/form/Field';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';

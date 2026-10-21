@@ -9,7 +9,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { presentRefusal } from '../../loans/refusal';
 import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';

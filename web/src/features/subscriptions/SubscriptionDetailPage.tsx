@@ -14,7 +14,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import { DETAIL, PERSONS } from './api';
 import { CoverageBand } from './CoverageBand';
 import { DeletePurchase, ReadOnly } from './edits/Edits';

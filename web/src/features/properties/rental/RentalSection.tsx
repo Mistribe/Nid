@@ -6,7 +6,7 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { money } from '../../loans/format';
 import { invalidateProperties, TENANCY, type PropertyDetail, type PropertyTenancy } from '../api';
 import { RowActions } from '@/components/page/RowActions';

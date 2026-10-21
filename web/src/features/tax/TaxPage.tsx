@@ -9,7 +9,7 @@ import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import { todayIso } from '../subscriptions/today';
 import { TAX, type TaxEstimate } from './api';
 import { noticeText, percentText, warningText } from './format';

@@ -14,7 +14,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import { todayIso } from '../subscriptions/today';
 import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from './api';
 import { ValueChart } from './chart/ValueChart';

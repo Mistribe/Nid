@@ -1,6 +1,6 @@
 import { useId, type ReactNode, type RefObject } from 'react';
 
-/** A titled region of the source's page: `headingRef` makes its heading a focus target, `announcement` its live region. */
+/** A titled region of a detail page, without a card: `headingRef` makes its heading a focus target, `announcement` its live region. */
 export function Section({ title, headingRef, announcement, guide, srTitle, children }: {
   title: string; srTitle?: boolean; headingRef?: RefObject<HTMLHeadingElement | null>; announcement?: string; guide?: string; children: ReactNode;
 }) {

@@ -50,6 +50,7 @@ Communs à tous les modules, dans `components/`.
 | `<EmptyState>` | Titre, phrase, action |
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
+| `Section` (`components/page/`) | Région titrée d'une fiche, sans carte : titre `h2`, focus et annonce facultatifs |
 | `SectionCard` (`components/page/`) | Cadre titré d'une vue d'ensemble (graphique, courte liste) : titre, note, actions dans l'en-tête, dont « Afficher en tableau » pour un graphique |
 | `PageHeader` (`components/page/`) | Titre, retour, chiffres clés en ligne, actions de la page : l'en-tête commun des listes et des fiches |
 | `StatLine` | Ligne de chiffres sous le titre ; seulement quand le serveur donne les totaux (abonnements) |

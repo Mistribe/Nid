@@ -10,7 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { Field } from '@/components/form/Field';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { BANK_PREVIEW, BANK_SCHEDULE, invalidateLoans, LOAN, type BankRow, type LoanComparison, type LoanDetail } from '../api';

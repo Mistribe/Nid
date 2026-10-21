@@ -9,7 +9,7 @@ import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import { PROPERTY } from './api';
 import { CostsSection } from './costs/CostsSection';
 import { LinkedLoans } from './detail/LinkedLoans';

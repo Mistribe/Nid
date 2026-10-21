@@ -23,7 +23,7 @@ The web app uses shadcn/ui (`web/components.json`, components in `web/src/compon
 
 Every screen follows one page grammar (`docs/frontend/design-system.md` §6.1, `docs/frontend/screens.md`); build new screens from it, with `web/src/features/investments/EnvelopeDetailPage.tsx` as the reference:
 
-- Page parts in `web/src/components/page/`: `PageHeader` (breadcrumb, title, actions), `StatLine` (key figures inline, no big cards), `DetailTabs` + `useDetailTab` (`?tab=`, first tab dropped from the URL), `SortableTable` (lists), `RowMenu` / `RowActions` (a row's `⋯` menu, delete confirmation, « Recharger »), `StepForm` (long creation forms).
+- Page parts in `web/src/components/page/`: `PageHeader` (breadcrumb, title, actions), `StatLine` (key figures inline, no big cards), `DetailTabs` + `useDetailTab` (`?tab=`, first tab dropped from the URL), `SortableTable` (lists), `RowMenu` / `RowActions` (a row's `⋯` menu, delete confirmation, « Recharger »), `StepForm` (long creation forms), `Section` (a detail page's titled region, no card), `SectionCard` (an overview's titled card: dashboard, income).
 - Fields in `web/src/components/form/`: `Field` (label, hint, error wiring), `SelectField`, `ComboboxField` (searchable, long lists), `CurrencyField`, `DateField` (`jj/mm/aaaa`, `max` for past-only dates), `Segmented`. Dialogs: `FormDialog`, `ModalDialog`, `ConfirmAction`.
 - Lists are dense tables with an owner column (`OwnerChips`); details show figures inline, then tabs, entry forms in dialogs; creation forms are their own page, in steps when long, rare fields folded.
 - Radix `TabsContent` unmounts inactive tabs: state the page hands into a tab must be consumed once.

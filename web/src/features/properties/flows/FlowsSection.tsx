@@ -4,7 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { money } from '../../loans/format';
 import { FLOW, invalidateProperties, type PropertyDetail, type PropertyFlow } from '../api';
 import { categoryText, kindText } from '../format';

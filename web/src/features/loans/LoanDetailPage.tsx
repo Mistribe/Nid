@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../income/Section';
+import { Section } from '@/components/page/Section';
 import { LOAN, SCHEDULE, type LoanDetail } from './api';
 import { LoanContract } from './detail/LoanContract';
 import { LoanCost, LoanProgress, LoanStats } from './detail/LoanFigures';

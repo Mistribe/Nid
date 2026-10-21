@@ -13,7 +13,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { COST_REPORTS, ENVELOPE, HOLDING_SERIES, HOLDINGS, MOVEMENTS, type CostReport, type Holding } from '../api';
 import { SeriesChart } from '../chart/ValueChart';
 import { AnnualReturn, Direction, pct } from '../Figures';

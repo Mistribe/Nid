@@ -31,7 +31,7 @@ import { PhaseForm } from './phases/PhaseForm';
 import { PhaseRowActions } from './phases/PhaseRowActions';
 import { OneOffForm } from './oneoffs/OneOffForm';
 import { OneOffsSection } from './oneoffs/OneOffsSection';
-import { Section } from './Section';
+import { Section } from '@/components/page/Section';
 import { SettingsForm } from './settings/SettingsForm';
 import '@/locales/income';
 

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRowDialog } from '../../properties/useRowDialog';
 import { SOURCE, type IncomeSourceDetail } from '../api';
-import { Section } from '../Section';
+import { Section } from '@/components/page/Section';
 import { OneOffForm } from './OneOffForm';
 import { OneOffRowActions } from './OneOffRowActions';
 import '@/locales/income';

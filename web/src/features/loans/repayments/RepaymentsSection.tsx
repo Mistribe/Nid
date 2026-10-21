@@ -6,7 +6,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { RowActions } from '@/components/page/RowActions';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { invalidateLoans, REPAYMENT, type LoanDetail, type LoanRepayment } from '../api';
 import { effectText, money } from '../format';
 import { presentRefusal } from '../refusal';

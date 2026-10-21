@@ -6,7 +6,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { RowActions } from '@/components/page/RowActions';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Section } from '../../income/Section';
+import { Section } from '@/components/page/Section';
 import { FEE, invalidateLoans, type LoanDetail, type LoanFee } from '../api';
 import { feeKindText, money } from '../format';
 import { presentRefusal } from '../refusal';
