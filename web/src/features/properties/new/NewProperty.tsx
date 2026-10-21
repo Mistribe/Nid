@@ -8,6 +8,7 @@ import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
 import { CurrencyField } from '@/components/form/CurrencyField';
 import { Field } from '@/components/form/Field';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Segmented } from '@/components/form/Segmented';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
 import { PageHeader } from '@/components/page/PageHeader';
@@ -46,7 +47,7 @@ export function NewProperty() {
     defaultValues: {
       name: '', currency: 'EUR', note: '', owners: [{ personId: session.person.id, share: '100' }],
       type: 'primary_residence', purchaseDate: '', purchasePrice: '', notaryFees: '0', agencyFees: '0', otherAcquisitionCosts: '0',
-      surfaceM2: '', locationLabel: '', valuationCadence: 'yearly', staleAfterDays: '',
+      surfaceM2: '', locationLabel: '', valuationCadence: 'yearly', staleAfterDays: '', withLoan: false,
     },
   });
   const [reveal, setReveal] = useState<{ step: string } | null>(null);
@@ -54,7 +55,9 @@ export function NewProperty() {
   const create = $api.useMutation('post', PROPERTIES, {
     onSuccess: ({ id }) => {
       void invalidateProperties(queryClient);
-      void navigate({ to: '/properties/$id', params: { id } });
+      void (form.getValues('withLoan')
+        ? navigate({ to: '/loans/new', search: { property: id } })
+        : navigate({ to: '/properties/$id', params: { id } }));
     },
     onError: (error) => {
       errors.onError(error);
@@ -109,7 +112,19 @@ export function NewProperty() {
           submitLabel={t('property_form.submit')} pending={create.isPending} reveal={reveal}
           steps={[
             { id: 'essentials', title: t('property_form.step_essentials'), fields: [...FIELDS.essentials], content: essentials },
-            { id: 'purchase', title: t('property_form.step_purchase'), fields: [...FIELDS.purchase], content: <PurchaseFields /> },
+            {
+              id: 'purchase', title: t('property_form.step_purchase'), fields: [...FIELDS.purchase],
+              content: (
+                <>
+                  <PurchaseFields />
+                  <Controller control={form.control} name="withLoan" render={({ field }) => (
+                    <Field inline label={t('property_form.with_loan')} hint={field.value ? t('property_form.with_loan_hint') : undefined}>
+                      {(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
+                    </Field>
+                  )} />
+                </>
+              ),
+            },
           ]}
         />
       </FormProvider>

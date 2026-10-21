@@ -7,7 +7,7 @@ const t = ((key: string) => key) as unknown as TFunction;
 const valid = (over: Partial<NewPropertyValues> = {}): NewPropertyValues => ({
   name: 'Maison de Nantes', currency: 'EUR', note: '', visibility: 'shared', owners: [{ personId: 'alice', share: '100' }],
   type: 'primary_residence', purchaseDate: '2020-06-15', purchasePrice: '250000', notaryFees: '19000', agencyFees: '0',
-  otherAcquisitionCosts: '0', surfaceM2: '', locationLabel: '', valuationCadence: 'yearly', staleAfterDays: '', ...over,
+  otherAcquisitionCosts: '0', surfaceM2: '', locationLabel: '', valuationCadence: 'yearly', staleAfterDays: '', withLoan: false, ...over,
 });
 
 const issues = (v: NewPropertyValues) => {

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import type { NewLoanSearch } from '@/app/router';
 import { useId, useState } from 'react';
 import { Controller, useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +42,7 @@ export function NewLoan() {
   const { session } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const search: NewLoanSearch = useSearch({ strict: false });
   const people = $api.useQuery('get', PERSONS);
   const visibilityId = useId();
   const visibilityErrorId = useId();
@@ -51,7 +53,7 @@ export function NewLoan() {
     defaultValues: {
       name: '', lender: '', currency: 'EUR', note: '', owners: [{ personId: session.person.id, share: '100' }],
       principal: '', totalPayments: '', disbursedOn: today, firstPaymentDate: plusOneMonth(today),
-      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: '',
+      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: search.property ?? '',
     },
   });
   // The contract's state lives here, not in its fields: a step unmounts them. Its fields are a subset of this form's.

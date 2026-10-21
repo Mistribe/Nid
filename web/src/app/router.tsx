@@ -58,6 +58,10 @@ export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5); anything but `1` is dropped. */
 export type LoansSearch = { ended?: 1 };
 
+/** Issue #17: a new loan opened from a new property, already linked to it. */
+export type NewLoanSearch = { property?: string };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
 export type ProposalsSearch = { status?: 'approved' | 'rejected' };
 
@@ -235,6 +239,8 @@ const loansRoute = createRoute({
 const loanNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/loans/new',
+  validateSearch: (search: Record<string, unknown>): NewLoanSearch =>
+    (typeof search.property === 'string' && UUID.test(search.property) ? { property: search.property } : {}),
   beforeLoad: requireModule('realestate'),
   component: lazyRouteComponent(() => import('@/features/loans/new/NewLoan'), 'NewLoan'),
 });

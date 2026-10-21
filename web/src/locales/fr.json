@@ -996,6 +996,8 @@
     "unknown_rate": "—"
   },
   "property_form": {
+    "with_loan": "Achat avec un crédit",
+    "with_loan_hint": "Après l’enregistrement du bien, vous saisissez le crédit, déjà rattaché à ce bien.",
     "title": "Nouveau bien",
     "name": "Nom",
     "currency": "Devise",

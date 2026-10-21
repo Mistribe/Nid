@@ -424,6 +424,22 @@ describe('NewLoan', () => {
     expect(seen[0]).toBe('?scope=me');
   });
 
+  it('opened from a new property (issue #17), finances that property without choosing it again', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    server.use(http.get('*/api/v1/realestate/properties', () => HttpResponse.json(propertyList([propertySummary()]))));
+    const { user } = await renderApp(`/loans/new?property=${PROPERTY}`);
+
+    await toLoan(user);
+    await fillLoan(user);
+    expect(screen.getByLabelText('Bien financé')).toHaveTextContent('Maison de Nantes');
+    await next(user);
+    await submit(user);
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(sent(bodies).propertyId).toBe(PROPERTY);
+  });
+
   it('shows realestate.invalid_property under « Bien financé », back on its step', async () => {
     serveCreate([], () => HttpResponse.json(
       { status: 422, code: 'realestate.invalid_property', title: 'x', errors: [{ path: 'propertyId', code: 'realestate.invalid_property', message: 'x' }] },

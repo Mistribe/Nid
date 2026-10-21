@@ -67,6 +67,23 @@ describe('NewProperty', () => {
     }]);
   });
 
+  it('bought with a loan (issue #17), opens the new loan already linked to the property and sends nothing more', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user, router } = await renderApp('/properties/new');
+
+    await essentials(user);
+    await purchase(user);
+    expect(screen.queryByText(/vous saisissez le crédit/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Achat avec un crédit' }));
+    expect(screen.getByText(/vous saisissez le crédit, déjà rattaché à ce bien/)).toBeInTheDocument();
+    await submit(user);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/loans/new'));
+    expect(router.state.location.search).toEqual({ property: PROPERTY });
+    expect(bodies[0]).not.toHaveProperty('withLoan');
+  });
+
   it('stays on the first step until the visibility question is answered, with neither answer checked', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);

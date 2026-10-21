@@ -54,6 +54,8 @@ export function newPropertySchema(t: TFunction) {
     // Not aborting: an aborting issue would skip the superRefine below and hide its checks until a second submit.
     visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
+    // Issue #17: never sent; the loan is entered next, on its own form, already linked to the property.
+    withLoan: z.boolean(),
   }).superRefine((v, ctx) => checkOwnership(v, ctx, t));
 }
 
