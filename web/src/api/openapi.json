@@ -19569,6 +19569,42 @@
           }
         }
       },
+      "LoanPhaseSpanView": {
+        "required": [
+          "seq",
+          "mode",
+          "from",
+          "to",
+          "annualRate"
+        ],
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "annualRate": {
+            "type": "string"
+          },
+          "monthlyPayment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "LoanPhaseView": {
         "required": [
           "seq",
@@ -19895,6 +19931,9 @@
           "loans",
           "months",
           "events",
+          "spans",
+          "steps",
+          "byPerson",
           "findings"
         ],
         "type": "object",
@@ -20021,10 +20060,57 @@
               "$ref": "#/components/schemas/LoanEventView"
             }
           },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanSpanView"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentStepView"
+            }
+          },
+          "byPerson": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonLoanShareView"
+            }
+          },
           "findings": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanFindingView"
+            }
+          }
+        }
+      },
+      "LoanSpanView": {
+        "required": [
+          "loanId",
+          "start",
+          "end",
+          "phases"
+        ],
+        "type": "object",
+        "properties": {
+          "loanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "type": "string",
+            "format": "date"
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanPhaseSpanView"
             }
           }
         }
@@ -20524,6 +20610,31 @@
           }
         }
       },
+      "PaymentStepView": {
+        "required": [
+          "from",
+          "to"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "PeriodView": {
         "required": [
           "from",
@@ -20630,6 +20741,72 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "PersonLoanShareView": {
+        "required": [
+          "personId",
+          "loans"
+        ],
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "balance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "monthlyPayment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonLoanView"
+            }
+          }
+        }
+      },
+      "PersonLoanView": {
+        "required": [
+          "loanId",
+          "shareBp"
+        ],
+        "type": "object",
+        "properties": {
+          "loanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shareBp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "balance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
           }
         }
       },

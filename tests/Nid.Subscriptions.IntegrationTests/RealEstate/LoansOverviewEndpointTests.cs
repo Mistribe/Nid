@@ -36,6 +36,16 @@ public class LoansOverviewEndpointTests(PostgresFixture fixture) : IClassFixture
             (S(ends, "date"), S(ends, "code"), S(ends.GetProperty("monthlyPaymentAfter"), "amount")));
         Assert.Equal(works, ends.GetProperty("loanId").GetGuid());
         Assert.Empty(body.GetProperty("findings").EnumerateArray());
+
+        // Spec §4.1: the timeline, the payment in steps, A's share of both.
+        Assert.Equal([home, works], body.GetProperty("spans").EnumerateArray().Select(s => s.GetProperty("loanId").GetGuid()));
+        Assert.Equal(("2020-10-15", "2040-10-15"), (S(body.GetProperty("spans")[0], "start"), S(body.GetProperty("spans")[0], "end")));
+        var steps = body.GetProperty("steps");
+        Assert.Equal(("2025-10", "2025-12", "2159.92"), (S(steps[0], "from"), S(steps[0], "to"), S(steps[0].GetProperty("amount"), "amount")));
+        Assert.Equal(("2026-01", "1159.92"), (S(steps[1], "from"), S(steps[1].GetProperty("amount"), "amount")));
+        var share = Assert.Single(body.GetProperty("byPerson").EnumerateArray());
+        Assert.Equal(app.AdultA.Value, share.GetProperty("personId").GetGuid());
+        Assert.Equal(("164253.12", "2159.92"), (S(share.GetProperty("balance"), "amount"), S(share.GetProperty("monthlyPayment"), "amount")));
     }
 
     [Fact]

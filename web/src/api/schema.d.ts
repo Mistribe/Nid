@@ -14244,6 +14244,17 @@ export interface components {
             openingBalanceOverride?: null | string;
             note?: null | string;
         };
+        LoanPhaseSpanView: {
+            /** Format: int32 */
+            seq: number;
+            mode: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            annualRate: string;
+            monthlyPayment?: null | string;
+        };
         LoanPhaseView: {
             /** Format: int32 */
             seq: number;
@@ -14345,7 +14356,19 @@ export interface components {
             loans: components["schemas"]["LoanOverviewRow"][];
             months: components["schemas"]["BalanceMonthView"][];
             events: components["schemas"]["LoanEventView"][];
+            spans: components["schemas"]["LoanSpanView"][];
+            steps: components["schemas"]["PaymentStepView"][];
+            byPerson: components["schemas"]["PersonLoanShareView"][];
             findings: components["schemas"]["LoanFindingView"][];
+        };
+        LoanSpanView: {
+            /** Format: uuid */
+            loanId: string;
+            /** Format: date */
+            start: string;
+            /** Format: date */
+            end: string;
+            phases: components["schemas"]["LoanPhaseSpanView"][];
         };
         LoanSummary: {
             /** Format: uuid */
@@ -14466,6 +14489,11 @@ export interface components {
             /** Format: uuid */
             personId?: null | string;
         };
+        PaymentStepView: {
+            from: string;
+            to: string;
+            amount?: null | components["schemas"]["LoanMoneyView"];
+        };
         PeriodView: {
             /** Format: date */
             from: string;
@@ -14490,6 +14518,20 @@ export interface components {
         PersonIdResponse: {
             /** Format: uuid */
             id: string;
+        };
+        PersonLoanShareView: {
+            /** Format: uuid */
+            personId: string;
+            balance?: null | components["schemas"]["LoanMoneyView"];
+            monthlyPayment?: null | components["schemas"]["LoanMoneyView"];
+            loans: components["schemas"]["PersonLoanView"][];
+        };
+        PersonLoanView: {
+            /** Format: uuid */
+            loanId: string;
+            /** Format: int32 */
+            shareBp: number;
+            balance?: null | components["schemas"]["LoanMoneyView"];
         };
         PersonShareView: {
             /** Format: uuid */

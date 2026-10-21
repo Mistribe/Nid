@@ -246,3 +246,139 @@ public class LoansOverviewTests
         Assert.Equal("1189.92", overview.MonthlyPayment!.Amount); // the bank's insurance
     }
 }
+
+/// <summary>Loans dashboard spec §4.3: the timeline's spans, the household's payment in steps, each person's share.</summary>
+public class LoansOverviewTimelineTests
+{
+    private static readonly LocalDate Today = new(2026, 10, 21);
+    private static readonly PersonId Alice = PersonId.New();
+    private static readonly PersonId Bob = PersonId.New();
+    private static readonly IReadOnlyList<PersonInfo> Household =
+        [new(Bob, PersonKind.Adult, "Bob", null, 0), new(Alice, PersonKind.Adult, "Alice", null, 0)];
+
+    private static OverviewLoan Loan(string name, LoanTerms terms, IReadOnlyList<StoredRepayment>? repayments = null, params (PersonId Person, int Bp)[] owners)
+    {
+        var shares = owners.Length == 0 ? [(Alice, 10_000)] : owners;
+        var item = new ItemAccess(ItemId.New(), name, Visibility.Shared, shares.Select(o => new Owner(o.Person, PersonKind.Adult, o.Bp)).ToList())
+        {
+            Currency = "EUR",
+        };
+        return new OverviewLoan(item, Loans.Stored(repayments: repayments, terms: terms), null);
+    }
+
+    private static OverviewLoan Home() => Loan("Maison", Loans.Golden(), owners: [(Alice, 5_000), (Bob, 5_000)]);
+
+    private static OverviewLoan Ptz() => Loan("PTZ", Loans.Annuity(40_000m, 0m, 240) with
+    {
+        Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0m, RateType.Fixed, 60), new LoanPhase(2, PhaseMode.Annuity, 0m, RateType.Fixed)],
+    });
+
+    private static OverviewLoan Car() => Loan("Voiture", Loans.Annuity(12_000m, 0.05m, 36));
+
+    private static LoansOverview Build(params OverviewLoan[] loans)
+        => LoansOverviewMath.Build(loans, Currency.Eur, RateTable.Empty(Today, 7), Today, Household);
+
+    private static decimal D(LoanMoneyView? money) => decimal.Parse(money!.Amount, CultureInfo.InvariantCulture);
+
+    [Fact]
+    public void A_deferred_ptz_spans_its_deferral_then_its_annuity()
+    {
+        var ptz = Ptz();
+
+        var span = Assert.Single(Build(ptz).Spans);
+
+        Assert.Equal((ptz.Item.Id, Loans.Disbursed, new LocalDate(2044, 1, 15)), (span.LoanId, span.Start, span.End));
+        Assert.Equal(
+            [
+                (1, "deferred_total", Loans.First, new LocalDate(2029, 1, 15), "0", (string?)null),
+                (2, "annuity", new LocalDate(2029, 2, 15), new LocalDate(2044, 1, 15), "0", "222.22"),
+            ],
+            span.Phases.Select(p => (p.Seq, p.Mode, p.From, p.To, p.AnnualRate, p.MonthlyPayment)));
+    }
+
+    [Fact]
+    public void The_spans_follow_the_rows_order()
+    {
+        var overview = Build(Car(), Home());
+
+        Assert.Equal(overview.Loans.Select(l => l.Id), overview.Spans.Select(s => s.LoanId));
+    }
+
+    [Fact]
+    public void The_payment_steps_change_when_a_loan_ends_and_when_a_deferral_ends()
+    {
+        var overview = Build(Home(), Ptz(), Car());
+
+        var car = Assert.Single(overview.Loans, l => l.Name == "Voiture").MonthlyPayment!;
+        // The car's last payment absorbs its rounding (loans.md §3.2): a payment that changes is a step of its own (D3).
+        Assert.Equal(
+            [
+                ("2026-10", "2026-12", 1159.92m + decimal.Parse(car, CultureInfo.InvariantCulture)),
+                ("2027-01", "2027-01", 1519.59m),
+                ("2027-02", "2029-01", 1159.92m),
+            ],
+            overview.Steps.Take(3).Select(s => (s.From, s.To, D(s.Amount))));
+        Assert.Equal(("2029-02", 1159.92m + 222.22m), (overview.Steps[3].From, D(overview.Steps[3].Amount)));
+        // The last payments absorb the rounding: the steps run on to the last month.
+        Assert.Equal("2044-01", overview.Steps[^1].To);
+        Assert.All(overview.Steps.Zip(overview.Steps.Skip(1)), p => Assert.NotEqual(p.First.Amount, p.Second.Amount));
+    }
+
+    [Fact]
+    public void A_step_ends_when_an_insurance_stops()
+    {
+        var insured = Loan("Maison", Loans.Golden() with
+        {
+            Insurances = [new LoanInsurance(InsuranceMode.FixedMonthly, 30m, null, Loans.Disbursed, new LocalDate(2027, 6, 1))],
+        });
+
+        var steps = Build(insured).Steps;
+
+        Assert.Equal(("2026-10", "2027-05", "1189.92"), (steps[0].From, steps[0].To, steps[0].Amount!.Amount));
+        Assert.Equal(("2027-06", "1159.92"), (steps[1].From, steps[1].Amount!.Amount));
+    }
+
+    [Fact]
+    public void A_repayment_that_reduces_the_payment_starts_a_lower_step()
+    {
+        var repaid = Loan("Maison", Loans.Golden(),
+            repayments: [new StoredRepayment(Guid.NewGuid(), new EarlyRepayment(new LocalDate(2027, 3, 15), 50_000m, RepaymentEffect.ReducePayment), null, null, 1)]);
+
+        var steps = Build(repaid).Steps;
+
+        Assert.Equal(("2026-10", "2027-03", "1159.92"), (steps[0].From, steps[0].To, steps[0].Amount!.Amount));
+        Assert.True(D(steps[1].Amount) < 1159.92m);
+        Assert.Equal("2027-04", steps[1].From);
+    }
+
+    [Fact]
+    public void Each_person_owns_their_share_of_each_loan_and_the_shares_add_up_to_the_totals()
+    {
+        var home = Home();
+        var car = Car();
+
+        var overview = Build(home, car);
+
+        Assert.Equal([Bob.Value, Alice.Value], overview.ByPerson.Select(p => p.PersonId)); // the household's order
+        var bob = overview.ByPerson[0];
+        var alice = overview.ByPerson[1];
+        Assert.Equal([(home.Item.Id, 5_000)], bob.Loans.Select(l => (l.LoanId, l.ShareBp)));
+        Assert.Equal([(home.Item.Id, 5_000), (car.Item.Id, 10_000)], alice.Loans.Select(l => (l.LoanId, l.ShareBp)));
+        Assert.Equal(D(overview.Balance), D(bob.Balance) + D(alice.Balance));
+        Assert.Equal(D(overview.MonthlyPayment), D(bob.MonthlyPayment) + D(alice.MonthlyPayment));
+        Assert.Equal(D(overview.Loans.Single(l => l.Id == home.Item.Id).BalanceConverted), D(bob.Loans[0].Balance) + D(alice.Loans[0].Balance));
+        Assert.Equal(overview.Loans.Single(l => l.Id == car.Item.Id).BalanceConverted, alice.Loans[1].Balance);
+    }
+
+    [Fact]
+    public void The_parts_of_a_loan_add_up_to_it_to_the_cent()
+    {
+        var split = Loan("Prêt", Loans.Annuity(1_000.01m, 0m, 1) with { FirstPaymentDate = new LocalDate(2027, 1, 15) }, owners: [(Alice, 5_000), (Bob, 5_000)]);
+
+        var overview = Build(split);
+
+        // Alice, first owner: 500.005 to the nearest cent; Bob, the last, what is left.
+        Assert.Equal([(Bob.Value, "500.00"), (Alice.Value, "500.01")], overview.ByPerson.Select(p => (p.PersonId, p.Balance!.Amount)));
+        Assert.Equal(1_000.01m, overview.ByPerson.Sum(p => D(p.Balance)));
+    }
+}

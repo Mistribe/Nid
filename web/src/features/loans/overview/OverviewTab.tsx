@@ -23,6 +23,7 @@ import { OVERVIEW, type LoanOverviewRow, type LoansOverview } from '../api';
 import { money, percent } from '../format';
 import { BalanceChart, monthText, useLoanNames } from './BalanceChart';
 import { loanColor } from './colors';
+import { DurationSection } from './DurationSection';
 import { monthsBetween } from './span';
 import '@/locales/loans';
 
@@ -58,6 +59,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
       <Figures d={d} />
       <Section title={t('loans_overview.progress_title')}><Advance d={d} /></Section>
       <Section title={t('loans_overview.chart_title')}><BalanceChart d={d} /></Section>
+      <DurationSection d={d} />
       <div className="md:order-last"><Section title={t('loans_overview.upcoming')}><Upcoming d={d} /></Section></div>
       <Section title={t('loans_overview.running')}><Running d={d} /></Section>
     </div>

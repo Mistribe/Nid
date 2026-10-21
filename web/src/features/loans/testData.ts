@@ -105,10 +105,13 @@ export const overviewRow = (over: Partial<LoanOverviewRow> = {}): LoanOverviewRo
 export const overview = (over: Partial<LoansOverview> = {}): LoansOverview => ({
   currency: 'EUR', convertedIsEstimate: false, runningCount: 0, endedCount: 0, balance: eur('0.00'), principal: eur('0.00'),
   principalRepaid: eur('0.00'), repaidShare: null, monthlyPayment: eur('0.00'), costPaid: eur('0.00'), costRemaining: eur('0.00'),
-  freeOn: null, nextPaymentOn: null, nextPaymentTotal: null, loans: [], months: [], events: [], findings: [], ...over,
+  freeOn: null, nextPaymentOn: null, nextPaymentTotal: null, loans: [], months: [], events: [], spans: [], steps: [], byPerson: [], findings: [], ...over,
 });
 
-/** Two running loans, the house and the car, the car's last payment in January 2027. */
+export const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
+export const BOB = '0192f0aa-0000-7000-8000-0000000000b2';
+
+/** Two running loans, the house (Alice and Bob) and the car (Alice), the car's last payment in January 2027. */
 export const CAR = '0192f0aa-0000-7000-8000-00000000d003';
 export const household = (over: Partial<LoansOverview> = {}): LoansOverview => overview({
   runningCount: 2, balance: eur('199564.23'), principal: eur('212000.00'), principalRepaid: eur('12435.77'), repaidShare: '0.0587',
@@ -128,6 +131,23 @@ export const household = (over: Partial<LoansOverview> = {}): LoansOverview => o
   events: [
     { date: '2027-01-15', code: 'realestate.loan_ends', loanId: CAR, phaseSeq: null, monthlyPaymentAfter: eur('1159.92') },
     { date: '2045-10-15', code: 'realestate.loan_ends', loanId: LOAN, phaseSeq: null, monthlyPaymentAfter: eur('0.00') },
+  ],
+  // The car starts with three months of interest only.
+  spans: [
+    { loanId: LOAN, start: '2025-10-15', end: '2045-10-15', phases: [
+      { seq: 1, mode: 'annuity', from: '2025-11-15', to: '2045-10-15', annualRate: '0.035', monthlyPayment: '1159.92' }] },
+    { loanId: CAR, start: '2024-01-01', end: '2027-01-15', phases: [
+      { seq: 1, mode: 'deferred_partial', from: '2024-01-15', to: '2024-03-15', annualRate: '0', monthlyPayment: '0.00' },
+      { seq: 2, mode: 'annuity', from: '2024-04-15', to: '2027-01-15', annualRate: '0', monthlyPayment: '1000.00' }] },
+  ],
+  steps: [
+    { from: '2026-10', to: '2027-01', amount: eur('2159.92') },
+    { from: '2027-02', to: '2045-10', amount: eur('1159.92') },
+  ],
+  byPerson: [
+    { personId: ALICE, balance: eur('102782.12'), monthlyPayment: eur('1579.96'), loans: [
+      { loanId: LOAN, shareBp: 5000, balance: eur('96782.12') }, { loanId: CAR, shareBp: 10000, balance: eur('6000.00') }] },
+    { personId: BOB, balance: eur('96782.11'), monthlyPayment: eur('579.96'), loans: [{ loanId: LOAN, shareBp: 5000, balance: eur('96782.11') }] },
   ],
   ...over,
 });

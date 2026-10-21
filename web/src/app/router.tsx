@@ -55,8 +55,8 @@ export type DetailSearch = { tab?: string };
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
   (typeof search.tab === 'string' && search.tab !== '' ? { tab: search.tab } : {});
 
-/** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1). */
-export type LoansSearch = { ended?: 1; tab?: string };
+/** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
+export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
 
 /** Issue #17: a new loan opened from a new property, already linked to it. */
 export type NewLoanSearch = { property?: string };
@@ -233,6 +233,8 @@ const loansRoute = createRoute({
   beforeLoad: requireModule('realestate'),
   validateSearch: (search: Record<string, unknown>): LoansSearch => ({
     ...(search.ended === 1 || search.ended === '1' ? { ended: 1 as const } : {}),
+    // The timeline's window; « Tout » stays out of the URL.
+    ...(search.span === '5y' || search.span === '10y' ? { span: search.span } : {}),
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/loans/LoansPage'), 'LoansPage'),
