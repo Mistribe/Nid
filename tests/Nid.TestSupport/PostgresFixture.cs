@@ -32,11 +32,33 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public async Task<CoreDbContext> NewDatabaseAsync() => NewCoreContext(await NewConnectionStringAsync());
 
-    /// <summary>Creates an empty database, applies every module's migrations, and returns its connection string.</summary>
+    /// <summary>Creates a database with every module's migrations applied, and returns its connection string.</summary>
+    /// <remarks>A copy of a template migrated once for the process: six migrations per test cost more than the copy.</remarks>
     public async Task<string> NewConnectionStringAsync()
     {
-        var connectionString = await NewEmptyConnectionStringAsync();
+        await Template.Value;
+        return await NewDatabaseAsync(TemplateName);
+    }
 
+    /// <summary>Creates an empty database with no schema at all, for tests that migrate step by step.</summary>
+    public Task<string> NewEmptyConnectionStringAsync() => NewDatabaseAsync(template: null);
+
+    private const string TemplateName = "nid_template";
+    private static readonly Lazy<Task> Template = new(MigrateTemplateAsync);
+
+    private static async Task MigrateTemplateAsync()
+    {
+        await Started.Value;
+        await ExecuteAsync($"create database {TemplateName}");
+        // No pooling: Postgres copies a template only while no session is connected to it.
+        await MigrateAsync(new Npgsql.NpgsqlConnectionStringBuilder(Container.GetConnectionString())
+        {
+            Database = TemplateName, Pooling = false,
+        }.ToString());
+    }
+
+    private static async Task MigrateAsync(string connectionString)
+    {
         await using (var core = NewCoreContext(connectionString))
             await core.Database.MigrateAsync();
         await using (var subs = NewSubscriptionsContext(connectionString))
@@ -49,21 +71,12 @@ public sealed class PostgresFixture : IAsyncLifetime
             await realEstate.Database.MigrateAsync();
         await using (var platform = NewPlatformContext(connectionString))
             await platform.Database.MigrateAsync();
-
-        return connectionString;
     }
 
-    /// <summary>Creates an empty database with no schema at all, for tests that migrate step by step.</summary>
-    public async Task<string> NewEmptyConnectionStringAsync()
+    private static async Task<string> NewDatabaseAsync(string? template)
     {
         var name = $"nid_test_{Interlocked.Increment(ref databaseCounter)}";
-        await using (var admin = new Npgsql.NpgsqlConnection(Container.GetConnectionString()))
-        {
-            await admin.OpenAsync();
-            await using var command = admin.CreateCommand();
-            command.CommandText = $"create database {name}";
-            await command.ExecuteNonQueryAsync();
-        }
+        await ExecuteAsync(template is null ? $"create database {name}" : $"create database {name} template {template}");
 
         // One pool per test database, kept by every context that names this string (EF builds its own data source for it):
         // idle connections close after 2 s, or hundreds of finished tests exhaust the server (1F4, 606 tests).
@@ -71,6 +84,15 @@ public sealed class PostgresFixture : IAsyncLifetime
         {
             Database = name, ConnectionIdleLifetime = 2, ConnectionPruningInterval = 1,
         }.ToString();
+    }
+
+    private static async Task ExecuteAsync(string sql)
+    {
+        await using var admin = new Npgsql.NpgsqlConnection(Container.GetConnectionString());
+        await admin.OpenAsync();
+        await using var command = admin.CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync();
     }
 
     public static CoreDbContext NewCoreContext(string connectionString)
