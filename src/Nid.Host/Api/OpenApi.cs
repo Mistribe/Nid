@@ -30,6 +30,16 @@ public static class OpenApiSetup
                     AsString(schema, "date", nullable: underlying is not null);
                 return Task.CompletedTask;
             });
+            options.AddSchemaTransformer(async (schema, context, ct) =>
+            {
+                // Issue #45: OneOrManyJsonConverter also reads a lone leg, which the generator cannot see through; the documented
+                // form is the list.
+                if (context.JsonTypeInfo.Type == typeof(IReadOnlyList<InvestmentEndpoints.SwitchLegBody>))
+                {
+                    schema.Type = JsonSchemaType.Array;
+                    schema.Items = await context.GetOrCreateSchemaAsync(typeof(InvestmentEndpoints.SwitchLegBody), null, ct);
+                }
+            });
             options.AddSchemaTransformer((schema, context, _) =>
             {
                 MarkNonNullablePropertiesRequired(schema, context.JsonTypeInfo);

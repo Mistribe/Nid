@@ -13885,6 +13885,7 @@ export interface components {
             endedOn?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
         };
+        IReadOnlyListOfSwitchLegBody: components["schemas"]["SwitchLegBody"][];
         /** @enum {unknown} */
         IssueSeverity: "error" | "warning";
         ItemHistoryEntry: {
@@ -14240,6 +14241,7 @@ export interface components {
             switchRef?: null | string;
             label?: null | string;
             externalRef?: null | string;
+            switchLegs?: null | components["schemas"]["SwitchLegView"][];
         };
         NetWorthHistoryView: {
             currency: string;
@@ -15059,8 +15061,8 @@ export interface components {
         SwitchBody: {
             occurredOn?: null | string;
             maturity: boolean;
-            from?: null | components["schemas"]["SwitchLegBody"];
-            to?: null | components["schemas"]["SwitchLegBody"];
+            from?: null | components["schemas"]["IReadOnlyListOfSwitchLegBody"];
+            to?: null | components["schemas"]["IReadOnlyListOfSwitchLegBody"];
             label?: null | string;
         };
         SwitchLegBody: {
@@ -15070,12 +15072,19 @@ export interface components {
             units?: null | string;
             unitPrice?: null | string;
         };
+        SwitchLegView: {
+            /** Format: uuid */
+            holdingId: string;
+            holdingName: string;
+            kind: string;
+            units?: null | string;
+            unitPrice?: null | string;
+            amount: components["schemas"]["AmountView"];
+        };
         SwitchRecorded: {
             switchRef: string;
-            /** Format: uuid */
-            fromMovementId: string;
-            /** Format: uuid */
-            toMovementId: string;
+            fromMovementIds: string[];
+            toMovementIds: string[];
             warnings: components["schemas"]["HoldingWarningView"][];
         };
         SystemHealthView: {

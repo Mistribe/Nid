@@ -181,12 +181,15 @@ describe('the « Supports » tab', () => {
     await pick(user, 'Vers', 'Monde ESG');
     await user.type(dialog.getByLabelText('Montant'), '500');
     await user.click(dialog.getByRole('button', { name: 'Enregistrer l’arbitrage' }));
-    expect(await dialog.findByText('Choisissez deux supports différents.')).toBeInTheDocument();
+    expect(await dialog.findByText('Choisissez des supports différents.')).toBeInTheDocument();
     await pick(user, 'Vers', 'Fonds euros');
     await user.type(dialog.getByLabelText('Parts cédées'), '2,5');
     await user.click(dialog.getByRole('button', { name: 'Enregistrer l’arbitrage' }));
     expect(await screen.findByText('Arbitrage enregistré.')).toBeInTheDocument();
-    expect(calls[0]!.body).toMatchObject({ maturity: false, from: { holdingId: FUND, units: '-2.5', amount: { amount: '500' } }, to: { holdingId: EURO, units: null } });
+    // One holding on each side: the one amount is both legs'.
+    expect(calls[0]!.body).toMatchObject({
+      maturity: false, from: [{ holdingId: FUND, units: '-2.5', amount: { amount: '500' } }], to: [{ holdingId: EURO, units: null, amount: { amount: '500' } }],
+    });
 
     await user.click(screen.getByRole('button', { name: 'Actions pour Fonds euros' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Clôturer' }));
@@ -195,6 +198,34 @@ describe('the « Supports » tab', () => {
     expect(await screen.findByText('Support clôturé.')).toBeInTheDocument();
     await waitFor(() => expect(calls[1]).toMatchObject({ method: 'PUT', body: { name: 'Fonds euros', kind: 'euro_fund', version: 1 } }));
     expect((calls[1]!.body as { closedOn: string }).closedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('a switch of several legs', () => {
+  it('records one holding into two, each leg with its amount as printed, and refuses a holding twice', async () => {
+    const calls = serve(view({ holdings: [holding(), euroFund, holding({ id: 'fund-b', name: 'Fonds B', isin: null })] }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    await user.click(await screen.findByRole('button', { name: 'Arbitrer' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Arbitrage' }));
+    await pick(user, 'Vers', 'Fonds euros');
+    await user.click(dialog.getByRole('button', { name: 'Ajouter un support d’arrivée' }));
+    await pick(user, 'Vers 2', 'Monde ESG');
+    await user.type(dialog.getByLabelText('Montant cédé'), '500');
+    await user.type(dialog.getByLabelText('Montant reçu 1'), '300');
+    await user.type(dialog.getByLabelText('Montant reçu 2'), '200');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer l’arbitrage' }));
+    // Monde ESG is already the leaving holding: refused before anything is sent.
+    expect(await dialog.findByText('Choisissez des supports différents.')).toBeInTheDocument();
+    expect(calls).toHaveLength(0);
+
+    await pick(user, 'Vers 2', 'Fonds B');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer l’arbitrage' }));
+    expect(await screen.findByText('Arbitrage enregistré.')).toBeInTheDocument();
+    expect(calls[0]!.body).toMatchObject({
+      from: [{ holdingId: FUND, amount: { amount: '500' } }],
+      to: [{ holdingId: EURO, amount: { amount: '300' } }, { holdingId: 'fund-b', amount: { amount: '200' } }],
+    });
   });
 });
 
@@ -208,6 +239,14 @@ describe('a holding’s page', () => {
   const movements: Movement[] = [
     { id: 'm1', occurredOn: '2024-01-10', kind: 'allocation_in', units: '10.000000', unitPrice: '200.000000', amount: eur('2000.0000') },
     { id: 'm2', occurredOn: '2024-12-31', kind: 'fee', units: '-0.800000', unitPrice: '75.000000', amount: eur('60.0000') },
+    {
+      id: 'm3', occurredOn: '2025-01-10', kind: 'switch_out', units: '-2.000000', unitPrice: '250.000000', amount: eur('500.0000'), switchRef: 'sw1',
+      switchLegs: [
+        { holdingId: FUND, holdingName: 'Monde ESG', kind: 'switch_out', units: '-2.000000', unitPrice: '250.000000', amount: eur('500.0000') },
+        { holdingId: EURO, holdingName: 'Fonds euros', kind: 'switch_in', amount: eur('300.0000') },
+        { holdingId: 'fund-b', holdingName: 'Fonds B', kind: 'switch_in', amount: eur('200.0000') },
+      ],
+    },
   ];
 
   it('shows the figures, the movements newest first and the cost reports with their estimate, and saves a report', async () => {
@@ -234,11 +273,13 @@ describe('a holding’s page', () => {
     expect(screen.getByRole('link', { name: 'PEA' })).toHaveAttribute('href', `/investments/${PEA}`);
     await expectNoAxeViolations(container);
 
-    await user.click(screen.getByRole('tab', { name: 'Mouvements (2)' }));
+    await user.click(screen.getByRole('tab', { name: 'Mouvements (3)' }));
     const rows = within(await screen.findByRole('table', { name: 'Mouvements du support' })).getAllByRole('row').slice(1);
-    expect(rows[0]).toHaveTextContent('Frais');
-    expect(rows[0]).toHaveTextContent('-0,8');
-    expect(rows[1]).toHaveTextContent('Part d’un versement');
+    // Issue #45: a switch's leg shows the whole operation.
+    expect(rows[0]).toHaveTextContent('Arbitrage sortantMonde ESG → Fonds euros, Fonds B');
+    expect(rows[1]).toHaveTextContent('Frais');
+    expect(rows[1]).toHaveTextContent('-0,8');
+    expect(rows[2]).toHaveTextContent('Part d’un versement');
 
     await user.click(screen.getByRole('tab', { name: 'Coûts' }));
     const costs = within(await screen.findByRole('table', { name: 'Coûts' })).getAllByRole('row').slice(1);

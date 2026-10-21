@@ -166,7 +166,7 @@ relevé.
 
 **`holding_movements`** : `id`, `holding`, `occurred_on`, `kind` (les types du §16), `units?` (signées par le type), `unit_price?`,
 `amount` (> 0), `envelope_flow` (string?, l'`id` d'un flux de `flows` du fichier **sur la même enveloppe**), `switch_ref` (string?,
-obligatoire pour `switch_in` et `switch_out`, partagé par les deux jambes), `label`, `external_ref`.
+obligatoire pour `switch_in` et `switch_out`, partagé par toutes les jambes d'un même arbitrage, deux ou plus), `label`, `external_ref`.
 
 - Ordre : ces sections sont appliquées **après** les faits du Core, pour qu'un mouvement retrouve son flux une fois écrit. Un flux
   corrigé depuis n'est plus courant : il n'est pas exporté, et le lien du mouvement non plus.
@@ -290,7 +290,7 @@ Optionnel. Conception : `superpowers/specs/2026-10-19-envelope-holdings-design.m
 | `holding` | Un support de l'enveloppe : fonds, ETF, action, fonds en euros, produit structuré, liquidités. ISIN vérifié et unique par enveloppe |
 | `holding_snapshot` | La composition à une date (un relevé), une par date ; `complete` dit si tous les supports y sont |
 | `holding_snapshot_line` | Une ligne : parts et prix unitaire à 6 décimales (aucun pour le fonds en euros et les liquidités), valeur telle qu'imprimée |
-| `holding_movement` | Un mouvement daté sur un support : `allocation_in` / `allocation_out` (part d'un versement ou d'un rachat), `switch_in` / `switch_out` (arbitrage, les deux jambes partagent `switch_ref`), `maturity`, `fee`, `interest`, `income`. Montant > 0, sens donné par le type ; parts signées |
+| `holding_movement` | Un mouvement daté sur un support : `allocation_in` / `allocation_out` (part d'un versement ou d'un rachat), `switch_in` / `switch_out` (arbitrage, toutes ses jambes partagent `switch_ref` : un support vers plusieurs, plusieurs vers un, n vers m, issue #45 ; `POST …/switches` prend `from` et `to` en listes, un objet seul vaut une jambe ; chaque jambe lue porte `switchLegs`, toute l'opération), `maturity`, `fee`, `interest`, `income`. Montant > 0, sens donné par le type ; parts signées |
 | `holding_cost_report` | Le rapport de frais annuel d'un support (art. A.522-1), un par support et par année, saisi tel qu'imprimé : rendement brut, frais totaux, rendement net, et en option frais de contrat, frais du support, rétrocession, net annualisé sur 5 ans (en %) |
 
 `envelope.uc_share_floor_pct` (optionnel, modifiable par le `PATCH` de l'enveloppe) : le plancher de part en unités de compte.

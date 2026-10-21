@@ -134,7 +134,17 @@ export function HoldingPage() {
                     ) : [...items].reverse().map((m) => (
                       <TableRow key={m.id}>
                         <TableCell><LocalDate value={m.occurredOn} /></TableCell>
-                        <TableCell>{movementKindText(t, m.kind)}</TableCell>
+                        <TableCell className="whitespace-normal">
+                          {movementKindText(t, m.kind)}
+                          {m.switchLegs ? (
+                            // Issue #45: the whole operation, money leaving first.
+                            <div className="text-xs text-muted-foreground">
+                              {m.switchLegs.filter((l) => l.kind !== 'switch_in').map((l) => l.holdingName).join(', ')}
+                              {' → '}
+                              {m.switchLegs.filter((l) => l.kind === 'switch_in').map((l) => l.holdingName).join(', ')}
+                            </div>
+                          ) : null}
+                        </TableCell>
                         <TableCell className="text-right"><Money value={m.amount} tabular /></TableCell>
                         <TableCell className="text-right tabular-nums">{m.units ? formatUnits(m.units) : null}</TableCell>
                         <TableCell className="text-right tabular-nums">{m.unitPrice ? formatUnits(m.unitPrice) : null}</TableCell>

@@ -371,20 +371,21 @@ public static class InvestmentEndpoints
     }
 
     /// <summary>
-    /// A switch between two holdings, both legs at once (issue #34 §2.3): <c>maturity</c> makes the <c>from</c> leg a maturity (a structured
-    /// product reaching its term or called) rather than a <c>switch_out</c>. A switch fee is a separate <c>fee</c> movement.
+    /// A switch between holdings, every leg at once (issue #34 §2.3, #45): one or more <c>from</c> legs, one or more <c>to</c> legs, each as
+    /// printed on the notice. A lone object still reads as one leg. <c>maturity</c> makes the <c>from</c> legs maturities (a structured
+    /// product reaching its term or called) rather than <c>switch_out</c>. A switch fee is a separate <c>fee</c> movement.
     /// </summary>
-    public sealed record SwitchBody(string? OccurredOn, bool Maturity, SwitchLegBody? From, SwitchLegBody? To, string? Label)
+    public sealed record SwitchBody(string? OccurredOn, bool Maturity, IReadOnlyList<SwitchLegBody>? From, IReadOnlyList<SwitchLegBody>? To, string? Label)
     {
         internal SwitchDraft? Read(FieldReader reader)
         {
             var on = reader.Date(OccurredOn, "occurredOn");
-            if (From is null)
-                reader.Add("from", "request.required", "The holding the money leaves is required.");
-            if (To is null)
-                reader.Add("to", "request.required", "The holding the money goes to is required.");
-            var from = From?.Read(reader, "from");
-            var to = To?.Read(reader, "to");
+            if (From is not { Count: > 0 })
+                reader.Add("from", "request.required", "At least one holding the money leaves is required.");
+            if (To is not { Count: > 0 })
+                reader.Add("to", "request.required", "At least one holding the money goes to is required.");
+            var from = (From ?? []).Select((l, i) => l.Read(reader, $"from[{i}]")).ToList();
+            var to = (To ?? []).Select((l, i) => l.Read(reader, $"to[{i}]")).ToList();
             return reader.Ok ? new SwitchDraft(on!.Value, Maturity, from!, to!, Label) : null;
         }
     }

@@ -145,8 +145,10 @@ public static class RouteActions
             + "units are signed (bought +, deducted −). A switch between holdings is record_holding_switch. Copy the document as written and invent nothing. "
             + Ids + Amounts),
         new("record_holding_switch", "POST", "/api/v1/investments/envelopes/{id:guid}/switches", typeof(SwitchBody),
-            "Record a switch (arbitrage) between two holdings of an envelope, both legs at once; maturity true when the source is a structured "
-            + "product reaching its term or called. A switch fee is a separate 'fee' movement. Copy the document as written and invent nothing. "
+            "Record a switch (arbitrage) between holdings of an envelope, every leg at once: 'from' lists the holdings the money leaves and 'to' "
+            + "the holdings it goes to (one or more each, e.g. one fund into five), each leg with its amount, units and unit price as printed on "
+            + "the notice; maturity true when the sources are structured products reaching their term or called. A switch fee is a separate "
+            + "'fee' movement. Copy the document as written and invent nothing. "
             + Ids + Amounts),
         new("save_holding_cost_report", "PUT", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports/{year:int}", typeof(CostReportBody),
             "Record one holding's yearly costs as stated on the insurer's annual document (gross return, total fees, net return, in percent; "

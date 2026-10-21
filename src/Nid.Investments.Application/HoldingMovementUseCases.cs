@@ -15,15 +15,18 @@ public sealed record MovementDraft(
 
 public sealed record SwitchLegDraft(Guid HoldingId, Money Amount, decimal? Units, decimal? UnitPrice);
 
-/// <summary>A switch between two holdings: <c>switch_out</c> (or <c>maturity</c>) on <see cref="From"/>, <c>switch_in</c> on <see cref="To"/>.</summary>
-public sealed record SwitchDraft(LocalDate OccurredOn, bool Maturity, SwitchLegDraft From, SwitchLegDraft To, string? Label);
+/// <summary>
+/// A switch between holdings (issue #45: n → m legs): <c>switch_out</c> (or <c>maturity</c>) on each of <see cref="From"/>, <c>switch_in</c>
+/// on each of <see cref="To"/>.
+/// </summary>
+public sealed record SwitchDraft(LocalDate OccurredOn, bool Maturity, IReadOnlyList<SwitchLegDraft> From, IReadOnlyList<SwitchLegDraft> To, string? Label);
 
 public sealed record AddHoldingMovementCommand(ItemId ItemId, Guid Holding, MovementDraft Movement) : ICommand<MovementRecorded>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-/// <summary>Both legs of a switch in one write, sharing a generated <c>switch_ref</c>.</summary>
+/// <summary>Every leg of a switch in one write, sharing a generated <c>switch_ref</c>.</summary>
 public sealed record RecordSwitchCommand(ItemId ItemId, SwitchDraft Switch) : ICommand<SwitchRecorded>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -149,17 +152,18 @@ public sealed class RecordSwitchHandler(
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<SwitchRecorded>(loaded.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
         var s = command.Switch;
-        if (s.From.HoldingId == s.To.HoldingId)
-            return Result.Failure<SwitchRecorded>(new Failure(InvestmentsCodes.InvalidMovement, "A switch moves money between two holdings.",
-                new Dictionary<string, object?> { ["field"] = "to.holdingId" }));
+        var sides = s.From.Select((l, i) => (Leg: l, Kind: s.Maturity ? MovementKinds.Maturity : MovementKinds.SwitchOut, At: $"from[{i}]."))
+            .Concat(s.To.Select((l, i) => (Leg: l, Kind: MovementKinds.SwitchIn, At: $"to[{i}].")))
+            .ToList();
+        // Each holding once: a holding on both sides, or twice on one, is not a switch between holdings.
+        var repeated = sides.Where((x, i) => sides.Take(i).Any(o => o.Leg.HoldingId == x.Leg.HoldingId)).Select(x => x.At).FirstOrDefault();
+        if (repeated is not null)
+            return Result.Failure<SwitchRecorded>(new Failure(InvestmentsCodes.InvalidMovement, "A switch moves money between different holdings, each once.",
+                new Dictionary<string, object?> { ["field"] = repeated + "holdingId" }));
         var today = await calendar.TodayAsync(ct);
         var reference = Guid.CreateVersion7().ToString("N");
-        var legs = new[]
-        {
-            (s.From, s.Maturity ? MovementKinds.Maturity : MovementKinds.SwitchOut, "from."),
-            (s.To, MovementKinds.SwitchIn, "to."),
-        }.Select(l => MovementRules.Check(command.ItemId, l.Item1.HoldingId, l.Item2, s.OccurredOn, l.Item1.Units, l.Item1.UnitPrice, l.Item1.Amount, null,
-            reference, s.Label, null, facts!.Holdings, facts.Flows, facts.Currency, today, l.Item3)).ToList();
+        var legs = sides.Select(l => MovementRules.Check(command.ItemId, l.Leg.HoldingId, l.Kind, s.OccurredOn, l.Leg.Units, l.Leg.UnitPrice, l.Leg.Amount, null,
+            reference, s.Label, null, facts!.Holdings, facts.Flows, facts.Currency, today, l.At)).ToList();
         var written = new List<HoldingMovement>();
         foreach (var leg in legs)
         {
@@ -170,7 +174,8 @@ public sealed class RecordSwitchHandler(
 
         await holdings.AddMovementsAsync(written, ct);
         await transaction.CommitAsync(ct);
-        return Result.Success(new SwitchRecorded(reference, written[0].Id, written[1].Id, facts!.WarningsAfter(written)));
+        return Result.Success(new SwitchRecorded(reference, written.Take(s.From.Count).Select(m => m.Id).ToList(),
+            written.Skip(s.From.Count).Select(m => m.Id).ToList(), facts!.WarningsAfter(written)));
     }
 }
 
@@ -184,7 +189,7 @@ public sealed class ListHoldingMovementsHandler(IEnvelopeStore envelopes, IItemR
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<HoldingMovementList>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         return Result.Success(new HoldingMovementList(query.ItemId, query.Holding,
-            facts!.Movements.Where(m => m.HoldingId == query.Holding).Select(m => MovementView.Of(m, facts.Currency)).ToList()));
+            facts!.Movements.Where(m => m.HoldingId == query.Holding).Select(m => MovementView.Of(m, facts.Currency, facts.Movements, facts.Holdings)).ToList()));
     }
 }
 

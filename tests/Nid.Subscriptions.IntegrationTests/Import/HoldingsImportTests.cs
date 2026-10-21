@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Nid.Subscriptions.IntegrationTests.Export;
 using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Import;
@@ -135,6 +137,39 @@ public class HoldingsImportTests(PostgresFixture fixture)
         var validated = await client.ValidateAsync(app.AdultA, session.Id);
         Assert.Equal("invalid", validated.State);
         return validated.Report!.Issues;
+    }
+
+    [Fact]
+    public async Task A_switch_of_three_legs_imports_as_one_operation_and_exports_under_one_reference()
+    {
+        // Issue #45: one fund into the euro fund and a second fund, the three legs sharing their reference.
+        const string holdings = """
+            [{"id":"h-euro","item":"env-av","name":"Fonds euros","kind":"euro_fund"},
+             {"id":"h-a","item":"env-av","name":"Fonds A","kind":"fund"},
+             {"id":"h-b","item":"env-av","name":"Fonds B","kind":"fund"}]
+            """;
+        const string movements = """
+            [{"id":"m-out","holding":"h-a","occurred_on":"2024-06-30","kind":"switch_out","units":"-10","unit_price":"100","amount":{"amount":"1000.00","currency":"EUR"},"switch_ref":"sw-1"},
+             {"id":"m-in-euro","holding":"h-euro","occurred_on":"2024-06-30","kind":"switch_in","amount":{"amount":"600.00","currency":"EUR"},"switch_ref":"sw-1"},
+             {"id":"m-in-b","holding":"h-b","occurred_on":"2024-06-30","kind":"switch_in","units":"4","unit_price":"100","amount":{"amount":"400.00","currency":"EUR"},"switch_ref":"sw-1"}]
+            """;
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var committed = await EnvelopesImportTests.CommitAsync(new ImportClient(app), app, app.AdultA, File(holdings, "[]", movements));
+
+        Assert.Equal(new CountsResponse(3, 0, 0), committed.Report!.Sections["holding_movements"]);
+        Assert.DoesNotContain(committed.Report.Issues, i => i.Code == "investments.switch_unbalanced");
+        var url = $"/api/v1/investments/envelopes/{await EnvelopesImportTests.IdOf(app, "Assurance-vie")}";
+        var fundA = (await app.GetAsync<JsonElement>(app.AdultA, $"{url}/holdings")).GetProperty("holdings").EnumerateArray()
+            .Single(h => h.GetProperty("name").GetString() == "Fonds A").GetProperty("id").GetGuid();
+        var leg = (await app.GetAsync<JsonElement>(app.AdultA, $"{url}/holdings/{fundA}/movements")).GetProperty("items")[0];
+        Assert.Equal(["Fonds A", "Fonds B", "Fonds euros"],
+            leg.GetProperty("switchLegs").EnumerateArray().Select(l => l.GetProperty("holdingName").GetString()).Order());
+
+        var exported = await new ExportClient(app).ExportAllAsync(app.AdultA);
+        var references = exported["holding_movements"].Select(m => m.GetProperty("switch_ref").GetString()).ToList();
+        Assert.Equal(3, references.Count);
+        Assert.Single(references.Distinct());
     }
 
     [Fact]

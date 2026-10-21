@@ -21,6 +21,21 @@ public sealed class ItemIdJsonConverter : JsonConverter<ItemId>
         => writer.WriteStringValue(value.Value);
 }
 
+/// <summary>
+/// Issue #45: a list that also reads a lone object as a list of one, so a switch body written before multi-leg switches (one
+/// <c>from</c>, one <c>to</c>) still reads — a proposal stored then replays the same.
+/// </summary>
+public sealed class OneOrManyJsonConverter<T> : JsonConverter<IReadOnlyList<T>>
+{
+    public override IReadOnlyList<T>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType == JsonTokenType.StartObject
+            ? [JsonSerializer.Deserialize<T>(ref reader, options)!]
+            : JsonSerializer.Deserialize<List<T>>(ref reader, options);
+
+    public override void Write(Utf8JsonWriter writer, IReadOnlyList<T> value, JsonSerializerOptions options)
+        => JsonSerializer.Serialize(writer, value.ToList(), options);
+}
+
 public sealed class LocalDateJsonConverter : JsonConverter<LocalDate>
 {
     public override LocalDate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

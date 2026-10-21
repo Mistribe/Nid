@@ -99,13 +99,27 @@ public sealed record HoldingFiguresView(
         AmountView.From(f.MoneyOut), AmountView.From(f.Gain), f.GainPct, f.AnnualReturnPct, AmountView.From(f.ExplicitFees), AmountView.From(f.GainBeforeFees));
 }
 
+/// <summary>A holding's movement; a switch's leg also carries <see cref="SwitchLegs"/>, every leg of its operation (itself included, issue #45).</summary>
 public sealed record MovementView(
     Guid Id, LocalDate OccurredOn, string Kind, string? Units, string? UnitPrice, AmountView Amount, Guid? EnvelopeFlowId, string? SwitchRef,
-    string? Label, string? ExternalRef)
+    string? Label, string? ExternalRef, IReadOnlyList<SwitchLegView>? SwitchLegs = null)
 {
     public static MovementView Of(HoldingMovement m, Currency currency) => new(m.Id, m.OccurredOn, m.Kind, Units6.Of(m.Units), Units6.Of(m.UnitPrice),
         AmountView.From(Amounts.Of(m.Amount, currency)), m.EnvelopeFlowId, m.SwitchRef, m.Label, m.ExternalRef);
+
+    public static MovementView Of(HoldingMovement m, Currency currency, IReadOnlyList<HoldingMovement> envelopeMovements, IReadOnlyList<StoredHolding> holdings)
+        => Of(m, currency) with
+        {
+            SwitchLegs = m.SwitchRef is null ? null : envelopeMovements.Where(x => x.SwitchRef == m.SwitchRef)
+                .OrderBy(x => MovementKinds.IsIn(x.Kind)).ThenBy(x => x.Id)
+                .Select(x => new SwitchLegView(x.HoldingId, holdings.FirstOrDefault(h => h.Holding.Id == x.HoldingId)?.Holding.Name ?? "", x.Kind,
+                    Units6.Of(x.Units), Units6.Of(x.UnitPrice), AmountView.From(Amounts.Of(x.Amount, currency))))
+                .ToList(),
+        };
 }
+
+/// <summary>One leg of a switch: the money leaving (<c>switch_out</c>, <c>maturity</c>) first, then the money arriving (<c>switch_in</c>).</summary>
+public sealed record SwitchLegView(Guid HoldingId, string HoldingName, string Kind, string? Units, string? UnitPrice, AmountView Amount);
 
 public sealed record HoldingMovementList(ItemId EnvelopeId, Guid HoldingId, IReadOnlyList<MovementView> Items) : IExposesItems
 {
@@ -120,7 +134,7 @@ public sealed record HoldingSeries(ItemId EnvelopeId, Guid HoldingId, IReadOnlyL
 
 public sealed record MovementRecorded(Guid Id, IReadOnlyList<HoldingWarningView> Warnings);
 
-public sealed record SwitchRecorded(string SwitchRef, Guid FromMovementId, Guid ToMovementId, IReadOnlyList<HoldingWarningView> Warnings);
+public sealed record SwitchRecorded(string SwitchRef, IReadOnlyList<Guid> FromMovementIds, IReadOnlyList<Guid> ToMovementIds, IReadOnlyList<HoldingWarningView> Warnings);
 
 /// <summary>A holding's line in the snapshot read: as printed, with its weight in the snapshot (0.1 %, null when the total is zero).</summary>
 public sealed record LineView(string? Units, string? UnitPrice, AmountView Value, string? CostBasisPerUnit, decimal? WeightPct)

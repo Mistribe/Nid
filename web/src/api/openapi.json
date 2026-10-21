@@ -18347,6 +18347,12 @@
           }
         }
       },
+      "IReadOnlyListOfSwitchLegBody": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SwitchLegBody"
+        }
+      },
       "IssueSeverity": {
         "enum": [
           "error",
@@ -19829,6 +19835,15 @@
               "null",
               "string"
             ]
+          },
+          "switchLegs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SwitchLegView"
+            }
           }
         }
       },
@@ -23333,7 +23348,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/SwitchLegBody"
+                "$ref": "#/components/schemas/IReadOnlyListOfSwitchLegBody"
               }
             ]
           },
@@ -23343,7 +23358,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/SwitchLegBody"
+                "$ref": "#/components/schemas/IReadOnlyListOfSwitchLegBody"
               }
             ]
           },
@@ -23389,11 +23404,47 @@
           }
         }
       },
+      "SwitchLegView": {
+        "required": [
+          "holdingId",
+          "holdingName",
+          "kind",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "holdingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "holdingName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "units": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitPrice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "$ref": "#/components/schemas/AmountView"
+          }
+        }
+      },
       "SwitchRecorded": {
         "required": [
           "switchRef",
-          "fromMovementId",
-          "toMovementId",
+          "fromMovementIds",
+          "toMovementIds",
           "warnings"
         ],
         "type": "object",
@@ -23401,13 +23452,19 @@
           "switchRef": {
             "type": "string"
           },
-          "fromMovementId": {
-            "type": "string",
-            "format": "uuid"
+          "fromMovementIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
-          "toMovementId": {
-            "type": "string",
-            "format": "uuid"
+          "toMovementIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           "warnings": {
             "type": "array",

@@ -134,6 +134,77 @@ public class HoldingMovementEndpointTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_switch_takes_several_legs_on_each_side_and_reads_back_as_one_operation()
+    {
+        // Issue #45: one bond fund into five funds on one notice (1 020 €, 204 € each), then five into one, then two into two.
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Assurance-vie", app.AdultA, Visibility.Shared);
+        async Task<Guid> Fund(string name) => (await PostAsync(app, $"{Url(id)}/holdings", new { name, kind = "fund" })).GetProperty("id").GetGuid();
+        var bonds = await Fund("Obligations");
+        var funds = new List<Guid>();
+        for (var i = 1; i <= 5; i++)
+            funds.Add(await Fund($"Fonds {i}"));
+        await PostAsync(app, $"{Url(id)}/holdings/{bonds}/movements", Move("2025-01-02", "allocation_in", "5000.00", "50", "100"));
+
+        var spread = await PostAsync(app, $"{Url(id)}/switches", new
+        {
+            occurredOn = "2025-01-10", label = "Investissement progressif",
+            from = new[] { new { holdingId = bonds, amount = Eur("1020.00"), units = "-9.7087", unitPrice = "103.00" } },
+            to = funds.Select(f => new { holdingId = f, amount = Eur("204.00") }).ToArray(),
+        });
+        Assert.Equal(0, spread.GetProperty("warnings").GetArrayLength());
+        Assert.Equal((1, 5), (spread.GetProperty("fromMovementIds").GetArrayLength(), spread.GetProperty("toMovementIds").GetArrayLength()));
+
+        var leg = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings/{bonds}/movements"))).GetProperty("items")
+            .EnumerateArray().Single(m => m.GetProperty("kind").GetString() == "switch_out");
+        var legs = leg.GetProperty("switchLegs").EnumerateArray().ToList();
+        Assert.Equal(6, legs.Count);
+        Assert.Equal(("switch_out", "Obligations", "-9.708700"),
+            (legs[0].GetProperty("kind").GetString(), legs[0].GetProperty("holdingName").GetString(), legs[0].GetProperty("units").GetString()));
+        Assert.All(legs.Skip(1), l => Assert.Equal(("switch_in", "204.0000"), (l.GetProperty("kind").GetString(), l.GetProperty("amount").GetProperty("amount").GetString())));
+        var arrived = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings/{funds[2]}/movements"))).GetProperty("items")[0];
+        Assert.Equal(6, arrived.GetProperty("switchLegs").GetArrayLength());
+
+        // Five into one, 1 € short: unbalanced. Two into two within 1 €: balanced.
+        var gathered = await PostAsync(app, $"{Url(id)}/switches", new
+        {
+            occurredOn = "2025-01-15",
+            from = funds.Select(f => new { holdingId = f, amount = Eur("100.00") }).ToArray(),
+            to = new[] { new { holdingId = bonds, amount = Eur("498.99") } },
+        });
+        Assert.Equal("switch_unbalanced", Assert.Single(gathered.GetProperty("warnings").EnumerateArray()).GetProperty("code").GetString());
+        var paired = await PostAsync(app, $"{Url(id)}/switches", new
+        {
+            occurredOn = "2025-01-20",
+            from = new[] { new { holdingId = funds[0], amount = Eur("50.00") }, new { holdingId = funds[1], amount = Eur("50.00") } },
+            to = new[] { new { holdingId = funds[2], amount = Eur("60.00") }, new { holdingId = funds[3], amount = Eur("39.50") } },
+        });
+        Assert.Equal(0, paired.GetProperty("warnings").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task A_switch_with_a_holding_twice_or_no_leg_on_a_side_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (id, euro, fund) = await HoldingsAsync(app);
+
+        var twice = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/switches", new
+        {
+            occurredOn = "2025-01-10",
+            from = new[] { new { holdingId = fund, amount = Eur("10.00") } },
+            to = new[] { new { holdingId = euro, amount = Eur("5.00") }, new { holdingId = euro, amount = Eur("5.00") } },
+        });
+        var refused = await JsonAsync(twice);
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "investments.invalid_movement", "to[1].holdingId"),
+            (twice.StatusCode, refused.GetProperty("code").GetString(), refused.GetProperty("errors")[0].GetProperty("path").GetString()));
+
+        var empty = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/switches",
+            new { occurredOn = "2025-01-10", from = Array.Empty<object>(), to = new[] { new { holdingId = euro, amount = Eur("5.00") } } });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, empty.StatusCode);
+        Assert.Equal("from", (await JsonAsync(empty)).GetProperty("errors")[0].GetProperty("path").GetString());
+    }
+
+    [Fact]
     public async Task Movements_out_of_their_rules_are_refused_at_their_field()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -162,9 +233,9 @@ public class HoldingMovementEndpointTests(PostgresFixture fixture)
             "investments.invalid_movement", "units");
         await Refused($"{Url(id)}/holdings/{stranger}/movements", Move("2025-01-10", "fee", "1.00"), HttpStatusCode.NotFound, "NOT_FOUND", null);
         await Refused($"{Url(id)}/switches", new { occurredOn = "2025-01-10", from = new { holdingId = fund, amount = Eur("1") }, to = new { holdingId = fund, amount = Eur("1") } },
-            HttpStatusCode.UnprocessableEntity, "investments.invalid_movement", "to.holdingId");
+            HttpStatusCode.UnprocessableEntity, "investments.invalid_movement", "to[0].holdingId");
         await Refused($"{Url(id)}/switches", new { occurredOn = "2025-01-10", from = new { holdingId = fund, amount = Eur("1") }, to = new { holdingId = stranger, amount = Eur("1") } },
-            HttpStatusCode.UnprocessableEntity, "investments.invalid_movement", "to.holdingId");
+            HttpStatusCode.UnprocessableEntity, "investments.invalid_movement", "to[0].holdingId");
         Assert.Equal(HttpStatusCode.NotFound,
             (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings/{stranger}/performance?from=2025-01-01&to=2025-06-30")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest,
