@@ -111,19 +111,19 @@ public sealed class GetLoansOverviewHandler(
 }
 
 /// <summary>Spec §3.2's figures, pure: tested with the real engine in Nid.RealEstate.Tests.</summary>
-internal static class LoansOverviewMath
+internal static partial class LoansOverviewMath
 {
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     /// <summary>A loan read once: its schedule (D2), its figures today, and its payment of each month (D3: the first one due in it).</summary>
     private sealed class Reading
     {
-        public Reading(OverviewLoan source, LocalDate today)
+        public Reading(OverviewLoan source, LocalDate today, LoanSchedule? schedule = null)
         {
             Source = source;
             Currency = LoanViews.CurrencyOf(source.Item);
             Terms = LoanReading.Terms(Currency, source.Loan.Contract, source.Loan.Fees, source.Loan.Repayments);
-            Schedule = LoanReading.Schedule(Terms, source.Loan);
+            Schedule = schedule ?? LoanReading.Schedule(Terms, source.Loan);
             Figures = LoanMath.At(Terms, Schedule, today);
             Ended = LoanReading.Ended(Terms, Schedule, today);
             foreach (var row in Schedule.Rows)

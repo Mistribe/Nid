@@ -19,9 +19,12 @@ export type LoansOverview = components['schemas']['LoansOverview'];
 export type LoanOverviewRow = components['schemas']['LoanOverviewRow'];
 export type BalanceMonth = components['schemas']['BalanceMonthView'];
 export type LoanEvent = components['schemas']['LoanEventView'];
+export type LoansSimulation = components['schemas']['LoansSimulation'];
+export type SimulatedLoan = components['schemas']['SimulatedLoanView'];
 
 export const LOANS = '/api/v1/realestate/loans' as const;
 export const OVERVIEW = '/api/v1/realestate/loans/overview' as const;
+export const EARLY = '/api/v1/realestate/loans/overview/simulations' as const;
 export const LOAN = '/api/v1/realestate/loans/{id}' as const;
 export const SCHEDULE = '/api/v1/realestate/loans/{id}/schedule' as const;
 export const CONTRACT = '/api/v1/realestate/loans/{id}/contract' as const;

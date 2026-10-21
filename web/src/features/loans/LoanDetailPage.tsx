@@ -1,6 +1,6 @@
 import { Link, useLocation, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Archive } from 'lucide-react';
-import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -55,6 +55,17 @@ export function LoanDetailPage() {
   // The header's « Simuler » switches to the operations; the simulation, once there, takes the focus (`landing`).
   const [landOnSimulation, setLandOnSimulation] = useState(false);
   const loan = answer.data;
+  // Loans dashboard §5.3: the household's simulation hands this loan its part; opening « Opérations » replaces the history
+  // entry without that state, so it is consumed once.
+  const handed = useLocation({ select: (l) => l.state.loanRepayment });
+  const takenRef = useRef(false);
+  useEffect(() => {
+    if (!handed || !loan || takenRef.current) return;
+    takenRef.current = true;
+    if (!loan.canWrite) return;
+    record(handed);
+    setTab('operations');
+  }, [handed, loan]); // eslint-disable-line react-hooks/exhaustive-deps -- once the loan is read; `record` and `setTab` are recreated every render
   const back = <Link to="/loans" className="text-sm underline">{t('loan_detail.back')}</Link>;
   // Mounted from the first render, loading included, so the text written later is announced.
   const status = <p role="status" aria-live="polite">{announcement}</p>;

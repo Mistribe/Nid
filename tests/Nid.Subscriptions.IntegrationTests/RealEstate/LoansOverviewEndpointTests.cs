@@ -80,3 +80,72 @@ public class LoansOverviewEndpointTests(PostgresFixture fixture) : IClassFixture
         Assert.Empty(body.GetProperty("months").EnumerateArray());
     }
 }
+
+/// <summary>Loans dashboard spec §5.4: <c>POST /loans/overview/simulations</c>, its refusals, and another adult's private loan.</summary>
+public class LoansSimulationEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Simulations = $"{Loans}/overview/simulations";
+
+    [Fact]
+    public async Task The_highest_rate_takes_the_amount_and_nothing_is_recorded()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewAsync(app, Golden(app));
+        var works = await NewAsync(app, Short(app)); // 0 %, 2 000 left
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Simulations,
+            new { scope = "household", on = "2025-11-15", amount = "5000", split = "highest_rate", effect = "reduce_term" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await JsonAsync(response);
+        var loans = body.GetProperty("loans");
+        Assert.Equal([home, works], loans.EnumerateArray().Select(l => l.GetProperty("loanId").GetGuid()));
+        Assert.Equal(("5000.00", "0.00"), (S(loans[0], "amount"), S(loans[1], "amount")));
+        Assert.True(loans[0].GetProperty("canWrite").GetBoolean());
+        Assert.Equal(("EUR", "2025-12"), (S(body, "currency"), S(body, "paymentMonth")));
+        Assert.Equal(S(loans[0], "netSaving"), S(body.GetProperty("netSaving"), "amount"));
+        Assert.Empty((await DetailAsync(app, home)).GetProperty("repayments").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Each_refusal_answers_at_its_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewAsync(app, Golden(app));
+        var works = await NewAsync(app, Short(app));
+        var cases = new (object Body, string Code, string Path)[]
+        {
+            (new { on = "2025-10-14", amount = "1000", split = "highest_rate", effect = "reduce_term" }, "realestate.invalid_loan", "on"),
+            (new { on = "2025-11-15", amount = "0", split = "highest_rate", effect = "reduce_term" }, "realestate.invalid_loan", "amount"),
+            (new { on = "2025-11-15", amount = "1000", split = "chosen", effect = "reduce_term" }, "request.required", "loanId"),
+            (new { on = "2025-11-15", amount = "1000", split = "highest_rate", loanId = home, effect = "reduce_term" }, "realestate.invalid_loan", "loanId"),
+            (new { on = "2025-11-15", amount = "1000", split = "evenly", effect = "reduce_term" }, "realestate.invalid_loan", "split"),
+            (new { on = "2025-11-15", amount = "3000", split = "chosen", loanId = works, effect = "reduce_term" }, "realestate.event_above_balance", "amount"),
+            (new { on = "2025-11-15", amount = "1000", split = "chosen", loanId = home, effect = "reduce_term", penalties = new[] { new { loanId = works, amount = "10" } } },
+                "realestate.penalty_without_repayment", "penalties[0].loanId"),
+        };
+
+        foreach (var (body, code, path) in cases)
+        {
+            var (status, actualCode, actualPath) = await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Simulations, body));
+            Assert.True((HttpStatusCode.UnprocessableEntity, code, path) == (status, actualCode, actualPath), $"{path}: {status} {actualCode} {actualPath}");
+        }
+    }
+
+    [Fact]
+    public async Task Another_adults_private_loan_is_neither_split_nor_chosen()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await NewAsync(app, Golden(app));
+        var hidden = await NewAsync(app, Golden(app, name: "Prêt de B", visibility: "private", borrowers: [app.AdultB]), app.AdultB);
+
+        var split = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Simulations,
+            new { scope = "me", on = "2025-11-15", amount = "1000", split = "smallest_balance", effect = "reduce_term" }));
+        var chosen = await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Simulations,
+            new { on = "2025-11-15", amount = "1000", split = "chosen", loanId = hidden, effect = "reduce_term" }));
+
+        Assert.Equal([shared], split.GetProperty("loans").EnumerateArray().Select(l => l.GetProperty("loanId").GetGuid()));
+        Assert.DoesNotContain(hidden.ToString(), split.ToString());
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "realestate.invalid_loan", "loanId"), chosen);
+    }
+}

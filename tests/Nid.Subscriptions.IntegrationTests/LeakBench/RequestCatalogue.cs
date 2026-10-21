@@ -341,6 +341,9 @@ public static class RequestCatalogue
 
         new(typeof(ListLoansQuery), false, (_, _) => new ListLoansQuery(VisibilityScope.Me, true)),
         new(typeof(GetLoansOverviewQuery), false, (_, _) => new GetLoansOverviewQuery(VisibilityScope.Me)),
+        // Names its loan: one the actor cannot read is refused at loanId like an unknown one, never read.
+        new(typeof(SimulateLoansQuery), false, (_, item) => new SimulateLoansQuery(VisibilityScope.Me, new LocalDate(2025, 11, 15), 1_000m,
+            SplitRule.Chosen, item, RepaymentEffect.ReduceTerm, [])),
         new(typeof(GetLoanQuery), true, (_, item) => new GetLoanQuery(item)),
         new(typeof(GetLoanScheduleQuery), true, (_, item) => new GetLoanScheduleQuery(item)),
         new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),

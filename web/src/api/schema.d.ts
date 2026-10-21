@@ -6783,6 +6783,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/loans/overview/simulations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LoansSimulationBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LoansSimulation"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/loans/{id}": {
         parameters: {
             query?: never;
@@ -14232,6 +14325,11 @@ export interface components {
             balanceConverted?: null | components["schemas"]["LoanMoneyView"];
             monthlyPaymentConverted?: null | components["schemas"]["LoanMoneyView"];
         };
+        LoanPenaltyBody: {
+            /** Format: uuid */
+            loanId?: null | string;
+            amount?: null | string;
+        };
         LoanPhaseBody: {
             /** Format: int32 */
             seq?: null | number;
@@ -14369,6 +14467,42 @@ export interface components {
             /** Format: date */
             end: string;
             phases: components["schemas"]["LoanPhaseSpanView"][];
+        };
+        LoansSimulation: {
+            currency: string;
+            asked: components["schemas"]["LoansSimulationAsked"];
+            loans: components["schemas"]["SimulatedLoanView"][];
+            interestSaved: components["schemas"]["LoanMoneyView"];
+            penalties: components["schemas"]["LoanMoneyView"];
+            netSaving: components["schemas"]["LoanMoneyView"];
+            monthlyPaymentBefore?: null | components["schemas"]["LoanMoneyView"];
+            monthlyPaymentAfter?: null | components["schemas"]["LoanMoneyView"];
+            paymentMonth: string;
+            /** Format: date */
+            freeOnBefore?: null | string;
+            /** Format: date */
+            freeOnAfter?: null | string;
+            months: components["schemas"]["SimulationMonthView"][];
+            findings: components["schemas"]["LoanFindingView"][];
+        };
+        LoansSimulationAsked: {
+            /** Format: date */
+            on: string;
+            amount: string;
+            split: string;
+            /** Format: uuid */
+            loanId?: null | string;
+            effect: string;
+        };
+        LoansSimulationBody: {
+            scope?: null | string;
+            on?: null | string;
+            amount?: null | string;
+            split?: null | string;
+            /** Format: uuid */
+            loanId?: null | string;
+            effect?: null | string;
+            penalties?: null | components["schemas"]["LoanPenaltyBody"][];
         };
         LoanSummary: {
             /** Format: uuid */
@@ -15133,6 +15267,29 @@ export interface components {
             sessionEpoch?: null | number;
             preferences?: null | components["schemas"]["Preferences"];
             identityProvider?: null | string;
+        };
+        SimulatedLoanView: {
+            /** Format: uuid */
+            loanId: string;
+            code?: null | string;
+            rate?: null | string;
+            amount: string;
+            penalty: string;
+            settled: boolean;
+            /** Format: date */
+            endBefore?: null | string;
+            /** Format: date */
+            endAfter?: null | string;
+            paymentBefore?: null | string;
+            paymentAfter?: null | string;
+            interestSaved: string;
+            netSaving: string;
+            canWrite: boolean;
+        };
+        SimulationMonthView: {
+            month: string;
+            before?: null | components["schemas"]["LoanMoneyView"];
+            after?: null | components["schemas"]["LoanMoneyView"];
         };
         SnapshotBody: {
             asOf?: null | string;

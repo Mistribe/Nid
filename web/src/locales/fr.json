@@ -586,6 +586,7 @@
     "realestate_payment_below_interest": "Cette mensualité ne couvre pas les intérêts : le prêt ne finirait jamais.",
     "realestate_schedule_too_long": "L’échéancier dépasserait 1 200 échéances : vérifiez la durée, les phases et la mensualité imposée.",
     "realestate_event_above_balance": "Ce remboursement dépasse le capital restant dû.",
+    "realestate_penalty_without_repayment": "Ce crédit ne reçoit rien : il n’a pas de pénalité.",
     "realestate_loan_conflict": "Ce crédit a changé entre-temps : rechargez la page.",
     "realestate_fee_conflict": "Ces frais ont changé entre-temps : rechargez la page.",
     "realestate_fee_linked": "Cette pénalité se modifie avec son remboursement.",

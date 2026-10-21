@@ -372,9 +372,13 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: ReturnType<typeof createAppRouter>;
   }
-  /** What a page landing on another says it did: the contract page lands on the loan's detail (3B2 design §5). */
+  /**
+   * What a page landing on another says it did: the contract page lands on the loan's detail (3B2 design §5); the household's
+   * early repayment hands a loan its part, to prefill its repayment form once (loans dashboard §5.3).
+   */
   interface HistoryState {
     loanSaved?: 'contract';
+    loanRepayment?: { onDate: string; amount: string; effect: 'reduce_term' | 'reduce_payment'; penalty: string };
   }
 }
 

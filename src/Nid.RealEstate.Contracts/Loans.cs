@@ -17,6 +17,9 @@ public enum FeeKind { File, Guarantee, EarlyRepaymentPenalty, Renegotiation, Oth
 
 public enum RepaymentEffect { ReduceTerm, ReducePayment }
 
+/// <summary>Loans dashboard spec D9: how an early repayment of the household is split across its loans.</summary>
+public enum SplitRule { HighestRate, SmallestBalance, Chosen }
+
 /// <summary>loans.md §2.2: one regime; phases follow each other by <c>Seq</c>. <c>AnnualRate</c> is a fraction (0.035 for 3.5 %).</summary>
 public sealed record LoanPhase(
     int Seq, PhaseMode Mode, decimal AnnualRate, RateType RateType,

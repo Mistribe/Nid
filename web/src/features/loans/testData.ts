@@ -1,4 +1,4 @@
-import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanOverviewRow, LoansOverview, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoanSummary } from './api';
+import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanOverviewRow, LoansOverview, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoansSimulation, LoanSummary } from './api';
 
 export const LOAN = '0192f0aa-0000-7000-8000-00000000d001';
 
@@ -150,4 +150,25 @@ export const household = (over: Partial<LoansOverview> = {}): LoansOverview => o
     { personId: BOB, balance: eur('96782.11'), monthlyPayment: eur('579.96'), loans: [{ loanId: LOAN, shareBp: 5000, balance: eur('96782.11') }] },
   ],
   ...over,
+});
+
+/** 5 000 € on 2026-11-15 by the highest rate: the car (5 %) settled, the rest on the house, reduce the term. */
+export const earlySimulation = (over: Partial<LoansSimulation> = {}): LoansSimulation => ({
+  currency: 'EUR',
+  asked: { on: '2026-11-15', amount: '5000.00', split: 'highest_rate', loanId: null, effect: 'reduce_term' },
+  loans: [
+    { loanId: CAR, code: null, rate: '0.05', amount: '3000.00', penalty: '0.00', settled: true, endBefore: '2027-01-15', endAfter: '2026-11-15',
+      paymentBefore: '1000.00', paymentAfter: null, interestSaved: '25.10', netSaving: '25.10', canWrite: true },
+    { loanId: LOAN, code: null, rate: '0.035', amount: '2000.00', penalty: '0.00', settled: false, endBefore: '2045-10-15', endAfter: '2045-07-15',
+      paymentBefore: '1159.92', paymentAfter: '1159.92', interestSaved: '1830.40', netSaving: '1830.40', canWrite: true },
+  ],
+  interestSaved: eur('1855.50'), penalties: eur('0.00'), netSaving: eur('1855.50'),
+  monthlyPaymentBefore: eur('2159.92'), monthlyPaymentAfter: eur('1159.92'), paymentMonth: '2026-12',
+  freeOnBefore: '2045-10-15', freeOnAfter: '2045-07-15',
+  months: [
+    { month: '2026-10', before: eur('199564.23'), after: eur('199564.23') },
+    { month: '2026-11', before: eur('197404.31'), after: eur('192404.31') },
+    { month: '2026-12', before: eur('195244.39'), after: eur('191244.39') },
+  ],
+  findings: [], ...over,
 });

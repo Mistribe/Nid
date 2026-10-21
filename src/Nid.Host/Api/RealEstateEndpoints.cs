@@ -22,6 +22,14 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new GetLoansOverviewQuery(ParseScope(scope)), ct)).ToHttp(overview => overview))
             .Returns<LoansOverview>();
 
+        api.MapPost("/loans/overview/simulations", async (LoansSimulationBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var query = body.ToQuery(reader);
+                return query is null ? reader.Problem() : (await invoker.InvokeAsync(query, ct)).ToHttp(simulation => simulation);
+            })
+            .Returns<LoansSimulation>();
+
         api.MapGet("/loans/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetLoanQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<LoanDetail>();
@@ -429,6 +437,45 @@ public static class RealEstateEndpoints
             var effect = Effect is null ? null : LoanBodies.Wire<RepaymentEffect>(reader, Effect, "effect");
             var penalty = LoanBodies.Number(reader, Penalty, "penalty", required: false);
             return reader.Ok ? new SimulateLoanRepaymentQuery(id, on!.Value, amount!.Value, effect, penalty ?? 0m) : null;
+        }
+    }
+
+    public sealed record LoanPenaltyBody(Guid? LoanId, string? Amount);
+
+    /// <summary>
+    /// Loans dashboard spec §5.2: <c>loanId</c> required with <c>chosen</c> and refused otherwise; <c>penalties</c> optional.
+    /// </summary>
+    public sealed record LoansSimulationBody(
+        string? Scope, string? On, string? Amount, string? Split, Guid? LoanId, string? Effect, IReadOnlyList<LoanPenaltyBody>? Penalties)
+    {
+        internal SimulateLoansQuery? ToQuery(FieldReader reader)
+        {
+            var on = reader.Date(On, "on");
+            var amount = LoanBodies.Number(reader, Amount, "amount");
+            if (amount is <= 0m)
+                reader.Add("amount", LoanCodes.InvalidLoan, "An early repayment is positive.");
+            var split = LoanBodies.Wire<SplitRule>(reader, Split, "split");
+            if (split == SplitRule.Chosen && LoanId is null)
+                reader.Add("loanId", "request.required", "The loan is required to put everything on it.");
+            if (split is { } rule && rule != SplitRule.Chosen && LoanId is not null)
+                reader.Add("loanId", LoanCodes.InvalidLoan, "A loan is chosen only with the « chosen » split.");
+            var effect = LoanBodies.Wire<RepaymentEffect>(reader, Effect, "effect");
+            var penalties = new List<LoanPenalty>();
+            for (var i = 0; i < (Penalties?.Count ?? 0); i++)
+            {
+                var p = Penalties![i];
+                if (p?.LoanId is not { } loan)
+                    reader.Add($"penalties[{i}].loanId", "request.required", "A penalty names its loan.");
+                var value = LoanBodies.Number(reader, p?.Amount, $"penalties[{i}].amount");
+                if (value is < 0m)
+                    reader.Add($"penalties[{i}].amount", LoanCodes.InvalidLoan, "A penalty is not negative.");
+                if (p?.LoanId is { } id && value is { } v)
+                    penalties.Add(new LoanPenalty(new ItemId(id), v));
+            }
+            return reader.Ok
+                ? new SimulateLoansQuery(ParseScope(Scope), on!.Value, amount!.Value, split!.Value, LoanId is { } chosen ? new ItemId(chosen) : null,
+                    effect!.Value, penalties)
+                : null;
         }
     }
 

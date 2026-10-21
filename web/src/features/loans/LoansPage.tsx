@@ -17,7 +17,7 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LOANS, type LoanSummary } from './api';
+import { LOANS, OVERVIEW, type LoanSummary } from './api';
 import { money, percent } from './format';
 import '@/locales/loans';
 
@@ -28,19 +28,32 @@ function useLoans(scope: 'me' | 'household', ended: boolean, enabled = true) {
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
-/** Loans dashboard §3.1: the overview opens first; the list keeps its switch of the ended loans under `?tab=list`. */
+const EarlyTab = lazy(() => import('./early/EarlyTab').then((m) => ({ default: m.EarlyTab })));
+
+const WITH_EARLY = ['overview', 'list', 'early'] as const;
+const WITHOUT_EARLY = ['overview', 'list'] as const;
+
+/**
+ * Loans dashboard §3.1 and §5.3: the overview opens first; the list keeps its switch of the ended loans under `?tab=list`;
+ * « Rembourser plus tôt » (`?tab=early`) only while a loan is running. The overview's answer is shared with its tab.
+ */
 export function LoansPage() {
   const { t } = useTranslation();
+  const { $api } = useApi();
   const search: RootSearch = useSearch({ strict: false });
-  const [tab, setTab] = useDetailTab(['overview', 'list'] as const);
   const scope = search.scope === 'me' ? 'me' : 'household';
+  const overview = $api.useQuery('get', OVERVIEW, { params: { query: { scope } } });
+  const running = overview.data && overview.data.runningCount > 0 ? overview.data : null;
+  const [tab, setTab] = useDetailTab<(typeof WITH_EARLY)[number]>(running ? WITH_EARLY : WITHOUT_EARLY);
+  const fallback = <Skeleton className="h-64 w-full" />;
   return (
     <div className="space-y-4">
       <PageHeader title={t('loans.title')} actions={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
       <DetailTabs value={tab} onChange={setTab} tabs={[
-        { id: 'overview', label: t('loans_overview.tab_overview'),
-          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} /></Suspense> },
+        { id: 'overview', label: t('loans_overview.tab_overview'), content: <Suspense fallback={fallback}><OverviewTab scope={scope} /></Suspense> },
         { id: 'list', label: t('loans_overview.tab_list'), content: <ListTab scope={scope} /> },
+        ...(running ? [{ id: 'early' as const, label: t('loans_early.tab'),
+          content: <Suspense fallback={fallback}><EarlyTab scope={scope} overview={running} /></Suspense> }] : []),
       ]} />
     </div>
   );

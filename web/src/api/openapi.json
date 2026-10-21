@@ -7362,6 +7362,95 @@
         }
       }
     },
+    "/api/v1/realestate/loans/overview/simulations": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoansSimulationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoansSimulation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/loans/{id}": {
       "get": {
         "tags": [
@@ -19514,6 +19603,24 @@
           }
         }
       },
+      "LoanPenaltyBody": {
+        "type": "object",
+        "properties": {
+          "loanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "LoanPhaseBody": {
         "type": "object",
         "properties": {
@@ -20111,6 +20218,174 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanPhaseSpanView"
+            }
+          }
+        }
+      },
+      "LoansSimulation": {
+        "required": [
+          "currency",
+          "asked",
+          "loans",
+          "interestSaved",
+          "penalties",
+          "netSaving",
+          "paymentMonth",
+          "months",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "asked": {
+            "$ref": "#/components/schemas/LoansSimulationAsked"
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulatedLoanView"
+            }
+          },
+          "interestSaved": {
+            "$ref": "#/components/schemas/LoanMoneyView"
+          },
+          "penalties": {
+            "$ref": "#/components/schemas/LoanMoneyView"
+          },
+          "netSaving": {
+            "$ref": "#/components/schemas/LoanMoneyView"
+          },
+          "monthlyPaymentBefore": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "monthlyPaymentAfter": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "paymentMonth": {
+            "type": "string"
+          },
+          "freeOnBefore": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "freeOnAfter": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulationMonthView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanFindingView"
+            }
+          }
+        }
+      },
+      "LoansSimulationAsked": {
+        "required": [
+          "on",
+          "amount",
+          "split",
+          "effect"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "split": {
+            "type": "string"
+          },
+          "loanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "effect": {
+            "type": "string"
+          }
+        }
+      },
+      "LoansSimulationBody": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "on": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "split": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "loanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "effect": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "penalties": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LoanPenaltyBody"
             }
           }
         }
@@ -23264,6 +23539,111 @@
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "SimulatedLoanView": {
+        "required": [
+          "loanId",
+          "amount",
+          "penalty",
+          "settled",
+          "interestSaved",
+          "netSaving",
+          "canWrite"
+        ],
+        "type": "object",
+        "properties": {
+          "loanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": "string"
+          },
+          "penalty": {
+            "type": "string"
+          },
+          "settled": {
+            "type": "boolean"
+          },
+          "endBefore": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "endAfter": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "paymentBefore": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentAfter": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "interestSaved": {
+            "type": "string"
+          },
+          "netSaving": {
+            "type": "string"
+          },
+          "canWrite": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SimulationMonthView": {
+        "required": [
+          "month"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "before": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "after": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
             ]
           }
         }
