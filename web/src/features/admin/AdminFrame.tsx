@@ -24,7 +24,7 @@ export function AdminFrame({ title, children }: { title: string; children: React
   return (
     <div className="space-y-6">
       <PageHeader title={title} />
-      <nav aria-label={t('admin.nav.label')} className={cn(tabsListVariants({ variant: 'line' }), 'h-auto max-w-full justify-start overflow-x-auto border-b')}>
+      <nav aria-label={t('admin.nav.label')} className={cn(tabsListVariants({ variant: 'line' }), 'h-auto max-w-full justify-start overflow-x-auto overflow-y-hidden border-b pb-[5px]')}>
         {SECTIONS.map((section) => (
           <Link
             key={section.to}
