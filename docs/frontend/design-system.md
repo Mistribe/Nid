@@ -21,7 +21,7 @@
 | Barre latérale | `sidebar`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring` |
 | Forme | `--radius` (les autres rayons en dérivent) |
 | Graphiques | `--chart-1` à `--chart-8` : palette **fixe**, indépendante du thème (`dataviz.md` §3) |
-| Statuts | `--status-good`, `--status-warning`, `--status-serious`, `--status-critical` : **fixes**, indépendants du thème (`dataviz.md` §4). `--status-warning-text` pour un texte d'avertissement : `--status-warning` n'atteint que 1,75:1 sur fond clair |
+| Statuts | `--status-good`, `--status-warning`, `--status-serious`, `--status-critical` : **fixes**, indépendants du thème (`dataviz.md` §4). `--status-warning-text` et `--status-good-text` pour du texte : `--status-warning` n'atteint que 1,75:1 sur fond clair, `--status-good` 3,20:1 (assez pour une icône, pas pour un texte) |
 
 Les jetons de graphiques et de statuts ne sont **jamais redéfinis par un thème**.
 
@@ -178,7 +178,7 @@ Un **test de contraste en CI** parcourt tous les thèmes dans les deux modes :
 | `primary-foreground` sur `primary` | 4,5:1 |
 | `muted-foreground` sur `background` et `card` | 4,5:1 |
 | `secondary-foreground` sur `secondary` | 4,5:1 |
-| `status-warning-text` sur `background` et `card` | 4,5:1 |
+| `status-warning-text` et `status-good-text` sur `background` et `card` | 4,5:1 |
 | `ring` et `input` (contour d'un champ) sur `background` | 3:1 |
 
 Le test mesure `input` et non `border` : `border` trace des séparateurs, que WCAG 1.4.11 n'exige pas à 3:1. Il

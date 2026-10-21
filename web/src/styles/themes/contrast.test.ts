@@ -20,6 +20,8 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ['destructive', 'background', 4.5],
   ['status-warning-text', 'background', 4.5],
   ['status-warning-text', 'card', 4.5],
+  ['status-good-text', 'background', 4.5],
+  ['status-good-text', 'card', 4.5],
   ['input', 'background', 3],
   ['ring', 'background', 3],
 ];
