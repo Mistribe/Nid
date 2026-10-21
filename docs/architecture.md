@@ -130,7 +130,7 @@ Ce qu'on garde de l'idée :
 
 ### 5.1 Règle de base
 
-Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`, `Infrastructure`), de son **schéma Postgres** et de son `DbContext`. Aucun module ne lit les tables d'un autre ni ne référence son domaine ; ils communiquent par leurs `Contracts` (interfaces et DTO). Des **tests d'architecture** (NetArchTest) le vérifient en CI.
+Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`, `Infrastructure`), de son **schéma Postgres** et de son `DbContext`. Aucun module ne lit les tables d'un autre ni ne référence son domaine ; ils communiquent par leurs `Contracts` (interfaces et DTO). Un **test d'architecture** (`tests/Nid.Platform.Tests/ModuleBoundaryTests.cs`) le vérifie sur chaque pull request, à partir des `ProjectReference` et `PackageReference` de `src/*/*.csproj` : un module ne référence que ses propres projets, `Core.Contracts` et `Platform` (`Platform`, `Platform.Contracts`, `Platform.Infrastructure`) ; un `Domain` ne référence que son `Contracts` et aucun paquet ; un `Contracts` ne référence aucun `Domain`, `Application` ni `Infrastructure` ; seuls `Nid.Host` et `Nid.AppHost` référencent les projets d'un module depuis l'extérieur.
 
 ### 5.2 Modules
 
@@ -388,7 +388,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 | **Sécurité** | SSRF du `SafeHttpClient`, injection de formules CSV, uploads, import malveillant, corpus de PDF piégés, égress des workers, politique de la passerelle LLM (offres inéligibles, consentement, budget), clés jamais exposées (`security/ai-ingestion.md` §7, `security/application.md` §9). |
 | **Frontend** | Lint (dont l'interdiction d'arithmétique sur les montants), tests de composants, E2E avec un Pocket ID de test (sessions ouvertes par son API, `frontend/testing.md`), accessibilité, contraste de tous les thèmes, validation de la palette de graphiques, budgets de taille (`frontend/testing.md`). |
 | **Contrats** | Schémas de jobs validés avec des exemples ; chaque type de job possède un schéma d'entrée et de sortie. |
-| **Architecture** | NetArchTest : aucune dépendance entre modules hors `Contracts` ; `Domain` sans référence à l'infrastructure ni à Synapse ; toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
+| **Architecture** | `ModuleBoundaryTests` lit les références des `csproj` (pas de NetArchTest) : aucune dépendance entre modules, `Domain` sans paquet (ni Synapse ni EF Core), règles du §5.1. Lancé en CI sur chaque pull request. Pas encore vérifié : toute implémentation de handler porte `[RequestHandler]` (le générateur est la source de vérité : sans l'attribut, le handler n'est jamais enregistré, sans erreur). |
 | **Extraction** | Jeu d'évaluation de relevés, mesuré hors CI standard (précision par champ). |
 | **E2E** | Playwright sur les parcours clés (saisie mensuelle, validation d'une proposition, tableau de bord). |
 

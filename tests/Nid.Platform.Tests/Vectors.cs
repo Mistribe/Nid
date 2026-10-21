@@ -17,7 +17,7 @@ internal static class Vectors
     public static string InRepositoryImport(params string[] parts)
         => Path.Combine([RepositoryRoot(), "tests", "vectors", "import", .. parts]);
 
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Nid.slnx")))
