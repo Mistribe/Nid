@@ -56,7 +56,7 @@ function Composition({ d }: { d: DashboardView }) {
                   <ItemLink module={row.module} id={row.id}>{row.name}</ItemLink>
                 </TableHead>
                 <TableCell className="text-right tabular-nums"><Amount row={row} /></TableCell>
-                <TableCell className={row.stale ? 'text-right text-amber-700 dark:text-amber-400' : 'text-right'}>
+                <TableCell className={row.stale ? 'text-right text-status-warning-text' : 'text-right'}>
                   {row.stale ? <Clock aria-hidden="true" className="mr-1 inline size-3" /> : null}
                   {row.asOf ? formatLocalDate(row.asOf) : null}
                   {row.stale ? <span className="block text-xs">{t('dashboard.split.stale')}</span> : null}
@@ -127,7 +127,7 @@ export function NetWorthPanel({ d }: { d: DashboardView }) {
       </div>
       <ul className="space-y-1 text-sm">
         {d.staleEnvelopes > 0 ? (
-          <li className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+          <li className="flex items-center gap-1 text-status-warning-text">
             <Clock aria-hidden="true" className="size-4" />
             {has('investments') || has('realestate')
               ? <Link to="/routine" className="underline">{t('dashboard.stale', { count: d.staleEnvelopes })}</Link>

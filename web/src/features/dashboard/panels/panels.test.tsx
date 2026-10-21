@@ -96,7 +96,7 @@ describe('key figure panels', () => {
     const row = within(panel).getAllByRole('row').find((r) => r.textContent?.includes('Livret A'))!;
     expect(row).toHaveTextContent('À mettre à jour');
     expect(row).toHaveTextContent('3 juin 2025');
-    expect(row.querySelector('.text-amber-700')).not.toBeNull();
+    expect(row.querySelector('.text-status-warning-text')).not.toBeNull();
     await user.click(within(panel).getByRole('link', { name: '1 valeur à mettre à jour' }));
     expect(router.state.location.pathname).toBe('/routine');
   });

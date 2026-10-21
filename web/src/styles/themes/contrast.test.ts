@@ -18,6 +18,8 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ['secondary-foreground', 'secondary', 4.5],
   ['accent-foreground', 'accent', 4.5],
   ['destructive', 'background', 4.5],
+  ['status-warning-text', 'background', 4.5],
+  ['status-warning-text', 'card', 4.5],
   ['input', 'background', 3],
   ['ring', 'background', 3],
 ];
@@ -33,11 +35,15 @@ function block(css: string, selector: RegExp): Record<string, string> {
 // base to the jsdom document location (`http://localhost:3000/…`) instead of leaving it as a real file path.
 const THEMES_DIR = dirname(fileURLToPath(import.meta.url));
 
+// The fixed colours of globals.css (status text), under each theme's own.
+const globals = readFileSync(join(THEMES_DIR, '..', 'globals.css'), 'utf8');
+const fixed = { light: block(globals, /^:root\s*\{([^}]*)\}/m), dark: block(globals, /^\.dark\s*\{([^}]*)\}/m) };
+
 function variables(id: string) {
   const css = readFileSync(join(THEMES_DIR, `${id}.css`), 'utf8');
   return {
-    light: block(css, new RegExp(`\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`)),
-    dark: block(css, new RegExp(`\\[data-theme="${id}"\\]\\.dark\\s*\\{([^}]*)\\}`)),
+    light: { ...fixed.light, ...block(css, new RegExp(`\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`)) },
+    dark: { ...fixed.light, ...fixed.dark, ...block(css, new RegExp(`\\[data-theme="${id}"\\]\\.dark\\s*\\{([^}]*)\\}`)) },
   };
 }
 

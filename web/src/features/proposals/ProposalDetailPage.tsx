@@ -96,8 +96,8 @@ function Proposal({ id }: { id: string }) {
       </dl>
       <p className="text-sm text-muted-foreground">{t('proposals.proposed_on', { origin: originText(t, p.createdVia), date: formatInstantDay(p.createdAt) })}</p>
       {warnings.length > 0 ? (
-        <section aria-label={t('proposal.warnings')} className="flex gap-2 rounded-md border border-amber-500/60 bg-amber-50 p-3 text-sm dark:bg-amber-950/30">
-          <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <section aria-label={t('proposal.warnings')} className="flex gap-2 rounded-md border border-status-warning/60 bg-status-warning/10 p-3 text-sm">
+          <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-warning" />
           <ul>{warnings.map((w, i) => <li key={i}>{w.code === 'apply_failed' ? applyFailedText(t, w.message) : w.message}</li>)}</ul>
         </section>
       ) : null}
