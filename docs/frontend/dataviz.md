@@ -109,7 +109,7 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 - Marques fines, extrémités arrondies de 4 px ancrées sur la ligne de base, lignes de 2 px, marqueurs d'au moins 8 px, **séparation de 2 px** entre remplissages adjacents, anneau de 2 px de la couleur de surface entre marques qui se chevauchent.
 - Quadrillage et axes discrets ; le texte utilise les jetons de texte, **jamais la couleur de la série** (une pastille colorée porte l'identité).
 - **Survol par défaut** : réticule et infobulle sur les courbes et aires, infobulle par marque sur les barres ; zones de survol plus grandes que les marques ; navigation clavier via `accessibilityLayer`.
-- **Vue en tableau** : chaque `ChartCard` propose « Afficher en tableau » ; le tableau contient exactement les données du graphique.
+- **Vue en tableau** : chaque graphique propose « Afficher en tableau » ; le tableau contient exactement les données du graphique.
 - **Motifs** : hachures à 45° et 135°, activées par « Motifs dans les graphiques » (Réglages), par `forced-colors` et à l'impression ; jamais par défaut, jamais décoratives.
 - Thèmes : la palette et les statuts ne changent pas avec le thème.
 

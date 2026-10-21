@@ -1,7 +1,6 @@
-import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/page/SectionCard';
 import { toPlot } from '../investments/chart/plot';
 import type { DashboardView } from './api';
 
@@ -14,7 +13,6 @@ const SOURCES = [
 /** Spec §4.1: the month's income as one stacked bar, a legend with every amount the server gave. */
 export function HouseholdMonth({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
-  const id = useId();
   const segments = [
     ...d.commitmentSources.flatMap((s) => {
       const source = SOURCES.find((x) => x.key === s.source);
@@ -30,12 +28,8 @@ export function HouseholdMonth({ d }: { d: DashboardView }) {
     ? (d.income.missingCurrency ? t('dashboard.unknown_rate', { code: d.income.missingCurrency }) : t('dashboard.income_unknown'))
     : (missing ? t('dashboard.margin_unknown_rate', { code: missing }) : t('dashboard.margin_unknown'));
   return (
-    <Card role="region" aria-labelledby={id} data-guide="dashboard.month" className="gap-3 py-4">
-      <CardHeader className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <CardTitle id={id} className="text-base">{t('dashboard.month.title')}</CardTitle>
-        {d.cashThisMonth.total ? <span className="text-sm text-muted-foreground">{t('dashboard.cash_this_month', { amount: formatMoney(d.cashThisMonth.total) })}</span> : null}
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SectionCard title={t('dashboard.month.title')} guide="dashboard.month" className="space-y-3"
+      note={d.cashThisMonth.total ? t('dashboard.cash_this_month', { amount: formatMoney(d.cashThisMonth.total) }) : null}>
         {known ? (
           <>
             {/* Widths are the amounts' plotting values as flex-grow: the browser shares the bar, we do no arithmetic. */}
@@ -58,7 +52,6 @@ export function HouseholdMonth({ d }: { d: DashboardView }) {
             {reason}
           </p>
         )}
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }

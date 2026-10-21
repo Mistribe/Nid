@@ -45,12 +45,12 @@ Communs à tous les modules, dans `components/`.
 | `<Money>` | Affiche `{ amount, currency }` à partir d'une chaîne décimale ; jamais d'arithmétique |
 | `<LocalDate>` | Affiche une date `AAAA-MM-JJ` en UTC, en toutes lettres ou en abrégé |
 | `<AccessBadge>` | Privé, Partagé, Enfant : **icône et texte** |
-| `<StaleValue>` | Signale une valeur périmée avec son ancienneté |
-| `<ProvenanceBadge>` | Source d'une donnée : manuel, document, API bancaire, import ; ouvre le document d'origine |
+| `<StaleValue>` | Signale une valeur périmée avec son ancienneté (pas encore construit : chaque écran l'affiche lui-même, icône et texte) |
+| `<ProvenanceBadge>` | Source d'une donnée : manuel, document, API bancaire, import ; ouvre le document d'origine (pas encore construit) |
 | `<EmptyState>` | Titre, phrase, action |
 | `<ProblemMessage>` | Présente une erreur convertie (`architecture.md` §5) |
 | `<ScopeSwitch>` | Foyer / Moi |
-| `<ChartCard>` | Cadre d'un graphique : titre, légende, bouton « Afficher en tableau » |
+| `SectionCard` (`components/page/`) | Cadre titré d'une vue d'ensemble (graphique, courte liste) : titre, note, actions dans l'en-tête, dont « Afficher en tableau » pour un graphique |
 | `PageHeader` (`components/page/`) | Titre, retour, chiffres clés en ligne, actions de la page : l'en-tête commun des listes et des fiches |
 | `StatLine` | Ligne de chiffres sous le titre ; seulement quand le serveur donne les totaux (abonnements) |
 | `SortableTable` | Tableau dense triable, colonne « Propriétaires » (`OwnerChips`, initiales) ; base de toutes les listes |

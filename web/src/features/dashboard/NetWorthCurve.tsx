@@ -9,7 +9,7 @@ import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
 import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
@@ -27,7 +27,6 @@ export function NetWorthCurve() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
-  const titleId = useId();
   const periodId = useId();
   const [asTable, setAsTable] = useState(false);
   const search: RootSearch & DashboardSearch = useSearch({ strict: false });
@@ -42,24 +41,20 @@ export function NetWorthCurve() {
   const known = data ? data.points.filter((p) => p.value).length : 0;
 
   return (
-    <Card role="region" aria-labelledby={titleId} className="gap-3 py-4">
-      <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <CardTitle id={titleId} className="mr-auto text-base">{t('dashboard.curve.title')}</CardTitle>
-        <CardAction className="static flex flex-wrap items-center gap-2">
-          <span id={periodId} className="sr-only">{t('dashboard.curve.period')}</span>
-          <Segmented value={period} onValueChange={choose} aria-labelledby={periodId}
-            options={PERIODS.map((p) => ({ value: p, label: t(`dashboard.curve.period_${p}`) }))} />
-          {known >= 2 ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-              {asTable ? t('envelope.show_chart') : t('envelope.show_table')}
-            </Button>
-          ) : null}
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <Body data={data} error={answer.error} asTable={asTable} />
-      </CardContent>
-    </Card>
+    <SectionCard title={t('dashboard.curve.title')} actions={
+      <>
+        <span id={periodId} className="sr-only">{t('dashboard.curve.period')}</span>
+        <Segmented value={period} onValueChange={choose} aria-labelledby={periodId}
+          options={PERIODS.map((p) => ({ value: p, label: t(`dashboard.curve.period_${p}`) }))} />
+        {known >= 2 ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
+            {asTable ? t('envelope.show_chart') : t('envelope.show_table')}
+          </Button>
+        ) : null}
+      </>
+    }>
+      <Body data={data} error={answer.error} asTable={asTable} />
+    </SectionCard>
   );
 }
 

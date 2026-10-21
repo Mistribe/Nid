@@ -1,12 +1,12 @@
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, XAxis, YAxis } from 'recharts';
 import type { IncomeDetailSearch, RootSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
 import { formatMoney, Money } from '@/components/Money';
 import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/page/SectionCard';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { percent } from '@/features/dashboard/format';
@@ -31,7 +31,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
  */
 export function SourceChart({ months, changes }: { months: Months; changes: IncomeChange[] }) {
   const { t } = useTranslation();
-  const titleId = useId();
   const [asTable, setAsTable] = useState(false);
   const { id } = useParams({ from: '/income/$id' });
   const search: RootSearch & IncomeDetailSearch = useSearch({ strict: false });
@@ -67,18 +66,15 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
   const series = [...labels.map((_, i) => `l${i}`), 'oneOff'];
 
   return (
-    <Card role="region" aria-labelledby={titleId} className="gap-3 py-4">
-      <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <CardTitle id={titleId} className="mr-auto text-base">{t('income_detail.evolution.title')}</CardTitle>
+    <SectionCard title={t('income_detail.evolution.title')} actions={
+      <>
         <Segmented aria-label={t('income_detail.evolution.period')} value={period} onValueChange={choose}
           options={PERIODS.map((p) => ({ value: p, label: t(`income_detail.evolution.${p}`) }))} />
-        <CardAction className="static">
-          <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? t('income.overview.show_chart') : t('income.overview.show_table')}
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
+        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
+          {asTable ? t('income.overview.show_chart') : t('income.overview.show_table')}
+        </Button>
+      </>
+    }>
         {asTable ? <SourceMonthsTable months={months} labels={labels} /> : (
           <ChartContainer config={config} className="h-64 w-full">
             <BarChart data={rows} title={t('income_detail.evolution.chart')} accessibilityLayer>
@@ -100,8 +96,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
             </BarChart>
           </ChartContainer>
         )}
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }
 

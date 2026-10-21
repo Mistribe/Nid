@@ -1,12 +1,11 @@
 import { Link } from '@tanstack/react-router';
-import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { PendingLine } from '../proposals/PendingLine';
 import { usePendingCount } from '../proposals/api';
 import { categoryText } from '../properties/format';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/page/SectionCard';
 import type { DashboardEvent, DashboardView } from './api';
 import { ItemLink } from './ItemLink';
 import { incomeGaps, isRoutineTodo } from './todo';
@@ -30,14 +29,8 @@ function EventText({ e }: { e: DashboardEvent }) {
 /** Spec §4.1: the next 60 days, sorted by the server, date and amount. */
 export function Upcoming({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
-  const id = useId();
   return (
-    <Card role="region" aria-labelledby={id} data-guide="dashboard.upcoming" className="gap-3 py-4">
-      <CardHeader>
-        <CardTitle id={id} className="text-base">{t('dashboard.upcoming.title')}</CardTitle>
-        <p className="text-xs text-muted-foreground">{t('dashboard.upcoming.window')}</p>
-      </CardHeader>
-      <CardContent>
+    <SectionCard title={t('dashboard.upcoming.title')} note={t('dashboard.upcoming.window')} guide="dashboard.upcoming">
         {d.upcoming.length === 0 ? <p className="text-sm text-muted-foreground">{t('dashboard.upcoming.empty')}</p> : (
           <ul className="divide-y text-sm">
             {d.upcoming.map((e) => (
@@ -50,8 +43,7 @@ export function Upcoming({ d }: { d: DashboardView }) {
             ))}
           </ul>
         )}
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }
 

@@ -1,9 +1,9 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
 import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/page/SectionCard';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { toPlot } from '../../investments/chart/plot';
 import type { IncomeOverview } from '../api';
@@ -21,7 +21,6 @@ export function MonthsChart({ months, missingRates, period, year }: {
   months: Months; missingRates: string[]; period: 'year' | '12m' | '3y'; year: number;
 }) {
   const { t } = useTranslation();
-  const titleId = useId();
   const [asTable, setAsTable] = useState(false);
   const config = {
     previous: { label: t('income.overview.col_previous'), color: 'var(--muted-foreground)' },
@@ -45,16 +44,11 @@ export function MonthsChart({ months, missingRates, period, year }: {
   const [back, front] = wide ? [14, 8] : [28, 16];
 
   return (
-    <Card role="region" aria-labelledby={titleId} className="gap-3 py-4">
-      <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <CardTitle id={titleId} className="mr-auto text-base">{title}</CardTitle>
-        <CardAction className="static">
-          <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? t('income.overview.show_chart') : t('income.overview.show_table')}
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
+    <SectionCard title={title} actions={
+      <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
+        {asTable ? t('income.overview.show_chart') : t('income.overview.show_table')}
+      </Button>
+    }>
         {asTable
           ? <MonthsTable months={months} missingRates={missingRates} />
           : (
@@ -78,8 +72,7 @@ export function MonthsChart({ months, missingRates, period, year }: {
               </ChartContainer>
             </div>
           )}
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }
 
