@@ -16,7 +16,6 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { monthLabel } from '../income/expected/months';
 import { toPlot } from '../investments/chart/plot';
 import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from './api';
-import '@/locales/investments';
 
 const PERIODS = ['12m', '3y', 'all'] as const;
 type Period = (typeof PERIODS)[number];
@@ -48,7 +47,7 @@ export function NetWorthCurve() {
           options={PERIODS.map((p) => ({ value: p, label: t(`dashboard.curve.period_${p}`) }))} />
         {known >= 2 ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? t('envelope.show_chart') : t('envelope.show_table')}
+            {asTable ? t('common.show_chart') : t('common.show_table')}
           </Button>
         ) : null}
       </>

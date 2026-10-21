@@ -55,7 +55,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
     <div className="space-y-2">
       <div className="flex justify-end">
         <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('envelope.show_chart') : t('envelope.show_table')}
+          {asTable ? t('common.show_chart') : t('common.show_table')}
         </Button>
       </div>
       {asTable ? (

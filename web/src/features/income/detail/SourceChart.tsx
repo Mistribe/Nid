@@ -71,7 +71,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
         <Segmented aria-label={t('income_detail.evolution.period')} value={period} onValueChange={choose}
           options={PERIODS.map((p) => ({ value: p, label: t(`income_detail.evolution.${p}`) }))} />
         <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('income.overview.show_chart') : t('income.overview.show_table')}
+          {asTable ? t('common.show_chart') : t('common.show_table')}
         </Button>
       </>
     }>

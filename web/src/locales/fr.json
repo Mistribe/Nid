@@ -246,7 +246,8 @@
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "common": { "confirm": "Confirmer",
-    "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "breadcrumb": "Fil d’Ariane" },
+    "delete": "Supprimer", "cancel": "Annuler", "close": "Fermer", "more": "Plus", "breadcrumb": "Fil d’Ariane",
+    "show_table": "Afficher en tableau", "show_chart": "Afficher le graphique" },
   "form": { "none": "Aucun", "search": "Rechercher", "no_result": "Aucun résultat", "loading": "Chargement…", "currency_option": "{{code}} — {{name}}", "pick_date": "Choisir une date : {{label}}", "date_placeholder": "jj/mm/aaaa" },
   "subscriptions": {
     "title": "Abonnements",
@@ -924,7 +925,6 @@
       "split_unavailable": "Répartition indisponible : taux manquant ({{currencies}})", "isolate": "Isoler {{name}}",
       "months_title": "Mois par mois · {{year}} vs {{previous}}", "months_title_previous": "Mois par mois · vs l’année précédente",
       "months_chart": "Revenus mois par mois, comparés à l’année précédente", "months_table": "Revenus mois par mois",
-      "show_table": "Afficher le tableau", "show_chart": "Afficher le graphique",
       "col_month": "Mois", "col_recurring": "Récurrent", "col_one_off": "Exceptionnel", "col_total": "Total", "col_previous": "Année précédente",
       "missing_rate": "taux manquant ({{currencies}})", "upcoming": "à venir",
       "col_owners": "Propriétaires", "col_1y": "Sur 1 an", "col_next": "Prochain versement", "col_end": "Fin de période",

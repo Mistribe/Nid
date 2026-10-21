@@ -64,7 +64,7 @@ describe('net worth curve', () => {
     await user.click(await within(card).findByRole('button', { name: 'Afficher en tableau' }));
     expect(within(card).getByRole('table', { name: 'Évolution du patrimoine en tableau' })).toBeInTheDocument();
     expect(within(card).getByRole('radio', { name: '3 ans' })).toBeInTheDocument();
-    await user.click(within(card).getByRole('button', { name: 'Afficher la courbe' }));
+    await user.click(within(card).getByRole('button', { name: 'Afficher le graphique' }));
     expect(within(card).queryByRole('table')).not.toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('net worth curve', () => {
     await renderApp('/dashboard');
     const card = await curve();
     expect(await within(card).findByRole('table', { name: 'Évolution du patrimoine en tableau' })).toBeInTheDocument();
-    expect(within(card).queryByRole('button', { name: 'Afficher la courbe' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Afficher le graphique' })).not.toBeInTheDocument();
   });
 
   it('skips the empty months before the first value in the table', async () => {

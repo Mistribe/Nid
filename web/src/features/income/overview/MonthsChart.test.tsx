@@ -32,7 +32,7 @@ describe('MonthsChart', () => {
 
   it('the table gives the server figures month by month', async () => {
     show();
-    await userEvent.click(screen.getByRole('button', { name: 'Afficher le tableau' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Afficher en tableau' }));
     const rows = within(screen.getByRole('table', { name: 'Revenus mois par mois' })).getAllByRole('row');
     expect(within(rows[2]!).getByText('1 050,00 €')).toBeInTheDocument();
     expect(within(rows[2]!).getByText('50,00 €')).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe('MonthsChart', () => {
 
   it('a month without a rate says which currency is missing', async () => {
     show();
-    await userEvent.click(screen.getByRole('button', { name: 'Afficher le tableau' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Afficher en tableau' }));
     expect(screen.getByText('taux manquant (USD)')).toBeInTheDocument();
   });
 });

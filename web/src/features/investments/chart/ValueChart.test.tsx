@@ -35,7 +35,7 @@ describe('ValueChart', () => {
       expect.stringMatching(/31 décembre 2024.*21\s000,00\s€.*20\s000,00\s€/),
       expect.stringMatching(/30 septembre 2025.*25\s000,00\s€.*22\s000,00\s€/),
     ]);
-    await user.click(within(section).getByRole('button', { name: 'Afficher la courbe' }));
+    await user.click(within(section).getByRole('button', { name: 'Afficher le graphique' }));
     await expectNoAxeViolations(container);
   });
 

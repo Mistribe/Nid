@@ -52,8 +52,6 @@
     "chart_title": "Valeur et versements nets de l’enveloppe",
     "chart_table": "Évolution de l’enveloppe",
     "chart_needs_two": "La courbe apparaît à partir de deux valeurs.",
-    "show_table": "Afficher en tableau",
-    "show_chart": "Afficher la courbe",
     "value": "Valeur",
     "net_contributions": "Versements nets",
     "gain": "Gain",

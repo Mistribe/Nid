@@ -73,7 +73,7 @@ describe('IncomeSourceDetailPage', () => {
     const { user, router } = await renderApp(`/income/${SALARY}`);
 
     const chart = await screen.findByRole('region', { name: 'Évolution' });
-    await user.click(within(chart).getByRole('button', { name: 'Afficher le tableau' }));
+    await user.click(within(chart).getByRole('button', { name: 'Afficher en tableau' }));
     const rows = within(within(chart).getByRole('table', { name: 'Revenus de la source, mois par mois' })).getAllByRole('row');
     expect(rows.map(text)).toEqual([
       'MoisPrime annuelleSalaire de baseExceptionnelsTotal',
@@ -258,7 +258,7 @@ describe('IncomeSourceDetailPage', () => {
     serve(detail({ gapSoon: [{ label: 'Salaire de base', endsOn: '2026-12-31' }] }));
     const { user, container } = await renderApp(`/income/${SALARY}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Afficher le tableau' }));
+    await user.click(await screen.findByRole('button', { name: 'Afficher en tableau' }));
     await screen.findByRole('table', { name: 'Revenus de la source, mois par mois' });
     await expectNoAxeViolations(container);
   });
@@ -364,7 +364,7 @@ describe('IncomeSourceDetailPage', () => {
     await screen.findByRole('region', { name: 'Évolution' });
     const article = screen.getByRole('article');
     // The chart's table toggle is the only button: no header action, no « Ajouter », no row menu.
-    expect(within(article).queryAllByRole('button').map((b) => b.textContent)).toEqual(['Afficher le tableau']);
+    expect(within(article).queryAllByRole('button').map((b) => b.textContent)).toEqual(['Afficher en tableau']);
     expect(within(article).queryByRole('tab', { name: 'Réglages' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });

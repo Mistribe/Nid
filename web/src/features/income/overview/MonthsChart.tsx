@@ -46,7 +46,7 @@ export function MonthsChart({ months, missingRates, period, year }: {
   return (
     <SectionCard title={title} actions={
       <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-        {asTable ? t('income.overview.show_chart') : t('income.overview.show_table')}
+        {asTable ? t('common.show_chart') : t('common.show_table')}
       </Button>
     }>
         {asTable
