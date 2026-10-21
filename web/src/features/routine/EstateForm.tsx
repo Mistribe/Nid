@@ -10,7 +10,6 @@ import { formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { DateField } from '@/components/form/DateField';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -157,20 +156,20 @@ export function EstateForm({ view, initial, onSaved }: {
   const e = form.formState.errors;
 
   const estimateRow = ({ line, index }: { line: EstateEstimate; index: number }) => (
-    <li key={line.property}><Card className="px-4 py-4">
+    <li key={line.property} className="p-4">
       <Field label={t('routine_estate.estimate', { name: line.name })} error={e.estimates?.[index]?.amount?.message}
         hint={line.lastValue && line.lastAsOf
           ? t('routine_estate.last', { value: formatMoney({ amount: line.lastValue, currency: line.currency }), date: formatLocalDate(line.lastAsOf) })
           : t('routine_estate.no_last')}>
         {(c) => <Input inputMode="decimal" {...c} {...form.register(`estimates.${index}.amount`)} className={input} />}
       </Field>
-    </Card></li>
+    </li>
   );
 
   const tickedRow = (group: Group, index: number, key: string, text: string, currency: string, already: string | null | undefined) => {
     const le = e[group]?.[index];
     return (
-      <li key={key}><Card className="gap-3 px-4 py-4 md:grid md:grid-cols-[1fr_auto_auto] md:items-start">
+      <li key={key} className="flex flex-col gap-3 p-4 md:grid md:grid-cols-[1fr_auto_auto] md:items-start">
         <div className="space-y-1">
           <Controller control={form.control} name={`${group}.${index}.checked`} render={({ field }) => (
             <Field inline label={text}>{(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}</Field>
@@ -190,7 +189,7 @@ export function EstateForm({ view, initial, onSaved }: {
             {(c) => <DateField {...c} max={todayIso()} value={field.value} onChange={field.onChange} />}
           </Field>
         )} />
-      </Card></li>
+      </li>
     );
   };
 
@@ -203,7 +202,7 @@ export function EstateForm({ view, initial, onSaved }: {
           {t('routine_estate.check_all')}
         </Button>
       </div>
-      <ul className="space-y-3">{rows}</ul>
+      <ul className="divide-y rounded-lg border">{rows}</ul>
     </section>
   ));
 
@@ -212,13 +211,13 @@ export function EstateForm({ view, initial, onSaved }: {
       {problem ? <ProblemMessage problem={problem} /> : null}
       <section aria-labelledby={`${id}-estimates`} className="space-y-1">
         <h3 id={`${id}-estimates`} className="font-semibold">{t('routine_estate.estimates')}</h3>
-        {due.length > 0 ? <ul className="space-y-3">{due.map(estimateRow)}</ul> : null}
+        {due.length > 0 ? <ul className="divide-y rounded-lg border">{due.map(estimateRow)}</ul> : null}
         {others.length > 0 ? (
           <Collapsible open={othersOpen ?? due.length === 0} onOpenChange={setOthersOpen} className="space-y-3">
             <CollapsibleTrigger className="flex items-center gap-1 font-medium">
               <ChevronDown aria-hidden="true" className="size-4" />{t('routine_estate.others')}
             </CollapsibleTrigger>
-            <CollapsibleContent><ul className="space-y-3">{others.map(estimateRow)}</ul></CollapsibleContent>
+            <CollapsibleContent><ul className="divide-y rounded-lg border">{others.map(estimateRow)}</ul></CollapsibleContent>
           </Collapsible>
         ) : null}
       </section>

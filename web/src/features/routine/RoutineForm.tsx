@@ -11,7 +11,6 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChevronDown } from 'lucide-react';
 import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -118,8 +117,7 @@ export function RoutineForm({ view, month, initial, onSaved }: {
   const row = ({ line, index }: { line: RoutineLine; index: number }) => {
     const e = form.formState.errors.lines?.[index];
     return (
-      <li key={line.id}>
-        <Card className="gap-3 px-4 py-4 md:grid md:grid-cols-[1fr_auto_auto_auto] md:items-end">
+      <li key={line.id} className="flex flex-col gap-3 p-4 md:grid md:grid-cols-[1fr_auto_auto_auto] md:items-end">
           <div>
             <p className="font-medium">{line.name}</p>
             <p className="text-sm text-muted-foreground">
@@ -137,7 +135,6 @@ export function RoutineForm({ view, month, initial, onSaved }: {
               {(c) => <Checkbox {...c} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
             </Field>
           )} />
-        </Card>
       </li>
     );
   };
@@ -146,14 +143,14 @@ export function RoutineForm({ view, month, initial, onSaved }: {
     <form noValidate onKeyDown={onKeyDown} onSubmit={(ev) => void submit(ev)} className="space-y-4">
       {problem ? <ProblemMessage problem={problem} /> : null}
       <section aria-label={t('routine.due')} data-guide="routine.due" className="space-y-3">        <h2 className="text-lg font-semibold">{t('routine.due')}</h2>
-        {due.length === 0 ? <p className="text-muted-foreground">{t('routine.all_done', { month })}</p> : <ul className="space-y-3">{due.map(row)}</ul>}
+        {due.length === 0 ? <p className="text-muted-foreground">{t('routine.all_done', { month })}</p> : <ul className="divide-y rounded-lg border">{due.map(row)}</ul>}
       </section>
       {others.length > 0 ? (
         <Collapsible open={othersOpen ?? due.length === 0} onOpenChange={setOthersOpen} className="space-y-3">
           <CollapsibleTrigger className="flex items-center gap-1 font-medium">
             <ChevronDown aria-hidden="true" className="size-4" />{t('routine.others')}
           </CollapsibleTrigger>
-          <CollapsibleContent><ul className="space-y-3">{others.map(row)}</ul></CollapsibleContent>
+          <CollapsibleContent><ul className="divide-y rounded-lg border">{others.map(row)}</ul></CollapsibleContent>
         </Collapsible>
       ) : null}
       <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
