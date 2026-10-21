@@ -137,6 +137,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
         services.AddScoped<IUpcomingEvents, Nid.Subscriptions.Application.SubscriptionsUpcoming>();
+        services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
 
         services.AddDbContext<InvestmentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -167,7 +168,6 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
-        services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
 
         services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

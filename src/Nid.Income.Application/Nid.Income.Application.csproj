@@ -5,6 +5,8 @@
     <ProjectReference Include="..\Nid.Income.Domain\Nid.Income.Domain.csproj" />
     <ProjectReference Include="..\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <!-- Reads RealEstate's rents (IRentIncome) for the household overview. -->
+    <ProjectReference Include="..\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

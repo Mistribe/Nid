@@ -3,6 +3,7 @@ using Nid.Core.Contracts;
 using Nid.Income.Contracts;
 using Nid.Income.Domain;
 using Nid.Platform.Contracts;
+using Nid.RealEstate.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;

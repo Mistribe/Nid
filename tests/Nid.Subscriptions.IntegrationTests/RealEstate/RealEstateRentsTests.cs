@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.RealEstate.Contracts;
 using NodaTime;
 using Nid.TestSupport;
 using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;

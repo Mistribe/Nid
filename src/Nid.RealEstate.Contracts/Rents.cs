@@ -1,7 +1,8 @@
+using Nid.Core.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
 
-namespace Nid.Core.Contracts;
+namespace Nid.RealEstate.Contracts;
 
 /// <summary>Income dashboard spec §5: one rent due, rent only (no charges), prorated, dated on the first covered day.</summary>
 public sealed record RentDue(LocalDate On, decimal Amount);
@@ -14,7 +15,7 @@ public sealed record RentSource(
     RentDue? Next,                                       // first due strictly after `today` (any month)
     LocalDate? EndsOn);                                  // end of the tenancy covering today when no later tenancy follows
 
-/// <summary>RealEstate's rents for the Income module's household overview (income dashboard spec §5).</summary>
+/// <summary>RealEstate's rents, read by the Income module for its household overview (income dashboard spec §5).</summary>
 public interface IRentIncome
 {
     /// <summary>An open <paramref name="range"/> is read up to the month of <paramref name="today"/>.</summary>
