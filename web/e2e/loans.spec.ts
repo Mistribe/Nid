@@ -29,11 +29,11 @@ test('alice creates a private loan and reads its schedule; bob never sees it', a
   await expect(schedule.getByRole('button', { expanded: true })).toHaveCount(1);
   await expect(schedule.getByText('prochaine échéance')).toBeVisible();
 
-  await alice.goto('/loans?scope=me');
+  await alice.goto('/loans?tab=list&scope=me');
   await expect(alice.getByRole('table', { name: 'Liste des crédits' }).getByRole('row').filter({ hasText: name })).toContainText('1 159,92 €');
 
   const bob = await browser.newPage();
-  await signIn(bob, 'bob', '/loans');
+  await signIn(bob, 'bob', '/loans?tab=list');
   await expect(bob.getByRole('heading', { name: 'Crédits', level: 1 })).toBeVisible();
   // The heading renders while the list is still a skeleton (aria-busy): wait for its answer before asserting absence.
   await expect(bob.locator('[aria-busy="true"]')).toHaveCount(0);

@@ -7,6 +7,9 @@ using UnambitiousFx.Functional;
 
 namespace Nid.RealEstate.Application;
 
+/// <summary>A change of <see cref="LoanReading.Changes"/>: <c>EndingPhase</c> is the phase that ends, null for the last payment.</summary>
+internal sealed record LoanChange(LocalDate On, int? EndingPhase);
+
 /// <summary>Spec 3A2 §3: what the engine is handed, and what is read off its schedule.</summary>
 internal static class LoanReading
 {
@@ -66,6 +69,19 @@ internal static class LoanReading
             (null, { } repayment) => repayment,
             _ => terms.DisbursedOn,
         };
+    }
+
+    /// <summary>
+    /// 3E1 spec §4: a schedule's dated changes — a phase's end, on the next phase's first payment (its rate or its deferral
+    /// changes), then the last payment. The home page's « À venir » and the loans overview read the same ones.
+    /// </summary>
+    public static IEnumerable<LoanChange> Changes(IReadOnlyList<ScheduleRow> rows)
+    {
+        for (var i = 1; i < rows.Count; i++)
+            if (rows[i].PhaseSeq != rows[i - 1].PhaseSeq)
+                yield return new LoanChange(rows[i].DueDate, rows[i - 1].PhaseSeq);
+        if (rows.Count > 0)
+            yield return new LoanChange(rows[^1].DueDate, null);
     }
 
     /// <summary>Spec §2: ended once its end is past.</summary>

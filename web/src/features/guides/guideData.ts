@@ -22,7 +22,7 @@ export const GUIDES: readonly Guide[] = [
   guide('investments', 5, ['figures', 'evolution', 'enter', 'history', 'holdings'], true, 3),
   guide('income', 3),
   guide('properties', 3),
-  guide('loans', 4, ['figures', 'simulation', 'schedule'], true, 2),
+  guide('loans', 4, ['figures', 'simulation', 'schedule'], true, 3),
   guide('routine', 3, ['due', 'save', 'estate']),
   guide('import', 3),
   guide('export', 3),

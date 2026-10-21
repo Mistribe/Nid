@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
+import { overview as loansOverview } from '@/features/loans/testData';
 import { estateRoutine, routine } from '@/features/routine/testData';
 import { overview as subscriptionsOverview } from '@/features/subscriptions/testData';
 import { aliceSessionResponse, allCapabilities } from './fixtures';
@@ -33,6 +34,8 @@ export const handlers = [
   http.get('*/api/v1/income/overview', () => HttpResponse.json(overview())),
   http.get('*/api/v1/income/sources', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [] })),
+  // ... and their overview, the tab the page opens on (no loan).
+  http.get('*/api/v1/realestate/loans/overview', () => HttpResponse.json(loansOverview())),
   http.get('*/api/v1/realestate/properties', () => HttpResponse.json({ items: [] })),
   // Every income source page reads its overview (figures, evolution, timeline).
   http.get('*/api/v1/income/sources/:id/overview', () => HttpResponse.json(sourceOverview())),

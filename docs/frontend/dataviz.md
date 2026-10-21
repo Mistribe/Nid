@@ -31,6 +31,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Couverture d'un abonnement | **Bande temporelle en SVG** | 5 catégories fixes, libellé direct sur chaque période |
 | Crédit : capital et intérêts par mois | Barres empilées | 2 catégories |
 | Crédit : capital restant dû | Courbe, **graphique séparé** | 1 série |
+| Crédits : capital restant dû du foyer jusqu’à la fin | Aires empilées, séparations de 2 px, libellé dans chaque aire assez haute, événements en traits pointillés, bascule en tableau | Catégorielle, une couleur par crédit dans l’ordre du restant dû (slots 1 à 8, ton neutre au-delà) |
 | **Utilisation des revenus** | Barre empilée unique : engagements par catégorie, puis marge | Catégories fixes pour les engagements, **ton neutre** pour la marge |
 | **Où part le revenu du mois** (accueil) | Sankey en SVG maison sur ordinateur : sources de revenu en cours, revenu du mois, sources d'engagement puis « Reste » ; sur téléphone et dans le panneau de la marge, deux barres empilées « D'où il vient » et « Où il part » ; marge négative = les deux barres, marge inconnue = raison dite, rien d'inventé ; montant et part du serveur dans chaque libellé (la part des sources dans l'infobulle et le tableau), infobulle au survol | Sources de revenu en ton neutre (`--muted-foreground`), « Autres » en gris neutre, catégories fixes des engagements, slot 6 pour « Reste » |
 | Patrimoine (accueil) | Aire de la valeur et courbe pointillée des versements, période segmentée, bascule en tableau | 2 séries |

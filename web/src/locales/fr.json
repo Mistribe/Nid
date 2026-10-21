@@ -1203,7 +1203,7 @@
         "1": { "title": "Un contrat produit l’échéancier", "body": "Le capital, le taux et la durée du contrat suffisent à Nid pour calculer chaque échéance et ses intérêts ; l’assurance s’ajoute à part, comme vous la saisissez. Le calcul est la référence tant que vous n’en choisissez pas une autre." },
         "2": { "title": "Les phases", "body": "Une phase est une période à taux ou à mensualité propre : un différé, un palier, un taux variable. Quand une phase se termine, l’accueil vous prévient dans « À venir »." },
         "3": { "title": "Rembourser par anticipation", "body": "La simulation compare deux effets d’un remboursement : « Réduire la durée » ou « Réduire la mensualité ». Rien n’est enregistré tant que vous ne le demandez pas." },
-        "4": { "title": "Le tableau de la banque", "body": "Collez le tableau d’amortissement de votre banque : Nid le compare à son calcul et vous laisse choisir la référence. Commencez par « Ajouter un crédit »." }
+        "4": { "title": "Le tableau de la banque", "body": "Collez le tableau d’amortissement de votre banque : Nid le compare à son calcul et vous laisse choisir la référence. La page s’ouvre sur la vue d’ensemble du foyer, le restant dû jusqu’à la fin et ce qui change ; « Liste » garde chaque crédit. Commencez par « Ajouter un crédit »." }
       },
       "hint": "Ouvrez un crédit puis touchez ? pour voir la visite de sa fiche.",
       "tour": {

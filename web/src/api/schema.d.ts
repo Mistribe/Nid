@@ -6692,6 +6692,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/loans/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LoansOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/loans/{id}": {
         parameters: {
             query?: never;
@@ -12838,6 +12929,11 @@ export interface components {
             /** Format: uuid */
             tokenId?: null | string;
         };
+        BalanceMonthView: {
+            month: string;
+            total?: null | components["schemas"]["LoanMoneyView"];
+            byLoan: components["schemas"]["LoanBalanceView"][];
+        };
         BankRowView: {
             /** Format: date */
             dueDate: string;
@@ -13956,6 +14052,11 @@ export interface components {
             /** Format: double */
             weightPct?: null | number;
         };
+        LoanBalanceView: {
+            /** Format: uuid */
+            loanId: string;
+            balance?: null | components["schemas"]["LoanMoneyView"];
+        };
         LoanBorrowerView: {
             /** Format: uuid */
             personId: string;
@@ -14013,6 +14114,16 @@ export interface components {
             bankSchedule?: null | components["schemas"]["BankScheduleView"];
             comparison?: null | components["schemas"]["ScheduleComparisonView"];
         };
+        LoanEventView: {
+            /** Format: date */
+            date: string;
+            code: string;
+            /** Format: uuid */
+            loanId: string;
+            /** Format: int32 */
+            phaseSeq?: null | number;
+            monthlyPaymentAfter?: null | components["schemas"]["LoanMoneyView"];
+        };
         LoanFeeBody: {
             kind?: null | string;
             amount?: null | string;
@@ -14054,6 +14165,11 @@ export interface components {
             costPaid: string;
             costRemaining: string;
         };
+        LoanFindingView: {
+            code: string;
+            message: string;
+            reference?: null | string;
+        };
         LoanInsuranceBody: {
             mode?: null | string;
             monthlyAmount?: null | string;
@@ -14075,6 +14191,10 @@ export interface components {
         LoanList: {
             items: components["schemas"]["LoanSummary"][];
         };
+        LoanMoneyView: {
+            amount: string;
+            currency: string;
+        };
         LoanOutcomeView: {
             effect: string;
             paymentBefore: string;
@@ -14091,6 +14211,26 @@ export interface components {
             interestAfter: string;
             interestSaved: string;
             netSaving: string;
+        };
+        LoanOverviewRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            lender?: null | string;
+            /** Format: uuid */
+            propertyId?: null | string;
+            propertyName?: null | string;
+            owners: components["schemas"]["ItemOwnerView"][];
+            currency: string;
+            principal: string;
+            balance: string;
+            repaidShare: string;
+            monthlyPayment?: null | string;
+            currentRate?: null | string;
+            /** Format: date */
+            endDate?: null | string;
+            balanceConverted?: null | components["schemas"]["LoanMoneyView"];
+            monthlyPaymentConverted?: null | components["schemas"]["LoanMoneyView"];
         };
         LoanPhaseBody: {
             /** Format: int32 */
@@ -14182,6 +14322,30 @@ export interface components {
             amount: string;
             penalty: string;
             outcomes: components["schemas"]["LoanOutcomeView"][];
+        };
+        LoansOverview: {
+            currency: string;
+            convertedIsEstimate: boolean;
+            /** Format: int32 */
+            runningCount: number;
+            /** Format: int32 */
+            endedCount: number;
+            balance?: null | components["schemas"]["LoanMoneyView"];
+            principal?: null | components["schemas"]["LoanMoneyView"];
+            principalRepaid?: null | components["schemas"]["LoanMoneyView"];
+            repaidShare?: null | string;
+            monthlyPayment?: null | components["schemas"]["LoanMoneyView"];
+            costPaid?: null | components["schemas"]["LoanMoneyView"];
+            costRemaining?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: date */
+            freeOn?: null | string;
+            /** Format: date */
+            nextPaymentOn?: null | string;
+            nextPaymentTotal?: null | components["schemas"]["LoanMoneyView"];
+            loans: components["schemas"]["LoanOverviewRow"][];
+            months: components["schemas"]["BalanceMonthView"][];
+            events: components["schemas"]["LoanEventView"][];
+            findings: components["schemas"]["LoanFindingView"][];
         };
         LoanSummary: {
             /** Format: uuid */

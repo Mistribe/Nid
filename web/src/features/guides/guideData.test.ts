@@ -25,9 +25,9 @@ describe('guides', () => {
   it('knows which guides are unseen', () => {
     const loans = guideFor('/loans')!;
     expect(isUnseen(loans, {})).toBe(true);
-    expect(isUnseen(loans, { loans: 2 })).toBe(false);
-    expect(isUnseen(loans, { loans: 1 })).toBe(true);
-    expect(isUnseen({ ...loans, version: 3 }, { loans: 2 })).toBe(true);
+    expect(isUnseen(loans, { loans: 3 })).toBe(false);
+    expect(isUnseen(loans, { loans: 2 })).toBe(true);
+    expect(isUnseen({ ...loans, version: 4 }, { loans: 3 })).toBe(true);
     expect(Object.keys(allGuidesSeen())).toHaveLength(9);
   });
 

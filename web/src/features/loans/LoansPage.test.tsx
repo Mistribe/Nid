@@ -34,7 +34,7 @@ describe('LoansPage', () => {
     const alice = '0192f0aa-0000-7000-8000-0000000000a1';
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
     serve(list([summary({ propertyName: 'Maison de Nantes', owners: [{ personId: alice, shareBp: 10000 }] })]));
-    const { container } = await renderApp('/loans');
+    const { container } = await renderApp('/loans?tab=list');
 
     const table = await screen.findByRole('table', { name: 'Liste des crédits' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
@@ -56,7 +56,7 @@ describe('LoansPage', () => {
 
   it('sorts by the balance left', async () => {
     serve(list([summary({ name: 'Gros' }), summary({ id: 'b', name: 'Petit', remainingBalance: '1000.00' })]));
-    const { user } = await renderApp('/loans');
+    const { user } = await renderApp('/loans?tab=list');
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(Gros|Petit)/)?.[0]);
     expect(await names()).toEqual(['Gros', 'Petit']);
@@ -66,7 +66,7 @@ describe('LoansPage', () => {
 
   it('the add link is always shown, even when no row is writable', async () => {
     serve(list([summary({ canWrite: false })]));
-    await renderApp('/loans');
+    await renderApp('/loans?tab=list');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter un crédit' })).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('LoansPage', () => {
 
   it('offers « Ajouter un crédit » above the list', async () => {
     serve(list([summary()]));
-    await renderApp('/loans');
+    await renderApp('/loans?tab=list');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter un crédit' })).toHaveAttribute('href', '/loans/new');
@@ -83,7 +83,7 @@ describe('LoansPage', () => {
   it('invites to add the first loan when there is none at all', async () => {
     const seen: string[] = [];
     serve(list([]), seen);
-    const { container } = await renderApp('/loans');
+    const { container } = await renderApp('/loans?tab=list');
 
     expect(await screen.findByRole('heading', { name: 'Aucun crédit pour l’instant' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Ajouter un crédit' })[0]).toHaveAttribute('href', '/loans/new');
@@ -94,7 +94,7 @@ describe('LoansPage', () => {
   it('says nothing is running when only ended loans exist, with a link that shows them', async () => {
     const seen: string[] = [];
     serve(list([]), seen, list([ended]));
-    const { user, router, container } = await renderApp('/loans');
+    const { user, router, container } = await renderApp('/loans?tab=list');
 
     expect(await screen.findByRole('heading', { name: 'Aucun crédit en cours' })).toBeInTheDocument();
     expect(seen).toEqual(['?scope=household', '?scope=household&ended=true']);
@@ -107,14 +107,14 @@ describe('LoansPage', () => {
 
   it('shows a skeleton while the list loads', async () => {
     server.use(http.get('*/api/v1/realestate/loans', async () => { await delay('infinite'); return HttpResponse.json(list([])); }));
-    await renderApp('/loans');
+    await renderApp('/loans?tab=list');
 
     expect(await screen.findByLabelText('Chargement des crédits')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('shows a failed load as a problem', async () => {
     server.use(http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
-    await renderApp('/loans');
+    await renderApp('/loans?tab=list');
 
     expect(await screen.findByRole('alert', {})).toBeInTheDocument();
   });
@@ -122,7 +122,7 @@ describe('LoansPage', () => {
   it('passes the Moi scope to the API', async () => {
     const seen: string[] = [];
     serve(list([summary()]), seen);
-    await renderApp('/loans?scope=me');
+    await renderApp('/loans?tab=list&scope=me');
 
     await rows();
     expect(seen).toEqual(['?scope=me']);
@@ -133,7 +133,7 @@ describe('LoansPage, ended loans', () => {
   it('asks for them only when the box is checked, keeps that in the URL, and marks them in words, without next payment or rate', async () => {
     const seen: string[] = [];
     serve(list([summary()]), seen, list([summary(), ended]));
-    const { user, router, container } = await renderApp('/loans');
+    const { user, router, container } = await renderApp('/loans?tab=list');
 
     const box = await screen.findByRole('switch', { name: 'Afficher les crédits terminés' });
     expect(box).not.toBeChecked();
@@ -141,7 +141,8 @@ describe('LoansPage, ended loans', () => {
     await user.click(box);
 
     await waitFor(() => expect(seen).toContain('?scope=household&ended=true'));
-    expect(router.state.location.search).toMatchObject({ ended: 1 });
+    // The switch keeps the list's tab (loans dashboard §3.1).
+    expect(router.state.location.search).toMatchObject({ ended: 1, tab: 'list' });
     await waitFor(async () => expect(await rows()).toHaveLength(2));
     const items = await rows();
     expect(within(items[1]!).getByText('Terminé')).toBeInTheDocument();
@@ -155,7 +156,7 @@ describe('LoansPage, ended loans', () => {
   it('starts checked from the URL and ignores any value other than 1', async () => {
     const seen: string[] = [];
     serve(list([summary()]), seen);
-    await renderApp('/loans?ended=yes');
+    await renderApp('/loans?tab=list&ended=yes');
 
     await rows();
     expect(screen.getByRole('switch', { name: 'Afficher les crédits terminés' })).not.toBeChecked();

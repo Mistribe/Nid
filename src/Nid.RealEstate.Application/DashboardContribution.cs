@@ -256,13 +256,11 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
-            var rows = LoanReading.Schedule(terms, loan).Rows;
-            for (var i = 1; i < rows.Count; i++)
-                if (rows[i].PhaseSeq != rows[i - 1].PhaseSeq && Within(rows[i].DueDate))
-                    events.Add(new UpcomingEvent(rows[i].DueDate, UpcomingKinds.LoanPhaseEnd, loan.ItemId, "loans", item.DisplayName,
-                        rows[i - 1].PhaseSeq.ToString(CultureInfo.InvariantCulture), null));
-            if (rows.Count > 0 && Within(rows[^1].DueDate))
-                events.Add(new UpcomingEvent(rows[^1].DueDate, UpcomingKinds.LoanEnd, loan.ItemId, "loans", item.DisplayName, null, null));
+            foreach (var change in LoanReading.Changes(LoanReading.Schedule(terms, loan).Rows).Where(c => Within(c.On)))
+                events.Add(change.EndingPhase is { } phase
+                    ? new UpcomingEvent(change.On, UpcomingKinds.LoanPhaseEnd, loan.ItemId, "loans", item.DisplayName,
+                        phase.ToString(CultureInfo.InvariantCulture), null)
+                    : new UpcomingEvent(change.On, UpcomingKinds.LoanEnd, loan.ItemId, "loans", item.DisplayName, null, null));
         }
 
         // Only a property with a staleness threshold has an estimate to redo; its latest on or before today is LatestAsync's.

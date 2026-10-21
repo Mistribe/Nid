@@ -1,4 +1,4 @@
-import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoanSummary } from './api';
+import type { BankRow, LoanComparison, LoanDetail, LoanList, LoanOverviewRow, LoansOverview, LoanSchedule, LoanScheduleRow, LoanScheduleYear, LoanSimulation, LoanSummary } from './api';
 
 export const LOAN = '0192f0aa-0000-7000-8000-00000000d001';
 
@@ -91,3 +91,43 @@ export const agreeing = (over: Partial<LoanComparison> = {}): LoanComparison => 
 
 /** The loan with its bank's table stored, agreeing with the calculation. */
 export const withTable = (over: Partial<LoanDetail> = {}): LoanDetail => loanDetail({ bankSchedule: bankTable(), comparison: agreeing(), ...over });
+
+const eur = (amount: string) => ({ amount, currency: 'EUR' });
+
+/** A running loan of the overview: the golden case read on 2026-10-12, as `summary`. */
+export const overviewRow = (over: Partial<LoanOverviewRow> = {}): LoanOverviewRow => ({
+  id: LOAN, name: 'Prêt maison', lender: 'Banque', propertyId: null, propertyName: null, owners: [], currency: 'EUR',
+  principal: '200000.00', balance: '193564.23', repaidShare: '0.0322', monthlyPayment: '1159.92', currentRate: '0.035',
+  endDate: '2045-10-15', balanceConverted: eur('193564.23'), monthlyPaymentConverted: eur('1159.92'), ...over,
+});
+
+/** The household's overview: no loan unless `over` says otherwise (the figures of an empty household are zeros). */
+export const overview = (over: Partial<LoansOverview> = {}): LoansOverview => ({
+  currency: 'EUR', convertedIsEstimate: false, runningCount: 0, endedCount: 0, balance: eur('0.00'), principal: eur('0.00'),
+  principalRepaid: eur('0.00'), repaidShare: null, monthlyPayment: eur('0.00'), costPaid: eur('0.00'), costRemaining: eur('0.00'),
+  freeOn: null, nextPaymentOn: null, nextPaymentTotal: null, loans: [], months: [], events: [], findings: [], ...over,
+});
+
+/** Two running loans, the house and the car, the car's last payment in January 2027. */
+export const CAR = '0192f0aa-0000-7000-8000-00000000d003';
+export const household = (over: Partial<LoansOverview> = {}): LoansOverview => overview({
+  runningCount: 2, balance: eur('199564.23'), principal: eur('212000.00'), principalRepaid: eur('12435.77'), repaidShare: '0.0587',
+  monthlyPayment: eur('2159.92'), costPaid: eur('6823.35'), costRemaining: eur('72157.31'), freeOn: '2045-10-15',
+  nextPaymentOn: '2026-11-15', nextPaymentTotal: eur('2159.92'),
+  loans: [
+    overviewRow(),
+    overviewRow({ id: CAR, name: 'Prêt auto', lender: null, principal: '12000.00', balance: '6000.00', repaidShare: '0.5000',
+      monthlyPayment: '1000.00', currentRate: '0', endDate: '2027-01-15', balanceConverted: eur('6000.00'), monthlyPaymentConverted: eur('1000.00') }),
+  ],
+  months: [
+    { month: '2026-10', total: eur('199564.23'), byLoan: [{ loanId: LOAN, balance: eur('193564.23') }, { loanId: CAR, balance: eur('6000.00') }] },
+    { month: '2026-11', total: eur('197404.31'), byLoan: [{ loanId: LOAN, balance: eur('192404.31') }, { loanId: CAR, balance: eur('5000.00') }] },
+    { month: '2027-01', total: eur('190000.00'), byLoan: [{ loanId: LOAN, balance: eur('190000.00') }, { loanId: CAR, balance: eur('0.00') }] },
+    { month: '2027-02', total: eur('188000.00'), byLoan: [{ loanId: LOAN, balance: eur('188000.00') }] },
+  ],
+  events: [
+    { date: '2027-01-15', code: 'realestate.loan_ends', loanId: CAR, phaseSeq: null, monthlyPaymentAfter: eur('1159.92') },
+    { date: '2045-10-15', code: 'realestate.loan_ends', loanId: LOAN, phaseSeq: null, monthlyPaymentAfter: eur('0.00') },
+  ],
+  ...over,
+});

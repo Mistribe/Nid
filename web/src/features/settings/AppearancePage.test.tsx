@@ -272,7 +272,7 @@ describe('Réglages › Apparence', () => {
     // The reset's response carries the empty map from before the guide was closed.
     releases[0]?.();
     await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[1]).toEqual({ guidesSeen: { loans: 2 }, csrf: 'csrf-alice' });
+    expect(sent[1]).toEqual({ guidesSeen: { loans: 3 }, csrf: 'csrf-alice' });
     releases[1]?.();
 
     await router.navigate({ to: '/settings/appearance' });

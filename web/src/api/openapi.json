@@ -7274,6 +7274,94 @@
         }
       }
     },
+    "/api/v1/realestate/loans/overview": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoansOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/loans/{id}": {
       "get": {
         "tags": [
@@ -13821,6 +13909,34 @@
           }
         }
       },
+      "BalanceMonthView": {
+        "required": [
+          "month",
+          "byLoan"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "total": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "byLoan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanBalanceView"
+            }
+          }
+        }
+      },
       "BankRowView": {
         "required": [
           "dueDate",
@@ -18640,6 +18756,28 @@
           }
         }
       },
+      "LoanBalanceView": {
+        "required": [
+          "loanId"
+        ],
+        "type": "object",
+        "properties": {
+          "loanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "balance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "LoanBorrowerView": {
         "required": [
           "personId",
@@ -18894,6 +19032,44 @@
           }
         }
       },
+      "LoanEventView": {
+        "required": [
+          "date",
+          "code",
+          "loanId"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "code": {
+            "type": "string"
+          },
+          "loanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phaseSeq": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "monthlyPaymentAfter": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "LoanFeeBody": {
         "type": "object",
         "properties": {
@@ -19050,6 +19226,27 @@
           }
         }
       },
+      "LoanFindingView": {
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "LoanInsuranceBody": {
         "type": "object",
         "properties": {
@@ -19146,6 +19343,21 @@
           }
         }
       },
+      "LoanMoneyView": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
       "LoanOutcomeView": {
         "required": [
           "effect",
@@ -19202,6 +19414,103 @@
           },
           "netSaving": {
             "type": "string"
+          }
+        }
+      },
+      "LoanOverviewRow": {
+        "required": [
+          "id",
+          "name",
+          "owners",
+          "currency",
+          "principal",
+          "balance",
+          "repaidShare"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lender": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "propertyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "propertyName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "currency": {
+            "type": "string"
+          },
+          "principal": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
+          },
+          "repaidShare": {
+            "type": "string"
+          },
+          "monthlyPayment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currentRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "endDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "balanceConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "monthlyPaymentConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
           }
         }
       },
@@ -19573,6 +19882,149 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanOutcomeView"
+            }
+          }
+        }
+      },
+      "LoansOverview": {
+        "required": [
+          "currency",
+          "convertedIsEstimate",
+          "runningCount",
+          "endedCount",
+          "loans",
+          "months",
+          "events",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "convertedIsEstimate": {
+            "type": "boolean"
+          },
+          "runningCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "balance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "principal": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "principalRepaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "repaidShare": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlyPayment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "costPaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "costRemaining": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "freeOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "nextPaymentOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "nextPaymentTotal": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanOverviewRow"
+            }
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BalanceMonthView"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanEventView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanFindingView"
             }
           }
         }

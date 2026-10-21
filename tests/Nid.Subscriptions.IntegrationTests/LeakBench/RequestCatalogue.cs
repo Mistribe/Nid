@@ -340,6 +340,7 @@ public static class RequestCatalogue
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
 
         new(typeof(ListLoansQuery), false, (_, _) => new ListLoansQuery(VisibilityScope.Me, true)),
+        new(typeof(GetLoansOverviewQuery), false, (_, _) => new GetLoansOverviewQuery(VisibilityScope.Me)),
         new(typeof(GetLoanQuery), true, (_, item) => new GetLoanQuery(item)),
         new(typeof(GetLoanScheduleQuery), true, (_, item) => new GetLoanScheduleQuery(item)),
         new(typeof(SimulateLoanRepaymentQuery), true, (_, item) => new SimulateLoanRepaymentQuery(item, new LocalDate(2025, 1, 15), 1_000m, null, 0m)),

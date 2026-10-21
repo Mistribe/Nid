@@ -1,5 +1,6 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Archive } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -8,26 +9,48 @@ import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { OwnerChips } from '@/components/OwnerChips';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { LOANS, type LoanSummary } from './api';
 import { money, percent } from './format';
+import '@/locales/loans';
 
 function useLoans(scope: 'me' | 'household', ended: boolean, enabled = true) {
   const { $api } = useApi();
   return $api.useQuery('get', LOANS, { params: { query: { scope, ...(ended ? { ended: true } : {}) } } }, { enabled });
 }
 
-/** The loans with their balance, next payment, rate and end (3B1 design §5). */
+const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
+
+/** Loans dashboard §3.1: the overview opens first; the list keeps its switch of the ended loans under `?tab=list`. */
 export function LoansPage() {
+  const { t } = useTranslation();
+  const search: RootSearch = useSearch({ strict: false });
+  const [tab, setTab] = useDetailTab(['overview', 'list'] as const);
+  const scope = search.scope === 'me' ? 'me' : 'household';
+  return (
+    <div className="space-y-4">
+      <PageHeader title={t('loans.title')} actions={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
+      <DetailTabs value={tab} onChange={setTab} tabs={[
+        { id: 'overview', label: t('loans_overview.tab_overview'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} /></Suspense> },
+        { id: 'list', label: t('loans_overview.tab_list'), content: <ListTab scope={scope} /> },
+      ]} />
+    </div>
+  );
+}
+
+/** The loans with their balance, next payment, rate and end (3B1 design §5). */
+function ListTab({ scope }: { scope: 'me' | 'household' }) {
   const { t } = useTranslation();
   const search: RootSearch & LoansSearch = useSearch({ strict: false });
   const navigate = useNavigate();
-  const scope = search.scope === 'me' ? 'me' : 'household';
   const ended = search.ended === 1;
   const answer = useLoans(scope, ended);
   // An empty list without the ended loans asks once more with them (ended=true returns running and ended alike),
@@ -38,11 +61,10 @@ export function LoansPage() {
 
   // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (
-    <div className="space-y-4">
-      <PageHeader title={t('loans.title')} actions={<Link to="/loans/new" className={buttonVariants()}>{t('loans.add')}</Link>} />
+    <>
       <SwitchField label={t('loans.show_ended')} checked={ended} onCheckedChange={setEnded} />
       <Body answer={answer} withEnded={ended ? null : withEnded} />
-    </div>
+    </>
   );
 }
 
