@@ -30,23 +30,19 @@ public static class TokenAuthentication
     public static string ClientAddress(HttpContext context) => context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     /// <summary>60 requests a minute per token (spec 4A §7); cookie requests are not limited here.</summary>
+    /// <remarks>
+    /// Built by the container, which disposes it with the provider, and applied by <see cref="TokenRateLimitMiddleware"/>
+    /// rather than ASP.NET's rate limiting: neither a limiter set in its options nor the endpoint limiter its middleware
+    /// builds is ever disposed, and their heartbeat timers kept every stopped host alive (each test host, ~7 MB).
+    /// </remarks>
     public static IServiceCollection AddTokenRateLimiter(this IServiceCollection services)
-        => services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.OnRejected = (context, _) =>
-            {
-                context.HttpContext.Response.Headers.RetryAfter = "60";
-                return ValueTask.CompletedTask;
-            };
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                TokenClaims.Read(context.User) is { } token
-                    ? RateLimitPartition.GetFixedWindowLimiter(token.TokenId.ToString(), _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true,
-                    })
-                    : RateLimitPartition.GetNoLimiter(""));
-        });
+        => services.AddSingleton(_ => PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            TokenClaims.Read(context.User) is { } token
+                ? RateLimitPartition.GetFixedWindowLimiter(token.TokenId.ToString(), _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true,
+                })
+                : RateLimitPartition.GetNoLimiter("")));
 }
 
 /// <summary>
@@ -160,5 +156,21 @@ public sealed class TokenFailureGateMiddleware(RequestDelegate next, TokenFailur
             return Task.CompletedTask;
         }
         return next(context);
+    }
+}
+
+/// <summary>After authentication: a token past its 60 requests of the minute is answered 429 (spec 4A §7).</summary>
+public sealed class TokenRateLimitMiddleware(RequestDelegate next, PartitionedRateLimiter<HttpContext> limiter)
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        using var lease = limiter.AttemptAcquire(context);
+        if (!lease.IsAcquired)
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.Response.Headers.RetryAfter = "60";
+            return;
+        }
+        await next(context);
     }
 }

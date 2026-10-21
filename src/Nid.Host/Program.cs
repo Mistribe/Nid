@@ -106,7 +106,7 @@ app.MapNidHealth();
 app.UseForwardedHeaders();
 app.UseMiddleware<TokenFailureGateMiddleware>();
 app.UseAuthentication();
-app.UseRateLimiter();
+app.UseMiddleware<TokenRateLimitMiddleware>();
 app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 app.MapAuth();

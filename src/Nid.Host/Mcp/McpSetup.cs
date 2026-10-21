@@ -1,3 +1,4 @@
+using ModelContextProtocol;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -28,6 +29,9 @@ public static class McpSetup
         foreach (var action in RouteActions.All)
             services.AddScoped<Nid.Core.Contracts.IProposalHandler>(sp => ActivatorUtilities.CreateInstance<RouteProposal>(sp, action));
 
+        // This host's own copy of the SDK's options: the tools' descriptors are cached per options instance, and on the
+        // SDK's static one each test host's tools, holding its container, stayed for the life of the process.
+        var json = new System.Text.Json.JsonSerializerOptions(McpJsonUtilities.DefaultOptions);
         services.AddMcpServer(options =>
             {
                 options.ServerInfo = new Implementation { Name = "nid", Version = "1" };
@@ -49,13 +53,13 @@ public static class McpSetup
                     new SecurityEvent(SecurityEventNames.McpToolCalled, token.Person, [], new Dictionary<string, string> { ["tool"] = tool }), ct);
                 return await next(context, ct);
             }))
-            .WithTools<PersonTools>()
-            .WithTools<DashboardTools>()
-            .WithTools<SubscriptionTools>()
-            .WithTools<InvestmentTools>()
-            .WithTools<IncomeTools>()
-            .WithTools<RealEstateTools>()
-            .WithTools<WriteTools>()
+            .WithTools<PersonTools>(json)
+            .WithTools<DashboardTools>(json)
+            .WithTools<SubscriptionTools>(json)
+            .WithTools<InvestmentTools>(json)
+            .WithTools<IncomeTools>(json)
+            .WithTools<RealEstateTools>(json)
+            .WithTools<WriteTools>(json)
             .WithTools(RouteActions.All.Select(action => (McpServerTool)new RouteTool(action)));
         return services;
     }
