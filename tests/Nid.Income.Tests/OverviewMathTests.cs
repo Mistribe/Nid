@@ -132,6 +132,27 @@ public class OverviewMathTests
     }
 
     [Fact]
+    public void Now_split_keeps_six_running_inputs_largest_first_and_merges_the_rest_into_other()
+    {
+        var inputs = Enumerable.Range(1, 8).Select(n => In($"S{n}", now: n * 100m)).Append(In("Fini", now: 0m)).ToList();
+        var shares = OverviewMath.NowSplit(inputs, Today);
+        Assert.Equal(["S8", "S7", "S6", "S5", "S4", "S3", "other"], shares.Select(s => s.Name));
+        var other = shares[^1];
+        Assert.Null(other.Item);
+        Assert.Equal("other", other.Kind);
+        Assert.Equal(300m, other.PerMonth);
+        Assert.Equal(8.3m, other.Percent);
+        Assert.Equal(22.2m, shares[0].Percent);
+    }
+
+    [Fact]
+    public void Now_split_is_empty_when_a_monthly_amount_is_unconvertible_or_nothing_runs()
+    {
+        Assert.Empty(OverviewMath.NowSplit([In("A", now: 100m), In("B", now: null)], Today));
+        Assert.Empty(OverviewMath.NowSplit([In("A", now: 0m)], Today));
+    }
+
+    [Fact]
     public void Split_is_empty_when_a_due_in_the_window_is_unconvertible()
     {
         var inputs = new[] { In("A", [Dd(D(2026, 1, 1), 100m)]), In("B", [Dd(D(2026, 2, 1), null)]) };

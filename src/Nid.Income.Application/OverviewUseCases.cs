@@ -21,12 +21,13 @@ public sealed record GetIncomeOverviewQuery(
 /// <summary>Every amount is in <paramref name="Currency"/>, the household's; a null one could not be converted (<paramref name="MissingRates"/>).</summary>
 public sealed record IncomeOverview(
     string Period, LocalDate From, LocalDate To, string Currency, IncomeOverviewFigures Figures,
-    IReadOnlyList<IncomeOverviewShare> Split, IReadOnlyList<IncomeOverviewMonth> Months, IReadOnlyList<IncomeOverviewRow> Sources,
+    IReadOnlyList<IncomeOverviewShare> Split, IReadOnlyList<IncomeOverviewNowShare> NowSplit, IReadOnlyList<IncomeOverviewMonth> Months, IReadOnlyList<IncomeOverviewRow> Sources,
     IReadOnlyList<string> Kinds, IReadOnlyList<string> MissingRates) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
         => Sources.Select(s => s.Id)
             .Concat(Split.Where(s => s.Item is not null).Select(s => s.Item!.Value))
+            .Concat(NowSplit.Where(s => s.Item is not null).Select(s => s.Item!.Value))
             .Concat(Months.SelectMany(m => m.BySource.Select(p => p.Item)))
             .Distinct();
 }
@@ -37,6 +38,12 @@ public sealed record IncomeOverviewFigures(
 
 /// <summary>A share of the split; <c>one_off</c> and <c>other</c> gather several items and carry none (their name is their kind).</summary>
 public sealed record IncomeOverviewShare(ItemId? Item, string Name, string Kind, IncomeAmountView Total, IncomeAmountView PerMonth, decimal Percent);
+
+/// <summary>
+/// A share of today's monthly income over the running sources and rents (the home's « Revenus / mois »), largest first;
+/// <c>other</c> gathers the smallest and carries neither item nor module.
+/// </summary>
+public sealed record IncomeOverviewNowShare(ItemId? Item, string? Module, string Name, string Kind, IncomeAmountView PerMonth, decimal Percent);
 
 public sealed record IncomeOverviewPart(ItemId Item, string Name, IncomeAmountView Amount);
 
@@ -159,6 +166,9 @@ public sealed class GetIncomeOverviewHandler(
 
         IncomeAmountView? Amount(decimal? amount) => amount is { } a ? IncomeAmountView.Of(a, reference) : null;
         var inputs = entries.Select(e => e.Input).ToList();
+        // The home's income counts open sources and active properties only (DashboardContribution, RentContribution).
+        var running = entries.Where(e => !e.Ended).ToList();
+        var modules = running.ToDictionary(e => e.Input.Item, e => e.Module);
         var f = OverviewMath.Figures(inputs, window, today);
         return Result.Success(new IncomeOverview(
             OverviewPeriods.Of(query.Period), window.From, window.To, reference.Code,
@@ -166,6 +176,8 @@ public sealed class GetIncomeOverviewHandler(
                 Amount(f.ChangeVsPrevious), f.ChangeVsPreviousPct, f.Change3y, f.Change3yYearly),
             OverviewMath.Split(inputs, window)
                 .Select(s => new IncomeOverviewShare(s.Item, s.Name, s.Kind, Amount(s.Total)!, Amount(s.PerMonth)!, s.Percent)).ToList(),
+            OverviewMath.NowSplit(running.Select(e => e.Input).ToList(), today)
+                .Select(s => new IncomeOverviewNowShare(s.Item, s.Item is { } id ? modules[id] : null, s.Name, s.Kind, Amount(s.PerMonth)!, s.Percent)).ToList(),
             OverviewMath.Months(inputs, window, today)
                 .Select(m => new IncomeOverviewMonth(m.Year, m.Month, m.Upcoming, Amount(m.Recurring), Amount(m.OneOff), Amount(m.Total),
                     Amount(m.PreviousYear), m.BySource.Select(b => new IncomeOverviewPart(b.Item, b.Name, Amount(b.Amount)!)).ToList()))

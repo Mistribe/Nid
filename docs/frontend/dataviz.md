@@ -32,7 +32,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Crédit : capital et intérêts par mois | Barres empilées | 2 catégories |
 | Crédit : capital restant dû | Courbe, **graphique séparé** | 1 série |
 | **Utilisation des revenus** | Barre empilée unique : engagements par catégorie, puis marge | Catégories fixes pour les engagements, **ton neutre** pour la marge |
-| **Le mois du foyer** (accueil) | Barre empilée unique : sources d'engagement puis « Reste » ; marge inconnue = raison dite, pas de barre inventée | Catégories fixes, ton neutre pour « Reste » |
+| **Où part le revenu du mois** (accueil) | Sankey en SVG maison sur ordinateur : sources de revenu en cours, revenu du mois, sources d'engagement puis « Reste » ; sur téléphone et dans le panneau de la marge, deux barres empilées « D'où il vient » et « Où il part » ; marge négative = les deux barres, marge inconnue = raison dite, rien d'inventé ; montant et part du serveur dans chaque libellé (la part des sources dans l'infobulle et le tableau), infobulle au survol | Sources de revenu en ton neutre (`--muted-foreground`), « Autres » en gris neutre, catégories fixes des engagements, slot 6 pour « Reste » |
 | Patrimoine (accueil) | Aire de la valeur et courbe pointillée des versements, période segmentée, bascule en tableau | 2 séries |
 | Panneaux de l'accueil (`?panel=`) | Composition du patrimoine par type ou par personne, sources de revenus et d'engagements, barre du mois | Mêmes couleurs que l'accueil |
 

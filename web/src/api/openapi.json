@@ -15004,6 +15004,13 @@
                 "$ref": "#/components/schemas/DashboardMoneyView"
               }
             ]
+          },
+          "pct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -15296,6 +15303,13 @@
             ]
           },
           "committedPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "marginPct": {
             "type": [
               "null",
               "number"
@@ -17432,6 +17446,7 @@
           "currency",
           "figures",
           "split",
+          "nowSplit",
           "months",
           "sources",
           "kinds",
@@ -17460,6 +17475,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/IncomeOverviewShare"
+            }
+          },
+          "nowSplit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewNowShare"
             }
           },
           "months": {
@@ -17626,6 +17647,43 @@
             "items": {
               "$ref": "#/components/schemas/IncomeOverviewPart"
             }
+          }
+        }
+      },
+      "IncomeOverviewNowShare": {
+        "required": [
+          "name",
+          "kind",
+          "perMonth",
+          "percent"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "module": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "perMonth": {
+            "$ref": "#/components/schemas/IncomeAmountView"
+          },
+          "percent": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

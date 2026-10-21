@@ -22,6 +22,9 @@ public sealed record OverviewMonth(int Year, int Month, bool Upcoming, decimal? 
 
 public sealed record OverviewShare(ItemId? Item, string Name, string Kind, decimal Total, decimal PerMonth, decimal Percent);
 
+/// <summary>A share of today's monthly income; <c>other</c> gathers the smallest inputs and carries no item.</summary>
+public sealed record NowShare(ItemId? Item, string Name, string Kind, decimal PerMonth, decimal Percent);
+
 public sealed record OverviewFigures(decimal? MonthlyNow, decimal? MonthlyChange1y, decimal? Total, decimal? Elapsed,
     decimal? PreviousTotal, decimal? ChangeVsPrevious, decimal? ChangeVsPreviousPct, decimal? Change3y, decimal? Change3yYearly);
 
@@ -87,6 +90,26 @@ public static class OverviewMath
             .Select(s => new OverviewShare(s.Item, s.Name, s.Kind, s.Total, s.Total / count,
                 grand == 0m ? 0m : Percent(s.Total / grand)))
             .ToList();
+    }
+
+    /// <summary>
+    /// Today's monthly equivalent of each input above 0, largest first, those past <see cref="MaxShares"/> merged into
+    /// <c>other</c>; empty when one cannot be converted, as <see cref="Split"/>.
+    /// </summary>
+    public static IReadOnlyList<NowShare> NowSplit(IReadOnlyList<OverviewInput> inputs, LocalDate today)
+    {
+        if (inputs.Any(i => i.MonthlyAt.GetValueOrDefault(today) is null))
+            return [];
+        var sorted = inputs
+            .Select(i => (Item: (ItemId?)i.Item, i.Name, i.Kind, PerMonth: i.MonthlyAt[today]!.Value))
+            .Where(s => s.PerMonth > 0m)
+            .OrderByDescending(s => s.PerMonth).ThenBy(s => s.Name, StringComparer.Ordinal)
+            .ToList();
+        var kept = sorted.Take(MaxShares).ToList();
+        if (sorted.Count > MaxShares)
+            kept.Add((null, "other", "other", sorted.Skip(MaxShares).Sum(s => s.PerMonth)));
+        var grand = sorted.Sum(s => s.PerMonth);
+        return kept.Select(s => new NowShare(s.Item, s.Name, s.Kind, s.PerMonth, Percent(s.PerMonth / grand))).ToList();
     }
 
     public static OverviewFigures Figures(IReadOnlyList<OverviewInput> inputs, OverviewWindow w, LocalDate today)

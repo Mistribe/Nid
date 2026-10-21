@@ -24,7 +24,7 @@ export function FigurePanel({ panel, onClose, d, scope = 'household' }: { panel:
           {panel === 'net_worth' ? <NetWorthPanel d={d} /> : null}
           {panel === 'income' ? <IncomePanel d={d} scope={scope} /> : null}
           {panel === 'commitments' ? <CommitmentsPanel d={d} /> : null}
-          {panel === 'margin' ? <MarginPanel d={d} /> : null}
+          {panel === 'margin' ? <MarginPanel d={d} scope={scope} /> : null}
         </div>
       </SheetContent>
     </Sheet>

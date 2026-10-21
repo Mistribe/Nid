@@ -60,7 +60,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
         <Notice d={data} />
         <KeyFigures d={data} onOpen={open} />
       </div>
-      <div className="md:col-span-3"><HouseholdMonth d={data} /></div>
+      <div className="md:col-span-3"><HouseholdMonth d={data} scope={scope} /></div>
       <div className={data.envelopes > 0 ? 'md:order-2' : 'md:col-span-3'}><Upcoming d={data} /></div>
       {/* DOM order is the phone order (À venir before the curve); desktop: curve left, À venir right. */}
       {data.envelopes > 0 ? (

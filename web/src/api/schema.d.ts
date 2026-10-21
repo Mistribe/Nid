@@ -13101,6 +13101,8 @@ export interface components {
         DashboardCommitmentSourceView: {
             source: string;
             amortized?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            pct?: null | number;
         };
         DashboardEnvelopeView: {
             /** Format: uuid */
@@ -13175,6 +13177,8 @@ export interface components {
             margin?: null | components["schemas"]["DashboardMoneyView"];
             /** Format: double */
             committedPct?: null | number;
+            /** Format: double */
+            marginPct?: null | number;
             change: components["schemas"]["DashboardFigure"];
             changeContributions: components["schemas"]["DashboardFigure"];
             /** Format: double */
@@ -13692,6 +13696,7 @@ export interface components {
             currency: string;
             figures: components["schemas"]["IncomeOverviewFigures"];
             split: components["schemas"]["IncomeOverviewShare"][];
+            nowSplit: components["schemas"]["IncomeOverviewNowShare"][];
             months: components["schemas"]["IncomeOverviewMonth"][];
             sources: components["schemas"]["IncomeOverviewRow"][];
             kinds: string[];
@@ -13722,6 +13727,16 @@ export interface components {
             total?: null | components["schemas"]["IncomeAmountView"];
             previousYear?: null | components["schemas"]["IncomeAmountView"];
             bySource: components["schemas"]["IncomeOverviewPart"][];
+        };
+        IncomeOverviewNowShare: {
+            /** Format: uuid */
+            item?: null | string;
+            module?: null | string;
+            name: string;
+            kind: string;
+            perMonth: components["schemas"]["IncomeAmountView"];
+            /** Format: double */
+            percent: number;
         };
         IncomeOverviewPart: {
             /** Format: uuid */

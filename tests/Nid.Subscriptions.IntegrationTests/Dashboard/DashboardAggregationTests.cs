@@ -89,6 +89,8 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal("2500.00", Total(view.GetProperty("income")));
         Assert.Equal("2249.45", view.GetProperty("margin").GetProperty("amount").GetString()); // 2500 − 250.555, half away from zero
         Assert.Equal(10.0m, view.GetProperty("committedPct").GetDecimal());
+        Assert.Equal(90.0m, view.GetProperty("marginPct").GetDecimal()); // 2249.445 ÷ 2500, the margin before rounding
+        Assert.Equal(10.0m, view.GetProperty("commitmentSources")[0].GetProperty("pct").GetDecimal());
         Assert.Equal("1000.00", Total(view.GetProperty("change")));
         Assert.Equal("1000.00", Total(view.GetProperty("changeContributions")));
         Assert.Equal(9.1m, view.GetProperty("changePct").GetDecimal()); // 1000 ÷ (10000 + 1000)
@@ -183,6 +185,9 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(new[] { "subscriptions", "loans", "property_costs" }, sources.Select(s => s.GetProperty("source").GetString()));
         // A source counting items that cost nothing this month reads 0, never « unknown ».
         Assert.Equal(new[] { "30.00", "900.00", "0.00" }, sources.Select(s => s.GetProperty("amortized").GetProperty("amount").GetString()));
+        // No income declared: no share of it, for a source as for the margin.
+        Assert.All(sources, s => Assert.Equal(JsonValueKind.Null, s.GetProperty("pct").ValueKind));
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("marginPct").ValueKind);
     }
 
     [Fact]

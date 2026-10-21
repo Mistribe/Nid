@@ -128,6 +128,7 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("1000.00", Amount(Months(overview)[0].GetProperty("total")));
         Assert.Equal("0.00", Amount(Months(overview)[9].GetProperty("total")));
         Assert.Empty(Rows(overview));
+        Assert.Empty(overview.GetProperty("nowSplit").EnumerateArray());
         var row = Assert.Single(Rows(await OverviewAsync(app, "?period=year&ended=true")));
         Assert.Equal(ended, row.GetProperty("id").GetGuid());
         Assert.True(row.GetProperty("ended").GetBoolean());
@@ -146,6 +147,7 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal("800.00", Amount(Months(overview)[0].GetProperty("total")));
         Assert.Equal("0.00", Amount(Months(overview)[9].GetProperty("total")));
         Assert.Empty(Rows(overview));
+        Assert.Empty(overview.GetProperty("nowSplit").EnumerateArray());
         var row = Assert.Single(Rows(await OverviewAsync(app, "?period=year&ended=true")));
         Assert.Equal(property, row.GetProperty("id").GetGuid());
         Assert.True(row.GetProperty("ended").GetBoolean());

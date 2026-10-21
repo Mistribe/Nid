@@ -86,6 +86,11 @@ public class CommitmentsAndIncomeTests(PostgresFixture fixture) : IClassFixture<
             var monthlyNow = overview.GetProperty("figures").GetProperty("monthlyNow").GetProperty("amount").GetString();
             Assert.Equal("1800.00", monthlyNow);
             Assert.Equal(monthlyNow, Total((await DashboardAsync(app, app.AdultA, scope)).GetProperty("income")));
+            // The home's flow draws today's split of that same figure, largest first, each share with its module.
+            var now = overview.GetProperty("nowSplit").EnumerateArray()
+                .Select(s => (s.GetProperty("module").GetString(), s.GetProperty("perMonth").GetProperty("amount").GetString(), s.GetProperty("percent").GetDecimal()))
+                .ToList();
+            Assert.Equal([("income", "1000.00", 55.6m), ("realestate", "800.00", 44.4m)], now);
         }
     }
 

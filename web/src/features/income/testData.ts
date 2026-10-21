@@ -44,7 +44,7 @@ export const overview = (over: Partial<IncomeOverview> = {}): IncomeOverview => 
     { item: SALARY, name: 'Salaire Alice', kind: 'salary', total: eur('60000.00'), perMonth: eur('5000.00'), percent: 77.9 },
     { item: null, name: 'one_off', kind: 'one_off', total: eur('17040.00'), perMonth: eur('1420.00'), percent: 22.1 },
   ],
-  months: [], sources: [], kinds: ['salary', 'rent'], missingRates: [], ...over,
+  nowSplit: [], months: [], sources: [], kinds: ['salary', 'rent'], missingRates: [], ...over,
 });
 
 /**

@@ -45,7 +45,7 @@ describe('net worth curve', () => {
     ]));
     const { container, user } = await renderApp('/dashboard');
 
-    await user.click(await screen.findByRole('button', { name: 'Afficher en tableau' }));
+    await user.click(await within(await curve()).findByRole('button', { name: 'Afficher en tableau' }));
     const rows = within(screen.getByRole('table', { name: 'Évolution du patrimoine en tableau' })).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('août 2025');
     expect(rows[1]).toHaveTextContent('Inconnue : taux de change manquant (USD)');

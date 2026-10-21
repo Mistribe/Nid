@@ -23,14 +23,17 @@ public sealed record DashboardTodoView(string Kind, ItemId Id, string Module, st
 /// <summary>2D2a spec §4: a person's pro-rata share. <c>Slot</c> is their colour rank: adults by creation, then dependents.</summary>
 public sealed record DashboardPersonView(Guid Id, string Name, int Slot, DashboardMoneyView Amount, decimal Pct);
 
-/// <summary>3E1 spec §3: one source of the commitments, its amortized month in the household currency; null when a rate is missing.</summary>
-public sealed record DashboardCommitmentSourceView(string Source, DashboardMoneyView? Amortized);
+/// <summary>
+/// 3E1 spec §3: one source of the commitments, its amortized month in the household currency; null when a rate is missing.
+/// <c>Pct</c> is its share of the month's income, null without an income above 0 or without its amount.
+/// </summary>
+public sealed record DashboardCommitmentSourceView(string Source, DashboardMoneyView? Amortized, decimal? Pct);
 
 public sealed record DashboardView(
     string Currency,
     DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes,
     DashboardFigure Commitments, DashboardFigure CashThisMonth, int Subscriptions,
-    DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct,
+    DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct, decimal? MarginPct,
     DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
     IReadOnlyList<DashboardEnvelopeView> EnvelopeSplit, IReadOnlyList<DashboardPersonView>? People, string? PeopleMissingCurrency,
     IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart,
@@ -73,6 +76,13 @@ public static class DashboardMath
         var cash = Of(commitments.Select(p => p.Cash));
         var monthly = Of(income.Select(p => p.MonthlyEquivalent));
         var sources = income.Sum(p => p.Sources);
+        // No income declared reads « inconnu », never 0 (spec §3); no subscription commits nothing.
+        decimal? incomeTotal = sources > 0 ? monthly.Total : null;
+        decimal? ShareOfIncome(decimal? part) => incomeTotal is { } i && i > 0m && part is { } p ? Percent(p / i) : null;
+        decimal? committed = amortized.Missing is null ? amortized.Total ?? 0m : null;
+        decimal? margin = incomeTotal is { } i && committed is { } c ? i - c : null;
+        decimal? share = ShareOfIncome(committed);
+
         // 3E1 spec §3: each source counting at least one item, its amortized month converted as the total.
         var bySource = commitments.GroupBy(p => p.Source)
             .Where(g => g.Sum(p => p.Count) > 0)
@@ -80,15 +90,10 @@ public static class DashboardMath
             .Select(g =>
             {
                 var sum = Of(g.Select(p => p.Amortized));
-                return new DashboardCommitmentSourceView(g.Key, sum.Missing is null ? Money(sum.Total ?? 0m, reference) : null);
+                decimal? total = sum.Missing is null ? sum.Total ?? 0m : null;
+                return new DashboardCommitmentSourceView(g.Key, total is { } t ? Money(t, reference) : null, ShareOfIncome(total));
             })
             .ToList();
-
-        // No income declared reads « inconnu », never 0 (spec §3); no subscription commits nothing.
-        decimal? incomeTotal = sources > 0 ? monthly.Total : null;
-        decimal? committed = amortized.Missing is null ? amortized.Total ?? 0m : null;
-        decimal? margin = incomeTotal is { } i && committed is { } c ? i - c : null;
-        decimal? share = incomeTotal is { } i2 && i2 > 0m && committed is { } c2 ? Percent(c2 / i2) : null;
         decimal? changePct = gain.Total is { } g && start.Total is { } s && net.Total is { } n && s + n > 0m ? Percent(g / (s + n)) : null;
 
         var holdings = worth.SelectMany(p => p.Holdings)
@@ -128,7 +133,7 @@ public static class DashboardMath
             amortized.View(reference), cash.View(reference),
             commitments.Where(p => p.Source == CommitmentSources.Subscriptions).Sum(p => p.Count),
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,
-            margin is { } m ? Money(m, reference) : null, share,
+            margin is { } m ? Money(m, reference) : null, share, ShareOfIncome(margin),
             gain.View(reference), net.View(reference), changePct,
             split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource);
     }

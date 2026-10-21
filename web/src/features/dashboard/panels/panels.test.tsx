@@ -188,7 +188,7 @@ describe('key figure panels', () => {
 
     const panel = await dialog('Reste à vivre');
     expect(panel).toHaveTextContent('2 249,45 €');
-    expect(within(panel).getByRole('region', { name: 'Le mois du foyer' })).toHaveTextContent('Reste 2 249,45 €');
+    expect(within(panel).getByRole('region', { name: 'Où part le revenu du mois' })).toHaveTextContent('Reste 2 249,45 €');
     await expectNoAxeViolations(container);
   });
 });

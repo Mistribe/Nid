@@ -108,8 +108,18 @@
       "margin_hint": "avant dépenses courantes"
     },
     "month": {
-      "title": "Le mois du foyer",
-      "rest": "Reste {{amount}}"
+      "title": "Où part le revenu du mois",
+      "chart": "Flux du revenu du mois vers les engagements et le reste",
+      "table": "Revenu du mois en tableau",
+      "per_month": "{{amount}} / mois",
+      "income": "Revenus",
+      "rest_name": "Reste",
+      "other": "Autres",
+      "pct": "{{value}} %",
+      "col_per_month": "Par mois",
+      "col_share": "Part du revenu",
+      "from": "D’où il vient",
+      "to": "Où il part"
     },
     "notice_one": "{{count}} chose à faire",
     "notice_other": "{{count}} choses à faire",
@@ -141,6 +151,11 @@
       "subscriptions": "Abonnements {{amount}}",
       "loans": "Crédits {{amount}}",
       "property_costs": "Charges des biens {{amount}}"
+    },
+    "commitment_name": {
+      "subscriptions": "Abonnements",
+      "loans": "Crédits",
+      "property_costs": "Charges des biens"
     },
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
@@ -1138,7 +1153,7 @@
       },
       "tour": {
         "tiles": { "title": "Les quatre chiffres clés", "body": "Patrimoine net et son évolution depuis le 1er janvier, revenus, engagements et reste à vivre du mois. Cliquez sur un chiffre pour le détail." },
-        "month": { "title": "Le mois du foyer", "body": "Cette barre répartit vos revenus du mois entre abonnements, crédits, charges des biens et ce qu’il reste. La légende donne chaque montant." },
+        "month": { "title": "Où part le revenu du mois", "body": "Ce schéma relie chaque revenu du mois à ce qu’il finance : abonnements, crédits, charges des biens et ce qu’il reste. Chaque montant est écrit à côté ; sur téléphone, deux barres disent d’où il vient et où il part." },
         "curve": { "title": "Évolution du patrimoine", "body": "La courbe compare la valeur de votre patrimoine à ce que vous y avez versé. Choisissez la période : 12 mois, 3 ans ou tout." },
         "upcoming": { "title": "À venir", "body": "Renouvellements, fins de phase d’un crédit, estimations à refaire : tout ce qui change dans les 60 prochains jours." },
         "scope": { "title": "Portée", "body": "Ce sélecteur change la portée de tous les chiffres de la page. « Foyer » ne compte que le partagé, « Moi » y ajoute vos éléments privés." }
