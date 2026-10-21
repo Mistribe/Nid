@@ -37,8 +37,8 @@ public class HoldingPerformanceTests
 
     private static readonly HoldingSnapshot[] Snapshots =
     [
-        Snapshot(End2025, new SnapshotLine(EuroFund, null, null, 4_806.70m, null), new SnapshotLine(FundA, 78.4m, 75m, 5_880m, null)),
-        Snapshot(End2024, new SnapshotLine(EuroFund, null, null, 3_090m, null), new SnapshotLine(FundA, 99.2m, 77m, 7_638.40m, null)),
+        Snapshot(End2025, new SnapshotLine(EuroFund, null, null, 4_806.70m, null), new SnapshotLine(FundA, 78.400m, 75m, 5_880m, null)),
+        Snapshot(End2024, new SnapshotLine(EuroFund, null, null, 3_090m, null), new SnapshotLine(FundA, 99.200m, 77m, 7_638.40m, null)),
     ];
 
     private static readonly Flow[] Flows = [new(Guid.NewGuid(), Item, Start, FlowKind.Contribution, Eur(10_000m), null, null, null)];
@@ -152,6 +152,35 @@ public class HoldingPerformanceTests
         => Assert.Equal([new HoldingWarning(HoldingWarnings.UnexplainedUnits, FundA, End2025, 0.2m, null)],
             HoldingMath.UnexplainedUnits(Snapshots, Movements.Select(m => m.HoldingId == FundA && m.OccurredOn == End2025 ? m with { Units = -0.6m } : m)
                 .Append(Move(FundA, End2025, MovementKinds.Fee, 15m, -0.4m, 75m)).ToList(), Currency.Eur));
+
+    [Fact]
+    public void Units_truncated_to_one_decimal_leave_a_fifth_of_a_unit_unexplained_without_a_warning()
+    {
+        // 0.1 of room on each printed side: 0.2 units gone missing are within what « 78,4 » and « 99,2 » can show.
+        HoldingSnapshot[] coarse = [.. Snapshots.Select(s => s with { Lines = [.. s.Lines.Select(l => l.Units is { } u ? l with { Units = decimal.Round(u, 1) } : l)] })];
+        Assert.Empty(HoldingMath.UnexplainedUnits(coarse, Movements.Select(m => m.HoldingId == FundA && m.OccurredOn == End2025 ? m with { Units = -0.6m } : m).ToList(), Currency.Eur));
+    }
+
+    [Fact]
+    public void Allocations_without_units_count_the_units_their_amount_bought_between_the_two_prices()
+    {
+        // Issue #46: a programmed payment whose documents give the amount, never the units. 50 units at 100 → 51 units at 100 after
+        // 100 € in: explained. Prices 98 and 102 put the bought units between 0.98 and 1.02, so 51.01 is still explained, 51.1 is not.
+        var on1 = new LocalDate(2025, 3, 31);
+        var on2 = new LocalDate(2025, 6, 30);
+        HoldingSnapshot[] At(decimal p1, decimal p2, decimal units2) =>
+        [
+            Snapshot(on1, new SnapshotLine(FundA, 50.000m, p1, 50m * p1, null)),
+            Snapshot(on2, new SnapshotLine(FundA, units2, p2, units2 * p2, null)),
+        ];
+        HoldingMovement[] payment = [Move(FundA, new LocalDate(2025, 4, 15), MovementKinds.AllocationIn, 100m)];
+
+        Assert.Empty(HoldingMath.UnexplainedUnits(At(100m, 100m, 51.000m), payment, Currency.Eur));
+        Assert.Empty(HoldingMath.UnexplainedUnits(At(98m, 102m, 51.010m), payment, Currency.Eur));
+        Assert.Single(HoldingMath.UnexplainedUnits(At(98m, 102m, 51.100m), payment, Currency.Eur));
+        // A movement's own unit price prices it exactly: 100 € at 80 is 1.25 units.
+        Assert.Empty(HoldingMath.UnexplainedUnits(At(98m, 102m, 51.250m), [payment[0] with { UnitPrice = 80m }], Currency.Eur));
+    }
 
     [Fact]
     public void The_units_of_account_share_is_the_golden_one()

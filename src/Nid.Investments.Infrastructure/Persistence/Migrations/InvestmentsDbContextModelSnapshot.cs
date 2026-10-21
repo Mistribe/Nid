@@ -381,7 +381,7 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnName("unit_price");
 
                     b.Property<decimal?>("Units")
-                        .HasColumnType("numeric(20,6)")
+                        .HasColumnType("numeric")
                         .HasColumnName("units");
 
                     b.Property<decimal>("Value")

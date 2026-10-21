@@ -82,7 +82,8 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
                 t.HasCheckConstraint("ck_holding_snapshot_line_amounts",
                     "value >= 0 and (units is null or units >= 0) and (unit_price is null or unit_price >= 0) and (cost_basis_per_unit is null or cost_basis_per_unit >= 0)"));
             e.HasKey(x => new { x.SnapshotId, x.HoldingId });
-            e.Property(x => x.Units).HasColumnType("numeric(20,6)");
+            // Unscaled: the decimals the units were printed with are the tolerance of their warnings (issue #46).
+            e.Property(x => x.Units).HasColumnType("numeric");
             e.Property(x => x.UnitPrice).HasColumnType("numeric(20,6)");
             e.Property(x => x.CostBasisPerUnit).HasColumnType("numeric(20,6)");
             e.Property(x => x.Value).HasColumnType("numeric(19,4)");

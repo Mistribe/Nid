@@ -122,6 +122,24 @@ public class HoldingEndpointTests(PostgresFixture fixture)
         Assert.Equal(("holding_value_mismatch", fund), (warning.GetProperty("code").GetString(), warning.GetProperty("holdingId").GetGuid()));
     }
 
+    [Fact]
+    public async Task Units_printed_to_3_decimals_keep_their_room_once_stored()
+    {
+        // Issue #46: « tronqué à 3 décimales », 1.185 × 3 924.47 is 2.77 € below the printed value, within 0.001 × 3 924.47.
+        await using var app = await NidApp.StartAsync(fixture);
+        var (id, euro, fund) = await GoldenAsync(app);
+
+        var recorded = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holding-snapshots",
+            Snapshot("2025-06-30", euro, "100.00", fund, "1.185", "3924.47", "4653.27")));
+        Assert.Empty(recorded.GetProperty("warnings").EnumerateArray());
+
+        // Read back from the database: the decimals survive, and the wire still shows 6.
+        var read = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings"));
+        Assert.DoesNotContain("holding_value_mismatch", read.GetProperty("warnings").EnumerateArray().Select(w => w.GetProperty("code").GetString()));
+        var line = read.GetProperty("holdings").EnumerateArray().Single(h => h.GetProperty("id").GetGuid() == fund).GetProperty("line");
+        Assert.Equal("1.185000", line.GetProperty("units").GetString());
+    }
+
     [Theory]
     [InlineData("""{ "name": "X", "kind": "crypto" }""", "investments.unknown_holding_kind", "kind")]
     [InlineData("""{ "name": "X", "kind": "fund", "isin": "FR0000120272" }""", "investments.invalid_isin", "isin")]
