@@ -4,6 +4,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { Terms } from '../../loans/detail/Terms';
 import { money, percent, signedMoney } from '../../loans/format';
 import type { PropertyDetail } from '../api';
+import '@/locales/properties';
 
 /**
  * The last 12 months as the server computed them — rates its fractions in %, arrears signed (the sign read from the

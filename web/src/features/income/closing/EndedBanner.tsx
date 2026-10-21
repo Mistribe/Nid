@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { presentConflict } from '../../investments/entries/entries';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { invalidateIncome, REOPEN_SOURCE, type IncomeSourceDetail } from '../api';
+import '@/locales/income';
 
 /**
  * Spec §6: the note an ended source wears, with « Rouvrir » for whoever can write. The banner disappears once the

@@ -6,6 +6,8 @@ import { checkOwnership, ownershipShape, ownershipToWire } from '@/components/ow
 import { CURRENCY, ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { FIRST_PERIODS, INSURANCE_MODES, PHASE_MODES, RATE_TYPES, ROUNDINGS } from '../format';
 import { isPercentRate, percentToFraction } from '../rate';
+import '@/locales/investments';
+import '@/locales/loans';
 
 /** Spec 3B1 §4.2: the server refuses a 21st; the form stops offering one at 20. */
 export const MAX_INSURANCES = 20;

@@ -21,6 +21,7 @@ import { CostReportDialog } from './CostReportDialog';
 import { HoldingDialog } from './HoldingDialog';
 import { formatUnits, holdingKindText, movementKindText, percent } from './holdingFormat';
 import { MovementDialog } from './MovementDialog';
+import '@/locales/investments';
 
 const TABS = ['overview', 'movements', 'costs'] as const;
 type Dialog = { kind: 'movement' } | { kind: 'edit' } | { kind: 'cost'; editing?: CostReport };

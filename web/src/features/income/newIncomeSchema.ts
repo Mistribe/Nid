@@ -6,6 +6,8 @@ import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire } from '
 import { CURRENCY } from '../subscriptions/edits/amount';
 import { KINDS } from './format';
 import { checkPhase, overlappingLines, phaseFieldOf, phaseShape, toWirePhase } from './phases/phase';
+import '@/locales/income';
+import '@/locales/investments';
 
 export function newIncomeSchema(t: TFunction) {
   return z.object({

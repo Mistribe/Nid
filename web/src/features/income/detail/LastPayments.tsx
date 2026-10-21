@@ -7,6 +7,7 @@ import { Money } from '@/components/Money';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import type { IncomeSourceOverview } from '../api';
+import '@/locales/income';
 
 /** Income dashboard §4: the last payments due (the server's five, newest first), and the way to the whole history. */
 export function LastPayments({ items }: { items: IncomeSourceOverview['lastPayments'] }) {

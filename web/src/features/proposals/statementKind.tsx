@@ -12,6 +12,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import '@/locales/investments';
+import '@/locales/proposals';
 
 type Movement = { on: string; kind: string; amount: string; label?: string | null; ref?: string | null };
 type StatementPayload = { asOf: string; value?: Money | null; movements: Movement[]; note?: string | null; excluded?: number[] | null };

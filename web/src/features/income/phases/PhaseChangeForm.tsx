@@ -18,6 +18,7 @@ import { EXPECTED, invalidateIncome, PHASE_CHANGES, type IncomePhase, type Incom
 import { defaultEffectiveDate, paymentDates, paymentWindow } from '../expected/months';
 import { phaseChangeFieldOf, phaseChangeSchema, phaseChangeValuesOf, toWirePhaseChange, type PhaseChangeValues } from './phase';
 import { PhaseFields } from './PhaseFields';
+import '@/locales/income';
 
 /**
  * Spec §3: a change of amount, in a dialog. The effective date is chosen among the phase's own payment dates over 24

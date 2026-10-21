@@ -7,6 +7,7 @@ import type { LoanDetail } from '../api';
 import { money } from '../format';
 import { fractionToPercent } from '../rate';
 import { Terms } from './Terms';
+import '@/locales/loans';
 
 /** Spec §5.2: where the loan stands today, every figure the server's, inline under the title. */
 export function LoanStats({ loan }: { loan: LoanDetail }) {

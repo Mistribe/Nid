@@ -20,6 +20,8 @@ import { invalidateProperties } from '../../properties/api';
 import { invalidateLoans, LOAN, type LoanDetail } from '../api';
 import { PropertySelect } from '../PropertySelect';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
+import '@/locales/investments';
+import '@/locales/loans';
 
 const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId' } as const;
 

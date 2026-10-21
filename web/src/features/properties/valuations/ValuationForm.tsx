@@ -19,6 +19,9 @@ import { Field } from '@/components/form/Field';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { invalidateProperties, VALUATIONS, type PropertyDetail } from '../api';
+import '@/locales/investments';
+import '@/locales/loans';
+import '@/locales/properties';
 
 const PATHS = { asOf: 'asOf', amount: 'amount', note: 'note' } as const;
 

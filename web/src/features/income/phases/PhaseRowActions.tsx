@@ -5,6 +5,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { invalidateIncome, PHASE, type IncomePhase, type IncomeSourceDetail } from '../api';
 import { RowActions } from '@/components/page/RowActions';
 import { presentConflict } from '../../investments/entries/entries';
+import '@/locales/income';
 
 /**
  * A phase's `⋯` menu (spec §7): « Changer le montant » on a running or upcoming phase, « Corriger », and « Supprimer »,

@@ -18,6 +18,7 @@ import { ContractFields } from '../new/ContractFields';
 import { contractPath, contractSchema, toContractBody, type ContractValues } from '../new/loanForm';
 import { presentRefusal } from '../refusal';
 import { contractValuesOf, isPlain, repaymentRank } from './contractValues';
+import '@/locales/loans';
 
 /** 3B2 design §5: the contract edited on its own page, sent whole with the version it was read at. */
 export function ContractPage() {

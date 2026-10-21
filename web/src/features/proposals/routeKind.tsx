@@ -5,6 +5,7 @@ import fr from '@/locales/fr.json';
 import { Table, TableBody } from '@/components/ui/table';
 import type { ProposalView } from './api';
 import { Row, type LinkTarget } from './kindParts';
+import '@/locales/proposals';
 
 /**
  * Spec 4D3: a proposal that replays a web write (`realestate.create_property`). One read-only screen for all of them: the

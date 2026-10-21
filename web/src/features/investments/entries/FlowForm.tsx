@@ -17,6 +17,7 @@ import { todayIso } from '../../subscriptions/today';
 import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '../api';
 import { FLOW_KINDS } from '../format';
 import { flowSchema, placeFieldError, presentConflict, trimAmount } from './entries';
+import '@/locales/investments';
 
 const PATHS = { occurredOn: 'occurredOn', kind: 'kind', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'occurredOn' | 'amount'> = {

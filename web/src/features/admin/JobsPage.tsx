@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { formatInstant } from './format';
+import '@/locales/admin';
 
 /** screens.md §12, Tâches: read only. */
 export function JobsPage() {

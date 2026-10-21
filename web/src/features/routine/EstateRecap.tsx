@@ -12,6 +12,7 @@ import { invalidateProperties } from '../properties/api';
 import { categoryText } from '../properties/format';
 import { ESTATE_ROUTINE, ESTATE_ROUTINE_UNDO, type EstateRecap } from './api';
 import { UNDO_MS } from './RoutineRecap';
+import '@/locales/routine';
 
 /** Spec 3E2 §3–§4: what was recorded, property by property; « Annuler » for 10 seconds voids exactly those facts. */
 export function EstateRecapPanel({ recap, onUndone }: { recap: EstateRecap; onUndone: () => void }) {

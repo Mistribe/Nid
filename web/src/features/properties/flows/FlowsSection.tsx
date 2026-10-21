@@ -12,6 +12,7 @@ import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
 import { useRowDialog } from '../useRowDialog';
 import { FlowDialog } from './FlowForm';
+import '@/locales/loans';
 
 /**
  * 3D1 design §6: the property's expenses and income, newest first (the server lists them oldest first). Adding and

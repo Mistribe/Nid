@@ -23,6 +23,8 @@ import { messageFor } from '../subscriptions/fieldErrors';
 import { todayIso } from '../subscriptions/today';
 import { ESTATE_ROUTINE, type EstateEstimate, type EstateRecap, type EstateRoutineView } from './api';
 import { estateDraft } from './draft';
+import '@/locales/loans';
+import '@/locales/routine';
 
 type Ticked = { key: string; checked: boolean; amount: string; date: string };
 type Group = 'costs' | 'rents';

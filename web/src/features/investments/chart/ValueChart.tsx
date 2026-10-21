@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { components } from '@/api/schema';
 import { SERIES } from '../api';
 import { toPlot } from './plot';
+import '@/locales/investments';
 
 type Row = { asOf: string; value: number; net: number; valueText: string; netText: string };
 type Point = components['schemas']['SeriesPoint'];

@@ -11,6 +11,7 @@ import { EXPECTED, type IncomeSourceDetail } from '../api';
 import { ExpectedTable } from '../expected/ExpectedIncome';
 import { EXPECTED_PRESETS, expectedRange, type ExpectedPreset } from '../expected/months';
 import { Section } from '../Section';
+import '@/locales/income';
 
 // Option values: `all`, or a label behind a prefix (a label may read « all »).
 const ALL = 'all';

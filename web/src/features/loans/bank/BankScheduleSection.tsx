@@ -17,6 +17,7 @@ import { BANK_PREVIEW, BANK_SCHEDULE, invalidateLoans, LOAN, type BankRow, type 
 import { money, signedMoney } from '../format';
 import { presentRefusal } from '../refusal';
 import { toWireBody } from '../settings/settingsBody';
+import '@/locales/loans';
 
 const SOURCES = ['computed', 'bank'] as const;
 const COLUMNS = ['dueDate', 'payment', 'interest', 'principal', 'insurance', 'crd'] as const;

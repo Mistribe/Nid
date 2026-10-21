@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { LoanSchedule } from '../api';
 import { money } from '../format';
 import { monthsOf } from '../schedule';
+import '@/locales/loans';
 
 const num = 'text-right tabular-nums';
 

@@ -6,6 +6,8 @@ import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyRecurringCost } from '../api';
 import { EVERY_UNITS, RECURRING_CATEGORIES } from '../format';
+import '@/locales/investments';
+import '@/locales/loans';
 
 /** A count of periods, not an amount: a plain whole number from 1 to 120 (3C2 §2). */
 const everyCount = (v: string) => /^\d{1,3}$/.test(v) && Number(v) >= 1 && Number(v) <= 120;

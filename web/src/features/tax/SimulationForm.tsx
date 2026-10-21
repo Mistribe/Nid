@@ -14,6 +14,7 @@ import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResult } from './api';
 import { RATE } from './ProfileForm';
 import { ResultTable } from './ResultTable';
+import '@/locales/tax';
 
 const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'nonTaxableIncome', 'pinelReduction',
   'childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid'] as const;

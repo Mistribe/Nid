@@ -15,6 +15,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { invalidateIncome, ONE_OFF, ONE_OFFS, type IncomeOneOff, type IncomeSourceDetail } from '../api';
 import { ONE_OFF_FALLBACK, ONE_OFF_PATHS, oneOffSchema, oneOffValuesOf, toWireOneOff, type OneOffValues } from './oneOff';
+import '@/locales/income';
 
 /**
  * Spec §4: adding a one-off (`editing` absent: POST) or correcting one (PUT), in a dialog. A corrected one-off is a Core

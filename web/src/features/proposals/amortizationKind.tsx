@@ -8,6 +8,8 @@ import { Controller } from 'react-hook-form';
 import { Field } from '@/components/form/Field';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { KindUi } from './kindParts';
+import '@/locales/loans';
+import '@/locales/proposals';
 
 type AmortizationPayload = { rows: unknown[]; makeReference?: boolean };
 type Source = 'computed' | 'bank';

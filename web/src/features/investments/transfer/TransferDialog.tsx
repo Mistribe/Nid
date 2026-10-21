@@ -20,6 +20,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { ENVELOPES, invalidateInvestments, TRANSFERS, type EnvelopeDetail, type EnvelopeSummary } from '../api';
 import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
+import '@/locales/investments';
 
 const PATHS = { to: 'to', occurredOn: 'occurredOn', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'occurredOn' | 'amount' | 'to'> = {

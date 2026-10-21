@@ -11,6 +11,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateIncome, PHASE, PHASES, type IncomePhase, type IncomeSourceDetail } from '../api';
 import { phaseFieldOf, phaseSchema, toWirePhase, type PhaseValues } from './phase';
 import { PhaseFields } from './PhaseFields';
+import '@/locales/income';
 
 /**
  * Adding a phase (`editing` absent: POST) or correcting one (PUT with the `version` it read), spec §7, in a dialog.

@@ -22,6 +22,7 @@ import type { RepaymentPrefill } from './repayments/repayment';
 import { RepaymentsSection } from './repayments/RepaymentsSection';
 import { SettingsForm } from './settings/SettingsForm';
 import { SimulationSection } from './simulation/SimulationSection';
+import '@/locales/loans';
 
 // Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
 const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ default: m.ScheduleChart })));

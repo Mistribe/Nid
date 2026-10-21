@@ -6,6 +6,8 @@ import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyFlow } from '../api';
 import { FLOW_KINDS } from '../format';
+import '@/locales/investments';
+import '@/locales/loans';
 
 // The server's bounds (spec 3C1 §3): dated on or before today, positive, two decimals; the category is checked by it.
 export function flowSchema(t: TFunction) {

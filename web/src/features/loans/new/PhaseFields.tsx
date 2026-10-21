@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PHASE_MODES, RATE_TYPES } from '../format';
 import { Folded } from './Folded';
 import type { ContractValues } from './loanForm';
+import '@/locales/loans';
 
 /** One line of the phase list (spec §6): mode, rate in %, fixed or variable, its count; the rest under « Plus d’options ». */
 export function PhaseFields({ form, index, last }: { form: UseFormReturn<ContractValues>; index: number; last: boolean }) {

@@ -1,0 +1,29 @@
+{
+  "routine_estate": {
+    "title": "Biens",
+    "estimates": "Estimations",
+    "others": "Autres biens",
+    "costs": "Charges du mois",
+    "rents": "Loyers du mois",
+    "check_all": "Tout cocher",
+    "estimate": "Estimation de {{name}}",
+    "last": "Dernière : {{value}} au {{date}}",
+    "no_last": "Pas encore d’estimation",
+    "cost_line": "{{category}} de {{name}}",
+    "rent_line": "Loyer {{label}} de {{name}}",
+    "amount_of": "Montant : {{line}}",
+    "date_of": "Date : {{line}}",
+    "already": "Déjà saisi ce mois-ci : {{amount}}",
+    "date_range": "Une date du mois, au plus tard aujourd’hui.",
+    "empty": "Rien à saisir pour vos biens ce mois-ci.",
+    "add_property": "Ajouter un bien",
+    "save": "Enregistrer les biens",
+    "saved": "Biens enregistrés.",
+    "undone": "Saisie des biens annulée.",
+    "recap": "Récapitulatif des biens",
+    "col_property": "Bien",
+    "col_estimate": "Estimation",
+    "col_flows": "Charges et loyers",
+    "flow": "{{category}} : {{amount}} au {{date}}"
+  }
+}

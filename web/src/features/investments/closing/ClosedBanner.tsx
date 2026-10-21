@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { invalidateInvestments, REOPEN, type EnvelopeDetail } from '../api';
 import { presentConflict } from '../entries/entries';
+import '@/locales/investments';
 
 /**
  * 2B2b design: the note a closed envelope wears, with « Rouvrir » for whoever can write. The banner disappears once

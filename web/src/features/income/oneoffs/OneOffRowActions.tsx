@@ -6,6 +6,7 @@ import { formatMoney } from '@/components/Money';
 import { invalidateIncome, ONE_OFF, type IncomeOneOff, type IncomeSourceDetail } from '../api';
 import { RowActions } from '@/components/page/RowActions';
 import { presentConflict } from '../../investments/entries/entries';
+import '@/locales/income';
 
 /** « Corriger » opens the row's dialog; « Supprimer » asks first. The confirmation goes to the section's live region; after « Recharger » the row may be gone, so the section takes the focus. */
 export function OneOffRowActions({ source, oneOff, onEdit, onDeleteStarted, onDeleted, onReloaded }: {

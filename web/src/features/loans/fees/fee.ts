@@ -6,6 +6,8 @@ import { todayIso } from '../../subscriptions/today';
 import type { LoanFee } from '../api';
 import { FEE_KINDS } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
+import '@/locales/investments';
+import '@/locales/loans';
 
 /** The kinds a new fee is offered (3B2 design §6): a penalty is entered with its repayment. */
 export const NEW_FEE_KINDS = ['file', 'guarantee', 'renegotiation', 'other'] as const;

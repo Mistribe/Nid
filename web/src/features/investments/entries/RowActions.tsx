@@ -6,6 +6,7 @@ import { RowActions as SharedRowActions } from '@/components/page/RowActions';
 import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '../api';
 import { flowKindText, isTransferLeg } from '../format';
 import { presentConflict } from './entries';
+import '@/locales/investments';
 
 type RowActionsProps = {
   envelope: EnvelopeDetail;

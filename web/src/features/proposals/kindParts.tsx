@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/u
 import type { FieldError, Problem } from '@/api/errors';
 import { trimAmount } from '../investments/entries/entries';
 import type { ProposalView } from './api';
+import '@/locales/proposals';
 
 export type Money = { amount: string; currency: string };
 

@@ -17,6 +17,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { FEE, FEES, invalidateLoans, type LoanDetail, type LoanFee } from '../api';
 import { presentRefusal } from '../refusal';
 import { FEE_PATHS, feeSchema, feeValuesOf, NEW_FEE_KINDS, toFeeBody, type FeeValues } from './fee';
+import '@/locales/loans';
 
 /**
  * The fee dialog, open while mounted: adding fees (`editing` absent: POST) or correcting one (PUT, with the version

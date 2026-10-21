@@ -4,6 +4,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import type { LoanDetail } from '../api';
 import { firstPeriodText, insuranceModeText, modeText, money, percent, rateTypeText, roundingText } from '../format';
 import { Terms } from './Terms';
+import '@/locales/loans';
 
 const num = 'text-right tabular-nums';
 const caption = 'mt-0 mb-1 text-left font-medium text-foreground';

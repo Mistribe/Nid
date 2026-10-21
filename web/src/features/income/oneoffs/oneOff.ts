@@ -5,6 +5,7 @@ import { POSITIVE_AMOUNT, trimAmount } from '../../investments/entries/entries';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeOneOff } from '../api';
+import '@/locales/investments';
 
 /**
  * Spec §4: a date not after `last` (today, as the Core refuses a later one; an ended source's end, issue #22), a positive

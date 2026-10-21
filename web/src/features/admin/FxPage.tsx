@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from './format';
+import '@/locales/admin';
 
 const RUNS = '/api/v1/core/fx-rates/runs';
 

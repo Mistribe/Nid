@@ -6,6 +6,7 @@ import { percent } from '@/features/dashboard/format';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeSourceOverview } from '../api';
 import { Change, Sub, tone } from '../overview/OverviewFigures';
+import '@/locales/income';
 
 /**
  * Income dashboard §4: the source's key figures as the server computed them — the smoothed monthly income and each

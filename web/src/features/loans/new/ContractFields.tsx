@@ -13,6 +13,7 @@ import { Folded } from './Folded';
 import { InsuranceFields } from './InsuranceFields';
 import { MAX_INSURANCES, newInsurance, newPhase, PLAIN_HIDDEN, plusOneMonth, type ContractValues } from './loanForm';
 import { PhaseFields } from './PhaseFields';
+import '@/locales/loans';
 
 /**
  * The contract's state (3B1 design §6, 3B2 design §5), shared by the creation's steps and the contract page: owned by

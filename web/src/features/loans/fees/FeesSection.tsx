@@ -11,6 +11,7 @@ import { FEE, invalidateLoans, type LoanDetail, type LoanFee } from '../api';
 import { feeKindText, money } from '../format';
 import { presentRefusal } from '../refusal';
 import { FeeDialog } from './FeeForm';
+import '@/locales/loans';
 
 /**
  * 3B2 design §6: the loan's fees by date (the server's order). Adding and correcting open a dialog; the section owns

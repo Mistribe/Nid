@@ -14,6 +14,7 @@ import { Section } from '../income/Section';
 import { REGIMES, regimeText } from './format';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { STATUSES, TAX, TAX_PROFILE, type PinelCommitment, type TaxEstimate } from './api';
+import '@/locales/tax';
 
 /** A Pinel commitment as one choice: the initial years, then the total after the extensions. */
 const ENGAGEMENTS = ['6-6', '9-9', '6-9', '6-12', '9-12'] as const;

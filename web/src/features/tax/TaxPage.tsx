@@ -17,6 +17,7 @@ import { ProfileForm } from './ProfileForm';
 import { eur, ResultTable } from './ResultTable';
 import { SimulationForm } from './SimulationForm';
 import { WithholdingSection } from './WithholdingSection';
+import '@/locales/tax';
 
 const TABS = ['detail', 'withholding', 'profile', 'simulation'] as const;
 

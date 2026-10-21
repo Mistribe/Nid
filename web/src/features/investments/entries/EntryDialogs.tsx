@@ -4,6 +4,7 @@ import { ModalDialog } from '@/components/ModalDialog';
 import type { EnvelopeDetail, Flow, Valuation } from '../api';
 import { FlowForm } from './FlowForm';
 import { ValueForm } from './ValueForm';
+import '@/locales/investments';
 
 /**
  * The value and flow forms in their dialogs. A save hands the dialog back (`close()`: the page then owns the focus

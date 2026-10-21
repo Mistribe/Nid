@@ -10,6 +10,7 @@ import { Table, TableBody } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { durationText } from '../subscriptions/format';
 import { DateInput, Row, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
+import '@/locales/proposals';
 
 type InvoicePayload = { chargedOn: string; amount: Money };
 type InvoicePreview = { current: { price: Money; every: { count: number; unit: string } } | null; proposed: { price: Money } | null; startsOn: string | null };

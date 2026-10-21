@@ -9,6 +9,8 @@ import { money } from '../../loans/format';
 import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '../api';
 import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
+import '@/locales/loans';
+import '@/locales/properties';
 
 /**
  * 3D1 design §6: the estimates, newest first (the server lists them oldest first). Adding is the page header's action (its

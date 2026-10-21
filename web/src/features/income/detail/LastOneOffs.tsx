@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import type { IncomeSourceOverview } from '../api';
 import { LastCard } from './LastPayments';
+import '@/locales/income';
 
 /** Income dashboard §4: the last one-offs received (the server's five, newest first), « + Ajouter » when writable. */
 export function LastOneOffs({ items, onAdd }: { items: IncomeSourceOverview['lastOneOffs']; onAdd?: () => void }) {

@@ -14,6 +14,8 @@ import { presentRefusal } from '../../loans/refusal';
 import { useRowDialog } from '../useRowDialog';
 import { RentalFigures } from './RentalFigures';
 import { TenancyDialog } from './TenancyForm';
+import '@/locales/loans';
+import '@/locales/properties';
 
 /** « depuis le … », or « du … au … » once it has an end. */
 const periodText = (t: TFunction, x: PropertyTenancy) => (x.endsOn

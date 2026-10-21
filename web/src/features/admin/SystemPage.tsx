@@ -4,6 +4,7 @@ import { present, toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { formatInstant, formatMegabytes } from './format';
+import '@/locales/admin';
 
 /** screens.md §12, Système: read only; no item count (authorization.md §8). */
 export function SystemPage() {

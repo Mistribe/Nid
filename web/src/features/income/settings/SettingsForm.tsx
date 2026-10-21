@@ -20,6 +20,8 @@ import { knownConflictMessage } from '../../subscriptions/fieldErrors';
 import { invalidateIncome, SOURCE, type IncomeSourceDetail } from '../api';
 import { KINDS } from '../format';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
+import '@/locales/income';
+import '@/locales/investments';
 
 const PATHS = { displayName: 'displayName', kind: 'kind', payerLabel: 'payerLabel', note: 'note' } as const;
 

@@ -16,6 +16,8 @@ import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, TENANCIES, TENANCY, type PropertyDetail, type PropertyTenancy } from '../api';
 import { TENANCY_PATHS, tenancySchema, tenancyValuesOf, toTenancyBody, type TenancyValues } from './tenancy';
+import '@/locales/loans';
+import '@/locales/properties';
 
 /**
  * Spec 3D2 §3: a tenancy added (`editing` absent: POST) or corrected (PUT, with the version read) in a dialog — ending a

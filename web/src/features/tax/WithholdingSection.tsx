@@ -4,6 +4,7 @@ import { Section } from '../income/Section';
 import type { TaxEstimate } from './api';
 import { percentText } from './format';
 import { eur } from './ResultTable';
+import '@/locales/tax';
 
 const ZERO = /^-?0(\.0+)?$/;
 

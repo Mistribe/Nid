@@ -15,6 +15,7 @@ import { todayIso } from '../../subscriptions/today';
 import { PERFORMANCE } from '../api';
 import { Direction } from '../Figures';
 import { presetRange, type Preset } from './periods';
+import '@/locales/investments';
 
 const PRESETS: Preset[] = ['ytd', 'last12', 'previous_year', 'custom'];
 const missing = (text: string) => <span className="text-sm font-normal text-muted-foreground">{text}</span>;

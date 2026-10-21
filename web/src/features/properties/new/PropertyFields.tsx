@@ -8,6 +8,7 @@ import { Folded } from '../../loans/new/Folded';
 import { todayIso } from '../../subscriptions/today';
 import { CADENCES, PROPERTY_TYPES } from '../format';
 import type { PropertyFieldsValues } from './propertyForm';
+import '@/locales/loans';
 
 type AmountField = 'purchasePrice' | 'notaryFees' | 'agencyFees' | 'otherAcquisitionCosts';
 

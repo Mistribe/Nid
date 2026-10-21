@@ -7,6 +7,8 @@ import { Folded } from '../../loans/new/Folded';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CADENCES, type PhaseValues } from './phase';
+import '@/locales/income';
+import '@/locales/loans';
 
 export type PhaseErrors = Partial<Record<keyof PhaseValues, { message?: string }>>;
 

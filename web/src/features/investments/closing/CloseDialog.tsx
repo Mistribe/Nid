@@ -17,6 +17,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { CLOSE, invalidateInvestments, type EnvelopeDetail } from '../api';
 import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
+import '@/locales/investments';
 
 const PATHS = { closedOn: 'closedOn', 'finalWithdrawal.amount': 'finalWithdrawal' } as const;
 

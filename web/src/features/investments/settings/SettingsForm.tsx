@@ -20,6 +20,7 @@ import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '../api';
 import { placeFieldError, presentConflict } from '../entries/entries';
 import { CADENCES, KINDS } from '../format';
 import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
+import '@/locales/investments';
 
 const PATHS = {
   displayName: 'displayName', kind: 'kind', institution: 'institution', accountHint: 'accountHint',

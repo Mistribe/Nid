@@ -3,6 +3,7 @@ import { useApi } from '@/api/ApiProvider';
 import { SelectField } from '@/components/form/SelectField';
 import { PROPERTIES } from '../properties/api';
 import { Field } from '@/components/form/Field';
+import '@/locales/loans';
 
 /**
  * 3D1 design §7: « Bien financé » — « Aucun » (an empty value), then the readable properties (the shared ones and one's own private ones: scope `me`) whatever the

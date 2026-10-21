@@ -18,6 +18,7 @@ import { invalidateLoans, REPAYMENT, REPAYMENTS, type LoanDetail, type LoanRepay
 import { EFFECTS } from '../format';
 import { presentRefusal } from '../refusal';
 import { REPAYMENT_PATHS, repaymentSchema, repaymentValuesOf, toRepaymentBody, type RepaymentPrefill, type RepaymentValues } from './repayment';
+import '@/locales/loans';
 
 /**
  * The repayment dialog, open while mounted: adding an early repayment (`editing` absent: POST, possibly prefilled from a

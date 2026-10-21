@@ -19,6 +19,7 @@ import { todayIso } from '../../subscriptions/today';
 import { HOLDING, HOLDINGS, invalidateInvestments, type EnvelopeDetail, type Holding, type HoldingBody } from '../api';
 import { pastDate, placeFieldError, presentConflict } from '../entries/entries';
 import { HOLDING_KINDS, holdingKindText } from './holdingFormat';
+import '@/locales/investments';
 
 const ASSET_CLASSES = ['equity', 'bond', 'money_market', 'mixed', 'real_estate', 'capital_guaranteed', 'other'] as const;
 const PATHS = {

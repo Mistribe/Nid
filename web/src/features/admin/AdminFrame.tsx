@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 import { tabsListVariants } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import '@/locales/admin';
 
 /** The sections of screens.md §12. */
 const SECTIONS = [

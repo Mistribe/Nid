@@ -27,6 +27,8 @@ import { KINDS } from './format';
 import { newIncomePath, newIncomeSchema, toCreateBody, type NewIncomeValues } from './newIncomeSchema';
 import { newPhase } from './phases/phase';
 import { PhaseFields } from './phases/PhaseFields';
+import '@/locales/income';
+import '@/locales/loans';
 
 /** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
 const FIELDS = {

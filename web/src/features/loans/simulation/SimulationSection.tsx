@@ -21,6 +21,7 @@ import { EFFECTS, money, signedMoney } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import { presentRefusal } from '../refusal';
 import type { RepaymentPrefill } from '../repayments/repayment';
+import '@/locales/loans';
 
 const num = 'text-right tabular-nums';
 const PATHS = { on: 'on', amount: 'amount', penalty: 'penalty' } as const;

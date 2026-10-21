@@ -22,6 +22,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, PROPERTIES } from '../api';
 import { newPropertyPath, newPropertySchema, toCreateBody, type NewPropertyValues } from './propertyForm';
 import { IdentityFields, PurchaseFields } from './PropertyFields';
+import '@/locales/loans';
 
 /** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
 const FIELDS = {

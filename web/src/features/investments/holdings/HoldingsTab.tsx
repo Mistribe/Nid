@@ -25,6 +25,7 @@ import { formatUnits, HOLDING_KINDS, holdingKindText, percent, warningText } fro
 import { MovementDialog } from './MovementDialog';
 import { SnapshotDialog } from './SnapshotDialog';
 import { SwitchDialog } from './SwitchDialog';
+import '@/locales/investments';
 
 type Dialog =
   | { kind: 'holding'; editing?: Holding } | { kind: 'close'; holding: Holding } | { kind: 'movement'; holding: Holding }

@@ -125,6 +125,7 @@ La sérialisation canonique suit la **RFC 8785** (JSON Canonicalization Scheme).
 ## 11. Internationalisation et formats
 
 - Français par défaut, **toutes les chaînes par clé** dès le départ (règle de lint contre les chaînes littérales dans le JSX).
+- **Chaînes par module** : `locales/fr.json` ne garde que ce que le bundle initial affiche (shell, navigation, tableau de bord, guides, composants partagés, erreurs). Les clés qu'un seul module ou quelques modules chargés à la demande utilisent vivent dans `locales/fr.<module>.json` (impôts, admin, revenus, placements, prêts, biens, propositions, routine, sécurité) ; `locales/<module>.ts` les ajoute à l'espace `translation` avec `addResourceBundle`, sous les **mêmes clés** (aucun appel `t()` ne change). Tout fichier qui emploie une de ces clés importe `@/locales/<module>` : le chunk du fichier emporte ses chaînes, quelle que soit la route qui le charge. `lazyStrings.test.ts` le vérifie, et qu'aucune clé de premier niveau n'existe deux fois. Le typage (`app/i18next.d.ts`) réunit `fr.json` et les bundles de modules. Seul `subscriptions-board` (vue d'ensemble et calendrier des abonnements) est un espace de noms à part, enregistré par ses onglets.
 - Les libellés du catalogue (`label.<key>`) sont traduits côté interface : la source est monolingue.
 - Montants et dates : composants `<Money>` et `<LocalDate>` (`design-system.md` §4).
 - **Dates** : les valeurs `AAAA-MM-JJ` s'affichent par un utilitaire en **UTC** ; `new Date("2026-09-19")` décalerait le jour selon le fuseau.

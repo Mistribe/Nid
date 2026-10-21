@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import '@/locales/tax';
 
 export const REGIMES = ['auto', 'micro', 'real'] as const;
 const WARNINGS = ['rules_carried_forward', 'micro_over_ceiling', 'pinel_requires_real', 'high_income_contribution'] as const;

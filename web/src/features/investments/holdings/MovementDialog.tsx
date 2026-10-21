@@ -18,6 +18,7 @@ import { todayIso } from '../../subscriptions/today';
 import { invalidateInvestments, MOVEMENTS, type EnvelopeDetail, type Holding } from '../api';
 import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
 import { hasUnits, MOVEMENT_KINDS, movementKindText, signedUnits, UNITS } from './holdingFormat';
+import '@/locales/investments';
 
 const PATHS = { occurredOn: 'occurredOn', kind: 'kind', amount: 'amount', units: 'units', unitPrice: 'unitPrice', label: 'label' } as const;
 const FALLBACK = { 'investments.holding_closed': 'occurredOn' } as const;

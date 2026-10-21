@@ -5,6 +5,8 @@ import { POSITIVE_AMOUNT, trimAmount } from '../../investments/entries/entries';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeGap, IncomePhase } from '../api';
+import '@/locales/income';
+import '@/locales/investments';
 
 export const CADENCES = ['monthly', 'quarterly', 'yearly', 'months'] as const;
 export type Cadence = (typeof CADENCES)[number];

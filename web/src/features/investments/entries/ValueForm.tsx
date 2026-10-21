@@ -15,6 +15,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { invalidateInvestments, VALUATIONS, type EnvelopeDetail, type Valuation } from '../api';
 import { placeFieldError, presentConflict, trimAmount, valueSchema } from './entries';
+import '@/locales/investments';
 
 const PATHS = { asOf: 'asOf', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'asOf' | 'amount'> = {

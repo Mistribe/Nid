@@ -6,6 +6,8 @@ import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import type { PropertyTenancy } from '../api';
 import { FEE_AMOUNT } from '../new/propertyForm';
+import '@/locales/investments';
+import '@/locales/loans';
 
 const optionalAmount = (v: string) => v.trim() === '' || LOAN_AMOUNT.test(v.trim());
 

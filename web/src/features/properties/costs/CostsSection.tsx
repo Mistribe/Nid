@@ -12,6 +12,7 @@ import { RowActions } from '@/components/page/RowActions';
 import { presentRefusal } from '../../loans/refusal';
 import { useRowDialog } from '../useRowDialog';
 import { CostDialog } from './CostForm';
+import '@/locales/loans';
 
 /**
  * Spec 3D2 §4: « Charges prévues » in the server's order (by start), each with its monthly equivalent and next due date as

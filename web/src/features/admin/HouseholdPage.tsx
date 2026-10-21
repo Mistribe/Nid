@@ -8,6 +8,7 @@ import { Field } from '@/components/form/Field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import '@/locales/admin';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 

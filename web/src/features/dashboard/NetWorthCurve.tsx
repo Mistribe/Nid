@@ -16,6 +16,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { monthLabel } from '../income/expected/months';
 import { toPlot } from '../investments/chart/plot';
 import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from './api';
+import '@/locales/investments';
 
 const PERIODS = ['12m', '3y', 'all'] as const;
 type Period = (typeof PERIODS)[number];

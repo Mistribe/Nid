@@ -33,6 +33,7 @@ import { OneOffForm } from './oneoffs/OneOffForm';
 import { OneOffsSection } from './oneoffs/OneOffsSection';
 import { Section } from './Section';
 import { SettingsForm } from './settings/SettingsForm';
+import '@/locales/income';
 
 const TABS = ['overview', 'history', 'oneoffs', 'settings'] as const;
 

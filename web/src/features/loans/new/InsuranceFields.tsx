@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { INSURANCE_MODES } from '../format';
 import type { ContractValues } from './loanForm';
+import '@/locales/loans';
 
 /** One insurance (spec §6): its mode, then the monthly amount or the rate in % as the mode asks, its dates and note. */
 export function InsuranceFields({ form, index }: { form: UseFormReturn<ContractValues>; index: number }) {

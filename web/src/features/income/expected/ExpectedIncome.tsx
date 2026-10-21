@@ -5,6 +5,7 @@ import { Money } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { IncomeExpected } from '../api';
 import { monthLabel } from './months';
+import '@/locales/income';
 
 type Months = IncomeExpected['months'];
 

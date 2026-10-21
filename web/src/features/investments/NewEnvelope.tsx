@@ -26,6 +26,7 @@ import { todayIso } from '../subscriptions/today';
 import { ENVELOPES, invalidateInvestments } from './api';
 import { CADENCES, KINDS } from './format';
 import { newEnvelopeSchema, NEW_ENVELOPE_PATHS, toCreateBody, type NewEnvelopeValues } from './newEnvelopeSchema';
+import '@/locales/investments';
 
 /** A pathless refusal (the Core fact codes carry no path, 2A) attributed to the one date/amount field it can
  * concern: the first-value field before the opening one, and only when exactly one such field was filled. */

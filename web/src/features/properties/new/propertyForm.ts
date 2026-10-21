@@ -7,6 +7,8 @@ import { LOAN_AMOUNT } from '../../loans/new/loanForm';
 import { CURRENCY, ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import { todayIso } from '../../subscriptions/today';
 import { CADENCES, PROPERTY_TYPES } from '../format';
+import '@/locales/investments';
+import '@/locales/loans';
 
 /** A fee or another acquisition cost as typed (spec 3C1 §2): zero allowed, at most two decimals, below 10¹², a comma or a dot. */
 export const FEE_AMOUNT = /^\d{1,12}(?:[.,]\d{1,2})?$/;

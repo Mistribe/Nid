@@ -25,6 +25,7 @@ import { PropertySelect } from '../PropertySelect';
 import { InsuranceSection, LoanFields, useContract } from './ContractFields';
 import { Folded } from './Folded';
 import { contractFormOf, newLoanPath, newLoanSchema, newPhase, plusOneMonth, toCreateBody, type NewLoanValues } from './loanForm';
+import '@/locales/loans';
 
 /** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
 const FIELDS = {

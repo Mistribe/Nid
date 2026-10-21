@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import fr from '@/locales/fr.json';
+import fr from '@/locales/fr.proposals.json';
 import { ValueComparison, type KindUi, type Money } from './kindParts';
+import '@/locales/proposals';
 
 type HoldingsPayload = { asOf: string; lines: unknown[]; movements: unknown[] };
 type LinePreview = {

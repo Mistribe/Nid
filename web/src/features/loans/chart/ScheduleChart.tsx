@@ -4,6 +4,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { toPlot } from '../../investments/chart/plot';
 import type { LoanScheduleYear } from '../api';
 import { money } from '../format';
+import '@/locales/loans';
 
 type Row = {
   year: string; interest: number; principal: number; balance: number; interestText: string; principalText: string; balanceText: string;

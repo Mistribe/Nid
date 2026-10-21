@@ -20,6 +20,7 @@ import { RentalSection } from './rental/RentalSection';
 import { SettingsSection } from './settings/SettingsForm';
 import { ValuationDialog } from './valuations/ValuationForm';
 import { ValuationsSection } from './valuations/ValuationsSection';
+import '@/locales/properties';
 
 const TABS = ['overview', 'rental', 'valuations', 'expenses', 'settings'] as const;
 

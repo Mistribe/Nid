@@ -29,6 +29,7 @@ import { TransferDialog } from './transfer/TransferDialog';
 import { AnnualReturn, Direction, Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 import { percent } from './holdings/holdingFormat';
+import '@/locales/investments';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
 const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));

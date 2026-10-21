@@ -19,6 +19,7 @@ import { todayIso } from '../../subscriptions/today';
 import { FLOW, FLOWS, invalidateProperties, type PropertyDetail, type PropertyFlow } from '../api';
 import { categoriesOf, FLOW_KINDS } from '../format';
 import { FLOW_PATHS, flowSchema, flowValuesOf, toFlowBody, type FlowValues } from './flow';
+import '@/locales/loans';
 
 /**
  * 3D1 design §6: a flow added (`editing` absent: POST) or corrected (PUT: the server supersedes it, so the corrected row

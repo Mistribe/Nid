@@ -8,6 +8,7 @@ import { ESTATE_ROUTINE, type EstateRecap } from './api';
 import { estateDraft } from './draft';
 import { EstateForm, freshEstate, startEstate, type EstateValues } from './EstateForm';
 import { EstateRecapPanel } from './EstateRecap';
+import '@/locales/routine';
 
 /** Spec 3E2 §4: the routine's « Biens » — its own reading, save, recap and « Annuler », beside the envelopes'. */
 export function EstateSection({ on }: { on: string }) {

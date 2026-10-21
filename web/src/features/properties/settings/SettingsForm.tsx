@@ -17,6 +17,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, PROPERTY, type PropertyDetail } from '../api';
 import { PropertyFields } from '../new/PropertyFields';
 import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
+import '@/locales/loans';
 
 /**
  * 3D1 design §6: « Réglages », its live region and its focus. The form remounts on the stored property — its new values

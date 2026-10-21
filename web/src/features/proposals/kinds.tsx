@@ -13,6 +13,7 @@ import { holdings } from './holdingsKind';
 import { invoice } from './invoiceKind';
 import { payslip } from './payslipKind';
 import { statement } from './statementKind';
+import '@/locales/proposals';
 
 export type { KindUi } from './kindParts';
 

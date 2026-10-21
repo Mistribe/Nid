@@ -17,6 +17,7 @@ import { messageFor } from '../../subscriptions/fieldErrors';
 import { todayIso } from '../../subscriptions/today';
 import { invalidateInvestments, SNAPSHOTS, type EnvelopeDetail, type Holding, type Snapshot } from '../api';
 import { hasUnits, trimUnits, UNITS } from './holdingFormat';
+import '@/locales/investments';
 
 type Line = { units: string; unitPrice: string; value: string };
 type Values = { asOf: string; sourceLabel: string; recordValuation: boolean; lines: Line[] };

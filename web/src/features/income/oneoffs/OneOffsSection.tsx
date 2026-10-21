@@ -16,6 +16,7 @@ import { SOURCE, type IncomeSourceDetail } from '../api';
 import { Section } from '../Section';
 import { OneOffForm } from './OneOffForm';
 import { OneOffRowActions } from './OneOffRowActions';
+import '@/locales/income';
 
 // The server lists the one-offs from `from` on; the earliest date it reads stands for « all of them ».
 const ALL_FROM = '0001-01-01';

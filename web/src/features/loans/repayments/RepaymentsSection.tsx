@@ -12,6 +12,7 @@ import { effectText, money } from '../format';
 import { presentRefusal } from '../refusal';
 import type { RepaymentPrefill } from './repayment';
 import { RepaymentDialog } from './RepaymentForm';
+import '@/locales/loans';
 
 /**
  * 3B2 design §7: the early repayments by date (the server's order). Adding (possibly from a simulation) and correcting

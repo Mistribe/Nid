@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import '@/locales/security';
 
 const KNOWN = new Set([
   'login', 'logout', 'login_refused', 'access_denied', 'access_violation', 'person_preregistered',

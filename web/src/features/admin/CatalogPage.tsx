@@ -10,6 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from './format';
+import '@/locales/admin';
 
 type Run = components['schemas']['CatalogSyncRunView'];
 type Report = components['schemas']['CatalogReport'];

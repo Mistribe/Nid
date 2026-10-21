@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { IncomePhase } from '../api';
+import '@/locales/income';
 
 /** The id the page gives the focus back to when the change dialog closes unsaved. */
 export const CHANGE_AMOUNT_ID = 'change-amount';

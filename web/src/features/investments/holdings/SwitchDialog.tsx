@@ -19,6 +19,7 @@ import { todayIso } from '../../subscriptions/today';
 import { invalidateInvestments, SWITCHES, type EnvelopeDetail, type Holding } from '../api';
 import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
 import { hasUnits, signedUnits, UNITS } from './holdingFormat';
+import '@/locales/investments';
 
 const PATHS = {
   occurredOn: 'occurredOn', label: 'label', 'from.holdingId': 'from', 'to.holdingId': 'to', 'from.amount': 'amount', 'to.amount': 'amount',

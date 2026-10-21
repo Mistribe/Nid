@@ -3,6 +3,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import type { LoanDetail, LoanWarning } from './api';
 import { fractionToPercent } from './rate';
+import '@/locales/loans';
 
 export const PHASE_MODES = ['annuity', 'deferred_partial', 'deferred_total'] as const;
 export const RATE_TYPES = ['fixed', 'variable'] as const;

@@ -14,6 +14,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { COST_REPORT, invalidateInvestments, type CostReport, type EnvelopeDetail, type Holding } from '../api';
 import { placeFieldError } from '../entries/entries';
+import '@/locales/investments';
 
 const REQUIRED = ['grossReturnPct', 'totalFeesPct', 'netReturnPct'] as const;
 const DETAIL = ['contractFeesPct', 'supportFeesPct', 'retrocessionPct', 'netAnnualized5yPct'] as const;

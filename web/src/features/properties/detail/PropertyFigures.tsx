@@ -6,6 +6,7 @@ import { money, signedMoney } from '../../loans/format';
 import type { PropertyDetail } from '../api';
 import { costLineText } from '../format';
 import { rentalFigures } from '../rental/RentalFigures';
+import '@/locales/properties';
 
 /** Spec §5.2: the property today inline under the title, every figure the server's; an unknown one reads « Inconnue ». */
 export function PropertyStats({ property }: { property: PropertyDetail }) {

@@ -1,0 +1,22 @@
+{
+  "audit_event": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "login_refused": "Connexion refusée",
+    "access_denied": "Accès refusé",
+    "access_violation": "Réponse retenue (violation d'accès)",
+    "person_preregistered": "Adulte ajouté",
+    "person_preregistration_cancelled": "Invitation annulée",
+    "admin_granted": "Rôle admin accordé",
+    "admin_revoked": "Rôle admin retiré",
+    "session_revoked": "Sessions fermées",
+    "household_settings_changed": "Réglages du foyer modifiés",
+    "admin_command": "Commande de secours",
+    "subject_rebound": "Identité rattachée",
+    "token_created": "Jeton créé",
+    "token_revoked": "Jeton révoqué",
+    "token_auth_failed": "Jeton refusé",
+    "mcp_tool_called": "Lecture par l’assistant",
+    "unknown": "Événement {{name}}"
+  }
+}

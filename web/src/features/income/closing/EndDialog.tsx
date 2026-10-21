@@ -16,6 +16,7 @@ import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { CLOSE_SOURCE, invalidateIncome, type IncomeSourceDetail } from '../api';
+import '@/locales/income';
 
 const PATHS = { endedOn: 'endedOn' } as const;
 

@@ -13,6 +13,7 @@ import { percent } from '@/features/dashboard/format';
 import { toPlot } from '../../investments/chart/plot';
 import type { IncomeChange, IncomeSourceOverview } from '../api';
 import { monthLabel } from '../expected/months';
+import '@/locales/income';
 
 type Months = IncomeSourceOverview['months'];
 type Month = Months[number];

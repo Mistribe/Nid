@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import type { IncomeChange, IncomePhase } from '../api';
 import { cadenceText } from '../format';
 import { Change } from '../overview/OverviewFigures';
+import '@/locales/income';
 
 /**
  * Income dashboard §4: the source's dated steps as the server lists them, newest first — its start, each amount change

@@ -3,6 +3,7 @@ import { formatMoney } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { TaxResult } from './api';
 import { percentText, regimeText } from './format';
+import '@/locales/tax';
 
 export const eur = (amount: string) => formatMoney({ amount, currency: 'EUR' });
 

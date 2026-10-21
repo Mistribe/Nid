@@ -7,6 +7,8 @@ import { todayIso } from '../../subscriptions/today';
 import type { LoanRepayment } from '../api';
 import type { EFFECTS } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
+import '@/locales/investments';
+import '@/locales/loans';
 
 export type Effect = (typeof EFFECTS)[number];
 
