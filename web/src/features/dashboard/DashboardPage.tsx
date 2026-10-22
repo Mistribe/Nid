@@ -55,7 +55,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
   // Closing drops `panel` without a history entry, so Back leaves the page rather than reopening it.
   const close = () => void navigate({ to: '/dashboard', replace: true, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel: undefined }) });
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div className="space-y-4 md:col-span-3">
         <Notice d={data} />
         <KeyFigures d={data} onOpen={open} />
