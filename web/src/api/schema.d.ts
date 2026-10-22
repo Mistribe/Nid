@@ -2617,6 +2617,8 @@ export interface paths {
             parameters: {
                 query?: {
                     scope?: string;
+                    assumedReturn?: number;
+                    referenceFees?: number;
                 };
                 header?: never;
                 path?: never;
@@ -14395,6 +14397,20 @@ export interface components {
             valuations: components["schemas"]["ValuationView"][];
             flows: components["schemas"]["FlowView"][];
         };
+        EnvelopeFeesView: {
+            /** Format: uuid */
+            envelopeId: string;
+            name: string;
+            /** Format: double */
+            contractFeesPct?: null | number;
+            /** Format: double */
+            supportFeesPct?: null | number;
+            /** Format: double */
+            totalFeesPct?: null | number;
+            yearlyCost?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            coveredPct?: null | number;
+        };
         EnvelopeList: {
             items: components["schemas"]["EnvelopeSummary"][];
         };
@@ -14484,6 +14500,23 @@ export interface components {
             name: string;
             /** Format: int32 */
             count: number;
+        };
+        FeesHorizonView: {
+            /** Format: int32 */
+            years: number;
+            withFees: components["schemas"]["AmountView"];
+            withReference: components["schemas"]["AmountView"];
+            difference: components["schemas"]["AmountView"];
+        };
+        FeesProjectionView: {
+            base: components["schemas"]["AmountView"];
+            /** Format: double */
+            feesPct: number;
+            /** Format: double */
+            assumedReturnPct: number;
+            /** Format: double */
+            referenceFeesPct: number;
+            horizons: components["schemas"]["FeesHorizonView"][];
         };
         FiguresView: {
             value?: null | components["schemas"]["AmountView"];
@@ -14664,6 +14697,8 @@ export interface components {
             implicitCost?: null | components["schemas"]["AmountView"];
             /** Format: date */
             maturesOn?: null | string;
+            /** Format: double */
+            costSharePct?: null | number;
         };
         HoldingSeries: {
             /** Format: uuid */
@@ -15106,6 +15141,8 @@ export interface components {
             undetailedEnvelopes: components["schemas"]["UndetailedEnvelopeView"][];
             watch: components["schemas"]["EnvelopeWatchView"][];
             findings: components["schemas"]["OverviewFindingView"][];
+            envelopeFees: components["schemas"]["EnvelopeFeesView"][];
+            projection?: null | components["schemas"]["FeesProjectionView"];
         };
         InvestmentsOverview: {
             currency: string;

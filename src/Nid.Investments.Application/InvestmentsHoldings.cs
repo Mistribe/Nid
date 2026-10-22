@@ -11,7 +11,9 @@ using static Nid.Investments.Application.InvestmentsOverviewMath;
 namespace Nid.Investments.Application;
 
 /// <summary>Investments dashboard spec §5.2: the holdings of the household's envelopes together, in the Foyer / Moi scope.</summary>
-public sealed record GetInvestmentsHoldingsQuery(VisibilityScope Scope) : IQuery<InvestmentsHoldings>;
+public sealed record GetInvestmentsHoldingsQuery(
+    VisibilityScope Scope, decimal AssumedReturnPct = FeesProjection.DefaultReturnPct,
+    decimal ReferenceFeesPct = FeesProjection.DefaultReferencePct) : IQuery<InvestmentsHoldings>;
 
 /// <summary>A kind of holding (euro fund, ETF…) and its share of what is detailed, 0.1 %.</summary>
 public sealed record HoldingKindShareView(string Kind, AmountView? Value, decimal? SharePct);
@@ -27,12 +29,26 @@ public sealed record EnvelopeUcShareView(ItemId EnvelopeId, decimal? UcSharePct,
 public sealed record HoldingOverviewRow(
     ItemId EnvelopeId, string EnvelopeName, Guid HoldingId, string Name, string? Isin, string Kind, string Currency, LocalDate AsOf,
     string Value, AmountView? ValueConverted, decimal? SharePct, decimal? GainPct, decimal? AnnualReturnPct,
-    decimal? TotalFeesPct, AmountView? ImplicitCost, LocalDate? MaturesOn);
+    decimal? TotalFeesPct, AmountView? ImplicitCost, LocalDate? MaturesOn, decimal? CostSharePct = null);
 
 /// <summary>D17: one ISIN held in several envelopes, its value and share of the household's.</summary>
 public sealed record ConcentrationView(string Isin, string Name, AmountView? Value, decimal? SharePct, IReadOnlyList<ItemId> EnvelopeIds);
 
 public sealed record UndetailedEnvelopeView(ItemId EnvelopeId, string Name, AmountView? Value);
+
+/// <summary>
+/// Issue #103: a detailed envelope's fees in % of <c>CostYear</c>'s reports, weighted by its latest snapshot's lines (cash aside);
+/// <c>YearlyCost</c> is those rates on the reported lines' values, converted; <c>CoveredPct</c> the share of its lines with a report.
+/// </summary>
+public sealed record EnvelopeFeesView(
+    ItemId EnvelopeId, string Name, decimal? ContractFeesPct, decimal? SupportFeesPct, decimal? TotalFeesPct, AmountView? YearlyCost, decimal? CoveredPct);
+
+/// <summary>Issue #103: the reported holdings' value after <c>Years</c> at the assumed return less their fees, and less the reference's.</summary>
+public sealed record FeesHorizonView(int Years, AmountView WithFees, AmountView WithReference, AmountView Difference);
+
+/// <summary>Issue #103: what the household's fees cost over time, on today's value of the holdings with a report.</summary>
+public sealed record FeesProjectionView(
+    AmountView Base, decimal FeesPct, decimal AssumedReturnPct, decimal ReferenceFeesPct, IReadOnlyList<FeesHorizonView> Horizons);
 
 /// <summary>
 /// Spec §5.2. D16: <c>Detailed + Unallocated + Undetailed = Value</c>, the overview's. D18: <c>Cost</c> is an estimate of
@@ -43,10 +59,11 @@ public sealed record InvestmentsHoldings(
     int DetailedCount, int EnvelopeCount, IReadOnlyList<HoldingKindShareView> ByKind, decimal? UcSharePct,
     IReadOnlyList<EnvelopeUcShareView> EnvelopesUc, IReadOnlyList<HoldingOverviewRow> Holdings, IReadOnlyList<ConcentrationView> Concentrations,
     int CostYear, AmountView? Cost, decimal? CostPct, int WithoutReportCount, IReadOnlyList<UndetailedEnvelopeView> UndetailedEnvelopes,
-    IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings) : IExposesItems
+    IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings,
+    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
-        => Holdings.Select(h => h.EnvelopeId).Concat(UndetailedEnvelopes.Select(e => e.EnvelopeId)).Distinct();
+        => Holdings.Select(h => h.EnvelopeId).Concat(UndetailedEnvelopes.Select(e => e.EnvelopeId)).Concat(EnvelopeFees.Select(e => e.EnvelopeId)).Distinct();
 }
 
 [RequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>]
@@ -82,8 +99,15 @@ public sealed class GetInvestmentsHoldingsHandler(
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today));
+        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, query.AssumedReturnPct, query.ReferenceFeesPct));
     }
+}
+
+/// <summary>Issue #103: the projection's defaults — a gross return, and the fees of a low-cost world ETF — in %.</summary>
+public static class FeesProjection
+{
+    public const decimal DefaultReturnPct = 4m;
+    public const decimal DefaultReferencePct = 0.2m;
 }
 
 /// <summary>Spec §5's figures, pure: tested in Nid.Investments.Tests.</summary>
@@ -94,9 +118,11 @@ internal static class InvestmentsHoldingsMath
     /// <summary>The envelopes whose holdings count towards the share of units of account (D19).</summary>
     private static readonly HashSet<EnvelopeKind> UnitLinked = [EnvelopeKind.LifeInsurance, EnvelopeKind.Per];
 
+    private static readonly int[] Horizons = [10, 20];
+
     public static InvestmentsHoldings Build(
         IReadOnlyList<EnvelopePerformance.Facts> facts, HoldingsExport export, IReadOnlyDictionary<ItemId, IReadOnlyList<CostReport>> reports,
-        Currency reference, RateTable rates, LocalDate today)
+        Currency reference, RateTable rates, LocalDate today, decimal assumedReturnPct = FeesProjection.DefaultReturnPct, decimal referenceFeesPct = FeesProjection.DefaultReferencePct)
     {
         var convert = new Converter(reference, rates);
         decimal? At(decimal amount, Currency currency) => convert.Of(amount, currency, today);
@@ -113,6 +139,8 @@ internal static class InvestmentsHoldingsMath
         var ucLines = new List<decimal?>();
         var unitLinkedLines = new List<decimal?>();
         var watch = new List<EnvelopeWatchView>();
+        var envelopeFees = new List<EnvelopeFeesView>();
+        var reportedLines = new List<(decimal? Converted, decimal FeesPct)>();
         var detailedCount = 0;
 
         foreach (var f in facts.OrderBy(f => f.Item.DisplayName, French).ThenBy(f => f.Item.Id.Value))
@@ -153,6 +181,28 @@ internal static class InvestmentsHoldingsMath
                     converted, implicitCost is not null ? Base(report!, snapshots, f.Currency, At) : null, costConverted));
             }
 
+            // Issue #103: cash has no fees to report, as D18.
+            var feeable = lines.Where(l => holdingsOf.GetValueOrDefault(l.Line.HoldingId)?.Kind != "cash").ToList();
+            var reported = feeable
+                .Select(l => (l.Line, l.Converted, Report: envelopeReports.FirstOrDefault(r => r.HoldingId == l.Line.HoldingId && r.Year == costYear)))
+                .Where(l => l.Report is not null).ToList();
+            reportedLines.AddRange(reported.Select(l => (l.Converted, l.Report!.TotalFeesPct)));
+            if (feeable.Count > 0)
+            {
+                var weight = reported.Sum(l => l.Line.Value);
+                decimal? Weighted(Func<CostReport, decimal?> pick)
+                {
+                    var known = reported.Where(l => pick(l.Report!) is not null).ToList();
+                    var w = known.Sum(l => l.Line.Value);
+                    return w > 0m ? Math.Round(known.Sum(l => l.Line.Value * pick(l.Report!)!.Value) / w, 2, MidpointRounding.AwayFromZero) : null;
+                }
+                var feeableValue = feeable.Sum(l => l.Line.Value);
+                envelopeFees.Add(new EnvelopeFeesView(f.Item.Id, f.Item.DisplayName, Weighted(r => r.ContractFeesPct), Weighted(r => r.SupportFeesPct),
+                    Weighted(r => r.TotalFeesPct),
+                    weight > 0m ? convert.View(At(reported.Sum(l => l.Line.Value * l.Report!.TotalFeesPct / 100m), f.Currency)) : null,
+                    feeableValue > 0m ? EnvelopeMath.RoundPercent(weight / feeableValue * 100m) : null));
+            }
+
             if (UnitLinked.Contains(f.Envelope.Kind))
             {
                 var kinds = export.Holdings.Where(h => h.Envelope == f.Item.Id).ToDictionary(h => h.Id, h => h.Kind);
@@ -177,9 +227,12 @@ internal static class InvestmentsHoldingsMath
 
         var total = SumOrNull(values);
         var detailed = SumOrNull(detailedParts);
+        var costed = rows.Where(r => r.Base is not null).ToList();
+        var cost = SumOrNull(costed.Select(r => r.Cost));
+        var costBase = SumOrNull(costed.Select(r => r.Base));
         var holdingsRows = rows
             .OrderBy(r => r.Converted is null).ThenByDescending(r => r.Converted).ThenBy(r => r.Row.Name, French).ThenBy(r => r.Row.HoldingId)
-            .Select(r => r.Row with { SharePct = Share(r.Converted, total) })
+            .Select(r => r.Row with { SharePct = Share(r.Converted, total), CostSharePct = r.Base is null ? null : Share(r.Cost, cost) })
             .ToList();
         var byKind = rows.GroupBy(r => r.Row.Kind)
             .Select(g => (Kind: g.Key, Value: SumOrNull(g.Select(r => r.Converted))))
@@ -193,9 +246,6 @@ internal static class InvestmentsHoldingsMath
             .OrderBy(c => c.Value is null).ThenByDescending(c => c.Value).ThenBy(c => c.Isin, StringComparer.Ordinal)
             .Select(c => new ConcentrationView(c.Isin, c.Name, convert.View(c.Value), Share(c.Value, total), c.Envelopes))
             .ToList();
-        var costed = rows.Where(r => r.Base is not null).ToList();
-        var cost = SumOrNull(costed.Select(r => r.Cost));
-        var costBase = SumOrNull(costed.Select(r => r.Base));
 
         return new InvestmentsHoldings(reference.Code, convert.View(total), convert.View(detailed), convert.View(SumOrNull(unallocatedParts)),
             convert.View(SumOrNull(undetailedParts)), Share(detailed, total), detailedCount, values.Count, byKind,
@@ -205,7 +255,29 @@ internal static class InvestmentsHoldingsMath
             rows.Count(r => r.Row.TotalFeesPct is null && r.Row.Kind != "cash"),
             undetailed,
             watch.OrderBy(w => w.On ?? LocalDate.MaxIsoValue).ThenBy(w => w.Code, StringComparer.Ordinal).ThenBy(w => w.EnvelopeId.Value).ToList(),
-            convert.Missing);
+            convert.Missing,
+            envelopeFees.OrderBy(e => e.TotalFeesPct is null).ThenByDescending(e => e.TotalFeesPct).ThenBy(e => e.Name, French).ToList(),
+            Projection(reportedLines, assumedReturnPct, referenceFeesPct, convert));
+    }
+
+    /// <summary>
+    /// Issue #103: base × (1 + return − fees)^years, against the same base at the reference's fees; null without a reported holding
+    /// or with a missing rate. A power of a decimal has no exact form: computed in double, as the annual returns, then rounded.
+    /// </summary>
+    internal static FeesProjectionView? Projection(
+        IReadOnlyList<(decimal? Converted, decimal FeesPct)> lines, decimal assumedReturnPct, decimal referenceFeesPct, Converter convert)
+    {
+        if (SumOrNull(lines.Select(l => l.Converted)) is not { } @base || @base <= 0m) return null;
+        var fees = lines.Sum(l => l.Converted!.Value * l.FeesPct) / @base;
+        decimal Grown(decimal feesPct, int years)
+            => Math.Round(@base * (decimal)Math.Pow(1 + (double)((assumedReturnPct - feesPct) / 100m), years), 2, MidpointRounding.AwayFromZero);
+        return new FeesProjectionView(convert.View(@base)!, Math.Round(fees, 2, MidpointRounding.AwayFromZero), assumedReturnPct, referenceFeesPct,
+            Horizons.Select(n =>
+            {
+                var withFees = Grown(fees, n);
+                var withReference = Grown(referenceFeesPct, n);
+                return new FeesHorizonView(n, convert.View(withFees)!, convert.View(withReference)!, convert.View(withReference - withFees)!);
+            }).ToList());
     }
 
     /// <summary>D18: the mean of the holding's values the estimate uses (end of the year before and of the year), converted.</summary>

@@ -25,8 +25,11 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetInvestmentsPerformanceQuery(ParseScope(scope), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<InvestmentsPerformance>();
 
-        api.MapGet("/overview/holdings", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope)), ct)).ToHttp(h => h))
+        // Issue #103: the fees projection's assumptions, in %; absent is the default, out of range a bad request.
+        api.MapGet("/overview/holdings", async (string? scope, decimal? assumedReturn, decimal? referenceFees, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope),
+                Pct(assumedReturn, FeesProjection.DefaultReturnPct, -10m, 20m, nameof(assumedReturn)),
+                Pct(referenceFees, FeesProjection.DefaultReferencePct, 0m, 10m, nameof(referenceFees))), ct)).ToHttp(h => h))
             .Returns<InvestmentsHoldings>();
 
         api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
@@ -219,6 +222,12 @@ public static class InvestmentEndpoints
     }
 
     /// <summary>Investments dashboard spec §3.2, as the net worth curve: absent is the default, an unknown span a bad request.</summary>
+    /// <summary>Issue #103: a percentage within its bounds, or the default when absent.</summary>
+    private static decimal Pct(decimal? value, decimal fallback, decimal min, decimal max, string name)
+        => value is not { } v ? fallback
+            : v >= min && v <= max ? v
+            : throw new BadHttpRequestException($"'{name}' is a percentage from {min} to {max}.");
+
     private static OverviewSpan ParseSpan(string? span) => span switch
     {
         null or "12m" => OverviewSpan.TwelveMonths,

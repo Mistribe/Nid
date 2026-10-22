@@ -213,6 +213,30 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
     }
 
     [Fact]
+    public async Task The_fees_by_envelope_and_their_projection_follow_the_assumptions_sent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await DetailedAsync(app, "Assurance-vie", app.AdultA, Visibility.Shared);
+        var etf = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Holdings))).GetProperty("holdings").EnumerateArray()
+            .Single(h => S(h, "name") == "ETF Monde").GetProperty("holdingId").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put,
+            $"/api/v1/investments/envelopes/{id.Value}/holdings/{etf}/cost-reports/2024", new { grossReturnPct = 8m, totalFeesPct = 0.5m, netReturnPct = 7.5m })).StatusCode);
+
+        // The reference's fees equal the holding's: no difference whatever the horizon.
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?assumedReturn=5&referenceFees=0.5"));
+
+        var fees = Assert.Single(body.GetProperty("envelopeFees").EnumerateArray());
+        Assert.Equal((0.5m, "45.00", 37.5m), (fees.GetProperty("totalFeesPct").GetDecimal(), S(fees.GetProperty("yearlyCost"), "amount"), fees.GetProperty("coveredPct").GetDecimal()));
+        var projection = body.GetProperty("projection");
+        Assert.Equal(("9000.00", 5m, 0.5m), (S(projection.GetProperty("base"), "amount"), projection.GetProperty("assumedReturnPct").GetDecimal(),
+            projection.GetProperty("referenceFeesPct").GetDecimal()));
+        Assert.All(projection.GetProperty("horizons").EnumerateArray(), h => Assert.Equal("0.00", S(h.GetProperty("difference"), "amount")));
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?assumedReturn=30")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?referenceFees=-1")).StatusCode);
+    }
+
+    [Fact]
     public async Task Another_adults_private_envelope_is_absent()
     {
         await using var app = await NidApp.StartAsync(fixture);

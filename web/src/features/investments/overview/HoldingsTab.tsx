@@ -1,3 +1,4 @@
+import { keepPreviousData } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { Info } from 'lucide-react';
@@ -5,6 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
+import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
@@ -13,8 +15,10 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { HOUSEHOLD_HOLDINGS, type HoldingOverviewRow, type HouseholdHoldings } from '../api';
 import { toPlot } from '../chart/plot';
 import { pct } from '../Figures';
@@ -27,11 +31,19 @@ type Scope = 'household' | 'me';
 /** A share the server rounded, written without a sign. */
 const share = (value: number) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 
+/** A fee rate as the server rounded it, to 0.01 %. */
+const rate = (value: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
+
+/** Issue #103: the projection's assumptions, in %; absent, the server's defaults. */
+type Assumptions = { assumedReturn?: number; referenceFees?: number };
+
 /** Investments dashboard §5.3: the holdings of every envelope together, from the server's figures; nothing computed here. */
 export function HoldingsTab({ scope }: { scope: Scope }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const answer = $api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope } } });
+  const [assumptions, setAssumptions] = useState<Assumptions>({});
+  // The previous figures stay while new assumptions load, so the tab does not blink.
+  const answer = $api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope, ...assumptions } } }, { placeholderData: keepPreviousData });
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
   const d = answer.data;
   if (!d) return <Skeleton role="status" aria-busy="true" aria-label={t('investments_holdings.loading')} className="h-64 w-full" />;
@@ -50,6 +62,8 @@ export function HoldingsTab({ scope }: { scope: Scope }) {
         <Fees d={d} />
         <WatchCard d={d} />
       </div>
+      <EnvelopeFees d={d} />
+      <Projection d={d} onChange={setAssumptions} />
     </div>
   );
 }
@@ -190,13 +204,17 @@ function Fees({ d }: { d: HouseholdHoldings }) {
   const { t } = useTranslation();
   const costed = d.holdings.filter((h) => h.implicitCost).sort((a, b) => amountKey(b.implicitCost!.amount) - amountKey(a.implicitCost!.amount));
   const max = costed[0] ? Math.max(1, toPlot(costed[0].implicitCost!.amount)) : 1;
+  // D18: cash has no fees to report.
+  const without = d.holdings.filter((h) => (h.totalFeesPct === null || h.totalFeesPct === undefined) && h.kind !== 'cash').map((h) => h.name);
   return (
     <SectionCard title={t('investments_holdings.fees_title', { year: d.costYear })}>
       {costed.length === 0 ? <p className="text-sm text-muted-foreground">{t('investments_holdings.fees_none', { year: d.costYear })}</p> : (
         <ul className="space-y-2 text-sm">
           {costed.map((h) => (
             <li key={`${h.envelopeId}/${h.holdingId}`} className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-3">
-              <span className="truncate">{h.name} <span className="text-muted-foreground">{t('investments.pct', { value: share(h.totalFeesPct!) })}</span></span>
+              <span className="truncate">{h.name} <span className="text-muted-foreground">{t('investments.pct', { value: share(h.totalFeesPct!) })}</span>
+                {h.costSharePct != null ? <span className="block text-xs text-muted-foreground">{t('investments_holdings.fees_share', { pct: t('investments.pct', { value: share(h.costSharePct) }) })}</span> : null}
+              </span>
               <span aria-hidden="true" className="h-2.5 rounded-full bg-muted">
                 <span className="block h-full rounded-full bg-[var(--chart-2)]" style={{ width: `${(toPlot(h.implicitCost!.amount) / max) * 100}%` }} />
               </span>
@@ -207,6 +225,105 @@ function Fees({ d }: { d: HouseholdHoldings }) {
       )}
       <p className="text-sm text-muted-foreground">{t('investments_holdings.fees_note')}</p>
       {d.withoutReportCount > 0 ? <p className="text-sm text-muted-foreground">{t('investments_holdings.fees_without', { count: d.withoutReportCount, year: d.costYear })}</p> : null}
+      {without.length > 0 ? <p className="text-sm text-muted-foreground">{t('investments_holdings.fees_without_list', { year: d.costYear, list: without.join(', ') })}</p> : null}
+    </SectionCard>
+  );
+}
+
+const rateOrDash = (t: TFunction, v?: number | null) =>
+  v === null || v === undefined ? <span aria-hidden="true">{t('investments.dash')}</span> : <span className="tabular-nums">{t('investments.pct', { value: rate(v) })}</span>;
+
+/** Issue #103: each detailed envelope's fees, weighted by the server; the dearest first. */
+function EnvelopeFees({ d }: { d: HouseholdHoldings }) {
+  const { t } = useTranslation();
+  if (d.envelopeFees.length === 0) return null;
+  return (
+    <SectionCard title={t('investments_holdings.envelope_fees_title', { year: d.costYear })}>
+      <Table aria-label={t('investments_holdings.envelope_fees_table')}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('investments_holdings.col_envelope')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_contract_fees')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_support_fees')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_total_fees')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_yearly_cost')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_covered')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {d.envelopeFees.map((e) => (
+            <TableRow key={e.envelopeId}>
+              <TableHead scope="row" className="font-normal">
+                <Link to="/investments/$id" params={{ id: e.envelopeId }} search={{ tab: 'holdings' }} className="hover:underline">{e.name}</Link>
+              </TableHead>
+              <TableCell className="text-right">{rateOrDash(t, e.contractFeesPct)}</TableCell>
+              <TableCell className="text-right">{rateOrDash(t, e.supportFeesPct)}</TableCell>
+              <TableCell className="text-right">{rateOrDash(t, e.totalFeesPct)}</TableCell>
+              <TableCell className="text-right tabular-nums">{e.yearlyCost ? `≈ ${formatMoney(e.yearlyCost)}` : t('investments.dash')}</TableCell>
+              <TableCell className="text-right tabular-nums">{e.coveredPct != null ? t('investments.pct', { value: share(e.coveredPct) }) : t('investments.dash')}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <p className="text-sm text-muted-foreground">{t('investments_holdings.envelope_fees_note')}</p>
+    </SectionCard>
+  );
+}
+
+/** Issue #103: the reported holdings grown with their fees and with the reference's, at the assumptions the person sets. */
+function Projection({ d, onChange }: { d: HouseholdHoldings; onChange: (a: Assumptions) => void }) {
+  const { t } = useTranslation();
+  const [error, setError] = useState('');
+  const p = d.projection;
+  if (!p) return <SectionCard title={t('investments_holdings.projection_title')}><p className="text-sm text-muted-foreground">{t('investments_holdings.projection_none', { year: d.costYear })}</p></SectionCard>;
+  const percentText = (v: number) => t('investments.pct', { value: rate(v) });
+  return (
+    <SectionCard title={t('investments_holdings.projection_title')}>
+      <p className="text-sm">{t('investments_holdings.projection_intro', { base: formatMoney(p.base), fees: percentText(p.feesPct) })}</p>
+      <form noValidate className="flex flex-wrap items-end gap-3" onSubmit={(event) => {
+        event.preventDefault();
+        const fields = new FormData(event.currentTarget);
+        // Rates in %, not amounts: a French keyboard types a comma.
+        const read = (name: string) => Number(((fields.get(name) as string | null) ?? '').trim().replace(',', '.'));
+        const assumedReturn = read('assumedReturn');
+        const referenceFees = read('referenceFees');
+        if (Number.isNaN(assumedReturn) || Number.isNaN(referenceFees) || assumedReturn < -10 || assumedReturn > 20 || referenceFees < 0 || referenceFees > 10) {
+          setError(t('investments_holdings.projection_invalid'));
+          return;
+        }
+        setError('');
+        onChange({ assumedReturn, referenceFees });
+      }}>
+        <Field label={t('investments_holdings.projection_return')}>
+          {(c) => <Input {...c} name="assumedReturn" inputMode="decimal" className="w-24" defaultValue={rate(p.assumedReturnPct)} />}
+        </Field>
+        <Field label={t('investments_holdings.projection_reference')}>
+          {(c) => <Input {...c} name="referenceFees" inputMode="decimal" className="w-24" defaultValue={rate(p.referenceFeesPct)} />}
+        </Field>
+        <Button type="submit" variant="outline">{t('investments_holdings.projection_apply')}</Button>
+      </form>
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      <Table aria-label={t('investments_holdings.projection_table')}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('investments_holdings.col_horizon')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_with_fees')}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_with_reference', { pct: percentText(p.referenceFeesPct) })}</TableHead>
+            <TableHead className="text-right">{t('investments_holdings.col_difference')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {p.horizons.map((h) => (
+            <TableRow key={h.years}>
+              <TableHead scope="row" className="font-normal">{t('investments_holdings.years', { count: h.years })}</TableHead>
+              <TableCell className="text-right tabular-nums">{formatMoney(h.withFees)}</TableCell>
+              <TableCell className="text-right tabular-nums">{formatMoney(h.withReference)}</TableCell>
+              <TableCell className="text-right font-medium tabular-nums">{formatMoney(h.difference)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <p className="text-sm text-muted-foreground">{t('investments_holdings.projection_note')}</p>
     </SectionCard>
   );
 }

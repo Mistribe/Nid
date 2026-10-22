@@ -2710,6 +2710,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "assumedReturn",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "referenceFees",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
           }
         ],
         "responses": {
@@ -17219,6 +17235,60 @@
           }
         }
       },
+      "EnvelopeFeesView": {
+        "required": [
+          "envelopeId",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "envelopeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "contractFeesPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "supportFeesPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "totalFeesPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "yearlyCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "coveredPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "EnvelopeList": {
         "required": [
           "items"
@@ -17565,6 +17635,63 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "FeesHorizonView": {
+        "required": [
+          "years",
+          "withFees",
+          "withReference",
+          "difference"
+        ],
+        "type": "object",
+        "properties": {
+          "years": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "withFees": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "withReference": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "difference": {
+            "$ref": "#/components/schemas/AmountView"
+          }
+        }
+      },
+      "FeesProjectionView": {
+        "required": [
+          "base",
+          "feesPct",
+          "assumedReturnPct",
+          "referenceFeesPct",
+          "horizons"
+        ],
+        "type": "object",
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/AmountView"
+          },
+          "feesPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "assumedReturnPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "referenceFeesPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "horizons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeesHorizonView"
+            }
           }
         }
       },
@@ -18347,6 +18474,13 @@
               "string"
             ],
             "format": "date"
+          },
+          "costSharePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -20115,7 +20249,8 @@
           "withoutReportCount",
           "undetailedEnvelopes",
           "watch",
-          "findings"
+          "findings",
+          "envelopeFees"
         ],
         "type": "object",
         "properties": {
@@ -20250,6 +20385,22 @@
             "items": {
               "$ref": "#/components/schemas/OverviewFindingView"
             }
+          },
+          "envelopeFees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeFeesView"
+            }
+          },
+          "projection": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeesProjectionView"
+              }
+            ]
           }
         }
       },

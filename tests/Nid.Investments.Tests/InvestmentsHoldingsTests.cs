@@ -119,6 +119,71 @@ public class InvestmentsHoldingsTests
     }
 
     [Fact]
+    public void Each_envelopes_fees_are_weighted_by_its_lines_cash_aside_and_an_envelope_without_a_report_says_so()
+    {
+        var (h, lifeWorld, _) = Fixture();
+        var life = h.Facts[0].Item.Id;
+        var euro = h.Holdings.Single(x => x.Name == "Fonds euros").Id;
+        h.Reports[life] = [.. h.Reports[life], new CostReport(euro, 2025, 2.6m, 0.6m, 2m, 0.6m, 0m, null, null, null)];
+
+        var o = h.Build();
+
+        // Life: 28 200 at 0.6 % and 31 400 at 0.85 % of 78 400 of lines; only the euro fund states its contract and support fees.
+        var lifeFees = o.EnvelopeFees[0];
+        Assert.Equal(("Assurance-vie", 0.6m, 0m, 0.73m, 436.10m, 76.0m),
+            (lifeFees.Name, lifeFees.ContractFeesPct, lifeFees.SupportFeesPct, lifeFees.TotalFeesPct, N(lifeFees.YearlyCost), lifeFees.CoveredPct));
+        // PEA: no report, its cash left out of the coverage.
+        var pea = o.EnvelopeFees[1];
+        Assert.Equal(("PEA", null, null, (decimal?)null, 0.0m), (pea.Name, pea.TotalFeesPct, pea.YearlyCost, pea.ContractFeesPct, pea.CoveredPct));
+        Assert.Equal(2, o.EnvelopeFees.Count); // the savings account has no snapshot
+
+        // The euro fund was not held at the ends of 2024 and 2025: its estimated cost is 0, the ETF's is all of it.
+        Assert.Equal(100.0m, o.Holdings.Single(r => r.HoldingId == lifeWorld).CostSharePct);
+        Assert.Equal(0m, o.Holdings.Single(r => r.HoldingId == euro).CostSharePct);
+        Assert.Null(o.Holdings.Single(r => r.Name == "SCPI Pierre").CostSharePct); // no report, no share
+    }
+
+    [Fact]
+    public void The_projection_grows_the_reported_holdings_at_the_return_less_their_fees_against_the_reference()
+    {
+        var (h, _, _) = Fixture();
+        var life = h.Facts[0].Item.Id;
+        var euro = h.Holdings.Single(x => x.Name == "Fonds euros").Id;
+        h.Reports[life] = [.. h.Reports[life], new CostReport(euro, 2025, 2.6m, 0.6m, 2m, 0.6m, 0m, null, null, null)];
+
+        var p = h.Build().Projection!;
+
+        Assert.Equal((59_600m, 0.73m, 4m, 0.2m), (N(p.Base), p.FeesPct, p.AssumedReturnPct, p.ReferenceFeesPct));
+        Assert.Equal([10, 20], p.Horizons.Select(x => x.Years));
+        // 59 600 × (1 + 4 % − 0.7317 %)^10 and × 1.038^10; computed in double, so to the cent at most.
+        Assert.InRange(N(p.Horizons[0].WithFees), 82_208.36m, 82_208.38m);
+        Assert.InRange(N(p.Horizons[0].WithReference), 86_540.57m, 86_540.59m);
+        Assert.Equal(N(p.Horizons[0].WithReference) - N(p.Horizons[0].WithFees), N(p.Horizons[0].Difference));
+        Assert.InRange(N(p.Horizons[1].Difference), 12_266.00m, 12_266.04m);
+    }
+
+    [Fact]
+    public void Without_a_report_there_is_no_projection_and_a_foreign_envelopes_cost_is_converted()
+    {
+        var (none, _, _) = Fixture();
+        none.Reports.Clear();
+        Assert.Null(none.Build().Projection);
+
+        var h = new Household();
+        var usd = new EnvelopeFacts("Courtier US", EnvelopeKind.Brokerage, "USD").Flow(D(2025, 1, 1), FlowKind.Opening, 10_000m).Value(D(2026, 9, 30), 10_000m);
+        h.Facts.Add(usd.Build());
+        var fund = h.Holding(usd.Id, "S&P 500", "etf");
+        h.Snapshot(usd.Id, D(2026, 9, 30), Line(fund, 10_000m));
+        h.Reports[usd.Id] = [new CostReport(fund, 2025, 10m, 0.5m, 9.5m, null, null, null, null, null)];
+
+        var o = h.Build();
+
+        // 0.5 % of 10 000 $ is 50 $, 45 € at 0.9.
+        Assert.Equal((0.5m, 45m), (o.EnvelopeFees.Single().TotalFeesPct, N(o.EnvelopeFees.Single().YearlyCost)));
+        Assert.Equal(9_000m, N(o.Projection!.Base));
+    }
+
+    [Fact]
     public void The_share_of_units_of_account_and_what_to_watch()
     {
         var (h, _, peaWorld) = Fixture(floor: 70m);

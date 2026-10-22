@@ -107,7 +107,7 @@ export const LIFE = '0192f0aa-0000-7000-8000-00000000e004';
 export const holdings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldings => ({
   currency: 'EUR', value: null, detailed: null, unallocated: null, undetailed: null, detailedPct: null, detailedCount: 0, envelopeCount: 0,
   byKind: [], ucSharePct: null, envelopesUc: [], holdings: [], concentrations: [], costYear: 2024, cost: null, costPct: null,
-  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], ...over,
+  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, ...over,
 });
 
 const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({
@@ -117,7 +117,7 @@ const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({
 });
 
 /** A PEA and a life insurance sharing an ETF, a savings account without holdings, a structured product maturing soon. */
-export const householdHoldings = (): HouseholdHoldings => holdings({
+export const householdHoldings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldings => holdings({
   value: eur('162850.00'), detailed: eur('139700.00'), unallocated: eur('200.00'), undetailed: eur('22950.00'), detailedPct: 85.8,
   detailedCount: 2, envelopeCount: 3, ucSharePct: 64, envelopesUc: [{ envelopeId: LIFE, ucSharePct: 64, floorPct: 60 }],
   byKind: [{ kind: 'etf', value: eur('79900.00'), sharePct: 57.2 }, { kind: 'euro_fund', value: eur('59800.00'), sharePct: 42.8 }],
@@ -135,4 +135,5 @@ export const householdHoldings = (): HouseholdHoldings => holdings({
     { code: 'unexplained_units', envelopeId: PEA, holdingId: WORLD_PEA, on: '2025-09-30' },
     { code: 'holding_maturity', envelopeId: LIFE, holdingId: '0192f0aa-0000-7000-8000-0000000000c3', on: '2025-12-05' },
   ],
+  ...over,
 });
