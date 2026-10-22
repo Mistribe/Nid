@@ -21,7 +21,7 @@ Pour repartir d'une base vide : `docker volume rm nid-dev-pgdata nid-dev-pocket-
 
 ### Frontend (`web/`)
 
-Prérequis : Node ≥ 24 et pnpm 11 (`corepack enable`, ou installé à part).
+Prérequis : Node ≥ 24 et pnpm 12 (`corepack enable`, ou installé à part).
 
 ```bash
 pnpm --dir web install               # dépendances, versions exactes du lockfile

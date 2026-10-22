@@ -2,11 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
 import type { TaxEstimate } from './api';
-import { percentText } from './format';
+import { percentText, ZERO } from './format';
 import { eur } from './ResultTable';
 import '@/locales/tax';
-
-const ZERO = /^-?0(\.0+)?$/;
 
 /**
  * Tax estimate spec §4bis: what to type in « Actualiser suite à une hausse ou une baisse de vos revenus » on impots.gouv.fr, and the

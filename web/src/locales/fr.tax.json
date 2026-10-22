@@ -20,7 +20,39 @@
       "net_after": "Net après impôt",
       "monthly": "Par mois",
       "marginal_rate": "Tranche marginale",
-      "withholding_rate": "Taux de prélèvement"
+      "withholding_rate": "Taux de prélèvement",
+      "parts": "Parts",
+      "left_monthly": "Reste après impôt, par mois",
+      "per_year": "{{amount}} sur l’année",
+      "average_rate": "Taux moyen {{rate}}",
+      "balance": "Solde à la déclaration {{year}}",
+      "to_pay": "à payer",
+      "refund": "remboursés",
+      "no_balance": "Aucun solde",
+      "adjust": "Ajuster le taux de prélèvement"
+    },
+    "split": {
+      "title": "Où vont les {{amount}} de revenus nets avant impôt",
+      "left": "Reste"
+    },
+    "declarant": {
+      "title": "Revenus par déclarant",
+      "info": "Infos",
+      "salary_net": "Salaires nets imposables",
+      "allowance": "Abattement de 10 %",
+      "per": "Versements PER déduits",
+      "taxable": "Imposable"
+    },
+    "group": {
+      "income": "Revenus imposables",
+      "income_tax": "Barème, réductions et crédits",
+      "other": "Autres prélèvements",
+      "left": "Ce qu’il reste"
+    },
+    "zeros": {
+      "show_one": "Afficher la ligne à 0 €",
+      "show_other": "Afficher les {{count}} lignes à 0 €",
+      "hide": "Masquer les lignes à 0 €"
     },
     "row": {
       "step": "Étape",

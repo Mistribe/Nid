@@ -40,7 +40,7 @@ describe('TaxPage', () => {
 
   it('shows the server’s figures, the notes and the steps', async () => {
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-    const { container } = await renderApp('/tax');
+    const { container, user } = await renderApp('/tax');
 
     expect(await screen.findByText('Net fiscal')).toBeInTheDocument();
     expect(screen.getAllByText('64 407,00 €').length).toBeGreaterThan(0);
@@ -50,6 +50,17 @@ describe('TaxPage', () => {
     expect(screen.getByText(/celui des revenus 2025 est repris/)).toBeInTheDocument();
     const table = screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' });
     expect(within(table).getByRole('row', { name: /Crédit garde hors du domicile/ })).toHaveTextContent('3 000,00 €');
+    const people = screen.getByRole('table', { name: 'Revenus par déclarant' });
+    expect(within(people).getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
+    expect(within(people).getByRole('row', { name: /Abattement de 10 %/ })).toHaveTextContent('4 042,46 €');
+    expect(within(people).queryByRole('row', { name: /PER/ })).not.toBeInTheDocument();
+    expect(within(table).queryByRole('row', { name: /Alice/ })).not.toBeInTheDocument();
+    expect(screen.getByText('2 973,39 €')).toBeInTheDocument();
+    expect(screen.getByText('remboursés')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Reste .+, Impôt sur le revenu 247,00/ })).toBeInTheDocument();
+    expect(within(table).queryByRole('row', { name: /Réduction Pinel/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Afficher les \d+ lignes à 0 €/ }));
+    expect(within(table).getByRole('row', { name: /Réduction Pinel/ })).toHaveTextContent('0,00 €');
     await expectNoAxeViolations(container);
   });
 
