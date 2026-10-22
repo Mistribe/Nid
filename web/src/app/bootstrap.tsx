@@ -1,8 +1,9 @@
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryClient } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { createApi, type Api } from '@/api/client';
 import { isProblem, present, toProblem } from '@/api/errors';
+import { PRIVATE_ITEMS } from '@/components/ScopeSwitch';
 import { App } from './App';
 import { LoginRefusedPage } from './LoginRefusedPage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
@@ -13,11 +14,14 @@ import { applyTheme, rememberTheme, resolveMode, resolveTheme } from './theme';
 
 /** No retry on a 4xx: the server has answered, and asking again changes nothing (architecture.md §6). */
 export function createQueryClient(): QueryClient {
-  return new QueryClient({
+  const client: QueryClient = new QueryClient({
+    // Any write may create a private item, which is what shows the Foyer / Moi selector (issue 85).
+    mutationCache: new MutationCache({ onSuccess: () => void client.invalidateQueries({ queryKey: ['get', PRIVATE_ITEMS] }) }),
     defaultOptions: {
       queries: { staleTime: 30_000, retry: (failures, error) => !(isProblem(error) && error.status < 500) && failures < 2 },
     },
   });
+  return client;
 }
 
 /** When the session or the capabilities cannot be read, say so and offer to retry — never a blank page, never a guessed module list. */

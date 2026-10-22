@@ -150,6 +150,7 @@ public static class RequestCatalogue
         new(typeof(RebindSubjectCommand), false, (data, _) => new RebindSubjectCommand(data.App.AdultB, "bench-sub")),
         new(typeof(RevokeMySessionsCommand), false, (_, _) => new RevokeMySessionsCommand()),
         new(typeof(ListMyTokensQuery), false, (_, _) => new ListMyTokensQuery()),
+        new(typeof(GetMyPrivateItemsQuery), false, (_, _) => new GetMyPrivateItemsQuery()),
         new(typeof(CreateTokenCommand), false, (_, _) => new CreateTokenCommand("bench-token", TokenPresets.Read, 30)),
         new(typeof(RevokeMyTokenCommand), false, (_, _) => new RevokeMyTokenCommand(Guid.NewGuid())),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),

@@ -51,6 +51,11 @@ public static class PersonEndpoints
             return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
         }).ReturnsNoContent();
 
+        // Issue 85: the Foyer / Moi selector only shows once « Moi » can differ from « Foyer ».
+        api.MapGet("/me/private-items", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetMyPrivateItemsQuery(), ct)).ToHttp(v => v))
+            .Returns<PrivateItemsView>();
+
         // Spec 4A §6: « Mes jetons », browser sessions only (IBrowserOnly).
         api.MapGet("/me/tokens", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ListMyTokensQuery(), ct)).ToHttp(t => t))

@@ -146,7 +146,7 @@ describe('the shell', () => {
 
   it('keeps Foyer / Moi in the URL across navigation', async () => {
     const { router, user } = await renderApp('/subscriptions');
-    expect(screen.getByRole('radio', { name: 'Foyer' })).toBeChecked();
+    expect(await screen.findByRole('radio', { name: 'Foyer' })).toBeChecked();
 
     await user.click(screen.getByRole('radio', { name: 'Moi' }));
     expect(router.state.location.search).toEqual({ scope: 'me' });
@@ -154,6 +154,20 @@ describe('the shell', () => {
     await user.click(within(sidebar()).getByRole('link', { name: 'Placements' }));
     expect(router.state.location.pathname).toBe('/investments');
     expect(router.state.location.search).toEqual({ scope: 'me' });
+    expect(screen.getByRole('radio', { name: 'Moi' })).toBeChecked();
+  });
+
+  it('hides Foyer / Moi while I own no private item, since both would show the same', async () => {
+    let answered = false;
+    server.use(http.get('*/api/v1/core/me/private-items', () => { answered = true; return HttpResponse.json({ owns: false }); }));
+    await renderApp('/subscriptions');
+    await waitFor(() => expect(answered).toBe(true));
+    expect(screen.queryByRole('radio', { name: 'Foyer' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the selector on a Moi link even without a private item, to leave a way back', async () => {
+    server.use(http.get('*/api/v1/core/me/private-items', () => HttpResponse.json({ owns: false })));
+    await renderApp('/subscriptions?scope=me');
     expect(screen.getByRole('radio', { name: 'Moi' })).toBeChecked();
   });
 

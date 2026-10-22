@@ -14,6 +14,8 @@ export const handlers = [
   // Every list row names its owners from the household's persons.
   http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
   http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
+  // The shell's Foyer / Moi selector shows only to an owner of a private item (issue 85).
+  http.get('*/api/v1/core/me/private-items', () => HttpResponse.json({ owns: true })),
   // The shell's badge reads the pending proposals (4C2).
   http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),

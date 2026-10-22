@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
 
@@ -137,5 +139,27 @@ public class VisibleItemsTests(PostgresFixture fixture)
         Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, default));
         Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Household, includeArchived: true, default));
         Assert.DoesNotContain(new ItemId(privateA), await new VisibleItems(db).ForAsync(new PersonId(b), VisibilityScope.Me, includeArchived: true, default));
+    }
+
+    [Fact]
+    public async Task Private_items_query_is_true_only_for_an_owner_of_an_active_private_item()
+    {
+        await using var db = await fixture.NewDatabaseAsync();
+        var (a, _, _, privateA, privateB, _) = await SeedAsync(db);
+        var d = Guid.CreateVersion7();
+        db.Persons.Add(Person(d, "adult", "sub-d"));
+        await db.SaveChangesAsync();
+
+        async Task<bool> OwnsAsync(Guid person) => (await new GetMyPrivateItemsHandler(new VisibleItems(db),
+            new ActorAccessor { Current = Actor.Browser(new PersonId(person)) }).HandleAsync(new GetMyPrivateItemsQuery())).Ok().Owns;
+
+        Assert.True(await OwnsAsync(a));
+        Assert.False(await OwnsAsync(d));
+
+        // An archived private item does not count: « Moi » would show nothing more.
+        foreach (var item in await db.Items.Where(i => i.Id == privateA || i.Id == privateB).ToListAsync())
+            item.ArchivedAt = SystemClock.Instance.GetCurrentInstant();
+        await db.SaveChangesAsync();
+        Assert.False(await OwnsAsync(a));
     }
 }
