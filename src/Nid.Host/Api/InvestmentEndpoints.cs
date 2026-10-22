@@ -25,6 +25,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetInvestmentsPerformanceQuery(ParseScope(scope), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
             .Returns<InvestmentsPerformance>();
 
+        api.MapGet("/overview/holdings", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope)), ct)).ToHttp(h => h))
+            .Returns<InvestmentsHoldings>();
+
         api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
             .Returns<RoutineView>();

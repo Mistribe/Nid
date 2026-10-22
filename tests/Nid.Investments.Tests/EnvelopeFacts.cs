@@ -20,6 +20,9 @@ internal sealed class EnvelopeFacts(string name, EnvelopeKind kind, string curre
 
     public ValuationCadence Cadence { get; init; } = ValuationCadence.Monthly;
     public LocalDate? ClosedOn { get; init; }
+    public decimal? UcShareFloorPct { get; init; }
+
+    public ItemId Id => id;
 
     public EnvelopeFacts Value(LocalDate on, decimal amount)
     {
@@ -41,7 +44,7 @@ internal sealed class EnvelopeFacts(string name, EnvelopeKind kind, string curre
             Currency = money.Code,
             ArchivedAt = ClosedOn is { } closed ? closed.AtMidnight().InUtc().ToInstant() : null,
         };
-        var envelope = new Envelope(id, kind, "Banque", null, null, Cadence, null, null, ClosedOn);
+        var envelope = new Envelope(id, kind, "Banque", null, null, Cadence, null, null, ClosedOn, UcShareFloorPct);
         return new EnvelopePerformance.Facts(envelope, item, values, flows, money);
     }
 }

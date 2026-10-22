@@ -17,7 +17,7 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ENVELOPES, type EnvelopeSummary } from './api';
+import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeSummary } from './api';
 import { kindText } from './format';
 import { Gain } from './Figures';
 import '@/locales/investments';
@@ -31,14 +31,23 @@ const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ d
 
 const PerformanceTab = lazy(() => import('./overview/PerformanceTab').then((m) => ({ default: m.PerformanceTab })));
 
-const TABS = ['overview', 'performance', 'list'] as const;
+const HoldingsTab = lazy(() => import('./overview/HoldingsTab').then((m) => ({ default: m.HoldingsTab })));
 
-/** Investments dashboard §3.1 and §4.3: the overview opens first, then « Performance »; the list keeps its switch of the closed envelopes under `?tab=list`. */
+const WITH_HOLDINGS = ['overview', 'performance', 'holdings', 'list'] as const;
+const WITHOUT_HOLDINGS = ['overview', 'performance', 'list'] as const;
+
+/**
+ * Investments dashboard §3.1, §4.3 and §5.3: the overview opens first, then « Performance », « Supports et frais » while an envelope has a
+ * snapshot; the list keeps its switch of the closed envelopes under `?tab=list`.
+ */
 export function EnvelopesPage() {
   const { t } = useTranslation();
   const search: RootSearch & InvestmentsSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
-  const [tab, setTab] = useDetailTab(TABS);
+  const { $api } = useApi();
+  // §5.1 D20: « Supports et frais » only while an envelope has a snapshot; its answer is shared with the tab.
+  const detailed = ($api.useQuery('get', HOUSEHOLD_HOLDINGS, { params: { query: { scope } } }).data?.detailedCount ?? 0) > 0;
+  const [tab, setTab] = useDetailTab<(typeof WITH_HOLDINGS)[number]>(detailed ? WITH_HOLDINGS : WITHOUT_HOLDINGS);
   const add = <Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>;
   return (
     <div className="space-y-4">
@@ -48,6 +57,8 @@ export function EnvelopesPage() {
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
         { id: 'performance', label: t('investments_overview.tab_performance'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><PerformanceTab scope={scope} /></Suspense> },
+        ...(detailed ? [{ id: 'holdings' as const, label: t('investments_overview.tab_holdings'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><HoldingsTab scope={scope} /></Suspense> }] : []),
         { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
       ]} />
     </div>

@@ -7,3 +7,8 @@ const SLOTS: Record<string, number> = { life_insurance: 1, pea: 2, savings: 3, c
 export const KIND_ORDER = ['life_insurance', 'pea', 'savings', 'checking', 'per', 'brokerage', 'other'] as const;
 
 export const kindColor = (kind: string): string => (SLOTS[kind] ? `var(--chart-${SLOTS[kind]})` : NEUTRAL_COLOR);
+
+/** Spec §5.3: a fixed colour per kind of holding, never by rank; cash and « Autre » in the neutral tone. */
+const HOLDING_SLOTS: Record<string, number> = { euro_fund: 3, fund: 7, etf: 1, equity: 2, bond: 5, structured: 4 };
+
+export const holdingKindColor = (kind: string): string => (HOLDING_SLOTS[kind] ? `var(--chart-${HOLDING_SLOTS[kind]})` : NEUTRAL_COLOR);

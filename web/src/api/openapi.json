@@ -2698,6 +2698,94 @@
         }
       }
     },
+    "/api/v1/investments/overview/holdings": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentsHoldings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/investments/routine": {
       "get": {
         "tags": [
@@ -14793,6 +14881,42 @@
           }
         }
       },
+      "ConcentrationView": {
+        "required": [
+          "isin",
+          "name",
+          "envelopeIds"
+        ],
+        "type": "object",
+        "properties": {
+          "isin": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "sharePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "envelopeIds": {
+            "type": "array"
+          }
+        }
+      },
       "CostReportBody": {
         "type": "object",
         "properties": {
@@ -16524,6 +16648,32 @@
           }
         }
       },
+      "EnvelopeUcShareView": {
+        "required": [
+          "envelopeId"
+        ],
+        "type": "object",
+        "properties": {
+          "envelopeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ucSharePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "floorPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "EnvelopeWatchView": {
         "required": [
           "code",
@@ -17270,6 +17420,34 @@
           }
         }
       },
+      "HoldingKindShareView": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "sharePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "HoldingMovementList": {
         "required": [
           "envelopeId",
@@ -17291,6 +17469,109 @@
             "items": {
               "$ref": "#/components/schemas/MovementView"
             }
+          }
+        }
+      },
+      "HoldingOverviewRow": {
+        "required": [
+          "envelopeId",
+          "envelopeName",
+          "holdingId",
+          "name",
+          "kind",
+          "currency",
+          "asOf",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "envelopeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envelopeName": {
+            "type": "string"
+          },
+          "holdingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "type": "string"
+          },
+          "valueConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "sharePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "gainPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "annualReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "totalFeesPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "implicitCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "maturesOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -19042,6 +19323,157 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          }
+        }
+      },
+      "InvestmentsHoldings": {
+        "required": [
+          "currency",
+          "detailedCount",
+          "envelopeCount",
+          "byKind",
+          "envelopesUc",
+          "holdings",
+          "concentrations",
+          "costYear",
+          "withoutReportCount",
+          "undetailedEnvelopes",
+          "watch",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "detailed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "unallocated": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "undetailed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "detailedPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "detailedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "envelopeCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "byKind": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HoldingKindShareView"
+            }
+          },
+          "ucSharePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "envelopesUc": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeUcShareView"
+            }
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HoldingOverviewRow"
+            }
+          },
+          "concentrations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationView"
+            }
+          },
+          "costYear": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "costPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "withoutReportCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "undetailedEnvelopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UndetailedEnvelopeView"
+            }
+          },
+          "watch": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeWatchView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewFindingView"
             }
           }
         }
@@ -26139,6 +26571,32 @@
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "UndetailedEnvelopeView": {
+        "required": [
+          "envelopeId",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "envelopeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
             ]
           }
         }

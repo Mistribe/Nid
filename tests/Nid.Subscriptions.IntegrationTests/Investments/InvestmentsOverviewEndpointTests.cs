@@ -159,3 +159,69 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
         Assert.DoesNotContain(hidden.Value.ToString(), household.ToString());
     }
 }
+
+/// <summary>Investments dashboard spec §5.4: <c>GET /investments/overview/holdings</c> and its scope.</summary>
+public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Holdings = "/api/v1/investments/overview/holdings";
+
+    private static object Eur(string amount) => new { amount, currency = "EUR" };
+
+    private static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
+        => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+
+    private static string? S(JsonElement element, string name) => element.GetProperty(name).GetString();
+
+    /// <summary>An envelope worth 25 000 on 30 September whose snapshot of that day details 24 000 in two holdings.</summary>
+    private static async Task<ItemId> DetailedAsync(NidApp app, string name, PersonId owner, Visibility visibility)
+    {
+        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2024-12-31", kind = "opening", amount = Eur("20000.00") });
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-09-30", amount = Eur("25000.00") });
+        var euro = (await JsonAsync(await app.RawAsync(owner, HttpMethod.Post, $"{url}/holdings", new { name = "Fonds euros", kind = "euro_fund" })))
+            .GetProperty("id").GetGuid();
+        var etf = (await JsonAsync(await app.RawAsync(owner, HttpMethod.Post, $"{url}/holdings", new { name = "ETF Monde", kind = "etf" })))
+            .GetProperty("id").GetGuid();
+        var snapshot = await app.RawAsync(owner, HttpMethod.Post, $"{url}/holding-snapshots", new
+        {
+            asOf = "2025-09-30", complete = true,
+            lines = new object[] { new { holdingId = euro, value = Eur("15000.00") }, new { holdingId = etf, value = Eur("9000.00") } },
+        });
+        Assert.Equal(HttpStatusCode.Created, snapshot.StatusCode);
+        return id;
+    }
+
+    [Fact]
+    public async Task What_is_detailed_unallocated_and_undetailed_adds_up_to_the_value()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var detailed = await DetailedAsync(app, "Assurance-vie", app.AdultA, Visibility.Shared);
+        var savings = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{savings.Value}/valuations", new { asOf = "2025-09-30", amount = Eur("500.00") });
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?scope=household");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await JsonAsync(response);
+        Assert.Equal(("25500.00", "24000.00", "1000.00", "500.00"), (S(body.GetProperty("value"), "amount"), S(body.GetProperty("detailed"), "amount"),
+            S(body.GetProperty("unallocated"), "amount"), S(body.GetProperty("undetailed"), "amount")));
+        Assert.Equal((1, 2), (body.GetProperty("detailedCount").GetInt32(), body.GetProperty("envelopeCount").GetInt32()));
+        Assert.Equal(["Fonds euros", "ETF Monde"], body.GetProperty("holdings").EnumerateArray().Select(h => S(h, "name")));
+        Assert.All(body.GetProperty("holdings").EnumerateArray(), h => Assert.Equal(detailed.Value, h.GetProperty("envelopeId").GetGuid()));
+        Assert.Equal(savings.Value, Assert.Single(body.GetProperty("undetailedEnvelopes").EnumerateArray()).GetProperty("envelopeId").GetGuid());
+    }
+
+    [Fact]
+    public async Task Another_adults_private_envelope_is_absent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await DetailedAsync(app, "AV de B", app.AdultB, Visibility.Shared);
+        var hidden = await DetailedAsync(app, "Secret de B", app.AdultB, Visibility.Private);
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Holdings));
+
+        Assert.Equal(2, body.GetProperty("holdings").GetArrayLength());
+        Assert.DoesNotContain(hidden.Value.ToString(), body.ToString());
+    }
+}

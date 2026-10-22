@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
-import { overview as investmentsOverview, performance as investmentsPerformance } from '@/features/investments/testData';
+import { holdings as investmentsHoldings, overview as investmentsOverview, performance as investmentsPerformance } from '@/features/investments/testData';
 import { overview as loansOverview } from '@/features/loans/testData';
 import { estateRoutine, routine } from '@/features/routine/testData';
 import { overview as subscriptionsOverview } from '@/features/subscriptions/testData';
@@ -35,6 +35,7 @@ export const handlers = [
   // ... and their overview, the tab the page opens on (no envelope).
   http.get('*/api/v1/investments/overview', () => HttpResponse.json(investmentsOverview())),
   http.get('*/api/v1/investments/overview/performance', () => HttpResponse.json(investmentsPerformance())),
+  http.get('*/api/v1/investments/overview/holdings', () => HttpResponse.json(investmentsHoldings())),
   http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/realestate/routine', () => HttpResponse.json(estateRoutine())),
   http.get('*/api/v1/income/overview', () => HttpResponse.json(overview())),

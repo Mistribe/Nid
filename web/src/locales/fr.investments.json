@@ -216,7 +216,8 @@
     "none_open_title": "Aucune enveloppe ouverte",
     "none_open_body": "Vos enveloppes sont toutes clôturées. La liste les garde.",
     "see_closed": "Voir les enveloppes clôturées",
-    "tab_performance": "Performance"
+    "tab_performance": "Performance",
+    "tab_holdings": "Supports et frais"
   },
   "investments_performance": {
     "loading": "Chargement de la performance",
@@ -265,5 +266,50 @@
       "stale_start_value": "une valeur trop ancienne au début de la période"
     },
     "empty": "Aucune enveloppe n’a de valeur au début de cette période."
+  },
+  "investments_holdings": {
+    "loading": "Chargement des supports",
+    "detailed": "Détaillé par support",
+    "detailed_note": "{{count}} enveloppes sur {{total}} · {{pct}} de la valeur",
+    "uc": "Part en unités de compte",
+    "uc_note": "assurance-vie et PER · plancher {{floor}}",
+    "uc_note_plain": "assurance-vie et PER",
+    "cost": "Frais estimés en {{year}}",
+    "cost_note": "≈ {{pct}} des encours · estimation",
+    "cost_note_plain": "estimation",
+    "maturity": "Prochaine échéance",
+    "maturity_note": "{{name}}",
+    "unknown": "Inconnu",
+    "unknown_rate": "Taux de change manquant : {{codes}}",
+    "concentration": "{{name}} pèse {{pct}} du foyer, détenu dans {{count}} enveloppes.",
+    "kinds_title": "Exposition par type de support",
+    "kinds_table": "Valeur par type de support",
+    "outside": "Hors détail : {{list}}.",
+    "unallocated": "non réparti ou évolution depuis le relevé {{amount}}",
+    "rows_title": "Supports",
+    "rows_list": "Supports des enveloppes",
+    "group": "Regrouper",
+    "group_holding": "Par support",
+    "group_envelope": "Par enveloppe",
+    "col_holding": "Support",
+    "col_envelope": "Enveloppe",
+    "col_value": "Valeur",
+    "col_weight": "Poids",
+    "col_gain": "Gain %",
+    "col_annual": "Rendement annuel",
+    "col_fees": "Frais totaux",
+    "fees_title": "Ce que coûtent les frais ({{year}})",
+    "fees_note": "Frais totaux du rapport annuel × valeur moyenne du support entre le début et la fin de l’année. Toujours une estimation.",
+    "fees_without_one": "1 support n’a pas de rapport de frais pour {{year}}.",
+    "fees_without_other": "{{count}} supports n’ont pas de rapport de frais pour {{year}}.",
+    "fees_none": "Aucun rapport de frais pour {{year}}.",
+    "watch_title": "À surveiller",
+    "watch": {
+      "holding_maturity": "{{holding}} arrive à échéance le {{date}}",
+      "unexplained_units": "Parts inexpliquées sur {{holding}} au relevé du {{date}}",
+      "uc_share_below_floor": "Part en unités de compte sous le plancher (relevé du {{date}})",
+      "holding_value_mismatch": "Parts × prix ne donnent pas la valeur de {{holding}} (relevé du {{date}})",
+      "other": "À vérifier"
+    }
   }
 }

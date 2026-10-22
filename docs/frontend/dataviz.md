@@ -42,6 +42,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Placements : décomposition d’une période | Barres divergentes autour d’un axe central, une ligne par composante, dans un tableau | Versements primaire, retraits et virements neutres, performance en statut avec icône et signe |
 | Placements : performance mois par mois | Barres signées autour de zéro, bascule en tableau | Primaire (positif), `--destructive` (négatif), signe dans l’infobulle et le tableau |
 | Placements : rendement annuel par enveloppe | Points sur un axe commun, valeur en libellé direct, vos livrets en trait pointillé nommé | Couleur du type d’enveloppe, référence en couleur des livrets |
+| Placements : exposition par type de support | Barre empilée unique puis tableau, frais estimés en barres triées | Catégorielle par type de support (fonds en euros 3, fonds 7, ETF 1, actions 2, obligations 5, produit structuré 4), liquidités et autre en neutre ; frais en slot 2 |
 | Panneaux de l'accueil (`?panel=`) | Composition du patrimoine par type ou par personne, sources de revenus et d'engagements, barre du mois | Mêmes couleurs que l'accueil |
 
 Un crédit demande **deux graphiques**, pas un axe double : les échelles (des centaines de milliers d'euros contre quelques centaines) sont trop différentes.

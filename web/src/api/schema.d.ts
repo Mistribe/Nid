@@ -2606,6 +2606,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/overview/holdings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvestmentsHoldings"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/routine": {
         parameters: {
             query?: never;
@@ -13416,6 +13507,14 @@ export interface components {
         ClosePhaseBody: {
             endsOn: string;
         };
+        ConcentrationView: {
+            isin: string;
+            name: string;
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
+            envelopeIds: unknown[];
+        };
         CostReportBody: {
             /** Format: double */
             grossReturnPct?: null | number;
@@ -13806,6 +13905,14 @@ export interface components {
             figures: components["schemas"]["FiguresView"];
             owners: components["schemas"]["ItemOwnerView"][];
         };
+        EnvelopeUcShareView: {
+            /** Format: uuid */
+            envelopeId: string;
+            /** Format: double */
+            ucSharePct?: null | number;
+            /** Format: double */
+            floorPct?: null | number;
+        };
         EnvelopeWatchView: {
             code: string;
             /** Format: uuid */
@@ -13981,12 +14088,44 @@ export interface components {
             explicitFees: components["schemas"]["AmountView"];
             gainBeforeFees: components["schemas"]["AmountView"];
         };
+        HoldingKindShareView: {
+            kind: string;
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
+        };
         HoldingMovementList: {
             /** Format: uuid */
             envelopeId: string;
             /** Format: uuid */
             holdingId: string;
             items: components["schemas"]["MovementView"][];
+        };
+        HoldingOverviewRow: {
+            /** Format: uuid */
+            envelopeId: string;
+            envelopeName: string;
+            /** Format: uuid */
+            holdingId: string;
+            name: string;
+            isin?: null | string;
+            kind: string;
+            currency: string;
+            /** Format: date */
+            asOf: string;
+            value: string;
+            valueConverted?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
+            /** Format: double */
+            gainPct?: null | number;
+            /** Format: double */
+            annualReturnPct?: null | number;
+            /** Format: double */
+            totalFeesPct?: null | number;
+            implicitCost?: null | components["schemas"]["AmountView"];
+            /** Format: date */
+            maturesOn?: null | string;
         };
         HoldingSeries: {
             /** Format: uuid */
@@ -14400,6 +14539,35 @@ export interface components {
             /** Format: date */
             endedOn?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
+        };
+        InvestmentsHoldings: {
+            currency: string;
+            value?: null | components["schemas"]["AmountView"];
+            detailed?: null | components["schemas"]["AmountView"];
+            unallocated?: null | components["schemas"]["AmountView"];
+            undetailed?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            detailedPct?: null | number;
+            /** Format: int32 */
+            detailedCount: number;
+            /** Format: int32 */
+            envelopeCount: number;
+            byKind: components["schemas"]["HoldingKindShareView"][];
+            /** Format: double */
+            ucSharePct?: null | number;
+            envelopesUc: components["schemas"]["EnvelopeUcShareView"][];
+            holdings: components["schemas"]["HoldingOverviewRow"][];
+            concentrations: components["schemas"]["ConcentrationView"][];
+            /** Format: int32 */
+            costYear: number;
+            cost?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            costPct?: null | number;
+            /** Format: int32 */
+            withoutReportCount: number;
+            undetailedEnvelopes: components["schemas"]["UndetailedEnvelopeView"][];
+            watch: components["schemas"]["EnvelopeWatchView"][];
+            findings: components["schemas"]["OverviewFindingView"][];
         };
         InvestmentsOverview: {
             currency: string;
@@ -16053,6 +16221,12 @@ export interface components {
             occurredOn: string;
             amount?: null | components["schemas"]["MoneyBody"];
             note?: null | string;
+        };
+        UndetailedEnvelopeView: {
+            /** Format: uuid */
+            envelopeId: string;
+            name: string;
+            value?: null | components["schemas"]["AmountView"];
         };
         ValuationBody: {
             asOf: string;

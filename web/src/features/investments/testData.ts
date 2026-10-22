@@ -1,4 +1,4 @@
-import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HouseholdPerformance, InvestmentsOverview } from './api';
+import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HoldingOverviewRow, HouseholdHoldings, HouseholdPerformance, InvestmentsOverview } from './api';
 
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -97,4 +97,42 @@ export const householdPerformance = (): HouseholdPerformance => performance({
   ],
   excluded: [{ envelopeId: '0192f0aa-0000-7000-8000-00000000e003', name: 'CTO', code: 'no_start_value' }],
   reference: { annualReturnPct: 2.6 },
+});
+
+export const WORLD_PEA = '0192f0aa-0000-7000-8000-0000000000c1';
+export const WORLD_LIFE = '0192f0aa-0000-7000-8000-0000000000c2';
+export const LIFE = '0192f0aa-0000-7000-8000-00000000e004';
+
+/** Nothing detailed: the default the page reads in tests that do not look at the holdings. */
+export const holdings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldings => ({
+  currency: 'EUR', value: null, detailed: null, unallocated: null, undetailed: null, detailedPct: null, detailedCount: 0, envelopeCount: 0,
+  byKind: [], ucSharePct: null, envelopesUc: [], holdings: [], concentrations: [], costYear: 2024, cost: null, costPct: null,
+  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], ...over,
+});
+
+const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({
+  envelopeId: PEA, envelopeName: 'PEA', holdingId: WORLD_PEA, name: 'Amundi MSCI World', isin: 'IE00B4L5Y983', kind: 'etf', currency: 'EUR',
+  asOf: '2025-09-30', value: '38900.00', valueConverted: eur('38900.00'), sharePct: 23.9, gainPct: 41.2, annualReturnPct: 9.8,
+  totalFeesPct: null, implicitCost: null, maturesOn: null, ...over,
+});
+
+/** A PEA and a life insurance sharing an ETF, a savings account without holdings, a structured product maturing soon. */
+export const householdHoldings = (): HouseholdHoldings => holdings({
+  value: eur('162850.00'), detailed: eur('139700.00'), unallocated: eur('200.00'), undetailed: eur('22950.00'), detailedPct: 85.8,
+  detailedCount: 2, envelopeCount: 3, ucSharePct: 64, envelopesUc: [{ envelopeId: LIFE, ucSharePct: 64, floorPct: 60 }],
+  byKind: [{ kind: 'etf', value: eur('79900.00'), sharePct: 57.2 }, { kind: 'euro_fund', value: eur('59800.00'), sharePct: 42.8 }],
+  holdings: [
+    holdingRow({}),
+    holdingRow({ envelopeId: LIFE, envelopeName: 'Assurance-vie', holdingId: WORLD_LIFE, name: 'iShares MSCI World', value: '31400.00',
+      valueConverted: eur('31400.00'), sharePct: 19.3, totalFeesPct: 0.85, implicitCost: eur('233.75') }),
+    holdingRow({ envelopeId: LIFE, envelopeName: 'Assurance-vie', holdingId: '0192f0aa-0000-7000-8000-0000000000c3', name: 'Athena 2023',
+      isin: null, kind: 'structured', value: '9000.00', valueConverted: eur('9000.00'), sharePct: 5.5, maturesOn: '2025-12-05' }),
+  ],
+  concentrations: [{ isin: 'IE00B4L5Y983', name: 'Amundi MSCI World', value: eur('70300.00'), sharePct: 43.2, envelopeIds: [PEA, LIFE] }],
+  costYear: 2024, cost: eur('233.75'), costPct: 0.9, withoutReportCount: 2,
+  undetailedEnvelopes: [{ envelopeId: LIVRET, name: 'Livret A', value: eur('22950.00') }],
+  watch: [
+    { code: 'unexplained_units', envelopeId: PEA, holdingId: WORLD_PEA, on: '2025-09-30' },
+    { code: 'holding_maturity', envelopeId: LIFE, holdingId: '0192f0aa-0000-7000-8000-0000000000c3', on: '2025-12-05' },
+  ],
 });
