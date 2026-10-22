@@ -205,10 +205,16 @@ function Fees({ d }: { d: HouseholdHoldings }) {
   const costed = d.holdings.filter((h) => h.implicitCost).sort((a, b) => amountKey(b.implicitCost!.amount) - amountKey(a.implicitCost!.amount));
   const max = costed[0] ? Math.max(1, toPlot(costed[0].implicitCost!.amount)) : 1;
   // D18: cash has no fees to report.
-  const without = d.holdings.filter((h) => (h.totalFeesPct === null || h.totalFeesPct === undefined) && h.kind !== 'cash').map((h) => h.name);
+  const missing = d.holdings.filter((h) => (h.totalFeesPct === null || h.totalFeesPct === undefined) && h.kind !== 'cash');
+  // One name held in several envelopes is said once, with how many times.
+  const without = [...new Set(missing.map((h) => h.name))].map((name) => {
+    const count = missing.filter((h) => h.name === name).length;
+    return count > 1 ? t('investments_holdings.fees_without_name', { name, count }) : name;
+  });
+  const reported = d.holdings.some((h) => h.totalFeesPct !== null && h.totalFeesPct !== undefined);
   return (
     <SectionCard title={t('investments_holdings.fees_title', { year: d.costYear })}>
-      {costed.length === 0 ? <p className="text-sm text-muted-foreground">{t('investments_holdings.fees_none', { year: d.costYear })}</p> : (
+      {costed.length === 0 ? <p className="text-sm text-muted-foreground">{t(reported ? 'investments_holdings.fees_no_estimate' : 'investments_holdings.fees_none', { year: d.costYear, before: d.costYear - 1 })}</p> : (
         <ul className="space-y-2 text-sm">
           {costed.map((h) => (
             <li key={`${h.envelopeId}/${h.holdingId}`} className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-3">
@@ -239,7 +245,22 @@ function EnvelopeFees({ d }: { d: HouseholdHoldings }) {
   if (d.envelopeFees.length === 0) return null;
   return (
     <SectionCard title={t('investments_holdings.envelope_fees_title', { year: d.costYear })}>
-      <Table aria-label={t('investments_holdings.envelope_fees_table')}>
+      {/* A phone reads a list: six columns would scroll the fees out of sight. */}
+      <ul className="space-y-2 text-sm md:hidden">
+        {d.envelopeFees.map((e) => (
+          <li key={e.envelopeId}>
+            <Link to="/investments/$id" params={{ id: e.envelopeId }} search={{ tab: 'holdings' }} className="font-medium hover:underline">{e.name}</Link>
+            <span className="block text-muted-foreground">
+              {e.totalFeesPct != null
+                ? t('investments_holdings.envelope_fees_line', {
+                  pct: t('investments.pct', { value: rate(e.totalFeesPct) }), cost: e.yearlyCost ? formatMoney(e.yearlyCost) : t('investments.dash'),
+                  covered: e.coveredPct != null ? t('investments.pct', { value: share(e.coveredPct) }) : t('investments.dash') })
+                : t('investments_holdings.envelope_fees_none')}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Table aria-label={t('investments_holdings.envelope_fees_table')} className="hidden md:table">
         <TableHeader>
           <TableRow>
             <TableHead>{t('investments_holdings.col_envelope')}</TableHead>
@@ -308,7 +329,7 @@ function Projection({ d, onChange }: { d: HouseholdHoldings; onChange: (a: Assum
           <TableRow>
             <TableHead>{t('investments_holdings.col_horizon')}</TableHead>
             <TableHead className="text-right">{t('investments_holdings.col_with_fees')}</TableHead>
-            <TableHead className="text-right">{t('investments_holdings.col_with_reference', { pct: percentText(p.referenceFeesPct) })}</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">{t('investments_holdings.col_with_reference', { pct: percentText(p.referenceFeesPct) })}</TableHead>
             <TableHead className="text-right">{t('investments_holdings.col_difference')}</TableHead>
           </TableRow>
         </TableHeader>
@@ -317,8 +338,14 @@ function Projection({ d, onChange }: { d: HouseholdHoldings; onChange: (a: Assum
             <TableRow key={h.years}>
               <TableHead scope="row" className="font-normal">{t('investments_holdings.years', { count: h.years })}</TableHead>
               <TableCell className="text-right tabular-nums">{formatMoney(h.withFees)}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatMoney(h.withReference)}</TableCell>
-              <TableCell className="text-right font-medium tabular-nums">{formatMoney(h.difference)}</TableCell>
+              <TableCell className="hidden text-right tabular-nums sm:table-cell">{formatMoney(h.withReference)}</TableCell>
+              <TableCell className="text-right font-medium tabular-nums">
+                {formatMoney(h.difference)}
+                {/* On a phone the reference's value moves under the gap, so three columns fit. */}
+                <span className="block text-xs font-normal text-muted-foreground sm:hidden">
+                  {t('investments_holdings.with_reference_short', { pct: percentText(p.referenceFeesPct), amount: formatMoney(h.withReference) })}
+                </span>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

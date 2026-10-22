@@ -51,7 +51,7 @@ export function OverviewTab({ scope, span }: { scope: Scope; span: Span }) {
       <div className="flex flex-col gap-6">
         <Figures d={d} />
         <NetValueChart d={d} span={span} />
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
           <div className="md:order-last"><WatchCard d={d} /></div>
           <Types d={d} />
           <Persons d={d} />
@@ -134,9 +134,9 @@ function Types({ d }: { d: PropertiesOverview }) {
         <TableBody>
           {d.byType.map((k) => (
             <TableRow key={k.type}>
-              <TableHead scope="row" className="h-auto py-1.5 font-normal text-foreground">
+              <TableHead scope="row" className="h-auto py-1.5 font-normal whitespace-normal text-foreground">
                 <span className="inline-flex items-center gap-2">
-                  <span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: typeColor(k.type) }} />{typeText(t, k.type)}
+                  <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm" style={{ background: typeColor(k.type) }} />{typeText(t, k.type)}
                 </span>
               </TableHead>
               <TableCell className="py-1.5 text-right tabular-nums">{figure(k.value)}</TableCell>

@@ -38,7 +38,7 @@ export function CostsTab({ scope }: { scope: Scope }) {
   return (
     <div className="flex flex-col gap-6">
       <Figures d={d} />
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
         <Categories d={d} />
         <Dues d={d} />
       </div>
@@ -151,8 +151,11 @@ function Dues({ d }: { d: PropertiesCosts }) {
                     </TableRow>
                     {g.dues.map((due) => (
                       <TableRow key={`${due.on}/${due.propertyId}/${due.category}`}>
-                        <TableCell className="py-1.5">{formatLocalDate(due.on, 'short')} · {categoryText(t, due.category)}</TableCell>
-                        <TableCell className="py-1.5 text-muted-foreground">{names.get(due.propertyId) ?? ''}</TableCell>
+                        {/* Wrapping, so a long property name does not widen a phone's page. */}
+                        <TableCell className="py-1.5 whitespace-normal">
+                          <span className="whitespace-nowrap">{formatLocalDate(due.on, 'short')}</span> · {categoryText(t, due.category)}
+                        </TableCell>
+                        <TableCell className="py-1.5 whitespace-normal break-words text-muted-foreground">{names.get(due.propertyId) ?? ''}</TableCell>
                         <TableCell className="py-1.5 text-right tabular-nums">{money(due.currency, due.amount)}</TableCell>
                       </TableRow>
                     ))}

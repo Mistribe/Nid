@@ -92,7 +92,7 @@ function Figures({ d }: { d: PropertiesValuation }) {
   );
 }
 
-type Point = { at: number; value: number | null; cost: number | null };
+type Point = { at: number; value: number | null; cost: number | null; estimated: boolean };
 
 /** D18: the estimates as steps, the cost price dashed, on an axis from the purchase to the latest estimate; a table for assistive tech. */
 function History({ p, to }: { p: ValuationRow; to: string }) {
@@ -102,7 +102,7 @@ function History({ p, to }: { p: ValuationRow; to: string }) {
   const rows: Point[] = dates.map((on) => {
     const estimate = p.estimates.filter((e) => e.on <= on).at(-1);
     const step = p.costSteps.filter((s) => s.on <= on).at(-1);
-    return { at: Date.parse(on), value: estimate ? toPlot(estimate.value) : null, cost: step ? toPlot(step.costPrice) : null };
+    return { at: Date.parse(on), value: estimate ? toPlot(estimate.value) : null, cost: step ? toPlot(step.costPrice) : null, estimated: estimate?.on === on };
   });
   const config = {
     value: { label: t('properties_valuation.series_value'), color: 'var(--chart-1)' },
@@ -123,7 +123,10 @@ function History({ p, to }: { p: ValuationRow; to: string }) {
               tickFormatter={(n: number) => String(new Date(n).getUTCFullYear())} />
             <YAxis width={56} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={(n: number) => axis.format(n)} />
             <Line dataKey="cost" type="stepAfter" stroke="var(--color-cost)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
-            <Line dataKey="value" type="stepAfter" stroke="var(--color-value)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+            {/* A dot on each estimate's own date: a single estimate makes no step, and would not show without it. */}
+            <Line dataKey="value" type="stepAfter" stroke="var(--color-value)" strokeWidth={2} connectNulls={false} isAnimationActive={false}
+              dot={({ cx, cy, index, payload }: { cx?: number; cy?: number; index?: number; payload?: Point }) => (payload?.estimated && cx != null && cy != null
+                ? <circle key={index} cx={cx} cy={cy} r={3} fill="var(--color-value)" /> : <g key={index} />)} />
           </LineChart>
         </ChartContainer>
       )}

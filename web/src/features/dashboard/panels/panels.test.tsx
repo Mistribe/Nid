@@ -142,7 +142,7 @@ describe('key figure panels', () => {
     expect(rows.map((r) => r.querySelector('th')?.textContent)).toEqual(['Classe d’actifs', 'Actions', 'Fonds en euros et garantis', 'Immobilier']);
     expect(rows[3]).toHaveTextContent('300 000,00 €');
     expect(rows[3]).toHaveTextContent('92,3 %');
-    expect(within(panel).queryByRole('columnheader', { name: 'Cible' })).toBeNull();
+    expect(panel).not.toHaveTextContent('Cible');
     expect(panel).toHaveTextContent('Crédits restant dus : -2 000,00 €, déduits à part.');
     expect(panel).toHaveTextContent('Dont 9 375,00 € classés d’après le type de support ou d’enveloppe');
     expect(await within(panel).findByRole('figure', { name: 'Graphique de la répartition des actifs' })).toBeInTheDocument();
@@ -178,10 +178,8 @@ describe('key figure panels', () => {
     const panel = await dialog('Patrimoine net');
     await user.click(within(panel).getByRole('radio', { name: 'Par classe' }));
     const equity = within(panel).getAllByRole('row').find((r) => r.textContent?.startsWith('Actions'))!;
-    expect(equity).toHaveTextContent('60 %');
-    expect(equity).toHaveTextContent('-57,1 pts');
-    expect(equity).toHaveTextContent('-185 625,00 €');
-    expect(within(panel).getAllByRole('row').find((r) => r.textContent?.startsWith('Immobilier'))).toHaveTextContent('—');
+    expect(equity).toHaveTextContent('Cible 60 % · écart -57,1 pts, -185 625,00 €');
+    expect(within(panel).getAllByRole('row').find((r) => r.textContent?.startsWith('Immobilier'))).toHaveTextContent('Pas de cible');
 
     await user.click(within(panel).getByRole('button', { name: 'Modifier la cible' }));
     const form = await dialog('Répartition cible du foyer');

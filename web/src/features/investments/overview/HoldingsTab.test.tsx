@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { HouseholdHoldings } from '../api';
-import { householdHoldings, LIFE, PEA, WORLD_PEA } from '../testData';
+import { holdingRow, householdHoldings, LIFE, PEA, WORLD_PEA } from '../testData';
 
 const serve = (body: HouseholdHoldings, seen: string[] = []) =>
   server.use(http.get('*/api/v1/investments/overview/holdings', ({ request }) => {
@@ -109,5 +109,18 @@ describe('Placements › supports et frais', () => {
     await user.type(rate, '5,5');
     await user.click(within(projection).getByRole('button', { name: 'Recalculer' }));
     await vi.waitFor(() => expect(seen.at(-1)).toBe('?scope=household&assumedReturn=5.5&referenceFees=0.2'));
+  });
+
+  it('says why last year is not estimated when reports exist, and names a holding without one once', async () => {
+    const euro = (n: number) => holdingRow({ holdingId: `0192f0aa-0000-7000-8000-00000000d00${n}`, name: 'Fonds euros', kind: 'euro_fund', totalFeesPct: null, implicitCost: null });
+    serve(householdHoldings({
+      holdings: [holdingRow({ totalFeesPct: 2.5, implicitCost: null }), euro(1), euro(2)], cost: null, costPct: null, withoutReportCount: 2,
+    }));
+    await renderApp('/investments?tab=holdings');
+
+    const fees = await region('Ce que coûtent les frais (2024)');
+    expect(fees).toHaveTextContent('Coût de 2024 non estimé : il faut la valeur du support au relevé de fin 2023 et à celui de fin 2024.');
+    expect(fees).not.toHaveTextContent('Aucun rapport de frais');
+    expect(fees).toHaveTextContent('Sans rapport de frais pour 2024 : Fonds euros (2).');
   });
 });

@@ -110,7 +110,7 @@ export const holdings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldin
   withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, ...over,
 });
 
-const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({
+export const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({
   envelopeId: PEA, envelopeName: 'PEA', holdingId: WORLD_PEA, name: 'Amundi MSCI World', isin: 'IE00B4L5Y983', kind: 'etf', currency: 'EUR',
   asOf: '2025-09-30', value: '38900.00', valueConverted: eur('38900.00'), sharePct: 23.9, gainPct: 41.2, annualReturnPct: 9.8,
   totalFeesPct: null, implicitCost: null, maturesOn: null, ...over,

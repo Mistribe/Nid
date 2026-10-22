@@ -26,34 +26,29 @@ function Lines({ lines, kind, withTarget }: { lines: AllocationLine[]; kind: 'cl
       <TableHeader>
         <TableRow>
           <TableHead>{t(`dashboard.allocation.col_${kind}`)}</TableHead>
-          <TableHead className="text-right">{t('dashboard.split.col_amount')}</TableHead>
-          <TableHead className="text-right">{t('dashboard.split.col_share')}</TableHead>
-          {withTarget ? <TableHead className="text-right">{t('dashboard.allocation.col_target')}</TableHead> : null}
-          {withTarget ? <TableHead className="text-right">{t('dashboard.allocation.col_gap')}</TableHead> : null}
+          <TableHead className="text-right">{t('dashboard.allocation.col_amount_share')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {lines.map((l) => (
           <TableRow key={l.key}>
-            <TableHead scope="row" className="font-normal">
+            <TableHead scope="row" className="whitespace-normal font-normal">
               <span aria-hidden="true" className="mr-2 inline-block size-3 rounded-sm align-middle" style={{ background: color(l.key) }} />
               {name(l.key)}
+              {/* The target under the class, so the table keeps two columns on a phone. */}
+              {withTarget ? (
+                <span className="block pl-5 text-xs text-muted-foreground">
+                  {l.targetPct != null && l.gapPct != null && l.gap
+                    ? t('dashboard.allocation.target_line', { target: t('dashboard.pct', { value: percent(l.targetPct) }), gap: t('dashboard.allocation.points', { value: percent(l.gapPct, true) }), amount: formatMoney(l.gap) })
+                    : t('dashboard.allocation.no_target')}
+                </span>
+              ) : null}
             </TableHead>
-            <TableCell className="text-right tabular-nums">{formatMoney(l.amount)}</TableCell>
-            <TableCell className="text-right tabular-nums">{t('dashboard.pct', { value: percent(l.pct) })}</TableCell>
-            {withTarget ? (
-              <TableCell className="text-right tabular-nums">{l.targetPct != null ? t('dashboard.pct', { value: percent(l.targetPct) }) : '—'}</TableCell>
-            ) : null}
-            {withTarget ? (
-              <TableCell className="text-right tabular-nums">
-                {l.gapPct != null && l.gap ? (
-                  <>
-                    {t('dashboard.allocation.points', { value: percent(l.gapPct, true) })}
-                    <span className="block text-xs text-muted-foreground">{formatMoney(l.gap)}</span>
-                  </>
-                ) : '—'}
-              </TableCell>
-            ) : null}
+            {/* Two figures per cell, so the table fits a phone without scrolling its target away. */}
+            <TableCell className="text-right tabular-nums">
+              {formatMoney(l.amount)}
+              <span className="block text-xs text-muted-foreground">{t('dashboard.pct', { value: percent(l.pct) })}</span>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
