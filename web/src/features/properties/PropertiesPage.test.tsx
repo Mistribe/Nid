@@ -33,7 +33,7 @@ describe('PropertiesPage', () => {
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
     const seen: string[] = [];
     serve(propertyList([propertySummary({ owners: [{ personId: alice, shareBp: 10000 }] })]), seen);
-    const { container } = await renderApp('/properties');
+    const { container } = await renderApp('/properties?tab=list');
 
     const table = await screen.findByRole('table', { name: 'Liste des biens' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Type', 'Propriétaire', 'Valeur', 'Valeur nette', 'Rendement brut']);
@@ -51,7 +51,7 @@ describe('PropertiesPage', () => {
 
   it('sorts by value', async () => {
     serve(propertyList([propertySummary(), parking, propertySummary({ id: 'x', name: 'Studio', value: '90000.00' })]));
-    const { user } = await renderApp('/properties');
+    const { user } = await renderApp('/properties?tab=list');
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
     expect(await names()).toEqual(['Maison de NantesPartagé', 'Parking garePrivé', 'StudioPartagé']);
@@ -61,7 +61,7 @@ describe('PropertiesPage', () => {
 
   it('stale rows show their date with an icon and « À réestimer » in words; a property never estimated says so', async () => {
     serve(propertyList([propertySummary({ stale: true }), parking]));
-    const { container } = await renderApp('/properties');
+    const { container } = await renderApp('/properties?tab=list');
 
     const [stale, never] = await rows();
     const cell = within(stale!).getAllByRole('cell')[3]!;
@@ -74,7 +74,7 @@ describe('PropertiesPage', () => {
 
   it('shows the gross yield in %, « — » when the server gives none, and the access of a private property', async () => {
     serve(propertyList([propertySummary({ grossYield: '0.0384' }), parking]));
-    const { container } = await renderApp('/properties');
+    const { container } = await renderApp('/properties?tab=list');
 
     const [rented, unknown] = await rows();
     expect(within(rented!).getAllByRole('cell')[5]).toHaveTextContent('3,84 %');
@@ -85,7 +85,7 @@ describe('PropertiesPage', () => {
 
   it('the add link is always shown, even when no row is writable', async () => {
     serve(propertyList([propertySummary({ canWrite: false })]));
-    await renderApp('/properties');
+    await renderApp('/properties?tab=list');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter un bien' })).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('PropertiesPage', () => {
 
   it('offers « Ajouter un bien » above the list', async () => {
     serve(propertyList([propertySummary()]));
-    await renderApp('/properties');
+    await renderApp('/properties?tab=list');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter un bien' })).toHaveAttribute('href', '/properties/new');
@@ -101,7 +101,7 @@ describe('PropertiesPage', () => {
 
   it('invites to add the first property when there is none', async () => {
     serve(propertyList([]));
-    const { container } = await renderApp('/properties');
+    const { container } = await renderApp('/properties?tab=list');
 
     expect(await screen.findByRole('heading', { name: 'Aucun bien pour l’instant' })).toBeInTheDocument();
     for (const link of screen.getAllByRole('link', { name: 'Ajouter un bien' })) expect(link).toHaveAttribute('href', '/properties/new');
@@ -110,14 +110,14 @@ describe('PropertiesPage', () => {
 
   it('shows a skeleton while the list loads', async () => {
     server.use(http.get('*/api/v1/realestate/properties', async () => { await delay('infinite'); return HttpResponse.json(propertyList([])); }));
-    await renderApp('/properties');
+    await renderApp('/properties?tab=list');
 
     expect(await screen.findByLabelText('Chargement des biens')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('shows a failed load as a problem', async () => {
     server.use(http.get('*/api/v1/realestate/properties', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
-    await renderApp('/properties');
+    await renderApp('/properties?tab=list');
 
     expect(await screen.findByRole('alert', {})).toBeInTheDocument();
   });
@@ -125,7 +125,7 @@ describe('PropertiesPage', () => {
   it('passes the Moi scope to the API', async () => {
     const seen: string[] = [];
     serve(propertyList([propertySummary()]), seen);
-    await renderApp('/properties?scope=me');
+    await renderApp('/properties?tab=list&scope=me');
 
     await rows();
     expect(seen).toEqual(['?scope=me']);

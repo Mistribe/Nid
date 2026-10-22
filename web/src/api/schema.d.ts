@@ -8659,6 +8659,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    span?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertiesOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}": {
         parameters: {
             query?: never;
@@ -15237,6 +15329,15 @@ export interface components {
             shareBp: number;
             balance?: null | components["schemas"]["LoanMoneyView"];
         };
+        PersonPropertyShareView: {
+            /** Format: uuid */
+            personId: string;
+            value?: null | components["schemas"]["LoanMoneyView"];
+            linkedBalance?: null | components["schemas"]["LoanMoneyView"];
+            netValue?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: double */
+            sharePct?: null | number;
+        };
         PersonShareView: {
             /** Format: uuid */
             personId: string;
@@ -15333,6 +15434,36 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        PropertiesOverview: {
+            currency: string;
+            /** Format: int32 */
+            count: number;
+            value?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: date */
+            oldestAsOf?: null | string;
+            /** Format: int32 */
+            staleCount: number;
+            /** Format: int32 */
+            withoutValueCount: number;
+            linkedBalance?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: int32 */
+            loanCount: number;
+            netValue?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: double */
+            netValuePct?: null | number;
+            costPrice?: null | components["schemas"]["LoanMoneyView"];
+            latentGain?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: double */
+            latentGainPct?: null | number;
+            rentReceived?: null | components["schemas"]["LoanMoneyView"];
+            grossYield?: null | string;
+            byType: components["schemas"]["PropertyTypeShareView"][];
+            byPerson: components["schemas"]["PersonPropertyShareView"][];
+            properties: components["schemas"]["PropertyOverviewRow"][];
+            points: components["schemas"]["PropertyPointView"][];
+            watch: components["schemas"]["PropertyWatchView"][];
+            findings: components["schemas"]["LoanFindingView"][];
+        };
         PropertyCostLineView: {
             code: string;
             amount: string;
@@ -15426,11 +15557,36 @@ export interface components {
             balance: string;
             balanceConverted?: null | string;
         };
+        PropertyOverviewRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            currency: string;
+            owners: components["schemas"]["ItemOwnerView"][];
+            value?: null | string;
+            /** Format: date */
+            valueOn?: null | string;
+            stale: boolean;
+            linkedBalance: string;
+            netValue?: null | string;
+            latentGain?: null | string;
+            grossYield?: null | string;
+            valueConverted?: null | components["schemas"]["LoanMoneyView"];
+            netValueConverted?: null | components["schemas"]["LoanMoneyView"];
+        };
         PropertyOwnerView: {
             /** Format: uuid */
             personId: string;
             /** Format: int32 */
             shareBp: number;
+        };
+        PropertyPointView: {
+            /** Format: date */
+            on: string;
+            value?: null | components["schemas"]["LoanMoneyView"];
+            linkedBalance?: null | components["schemas"]["LoanMoneyView"];
+            netValue?: null | components["schemas"]["LoanMoneyView"];
         };
         PropertyRecurringCostBody: {
             category?: null | string;
@@ -15603,6 +15759,12 @@ export interface components {
             note?: null | string;
             current: boolean;
         };
+        PropertyTypeShareView: {
+            type: string;
+            value?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: double */
+            sharePct?: null | number;
+        };
         PropertyValuationBody: {
             asOf?: null | string;
             amount?: null | string;
@@ -15620,6 +15782,16 @@ export interface components {
             code: string;
             /** Format: uuid */
             loanId?: null | string;
+        };
+        PropertyWatchView: {
+            code: string;
+            /** Format: uuid */
+            propertyId: string;
+            /** Format: uuid */
+            loanId?: null | string;
+            /** Format: date */
+            on?: null | string;
+            amount?: null | components["schemas"]["LoanMoneyView"];
         };
         ProposalDetail: {
             proposal: components["schemas"]["ProposalView"];

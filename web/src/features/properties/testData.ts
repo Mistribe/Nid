@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
+import type { PropertiesOverview, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -65,4 +65,50 @@ export const tenancy = (over: Partial<PropertyTenancy> = {}): PropertyTenancy =>
 export const recurringCost = (over: Partial<PropertyRecurringCost> = {}): PropertyRecurringCost => ({
   id: 'c1', version: 1, category: 'property_tax', amount: '1200.00', every: { count: 1, unit: 'year' }, startsOn: '2021-10-15',
   endsOn: null, note: null, monthlyEquivalent: '100.00', nextDueOn: '2026-10-15', ...over,
+});
+
+export const RENTAL = '0192f0bb-0000-7000-8000-00000000e003';
+export const OWNER = '01926b9e-0000-7000-8000-00000000000a';
+
+const eur = (amount: string) => ({ amount, currency: 'EUR' });
+
+/** An empty household's overview: what the page opens on by default. */
+export const propertiesOverview = (over: Partial<PropertiesOverview> = {}): PropertiesOverview => ({
+  currency: 'EUR', count: 0, value: null, oldestAsOf: null, staleCount: 0, withoutValueCount: 0, linkedBalance: eur('0.00'), loanCount: 0,
+  netValue: null, netValuePct: null, costPrice: null, latentGain: null, latentGainPct: null, rentReceived: null, grossYield: null,
+  byType: [], byPerson: [], properties: [], points: [], watch: [], findings: [], ...over,
+});
+
+/**
+ * The home above (290 000 €, its golden loan, 96 435,77 € net) and a rental at 198 000 €, let at 780 € a month, without a
+ * loan; the figures are what the server would write.
+ */
+export const householdOverview = (): PropertiesOverview => propertiesOverview({
+  count: 2, value: eur('488000.00'), oldestAsOf: '2026-06-01', staleCount: 1, linkedBalance: eur('193564.23'), loanCount: 1,
+  netValue: eur('294435.77'), netValuePct: 60.3, costPrice: eur('467300.00'), latentGain: eur('20700.00'), latentGainPct: 4.4,
+  rentReceived: eur('9360.00'), grossYield: '0.0502',
+  byType: [{ type: 'primary_residence', value: eur('290000.00'), sharePct: 59.4 }, { type: 'rental', value: eur('198000.00'), sharePct: 40.6 }],
+  byPerson: [{ personId: OWNER, value: eur('488000.00'), linkedBalance: eur('193564.23'), netValue: eur('294435.77'), sharePct: 100 }],
+  properties: [
+    {
+      id: PROPERTY, name: 'Maison de Nantes', type: 'primary_residence', currency: 'EUR', owners: [{ personId: OWNER, shareBp: 10000 }],
+      value: '290000.00', valueOn: '2026-06-01', stale: false, linkedBalance: '193564.23', netValue: '96435.77', latentGain: '9000.00',
+      grossYield: null, valueConverted: eur('290000.00'), netValueConverted: eur('96435.77'),
+    },
+    {
+      id: RENTAL, name: 'T2 Villeurbanne', type: 'rental', currency: 'EUR', owners: [{ personId: OWNER, shareBp: 10000 }],
+      value: '198000.00', valueOn: '2024-09-30', stale: true, linkedBalance: '0.00', netValue: '198000.00', latentGain: '11700.00',
+      grossYield: '0.0502', valueConverted: eur('198000.00'), netValueConverted: eur('198000.00'),
+    },
+  ],
+  points: [
+    { on: '2026-08-31', value: eur('478000.00'), linkedBalance: eur('194300.00'), netValue: eur('283700.00') },
+    { on: '2026-09-30', value: eur('488000.00'), linkedBalance: eur('193932.00'), netValue: eur('294068.00') },
+    { on: '2026-10-22', value: eur('488000.00'), linkedBalance: eur('193564.23'), netValue: eur('294435.77') },
+  ],
+  watch: [
+    { code: 'valuation_stale', propertyId: RENTAL, loanId: null, on: '2024-09-30', amount: null },
+    { code: 'rent_arrears', propertyId: RENTAL, loanId: null, on: null, amount: eur('780.00') },
+    { code: 'property_cost_due', propertyId: RENTAL, loanId: null, on: '2026-11-15', amount: eur('1120.00') },
+  ],
 });

@@ -1196,7 +1196,7 @@
       "screens": {
         "1": { "title": "Un bien vaut ses estimations", "body": "La valeur d’un bien vient des estimations que vous saisissez. Une estimation trop ancienne s’affiche « À réestimer »." },
         "2": { "title": "Valeur nette et coût réel", "body": "La valeur nette retire de l’estimation les crédits liés au bien. Le coût réel additionne l’achat et ses frais, les intérêts, l’assurance et les frais des crédits. Une ligne le donne aussi « loyers déduits »." },
-        "3": { "title": "La location", "body": "La section « Location » suit les baux, les loyers attendus et perçus, la vacance et les rendements. Commencez par « Ajouter un bien »." }
+        "3": { "title": "La location", "body": "La page s’ouvre sur la vue d’ensemble du foyer : la valeur des biens, les crédits liés, la valeur nette et ce qu’il faut faire ; « Liste » garde chaque bien. Sur la fiche, la section « Location » suit les baux, les loyers, la vacance et les rendements. Commencez par « Ajouter un bien »." }
       }
     },
     "loans": {

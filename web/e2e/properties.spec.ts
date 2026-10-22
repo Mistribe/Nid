@@ -72,7 +72,7 @@ test('alice records a shared property, its estimate, its works and her loan; bob
   await expect(alice.getByRole('list', { name: 'Avertissements' })).toContainText(`Le crédit privé ${loan} ne sera pas déduit du patrimoine du foyer`);
 
   const bob = await browser.newPage();
-  await signIn(bob, 'bob', '/properties');
+  await signIn(bob, 'bob', '/properties?tab=list');
   await expect(bob.getByRole('link', { name: home })).toBeVisible();
 
   const flat = await createProperty(alice, `Studio ${stamp}`, 'Non, privé');

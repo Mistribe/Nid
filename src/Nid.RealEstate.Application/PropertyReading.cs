@@ -97,17 +97,20 @@ public sealed class PropertyReading(
     {
         var currency = LoanViews.CurrencyOf(item);
         var readable = loans.OrderBy(l => l.Item.DisplayName, French).ThenBy(l => l.Item.Id.Value).ToList();
-        var linked = readable.Select(l =>
-        {
-            var loanCurrency = LoanViews.CurrencyOf(l.Item);
-            var terms = LoanReading.Terms(loanCurrency, l.Loan.Contract, l.Loan.Fees, l.Loan.Repayments);
-            decimal? rate = rates.TryConvert(1m, loanCurrency, currency, today, projected: false, out var converted, out _) ? converted : null;
-            return new LinkedLoan(l.Item.Id, loanCurrency != currency, l.Item.Visibility == Visibility.Private,
-                LoanMath.At(terms, LoanReading.Schedule(terms, l.Loan), today), rate);
-        }).ToList();
+        var linked = readable.Select(l => Linked(l.Loan, l.Item, currency, rates, today)).ToList();
 
         return new PropertyRead(values, flowList, readable.Select(l => l.Item).ToList(),
             PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values, flowList, linked,
                 property.Tenancies.Select(t => t.Tenancy).ToList(), today));
+    }
+
+    /// <summary>A linked loan at <paramref name="today"/>, with its rate to the property's currency: the detail's and the overview's.</summary>
+    internal static LinkedLoan Linked(StoredLoan loan, ItemAccess item, Currency currency, RateTable rates, LocalDate today)
+    {
+        var loanCurrency = LoanViews.CurrencyOf(item);
+        var terms = LoanReading.Terms(loanCurrency, loan.Contract, loan.Fees, loan.Repayments);
+        decimal? rate = rates.TryConvert(1m, loanCurrency, currency, today, projected: false, out var converted, out _) ? converted : null;
+        return new LinkedLoan(item.Id, loanCurrency != currency, item.Visibility == Visibility.Private,
+            LoanMath.At(terms, LoanReading.Schedule(terms, loan), today), rate);
     }
 }

@@ -383,6 +383,7 @@ public static class RequestCatalogue
         new(typeof(DeleteBankScheduleCommand), true, (_, item) => new DeleteBankScheduleCommand(item, 1)),
 
         new(typeof(ListPropertiesQuery), false, (_, _) => new ListPropertiesQuery(VisibilityScope.Me)),
+        new(typeof(GetPropertiesOverviewQuery), false, (_, _) => new GetPropertiesOverviewQuery(VisibilityScope.Me, PropertiesSpan.All)),
         new(typeof(GetPropertyRoutineQuery), false, (_, _) => new GetPropertyRoutineQuery(null)),
         // 3E2: the routine names its properties in its lines; each one's write check is the bench fact below.
         new(typeof(RecordPropertyRoutineCommand), false, (_, _) => new RecordPropertyRoutineCommand(new LocalDate(2025, 1, 31), [], [])),

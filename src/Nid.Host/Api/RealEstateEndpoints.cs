@@ -174,6 +174,10 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new ListPropertiesQuery(ParseScope(scope)), ct)).ToHttp(list => list))
             .Returns<PropertyList>();
 
+        api.MapGet("/properties/overview", async (string? scope, string? span, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertiesOverviewQuery(ParseScope(scope), ParseSpan(span)), ct)).ToHttp(overview => overview))
+            .Returns<PropertiesOverview>();
+
         api.MapGet("/properties/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetPropertyQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<PropertyDetail>();
@@ -328,6 +332,15 @@ public static class RealEstateEndpoints
     }
 
     /// <summary>A missing version answers 422 at <c>version</c>: it would otherwise bind to 0 and pass for a conflict.</summary>
+    /// <summary>Properties dashboard spec §3.2, as the net worth curve: absent is three years, an unknown span a bad request.</summary>
+    private static PropertiesSpan ParseSpan(string? span) => span switch
+    {
+        "12m" => PropertiesSpan.TwelveMonths,
+        null or "3y" => PropertiesSpan.ThreeYears,
+        "all" => PropertiesSpan.All,
+        _ => throw new BadHttpRequestException($"'{span}' is not a span: send '12m', '3y' or 'all'."),
+    };
+
     private static uint? RequireVersion(FieldReader reader, uint? version)
     {
         if (version is null)
