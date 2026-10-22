@@ -96,6 +96,19 @@ public static class PropertyMath
         }
     }
 
+    /// <summary>Properties dashboard spec D14: every <c>StartsOn + k × Every</c> in [<paramref name="from"/>, <paramref name="until"/>) and before <c>EndsOn</c>.</summary>
+    public static IEnumerable<LocalDate> DueBetween(RecurringCost cost, LocalDate from, LocalDate until)
+    {
+        for (var k = 0; ; k++)
+        {
+            var on = cost.Every.AddTo(cost.StartsOn, k);
+            if (on >= until || cost.EndsOn is { } end && on >= end)
+                yield break;
+            if (on >= from)
+                yield return on;
+        }
+    }
+
     /// <summary>Spec 3C2 §4: a tenancy covers its days from its start (inclusive) to its end (exclusive).</summary>
     public static bool Covers(Tenancy tenancy, LocalDate d) => tenancy.StartsOn <= d && (tenancy.EndsOn is not { } end || d < end);
 

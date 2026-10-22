@@ -4,7 +4,7 @@ import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
 import { holdings as investmentsHoldings, overview as investmentsOverview, performance as investmentsPerformance } from '@/features/investments/testData';
 import { overview as loansOverview } from '@/features/loans/testData';
-import { propertiesOverview, propertiesRental } from '@/features/properties/testData';
+import { propertiesCosts, propertiesOverview, propertiesRental } from '@/features/properties/testData';
 import { estateRoutine, routine } from '@/features/routine/testData';
 import { overview as subscriptionsOverview } from '@/features/subscriptions/testData';
 import { aliceSessionResponse, allCapabilities } from './fixtures';
@@ -48,6 +48,7 @@ export const handlers = [
   // ... and their overview, the tab the page opens on (no property).
   http.get('*/api/v1/realestate/properties/overview', () => HttpResponse.json(propertiesOverview())),
   http.get('*/api/v1/realestate/properties/overview/rental', () => HttpResponse.json(propertiesRental())),
+  http.get('*/api/v1/realestate/properties/overview/costs', () => HttpResponse.json(propertiesCosts())),
   // Every income source page reads its overview (figures, evolution, timeline).
   http.get('*/api/v1/income/sources/:id/overview', () => HttpResponse.json(sourceOverview())),
   http.get('*/api/v1/income/sources/:id/expected', ({ params, request }) => {

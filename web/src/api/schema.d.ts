@@ -8843,6 +8843,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties/overview/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertiesCosts"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}": {
         parameters: {
             query?: never;
@@ -13699,6 +13790,21 @@ export interface components {
             sharePct?: null | number;
             envelopeIds: unknown[];
         };
+        CostCategoryView: {
+            category: string;
+            paid?: null | components["schemas"]["LoanMoneyView"];
+            planned?: null | components["schemas"]["LoanMoneyView"];
+        };
+        CostDueView: {
+            /** Format: date */
+            on: string;
+            /** Format: uuid */
+            propertyId: string;
+            category: string;
+            amount: string;
+            currency: string;
+            amountConverted?: null | components["schemas"]["LoanMoneyView"];
+        };
         CostReportBody: {
             /** Format: double */
             grossReturnPct?: null | number;
@@ -13747,6 +13853,26 @@ export interface components {
             sourceLabel?: null | string;
             estimatedImplicitCost?: null | components["schemas"]["AmountView"];
             warnings: components["schemas"]["HoldingWarningView"][];
+        };
+        CostRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            currency: string;
+            paid: string;
+            plannedMonthly: string;
+            rentReceived: string;
+            loanPayment?: null | string;
+            acquisition: string;
+            works: string;
+            loanInterest: string;
+            loanInsurance: string;
+            loanFees: string;
+            otherCharges: string;
+            realCost: string;
+            rentsSincePurchase: string;
+            netCostOfRents: string;
+            realCostConverted?: null | components["schemas"]["LoanMoneyView"];
         };
         CoverageView: {
             /** Format: date */
@@ -15532,6 +15658,23 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+        };
+        PropertiesCosts: {
+            currency: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            paid?: null | components["schemas"]["LoanMoneyView"];
+            worksPaid?: null | components["schemas"]["LoanMoneyView"];
+            planned?: null | components["schemas"]["LoanMoneyView"];
+            plannedMonthly?: null | components["schemas"]["LoanMoneyView"];
+            byCategory: components["schemas"]["CostCategoryView"][];
+            dues: components["schemas"]["CostDueView"][];
+            properties: components["schemas"]["CostRow"][];
+            realCost?: null | components["schemas"]["LoanMoneyView"];
+            netCostOfRents?: null | components["schemas"]["LoanMoneyView"];
+            findings: components["schemas"]["LoanFindingView"][];
         };
         PropertiesOverview: {
             currency: string;

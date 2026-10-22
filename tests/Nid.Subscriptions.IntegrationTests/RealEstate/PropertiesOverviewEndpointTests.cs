@@ -162,3 +162,51 @@ public class PropertiesRentalEndpointTests(PostgresFixture fixture) : IClassFixt
         Assert.DoesNotContain(theirs.ToString(), all.ToString());
     }
 }
+
+/// <summary>Properties dashboard spec §5.4: <c>GET /properties/overview/costs</c> on the host's today (2025-10-15).</summary>
+public class PropertiesCostsEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Costs = $"{Properties}/overview/costs";
+
+    private static async Task PostAsync(NidApp app, Guid property, string route, object body, PersonId? actor = null)
+        => await CreatedAsync(await app.RawAsync(actor ?? app.AdultA, HttpMethod.Post, $"{Properties}/{property}/{route}", body));
+
+    [Fact]
+    public async Task Paid_planned_and_the_real_cost_of_the_properties()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        await PostAsync(app, home, "flows", new { occurredOn = "2025-09-20", kind = "expense", amount = "1500", category = "property_tax" });
+        await PostAsync(app, home, "flows", new { occurredOn = "2021-03-01", kind = "expense", amount = "12000", category = "works" }); // before the period
+        await PostAsync(app, home, "recurring-costs", new { category = "property_tax", amount = "1500", every = new { count = 1, unit = "year" }, startsOn = "2021-09-20" });
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Costs}?scope=household");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await JsonAsync(response);
+        Assert.Equal(("2024-10-16", "2025-10-15"), (S(body, "from"), S(body, "to")));
+        Assert.Equal(("1500.00", "0.00", "1500.00", "125.00"),
+            (S(body.GetProperty("paid"), "amount"), S(body.GetProperty("worksPaid"), "amount"), S(body.GetProperty("planned"), "amount"),
+             S(body.GetProperty("plannedMonthly"), "amount")));
+        var due = Assert.Single(body.GetProperty("dues").EnumerateArray());
+        Assert.Equal(("2026-09-20", "property_tax", home), (S(due, "on"), S(due, "category"), due.GetProperty("propertyId").GetGuid()));
+        var row = Assert.Single(body.GetProperty("properties").EnumerateArray());
+        // 250 000 + 19 000 of acquisition, 12 000 of works, 1 500 of tax.
+        Assert.Equal(("269000.00", "12000.00", "1500.00", "282500.00"), (S(row, "acquisition"), S(row, "works"), S(row, "otherCharges"), S(row, "realCost")));
+        Assert.Equal("282500.00", S(body.GetProperty("realCost"), "amount"));
+    }
+
+    [Fact]
+    public async Task Another_adults_private_property_is_absent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var theirs = await NewPropertyAsync(app, Home(app, "Studio de B", "private", app.AdultB), app.AdultB);
+        await PostAsync(app, theirs, "flows", new { occurredOn = "2025-09-20", kind = "expense", amount = "800", category = "property_tax" }, app.AdultB);
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Costs}?scope=me"));
+
+        Assert.Empty(body.GetProperty("properties").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("paid").ValueKind);
+        Assert.DoesNotContain(theirs.ToString(), body.ToString());
+    }
+}

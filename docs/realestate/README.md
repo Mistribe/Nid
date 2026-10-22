@@ -142,6 +142,8 @@ Fonctions pures, décimal exact, à la date d (par défaut aujourd'hui).
 
 **Ajouté avec le tableau de bord des biens, PR 2** (même spec, §4) : `GET /api/v1/realestate/properties/overview/rental?scope=&property=` sur les biens dont le début de location est connu et passé, sur les 12 mois glissants de la fiche découpés en mois civils : loyers reçus, toutes les dépenses (travaux compris) et les échéances des crédits liés dans la portée (mensualité et assurance) par mois, par bien et pour le foyer, le cash-flow étant leur différence ; loyers attendus et impayés, vacance du foyer (Σ jours vacants ÷ Σ jours de chaque fenêtre), rendements du foyer sur les biens au rendement significatif (Σ loyers, et Σ loyers − charges hors travaux, ÷ Σ prix de revient), baux des trois dernières années. `property` restreint la réponse à un bien loué de la portée ; un autre répond « introuvable ».
 
+**Ajouté avec le tableau de bord des biens, PR 3** (même spec, §5) : `GET /api/v1/realestate/properties/overview/costs?scope=` : les dépenses payées sur les 12 mois glissants (travaux compris), les échéances des charges prévues dans les 12 prochains mois (`PropertyMath.DueBetween`), leur équivalent mensuel (celui des engagements de l’accueil), par catégorie, échéance par échéance et par bien, avec la mensualité du mois des crédits liés dans la portée ; le coût réel de chaque bien en six colonnes (achat et frais, travaux, intérêts, assurance, frais de prêt, autres charges), ses loyers reçus et son coût net des loyers, comme sa fiche.
+
 ## 9. Propositions
 
 | `kind` | Payload | Application |

@@ -9564,6 +9564,94 @@
         }
       }
     },
+    "/api/v1/realestate/properties/overview/costs": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertiesCosts"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/properties/{id}": {
       "get": {
         "tags": [
@@ -15108,6 +15196,76 @@
           }
         }
       },
+      "CostCategoryView": {
+        "required": [
+          "category"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "paid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "planned": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
+      "CostDueView": {
+        "required": [
+          "on",
+          "propertyId",
+          "category",
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "amountConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "CostReportBody": {
         "type": "object",
         "properties": {
@@ -15277,6 +15435,90 @@
             "items": {
               "$ref": "#/components/schemas/HoldingWarningView"
             }
+          }
+        }
+      },
+      "CostRow": {
+        "required": [
+          "id",
+          "name",
+          "currency",
+          "paid",
+          "plannedMonthly",
+          "rentReceived",
+          "acquisition",
+          "works",
+          "loanInterest",
+          "loanInsurance",
+          "loanFees",
+          "otherCharges",
+          "realCost",
+          "rentsSincePurchase",
+          "netCostOfRents"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "paid": {
+            "type": "string"
+          },
+          "plannedMonthly": {
+            "type": "string"
+          },
+          "rentReceived": {
+            "type": "string"
+          },
+          "loanPayment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "acquisition": {
+            "type": "string"
+          },
+          "works": {
+            "type": "string"
+          },
+          "loanInterest": {
+            "type": "string"
+          },
+          "loanInsurance": {
+            "type": "string"
+          },
+          "loanFees": {
+            "type": "string"
+          },
+          "otherCharges": {
+            "type": "string"
+          },
+          "realCost": {
+            "type": "string"
+          },
+          "rentsSincePurchase": {
+            "type": "string"
+          },
+          "netCostOfRents": {
+            "type": "string"
+          },
+          "realCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
           }
         }
       },
@@ -23098,6 +23340,115 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PropertiesCosts": {
+        "required": [
+          "currency",
+          "from",
+          "to",
+          "byCategory",
+          "dues",
+          "properties",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "paid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "worksPaid": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "planned": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "plannedMonthly": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostCategoryView"
+            }
+          },
+          "dues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostDueView"
+            }
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostRow"
+            }
+          },
+          "realCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "netCostOfRents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanFindingView"
+            }
           }
         }
       },

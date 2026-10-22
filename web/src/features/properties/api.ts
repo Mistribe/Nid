@@ -18,11 +18,15 @@ export type PropertyWatch = components['schemas']['PropertyWatchView'];
 export type PropertiesRental = components['schemas']['PropertiesRental'];
 export type RentalRow = components['schemas']['RentalRow'];
 export type RentalMonth = components['schemas']['RentalMonthView'];
+export type PropertiesCosts = components['schemas']['PropertiesCosts'];
+export type CostRow = components['schemas']['CostRow'];
+export type CostDue = components['schemas']['CostDueView'];
 
 export const PROPERTIES = '/api/v1/realestate/properties' as const;
 export const PROPERTY = '/api/v1/realestate/properties/{id}' as const;
 export const PROPERTIES_OVERVIEW = '/api/v1/realestate/properties/overview' as const;
 export const PROPERTIES_RENTAL = '/api/v1/realestate/properties/overview/rental' as const;
+export const PROPERTIES_COSTS = '/api/v1/realestate/properties/overview/costs' as const;
 export const VALUATIONS = '/api/v1/realestate/properties/{id}/valuations' as const;
 export const VALUATION = '/api/v1/realestate/properties/{id}/valuations/{valuationId}' as const;
 export const FLOWS = '/api/v1/realestate/properties/{id}/flows' as const;
@@ -37,5 +41,5 @@ export const RECURRING_COST = '/api/v1/realestate/properties/{id}/recurring-cost
  * (§7); the income page and the home income too, which count the rents (income dashboard §5).
  */
 export function invalidateProperties(queryClient: QueryClient): Promise<void> {
-  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTY, OVERVIEW, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTY, OVERVIEW, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

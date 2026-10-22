@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { PropertiesOverview, PropertiesRental, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
+import type { CostRow, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -145,4 +145,42 @@ export const householdRental = (): PropertiesRental => propertiesRental({
     { propertyId: RENTAL, label: 'Bail Martin', startsOn: '2024-03-01', endsOn: null },
     { propertyId: PROPERTY, label: 'Bail Dupont', startsOn: '2026-05-15', endsOn: '2026-11-30' },
   ],
+});
+
+/** Nothing paid nor planned: what the page reads by default. */
+export const propertiesCosts = (over: Partial<PropertiesCosts> = {}): PropertiesCosts => ({
+  currency: 'EUR', from: '2025-10-23', to: '2026-10-22', paid: null, worksPaid: null, planned: null, plannedMonthly: null, byCategory: [],
+  dues: [], properties: [], realCost: null, netCostOfRents: null, findings: [], ...over,
+});
+
+const costRow = (id: string, name: string, over: Partial<CostRow>): CostRow => ({
+  id, name, currency: 'EUR', paid: '0.00', plannedMonthly: '0.00', rentReceived: '0.00', loanPayment: '0.00', acquisition: '0.00', works: '0.00',
+  loanInterest: '0.00', loanInsurance: '0.00', loanFees: '0.00', otherCharges: '0.00', realCost: '0.00', rentsSincePurchase: '0.00',
+  netCostOfRents: '0.00', realCostConverted: null, ...over,
+});
+
+/** The home and the rental above, with their costs paid and planned; the figures are what the server would write. */
+export const householdCosts = (): PropertiesCosts => propertiesCosts({
+  paid: eur('9230.00'), worksPaid: eur('1800.00'), planned: eur('7180.00'), plannedMonthly: eur('598.00'),
+  byCategory: [
+    { category: 'condo_fees', paid: eur('3240.00'), planned: eur('3300.00') },
+    { category: 'property_tax', paid: eur('3180.00'), planned: eur('3240.00') },
+    { category: 'works', paid: eur('1800.00'), planned: null },
+  ],
+  dues: [
+    { on: '2026-11-01', propertyId: PROPERTY, category: 'condo_fees', amount: '360.00', currency: 'EUR', amountConverted: eur('360.00') },
+    { on: '2026-11-15', propertyId: RENTAL, category: 'property_tax', amount: '1140.00', currency: 'EUR', amountConverted: eur('1140.00') },
+    { on: '2027-01-01', propertyId: RENTAL, category: 'insurance', amount: '180.00', currency: 'EUR', amountConverted: eur('180.00') },
+  ],
+  properties: [
+    costRow(PROPERTY, 'Maison de Nantes', {
+      paid: '5110.00', plannedMonthly: '285.00', loanPayment: '1395.00', acquisition: '269000.00', works: '12000.00', loanInterest: '6323.35',
+      otherCharges: '1500.00', realCost: '288823.35', netCostOfRents: '288823.35', realCostConverted: eur('288823.35'),
+    }),
+    costRow(RENTAL, 'T2 Villeurbanne', {
+      paid: '2850.00', plannedMonthly: '215.00', rentReceived: '9360.00', acquisition: '186300.00', otherCharges: '7400.00', realCost: '193700.00',
+      rentsSincePurchase: '25740.00', netCostOfRents: '167960.00', realCostConverted: eur('193700.00'),
+    }),
+  ],
+  realCost: eur('482523.35'), netCostOfRents: eur('456783.35'),
 });
