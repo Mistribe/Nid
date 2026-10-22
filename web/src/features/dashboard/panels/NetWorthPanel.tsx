@@ -14,6 +14,8 @@ import { personColor } from '../colors';
 import { percent } from '../format';
 import { ItemLink } from '../ItemLink';
 import { Value } from '../KeyFigures';
+import { AllocationSection } from './Allocation';
+import type { CompositionView } from './NetWorthCharts';
 
 const NetWorthCharts = lazy(() => import('./NetWorthCharts').then((m) => ({ default: m.NetWorthCharts })));
 
@@ -105,7 +107,7 @@ function People({ d }: { d: DashboardView }) {
 export function NetWorthPanel({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
   const { capabilities } = useSession();
-  const [view, setView] = useState<'type' | 'person'>('type');
+  const [view, setView] = useState<CompositionView>('type');
   const has = (m: string) => capabilities.modules.includes(m);
   const change = d.change.total;
   const paidIn = d.changeContributions.total;
@@ -138,12 +140,15 @@ export function NetWorthPanel({ d }: { d: DashboardView }) {
       </ul>
       {d.envelopeSplit.length > 0 ? (
         <section className="space-y-3">
-          <Segmented value={view} onValueChange={(v) => setView(v as 'type' | 'person')} aria-label={t('dashboard.panel.view')}
-            options={[{ value: 'type', label: t('dashboard.panel.by_type') }, { value: 'person', label: t('dashboard.panel.by_person') }]} />
+          <Segmented value={view} onValueChange={(v) => setView(v as CompositionView)} aria-label={t('dashboard.panel.view')}
+            options={[
+              { value: 'type', label: t('dashboard.panel.by_type') }, { value: 'person', label: t('dashboard.panel.by_person') },
+              { value: 'class', label: t('dashboard.panel.by_class') }, { value: 'liquidity', label: t('dashboard.panel.by_liquidity') },
+            ]} />
           <Suspense fallback={<Skeleton className="h-24 w-full" />}>
-            <NetWorthCharts view={view} rows={d.envelopeSplit} people={d.people ?? []} />
+            <NetWorthCharts view={view} rows={d.envelopeSplit} people={d.people ?? []} allocation={d.allocation} />
           </Suspense>
-          {view === 'type' ? <Composition d={d} /> : <People d={d} />}
+          {view === 'type' ? <Composition d={d} /> : view === 'person' ? <People d={d} /> : <AllocationSection d={d} kind={view} />}
         </section>
       ) : null}
       <div className="flex flex-wrap gap-4 text-sm">

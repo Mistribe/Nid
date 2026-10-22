@@ -312,6 +312,7 @@ public static class RequestCatalogue
         new(typeof(GetIncomeOverviewQuery), false, (_, _) => new GetIncomeOverviewQuery(VisibilityScope.Me, OverviewPeriod.Year, null, null, null, true)),
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
+        new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
         new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
         new(typeof(SimulateTaxQuery), false, (_, _) => new SimulateTaxQuery(new TaxInputs(

@@ -20,4 +20,10 @@ public interface IHouseholdSettings
     /// three-letter upper-case code (<see cref="PersonCodes.UnknownCurrency"/>).
     /// </summary>
     Task<Result<HouseholdSettingsInfo>> UpdateAsync(HouseholdSettingsChange change, CancellationToken ct);
+
+    /// <summary>Issue #104: the household's target share of each asset class, in % (empty: no target).</summary>
+    Task<IReadOnlyDictionary<string, decimal>> AllocationTargetAsync(CancellationToken ct);
+
+    /// <summary>Issue #104: replaces the target; checked by the caller (<c>AllocationTarget.Check</c>).</summary>
+    Task SaveAllocationTargetAsync(IReadOnlyDictionary<string, decimal> target, CancellationToken ct);
 }

@@ -10,6 +10,8 @@ public sealed class HouseholdSettingsRow
     public string Timezone { get; set; } = "Europe/Paris";
     public string Locale { get; set; } = "fr-FR";
     public int MaxAdults { get; set; } = 2;
+    /// <summary>Issue #104: the target allocation, a JSON object of class → %; null without one.</summary>
+    public string? AllocationTarget { get; set; }
 }
 
 public sealed class TaxProfileRow

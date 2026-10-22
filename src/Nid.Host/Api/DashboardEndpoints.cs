@@ -20,8 +20,15 @@ public static class DashboardEndpoints
             => (await invoker.InvokeAsync(new GetNetWorthHistoryQuery(ParseScope(scope), ParsePeriod(period)), ct)).ToHttp(view => view))
             .Returns<NetWorthHistoryView>();
 
+        // Issue #104: any adult sets the household's target allocation, as the tax profile.
+        api.MapPut("/dashboard/allocation-target", async (AllocationTargetBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SaveAllocationTargetCommand(body.Target ?? new Dictionary<string, decimal>()), ct)).ToHttp(target => new AllocationTargetBody(target)))
+            .Returns<AllocationTargetBody>();
+
         return routes;
     }
+
+    public sealed record AllocationTargetBody(IReadOnlyDictionary<string, decimal>? Target);
 
     /// <summary>2D2b spec §4: absent is the default, an unknown period a bad request (never a silent default).</summary>
     internal static NetWorthPeriod ParsePeriod(string? period) => period switch

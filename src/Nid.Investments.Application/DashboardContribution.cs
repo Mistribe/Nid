@@ -11,7 +11,8 @@ namespace Nid.Investments.Application;
 /// on or before 1 January and today, the gain since excluding contributions (as the period performance).
 /// 2D2a: one <see cref="Holding"/> per envelope, named and owned as the registry says.
 /// </summary>
-public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items) : INetWorthContribution
+public sealed class EnvelopesNetWorth(
+    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdingStore) : INetWorthContribution
 {
     public async Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
@@ -21,6 +22,9 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         // as one whose own facts cannot be read.
         var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
         var facts = await performance.FactsManyAsync(found, accesses, ct) ?? new Dictionary<ItemId, EnvelopePerformance.Facts>();
+        // Issue #104: the snapshots and holdings of every envelope in one export, for the allocation.
+        var export = await holdingStore.ExportAsync(found.Select(e => e.ItemId).ToList(), ct);
+        var holdingsOf = export.Holdings.ToDictionary(h => h.Id);
         var values = new Dictionary<Currency, decimal>();
         var starts = new Dictionary<Currency, decimal>();
         var nets = new Dictionary<Currency, decimal>();
@@ -53,7 +57,8 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
             Add(values, value.Currency, value.Amount);
             if (figures.AsOf is { } asOf && (oldest is null || asOf < oldest)) oldest = asOf;
             if (figures.StaleDays is not null) stale++;
-            holdings.Add(new Holding(envelope.ItemId, "investments", name, value, figures.AsOf, figures.StaleDays is not null, owners));
+            holdings.Add(new Holding(envelope.ItemId, "investments", name, value, figures.AsOf, figures.StaleDays is not null, owners,
+                EnvelopeAllocation.Of(f.Envelope.Kind, value.Amount, EnvelopeAllocation.Latest(export.Snapshots, envelope.ItemId, today), holdingsOf)));
 
             if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {

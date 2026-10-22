@@ -10627,6 +10627,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/allocation-target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AllocationTargetBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AllocationTargetBody"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tax": {
         parameters: {
             query?: never;
@@ -13736,6 +13829,32 @@ export interface components {
             status: string;
             isAdmin: boolean;
         };
+        AllocationLineView: {
+            key: string;
+            amount: components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            pct: number;
+            /** Format: double */
+            targetPct?: null | number;
+            /** Format: double */
+            gapPct?: null | number;
+            gap?: null | components["schemas"]["DashboardMoneyView"];
+        };
+        AllocationTargetBody: {
+            target?: null | {
+                [key: string]: number;
+            };
+        };
+        AllocationView: {
+            assets: components["schemas"]["DashboardMoneyView"];
+            debts: components["schemas"]["DashboardMoneyView"];
+            approximate: components["schemas"]["DashboardMoneyView"];
+            classes: components["schemas"]["AllocationLineView"][];
+            liquidity: components["schemas"]["AllocationLineView"][];
+            target: {
+                [key: string]: number;
+            };
+        };
         AmountView: {
             amount: string;
             currency: string;
@@ -14166,6 +14285,7 @@ export interface components {
             /** Format: int32 */
             envelopesWithoutStart: number;
             commitmentSources: components["schemas"]["DashboardCommitmentSourceView"][];
+            allocation?: null | components["schemas"]["AllocationView"];
         };
         DeclarantWithholdingView: {
             name: string;

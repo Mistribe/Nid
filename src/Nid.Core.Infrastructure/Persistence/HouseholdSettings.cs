@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using UnambitiousFx.Functional;
@@ -56,6 +57,21 @@ public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return Result.Success(await ReadAsync(ct));
+    }
+
+    public async Task<IReadOnlyDictionary<string, decimal>> AllocationTargetAsync(CancellationToken ct)
+    {
+        var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.AllocationTarget).FirstOrDefaultAsync(ct);
+        return json is null ? new Dictionary<string, decimal>() : JsonSerializer.Deserialize<Dictionary<string, decimal>>(json) ?? [];
+    }
+
+    public async Task SaveAllocationTargetAsync(IReadOnlyDictionary<string, decimal> target, CancellationToken ct)
+    {
+        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
+        if (row is null)
+            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
+        row.AllocationTarget = target.Count == 0 ? null : JsonSerializer.Serialize(target);
+        await db.SaveChangesAsync(ct);
     }
 
     private static Result<HouseholdSettingsInfo> Fail(string code, string message)

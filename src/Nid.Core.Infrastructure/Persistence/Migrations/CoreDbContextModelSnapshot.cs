@@ -261,6 +261,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
+                    b.Property<string>("AllocationTarget")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("allocation_target");
+
                     b.Property<string>("Locale")
                         .IsRequired()
                         .HasColumnType("text")

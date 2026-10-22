@@ -7,7 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { overview, sourceRow } from '../../income/testData';
 import type { DashboardView } from '../api';
-import { commitment, dashboard, envelope, person } from '../testData';
+import { allocation, allocationLine, commitment, dashboard, envelope, person } from '../testData';
 import { NetWorthCharts } from './NetWorthCharts';
 
 function serve(body: DashboardView) {
@@ -130,6 +130,81 @@ describe('key figure panels', () => {
     expect(rows[2]).toHaveTextContent('Bob');
     expect(await within(panel).findByRole('figure', { name: 'Graphique de la part de chaque personne' })).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the assets by class with the debts apart and the guessed part, then by liquidity', async () => {
+    serve(dashboard({ envelopeSplit: [envelope()], allocation: allocation() }));
+    const { container, user } = await renderApp('/dashboard?panel=net_worth');
+
+    const panel = await dialog('Patrimoine net');
+    await user.click(within(panel).getByRole('radio', { name: 'Par classe' }));
+    const rows = within(within(panel).getByRole('table', { name: 'Actifs par classe' })).getAllByRole('row');
+    expect(rows.map((r) => r.querySelector('th')?.textContent)).toEqual(['Classe d’actifs', 'Actions', 'Fonds en euros et garantis', 'Immobilier']);
+    expect(rows[3]).toHaveTextContent('300 000,00 €');
+    expect(rows[3]).toHaveTextContent('92,3 %');
+    expect(within(panel).queryByRole('columnheader', { name: 'Cible' })).toBeNull();
+    expect(panel).toHaveTextContent('Crédits restant dus : -2 000,00 €, déduits à part.');
+    expect(panel).toHaveTextContent('Dont 9 375,00 € classés d’après le type de support ou d’enveloppe');
+    expect(await within(panel).findByRole('figure', { name: 'Graphique de la répartition des actifs' })).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+
+    await user.click(within(panel).getByRole('radio', { name: 'Par disponibilité' }));
+    const liquidity = within(within(panel).getByRole('table', { name: 'Actifs par disponibilité' })).getAllByRole('row');
+    expect(liquidity[1]).toHaveTextContent('Disponible tout de suite');
+    expect(liquidity[2]).toHaveTextContent('Bloqué (retraite, vente d’un bien)');
+    expect(within(panel).queryByRole('button', { name: 'Définir une cible' })).toBeNull();
+  });
+
+  it('shows the target and the gaps, and sends a new target that adds up to 100 %', async () => {
+    serve(dashboard({
+      envelopeSplit: [envelope()],
+      allocation: allocation({
+        target: { equity: 60, bond: 40 },
+        classes: [
+          allocationLine('bond', '0.00', 0, { targetPct: 40, gapPct: -40, gap: { amount: '-130000.00', currency: 'EUR' } }),
+          allocationLine('equity', '9375.00', 2.9, { targetPct: 60, gapPct: -57.1, gap: { amount: '-185625.00', currency: 'EUR' } }),
+          allocationLine('real_estate', '300000.00', 92.3),
+        ],
+      }),
+    }));
+    let sent: unknown;
+    server.use(http.put('*/api/v1/dashboard/allocation-target', async ({ request }) => {
+      const body = (await request.json()) as { target: Record<string, number> };
+      sent = body;
+      return HttpResponse.json(body);
+    }));
+    const { user } = await renderApp('/dashboard?panel=net_worth');
+
+    const panel = await dialog('Patrimoine net');
+    await user.click(within(panel).getByRole('radio', { name: 'Par classe' }));
+    const equity = within(panel).getAllByRole('row').find((r) => r.textContent?.startsWith('Actions'))!;
+    expect(equity).toHaveTextContent('60 %');
+    expect(equity).toHaveTextContent('-57,1 pts');
+    expect(equity).toHaveTextContent('-185 625,00 €');
+    expect(within(panel).getAllByRole('row').find((r) => r.textContent?.startsWith('Immobilier'))).toHaveTextContent('—');
+
+    await user.click(within(panel).getByRole('button', { name: 'Modifier la cible' }));
+    const form = await dialog('Répartition cible du foyer');
+    expect(within(form).getByRole('textbox', { name: 'Actions' })).toHaveValue('60');
+    await user.clear(within(form).getByRole('textbox', { name: 'Obligations' }));
+    await user.type(within(form).getByRole('textbox', { name: 'Obligations' }), '30');
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer la cible' }));
+    expect(within(form).getByRole('alert')).toHaveTextContent('Chaque part va de 0 à 100 %, et le total fait 100 %.');
+    expect(sent).toBeUndefined();
+
+    await user.type(within(form).getByRole('textbox', { name: 'Immobilier' }), '10,0');
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer la cible' }));
+    await waitFor(() => expect(sent).toEqual({ target: { bond: 30, equity: 60, real_estate: 10 } }));
+    expect(await screen.findByText('Cible enregistrée.')).toBeInTheDocument();
+  });
+
+  it('says why there is no allocation when a rate is missing', async () => {
+    serve(dashboard({ envelopeSplit: [envelope()], allocation: null, people: null, peopleMissingCurrency: 'USD' }));
+    const { user } = await renderApp('/dashboard?panel=net_worth');
+
+    const panel = await dialog('Patrimoine net');
+    await user.click(within(panel).getByRole('radio', { name: 'Par classe' }));
+    expect(panel).toHaveTextContent('Inconnue : taux de change manquant (USD)');
   });
 
   it('shows no composition without an envelope', async () => {

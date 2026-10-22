@@ -35,6 +35,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.ReferenceCurrency).HasColumnType("char(3)");
+            e.Property(x => x.AllocationTarget).HasColumnType("jsonb");
             e.Property(x => x.MaxAdults).HasDefaultValue(2);
         });
 

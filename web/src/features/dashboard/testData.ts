@@ -1,4 +1,4 @@
-import type { DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, NetWorthHistory, NetWorthPointView } from './api';
+import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, NetWorthHistory, NetWorthPointView } from './api';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -13,7 +13,7 @@ export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => (
   income: figure('2500.00'), incomeSources: 1, margin: eur('2249.45'), committedPct: 10,
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
   envelopeSplit: [], people: [], peopleMissingCurrency: null, upcoming: [], todo: [], envelopesWithoutStart: 0,
-  commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56') }],
+  commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56') }], allocation: null,
   ...over,
 });
 
@@ -49,3 +49,15 @@ export const curvePoint = (over: Partial<NetWorthPointView> = {}): NetWorthPoint
 });
 
 export const netWorth = (points: NetWorthPointView[], period = '12m'): NetWorthHistory => ({ currency: 'EUR', period, points });
+
+export const allocationLine = (key: string, amount: string, pct: number, over: Partial<AllocationLine> = {}): AllocationLine => ({
+  key, amount: eur(amount), pct, targetPct: null, gapPct: null, gap: null, ...over,
+});
+
+/** Issue #104: a savings account split between a euro fund and an ETF, a home, and a loan. */
+export const allocation = (over: Partial<Allocation> = {}): Allocation => ({
+  assets: eur('325000.00'), debts: eur('-2000.00'), approximate: eur('9375.00'),
+  classes: [allocationLine('equity', '9375.00', 2.9), allocationLine('capital_guaranteed', '15625.00', 4.8), allocationLine('real_estate', '300000.00', 92.3)],
+  liquidity: [allocationLine('available', '25000.00', 7.7), allocationLine('locked', '300000.00', 92.3)],
+  target: {}, ...over,
+});

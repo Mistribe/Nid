@@ -29,6 +29,20 @@ public sealed record DashboardPersonView(Guid Id, string Name, int Slot, Dashboa
 /// </summary>
 public sealed record DashboardCommitmentSourceView(string Source, DashboardMoneyView? Amortized, decimal? Pct);
 
+/// <summary>
+/// Issue #104: an asset class or a liquidity of the allocation, its share of the assets (0.1 %). With a target for the class:
+/// <c>GapPct</c> its share minus its target, and <c>Gap</c> the amount above (+) or below (−) the target.
+/// </summary>
+public sealed record AllocationLineView(string Key, DashboardMoneyView Amount, decimal Pct, decimal? TargetPct, decimal? GapPct, DashboardMoneyView? Gap);
+
+/// <summary>
+/// Issue #104: the net worth by asset class and by liquidity. <c>Assets</c> + <c>Debts</c> (negative) is the net worth;
+/// <c>Approximate</c> is the part of the assets whose class is guessed from a kind; <c>Target</c> the household's, in %.
+/// </summary>
+public sealed record AllocationView(
+    DashboardMoneyView Assets, DashboardMoneyView Debts, DashboardMoneyView Approximate,
+    IReadOnlyList<AllocationLineView> Classes, IReadOnlyList<AllocationLineView> Liquidity, IReadOnlyDictionary<string, decimal> Target);
+
 public sealed record DashboardView(
     string Currency,
     DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes,
@@ -37,7 +51,9 @@ public sealed record DashboardView(
     DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
     IReadOnlyList<DashboardEnvelopeView> EnvelopeSplit, IReadOnlyList<DashboardPersonView>? People, string? PeopleMissingCurrency,
     IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart,
-    IReadOnlyList<DashboardCommitmentSourceView> CommitmentSources)
+    IReadOnlyList<DashboardCommitmentSourceView> CommitmentSources,
+    // Issue #104: null without assets above 0, or when a rate is missing (then PeopleMissingCurrency names it, the split's).
+    AllocationView? Allocation)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id)).Concat(Todo.Select(t => t.Id));
@@ -64,7 +80,8 @@ public static class DashboardMath
 
     public static DashboardView Compose(
         IReadOnlyList<NetWorthPart> worth, IReadOnlyList<CommitmentsPart> commitments, IReadOnlyList<IncomePart> income,
-        IReadOnlyList<UpcomingEvent> events, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today)
+        IReadOnlyList<UpcomingEvent> events, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today,
+        IReadOnlyDictionary<string, decimal>? target = null)
     {
         Sum Of(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts) => Sum.Of(Merge(parts), reference, rates, today);
 
@@ -135,7 +152,54 @@ public static class DashboardMath
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,
             margin is { } m ? Money(m, reference) : null, share, ShareOfIncome(margin),
             gain.View(reference), net.View(reference), changePct,
-            split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource);
+            split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource,
+            peopleMissing is null ? Allocation(holdings, reference, target ?? new Dictionary<string, decimal>()) : null);
+    }
+
+    /// <summary>
+    /// Issue #104: each holding's slices at its own converted rate; a holding without slices is classed by its module (a property
+    /// is real estate, locked; a loan is debt). Null without assets above 0.
+    /// </summary>
+    internal static AllocationView? Allocation(
+        IEnumerable<(Holding Holding, (decimal? Amount, string? Missing) Converted)> holdings, Currency reference, IReadOnlyDictionary<string, decimal> target)
+    {
+        var classes = new Dictionary<string, decimal>();
+        var liquidity = new Dictionary<string, decimal>();
+        decimal debts = 0m, approximate = 0m;
+        foreach (var (holding, converted) in holdings)
+        {
+            if (holding.Value is not { } value || converted.Amount is not { } amount || value.Amount == 0m) continue;
+            if (holding.Module == "loans")
+            {
+                debts += amount;
+                continue;
+            }
+            var slices = holding.Slices ?? (holding.Module == "properties"
+                ? [new AllocationSlice(AllocationClasses.RealEstate, AllocationLiquidity.Locked, value.Amount, false)]
+                : [new AllocationSlice(AllocationClasses.Other, AllocationLiquidity.Days, value.Amount, true)]);
+            foreach (var slice in slices)
+            {
+                var part = slice.Amount * amount / value.Amount; // the holding's own rate, as its converted value
+                classes[slice.Class] = classes.GetValueOrDefault(slice.Class) + part;
+                liquidity[slice.Liquidity] = liquidity.GetValueOrDefault(slice.Liquidity) + part;
+                if (slice.Approximate) approximate += part;
+            }
+        }
+        var assets = classes.Values.Sum();
+        if (assets <= 0m) return null;
+
+        AllocationLineView Line(string key, decimal amount, decimal? goal)
+        {
+            var share = amount / assets * 100m;
+            return new AllocationLineView(key, Money(amount, reference), Math.Round(share, 1, MidpointRounding.AwayFromZero), goal,
+                goal is { } g ? Math.Round(share - g, 1, MidpointRounding.AwayFromZero) : null,
+                goal is { } t ? Money(amount - assets * t / 100m, reference) : null);
+        }
+        return new AllocationView(Money(assets, reference), Money(debts, reference), Money(approximate, reference),
+            AllocationClasses.All.Where(c => classes.GetValueOrDefault(c) != 0m || target.ContainsKey(c))
+                .Select(c => Line(c, classes.GetValueOrDefault(c), target.TryGetValue(c, out var t) ? t : null)).ToList(),
+            AllocationLiquidity.All.Where(l => liquidity.GetValueOrDefault(l) != 0m).Select(l => Line(l, liquidity[l], null)).ToList(),
+            target);
     }
 
     /// <summary>One holding at today's rate: zero converts to zero at any rate, as <see cref="Sum.Of"/>.</summary>

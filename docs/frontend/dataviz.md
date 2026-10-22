@@ -49,7 +49,8 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Placements : performance mois par mois | Barres signées autour de zéro, bascule en tableau | Primaire (positif), `--destructive` (négatif), signe dans l’infobulle et le tableau |
 | Placements : rendement annuel par enveloppe | Points sur un axe commun, valeur en libellé direct, vos livrets en trait pointillé nommé | Couleur du type d’enveloppe, référence en couleur des livrets |
 | Placements : exposition par type de support | Barre empilée unique puis tableau, frais estimés en barres triées | Catégorielle par type de support (fonds en euros 3, fonds 7, ETF 1, actions 2, obligations 5, produit structuré 4), liquidités et autre en neutre ; frais en slot 2 |
-| Panneaux de l'accueil (`?panel=`) | Composition du patrimoine par type ou par personne, sources de revenus et d'engagements, barre du mois | Mêmes couleurs que l'accueil |
+| Panneaux de l'accueil (`?panel=`) | Composition du patrimoine par type, par personne, par classe d'actifs ou par disponibilité, sources de revenus et d'engagements, barre du mois | Mêmes couleurs que l'accueil |
+| Répartition des actifs (panneau du patrimoine, issue #104) | Barre empilée unique des actifs puis tableau (montant, part, cible et écart) ; crédits restant dus dits à part ; une part négative ne se dessine pas, le tableau la dit | Classe d'actifs ou disponibilité (§5) |
 
 Un crédit demande **deux graphiques**, pas un axe double : les échelles (des centaines de milliers d'euros contre quelques centaines) sont trop différentes.
 
@@ -117,6 +118,9 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 | | Terrain, autre | gris neutre |
 | Personnes | Adulte 1, adulte 2, dépendant (ordre de création) | 5, 6, 7 |
 | Sources de couverture (Abonnements) | Payée, bonus, incluse, essai, cadeau | 1, 2, 3, 4, 5 |
+| Classes d'actifs (panneau du patrimoine) | Monétaire, actions, fonds en euros et garantis, immobilier, obligations, liquidités, diversifié | 1, 2, 3, 4, 5, 6, 7 |
+| | Autre | gris neutre |
+| Disponibilité (panneau du patrimoine) | Tout de suite, sous quelques jours, bloqué | 1, 3, 7 |
 
 - Sur une **même vue**, deux dimensions n'utilisent pas les mêmes teintes : le tableau de bord réserve 1 à 4 aux enveloppes et 5 à 7 aux personnes. Sur la page Placements, les types d'enveloppe prennent 1 à 6 : les personnes y sont en ton neutre. Sur la page Biens, les types de bien prennent 1 à 4 : les personnes et les crédits y sont en ton neutre.
 - **Bande de couverture** : chaque période porte un **libellé direct** (« 24 mois payés », « 6 mois offerts »). Au-delà de quatre catégories affichées, les libellés directs sont obligatoires.

@@ -15,9 +15,41 @@ public sealed record NetWorthPart(
     IReadOnlyDictionary<Currency, decimal> NetContributions, IReadOnlyDictionary<Currency, decimal> Gains,
     IReadOnlyList<Holding> Holdings, int WithoutStart);
 
-/// <summary>2D2a spec §4: one visible open envelope of the net worth; <c>Value</c> null when it has none (or its facts cannot be read).</summary>
+/// <summary>
+/// 2D2a spec §4: one visible open envelope of the net worth; <c>Value</c> null when it has none (or its facts cannot be read).
+/// Issue #104: <c>Slices</c> splits <c>Value</c> by asset class and liquidity; null lets the dashboard classify it by module.
+/// </summary>
 public sealed record Holding(
-    ItemId Item, string Module, string Name, Money? Value, LocalDate? AsOf, bool Stale, IReadOnlyList<OwnerShare> Owners);
+    ItemId Item, string Module, string Name, Money? Value, LocalDate? AsOf, bool Stale, IReadOnlyList<OwnerShare> Owners,
+    IReadOnlyList<AllocationSlice>? Slices = null);
+
+/// <summary>Issue #104: a part of a holding's value, in its currency; <c>Approximate</c> when the class is guessed from a kind.</summary>
+public sealed record AllocationSlice(string Class, string Liquidity, decimal Amount, bool Approximate);
+
+/// <summary>Issue #104: the asset classes of the allocation, in display order; a debt is no class (it is shown apart).</summary>
+public static class AllocationClasses
+{
+    public const string Cash = "cash";
+    public const string MoneyMarket = "money_market";
+    public const string Bond = "bond";
+    public const string Equity = "equity";
+    public const string Mixed = "mixed";
+    public const string CapitalGuaranteed = "capital_guaranteed";
+    public const string RealEstate = "real_estate";
+    public const string Other = "other";
+
+    public static readonly IReadOnlyList<string> All = [Cash, MoneyMarket, Bond, Equity, Mixed, CapitalGuaranteed, RealEstate, Other];
+}
+
+/// <summary>Issue #104: how soon a value can be spent — now, within days (a sale or a withdrawal), or not before an event (retirement, a sale of a property).</summary>
+public static class AllocationLiquidity
+{
+    public const string Available = "available";
+    public const string Days = "days";
+    public const string Locked = "locked";
+
+    public static readonly IReadOnlyList<string> All = [Available, Days, Locked];
+}
 
 /// <summary>
 /// 2D1 spec §4: this month's amortized and cash cost of one source of the reader's visible commitments. 3E1 spec §3:

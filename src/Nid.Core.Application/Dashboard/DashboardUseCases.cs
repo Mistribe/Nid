@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Dashboard;
@@ -41,6 +42,41 @@ public sealed class GetDashboardHandler(
             ? RateTable.Empty(today, 0)
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today));
+        var target = await household.AllocationTargetAsync(ct);
+        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target));
+    }
+}
+
+/// <summary>Issue #104: replaces the household's target allocation; an empty one removes it.</summary>
+public sealed record SaveAllocationTargetCommand(IReadOnlyDictionary<string, decimal> Target) : ICommand<IReadOnlyDictionary<string, decimal>>;
+
+public static class AllocationTarget
+{
+    public const string Invalid = "core.invalid_allocation_target";
+
+    /// <summary>Known classes only, each from 0 to 100 % to 0.1, adding up to 100 %; or none at all.</summary>
+    public static Failure? Check(IReadOnlyDictionary<string, decimal> target)
+    {
+        if (target.Count == 0) return null;
+        if (target.Keys.Any(k => !AllocationClasses.All.Contains(k)))
+            return new Failure(Invalid, $"A target names asset classes among: {string.Join(", ", AllocationClasses.All)}.", null);
+        if (target.Values.Any(v => v is < 0m or > 100m || decimal.Round(v, 1) != v))
+            return new Failure(Invalid, "Each share is from 0 to 100 %, to 0.1 %.", null);
+        return target.Values.Sum() == 100m ? null : new Failure(Invalid, "The shares add up to 100 %.", null);
+    }
+}
+
+[RequestHandler<SaveAllocationTargetCommand, IReadOnlyDictionary<string, decimal>>]
+public sealed class SaveAllocationTargetHandler(IHouseholdSettings household)
+    : IRequestHandler<SaveAllocationTargetCommand, IReadOnlyDictionary<string, decimal>>
+{
+    public async ValueTask<Result<IReadOnlyDictionary<string, decimal>>> HandleAsync(SaveAllocationTargetCommand command, CancellationToken ct = default)
+    {
+        if (AllocationTarget.Check(command.Target) is { } failure)
+            return Result.Failure<IReadOnlyDictionary<string, decimal>>(failure);
+        // Zero shares carry nothing: kept out, so the dashboard lists only the classes aimed at.
+        var target = command.Target.Where(t => t.Value > 0m).ToDictionary(t => t.Key, t => t.Value);
+        await household.SaveAllocationTargetAsync(target, ct);
+        return Result.Success<IReadOnlyDictionary<string, decimal>>(target);
     }
 }

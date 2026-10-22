@@ -172,7 +172,46 @@
     "panel": {
       "view": "Composition du patrimoine",
       "by_type": "Par type",
-      "by_person": "Par personne"
+      "by_person": "Par personne",
+      "by_class": "Par classe",
+      "by_liquidity": "Par disponibilité"
+    },
+    "allocation": {
+      "chart": "Graphique de la répartition des actifs",
+      "table_class": "Actifs par classe",
+      "table_liquidity": "Actifs par disponibilité",
+      "col_class": "Classe d’actifs",
+      "col_liquidity": "Disponibilité",
+      "col_target": "Cible",
+      "col_gap": "Écart",
+      "points": "{{value}} pts",
+      "assets": "Actifs : {{amount}}, part calculée sur ce total.",
+      "debts": "Crédits restant dus : {{amount}}, déduits à part.",
+      "approximate": "Dont {{amount}} classés d’après le type de support ou d’enveloppe : précisez la classe des supports pour un résultat exact.",
+      "set_target": "Définir une cible",
+      "edit_target": "Modifier la cible",
+      "target_title": "Répartition cible du foyer",
+      "target_hint": "Une part en % par classe visée, le total faisant 100 %. Laissez vide une classe que vous ne visez pas.",
+      "target_invalid": "Chaque part va de 0 à 100 %, et le total fait 100 %.",
+      "save_target": "Enregistrer la cible",
+      "remove_target": "Retirer la cible",
+      "target_saved": "Cible enregistrée.",
+      "target_removed": "Cible retirée.",
+      "class": {
+        "cash": "Liquidités",
+        "money_market": "Monétaire",
+        "bond": "Obligations",
+        "equity": "Actions",
+        "mixed": "Diversifié",
+        "capital_guaranteed": "Fonds en euros et garantis",
+        "real_estate": "Immobilier",
+        "other": "Autre"
+      },
+      "liquidity": {
+        "available": "Disponible tout de suite",
+        "days": "Sous quelques jours",
+        "locked": "Bloqué (retraite, vente d’un bien)"
+      }
     },
     "split": {
       "envelopes_table": "Valeur de chaque élément",

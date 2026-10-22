@@ -11494,6 +11494,95 @@
         }
       }
     },
+    "/api/v1/dashboard/allocation-target": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllocationTargetBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationTargetBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tax": {
       "get": {
         "tags": [
@@ -14665,6 +14754,106 @@
           }
         }
       },
+      "AllocationLineView": {
+        "required": [
+          "key",
+          "amount",
+          "pct"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "pct": {
+            "type": "number",
+            "format": "double"
+          },
+          "targetPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "gapPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "gap": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          }
+        }
+      },
+      "AllocationTargetBody": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
+      "AllocationView": {
+        "required": [
+          "assets",
+          "debts",
+          "approximate",
+          "classes",
+          "liquidity",
+          "target"
+        ],
+        "type": "object",
+        "properties": {
+          "assets": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "debts": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "approximate": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AllocationLineView"
+            }
+          },
+          "liquidity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AllocationLineView"
+            }
+          },
+          "target": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
       "AmountView": {
         "required": [
           "amount",
@@ -16538,6 +16727,16 @@
             "items": {
               "$ref": "#/components/schemas/DashboardCommitmentSourceView"
             }
+          },
+          "allocation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AllocationView"
+              }
+            ]
           }
         }
       },
