@@ -210,3 +210,48 @@ public class PropertiesCostsEndpointTests(PostgresFixture fixture) : IClassFixtu
         Assert.DoesNotContain(theirs.ToString(), body.ToString());
     }
 }
+
+/// <summary>Properties dashboard spec §6.4: <c>GET /properties/overview/valuation</c> on the host's today (2025-10-15).</summary>
+public class PropertiesValuationEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Valuation = $"{Properties}/overview/valuation";
+
+    [Fact]
+    public async Task The_value_against_the_cost_price_with_the_history_of_each_property()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Home(app);
+        body["surfaceM2"] = "100";
+        var home = await NewPropertyAsync(app, body);
+        foreach (var (asOf, amount) in new[] { ("2023-06-01", "280000"), ("2025-06-01", "290000") })
+            await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/valuations", new { asOf, amount }));
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{home}/flows",
+            new { occurredOn = "2021-03-01", kind = "expense", amount = "12000", category = "works" }));
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Valuation}?scope=household");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await JsonAsync(response);
+        Assert.Equal(("290000.00", "281000.00", "9000.00"),
+            (S(json.GetProperty("value"), "amount"), S(json.GetProperty("costPrice"), "amount"), S(json.GetProperty("latentGain"), "amount")));
+        Assert.Equal(("100.00", "2900.00"), (S(json, "surfaceM2"), S(json.GetProperty("valuePerM2"), "amount")));
+        var row = Assert.Single(json.GetProperty("properties").EnumerateArray());
+        Assert.Equal((home, "2900.00", "2020-06-15"), (row.GetProperty("id").GetGuid(), S(row, "valuePerM2"), S(row, "purchaseDate")));
+        Assert.Equal(["2023-06-01", "2025-06-01"], row.GetProperty("estimates").EnumerateArray().Select(e => S(e, "on")));
+        Assert.Equal(["269000.00", "281000.00"], row.GetProperty("costSteps").EnumerateArray().Select(s => S(s, "costPrice")));
+        // (290 000 ÷ 281 000)^(365.25 ÷ 1 948) − 1.
+        Assert.Equal(0.6m, row.GetProperty("annualPacePct").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Another_adults_private_property_is_absent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var theirs = await NewPropertyAsync(app, Home(app, "Studio de B", "private", app.AdultB), app.AdultB);
+
+        var json = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Valuation}?scope=me"));
+
+        Assert.Equal(0, json.GetProperty("count").GetInt32());
+        Assert.DoesNotContain(theirs.ToString(), json.ToString());
+    }
+}

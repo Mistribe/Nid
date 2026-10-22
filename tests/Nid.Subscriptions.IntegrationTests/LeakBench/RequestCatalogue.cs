@@ -386,6 +386,7 @@ public static class RequestCatalogue
         new(typeof(GetPropertiesOverviewQuery), false, (_, _) => new GetPropertiesOverviewQuery(VisibilityScope.Me, PropertiesSpan.All)),
         new(typeof(GetPropertiesRentalQuery), false, (_, _) => new GetPropertiesRentalQuery(VisibilityScope.Me, null)),
         new(typeof(GetPropertiesCostsQuery), false, (_, _) => new GetPropertiesCostsQuery(VisibilityScope.Me)),
+        new(typeof(GetPropertiesValuationQuery), false, (_, _) => new GetPropertiesValuationQuery(VisibilityScope.Me)),
         new(typeof(GetPropertyRoutineQuery), false, (_, _) => new GetPropertyRoutineQuery(null)),
         // 3E2: the routine names its properties in its lines; each one's write check is the bench fact below.
         new(typeof(RecordPropertyRoutineCommand), false, (_, _) => new RecordPropertyRoutineCommand(new LocalDate(2025, 1, 31), [], [])),

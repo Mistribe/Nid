@@ -9652,6 +9652,94 @@
         }
       }
     },
+    "/api/v1/realestate/properties/overview/valuation": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertiesValuation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/properties/{id}": {
       "get": {
         "tags": [
@@ -15522,6 +15610,22 @@
           }
         }
       },
+      "CostStepView": {
+        "required": [
+          "on",
+          "costPrice"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "costPrice": {
+            "type": "string"
+          }
+        }
+      },
       "CoverageView": {
         "required": [
           "start",
@@ -17157,6 +17261,22 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "EstimateView": {
+        "required": [
+          "on",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "type": "string"
           }
         }
       },
@@ -23766,6 +23886,109 @@
           }
         }
       },
+      "PropertiesValuation": {
+        "required": [
+          "currency",
+          "count",
+          "withoutSurfaceCount",
+          "upToDateCount",
+          "staleCount",
+          "withoutValueCount",
+          "properties",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "costPrice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "latentGain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "latentGainPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "surfaceM2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "valuePerM2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "withoutSurfaceCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "upToDateCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "staleCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "withoutValueCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValuationRow"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanFindingView"
+            }
+          }
+        }
+      },
       "PropertyCostLineView": {
         "required": [
           "code",
@@ -27923,6 +28146,116 @@
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "ValuationRow": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "currency",
+          "purchaseDate",
+          "stale",
+          "cadence",
+          "costPrice",
+          "estimates",
+          "costSteps"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "purchaseDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "surfaceM2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "valueOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "cadence": {
+            "type": "string"
+          },
+          "costPrice": {
+            "type": "string"
+          },
+          "latentGain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "latentGainPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "valuePerM2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annualPacePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "estimates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EstimateView"
+            }
+          },
+          "costSteps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostStepView"
+            }
+          },
+          "valueConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
             ]
           }
         }

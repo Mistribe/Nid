@@ -27,12 +27,14 @@ const RentalTab = lazy(() => import('./overview/RentalTab').then((m) => ({ defau
 
 const CostsTab = lazy(() => import('./overview/CostsTab').then((m) => ({ default: m.CostsTab })));
 
-const WITH_RENTAL = ['overview', 'rental', 'costs', 'list'] as const;
-const WITHOUT_RENTAL = ['overview', 'costs', 'list'] as const;
+const ValuationTab = lazy(() => import('./overview/ValuationTab').then((m) => ({ default: m.ValuationTab })));
+
+const WITH_RENTAL = ['overview', 'rental', 'costs', 'valuation', 'list'] as const;
+const WITHOUT_RENTAL = ['overview', 'costs', 'valuation', 'list'] as const;
 
 /**
- * Properties dashboard §3.1, §4.3 and §5.3: the overview opens first, « Location » while a property is let, « Charges et coûts »;
- * the list under `?tab=list`.
+ * Properties dashboard §3.1, §4.3, §5.3 and §6.3: the overview opens first, « Location » while a property is let, « Charges et
+ * coûts », « Valorisation »; the list under `?tab=list`.
  */
 export function PropertiesPage() {
   const { t } = useTranslation();
@@ -53,6 +55,8 @@ export function PropertiesPage() {
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><RentalTab scope={scope} property={search.property} /></Suspense> }] : []),
         { id: 'costs', label: t('properties_costs.tab'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><CostsTab scope={scope} /></Suspense> },
+        { id: 'valuation', label: t('properties_valuation.tab'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><ValuationTab scope={scope} /></Suspense> },
         { id: 'list', label: t('properties_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
       ]} />
     </div>

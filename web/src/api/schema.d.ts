@@ -8934,6 +8934,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties/overview/valuation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertiesValuation"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}": {
         parameters: {
             query?: never;
@@ -13874,6 +13965,11 @@ export interface components {
             netCostOfRents: string;
             realCostConverted?: null | components["schemas"]["LoanMoneyView"];
         };
+        CostStepView: {
+            /** Format: date */
+            on: string;
+            costPrice: string;
+        };
         CoverageView: {
             /** Format: date */
             start: string;
@@ -14238,6 +14334,11 @@ export interface components {
             holdingId?: null | string;
             /** Format: date */
             on?: null | string;
+        };
+        EstimateView: {
+            /** Format: date */
+            on: string;
+            value: string;
         };
         ExcludedEnvelopeView: {
             /** Format: uuid */
@@ -15733,6 +15834,28 @@ export interface components {
             tenancies: components["schemas"]["RentalTenancyView"][];
             findings: components["schemas"]["LoanFindingView"][];
         };
+        PropertiesValuation: {
+            currency: string;
+            /** Format: int32 */
+            count: number;
+            value?: null | components["schemas"]["LoanMoneyView"];
+            costPrice?: null | components["schemas"]["LoanMoneyView"];
+            latentGain?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: double */
+            latentGainPct?: null | number;
+            surfaceM2?: null | string;
+            valuePerM2?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: int32 */
+            withoutSurfaceCount: number;
+            /** Format: int32 */
+            upToDateCount: number;
+            /** Format: int32 */
+            staleCount: number;
+            /** Format: int32 */
+            withoutValueCount: number;
+            properties: components["schemas"]["ValuationRow"][];
+            findings: components["schemas"]["LoanFindingView"][];
+        };
         PropertyCostLineView: {
             code: string;
             amount: string;
@@ -16707,6 +16830,31 @@ export interface components {
             asOf: string;
             amount?: null | components["schemas"]["MoneyBody"];
             note?: null | string;
+        };
+        ValuationRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            currency: string;
+            /** Format: date */
+            purchaseDate: string;
+            surfaceM2?: null | string;
+            value?: null | string;
+            /** Format: date */
+            valueOn?: null | string;
+            stale: boolean;
+            cadence: string;
+            costPrice: string;
+            latentGain?: null | string;
+            /** Format: double */
+            latentGainPct?: null | number;
+            valuePerM2?: null | string;
+            /** Format: double */
+            annualPacePct?: null | number;
+            estimates: components["schemas"]["EstimateView"][];
+            costSteps: components["schemas"]["CostStepView"][];
+            valueConverted?: null | components["schemas"]["LoanMoneyView"];
         };
         ValuationView: {
             /** Format: uuid */

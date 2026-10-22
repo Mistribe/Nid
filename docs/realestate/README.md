@@ -144,6 +144,8 @@ Fonctions pures, décimal exact, à la date d (par défaut aujourd'hui).
 
 **Ajouté avec le tableau de bord des biens, PR 3** (même spec, §5) : `GET /api/v1/realestate/properties/overview/costs?scope=` : les dépenses payées sur les 12 mois glissants (travaux compris), les échéances des charges prévues dans les 12 prochains mois (`PropertyMath.DueBetween`), leur équivalent mensuel (celui des engagements de l’accueil), par catégorie, échéance par échéance et par bien, avec la mensualité du mois des crédits liés dans la portée ; le coût réel de chaque bien en six colonnes (achat et frais, travaux, intérêts, assurance, frais de prêt, autres charges), ses loyers reçus et son coût net des loyers, comme sa fiche.
 
+**Ajouté avec le tableau de bord des biens, PR 4** (même spec, §6) : `GET /api/v1/realestate/properties/overview/valuation?scope=` : valeur, prix de revient et plus-value latente du foyer (ceux de la vue d’ensemble), prix au m² sur les biens ayant une surface et une estimation (Σ valeurs ÷ Σ surfaces, à l’euro), estimations à jour et à refaire ; par bien, ses chiffres de la fiche, son prix au m², son rythme annuel moyen depuis l’achat ((valeur ÷ prix de revient)^(365,25 ÷ jours détenus) − 1, à 0,1 %, `null` avant un an), ses estimations et les paliers de son prix de revient (l’achat, puis chaque jour de travaux).
+
 ## 9. Propositions
 
 | `kind` | Payload | Application |

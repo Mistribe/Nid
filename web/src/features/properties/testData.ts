@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { CostRow, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
+import type { CostRow, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -183,4 +183,31 @@ export const householdCosts = (): PropertiesCosts => propertiesCosts({
     }),
   ],
   realCost: eur('482523.35'), netCostOfRents: eur('456783.35'),
+});
+
+/** No property: what the page reads by default. */
+export const propertiesValuation = (over: Partial<PropertiesValuation> = {}): PropertiesValuation => ({
+  currency: 'EUR', count: 0, value: null, costPrice: null, latentGain: null, latentGainPct: null, surfaceM2: null, valuePerM2: null,
+  withoutSurfaceCount: 0, upToDateCount: 0, staleCount: 0, withoutValueCount: 0, properties: [], findings: [], ...over,
+});
+
+/** The home above (85,5 m²) and the rental, stale and without a surface; the figures are what the server would write. */
+export const householdValuation = (): PropertiesValuation => propertiesValuation({
+  count: 2, value: eur('488000.00'), costPrice: eur('467300.00'), latentGain: eur('20700.00'), latentGainPct: 4.4, surfaceM2: '85.50',
+  valuePerM2: eur('3392.00'), withoutSurfaceCount: 1, upToDateCount: 1, staleCount: 1,
+  properties: [
+    {
+      id: PROPERTY, name: 'Maison de Nantes', type: 'primary_residence', currency: 'EUR', purchaseDate: '2020-06-15', surfaceM2: '85.50',
+      value: '290000.00', valueOn: '2026-06-01', stale: false, cadence: 'yearly', costPrice: '281000.00', latentGain: '9000.00', latentGainPct: 3.2,
+      valuePerM2: '3392.00', annualPacePct: 0.5, valueConverted: eur('290000.00'),
+      estimates: [{ on: '2025-06-01', value: '280000.00' }, { on: '2026-06-01', value: '290000.00' }],
+      costSteps: [{ on: '2020-06-15', costPrice: '269000.00' }, { on: '2021-03-01', costPrice: '281000.00' }],
+    },
+    {
+      id: RENTAL, name: 'T2 Villeurbanne', type: 'rental', currency: 'EUR', purchaseDate: '2023-12-05', surfaceM2: null,
+      value: '198000.00', valueOn: '2024-09-30', stale: true, cadence: 'yearly', costPrice: '186300.00', latentGain: '11700.00', latentGainPct: 6.3,
+      valuePerM2: null, annualPacePct: null, valueConverted: eur('198000.00'),
+      estimates: [{ on: '2024-09-30', value: '198000.00' }], costSteps: [{ on: '2023-12-05', costPrice: '186300.00' }],
+    },
+  ],
 });
