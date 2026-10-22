@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { PropertiesOverview, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
+import type { PropertiesOverview, PropertiesRental, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -110,5 +110,39 @@ export const householdOverview = (): PropertiesOverview => propertiesOverview({
     { code: 'valuation_stale', propertyId: RENTAL, loanId: null, on: '2024-09-30', amount: null },
     { code: 'rent_arrears', propertyId: RENTAL, loanId: null, on: null, amount: eur('780.00') },
     { code: 'property_cost_due', propertyId: RENTAL, loanId: null, on: '2026-11-15', amount: eur('1120.00') },
+  ],
+});
+
+/** No let property: what the page reads by default, so « Location » stays hidden. */
+export const propertiesRental = (over: Partial<PropertiesRental> = {}): PropertiesRental => ({
+  currency: 'EUR', from: '2025-10-23', to: '2026-10-22', count: 0, expectedRent: null, rentReceived: null, arrears: null, vacantDays: null,
+  vacancyRate: null, grossYield: null, netYieldBeforeTax: null, notSignificantCount: 0, charges: null, loanPayments: null, cashFlow: null,
+  cashFlowMonthly: null, months: [], properties: [], tenancies: [], findings: [], ...over,
+});
+
+const month = (m: string, rent: string, charges: string, loans: string, cash: string) =>
+  ({ month: m, rentReceived: eur(rent), charges: eur(charges), loanPayments: eur(loans), cashFlow: eur(cash) });
+
+/** The rental above let at 780 € a month with its loan, and a studio let since May; the figures are what the server would write. */
+export const householdRental = (): PropertiesRental => propertiesRental({
+  count: 2, expectedRent: eur('12510.00'), rentReceived: eur('12060.00'), arrears: eur('450.00'), vacantDays: 14, vacancyRate: '0.0259',
+  grossYield: '0.0498', netYieldBeforeTax: '0.0438', notSignificantCount: 1, charges: eur('2920.00'), loanPayments: eur('9744.00'),
+  cashFlow: eur('-604.00'), cashFlowMonthly: eur('-50.33'),
+  months: [month('2025-10', '0.00', '1120.00', '0.00', '-1120.00'), month('2025-11', '780.00', '0.00', '812.00', '-32.00')],
+  properties: [
+    {
+      id: RENTAL, name: 'T2 Villeurbanne', currency: 'EUR', currentTenancy: { label: 'Bail Martin', startsOn: '2024-03-01', endsOn: null },
+      rentMonthly: '780.00', expectedRent: '9360.00', rentReceived: '9360.00', arrears: '0.00', vacancyRate: '0.0000', grossYield: '0.0498',
+      netYieldBeforeTax: '0.0438', charges: '2920.00', loanPayments: '9744.00', cashFlow: '-3304.00', cashFlowConverted: eur('-3304.00'),
+    },
+    {
+      id: PROPERTY, name: 'Studio', currency: 'EUR', currentTenancy: { label: 'Bail Dupont', startsOn: '2026-05-15', endsOn: '2026-11-30' },
+      rentMonthly: '450.00', expectedRent: '3150.00', rentReceived: '2700.00', arrears: '450.00', vacancyRate: '0.0800', grossYield: null,
+      netYieldBeforeTax: null, charges: '0.00', loanPayments: '0.00', cashFlow: '2700.00', cashFlowConverted: eur('2700.00'),
+    },
+  ],
+  tenancies: [
+    { propertyId: RENTAL, label: 'Bail Martin', startsOn: '2024-03-01', endsOn: null },
+    { propertyId: PROPERTY, label: 'Bail Dupont', startsOn: '2026-05-15', endsOn: '2026-11-30' },
   ],
 });

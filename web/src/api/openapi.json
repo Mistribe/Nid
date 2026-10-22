@@ -9468,6 +9468,102 @@
         }
       }
     },
+    "/api/v1/realestate/properties/overview/rental": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "property",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertiesRental"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/properties/{id}": {
       "get": {
         "tags": [
@@ -15685,6 +15781,29 @@
             "items": {
               "$ref": "#/components/schemas/PurchaseInput"
             }
+          }
+        }
+      },
+      "CurrentTenancyView": {
+        "required": [
+          "label",
+          "startsOn"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "endsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -23142,6 +23261,160 @@
           }
         }
       },
+      "PropertiesRental": {
+        "required": [
+          "currency",
+          "from",
+          "to",
+          "count",
+          "notSignificantCount",
+          "months",
+          "properties",
+          "tenancies",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "expectedRent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "rentReceived": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "arrears": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "vacantDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "vacancyRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grossYield": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netYieldBeforeTax": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notSignificantCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "charges": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "loanPayments": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "cashFlow": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "cashFlowMonthly": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RentalMonthView"
+            }
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RentalRow"
+            }
+          },
+          "tenancies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RentalTenancyView"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanFindingView"
+            }
+          }
+        }
+      },
       "PropertyCostLineView": {
         "required": [
           "code",
@@ -24894,6 +25167,177 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "RentalMonthView": {
+        "required": [
+          "month"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "rentReceived": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "charges": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "loanPayments": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "cashFlow": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
+      "RentalRow": {
+        "required": [
+          "id",
+          "name",
+          "currency",
+          "expectedRent",
+          "rentReceived",
+          "arrears",
+          "charges"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "currentTenancy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CurrentTenancyView"
+              }
+            ]
+          },
+          "rentMonthly": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedRent": {
+            "type": "string"
+          },
+          "rentReceived": {
+            "type": "string"
+          },
+          "arrears": {
+            "type": "string"
+          },
+          "vacancyRate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "grossYield": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netYieldBeforeTax": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "charges": {
+            "type": "string"
+          },
+          "loanPayments": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cashFlow": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cashFlowConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
+      "RentalTenancyView": {
+        "required": [
+          "propertyId",
+          "label",
+          "startsOn"
+        ],
+        "type": "object",
+        "properties": {
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "endsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },

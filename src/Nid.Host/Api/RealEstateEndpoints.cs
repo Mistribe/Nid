@@ -178,6 +178,11 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new GetPropertiesOverviewQuery(ParseScope(scope), ParseSpan(span)), ct)).ToHttp(overview => overview))
             .Returns<PropertiesOverview>();
 
+        api.MapGet("/properties/overview/rental", async (string? scope, Guid? property, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertiesRentalQuery(ParseScope(scope), property is { } id ? new ItemId(id) : null), ct))
+                .ToHttp(rental => rental))
+            .Returns<PropertiesRental>();
+
         api.MapGet("/properties/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetPropertyQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<PropertyDetail>();

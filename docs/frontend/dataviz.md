@@ -41,6 +41,8 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | Placements : valeur par type et versements | Aires empilées par type d’enveloppe, séparations de 2 px, versé net en courbe pointillée, « Par type / Total », période segmentée, bascule en tableau | Catégorielle par type d’enveloppe (§5), versé net en ton de texte |
 | Biens : valeur nette et crédits | Aires empilées (crédits restants en bas, valeur nette au-dessus), valeur des biens en ligne, période segmentée, bascule en tableau | Crédits gris neutre, valeur nette primaire, valeur en ton de texte |
 | Biens : répartition par type | Barre empilée unique et tableau | Type de bien (§5) |
+| Biens : loyers, charges et mensualités par mois | Barres empilées autour de zéro (loyers au-dessus, charges et mensualités en dessous), cash-flow en ligne à points, filtre par bien, bascule en tableau | Loyers primaire, charges slot 2, mensualités gris neutre, cash-flow en ton de texte |
+| Biens : baux | Frise par bien sur trois ans, trait « Aujourd’hui », tableau pour les technologies d’assistance | Bail primaire, sans bail atténué |
 | Placements : décomposition d’une période | Barres divergentes autour d’un axe central, une ligne par composante, dans un tableau | Versements primaire, retraits et virements neutres, performance en statut avec icône et signe |
 | Placements : performance mois par mois | Barres signées autour de zéro, bascule en tableau | Primaire (positif), `--destructive` (négatif), signe dans l’infobulle et le tableau |
 | Placements : rendement annuel par enveloppe | Points sur un axe commun, valeur en libellé direct, vos livrets en trait pointillé nommé | Couleur du type d’enveloppe, référence en couleur des livrets |

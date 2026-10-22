@@ -17,20 +17,26 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { money, percent } from '../loans/format';
-import { PROPERTIES, type PropertySummary } from './api';
+import { PROPERTIES, PROPERTIES_RENTAL, type PropertySummary } from './api';
 import { typeText } from './format';
 import '@/locales/properties';
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
-const TABS = ['overview', 'list'] as const;
+const RentalTab = lazy(() => import('./overview/RentalTab').then((m) => ({ default: m.RentalTab })));
 
-/** Properties dashboard §3.1: the overview opens first; the list keeps its table under `?tab=list`. */
+const WITH_RENTAL = ['overview', 'rental', 'list'] as const;
+const WITHOUT_RENTAL = ['overview', 'list'] as const;
+
+/** Properties dashboard §3.1 and §4.3: the overview opens first, « Location » while a property is let; the list under `?tab=list`. */
 export function PropertiesPage() {
   const { t } = useTranslation();
   const search: RootSearch & PropertiesSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
-  const [tab, setTab] = useDetailTab(TABS);
+  const { $api } = useApi();
+  // §4.1 D10: « Location » only while a property is let; its answer is shared with the tab.
+  const rented = ($api.useQuery('get', PROPERTIES_RENTAL, { params: { query: { scope } } }).data?.count ?? 0) > 0;
+  const [tab, setTab] = useDetailTab<(typeof WITH_RENTAL)[number]>(rented ? WITH_RENTAL : WITHOUT_RENTAL);
   const add = <Link to="/properties/new" className={buttonVariants()}>{t('properties.add')}</Link>;
   return (
     <div className="space-y-4">
@@ -38,6 +44,8 @@ export function PropertiesPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('properties_overview.tab_overview'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.history ?? '3y'} /></Suspense> },
+        ...(rented ? [{ id: 'rental' as const, label: t('properties_rental.tab'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><RentalTab scope={scope} property={search.property} /></Suspense> }] : []),
         { id: 'list', label: t('properties_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
       ]} />
     </div>

@@ -8751,6 +8751,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties/overview/rental": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    property?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertiesRental"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}": {
         parameters: {
             query?: never;
@@ -13752,6 +13844,13 @@ export interface components {
             phases?: null | components["schemas"]["PhaseInput"][];
             purchases?: null | components["schemas"]["PurchaseInput"][];
         };
+        CurrentTenancyView: {
+            label: string;
+            /** Format: date */
+            startsOn: string;
+            /** Format: date */
+            endsOn?: null | string;
+        };
         DashboardCommitmentSourceView: {
             source: string;
             amortized?: null | components["schemas"]["DashboardMoneyView"];
@@ -15464,6 +15563,33 @@ export interface components {
             watch: components["schemas"]["PropertyWatchView"][];
             findings: components["schemas"]["LoanFindingView"][];
         };
+        PropertiesRental: {
+            currency: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: int32 */
+            count: number;
+            expectedRent?: null | components["schemas"]["LoanMoneyView"];
+            rentReceived?: null | components["schemas"]["LoanMoneyView"];
+            arrears?: null | components["schemas"]["LoanMoneyView"];
+            /** Format: int32 */
+            vacantDays?: null | number;
+            vacancyRate?: null | string;
+            grossYield?: null | string;
+            netYieldBeforeTax?: null | string;
+            /** Format: int32 */
+            notSignificantCount: number;
+            charges?: null | components["schemas"]["LoanMoneyView"];
+            loanPayments?: null | components["schemas"]["LoanMoneyView"];
+            cashFlow?: null | components["schemas"]["LoanMoneyView"];
+            cashFlowMonthly?: null | components["schemas"]["LoanMoneyView"];
+            months: components["schemas"]["RentalMonthView"][];
+            properties: components["schemas"]["RentalRow"][];
+            tenancies: components["schemas"]["RentalTenancyView"][];
+            findings: components["schemas"]["LoanFindingView"][];
+        };
         PropertyCostLineView: {
             code: string;
             amount: string;
@@ -15881,6 +16007,40 @@ export interface components {
             /** Format: uint32 */
             version: number;
             note?: null | string;
+        };
+        RentalMonthView: {
+            month: string;
+            rentReceived?: null | components["schemas"]["LoanMoneyView"];
+            charges?: null | components["schemas"]["LoanMoneyView"];
+            loanPayments?: null | components["schemas"]["LoanMoneyView"];
+            cashFlow?: null | components["schemas"]["LoanMoneyView"];
+        };
+        RentalRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            currency: string;
+            currentTenancy?: null | components["schemas"]["CurrentTenancyView"];
+            rentMonthly?: null | string;
+            expectedRent: string;
+            rentReceived: string;
+            arrears: string;
+            vacancyRate?: null | string;
+            grossYield?: null | string;
+            netYieldBeforeTax?: null | string;
+            charges: string;
+            loanPayments?: null | string;
+            cashFlow?: null | string;
+            cashFlowConverted?: null | components["schemas"]["LoanMoneyView"];
+        };
+        RentalTenancyView: {
+            /** Format: uuid */
+            propertyId: string;
+            label: string;
+            /** Format: date */
+            startsOn: string;
+            /** Format: date */
+            endsOn?: null | string;
         };
         ReturnReferenceView: {
             /** Format: double */

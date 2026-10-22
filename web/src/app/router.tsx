@@ -56,9 +56,9 @@ export type IncomeDetailSearch = { expected?: 'next12' | 'year' | 'next_year'; o
 
 /**
  * The properties page's tab (properties dashboard §3.1) and its curve's span, `history` (`curve` is the other pages' with another
- * default): `3y` is the default and stays out of the URL.
+ * default): `3y` is the default and stays out of the URL; the rental tab's property shown alone (§4.3).
  */
-export type PropertiesSearch = { tab?: string; history?: '12m' | 'all' };
+export type PropertiesSearch = { tab?: string; history?: '12m' | 'all'; property?: string };
 
 /** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
 export type DetailSearch = { tab?: string };
@@ -228,6 +228,7 @@ const propertiesRoute = createRoute({
   beforeLoad: requireModule('realestate'),
   validateSearch: (search: Record<string, unknown>): PropertiesSearch => ({
     ...(search.history === '12m' || search.history === 'all' ? { history: search.history } : {}),
+    ...(typeof search.property === 'string' && search.property ? { property: search.property } : {}),
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/properties/PropertiesPage'), 'PropertiesPage'),

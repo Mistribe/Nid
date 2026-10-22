@@ -70,32 +70,11 @@ public sealed class GetPropertiesOverviewHandler(
         var ids = await visible.ForAsync(reader, query.Scope, ct);
         var today = await calendar.TodayAsync(ct);
 
-        // Batched reads spec §3, as the list: the items, the facts as one block, the linked loans and their items, each read once.
-        var found = await properties.FindManyAsync(ids.ToList(), ct);
-        var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
-        var listed = found.Where(p => accesses.ContainsKey(p.ItemId)).ToList();
-        var propertyIds = listed.Select(p => p.ItemId).ToList();
-        var series = await valuations.SeriesManyAsync(propertyIds, PropertyReading.Everything, ct);
-        if (series.TryGetFailure(out var failure))
+        var read = await OverviewProperties.ReadAsync(ids, reader, properties, items, loans, valuations, flows, policy, ct);
+        if (read.TryGetFailure(out var failure))
             return Result.Failure<PropertiesOverview>(failure!);
-        var listedFlows = await flows.ListManyAsync(propertyIds, PropertyReading.Everything, null, ct);
-        if (listedFlows.TryGetFailure(out failure))
-            return Result.Failure<PropertiesOverview>(failure!);
-        series.TryGetValue(out var values);
-        listedFlows.TryGetValue(out var flowLists);
-
-        // D3: a loan counts when it is visible in the scope; a private one the reader can read but the scope leaves out is only named.
-        var linked = await loans.FindLinkedAsync(propertyIds, ct);
-        var outside = linked.Where(l => !ids.Contains(l.ItemId)).Select(l => l.ItemId).ToList();
-        var readableOutside = await policy.CheckManyAsync(reader, outside, AccessKind.Read, ct);
-        var loanItems = await items.FindManyAsync(linked.Where(l => ids.Contains(l.ItemId) || readableOutside.Contains(l.ItemId)).Select(l => l.ItemId).ToList(), ct);
-        var set = listed.Select(p =>
-        {
-            var own = linked.Where(l => l.PropertyId == p.ItemId && loanItems.ContainsKey(l.ItemId)).ToList();
-            return new OverviewProperty(accesses[p.ItemId], p, values![p.ItemId], flowLists![p.ItemId],
-                own.Where(l => ids.Contains(l.ItemId)).Select(l => (l, loanItems[l.ItemId])).ToList(),
-                own.Where(l => !ids.Contains(l.ItemId) && loanItems[l.ItemId].Visibility == Visibility.Private).Select(l => l.ItemId).ToList());
-        }).ToList();
+        read.TryGetValue(out var found);
+        var set = found!;
 
         var grid = PropertiesOverviewMath.Grid(query.Span, today);
         var reference = await household.ReferenceCurrencyAsync(ct);
@@ -103,6 +82,44 @@ public sealed class GetPropertiesOverviewHandler(
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], grid[0], today, ct);
         return Result.Success(PropertiesOverviewMath.Build(set, reference, rates, today, grid, query.Span, await persons.ListAsync(ct)));
+    }
+}
+
+/// <summary>What the overview's tabs read alike: the visible properties, their facts, and their linked loans as D3 counts them.</summary>
+internal static class OverviewProperties
+{
+    /// <summary>
+    /// Batched reads spec §3, as the list: the items, the facts as one block, the linked loans and their items, each read once. A
+    /// loan counts when it is visible in the scope (D3); a private one the reader can read but the scope leaves out is only named.
+    /// </summary>
+    public static async Task<Result<IReadOnlyList<OverviewProperty>>> ReadAsync(
+        IReadOnlySet<ItemId> ids, PersonId reader, IPropertyStore properties, IItemRegistry items, ILoanStore loans, IValuations valuations,
+        IFlows flows, IAccessPolicy policy, CancellationToken ct)
+    {
+        var found = await properties.FindManyAsync(ids.ToList(), ct);
+        var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
+        var listed = found.Where(p => accesses.ContainsKey(p.ItemId)).ToList();
+        var propertyIds = listed.Select(p => p.ItemId).ToList();
+        var series = await valuations.SeriesManyAsync(propertyIds, PropertyReading.Everything, ct);
+        if (series.TryGetFailure(out var failure))
+            return Result.Failure<IReadOnlyList<OverviewProperty>>(failure!);
+        var listedFlows = await flows.ListManyAsync(propertyIds, PropertyReading.Everything, null, ct);
+        if (listedFlows.TryGetFailure(out failure))
+            return Result.Failure<IReadOnlyList<OverviewProperty>>(failure!);
+        series.TryGetValue(out var values);
+        listedFlows.TryGetValue(out var flowLists);
+
+        var linked = await loans.FindLinkedAsync(propertyIds, ct);
+        var outside = linked.Where(l => !ids.Contains(l.ItemId)).Select(l => l.ItemId).ToList();
+        var readableOutside = await policy.CheckManyAsync(reader, outside, AccessKind.Read, ct);
+        var loanItems = await items.FindManyAsync(linked.Where(l => ids.Contains(l.ItemId) || readableOutside.Contains(l.ItemId)).Select(l => l.ItemId).ToList(), ct);
+        return Result.Success<IReadOnlyList<OverviewProperty>>(listed.Select(p =>
+        {
+            var own = linked.Where(l => l.PropertyId == p.ItemId && loanItems.ContainsKey(l.ItemId)).ToList();
+            return new OverviewProperty(accesses[p.ItemId], p, values![p.ItemId], flowLists![p.ItemId],
+                own.Where(l => ids.Contains(l.ItemId)).Select(l => (l, loanItems[l.ItemId])).ToList(),
+                own.Where(l => !ids.Contains(l.ItemId) && loanItems[l.ItemId].Visibility == Visibility.Private).Select(l => l.ItemId).ToList());
+        }).ToList());
     }
 }
 
@@ -164,13 +181,7 @@ internal static class PropertiesOverviewMath
         var read = set.Select(p =>
         {
             var currency = LoanViews.CurrencyOf(p.Item);
-            var shared = p.Item.Visibility == Visibility.Shared;
-            var figures = PropertyMath.At(p.Property.Details, shared, p.Values, p.Flows,
-                p.Loans.Select(l => PropertyReading.Linked(l.Loan, l.Item, currency, rates, today)).ToList(),
-                p.Property.Tenancies.Select(t => t.Tenancy).ToList(), today);
-            // D3: the scope left a private loan out, as the dashboard does; the property's page would deduct it.
-            if (shared)
-                figures = figures with { Warnings = [.. figures.Warnings, .. p.LeftOut.Select(id => new PropertyWarning(PropertyWarnings.VisibilityMismatch, id))] };
+            var figures = FiguresOf(p, rates, today);
             return new Read(p, currency, figures,
                 figures.Value is { } v ? convert.Of(v, currency, today) : null,
                 figures.Value is not null ? convert.Of(figures.CostPrice, currency, today) : null);
@@ -220,6 +231,22 @@ internal static class PropertiesOverviewMath
             let.Count == 0 ? null : convert.View(rent),
             yieldRent is { } yr && yieldCost is { } yc && yc > 0m ? Fraction(yr / yc) : null,
             byType, People(valued, owed, persons, net, convert), rows, Points(set, owed, grid, span, convert), Watch(read, today), convert.Missing);
+    }
+
+    /// <summary>
+    /// D2: a property's figures as its page's (<see cref="PropertyMath.At"/>), over its linked loans in the scope (D3); a private
+    /// loan the scope left out is named, as the dashboard does, where the property's page would deduct it.
+    /// </summary>
+    internal static PropertyFigures FiguresOf(OverviewProperty p, RateTable rates, LocalDate today)
+    {
+        var currency = LoanViews.CurrencyOf(p.Item);
+        var shared = p.Item.Visibility == Visibility.Shared;
+        var figures = PropertyMath.At(p.Property.Details, shared, p.Values, p.Flows,
+            p.Loans.Select(l => PropertyReading.Linked(l.Loan, l.Item, currency, rates, today)).ToList(),
+            p.Property.Tenancies.Select(t => t.Tenancy).ToList(), today);
+        return shared
+            ? figures with { Warnings = [.. figures.Warnings, .. p.LeftOut.Select(id => new PropertyWarning(PropertyWarnings.VisibilityMismatch, id))] }
+            : figures;
     }
 
     /// <summary>
