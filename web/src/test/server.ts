@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
+import { overview as investmentsOverview } from '@/features/investments/testData';
 import { overview as loansOverview } from '@/features/loans/testData';
 import { estateRoutine, routine } from '@/features/routine/testData';
 import { overview as subscriptionsOverview } from '@/features/subscriptions/testData';
@@ -31,6 +32,8 @@ export const handlers = [
   // ... and the labels its filter offers.
   http.get('*/api/v1/subscriptions/labels', () => HttpResponse.json([])),
   http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: [] })),
+  // ... and their overview, the tab the page opens on (no envelope).
+  http.get('*/api/v1/investments/overview', () => HttpResponse.json(investmentsOverview())),
   http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/realestate/routine', () => HttpResponse.json(estateRoutine())),
   http.get('*/api/v1/income/overview', () => HttpResponse.json(overview())),

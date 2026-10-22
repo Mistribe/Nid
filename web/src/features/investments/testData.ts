@@ -1,4 +1,4 @@
-import type { EnvelopeDetail, EnvelopeList, EnvelopeSummary, Figures } from './api';
+import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, InvestmentsOverview } from './api';
 
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -34,4 +34,43 @@ export const detail = (over: Partial<EnvelopeDetail> = {}): EnvelopeDetail => ({
     { id: 'f2', occurredOn: '2025-06-15', kind: 'contribution', amount: eur('2000.0000'), category: null, externalRef: null, note: null },
   ],
   ...over,
+});
+
+export const LIVRET = '0192f0aa-0000-7000-8000-00000000e002';
+export const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
+
+/** An overview with nothing: the default the page opens on in tests that do not look at it. */
+export const overview = (over: Partial<InvestmentsOverview> = {}): InvestmentsOverview => ({
+  currency: 'EUR', openCount: 0, closedCount: 0, value: null, oldestAsOf: null, staleCount: 0, withoutValueCount: 0,
+  netContributions: null, paidIn: null, gain: null, gainPct: null, annualReturnPct: null, sinceJanuary: null, sinceJanuaryPct: null,
+  withoutStartCount: 0, byKind: [], byPerson: [], envelopes: [], points: [], watch: [], findings: [], ...over,
+});
+
+export const overviewRow = (over: Partial<EnvelopeOverviewRow> = {}): EnvelopeOverviewRow => ({
+  id: PEA, name: 'PEA', kind: 'pea', institution: 'Banque', owners: [{ personId: ALICE, shareBp: 10000 }], currency: 'EUR',
+  figures: figures(), valueConverted: eur('25000.00'), gainConverted: eur('3000.00'), ...over,
+});
+
+/** A PEA and a savings account, the savings account's value old, with a year of points. */
+export const household = (): InvestmentsOverview => overview({
+  openCount: 2, value: eur('35000.00'), oldestAsOf: '2025-08-31', staleCount: 1, netContributions: eur('31800.00'), paidIn: eur('32000.00'),
+  gain: eur('3200.00'), gainPct: 10, annualReturnPct: 6.2, sinceJanuary: eur('1840.00'), sinceJanuaryPct: 5.6,
+  byKind: [{ kind: 'pea', value: eur('25000.00'), sharePct: 71.4 }, { kind: 'savings', value: eur('10000.00'), sharePct: 28.6 }],
+  byPerson: [{ personId: ALICE, value: eur('35000.00'), gain: eur('3200.00'), sharePct: 100 }],
+  envelopes: [
+    overviewRow(),
+    overviewRow({ id: LIVRET, name: 'Livret A', kind: 'savings', institution: null,
+      figures: figures({ value: eur('10000.0000'), asOf: '2025-08-31', netContributions: eur('9800.0000'), gain: eur('200.0000'), gainPct: 2,
+        annualReturnPct: 2.1, staleDays: 45 }),
+      valueConverted: eur('10000.00'), gainConverted: eur('200.00') }),
+  ],
+  points: [
+    { on: '2025-08-31', value: eur('33000.00'), netContributions: eur('31000.00'), byKind: [{ kind: 'pea', value: eur('23000.00') }, { kind: 'savings', value: eur('10000.00') }] },
+    { on: '2025-09-30', value: eur('35000.00'), netContributions: eur('31800.00'), byKind: [{ kind: 'pea', value: eur('25000.00') }, { kind: 'savings', value: eur('10000.00') }] },
+    { on: '2025-10-15', value: eur('35000.00'), netContributions: eur('31800.00'), byKind: [{ kind: 'pea', value: eur('25000.00') }, { kind: 'savings', value: eur('10000.00') }] },
+  ],
+  watch: [
+    { code: 'stale_value', envelopeId: LIVRET, holdingId: null, on: '2025-08-31' },
+    { code: 'holding_maturity', envelopeId: PEA, holdingId: '0192f0aa-0000-7000-8000-0000000000h1', on: '2025-12-05' },
+  ],
 });

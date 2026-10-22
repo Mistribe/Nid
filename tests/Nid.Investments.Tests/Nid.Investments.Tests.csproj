@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.Investments.Domain\Nid.Investments.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Nid.Investments.Application\Nid.Investments.Application.csproj" />
   </ItemGroup>
 </Project>

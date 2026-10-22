@@ -1,6 +1,6 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Archive, Clock } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -9,41 +9,63 @@ import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ENVELOPES, type EnvelopeSummary } from './api';
 import { kindText } from './format';
 import { Gain } from './Figures';
+import '@/locales/investments';
 
 function useEnvelopes(scope: 'me' | 'household', closed: boolean) {
   const { $api } = useApi();
   return $api.useQuery('get', ENVELOPES, { params: { query: { scope, ...(closed ? { archived: true } : {}) } } });
 }
 
-/** The list of envelopes with their value, gain and staleness (2B2a design). */
+const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
+
+const TABS = ['overview', 'list'] as const;
+
+/** Investments dashboard §3.1: the overview opens first; the list keeps its switch of the closed envelopes under `?tab=list`. */
 export function EnvelopesPage() {
   const { t } = useTranslation();
   const search: RootSearch & InvestmentsSearch = useSearch({ strict: false });
-  const navigate = useNavigate();
   const scope = search.scope === 'me' ? 'me' : 'household';
+  const [tab, setTab] = useDetailTab(TABS);
+  const add = <Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>;
+  return (
+    <div className="space-y-4">
+      <PageHeader title={t('investments.title')} actions={add} />
+      <DetailTabs value={tab} onChange={setTab} tabs={[
+        { id: 'overview', label: t('investments_overview.tab_overview'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
+        { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
+      ]} />
+    </div>
+  );
+}
+
+/** The list of envelopes with their value, gain and staleness (2B2a design). */
+function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) {
+  const { t } = useTranslation();
+  const search: RootSearch & InvestmentsSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
   const closed = search.closed === 1;
   const answer = useEnvelopes(scope, closed);
   const setClosed = (checked: boolean) =>
     void navigate({ to: '/investments', search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, closed: checked ? (1 as const) : undefined }), replace: true });
 
-  const add = <Link to="/investments/new" className={buttonVariants()}>{t('investments.add')}</Link>;
-
   // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (
-    <div className="space-y-4">
-      <PageHeader title={t('investments.title')} actions={add} />
+    <>
       <SwitchField label={t('investments.show_closed')} checked={closed} onCheckedChange={setClosed} />
       <Body answer={answer} add={add} />
-    </div>
+    </>
   );
 }
 

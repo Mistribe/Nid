@@ -84,6 +84,8 @@ Règles :
 
 **Ajouté en 2B2b** (2026-09-30) : la route `GET /api/v1/investments/envelopes/{id}/series` (courbe : valeur et versements nets dans le temps) et le champ `canWrite` dans chaque élément de la liste des enveloppes.
 
+**Ajouté avec le tableau de bord des placements, PR 1** (`superpowers/specs/2026-10-22-investments-dashboard-design.md` §3) : la route `GET /api/v1/investments/overview?scope=&span=12m|3y|all` : les chiffres du foyer dans la devise de référence (valeur, versé net, versé hors virements, gain et gain en %, rendement annuel du foyer, depuis le 1er janvier), la répartition par type et par personne, les enveloppes ouvertes, la courbe par type et « À surveiller ». Un virement interne n'entre ni dans le versé du foyer ni au dénominateur de son gain en % ; le rendement annuel du foyer est le TRI de la réunion des flux de ses enveloppes, convertis au taux du jour ; chaque montant est converti seul et arrondi au centime.
+
 ## 6. Rendement annualisé (TRI), étape 6
 
 Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant compte du moment des versements.

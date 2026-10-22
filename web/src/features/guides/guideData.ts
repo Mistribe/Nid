@@ -19,7 +19,7 @@ const guide = (id: string, screens: number, tour: readonly string[] = [], hint =
 export const GUIDES: readonly Guide[] = [
   guide('dashboard', 4, ['tiles', 'month', 'curve', 'upcoming', 'scope'], false, 2),
   guide('subscriptions', 4, [], false, 3),
-  guide('investments', 5, ['figures', 'evolution', 'enter', 'history', 'holdings'], true, 3),
+  guide('investments', 5, ['figures', 'evolution', 'enter', 'history', 'holdings'], true, 4),
   guide('income', 3),
   guide('properties', 3),
   guide('loans', 4, ['figures', 'simulation', 'schedule'], true, 3),

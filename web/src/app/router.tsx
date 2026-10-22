@@ -36,7 +36,8 @@ export type SubscriptionsSearch = {
 };
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
-export type InvestmentsSearch = { closed?: 1 };
+/** The envelopes' list filter (closed ones on demand), the tab (investments dashboard §3.1) and the curve's span, named as the dashboard's (`12m` is the default and stays out of the URL). */
+export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all' };
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
@@ -124,7 +125,11 @@ const investmentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/investments',
   beforeLoad: requireModule('investments'),
-  validateSearch: (search: Record<string, unknown>): InvestmentsSearch => (search.closed === 1 || search.closed === '1' ? { closed: 1 } : {}),
+  validateSearch: (search: Record<string, unknown>): InvestmentsSearch => ({
+    ...(search.closed === 1 || search.closed === '1' ? { closed: 1 as const } : {}),
+    ...(search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
+    ...detailSearch(search),
+  }),
   component: lazyRouteComponent(() => import('@/features/investments/EnvelopesPage'), 'EnvelopesPage'),
 });
 

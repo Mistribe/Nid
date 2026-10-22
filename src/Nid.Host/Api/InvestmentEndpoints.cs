@@ -17,6 +17,10 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
             .Returns<EnvelopeList>();
 
+        api.MapGet("/overview", async (string? scope, string? span, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetInvestmentsOverviewQuery(ParseScope(scope), ParseSpan(span)), ct)).ToHttp(overview => overview))
+            .Returns<InvestmentsOverview>();
+
         api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
             .Returns<RoutineView>();
@@ -205,6 +209,15 @@ public static class InvestmentEndpoints
 
         return routes;
     }
+
+    /// <summary>Investments dashboard spec §3.2, as the net worth curve: absent is the default, an unknown span a bad request.</summary>
+    private static OverviewSpan ParseSpan(string? span) => span switch
+    {
+        null or "12m" => OverviewSpan.TwelveMonths,
+        "3y" => OverviewSpan.ThreeYears,
+        "all" => OverviewSpan.All,
+        _ => throw new BadHttpRequestException($"'{span}' is not a span: send '12m', '3y' or 'all'."),
+    };
 
     private static uint? RequireVersion(FieldReader reader, uint? version)
     {

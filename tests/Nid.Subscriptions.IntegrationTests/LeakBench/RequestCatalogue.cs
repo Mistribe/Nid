@@ -256,6 +256,7 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_movements", null, null)),
 
         new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetInvestmentsOverviewQuery), false, (_, _) => new GetInvestmentsOverviewQuery(VisibilityScope.Me, OverviewSpan.All)),
         new(typeof(GetRoutineQuery), false, (_, _) => new GetRoutineQuery(null)),
         new(typeof(GetEnvelopeQuery), true, (_, item) => new GetEnvelopeQuery(item)),
         new(typeof(EditEnvelopeCommand), true, (_, item) => new EditEnvelopeCommand(item, null, null, new EnvelopeChange(Note: "bench"), null)),

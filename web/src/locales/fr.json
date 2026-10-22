@@ -1174,7 +1174,7 @@
         "2": { "title": "Le gain se calcule seul", "body": "Nid compare la valeur aux versements nets pour en tirer le gain, toujours « avant fiscalité ». Le pourcentage rapporte ce gain au total versé ; sans versement, il reste vide." },
         "3": { "title": "Une valeur vieillit", "body": "Une valeur devient trop ancienne selon la « Mise à jour de la valeur » choisie pour l’enveloppe : chaque mois, chaque trimestre, chaque année ou à la demande. La routine mensuelle est le moyen le plus rapide de tout garder à jour." },
         "4": { "title": "Le détail par support", "body": "Une assurance-vie ou un PEA se détaille, si vous le souhaitez, dans l’onglet « Supports » : un relevé donne les parts et la valeur de chaque support, les mouvements et arbitrages expliquent ce qui bouge, le rapport de frais annuel dit ce qu’il coûte. Les chiffres de l’enveloppe restent ceux de ses valeurs." },
-        "5": { "title": "Par où commencer", "body": "Commencez par « Ajouter une enveloppe », puis donnez-lui sa première valeur." }
+        "5": { "title": "Par où commencer", "body": "La page s’ouvre sur la vue d’ensemble du foyer : la valeur, le gain, l’évolution par type d’enveloppe et ce qu’il faut mettre à jour ; « Liste » garde chaque enveloppe. Commencez par « Ajouter une enveloppe », puis donnez-lui sa première valeur." }
       },
       "hint": "Ouvrez une enveloppe puis touchez ? pour voir la visite de sa fiche.",
       "tour": {

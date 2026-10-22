@@ -77,7 +77,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await closing.getByRole('button', { name: 'Clôturer', exact: true }).click();
   await expect(alice.getByRole('status').filter({ hasText: 'Enveloppe clôturée.' })).toBeVisible();
 
-  await alice.goto('/investments');
+  await alice.goto('/investments?tab=list');
   const list = alice.getByRole('table', { name: 'Liste des enveloppes' });
   // In the household scope the private PEA is not listed and the Livret is closed: the list may be empty, so wait for
   // the loaded page (the list or its empty state) before checking the Livret is absent.
@@ -91,7 +91,7 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(alice.getByRole('status').filter({ hasText: 'Enveloppe rouverte.' })).toBeVisible();
 
   const bob = await browser.newPage();
-  await signIn(bob, 'bob', '/investments');
+  await signIn(bob, 'bob', '/investments?tab=list');
   // The household scope lists every envelope alice and bob can each see; waiting for the loaded list or the empty
   // state (rather than the always-rendered heading) is a positive signal that the query has actually settled.
   await expect(bob.getByRole('table', { name: 'Liste des enveloppes' }).or(bob.getByRole('heading', { name: 'Aucune enveloppe pour l’instant' }))).toBeVisible();

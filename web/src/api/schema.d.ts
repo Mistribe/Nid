@@ -2421,6 +2421,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    span?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvestmentsOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/routine": {
         parameters: {
             query?: never;
@@ -13581,6 +13673,18 @@ export interface components {
         EnvelopeList: {
             items: components["schemas"]["EnvelopeSummary"][];
         };
+        EnvelopeOverviewRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            institution?: null | string;
+            owners: components["schemas"]["ItemOwnerView"][];
+            currency: string;
+            figures: components["schemas"]["FiguresView"];
+            valueConverted?: null | components["schemas"]["AmountView"];
+            gainConverted?: null | components["schemas"]["AmountView"];
+        };
         EnvelopeSeries: {
             /** Format: uuid */
             id: string;
@@ -13597,6 +13701,15 @@ export interface components {
             canWrite: boolean;
             figures: components["schemas"]["FiguresView"];
             owners: components["schemas"]["ItemOwnerView"][];
+        };
+        EnvelopeWatchView: {
+            code: string;
+            /** Format: uuid */
+            envelopeId: string;
+            /** Format: uuid */
+            holdingId?: null | string;
+            /** Format: date */
+            on?: null | string;
         };
         ExportManifestView: {
             format: string;
@@ -14178,6 +14291,38 @@ export interface components {
             endedOn?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
         };
+        InvestmentsOverview: {
+            currency: string;
+            /** Format: int32 */
+            openCount: number;
+            /** Format: int32 */
+            closedCount: number;
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: date */
+            oldestAsOf?: null | string;
+            /** Format: int32 */
+            staleCount: number;
+            /** Format: int32 */
+            withoutValueCount: number;
+            netContributions?: null | components["schemas"]["AmountView"];
+            paidIn?: null | components["schemas"]["AmountView"];
+            gain?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            gainPct?: null | number;
+            /** Format: double */
+            annualReturnPct?: null | number;
+            sinceJanuary?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sinceJanuaryPct?: null | number;
+            /** Format: int32 */
+            withoutStartCount: number;
+            byKind: components["schemas"]["KindShareView"][];
+            byPerson: components["schemas"]["PersonEnvelopeShareView"][];
+            envelopes: components["schemas"]["EnvelopeOverviewRow"][];
+            points: components["schemas"]["OverviewPointView"][];
+            watch: components["schemas"]["EnvelopeWatchView"][];
+            findings: components["schemas"]["OverviewFindingView"][];
+        };
         IReadOnlyListOfSwitchLegBody: components["schemas"]["SwitchLegBody"][];
         /** @enum {unknown} */
         IssueSeverity: "error" | "warning";
@@ -14215,6 +14360,16 @@ export interface components {
             state: string;
         };
         JsonElement: unknown;
+        KindShareView: {
+            kind: string;
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
+        };
+        KindValueView: {
+            kind: string;
+            value?: null | components["schemas"]["AmountView"];
+        };
         LabelShareView: {
             key: string;
             name?: null | string;
@@ -14690,6 +14845,18 @@ export interface components {
             occurredOn: string;
             amount: components["schemas"]["MoneyBody"];
         };
+        OverviewFindingView: {
+            code: string;
+            message: string;
+            reference?: null | string;
+        };
+        OverviewPointView: {
+            /** Format: date */
+            on: string;
+            value?: null | components["schemas"]["AmountView"];
+            netContributions?: null | components["schemas"]["AmountView"];
+            byKind: components["schemas"]["KindValueView"][];
+        };
         OwnerBody: {
             /** Format: uuid */
             personId: string;
@@ -14737,6 +14904,14 @@ export interface components {
             kind: string;
             displayName: string;
             email?: null | string;
+        };
+        PersonEnvelopeShareView: {
+            /** Format: uuid */
+            personId: string;
+            value?: null | components["schemas"]["AmountView"];
+            gain?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            sharePct?: null | number;
         };
         PersonIdResponse: {
             /** Format: uuid */

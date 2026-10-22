@@ -38,6 +38,7 @@ Forme d'abord : la donnée décide du type, et parfois la bonne forme n'est pas 
 | **Utilisation des revenus** | Barre empilée unique : engagements par catégorie, puis marge | Catégories fixes pour les engagements, **ton neutre** pour la marge |
 | **Où part le revenu du mois** (accueil) | Sankey en SVG maison sur ordinateur : sources de revenu en cours, revenu du mois, sources d'engagement puis « Reste » ; sur téléphone et dans le panneau de la marge, deux barres empilées « D'où il vient » et « Où il part » ; marge négative = les deux barres, marge inconnue = raison dite, rien d'inventé ; montant et part du serveur dans chaque libellé (la part des sources dans l'infobulle et le tableau), infobulle au survol | Sources de revenu en ton neutre (`--muted-foreground`), « Autres » en gris neutre, catégories fixes des engagements, slot 6 pour « Reste » |
 | Patrimoine (accueil) | Aire de la valeur et courbe pointillée des versements, période segmentée, bascule en tableau | 2 séries |
+| Placements : valeur par type et versements | Aires empilées par type d’enveloppe, séparations de 2 px, versé net en courbe pointillée, « Par type / Total », période segmentée, bascule en tableau | Catégorielle par type d’enveloppe (§5), versé net en ton de texte |
 | Panneaux de l'accueil (`?panel=`) | Composition du patrimoine par type ou par personne, sources de revenus et d'engagements, barre du mois | Mêmes couleurs que l'accueil |
 
 Un crédit demande **deux graphiques**, pas un axe double : les échelles (des centaines de milliers d'euros contre quelques centaines) sont trop différentes.
@@ -102,7 +103,7 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 | Personnes | Adulte 1, adulte 2, dépendant (ordre de création) | 5, 6, 7 |
 | Sources de couverture (Abonnements) | Payée, bonus, incluse, essai, cadeau | 1, 2, 3, 4, 5 |
 
-- Sur une **même vue**, deux dimensions n'utilisent pas les mêmes teintes : le tableau de bord réserve 1 à 4 aux enveloppes et 5 à 7 aux personnes.
+- Sur une **même vue**, deux dimensions n'utilisent pas les mêmes teintes : le tableau de bord réserve 1 à 4 aux enveloppes et 5 à 7 aux personnes. Sur la page Placements, les types d'enveloppe prennent 1 à 6 : les personnes y sont en ton neutre.
 - **Bande de couverture** : chaque période porte un **libellé direct** (« 24 mois payés », « 6 mois offerts »). Au-delà de quatre catégories affichées, les libellés directs sont obligatoires.
 - Le gris « Autres » regroupe le reste ; le détail est dans la vue en tableau.
 

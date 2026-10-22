@@ -15,8 +15,13 @@ export type HoldingWarning = components['schemas']['HoldingWarningView'];
 export type Movement = components['schemas']['MovementView'];
 export type CostReport = components['schemas']['CostReportView'];
 export type Snapshot = components['schemas']['SnapshotView'];
+export type InvestmentsOverview = components['schemas']['InvestmentsOverview'];
+export type EnvelopeOverviewRow = components['schemas']['EnvelopeOverviewRow'];
+export type OverviewPoint = components['schemas']['OverviewPointView'];
+export type Watch = components['schemas']['EnvelopeWatchView'];
 
 export const ENVELOPES = '/api/v1/investments/envelopes' as const;
+export const OVERVIEW = '/api/v1/investments/overview' as const;
 export const ENVELOPE = '/api/v1/investments/envelopes/{id}' as const;
 export const VALUATIONS = '/api/v1/investments/envelopes/{id}/valuations' as const;
 export const VALUATION = '/api/v1/investments/envelopes/{id}/valuations/{valuationId}' as const;
@@ -36,10 +41,11 @@ export const COST_REPORT = '/api/v1/investments/envelopes/{id}/holdings/{holding
 export const SNAPSHOTS = '/api/v1/investments/envelopes/{id}/holding-snapshots' as const;
 export const SWITCHES = '/api/v1/investments/envelopes/{id}/switches' as const;
 
-/** Every write invalidates the list, every detail, every value series and every period, as for subscriptions. */
+/** Every write invalidates the list, the overview, every detail, every value series and every period, as for subscriptions. */
 export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPES] }),
+    queryClient.invalidateQueries({ queryKey: ['get', OVERVIEW] }),
     queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] }),
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),

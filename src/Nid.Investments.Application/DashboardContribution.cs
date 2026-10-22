@@ -21,7 +21,6 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         // as one whose own facts cannot be read.
         var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
         var facts = await performance.FactsManyAsync(found, accesses, ct) ?? new Dictionary<ItemId, EnvelopePerformance.Facts>();
-        var january1 = new LocalDate(today.Year, 1, 1);
         var values = new Dictionary<Currency, decimal>();
         var starts = new Dictionary<Currency, decimal>();
         var nets = new Dictionary<Currency, decimal>();
@@ -56,13 +55,7 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
             if (figures.StaleDays is not null) stale++;
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, figures.AsOf, figures.StaleDays is not null, owners));
 
-            var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, january1, today);
-            // 2D2b decision 3: a start value older than the envelope's own staleness threshold would fold several
-            // years into « the year's gain »; a null threshold (no cadence) sets no limit.
-            var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
-            var recent = period.StartAsOf is { } startAsOf
-                && (limit is not { } days || NodaTime.Period.DaysBetween(startAsOf, january1) <= days);
-            if (recent && period is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
+            if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {
                 Add(starts, start.Currency, start.Amount);
                 Add(nets, net.Currency, net.Amount);
@@ -73,6 +66,21 @@ public sealed class EnvelopesNetWorth(IVisibleItems visible, IEnvelopeStore enve
         }
 
         return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings, withoutStart));
+    }
+
+    /// <summary>
+    /// The gain since 1 January excluding contributions, as the period performance; null without a start value, or with one older
+    /// than the envelope's own staleness threshold (2D2b decision 3: it would fold several years into « the year's gain »; a null
+    /// threshold, no cadence, sets no limit). Shared with the investments overview (dashboard spec D3).
+    /// </summary>
+    internal static PeriodPerformance? SinceJanuary(EnvelopePerformance.Facts f, LocalDate today)
+    {
+        var january1 = new LocalDate(today.Year, 1, 1);
+        var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, january1, today);
+        var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
+        var recent = period.StartAsOf is { } startAsOf
+            && (limit is not { } days || NodaTime.Period.DaysBetween(startAsOf, january1) <= days);
+        return recent && period.Performance is not null ? period : null;
     }
 
     /// <summary>

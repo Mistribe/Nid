@@ -27,7 +27,7 @@ describe('EnvelopesPage', () => {
     const alice = '0192f0aa-0000-7000-8000-0000000000a1';
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
     serve(list([summary({ owners: [{ personId: alice, shareBp: 10000 }] }), summary({ id: 'b', displayName: 'Livret A', kind: 'savings' })]));
-    const { container } = await renderApp('/investments');
+    const { container } = await renderApp('/investments?tab=list');
 
     const table = await screen.findByRole('table', { name: 'Liste des enveloppes' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Type', 'Propriétaire', 'Valeur', 'Gain', 'Mise à jour']);
@@ -46,7 +46,7 @@ describe('EnvelopesPage', () => {
       summary({ id: 'b', displayName: 'Petit', figures: figures({ value: eur('500.0000') }) }),
       summary({ id: 'c', displayName: 'Inconnu', figures: unknownFigures() }),
     ]));
-    const { user } = await renderApp('/investments');
+    const { user } = await renderApp('/investments?tab=list');
 
     const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
     expect(await names()).toEqual(['Gros', 'Petit', 'Inconnu']);
@@ -59,7 +59,7 @@ describe('EnvelopesPage', () => {
 
   it('stale rows show their date with an icon', async () => {
     serve(list([summary({ figures: figures({ staleDays: 62 }) }), summary({ id: 'b', displayName: 'Frais' })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     const [stale, fresh] = await rows();
     const cell = within(stale!).getAllByRole('cell')[5]!;
@@ -71,7 +71,7 @@ describe('EnvelopesPage', () => {
 
   it('the add link is always shown, even when no row is writable', async () => {
     serve(list([summary({ canWrite: false })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter une enveloppe' })).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('EnvelopesPage', () => {
 
   it('offers « Ajouter une enveloppe » to a writer', async () => {
     serve(list([summary(), summary({ id: 'r', canWrite: false })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     await rows();
     expect(screen.getByRole('link', { name: 'Ajouter une enveloppe' })).toHaveAttribute('href', '/investments/new');
@@ -87,7 +87,7 @@ describe('EnvelopesPage', () => {
 
   it('shows each envelope with its value, date and gain, before tax', async () => {
     serve(list([summary()]));
-    const { container } = await renderApp('/investments');
+    const { container } = await renderApp('/investments?tab=list');
 
     const row = (await rows())[0]!;
     expect(within(row).getByRole('link', { name: 'PEA' })).toHaveAttribute('href', expect.stringContaining('/investments/'));
@@ -103,7 +103,7 @@ describe('EnvelopesPage', () => {
 
   it('says a loss in words, not only in colour', async () => {
     serve(list([summary({ figures: figures({ gain: eur('-500.0000'), gainPct: -2.3 }) })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     const row = (await rows())[0]!;
     expect(row).toHaveTextContent('-500,00 €');
@@ -112,7 +112,7 @@ describe('EnvelopesPage', () => {
 
   it('never shows an unknown value as zero, and says it only once (not again for the gain)', async () => {
     serve(list([summary({ figures: unknownFigures() })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     const row = (await rows())[0]!;
     expect(within(row).getAllByText('Aucune valeur pour l’instant')).toHaveLength(1);
@@ -121,7 +121,7 @@ describe('EnvelopesPage', () => {
 
   it('shows an undefined percent as a dash, with the explanation for a screen reader alone', async () => {
     serve(list([summary({ figures: figures({ netContributions: eur('0.0000'), gain: eur('1000.0000'), gainPct: null, missingOpening: true }) })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     const row = (await rows())[0]!;
     expect(row).toHaveTextContent('—');
@@ -130,7 +130,7 @@ describe('EnvelopesPage', () => {
 
   it('flags a stale value with its age', async () => {
     serve(list([summary({ figures: figures({ staleDays: 62 }) })]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     const row = (await rows())[0]!;
     expect(within(row).getByText('Valeur de plus de 62 jours')).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('EnvelopesPage', () => {
 
   it('invites to add the first envelope', async () => {
     serve(list([]));
-    const { container } = await renderApp('/investments');
+    const { container } = await renderApp('/investments?tab=list');
 
     expect(await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' })).toBeInTheDocument();
     for (const link of screen.getAllByRole('link', { name: 'Ajouter une enveloppe' })) expect(link).toHaveAttribute('href', '/investments/new');
@@ -148,7 +148,7 @@ describe('EnvelopesPage', () => {
   it('passes the Moi scope to the API', async () => {
     const seen: string[] = [];
     serve(list([]), seen);
-    await renderApp('/investments?scope=me');
+    await renderApp('/investments?tab=list&scope=me');
 
     await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' });
     expect(seen).toContain('?scope=me');
@@ -156,14 +156,14 @@ describe('EnvelopesPage', () => {
 
   it('shows a failed load as a problem', async () => {
     server.use(http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
 
     expect(await screen.findByRole('alert', {})).toBeInTheDocument();
   });
 
   it('appears in the navigation only when the module is enabled', async () => {
     serve(list([]));
-    await renderApp('/investments');
+    await renderApp('/investments?tab=list');
     expect(screen.getAllByRole('link', { name: 'Placements' }).length).toBeGreaterThan(0);
   });
 });
@@ -172,7 +172,7 @@ describe('EnvelopesPage, closed envelopes', () => {
   it('asks for the closed ones only when the box is checked, and keeps that in the URL', async () => {
     const seen: string[] = [];
     serve(list([summary()]), seen);
-    const { user, router, container } = await renderApp('/investments');
+    const { user, router, container } = await renderApp('/investments?tab=list');
 
     const box = await screen.findByRole('switch', { name: 'Afficher les clôturées' });
     expect(box).not.toBeChecked();
@@ -192,7 +192,7 @@ describe('EnvelopesPage, closed envelopes', () => {
   it('marks a closed row in words, and starts checked from the URL', async () => {
     const seen: string[] = [];
     serve(list([summary(), summary({ id: 'old', displayName: 'Ancien', closed: true })]), seen);
-    const { container } = await renderApp('/investments?closed=1');
+    const { container } = await renderApp('/investments?tab=list&closed=1');
 
     const items = await rows();
     expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).toBeChecked();
@@ -204,7 +204,7 @@ describe('EnvelopesPage, closed envelopes', () => {
 
   it('keeps the box when no envelope is left to show', async () => {
     serve(list([]));
-    await renderApp('/investments?closed=1');
+    await renderApp('/investments?tab=list&closed=1');
 
     expect(await screen.findByRole('heading', { name: 'Aucune enveloppe pour l’instant' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).toBeChecked();
@@ -213,7 +213,7 @@ describe('EnvelopesPage, closed envelopes', () => {
   it('ignores a closed value other than 1: unchecked, no archived', async () => {
     const seen: string[] = [];
     serve(list([summary()]), seen);
-    await renderApp('/investments?closed=yes');
+    await renderApp('/investments?tab=list&closed=yes');
 
     await rows();
     expect(screen.getByRole('switch', { name: 'Afficher les clôturées' })).not.toBeChecked();
@@ -232,7 +232,7 @@ describe('EnvelopesPage, closed envelopes', () => {
       summary({ id: 'b', displayName: 'Livret A', owners: [{ personId: bob, shareBp: 10000 }] }),
       summary({ id: 'c', displayName: 'Compte joint', owners: [{ personId: alice, shareBp: 6000 }, { personId: bob, shareBp: 4000 }] }),
     ]));
-    const { container } = await renderApp('/investments');
+    const { container } = await renderApp('/investments?tab=list');
 
     const items = await rows();
     await waitFor(() => expect(items[0]).toHaveTextContent('Alice'));
