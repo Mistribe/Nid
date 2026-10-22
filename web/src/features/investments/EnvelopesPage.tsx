@@ -29,9 +29,11 @@ function useEnvelopes(scope: 'me' | 'household', closed: boolean) {
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 
-const TABS = ['overview', 'list'] as const;
+const PerformanceTab = lazy(() => import('./overview/PerformanceTab').then((m) => ({ default: m.PerformanceTab })));
 
-/** Investments dashboard §3.1: the overview opens first; the list keeps its switch of the closed envelopes under `?tab=list`. */
+const TABS = ['overview', 'performance', 'list'] as const;
+
+/** Investments dashboard §3.1 and §4.3: the overview opens first, then « Performance »; the list keeps its switch of the closed envelopes under `?tab=list`. */
 export function EnvelopesPage() {
   const { t } = useTranslation();
   const search: RootSearch & InvestmentsSearch = useSearch({ strict: false });
@@ -44,6 +46,8 @@ export function EnvelopesPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'overview', label: t('investments_overview.tab_overview'),
           content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><OverviewTab scope={scope} span={search.curve ?? '12m'} /></Suspense> },
+        { id: 'performance', label: t('investments_overview.tab_performance'),
+          content: <Suspense fallback={<Skeleton className="h-64 w-full" />}><PerformanceTab scope={scope} /></Suspense> },
         { id: 'list', label: t('investments_overview.tab_list'), content: <ListTab scope={scope} add={add} /> },
       ]} />
     </div>

@@ -93,3 +93,69 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
         Assert.Equal(2, theirs.GetProperty("openCount").GetInt32());
     }
 }
+
+/// <summary>Investments dashboard spec §4.4: <c>GET /investments/overview/performance</c>, its refusals, its scope.</summary>
+public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private const string Performance = "/api/v1/investments/overview/performance";
+
+    private static object Eur(string amount) => new { amount, currency = "EUR" };
+
+    private static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
+        => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+
+    private static string? S(JsonElement element, string name) => element.GetProperty(name).GetString();
+
+    /// <summary>investments-data-model.md §12.1: 21 000 on 31 December, 2 000 paid in June, 25 000 on 30 September.</summary>
+    private static async Task<ItemId> PeaAsync(NidApp app, string name, PersonId owner, Visibility visibility)
+    {
+        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2024-12-31", kind = "opening", amount = Eur("20000.00") });
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("2000.00") });
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/valuations", new { asOf = "2024-12-31", amount = Eur("21000.00") });
+        await app.RawAsync(owner, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-09-30", amount = Eur("25000.00") });
+        return id;
+    }
+
+    [Fact]
+    public async Task The_period_decomposes_the_change_in_value_month_by_month()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+        var late = await app.NewEnvelopeAsync("Récent", app.AdultA, Visibility.Shared);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{late.Value}/valuations", new { asOf = "2025-03-01", amount = Eur("100.00") });
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?scope=household&from=2024-12-31&to=2025-10-15");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await JsonAsync(response);
+        Assert.Equal(("21000.00", "25000.00", "2000.00", "0.00", "0.00", "2000.00"),
+            (S(body.GetProperty("startValue"), "amount"), S(body.GetProperty("endValue"), "amount"), S(body.GetProperty("contributions"), "amount"),
+                S(body.GetProperty("withdrawals"), "amount"), S(body.GetProperty("transfers"), "amount"), S(body.GetProperty("performance"), "amount")));
+        Assert.Equal(8.7m, body.GetProperty("performancePct").GetDecimal());
+        var months = body.GetProperty("months");
+        Assert.Equal(("2025-01", "2025-10"), (S(months[0], "month"), S(months[months.GetArrayLength() - 1], "month")));
+        Assert.Equal(("2000.00", "2025-09"), (S(months[8].GetProperty("performance"), "amount"), S(body, "bestMonth")));
+        Assert.Equal(pea.Value, Assert.Single(body.GetProperty("envelopes").EnumerateArray()).GetProperty("id").GetGuid());
+        var excluded = Assert.Single(body.GetProperty("excluded").EnumerateArray());
+        Assert.Equal((late.Value, "no_start_value"), (excluded.GetProperty("envelopeId").GetGuid(), S(excluded, "code")));
+    }
+
+    [Fact]
+    public async Task A_reversed_or_future_period_is_refused_and_another_adults_private_envelope_is_absent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await PeaAsync(app, "PEA de B", app.AdultB, Visibility.Shared);
+        var hidden = await PeaAsync(app, "Secret de B", app.AdultB, Visibility.Private);
+
+        var reversed = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?from=2025-09-30&to=2024-12-31");
+        var future = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?from=2024-12-31&to=2025-12-31");
+        var household = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?from=2024-12-31&to=2025-10-15"));
+
+        Assert.Equal((HttpStatusCode.BadRequest, HttpStatusCode.BadRequest), (reversed.StatusCode, future.StatusCode));
+        Assert.Contains("investments.invalid_period", await reversed.Content.ReadAsStringAsync());
+        Assert.Single(household.GetProperty("envelopes").EnumerateArray());
+        Assert.DoesNotContain(hidden.Value.ToString(), household.ToString());
+    }
+}

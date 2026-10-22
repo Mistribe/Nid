@@ -2513,6 +2513,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/overview/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    scope?: string;
+                    from: string;
+                    to: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvestmentsPerformance"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/routine": {
         parameters: {
             query?: never;
@@ -13685,6 +13778,17 @@ export interface components {
             valueConverted?: null | components["schemas"]["AmountView"];
             gainConverted?: null | components["schemas"]["AmountView"];
         };
+        EnvelopePeriodRow: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            currency: string;
+            performance?: null | string;
+            performanceConverted?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            annualReturnPct?: null | number;
+        };
         EnvelopeSeries: {
             /** Format: uuid */
             id: string;
@@ -13710,6 +13814,12 @@ export interface components {
             holdingId?: null | string;
             /** Format: date */
             on?: null | string;
+        };
+        ExcludedEnvelopeView: {
+            /** Format: uuid */
+            envelopeId: string;
+            name: string;
+            code: string;
         };
         ExportManifestView: {
             format: string;
@@ -14300,6 +14410,8 @@ export interface components {
             value?: null | components["schemas"]["AmountView"];
             /** Format: date */
             oldestAsOf?: null | string;
+            /** Format: date */
+            firstAsOf?: null | string;
             /** Format: int32 */
             staleCount: number;
             /** Format: int32 */
@@ -14321,6 +14433,28 @@ export interface components {
             envelopes: components["schemas"]["EnvelopeOverviewRow"][];
             points: components["schemas"]["OverviewPointView"][];
             watch: components["schemas"]["EnvelopeWatchView"][];
+            findings: components["schemas"]["OverviewFindingView"][];
+        };
+        InvestmentsPerformance: {
+            currency: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            startValue?: null | components["schemas"]["AmountView"];
+            endValue?: null | components["schemas"]["AmountView"];
+            contributions?: null | components["schemas"]["AmountView"];
+            withdrawals?: null | components["schemas"]["AmountView"];
+            transfers?: null | components["schemas"]["AmountView"];
+            performance?: null | components["schemas"]["AmountView"];
+            /** Format: double */
+            performancePct?: null | number;
+            months: components["schemas"]["MonthPerformanceView"][];
+            bestMonth?: null | string;
+            worstMonth?: null | string;
+            envelopes: components["schemas"]["EnvelopePeriodRow"][];
+            excluded: components["schemas"]["ExcludedEnvelopeView"][];
+            reference?: null | components["schemas"]["ReturnReferenceView"];
             findings: components["schemas"]["OverviewFindingView"][];
         };
         IReadOnlyListOfSwitchLegBody: components["schemas"]["SwitchLegBody"][];
@@ -14785,6 +14919,10 @@ export interface components {
         MoneyView: {
             amount: string;
             currency: string;
+        };
+        MonthPerformanceView: {
+            month: string;
+            performance?: null | components["schemas"]["AmountView"];
         };
         MonthView: {
             month: string;
@@ -15403,6 +15541,10 @@ export interface components {
             /** Format: uint32 */
             version: number;
             note?: null | string;
+        };
+        ReturnReferenceView: {
+            /** Format: double */
+            annualReturnPct: number;
         };
         RevokeSessionsBody: {
             revokeTokens: boolean;

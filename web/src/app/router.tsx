@@ -36,8 +36,11 @@ export type SubscriptionsSearch = {
 };
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
-/** The envelopes' list filter (closed ones on demand), the tab (investments dashboard §3.1) and the curve's span, named as the dashboard's (`12m` is the default and stays out of the URL). */
-export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all' };
+/**
+ * The envelopes' list filter (closed ones on demand), the tab (investments dashboard §3.1), the curve's span, named as the
+ * dashboard's (`12m` is the default and stays out of the URL), and the performance's period (§4.3: both dates or neither).
+ */
+export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'; from?: string; to?: string };
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
@@ -53,6 +56,8 @@ export type IncomeDetailSearch = { expected?: 'next12' | 'year' | 'next_year'; o
 
 /** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
 export type DetailSearch = { tab?: string };
+const isIsoDate = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
   (typeof search.tab === 'string' && search.tab !== '' ? { tab: search.tab } : {});
 
@@ -128,6 +133,7 @@ const investmentsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): InvestmentsSearch => ({
     ...(search.closed === 1 || search.closed === '1' ? { closed: 1 as const } : {}),
     ...(search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
+    ...(isIsoDate(search.from) && isIsoDate(search.to) ? { from: search.from, to: search.to } : {}),
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/investments/EnvelopesPage'), 'EnvelopesPage'),

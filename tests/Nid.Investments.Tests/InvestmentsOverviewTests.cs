@@ -11,7 +11,7 @@ namespace Nid.Investments.Tests;
 public class InvestmentsOverviewTests
 {
     private static readonly LocalDate Today = new(2026, 10, 22);
-    private static readonly PersonId Alice = PersonId.New();
+    private static readonly PersonId Alice = EnvelopeFacts.DefaultOwner;
     private static readonly PersonId Bob = PersonId.New();
     private static readonly IReadOnlyList<PersonInfo> Persons =
         [new(Bob, PersonKind.Adult, "Bob", null, 0), new(Alice, PersonKind.Adult, "Alice", null, 0)];
@@ -21,69 +21,31 @@ public class InvestmentsOverviewTests
 
     private static LocalDate D(int y, int m, int d) => new(y, m, d);
 
-    private static Money M(decimal amount, Currency currency)
-        => Money.Create(amount, currency).TryGetValue(out var m) ? m : throw new InvalidOperationException();
-
-    private sealed class Builder(string name, EnvelopeKind kind, string currency = "EUR", params (PersonId Person, int Bp)[] owners)
-    {
-        private readonly ItemId id = ItemId.New();
-        private readonly Currency money = Currency.TryCreate(currency, out var c) ? c : Currency.Eur;
-        private readonly List<Valuation> values = [];
-        private readonly List<Flow> flows = [];
-
-        public ValuationCadence Cadence { get; init; } = ValuationCadence.Monthly;
-        public LocalDate? ClosedOn { get; init; }
-
-        public Builder Value(LocalDate on, decimal amount)
-        {
-            values.Add(new Valuation(Guid.NewGuid(), id, on, M(amount, money), null));
-            return this;
-        }
-
-        public Builder Flow(LocalDate on, FlowKind kind, decimal amount, string? category = null)
-        {
-            flows.Add(new Flow(Guid.NewGuid(), id, on, kind, M(amount, money), category, null, null));
-            return this;
-        }
-
-        public EnvelopePerformance.Facts Build()
-        {
-            var shares = owners.Length == 0 ? [(Alice, 10_000)] : owners;
-            var item = new ItemAccess(id, name, Visibility.Shared, shares.Select(o => new Owner(o.Person, PersonKind.Adult, o.Bp)).ToList())
-            {
-                Currency = money.Code,
-                ArchivedAt = ClosedOn is { } closed ? closed.AtMidnight().InUtc().ToInstant() : null,
-            };
-            var envelope = new Envelope(id, kind, "Banque", null, null, Cadence, null, null, ClosedOn);
-            return new EnvelopePerformance.Facts(envelope, item, values, flows, money);
-        }
-    }
-
     /// <summary>investments-data-model.md §12.1's PEA, shared 50/50, valued again in September.</summary>
-    private static EnvelopePerformance.Facts Life() => new Builder("Assurance-vie", EnvelopeKind.LifeInsurance, "EUR", (Alice, 5_000), (Bob, 5_000))
+    private static EnvelopePerformance.Facts Life() => new EnvelopeFacts("Assurance-vie", EnvelopeKind.LifeInsurance, "EUR", (Alice, 5_000), (Bob, 5_000))
         .Flow(D(2024, 12, 31), FlowKind.Opening, 20_000m).Flow(D(2025, 6, 15), FlowKind.Contribution, 2_000m)
         .Value(D(2024, 12, 31), 21_000m).Value(D(2025, 12, 31), 25_000m).Value(D(2026, 9, 30), 27_000m).Build();
 
     /// <summary>A savings account that sent 1 000 to the PEA on 1 March: both legs are transfers.</summary>
     private static (EnvelopePerformance.Facts Savings, EnvelopePerformance.Facts Pea) Transfer()
     {
-        var savings = new Builder("Livret A", EnvelopeKind.Savings)
+        var savings = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
             .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer")
             .Value(D(2024, 12, 31), 10_000m).Value(D(2025, 12, 31), 10_300m).Value(D(2026, 9, 30), 9_450m).Build();
-        var pea = new Builder("PEA", EnvelopeKind.Pea)
+        var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea)
             .Flow(D(2025, 12, 31), FlowKind.Opening, 5_000m).Flow(D(2026, 3, 1), FlowKind.Contribution, 1_000m, "transfer")
             .Value(D(2025, 12, 31), 5_000m).Value(D(2026, 9, 30), 6_600m).Build();
         return (savings, pea);
     }
 
     /// <summary>Monthly, last valued at the end of June: stale today (114 days).</summary>
-    private static EnvelopePerformance.Facts Stale() => new Builder("CTO", EnvelopeKind.Brokerage)
+    private static EnvelopePerformance.Facts Stale() => new EnvelopeFacts("CTO", EnvelopeKind.Brokerage)
         .Flow(D(2025, 6, 1), FlowKind.Opening, 900m).Value(D(2025, 6, 1), 900m).Value(D(2026, 6, 30), 1_000m).Build();
 
-    private static EnvelopePerformance.Facts NoValue() => new Builder("PER", EnvelopeKind.Per).Build();
+    private static EnvelopePerformance.Facts NoValue() => new EnvelopeFacts("PER", EnvelopeKind.Per).Build();
 
     /// <summary>Closed on 31 March 2026 after its last value of 0.</summary>
-    private static EnvelopePerformance.Facts Closed() => new Builder("Ancien", EnvelopeKind.Savings) { ClosedOn = D(2026, 3, 31) }
+    private static EnvelopePerformance.Facts Closed() => new EnvelopeFacts("Ancien", EnvelopeKind.Savings) { ClosedOn = D(2026, 3, 31) }
         .Flow(D(2024, 12, 31), FlowKind.Opening, 2_000m).Flow(D(2026, 3, 31), FlowKind.Withdrawal, 2_050m)
         .Value(D(2024, 12, 31), 2_000m).Value(D(2026, 3, 31), 0m).Build();
 
@@ -181,12 +143,13 @@ public class InvestmentsOverviewTests
         var o = Build([Life()], OverviewSpan.All);
 
         Assert.Equal(D(2024, 12, 31), o.Points[0].On);
+        Assert.Equal(D(2024, 12, 31), o.FirstAsOf);
     }
 
     [Fact]
     public void An_envelope_in_dollars_is_converted_at_each_dates_rate_and_a_missing_rate_says_so()
     {
-        var dollars = new Builder("Brokerage", EnvelopeKind.Brokerage, "USD")
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD")
             .Flow(D(2025, 1, 1), FlowKind.Opening, 1_000m).Value(D(2025, 1, 1), 1_000m).Value(D(2026, 10, 1), 1_200m).Build();
 
         var o = Build([Life(), dollars]);
@@ -202,7 +165,7 @@ public class InvestmentsOverviewTests
     [Fact]
     public void The_watch_list_names_each_envelopes_state_then_the_holdings_by_date()
     {
-        var missing = new Builder("Sans ouverture", EnvelopeKind.Savings).Value(D(2026, 10, 1), 500m).Build();
+        var missing = new EnvelopeFacts("Sans ouverture", EnvelopeKind.Savings).Value(D(2026, 10, 1), 500m).Build();
         var maturity = new EnvelopeWatchView("holding_maturity", ItemId.New(), Guid.NewGuid(), D(2026, 12, 5));
 
         var o = Build([Stale(), NoValue(), missing], holdings: [maturity]);

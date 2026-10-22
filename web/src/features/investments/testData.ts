@@ -1,4 +1,4 @@
-import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, InvestmentsOverview } from './api';
+import type { EnvelopeDetail, EnvelopeList, EnvelopeOverviewRow, EnvelopeSummary, Figures, HouseholdPerformance, InvestmentsOverview } from './api';
 
 export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -73,4 +73,28 @@ export const household = (): InvestmentsOverview => overview({
     { code: 'stale_value', envelopeId: LIVRET, holdingId: null, on: '2025-08-31' },
     { code: 'holding_maturity', envelopeId: PEA, holdingId: '0192f0aa-0000-7000-8000-0000000000h1', on: '2025-12-05' },
   ],
+});
+
+/** A period with nothing counted: the default the Performance tab opens on in tests that do not look at it. */
+export const performance = (over: Partial<HouseholdPerformance> = {}): HouseholdPerformance => ({
+  currency: 'EUR', from: '2025-01-01', to: '2025-10-15', startValue: null, endValue: null, contributions: null, withdrawals: null,
+  transfers: null, performance: null, performancePct: null, months: [], bestMonth: null, worstMonth: null, envelopes: [], excluded: [],
+  reference: null, findings: [], ...over,
+});
+
+/** The PEA and the savings account over the year: +1 840, February the worst month. */
+export const householdPerformance = (): HouseholdPerformance => performance({
+  startValue: eur('31000.00'), endValue: eur('35000.00'), contributions: eur('2400.00'), withdrawals: eur('240.00'), transfers: eur('0.00'),
+  performance: eur('1840.00'), performancePct: 5.5,
+  months: [
+    { month: '2025-01', performance: eur('640.00') }, { month: '2025-02', performance: eur('-310.00') },
+    { month: '2025-03', performance: eur('1510.00') },
+  ],
+  bestMonth: '2025-03', worstMonth: '2025-02',
+  envelopes: [
+    { id: PEA, name: 'PEA', kind: 'pea', currency: 'EUR', performance: '1700.00', performanceConverted: eur('1700.00'), annualReturnPct: 8.4 },
+    { id: LIVRET, name: 'Livret A', kind: 'savings', currency: 'EUR', performance: '140.00', performanceConverted: eur('140.00'), annualReturnPct: 2.6 },
+  ],
+  excluded: [{ envelopeId: '0192f0aa-0000-7000-8000-00000000e003', name: 'CTO', code: 'no_start_value' }],
+  reference: { annualReturnPct: 2.6 },
 });

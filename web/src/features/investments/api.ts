@@ -19,9 +19,12 @@ export type InvestmentsOverview = components['schemas']['InvestmentsOverview'];
 export type EnvelopeOverviewRow = components['schemas']['EnvelopeOverviewRow'];
 export type OverviewPoint = components['schemas']['OverviewPointView'];
 export type Watch = components['schemas']['EnvelopeWatchView'];
+export type HouseholdPerformance = components['schemas']['InvestmentsPerformance'];
+export type EnvelopePeriodRow = components['schemas']['EnvelopePeriodRow'];
 
 export const ENVELOPES = '/api/v1/investments/envelopes' as const;
 export const OVERVIEW = '/api/v1/investments/overview' as const;
+export const HOUSEHOLD_PERFORMANCE = '/api/v1/investments/overview/performance' as const;
 export const ENVELOPE = '/api/v1/investments/envelopes/{id}' as const;
 export const VALUATIONS = '/api/v1/investments/envelopes/{id}/valuations' as const;
 export const VALUATION = '/api/v1/investments/envelopes/{id}/valuations/{valuationId}' as const;
@@ -46,6 +49,7 @@ export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPES] }),
     queryClient.invalidateQueries({ queryKey: ['get', OVERVIEW] }),
+    queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD_PERFORMANCE] }),
     queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] }),
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),

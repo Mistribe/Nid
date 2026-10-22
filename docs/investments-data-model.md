@@ -86,6 +86,8 @@ Règles :
 
 **Ajouté avec le tableau de bord des placements, PR 1** (`superpowers/specs/2026-10-22-investments-dashboard-design.md` §3) : la route `GET /api/v1/investments/overview?scope=&span=12m|3y|all` : les chiffres du foyer dans la devise de référence (valeur, versé net, versé hors virements, gain et gain en %, rendement annuel du foyer, depuis le 1er janvier), la répartition par type et par personne, les enveloppes ouvertes, la courbe par type et « À surveiller ». Un virement interne n'entre ni dans le versé du foyer ni au dénominateur de son gain en % ; le rendement annuel du foyer est le TRI de la réunion des flux de ses enveloppes, convertis au taux du jour ; chaque montant est converti seul et arrondi au centime.
 
+**Ajouté avec le tableau de bord des placements, PR 2** (même spec, §4) : la route `GET /api/v1/investments/overview/performance?scope=&from=&to=` (`from` < `to` ≤ aujourd'hui, sinon 400 `investments.invalid_period`) et `firstAsOf` dans la vue d'ensemble. Une enveloppe compte dans la période si elle a une valeur au début, pas plus ancienne que son seuil de péremption ; les autres sont nommées (`no_start_value`, `stale_start_value`). La variation de valeur se décompose en versements, retraits, virements avec une enveloppe hors du calcul et performance ; chaque mois est une performance de période, si bien que les mois s'additionnent. Les montants sont convertis au taux de la fin de la période. La référence des rendements annuels est le TRI des livrets réunis.
+
 ## 6. Rendement annualisé (TRI), étape 6
 
 Sert à comparer honnêtement un livret, une assurance-vie et un PEA en tenant compte du moment des versements.

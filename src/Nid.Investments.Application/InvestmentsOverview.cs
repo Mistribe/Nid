@@ -39,11 +39,12 @@ public sealed record EnvelopeWatchView(string Code, ItemId EnvelopeId, Guid? Hol
 
 /// <summary>
 /// Spec §3.2. Every household figure is in <c>Currency</c>, null when a rate is missing (then a finding names it). Today's figures
-/// count the open envelopes; the points count a closed one before its closing (D9).
+/// count the open envelopes; the points count a closed one before its closing (D9). <c>FirstAsOf</c> is the oldest value of any
+/// visible envelope, where « Tout » of the performance starts (spec §4.2).
 /// </summary>
 public sealed record InvestmentsOverview(
     string Currency, int OpenCount, int ClosedCount,
-    AmountView? Value, LocalDate? OldestAsOf, int StaleCount, int WithoutValueCount,
+    AmountView? Value, LocalDate? OldestAsOf, LocalDate? FirstAsOf, int StaleCount, int WithoutValueCount,
     AmountView? NetContributions, AmountView? PaidIn, AmountView? Gain, decimal? GainPct, decimal? AnnualReturnPct,
     AmountView? SinceJanuary, decimal? SinceJanuaryPct, int WithoutStartCount,
     IReadOnlyList<KindShareView> ByKind, IReadOnlyList<PersonEnvelopeShareView> ByPerson, IReadOnlyList<EnvelopeOverviewRow> Envelopes,
@@ -127,7 +128,7 @@ internal static class InvestmentsOverviewMath
     }
 
     /// <summary>Each amount converted alone at its date and rounded to the cent, so a total is the sum of the lines shown (D3, D4).</summary>
-    private sealed class Converter(Currency reference, RateTable rates)
+    internal sealed class Converter(Currency reference, RateTable rates)
     {
         private readonly SortedDictionary<string, OverviewFindingView> missing = new(StringComparer.Ordinal);
 
@@ -149,7 +150,7 @@ internal static class InvestmentsOverviewMath
     }
 
     /// <summary>An open envelope with a value today, read once.</summary>
-    private sealed record Valued(EnvelopePerformance.Facts Facts, EnvelopeFigures Figures, decimal? Value, decimal? Gain);
+    internal sealed record Valued(EnvelopePerformance.Facts Facts, EnvelopeFigures Figures, decimal? Value, decimal? Gain);
 
     /// <param name="facts">The visible envelopes, closed ones included (D9).</param>
     /// <param name="holdingWatch">The holdings' warnings (maturities, units of account under the floor), read by the handler.</param>
@@ -202,7 +203,8 @@ internal static class InvestmentsOverviewMath
             .ToList();
 
         return new InvestmentsOverview(reference.Code, open.Count, facts.Count - open.Count,
-            convert.View(value), valued.Select(v => v.Figures.AsOf).Min(), valued.Count(v => v.Figures.StaleDays is not null),
+            convert.View(value), valued.Select(v => v.Figures.AsOf).Min(), facts.SelectMany(f => f.Values).Select(v => (LocalDate?)v.AsOf).Min(),
+            valued.Count(v => v.Figures.StaleDays is not null),
             figures.Count - valued.Count,
             convert.View(net), convert.View(paidIn), convert.View(gain),
             gain is { } g && paidIn is { } p && p > 0m ? EnvelopeMath.RoundPercent(g / p * 100m) : null,
@@ -217,7 +219,7 @@ internal static class InvestmentsOverviewMath
     /// D6: the XIRR of every valued envelope's cash flows to its own date <c>v</c>, its value at <c>v</c> as the final flow, each
     /// converted at today's rate; a transfer's two legs cancel. Null when not meaningful, or when a rate is missing.
     /// </summary>
-    private static decimal? AnnualReturn(IReadOnlyList<Valued> valued, Converter convert, LocalDate today)
+    internal static decimal? AnnualReturn(IReadOnlyList<Valued> valued, Converter convert, LocalDate today)
     {
         if (valued.Count == 0) return null;
         var cash = new List<(LocalDate On, decimal Amount)>();
@@ -316,13 +318,13 @@ internal static class InvestmentsOverviewMath
         return span == OverviewSpan.All ? points.SkipWhile(p => p.ByKind.Count == 0).ToList() : points;
     }
 
-    private static bool IsTransfer(Flow f) => f.Category == "transfer";
+    internal static bool IsTransfer(Flow f) => f.Category == "transfer";
 
     private static decimal? Share(decimal? part, decimal? total)
         => part is { } p && total is { } t && t > 0m ? EnvelopeMath.RoundPercent(p / t * 100m) : null;
 
     /// <summary>Null with nothing to sum (no figure is not a figure of 0), or when one amount is unknown.</summary>
-    private static decimal? SumOrNull(IEnumerable<decimal?> amounts)
+    internal static decimal? SumOrNull(IEnumerable<decimal?> amounts)
     {
         decimal? total = null;
         foreach (var a in amounts)

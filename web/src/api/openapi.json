@@ -2594,6 +2594,110 @@
         }
       }
     },
+    "/api/v1/investments/overview/performance": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentsPerformance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/investments/routine": {
       "get": {
         "tags": [
@@ -16307,6 +16411,53 @@
           }
         }
       },
+      "EnvelopePeriodRow": {
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "performance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "performanceConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "annualReturnPct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "EnvelopeSeries": {
         "required": [
           "id",
@@ -16400,6 +16551,26 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "ExcludedEnvelopeView": {
+        "required": [
+          "envelopeId",
+          "name",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "envelopeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
           }
         }
       },
@@ -18920,6 +19091,13 @@
             ],
             "format": "date"
           },
+          "firstAsOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
           "staleCount": {
             "type": "integer",
             "format": "int32"
@@ -19022,6 +19200,144 @@
             "items": {
               "$ref": "#/components/schemas/EnvelopeWatchView"
             }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewFindingView"
+            }
+          }
+        }
+      },
+      "InvestmentsPerformance": {
+        "required": [
+          "currency",
+          "from",
+          "to",
+          "months",
+          "envelopes",
+          "excluded",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "startValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "endValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "contributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "withdrawals": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "transfers": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "performance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "performancePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthPerformanceView"
+            }
+          },
+          "bestMonth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "worstMonth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "envelopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopePeriodRow"
+            }
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExcludedEnvelopeView"
+            }
+          },
+          "reference": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReturnReferenceView"
+              }
+            ]
           },
           "findings": {
             "type": "array",
@@ -21006,6 +21322,27 @@
           },
           "currency": {
             "type": "string"
+          }
+        }
+      },
+      "MonthPerformanceView": {
+        "required": [
+          "month"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "performance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
           }
         }
       },
@@ -23621,6 +23958,18 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ReturnReferenceView": {
+        "required": [
+          "annualReturnPct"
+        ],
+        "type": "object",
+        "properties": {
+          "annualReturnPct": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
