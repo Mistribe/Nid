@@ -21,6 +21,7 @@ import { RentalSection } from './rental/RentalSection';
 import { SettingsSection } from './settings/SettingsForm';
 import { ValuationDialog } from './valuations/ValuationForm';
 import { ValuationsSection } from './valuations/ValuationsSection';
+import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/properties';
 
 const TABS = ['overview', 'rental', 'valuations', 'expenses', 'settings'] as const;
@@ -103,6 +104,7 @@ export function PropertyDetailPage() {
           content: (
             <>
               <Section title={t('property_detail.cost_title')}><PropertyCostDetail property={property} /></Section>
+              <SaleTaxSection item={property.id} canWrite={property.canWrite} />
               <Section title={t('property_detail.loans')}><LinkedLoans property={property} /></Section>
             </>
           ),

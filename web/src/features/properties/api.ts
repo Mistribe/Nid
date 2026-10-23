@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { components } from '@/api/schema';
 import { DASHBOARD } from '../dashboard/api';
 import { OVERVIEW } from '../income/api';
+import { TAX_SALE } from '../tax/api';
 
 export type PropertySummary = components['schemas']['PropertySummary'];
 export type PropertyList = components['schemas']['PropertyList'];
@@ -44,5 +45,5 @@ export const RECURRING_COST = '/api/v1/realestate/properties/{id}/recurring-cost
  * (§7); the income page and the home income too, which count the rents (income dashboard §5).
  */
 export function invalidateProperties(queryClient: QueryClient): Promise<void> {
-  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, OVERVIEW, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

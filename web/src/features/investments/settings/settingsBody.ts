@@ -1,10 +1,12 @@
 import type { components } from '@/api/schema';
 import type { EnvelopeDetail } from '../api';
+import { toWireAmount } from '../../subscriptions/edits/amount';
 
 /** What the settings form holds: every field as the text typed, compared and sent trimmed. */
 export type SettingsValues = {
   displayName: string; kind: string; institution: string; accountHint: string;
   valuationCadence: string; staleAfterDays: string; ucShareFloorPct: string; note: string;
+  openedOn: string; premiumsBefore2017: string;
 };
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */
@@ -14,6 +16,7 @@ const OPTIONAL_TEXT = [
   ['institution', 'clearInstitution'],
   ['accountHint', 'clearAccountHint'],
   ['note', 'clearNote'],
+  ['openedOn', 'clearOpenedOn'],
 ] as const;
 
 /** `null` when nothing changed, so the form can say so instead of sending an empty patch. */
@@ -45,6 +48,17 @@ export function toEditBody(before: EnvelopeDetail, values: SettingsValues): Edit
     if (before.ucShareFloorPct != null) body.clearUcShareFloorPct = true;
   } else if (Number(floor) !== before.ucShareFloorPct) {
     body.ucShareFloorPct = Number(floor);
+  }
+
+  // Only a life insurance has it, and the server drops it when the kind changes away: never sent with a kind change.
+  if (before.kind === 'life_insurance' && values.kind === 'life_insurance') {
+    const premiums = toWireAmount(values.premiumsBefore2017.replace(/\s/g, ''));
+    const current = before.premiumsBefore2017?.amount;
+    if (premiums === '') {
+      if (current != null) body.clearPremiumsBefore2017 = true;
+    } else if (premiums !== current) {
+      body.premiumsBefore2017 = premiums;
+    }
   }
 
   return Object.keys(body).length === 0 ? null : body;

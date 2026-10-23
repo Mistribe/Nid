@@ -17,12 +17,13 @@ import { TAX, type TaxEstimate } from './api';
 import { noticeText, percentText, warningText, ZERO } from './format';
 import { ProfileForm } from './ProfileForm';
 import { DeclarantTable, eur, ResultTable } from './ResultTable';
+import { SaleTotalSection } from './SaleTotalSection';
 import { SimulationForm } from './SimulationForm';
 import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-const TABS = ['detail', 'withholding', 'profile', 'simulation', '2044'] as const;
+const TABS = ['detail', 'withholding', 'profile', 'simulation', '2044', 'sale'] as const;
 
 /**
  * Tax estimate spec §9: the year's figures inline, then the calculation step by step, the household's profile, and a
@@ -50,12 +51,12 @@ export function TaxPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('tax.title')} actions={<div className="print:hidden"><Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} /></div>}>
+      <PageHeader title={t('tax.title')} actions={tab === 'sale' ? undefined : <div className="print:hidden"><Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} /></div>}>
         {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       </PageHeader>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /> : null}
-      {estimate ? <Notes estimate={estimate} printed={tab !== '2044'} /> : null}
+      {estimate ? <Notes estimate={estimate} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} /> },
@@ -63,6 +64,7 @@ export function TaxPage() {
           { id: 'profile', label: t('tax.tab.profile'), content: <ProfileForm key={`${estimate.year}-${scope}`} estimate={estimate} scope={scope} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
           { id: '2044', label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
+          { id: 'sale', label: t('tax.tab.sale'), content: <SaleTotalSection scope={scope} /> },
         ]} />
       ) : null}
     </div>
@@ -136,10 +138,11 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
 }
 
 /** The server's warnings and notices, above the tabs: they matter whichever tab is open. */
-function Notes({ estimate, printed }: { estimate: TaxEstimate; printed: boolean }) {
+/** On the sale tab the estimate is always today's: the income tax's carried-forward scale is not its business (the sale section says its own). */
+function Notes({ estimate, printed, sale }: { estimate: TaxEstimate; printed: boolean; sale: boolean }) {
   const { t } = useTranslation();
   const notes = [
-    ...estimate.result.warnings.map((w) => warningText(t, w, estimate.result.rulesYear)),
+    ...estimate.result.warnings.filter((w) => !(sale && w === 'rules_carried_forward')).map((w) => warningText(t, w, estimate.result.rulesYear)),
     ...estimate.notices.map((n) => noticeText(t, n.code, n.name, eur(n.amount))),
   ];
   if (!notes.length) return null;

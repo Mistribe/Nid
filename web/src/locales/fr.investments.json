@@ -132,6 +132,12 @@
     },
     "settings": {
       "title": "Réglages",
+      "opened_on": "Date d’ouverture",
+      "opened_on_help": "Pour un PEA ou une assurance-vie transférés, la date d’ouverture du contrat d'origine : elle compte pour la fiscalité.",
+      "opened_on_format": "Une date au format jj/mm/aaaa, ou vide.",
+      "premiums_before_2017": "Primes versées avant le 27/09/2017",
+      "premiums_before_2017_help": "Montant restant de ces primes au début du suivi dans Nid. Laissez vide si le contrat a été ouvert après cette date ou si vous ne savez pas.",
+      "premiums_format": "Un montant, par exemple 12000,50.",
       "stale_after": "Seuil de péremption (jours)",
       "stale_help": "Vide : selon la cadence.",
       "stale_range": "Entre 1 et 3650 jours, ou vide pour suivre la cadence.",

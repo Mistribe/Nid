@@ -108,6 +108,37 @@ describe('an envelope\'s settings', () => {
     expect(form.getByLabelText('Établissement')).toHaveValue('');
   });
 
+  it('shows the opening date\'s help for every kind, and the premiums field for a life insurance only', async () => {
+    serve(detail());
+    const { unmount } = await renderApp(`/investments/${PEA}?tab=settings`);
+    const pea = await openForm();
+    expect(pea.getByLabelText('Date d’ouverture')).toBeInTheDocument();
+    expect(pea.getByText("Pour un PEA ou une assurance-vie transférés, la date d’ouverture du contrat d'origine : elle compte pour la fiscalité.")).toBeInTheDocument();
+    expect(pea.queryByLabelText('Primes versées avant le 27/09/2017')).not.toBeInTheDocument();
+    unmount();
+
+    serve(detail({ kind: 'life_insurance' }));
+    await renderApp(`/investments/${PEA}?tab=settings`);
+    expect((await openForm()).getByLabelText('Primes versées avant le 27/09/2017')).toHaveValue('');
+  });
+
+  it('sends the premiums before 2017 typed with a comma, then clears them once emptied', async () => {
+    const bodies: Patch[] = [];
+    serve(detail({ kind: 'life_insurance' }), bodies);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+    const form = await openForm();
+    await user.type(form.getByLabelText('Primes versées avant le 27/09/2017'), '12000,50');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+    await screen.findByText('Réglages enregistrés.');
+    expect(bodies[0]).toEqual({ ...CLEARS, premiumsBefore2017: '12000.50' });
+
+    await user.clear(form.getByLabelText('Primes versées avant le 27/09/2017'));
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).toEqual({ ...CLEARS, clearPremiumsBefore2017: true });
+  });
+
   it('sends nothing and says so when nothing changed, then clears that before the next save', async () => {
     const bodies: Patch[] = [];
     serve(detail(), bodies);
@@ -216,5 +247,86 @@ describe('an envelope\'s settings', () => {
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
     expect(screen.queryByRole('form', { name: 'Réglages' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Réglages' })).not.toBeInTheDocument();
+  });
+  it('hides the premiums field as soon as another kind is picked', async () => {
+    serve(detail({ kind: 'life_insurance' }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+    const form = await openForm();
+    expect(form.getByLabelText('Primes versées avant le 27/09/2017')).toBeInTheDocument();
+    await pick(user, 'Type', 'Livret');
+    expect(form.queryByLabelText('Primes versées avant le 27/09/2017')).not.toBeInTheDocument();
+  });
+
+  it('shows an empty premiums field after a life insurance saved as another kind is switched back', async () => {
+    const bodies: Patch[] = [];
+    // The server drops the premiums with the kind change; the envelope read stays as the page first got it.
+    const insurance = detail({ kind: 'life_insurance', premiumsBefore2017: { amount: '5000.00', currency: 'EUR' } });
+    serve(insurance, bodies);
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(insurance)),
+      http.patch('*/api/v1/investments/envelopes/:id', async ({ request }) => { bodies.push(await request.json() as Patch); return HttpResponse.json({ id: PEA }); }),
+    );
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+    const form = await openForm();
+    expect(form.getByLabelText('Primes versées avant le 27/09/2017')).toHaveValue('5000.00');
+    await pick(user, 'Type', 'Livret');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+    await screen.findByText('Réglages enregistrés.');
+    await pick(user, 'Type', 'Assurance-vie');
+
+    expect(form.getByLabelText('Primes versées avant le 27/09/2017')).toHaveValue('');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).not.toHaveProperty('premiumsBefore2017');
+  });
+
+  it('is not blocked by an invalid premiums value the kind change hid', async () => {
+    const bodies: Patch[] = [];
+    serve(detail({ kind: 'life_insurance' }), bodies);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+    const form = await openForm();
+    await user.type(form.getByLabelText('Primes versées avant le 27/09/2017'), 'abc');
+    await pick(user, 'Type', 'Livret');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await screen.findByText('Réglages enregistrés.');
+    expect(bodies).toEqual([{ ...CLEARS, kind: 'savings' }]);
+  });
+
+  it('sends the opening date typed as jj/mm/aaaa in ISO form', async () => {
+    const bodies: Patch[] = [];
+    serve(detail(), bodies);
+    const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
+
+    const form = await openForm();
+    await user.type(form.getByLabelText('Date d’ouverture'), '15/03/2019');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+
+    await screen.findByText('Réglages enregistrés.');
+    expect(bodies).toEqual([{ ...CLEARS, openedOn: '2019-03-15' }]);
+  });
+
+  it('refreshes the sale estimate once the opening date is saved', async () => {
+    let dated = false;
+    serve(detail());
+    const finding = { item: PEA, module: 'investments', name: 'PEA', kind: 'pea', status: 'not_estimated', finding: 'opening_date_unknown', estimated: false, stale: false, approximate: false, notes: [] };
+    server.use(
+      http.get('*/api/v1/tax/sale', () => HttpResponse.json({ currency: 'EUR', rulesYear: 2026, carriedForward: false, total: false, totals: null, notes: [], items: dated ? [] : [finding] })),
+      http.patch('*/api/v1/investments/envelopes/:id', () => { dated = true; return HttpResponse.json({ id: PEA }); }),
+    );
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByText('Date d’ouverture inconnue : renseignez-la dans les réglages')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Réglages' }));
+    const form = await openForm();
+    await user.type(form.getByLabelText('Date d’ouverture'), '15/03/2019');
+    await user.click(form.getByRole('button', { name: 'Enregistrer les réglages' }));
+    await screen.findByText('Réglages enregistrés.');
+    await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
+
+    await waitFor(() => expect(screen.queryByText('Date d’ouverture inconnue : renseignez-la dans les réglages')).not.toBeInTheDocument());
   });
 });

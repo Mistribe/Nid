@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { detail } from '../testData';
+import { detail, eur } from '../testData';
 import { toEditBody, toWireBody } from './settingsBody';
 
-const values = (over = {}) => ({ displayName: 'PEA', kind: 'pea', institution: 'Banque', accountHint: '4521', valuationCadence: 'monthly', staleAfterDays: '', ucShareFloorPct: '', note: '', ...over });
+const values = (over = {}) => ({ displayName: 'PEA', kind: 'pea', institution: 'Banque', accountHint: '4521', valuationCadence: 'monthly', staleAfterDays: '', ucShareFloorPct: '', note: '', openedOn: '', premiumsBefore2017: '', ...over });
 
 describe('toEditBody', () => {
   it('sends nothing when nothing changed', () => expect(toEditBody(detail(), values())).toBeNull());
@@ -22,6 +22,26 @@ describe('toEditBody', () => {
   it('sets a note, and clears it once emptied', () => {
     expect(toEditBody(detail(), values({ note: 'Plafond atteint' }))).toEqual({ note: 'Plafond atteint' });
     expect(toEditBody(detail({ note: 'x' }), values({ note: '' }))).toEqual({ clearNote: true });
+  });
+});
+
+describe('premiums before 2017', () => {
+  const life = (over = {}) => detail({ kind: 'life_insurance', ...over });
+  const lifeValues = (over = {}) => values({ kind: 'life_insurance', ...over });
+  it('sends the typed amount as a decimal string', () => {
+    expect(toEditBody(life(), lifeValues({ premiumsBefore2017: '12 000,50' }))).toEqual({ premiumsBefore2017: '12000.50' });
+  });
+  it('clears it once emptied, and sends nothing when unchanged', () => {
+    expect(toEditBody(life({ premiumsBefore2017: eur('12000.5000') }), lifeValues())).toEqual({ clearPremiumsBefore2017: true });
+    expect(toEditBody(life({ premiumsBefore2017: eur('12000.5000') }), lifeValues({ premiumsBefore2017: '12000.5000' }))).toBeNull();
+  });
+  it('never sends it with a kind change', () => {
+    expect(toEditBody(detail(), values({ kind: 'life_insurance', premiumsBefore2017: '100' }))).toEqual({ kind: 'life_insurance' });
+    expect(toEditBody(life({ premiumsBefore2017: eur('100') }), lifeValues({ kind: 'pea', premiumsBefore2017: '' }))).toEqual({ kind: 'pea' });
+  });
+  it('sets and clears the opening date', () => {
+    expect(toEditBody(detail(), values({ openedOn: '2015-03-02' }))).toEqual({ openedOn: '2015-03-02' });
+    expect(toEditBody(detail({ openedOn: '2015-03-02' }), values())).toEqual({ clearOpenedOn: true });
   });
 });
 

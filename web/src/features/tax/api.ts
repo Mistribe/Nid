@@ -15,3 +15,8 @@ export const STATUSES = ['non_executive', 'executive', 'public'] as const;
 export type Rental2044 = components['schemas']['Rental2044View'];
 
 export const TAX_2044 = '/api/v1/tax/2044' as const;
+
+export type SaleTax = components['schemas']['SaleTaxView'];
+export type SaleItemView = components['schemas']['SaleItemView'];
+
+export const TAX_SALE = '/api/v1/tax/sale' as const;

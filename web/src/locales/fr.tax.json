@@ -12,7 +12,7 @@
     "notes": "À savoir",
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, déficit foncier reporté, plafonds PER non utilisés, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
-    "tab": { "2044": "Déclaration 2044", "detail": "Détail", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation" },
+    "tab": { "2044": "Déclaration 2044", "detail": "Détail", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation", "sale": "Si tout était vendu" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
@@ -229,6 +229,85 @@
       "done": "Simulation calculée.",
       "result": "Estimation et simulation",
       "column": "Simulation"
+    },
+    "sale": {
+      "title": "Impôt si vente aujourd’hui",
+      "estimate": "estimation",
+      "approximate": "approximatif",
+      "estimated": "valeur estimée",
+      "stale": "valeur à mettre à jour",
+      "carried": "Taux de l’année précédente repris.",
+      "value": "Valeur : {{amount}}",
+      "value_on": "Valeur : {{amount}} au {{date}}",
+      "gain": "Plus-value",
+      "fees": "Frais d’acquisition",
+      "works": "Travaux",
+      "income_tax": "Impôt",
+      "social_tax": "Prélèvements sociaux",
+      "surtax": "Surtaxe",
+      "net": "Net",
+      "cost_price": "Prix de revient fiscal",
+      "years_held": "Années de détention",
+      "allowances": "Abattements",
+      "allowances_value": "impôt {{income}}, prélèvements {{social}}",
+      "remaining_capital": "Capital restant",
+      "gain_before_2017": "Part avant le 27/09/2017",
+      "gain_reduced": "Part à taux réduit",
+      "gain_full": "Part à taux plein",
+      "allowance_used": "Abattement utilisé",
+      "owners": "Plus-value par propriétaire",
+      "owner": "Propriétaire",
+      "fix_settings": "Ouvrir les réglages",
+      "all": {
+        "list": "Impôt par bien et par enveloppe",
+        "name": "Nom",
+        "status": "Statut",
+        "value": "Valeur",
+        "detail_col": "Détail",
+        "detail": "Détail : {{name}}",
+        "empty_title": "Rien à vendre",
+        "empty_body": "Aucun bien ni aucune enveloppe à estimer."
+      },
+      "status": {
+        "taxed": "Imposable",
+        "exempt": "Exonéré",
+        "loss": "Moins-value, non imposable",
+        "not_taxable": "Non imposable à la vente",
+        "not_estimated": "Non estimé"
+      },
+      "finding": {
+        "opening_date_unknown": "Date d’ouverture inconnue : renseignez-la dans les réglages",
+        "other_currency": "Autre devise que l’euro : non estimé",
+        "no_value": "Pas de valeur : saisissez-en une"
+      },
+      "fees_method": {
+        "actual": "frais réels",
+        "flat": "forfait 7,5 %",
+        "none": "aucun"
+      },
+      "works_method": {
+        "actual": "travaux réels",
+        "flat": "forfait 15 %",
+        "none": "aucun"
+      },
+      "note": {
+        "sale_costs_not_deducted": "Les frais de vente (agence, diagnostics) ne sont pas déduits.",
+        "rental_works_flat_only": "Bien loué : seul le forfait travaux de 15 % est compté ; vos travaux d’amélioration non déduits des loyers peuvent le remplacer.",
+        "land_surtax_not_applied": "Terrain : ni surtaxe ni forfait travaux ; si le terrain n’est pas à bâtir, une surtaxe peut s’ajouter.",
+        "free_acquisition_fees_flat_not_allowed": "Si le bien a été reçu par donation ou succession, le forfait de 7,5 % de frais ne s’applique pas.",
+        "pea_closes_under_five_years": "Avant 5 ans, un retrait clôt le PEA.",
+        "pea_pre_2018_rates_not_modelled": "Les taux de prélèvements sociaux plus faibles sur les gains acquis avant 2018 ne sont pas pris en compte.",
+        "brokerage_scale_option": "L’option pour le barème progressif peut être plus favorable selon votre taux marginal.",
+        "life_insurance_social_levies_already_paid": "Les prélèvements sociaux déjà payés chaque année sur le fonds euros ne sont pas déduits.",
+        "life_insurance_visible_contracts_only": "Seuls les contrats que vous voyez comptent pour le seuil de 150 000 € et l’abattement.",
+        "premiums_before_2017_unknown": "Primes versées avant le 27/09/2017 non renseignées : elles sont traitées comme versées après.",
+        "withdrawals_before_tracking_at_face_value": "Les retraits faits avant le début du suivi sont comptés pour leur montant.",
+        "lines_older_than_value": "Le détail des supports est plus ancien que la valeur.",
+        "value_stale": "Valeur à mettre à jour.",
+        "value_estimated": "Valeur estimée d’après les cours.",
+        "approximate": "Estimation approximative.",
+        "total_not_sum_of_pages": "Le total n’est pas la somme des fiches : l’abattement d’assurance-vie n’y compte qu’une fois et les moins-values se compensent."
+      }
     }
   }
 }

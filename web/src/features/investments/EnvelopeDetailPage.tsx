@@ -29,6 +29,7 @@ import { TransferDialog } from './transfer/TransferDialog';
 import { AnnualReturn, Direction, Gain, StaleBadge } from './Figures';
 import { directionOf, flowKindText, kindText } from './format';
 import { percent } from './holdings/holdingFormat';
+import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
@@ -276,6 +277,7 @@ export function EnvelopeDetailPage() {
                   <PeriodPerformance envelopeId={detail.id} />
                 </Section>
               </div>
+              <SaleTaxSection item={detail.id} canWrite={detail.canWrite} />
             </>
           ),
         },

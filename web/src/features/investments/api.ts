@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { DASHBOARD, NET_WORTH } from '../dashboard/api';
+import { TAX_SALE } from '../tax/api';
 import type { components } from '@/api/schema';
 
 export type EnvelopeSummary = components['schemas']['EnvelopeSummary'];
@@ -57,6 +58,7 @@ export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD_HOLDINGS] }),
     queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] }),
     queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] }),
+    queryClient.invalidateQueries({ queryKey: ['get', TAX_SALE] }),
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
     queryClient.invalidateQueries({ queryKey: ['get', PERFORMANCE] }),

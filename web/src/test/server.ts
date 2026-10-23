@@ -56,6 +56,8 @@ export const handlers = [
     const url = new URL(request.url);
     return HttpResponse.json({ id: params.id, from: url.searchParams.get('from'), to: url.searchParams.get('to'), months: [] });
   }),
+  // Every property and envelope page asks the tax if sold today; no item here: not found, the section stays hidden.
+  http.get('*/api/v1/tax/sale', () => HttpResponse.json({ status: 404, title: 'Not found' }, { status: 404 })),
   // Every envelope detail also reads its value series; an empty one says « la courbe apparaît à partir de deux valeurs ».
   http.get('*/api/v1/investments/envelopes/:id/series', ({ params }) => HttpResponse.json({ id: params.id, points: [] })),
   // ... its holdings (none: the « Supports » tab invites to detail them) ...
