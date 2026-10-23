@@ -100,9 +100,11 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
     }
 
     /// <summary>
-    /// 3E1 spec §2: at each date, each property's latest estimate on or before it (none before its first), and each loan's
+    /// 3E1 spec §2: at each date, each property's latest estimate on or before it, and each loan's
     /// − remaining balance from its disbursement on, its principal repaid so far paid in — still after its end, so the
-    /// paid-in line never drops when a loan is repaid.
+    /// paid-in line never drops when a loan is repaid. Before its first estimate, from its purchase on, a property counts at
+    /// its purchase price: counting its loan alone drew a net worth deep below zero, then a jump on the day it was first
+    /// estimated. A property never estimated stays out, as in today's net worth.
     /// </summary>
     public async Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
     {
@@ -111,10 +113,10 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
         var owing = await loans.FindManyAsync(ids, ct);
         var accesses = await items.FindManyAsync([.. found.Select(p => p.ItemId), .. owing.Select(l => l.ItemId)], ct);
         var estimates = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
-        var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series)>();
+        var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series, PropertyDetails Details)>();
         foreach (var property in found)
-            if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { } series)
-                estimated.Add((LoanViews.CurrencyOf(item), series));
+            if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { Count: > 0 } series)
+                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details));
         var owed = new List<(LoanTerms Terms, LoanSchedule Schedule)>();
         foreach (var loan in owing)
             if (accesses.TryGetValue(loan.ItemId, out var item))
@@ -129,11 +131,16 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
             var values = new Dictionary<Currency, decimal>();
             var nets = new Dictionary<Currency, decimal>();
             var count = 0;
-            foreach (var (currency, series) in estimated)
+            foreach (var (currency, series, details) in estimated)
                 if (series.LastOrDefault(v => v.AsOf <= date) is { } latest) // SeriesManyAsync keeps SeriesAsync's as_of order
                 {
                     count++;
                     DashboardParts.Add(values, currency, latest.Value.Amount);
+                }
+                else if (date >= details.PurchaseDate)
+                {
+                    count++;
+                    DashboardParts.Add(values, currency, details.PurchasePrice);
                 }
             foreach (var (terms, schedule) in owed)
                 if (date >= terms.DisbursedOn)

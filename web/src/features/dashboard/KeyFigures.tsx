@@ -48,12 +48,18 @@ export function KeyFigures({ d, onOpen, scope }: { d: DashboardView; onOpen: (pa
           {d.netWorth.total && d.estimatedEnvelopes > 0 ? <span className="text-sm text-muted-foreground"> {t('dashboard.estimated_total')}</span> : null}
         </span>
         {change ? (
-          <span className={cn('rounded-full px-2.5 py-0.5 text-sm', CHANGE_TONE[directionOf(change.amount)])}>
-            <Direction amount={change}>
-              {d.changePct != null ? <span className="tabular-nums">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span> : null}
-            </Direction>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={cn('rounded-full px-2.5 py-0.5 text-sm', CHANGE_TONE[directionOf(change.amount)])}>
+              <Direction amount={change}>
+                {d.changePct != null ? <span className="tabular-nums">{t('dashboard.pct', { value: percent(d.changePct, true) })}</span> : null}
+              </Direction>
+            </span>
+            {/* A change says since when, and what it leaves out: an item without a recent value on 1 January has no start. */}
+            <span className="text-sm text-muted-foreground">{t('dashboard.since_january')}</span>
           </span>
         ) : <span className="text-sm text-muted-foreground"><Value figure={d.change} unknown={t('dashboard.change_unknown')} unknownRate="dashboard.change_unknown_rate" /></span>}
+        {change && d.envelopesWithoutStart > 0
+          ? <span className="text-xs text-muted-foreground">{t('dashboard.without_start', { count: d.envelopesWithoutStart })}</span> : null}
         {d.envelopes > 0 ? <span className="absolute right-5 bottom-5 hidden w-56 sm:block"><Sparkline scope={scope} /></span> : null}
       </Tile>
       <Tile label={t('dashboard.key.income')} panel="income" onOpen={onOpen}>

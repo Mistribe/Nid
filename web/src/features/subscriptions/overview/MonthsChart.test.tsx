@@ -39,10 +39,10 @@ describe('MonthsChart', () => {
     expect(row).toHaveTextContent('nov.—0,00 €');
   });
 
-  it('The_label_shows_both_server_amounts_not_a_sum', async () => {
+  it('The_label_shows_what_the_long_cycles_add_never_a_sum', async () => {
     await render(<MonthsChart months={year({ '2026-12': { longCycle: eur('216.00') } })} />);
 
-    expect(screen.getByText('17,20 € + 216,00 €')).toBeInTheDocument();
+    expect(screen.getByText('+ 216,00 €')).toBeInTheDocument();
     expect(screen.queryByText('233,20 €')).not.toBeInTheDocument();
   });
 

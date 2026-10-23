@@ -152,16 +152,27 @@ public class PropertiesOverviewTests
     }
 
     [Fact]
-    public void The_curve_counts_each_estimate_from_its_date_and_each_loan_from_its_disbursement()
+    public void The_curve_counts_a_property_at_its_price_until_its_first_estimate_and_each_loan_from_its_disbursement()
     {
         var overview = Build(PropertiesSpan.All, Home());
 
-        // « Tout » starts at the first month end with a loan or an estimate: the loans' disbursement in January 2024.
-        Assert.Equal(new LocalDate(2024, 1, 31), overview.Points[0].On);
-        Assert.Null(overview.Points[0].Value);
-        Assert.Null(overview.Points[0].NetValue);
+        // « Tout » starts at the first month end after the purchase (April 2019): before its first estimate, the price paid.
+        Assert.Equal(new LocalDate(2019, 4, 30), overview.Points[0].On);
+        Assert.Equal(355_000m, D(overview.Points[0].Value));
+        Assert.Equal(355_000m, D(overview.Points[0].NetValue));
+        // The loans from their disbursement in January 2024: the value stays the price, the net value drops by what is owed.
+        var disbursed = overview.Points.Single(p => p.On == new LocalDate(2024, 1, 31));
+        Assert.Equal(355_000m, D(disbursed.Value));
+        Assert.True(D(disbursed.NetValue) < 355_000m);
         Assert.Equal(402_000m, D(overview.Points.Single(p => p.On == new LocalDate(2024, 9, 30)).Value));
         Assert.Equal(402_000m, D(overview.Points.Single(p => p.On == new LocalDate(2026, 8, 31)).Value));
+    }
+
+    [Fact]
+    public void A_property_never_estimated_stays_out_of_the_curve()
+    {
+        var overview = Build(PropertiesSpan.All, Studio());
+        Assert.Empty(overview.Points);
     }
 
     [Fact]

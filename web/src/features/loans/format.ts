@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { formatLocalDate } from '@/components/LocalDate';
-import { formatMoney } from '@/components/Money';
+import { formatCurrency, formatMoney } from '@/components/Money';
 import type { LoanDetail, LoanWarning } from './api';
 import { fractionToPercent } from './rate';
 import '@/locales/loans';
@@ -19,8 +19,7 @@ const known = <T extends string>(values: readonly T[], value: string): T | undef
 /** An amount of the loan in its currency, exactly as the server wrote it: the loan's amounts are bare decimal strings. */
 export const money = (currency: string, amount: string) => formatMoney({ amount, currency });
 /** An amount shown with its sign, negative included (3B2 design §8: a net saving): formatting only, never arithmetic. */
-export const signedMoney = (currency: string, amount: string) =>
-  new Intl.NumberFormat('fr-FR', { style: 'currency', currency, signDisplay: 'exceptZero' }).format(amount as `${number}`);
+export const signedMoney = (currency: string, amount: string) => formatCurrency(amount, currency, { signDisplay: 'exceptZero' });
 
 /** A rate of the API (a fraction) in percent: « 3,5 % ». */
 export const percent = (t: TFunction, rate: string) => t('loans.percent', { rate: fractionToPercent(rate) });

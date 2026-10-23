@@ -4,7 +4,7 @@ import i18n from '@/app/i18n';
 import board from '@/locales/fr.subscriptions-board.json';
 import { Bar, CartesianGrid, BarChart, LabelList, XAxis, YAxis } from 'recharts';
 import { formatMoney, type MoneyValue } from '@/components/Money';
-import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '../../investments/chart/plot';
 import type { MonthView } from '../api';
@@ -39,21 +39,22 @@ export function MonthsChart({ months }: { months: MonthView[] }) {
       recurring: m.recurring ? toPlot(m.recurring.amount) : undefined,
       longCycle: m.longCycle ? long : undefined,
       recurringText: text(m.recurring), longCycleText: text(m.longCycle),
-      // The two server strings side by side, never their sum.
-      label: long !== 0 ? `${text(m.recurring)} + ${text(m.longCycle)}` : '',
+      // Over the bar, only what the long cycles add (one short line, never the sum); the month's whole is in the tooltip and the table.
+      label: long !== 0 ? `+ ${text(m.longCycle)}` : '',
     };
   });
   return (
     <figure aria-label={t('overview.months')}>
       <ChartContainer config={config} className="h-64 w-full">
-        <BarChart data={rows} accessibilityLayer margin={{ top: 20 }}>
+        <BarChart data={rows} accessibilityLayer margin={{ top: 24 }}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} tickMargin={8} interval={0} />
           <YAxis hide />
           <ChartTooltip content={<MonthTooltip />} />
+          <ChartLegend content={<ChartLegendContent />} />
           <Bar dataKey="recurring" stackId="m" fill="var(--color-recurring)" animationDuration={800} {...barClick} />
           <Bar dataKey="longCycle" stackId="m" fill="var(--color-longCycle)" radius={[4, 4, 0, 0]} animationDuration={800} {...barClick}>
-            <LabelList dataKey="label" position="top" className="fill-foreground text-[10px]" />
+            <LabelList dataKey="label" position="top" className="fill-foreground text-[11px] font-medium" />
           </Bar>
         </BarChart>
       </ChartContainer>

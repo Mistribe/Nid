@@ -2,16 +2,15 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { formatMoney, Money } from './Money';
 
-const NNBSP = ' '; // French thousands separator
-const NBSP = ' '; // before the currency sign
+const NBSP = ' '; // between thousands (Inter draws the narrow U+202F about 2 px wide) and before the currency sign
 
 describe('formatMoney', () => {
-  it('writes French amounts: thin space for thousands, comma, euro sign after', () =>
-    expect(formatMoney({ amount: '1234.5', currency: 'EUR' })).toBe(`1${NNBSP}234,50${NBSP}€`));
+  it('writes French amounts: no-break space for thousands, comma, euro sign after', () =>
+    expect(formatMoney({ amount: '1234.5', currency: 'EUR' })).toBe(`1${NBSP}234,50${NBSP}€`));
 
   it('keeps every digit of an amount a binary double would round', () =>
     expect(formatMoney({ amount: '12345678901234567.89', currency: 'EUR' }))
-      .toBe(`12${NNBSP}345${NNBSP}678${NNBSP}901${NNBSP}234${NNBSP}567,89${NBSP}€`));
+      .toBe(`12${NBSP}345${NBSP}678${NBSP}901${NBSP}234${NBSP}567,89${NBSP}€`));
 
   it('formats other currencies with their own sign', () =>
     expect(formatMoney({ amount: '10', currency: 'USD' })).toBe(`10,00${NBSP}$US`));

@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Clock } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '@/components/Money';
 import { Badge } from '@/components/ui/badge';
 import type { Figures } from './api';
 import { directionOf } from './format';
@@ -9,8 +10,7 @@ export const pct = (value: number) => new Intl.NumberFormat('fr-FR', { signDispl
 
 const ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } as const;
 const TONE = { up: 'text-status-good', down: 'text-status-critical', flat: 'text-muted-foreground' } as const;
-const signed = (locale: string, currency: string, amount: string) =>
-  new Intl.NumberFormat(locale, { style: 'currency', currency, signDisplay: 'exceptZero' }).format(amount as `${number}`);
+const signed = (locale: string, currency: string, amount: string) => formatCurrency(amount, currency, { signDisplay: 'exceptZero' }, locale);
 
 /** An amount with its direction as icon and word (the word for a screen reader), colour only on the icon (never alone, never on text); `children` sit between the amount and the word. */
 export function Direction({ amount, children }: { amount: { amount: string; currency: string }; children?: ReactNode }) {

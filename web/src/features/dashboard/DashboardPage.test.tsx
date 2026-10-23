@@ -39,6 +39,7 @@ describe('DashboardPage', () => {
     expect(worth).toHaveTextContent('+1 000,00 €');
     expect(worth).toHaveTextContent('+9,1 %');
     expect(worth).toHaveTextContent('en hausse');
+    expect(worth).toHaveTextContent('depuis le 1er janvier');
     expect(await tile('Revenus / mois')).toHaveTextContent('2 500,00 €');
     const commitments = await tile('Engagements / mois');
     expect(commitments).toHaveTextContent('250,56 €');
@@ -84,6 +85,15 @@ describe('DashboardPage', () => {
     const worth = await tile('Patrimoine net');
     expect(worth).toHaveTextContent('-500,00 €');
     expect(within(worth).getByText('en baisse')).toBeInTheDocument();
+  });
+
+  it('names the items the change since 1 January leaves out', async () => {
+    serve(dashboard({ change: figure('-500.00'), changePct: null, envelopesWithoutStart: 2 }));
+    await renderApp('/dashboard');
+
+    const worth = await tile('Patrimoine net');
+    expect(worth).toHaveTextContent('depuis le 1er janvier');
+    expect(worth).toHaveTextContent('2 éléments sans valeur récente au 1er janvier');
   });
 
   it('says « Aucun coût ce mois-ci » when a source costs nothing this month', async () => {

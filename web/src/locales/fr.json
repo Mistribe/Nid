@@ -168,6 +168,7 @@
     "margin_unknown": "Marge inconnue tant qu’aucun revenu n’est déclaré",
     "see_income": "Voir les revenus",
     "change": "Évolution depuis le 1er janvier",
+    "since_january": "depuis le 1er janvier",
     "change_unknown": "Inconnue : aucune valeur au 1er janvier",
     "change_unknown_rate": "Inconnue : taux de change manquant ({{code}})",
     "pct": "{{value}} %",

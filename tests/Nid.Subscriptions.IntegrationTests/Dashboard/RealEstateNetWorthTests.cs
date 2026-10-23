@@ -119,11 +119,16 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
-    public async Task The_curve_counts_an_estimate_from_its_date_and_a_loan_from_its_disbursement_its_principal_paid_in()
+    public async Task The_curve_counts_a_property_at_its_price_until_its_first_estimate_and_a_loan_from_its_disbursement_its_principal_paid_in()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var home = await NewPropertyAsync(app, Home(app));
+        var home = await NewPropertyAsync(app, Home(app)); // bought 2020-06-15 for 250 000
         await EstimateAsync(app, home, "2025-03-31", "300000");
+        await NewPropertyAsync(app, Home(app, "Terrain")); // never estimated: out of the curve, as out of today's net worth
+        var later = Home(app, "Studio");
+        later["purchaseDate"] = "2025-02-10";
+        later["purchasePrice"] = "90000";
+        await EstimateAsync(app, await NewPropertyAsync(app, later), "2025-09-30", "95000");
         await NewAsync(app, Short(app, "Prêt travaux")); // disbursed 2025-01-01, 1 000 repaid on each 15th
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth?scope=household");
@@ -131,9 +136,27 @@ public class RealEstateNetWorthTests(PostgresFixture fixture) : IClassFixture<Po
         var points = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("points").EnumerateArray()
             .ToDictionary(p => p.GetProperty("on").GetString()!);
 
+        // Before the first estimate, the price paid; the studio only from its purchase.
+        Assert.Equal(("250000.00", "0.00"), (Amount(points["2024-12-31"].GetProperty("value")), Amount(points["2024-12-31"].GetProperty("contributions"))));
+        Assert.Equal(("239000.00", "1000.00"), (Amount(points["2025-01-31"].GetProperty("value")), Amount(points["2025-01-31"].GetProperty("contributions"))));
+        Assert.Equal("330000.00", Amount(points["2025-02-28"].GetProperty("value"))); // 250 000 + 90 000 − 10 000 owed
+        Assert.Equal(("381000.00", "3000.00"), (Amount(points["2025-03-31"].GetProperty("value")), Amount(points["2025-03-31"].GetProperty("contributions"))));
+        Assert.Equal(("393000.00", "10000.00"), (Amount(points["2025-10-15"].GetProperty("value")), Amount(points["2025-10-15"].GetProperty("contributions"))));
+    }
+
+    [Fact]
+    public async Task A_loan_without_a_property_draws_its_balance_alone_from_its_disbursement()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewAsync(app, Short(app, "Prêt travaux")); // disbursed 2025-01-01, 1 000 repaid on each 15th
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth?scope=household");
+        var points = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("points").EnumerateArray()
+            .ToDictionary(p => p.GetProperty("on").GetString()!);
+
         Assert.Null(Amount(points["2024-12-31"].GetProperty("value")));
         Assert.Equal(("-11000.00", "1000.00"), (Amount(points["2025-01-31"].GetProperty("value")), Amount(points["2025-01-31"].GetProperty("contributions"))));
-        Assert.Equal(("291000.00", "3000.00"), (Amount(points["2025-03-31"].GetProperty("value")), Amount(points["2025-03-31"].GetProperty("contributions"))));
-        Assert.Equal(("298000.00", "10000.00"), (Amount(points["2025-10-15"].GetProperty("value")), Amount(points["2025-10-15"].GetProperty("contributions"))));
+        Assert.Equal(("-9000.00", "3000.00"), (Amount(points["2025-03-31"].GetProperty("value")), Amount(points["2025-03-31"].GetProperty("contributions"))));
+        Assert.Equal(("-2000.00", "10000.00"), (Amount(points["2025-10-15"].GetProperty("value")), Amount(points["2025-10-15"].GetProperty("contributions"))));
     }
 }

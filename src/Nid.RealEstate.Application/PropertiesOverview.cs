@@ -322,8 +322,9 @@ internal static class PropertiesOverviewMath
     }
 
     /// <summary>
-    /// As the dashboard's curve (3E1 §2): each property's latest estimate on or before the date, each linked loan in the scope from
-    /// its disbursement on, converted at the date. A date with neither has no point; « Tout » starts at the first date with one.
+    /// As the dashboard's curve (3E1 §2): each property's latest estimate on or before the date — before its first, from its
+    /// purchase on, its purchase price; never estimated, nothing — each linked loan in the scope from its disbursement on,
+    /// converted at the date. A date with neither has no point; « Tout » starts at the first date with one.
     /// </summary>
     private static List<PropertyPointView> Points(
         IReadOnlyList<OverviewProperty> set, IReadOnlyList<Owed> owed, IReadOnlyList<LocalDate> grid, PropertiesSpan span, Converter convert)
@@ -332,8 +333,11 @@ internal static class PropertiesOverviewMath
         foreach (var date in grid)
         {
             // SeriesManyAsync keeps SeriesAsync's as_of order.
-            var estimates = set.Select(p => (p, Latest: p.Values.LastOrDefault(v => v.AsOf <= date))).Where(x => x.Latest is not null)
-                .Select(x => convert.Of(x.Latest!.Value.Amount, LoanViews.CurrencyOf(x.p.Item), date)).ToList();
+            var estimates = set.Where(p => p.Values.Count > 0)
+                .Select(p => (p, Value: p.Values.LastOrDefault(v => v.AsOf <= date)?.Value.Amount
+                    ?? (date >= p.Property.Details.PurchaseDate ? p.Property.Details.PurchasePrice : (decimal?)null)))
+                .Where(x => x.Value is not null)
+                .Select(x => convert.Of(x.Value!.Value, LoanViews.CurrencyOf(x.p.Item), date)).ToList();
             var balances = owed.Where(o => date >= o.Terms.DisbursedOn)
                 .Select(o => convert.Of(LoanMath.At(o.Terms, o.Schedule, date).Balance, o.Currency, date)).ToList();
             if (estimates.Count == 0 && balances.Count == 0)
