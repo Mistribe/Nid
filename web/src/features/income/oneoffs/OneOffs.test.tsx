@@ -86,7 +86,7 @@ describe('one-off income', () => {
     expect(within(form).getByLabelText('Date')).toHaveValue(todayIso().split('-').reverse().join('/'));
     expect(within(form).getByLabelText('Date')).toHaveFocus();
     expect(within(form).getByText('Une prime à venir se saisit une fois versée.')).toBeInTheDocument();
-    await user.type(within(form).getByLabelText('Montant'), '250,50');
+    await user.type(within(form).getByLabelText('Montant net'), '250,50');
     await user.type(within(form).getByLabelText('Note'), 'Intéressement');
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
@@ -106,7 +106,7 @@ describe('one-off income', () => {
     const tomorrow = todayIso(new Date(Date.now() + 86_400_000));
     await user.clear(within(form).getByLabelText('Date'));
     await user.type(within(form).getByLabelText('Date'), tomorrow);
-    await user.type(within(form).getByLabelText('Montant'), '100');
+    await user.type(within(form).getByLabelText('Montant net'), '100');
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
 
     expect(await within(form).findByText('Cette date est dans le futur.')).toBeInTheDocument();
@@ -119,9 +119,9 @@ describe('one-off income', () => {
 
     await choose(user, 0, 'Corriger');
     const form = screen.getByRole('form', { name: 'Corriger le revenu exceptionnel' });
-    expect(within(form).getByLabelText('Montant')).toHaveValue('400');
-    await user.clear(within(form).getByLabelText('Montant'));
-    await user.type(within(form).getByLabelText('Montant'), '450');
+    expect(within(form).getByLabelText('Montant net')).toHaveValue('400');
+    await user.clear(within(form).getByLabelText('Montant net'));
+    await user.type(within(form).getByLabelText('Montant net'), '450');
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel corrigé.'));
@@ -222,7 +222,7 @@ describe('one-off income', () => {
     expect(within(form).getByLabelText('Date')).toHaveValue('30/06/2025');
     await user.clear(within(form).getByLabelText('Date'));
     await user.type(within(form).getByLabelText('Date'), '2025-07-01');
-    await user.type(within(form).getByLabelText('Montant'), '100');
+    await user.type(within(form).getByLabelText('Montant net'), '100');
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
     expect(await within(form).findByText('La date est après la fin de la source.')).toBeInTheDocument();
     expect(sent).toEqual([]);

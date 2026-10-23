@@ -45,7 +45,7 @@ describe('IncomeSourceDetailPage', () => {
     expect(header.getByText('Employeur')).toBeInTheDocument();
     expect(header.getByText('Privé')).toBeInTheDocument();
     const figures = await screen.findByRole('region', { name: 'Chiffres clés' });
-    expect(figures).toHaveTextContent('Revenu / mois2 450,00 €lissé sur l’année');
+    expect(figures).toHaveTextContent('Net versé / mois2 450,00 €lissé sur l’année');
     const parts = within(within(figures).getByRole('list', { name: 'Composantes en cours' })).getAllByRole('listitem');
     expect(parts.map(text)).toEqual(['Prime annuelle — 150,00 € par mois', 'Salaire de base — 2 300,00 € par mois']);
     expect(text(figures)).toContain('Prochain versement1 novembre 2026 · 2 300,00 €Salaire de base');
@@ -194,7 +194,7 @@ describe('IncomeSourceDetailPage', () => {
     // The visible « Exceptionnel » is named in full for a screen reader.
     await user.click(await screen.findByRole('button', { name: 'Ajouter un revenu exceptionnel' }));
     const form = screen.getByRole('form', { name: 'Nouveau revenu exceptionnel' });
-    await user.type(within(form).getByLabelText('Montant'), '250');
+    await user.type(within(form).getByLabelText('Montant net'), '250');
     await expectNoAxeViolations(container);
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
 

@@ -65,7 +65,7 @@ export function OneOffForm({ source, editing, titleId, onDone }: {
             {(c) => <DateField {...c} value={field.value} onChange={field.onChange} max={last} />}
           </Field>
         )} />
-        <Field label={t('income_detail.one_offs.amount')} error={e.amount?.message}>
+        <Field label={t('income_detail.one_offs.amount')} hint={t('income_form.net_hint')} error={e.amount?.message}>
           {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
         </Field>
       </div>

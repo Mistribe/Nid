@@ -996,7 +996,7 @@
     "title": "Revenus",
     "list": "Liste des revenus",
     "loading": "Chargement des revenus",
-    "smoothed": "Montants mensuels lissés sur l’année.",
+    "smoothed": "Revenus en net versé, après prélèvement à la source ; loyers hors charges, avant impôt. Montants mensuels lissés sur l’année.",
     "add": "Ajouter un revenu",
     "show_ended": "Afficher les sources terminées",
     "ended_mark": "Terminée",

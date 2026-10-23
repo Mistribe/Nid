@@ -34,7 +34,7 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
     )} />
   );
   const gross = shown('grossAmount') ? (
-    <Field label={t('income_form.gross_amount')} hint={t('income_form.optional')} error={errors?.grossAmount?.message}>
+    <Field label={t('income_form.gross_amount')} hint={t('income_form.gross_hint')} error={errors?.grossAmount?.message}>
       {(c) => <Input inputMode="decimal" {...c} {...form.register(name('grossAmount'))} />}
     </Field>
   ) : null;
@@ -57,7 +57,7 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
           </Field>
         ) : null}
         {shown('netAmount') ? (
-          <Field label={t('income_form.net_amount')} error={errors?.netAmount?.message}>
+          <Field label={t('income_form.net_amount')} hint={t('income_form.net_hint')} error={errors?.netAmount?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register(name('netAmount'))} />}
           </Field>
         ) : null}
