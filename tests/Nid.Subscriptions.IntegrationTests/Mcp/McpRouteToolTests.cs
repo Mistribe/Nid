@@ -89,8 +89,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (!File.Exists(Path.Combine(root.FullName, "Nid.slnx")))
             root = root.Parent!;
-        var labels = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "web", "src", "locales", "fr.json")))
-            .RootElement.GetProperty("proposals").GetProperty("action");
+        var labels = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "web", "src", "locales", "fr.proposals.json")))
+            .RootElement.GetProperty("proposal").GetProperty("action");
         Assert.Equal(RouteActions.All.Select(a => a.Name).Order(StringComparer.Ordinal), labels.EnumerateObject().Select(l => l.Name).Order(StringComparer.Ordinal));
     }
 

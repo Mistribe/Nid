@@ -17226,6 +17226,7 @@ export interface components {
             owners: components["schemas"]["ItemOwnerView"][];
             visibility: string;
             closed: boolean;
+            canWrite: boolean;
             /** Format: date */
             targetDate?: null | string;
             target?: null | components["schemas"]["GoalMoneyView"];

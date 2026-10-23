@@ -62,6 +62,7 @@ export function invalidateInvestments(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', ENVELOPE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SERIES] }),
     queryClient.invalidateQueries({ queryKey: ['get', PERFORMANCE] }),
-    ...[HOLDINGS, MOVEMENTS, HOLDING_SERIES, COST_REPORTS, SNAPSHOTS].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
+    // A goal's figures are its envelopes' values and flows (paths inline: goals/api stays out of the initial chunk).
+    ...[HOLDINGS, MOVEMENTS, HOLDING_SERIES, COST_REPORTS, SNAPSHOTS, '/api/v1/goals', '/api/v1/goals/{id}'].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
   ]).then(() => undefined);
 }

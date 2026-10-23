@@ -14,7 +14,7 @@ namespace Nid.Goals.Application;
 /// </summary>
 public sealed class GoalReader(
     IGoalStore goals, IVisibleItems visible, IEnvelopeFunding envelopes, IEnumerable<ICommitmentsContribution> commitments,
-    IHouseholdSettings household, IFxRates fx, IHouseholdCalendar calendar)
+    IHouseholdSettings household, IFxRates fx, IHouseholdCalendar calendar, IAccessPolicy policy)
 {
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
@@ -26,6 +26,7 @@ public sealed class GoalReader(
         var links = (await goals.FundingOfAsync(ids, ct)).ToLookup(f => f.Goal);
         var free = found.Where(f => !links[f.Goal.ItemId].Any()).Select(f => f.Goal.ItemId).ToList();
         var entries = (free.Count == 0 ? [] : await goals.EntriesOfAsync(free, ct)).ToLookup(e => e.Goal);
+        var writable = await policy.CheckManyAsync(reader, ids, AccessKind.Write, ct);
 
         // D1: only the envelopes the reader sees in the scope; the others never reach a figure.
         var linked = links.SelectMany(l => l).Select(f => f.Envelope).Distinct().ToList();
@@ -70,7 +71,7 @@ public sealed class GoalReader(
 
         var sources = Sources(parts, reference, rates, today);
         return Result.Success<IReadOnlyList<GoalDetail>>(found
-            .Select(f => Detail(f.Goal, f.Item, links[f.Goal.ItemId].ToList(), entries[f.Goal.ItemId].ToList(), seen, shares, sources, reference, rates, today))
+            .Select(f => Detail(f.Goal, f.Item, writable.Contains(f.Goal.ItemId), links[f.Goal.ItemId].ToList(), entries[f.Goal.ItemId].ToList(), seen, shares, sources, reference, rates, today))
             .ToList());
     }
 
@@ -82,7 +83,7 @@ public sealed class GoalReader(
             .ToList();
 
     private static GoalDetail Detail(
-        Goal goal, ItemAccess item, IReadOnlyList<Funding> links, IReadOnlyList<GoalEntry> entries, IReadOnlyDictionary<ItemId, EnvelopeFundingFigures> seen,
+        Goal goal, ItemAccess item, bool canWrite, IReadOnlyList<Funding> links, IReadOnlyList<GoalEntry> entries, IReadOnlyDictionary<ItemId, EnvelopeFundingFigures> seen,
         IReadOnlyDictionary<ItemId, int> shares, IReadOnlyList<(GoalCommitmentView View, decimal Monthly)> sources, Currency reference, RateTable rates, LocalDate today)
     {
         var flags = new List<string>();
@@ -142,7 +143,7 @@ public sealed class GoalReader(
         GoalMoneyView? Money(decimal? amount) => amount is { } a ? GoalMoneyView.Of(a, reference) : null;
         var summary = new GoalSummary(
             goal.ItemId.Value, item.DisplayName, goal.Kind, item.OwnerViews(), item.Visibility == Visibility.Private ? "private" : "shared",
-            item.ArchivedAt is not null, goal.TargetDate,
+            item.ArchivedAt is not null, canWrite, goal.TargetDate,
             figures is null ? null : emergency ? Money(figures.Target) : GoalMoneyView.Exact(figures.Target, reference),
             Money(figures?.Reached), figures?.ProgressPct, Money(figures?.Remaining), Money(figures?.MonthlyNeeded), Money(figures?.MonthlyPace),
             figures?.ProjectedOn, figures?.Status, partial, flags);

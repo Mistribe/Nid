@@ -55,7 +55,7 @@ Corps et réponses en camelCase, comme toutes les routes. Montants : `{ amount, 
 | `PUT /api/v1/goals/{id}/progress/{on}` | Relevé daté (pas dans le futur) |
 | `DELETE /api/v1/goals/{id}/progress/{on}` | Suppression d'un relevé |
 
-Vue calculée : `target`, `reached`, `progressPct`, `remaining`, `monthlyNeeded`, `monthlyPace`, `projectedOn`, `status`, `partial`, `flags` (`partial`, `missing_currency`, `closed_envelope`, `no_commitments`, `no_value`, `stale`, `over_allocated`). Si la lecture des engagements échoue, toute la lecture échoue (pas de cible silencieusement fausse).
+Vue calculée : `target`, `reached`, `progressPct`, `remaining`, `monthlyNeeded`, `monthlyPace`, `projectedOn`, `status`, `partial`, `flags` (`partial`, `missing_currency`, `closed_envelope`, `no_commitments`, `no_value`, `stale`, `over_allocated`), et `canWrite` : le lecteur peut modifier l'objectif (il en est un des rédacteurs, comme pour tout élément ; lu en une fois pour toute la liste). Si la lecture des engagements échoue, toute la lecture échoue (pas de cible silencieusement fausse).
 
 ## 5. MCP
 

@@ -17,7 +17,12 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Placements', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements']);
+    expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements']);
+  });
+
+  it('lists « Objectifs » only with the goals module', async () => {
+    await renderApp('/subscriptions', { capabilities: { modules: ['core', 'subscriptions', 'investments'], admin: false } });
+    expect(within(sidebar()).queryByRole('link', { name: 'Objectifs' })).not.toBeInTheDocument();
   });
 
   it('groups the sidebar into Suivi, Patrimoine and Budget', async () => {
@@ -25,7 +30,7 @@ describe('the shell', () => {
     const nav = within(sidebar());
     expect(nav.getAllByRole('heading').map((h) => h.textContent)).toEqual(['Suivi', 'Patrimoine', 'Budget']);
     const groups = nav.getAllByRole('list').map((l) => within(l).getAllByRole('link').map((a) => a.textContent));
-    expect(groups).toEqual([['Accueil', 'Routine', 'À valider'], ['Placements', 'Biens', 'Crédits', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements']]);
+    expect(groups).toEqual([['Accueil', 'Routine', 'À valider'], ['Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements']]);
   });
 
   it('shows the API version when hovering the web version', async () => {
@@ -233,7 +238,7 @@ describe('the shell', () => {
   it('lists the other sections on /more, Administration for an admin only', async () => {
     const { container } = await renderApp('/more');
     const list = await screen.findByRole('list', { name: 'Autres sections' });
-    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['À valider', 'Biens', 'Crédits', 'Revenus', 'Impôts', 'Simulations', 'Import', 'Export', 'Sécurité', 'Réglages']);
+    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['À valider', 'Objectifs', 'Biens', 'Crédits', 'Revenus', 'Impôts', 'Simulations', 'Import', 'Export', 'Sécurité', 'Réglages']);
     await expectNoAxeViolations(container);
   });
 

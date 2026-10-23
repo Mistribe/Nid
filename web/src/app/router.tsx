@@ -174,6 +174,29 @@ const holdingDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/investments/holdings/HoldingPage'), 'HoldingPage'),
 });
 
+const goalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/goals',
+  beforeLoad: requireModule('goals'),
+  validateSearch: detailSearch,
+  component: lazyRouteComponent(() => import('@/features/goals/GoalsPage'), 'GoalsPage'),
+});
+
+const goalNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/goals/new',
+  beforeLoad: requireModule('goals'),
+  component: lazyRouteComponent(() => import('@/features/goals/NewGoal'), 'NewGoal'),
+});
+
+const goalDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/goals/$id',
+  validateSearch: detailSearch,
+  beforeLoad: requireModule('goals'),
+  component: lazyRouteComponent(() => import('@/features/goals/GoalDetailPage'), 'GoalDetailPage'),
+});
+
 const incomeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/income',
@@ -436,7 +459,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

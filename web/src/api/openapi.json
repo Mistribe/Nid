@@ -21361,6 +21361,7 @@
           "owners",
           "visibility",
           "closed",
+          "canWrite",
           "partial",
           "flags"
         ],
@@ -21386,6 +21387,9 @@
             "type": "string"
           },
           "closed": {
+            "type": "boolean"
+          },
+          "canWrite": {
             "type": "boolean"
           },
           "targetDate": {

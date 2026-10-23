@@ -22,6 +22,8 @@ export const handlers = [
   http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
+  // The home page's goals card reads the open goals (none: it stays absent).
+  http.get('*/api/v1/goals', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/dashboard/net-worth', () => HttpResponse.json(netWorth([]))),
   // The subscriptions list is read by every test that lands on it.
   http.get('*/api/v1/subscriptions', () => HttpResponse.json({

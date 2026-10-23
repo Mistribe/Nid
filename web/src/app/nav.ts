@@ -1,4 +1,4 @@
-import { Building2, Calculator, CalendarCheck, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Upload, Wallet } from 'lucide-react';
+import { Building2, Calculator, CalendarCheck, FlaskConical, Download, House, Inbox, KeyRound, Landmark, PiggyBank, Repeat, ShieldCheck, Settings, Target, Upload, Wallet } from 'lucide-react';
 import type { Capabilities } from './Providers';
 
 /** The phone's tab order (the other entries sit in « Plus »). */
@@ -10,6 +10,7 @@ export const NAV = [
   { group: 'follow', module: ['investments', 'realestate'], admin: false, mobile: 'tab', to: '/routine', icon: CalendarCheck, label: 'nav.routine' },
   { group: 'follow', module: 'core', admin: false, mobile: 'more', to: '/proposals', icon: Inbox, label: 'nav.proposals' },
   { group: 'estate', module: 'investments', admin: false, mobile: 'tab', to: '/investments', icon: PiggyBank, label: 'nav.investments' },
+  { group: 'estate', module: 'goals', admin: false, mobile: 'more', to: '/goals', icon: Target, label: 'nav.goals' },
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/properties', icon: Building2, label: 'nav.properties' },
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/loans', icon: Landmark, label: 'nav.loans' },
   { group: 'budget', module: 'income', admin: false, mobile: 'more', to: '/income', icon: Wallet, label: 'nav.income' },

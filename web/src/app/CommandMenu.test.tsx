@@ -14,6 +14,7 @@ describe('the ⌘K palette', () => {
     const palette = await screen.findByRole('dialog', { name: 'Aller à' });
     expect(within(palette).getByRole('option', { name: 'Placements' })).toBeInTheDocument();
     expect(within(palette).getByRole('option', { name: 'Ajouter un crédit' })).toBeInTheDocument();
+    expect(within(palette).getByRole('option', { name: 'Nouvel objectif' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Aller à' })).toBeNull());
 

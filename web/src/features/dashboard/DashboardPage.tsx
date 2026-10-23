@@ -17,6 +17,7 @@ import { KeyFigures, type Panel } from './KeyFigures';
 
 // The home page is in the initial bundle; Recharts is not (spec 2D2a §5).
 const NetWorthCurve = lazy(() => import('./NetWorthCurve').then((m) => ({ default: m.NetWorthCurve })));
+const GoalsCard = lazy(() => import('./GoalsCard').then((m) => ({ default: m.GoalsCard })));
 const FigurePanel = lazy(() => import('./panels/FigurePanel').then((m) => ({ default: m.FigurePanel })));
 
 /** Spec §4.1: the home page — figures the server computed for the Foyer / Moi scope. */
@@ -38,6 +39,7 @@ export function DashboardPage() {
 function Body({ data, error, scope, panel }: { data?: DashboardView; error: unknown; scope: 'me' | 'household'; panel?: Panel }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { capabilities } = useSession();
   if (!data && error) return <ProblemMessage problem={present(toProblem(error))} />;
   if (!data)
     return (
@@ -69,6 +71,9 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
             <NetWorthCurve />
           </Suspense>
         </div>
+      ) : null}
+      {capabilities.modules.includes('goals') ? (
+        <div className="md:col-span-3 empty:hidden"><Suspense fallback={null}><GoalsCard scope={scope} /></Suspense></div>
       ) : null}
       {panel ? <Suspense fallback={null}><FigurePanel panel={panel} onClose={close} d={data} scope={scope} /></Suspense> : null}
     </div>

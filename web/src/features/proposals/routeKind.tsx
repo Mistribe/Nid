@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@/components/Money';
-import fr from '@/locales/fr.json';
+import strings from '@/locales/fr.proposals.json';
 import { Table, TableBody } from '@/components/ui/table';
 import type { ProposalView } from './api';
 import { Row, type LinkTarget } from './kindParts';
@@ -14,13 +14,13 @@ import '@/locales/proposals';
 const actionOf = (kind: string) => kind.slice(kind.indexOf('.') + 1);
 
 /** A kind the server replays as a web write: one whose action has a label. */
-export const isRouteKind = (kind: string) => Object.hasOwn(fr.proposals.action, actionOf(kind));
+export const isRouteKind = (kind: string) => Object.hasOwn(strings.proposal.action, actionOf(kind));
 
 type Payload = { id?: string; body?: Record<string, unknown> } & Record<string, unknown>;
 
 const payloadOf = (p: ProposalView) => (p.editedPayload ?? p.payload) as Payload;
 
-export const routeLabel = (t: TFunction, kind: string) => t(`proposals.action.${actionOf(kind) as keyof typeof fr.proposals.action}`);
+export const routeLabel = (t: TFunction, kind: string) => t(`proposal.action.${actionOf(kind) as keyof typeof strings.proposal.action}`);
 
 /** The item's name, or for a creation the name it will have. */
 function nameOf(t: TFunction, p: ProposalView): string {

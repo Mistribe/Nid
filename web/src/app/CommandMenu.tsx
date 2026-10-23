@@ -13,6 +13,7 @@ const CREATE = [
   { module: 'realestate', to: '/loans/new', label: 'palette.new_loan' },
   { module: 'subscriptions', to: '/subscriptions/new', label: 'palette.new_subscription' },
   { module: 'income', to: '/income/new', label: 'palette.new_income' },
+  { module: 'goals', to: '/goals/new', label: 'palette.new_goal' },
 ] as const;
 
 /**

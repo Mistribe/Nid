@@ -17,10 +17,11 @@ public sealed record GoalMoneyView(string Amount, string Currency)
 
 /// <summary>
 /// Spec §3, §5: a goal and its computed view. The figures are null when there is no target to measure against (an emergency fund
-/// without commitments). <c>Partial</c>: a linked envelope is hidden from the reader in the scope (D1), never named.
+/// without commitments). <c>Partial</c>: a linked envelope is hidden from the reader in the scope (D1), never named. <c>CanWrite</c>: the
+/// reader may change the goal (its writers, as every item).
 /// </summary>
 public sealed record GoalSummary(
-    Guid Id, string Name, string Kind, IReadOnlyList<ItemOwnerView> Owners, string Visibility, bool Closed, LocalDate? TargetDate,
+    Guid Id, string Name, string Kind, IReadOnlyList<ItemOwnerView> Owners, string Visibility, bool Closed, bool CanWrite, LocalDate? TargetDate,
     GoalMoneyView? Target, GoalMoneyView? Reached, decimal? ProgressPct, GoalMoneyView? Remaining, GoalMoneyView? MonthlyNeeded,
     GoalMoneyView? MonthlyPace, LocalDate? ProjectedOn, string? Status, bool Partial, IReadOnlyList<string> Flags);
 

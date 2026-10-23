@@ -312,6 +312,20 @@ public class GoalReadTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     }
 
     [Fact]
+    public async Task Can_write_is_true_for_the_owner_and_false_for_another_reader()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var goal = await GoalAsync(app, app.AdultA);
+
+        bool CanWrite(JsonElement list) => list.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("id").GetGuid() == goal.Value).GetProperty("canWrite").GetBoolean();
+
+        Assert.True((await DetailAsync(app, app.AdultA, goal, "household")).GetProperty("goal").GetProperty("canWrite").GetBoolean());
+        Assert.True(CanWrite(await GetAsync(app, app.AdultA, $"{Goals}?scope=household")));
+        Assert.False((await DetailAsync(app, app.AdultB, goal, "household")).GetProperty("goal").GetProperty("canWrite").GetBoolean());
+        Assert.False(CanWrite(await GetAsync(app, app.AdultB, $"{Goals}?scope=household")));
+    }
+
+    [Fact]
     public async Task List_hides_closed_unless_asked()
     {
         await using var app = await NidApp.StartAsync(fixture);
