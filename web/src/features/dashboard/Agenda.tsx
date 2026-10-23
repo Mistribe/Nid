@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router';
+import type { TFunction } from 'i18next';
+import { CalendarClock, CalendarX, Flag, Hourglass, KeyRound, Landmark, RefreshCw, Receipt, Scale, Wallet, type LucideIcon } from 'lucide-react';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
@@ -6,6 +9,7 @@ import { PendingLine } from '../proposals/PendingLine';
 import { usePendingCount } from '../proposals/api';
 import { categoryText } from '../properties/format';
 import { SectionCard } from '@/components/page/SectionCard';
+import { todayIso } from '../subscriptions/today';
 import type { DashboardEvent, DashboardView } from './api';
 import { ItemLink } from './ItemLink';
 import { incomeGaps, isRoutineTodo } from './todo';
@@ -26,23 +30,70 @@ function EventText({ e }: { e: DashboardEvent }) {
   }
 }
 
-/** Spec §4.1: the next 60 days, sorted by the server, date and amount. */
+const ICON: Record<string, LucideIcon> = {
+  subscription_renewal: RefreshCw, subscription_expiry: CalendarX, income_phase_end: Wallet, loan_phase_end: Landmark,
+  loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass,
+};
+// The module's colour, as in « Où part le revenu du mois »: subscriptions, loans and property costs take their chart
+// colour, the income the accent; an icon carries it, the text says what it is.
+const TINT: Record<string, string> = {
+  subscriptions: 'var(--chart-1)', loans: 'var(--chart-2)', properties: 'var(--chart-3)', income: 'var(--primary)',
+};
+
+/** « Aujourd’hui », « Demain », else the weekday and date, the year only when it is not this one. */
+function dayLabel(t: TFunction, on: string, today: string): string {
+  if (on === today) return t('dashboard.upcoming.today');
+  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+  if (on === new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)) return t('dashboard.upcoming.tomorrow');
+  const [year, month, day] = on.split('-').map(Number) as [number, number, number];
+  return new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: year === y ? undefined : 'numeric' })
+    .format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+/** Spec §4.1: the next 60 days, sorted by the server, date and amount; one group per day. */
 export function Upcoming({ d }: { d: DashboardView }) {
   const { t } = useTranslation();
+  const today = todayIso();
+  const listId = useId();
+  const days = d.upcoming.reduce<{ on: string; events: DashboardEvent[] }[]>((acc, e) => {
+    const last = acc.at(-1);
+    if (last?.on === e.on) last.events.push(e);
+    else acc.push({ on: e.on, events: [e] });
+    return acc;
+  }, []);
   return (
     <SectionCard title={t('dashboard.upcoming.title')} note={t('dashboard.upcoming.window')} guide="dashboard.upcoming">
-        {d.upcoming.length === 0 ? <p className="text-sm text-muted-foreground">{t('dashboard.upcoming.empty')}</p> : (
-          <ul className="divide-y text-sm">
-            {d.upcoming.map((e) => (
-              <li key={`${e.kind}-${e.id}-${e.on}-${e.label ?? ''}`} className="flex flex-wrap gap-x-2 py-2 first:pt-0 last:pb-0">
-                <span className="tabular-nums text-muted-foreground">{formatLocalDate(e.on)}</span>
-                <ItemLink module={e.module} id={e.id}>{e.name}</ItemLink>
-                <span><EventText e={e} /></span>
-                {e.amount ? <span className="ml-auto tabular-nums">{formatMoney(e.amount)}</span> : null}
-              </li>
-            ))}
-          </ul>
-        )}
+      {days.length === 0 ? <p className="text-sm text-muted-foreground">{t('dashboard.upcoming.empty')}</p> : (
+        <div className="space-y-4">
+          {days.map((day) => (
+            <div key={day.on}>
+              {/* A label rather than a heading: the card's title is no heading, so an h3 here would skip a level. */}
+              <p id={`${listId}-${day.on}`} className="mb-1 text-xs font-medium text-muted-foreground first-letter:uppercase">
+                <time dateTime={day.on} title={formatLocalDate(day.on)}>{dayLabel(t, day.on, today)}</time>
+              </p>
+              <ul aria-labelledby={`${listId}-${day.on}`} className="divide-y text-sm">
+                {day.events.map((e) => {
+                  const Icon = ICON[e.kind] ?? CalendarClock;
+                  const tint = TINT[e.module] ?? 'var(--muted-foreground)';
+                  return (
+                    <li key={`${e.kind}-${e.id}-${e.on}-${e.label ?? ''}`} className="flex items-center gap-3 py-2">
+                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                        style={{ color: tint, background: `color-mix(in oklab, ${tint} 14%, transparent)` }}>
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate"><EventText e={e} /></span>
+                        <ItemLink module={e.module} id={e.id} className="block truncate text-xs text-muted-foreground hover:text-foreground hover:underline">{e.name}</ItemLink>
+                      </span>
+                      {e.amount ? <span className="shrink-0 font-medium tabular-nums">{formatMoney(e.amount)}</span> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
     </SectionCard>
   );
 }

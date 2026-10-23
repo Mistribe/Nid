@@ -239,6 +239,8 @@
       "title": "À venir",
       "window": "60 prochains jours",
       "empty": "Rien dans les 60 prochains jours.",
+      "today": "Aujourd’hui",
+      "tomorrow": "Demain",
       "subscription_renewal": "Renouvellement",
       "subscription_expiry": "Expire",
       "income_phase_end": "Fin de « {{label}} »",

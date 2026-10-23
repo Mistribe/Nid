@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { useSession } from '@/app/Providers';
@@ -8,6 +8,7 @@ import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import { OVERVIEW } from '../income/api';
 import { toPlot } from '../investments/chart/plot';
 import type { DashboardView } from './api';
@@ -19,7 +20,8 @@ const SOURCES = [
   { key: 'loans', color: 'var(--chart-2)' },
   { key: 'property_costs', color: 'var(--chart-3)' },
 ] as const;
-const INCOME_COLOR = 'var(--muted-foreground)';
+// The income in the theme's accent: what comes in reads apart from where it goes (the commitments' fixed chart colours).
+const INCOME_COLOR = 'var(--primary)';
 
 /** A mark of the flow: its texts hold the server's amount and share, `size` only sizes the mark. */
 type Mark = {
@@ -98,84 +100,105 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
   );
 }
 
-// Drawing units; the viewBox scales them, capped so the labels stay at their reading size.
-const W = 820;
-const LEFT = { x0: 196, x1: 206 };
-const MID = { x0: 404, x1: 416 };
-const RIGHT = { x0: 614, x1: 624 };
-const TOP = 32;
-const LINE = 18;
+// Drawing units across; the drawing stretches to its column (`preserveAspectRatio="none"`), one unit high is one pixel.
+// The labels are HTML beside it: they truncate instead of running off the edge, and keep their reading size.
+const W = 400;
+const LEFT = { x0: 0, x1: 8 };
+const MID = { x0: 196, x1: 204 };
+const RIGHT = { x0: 392, x1: 400 };
+const LINE = 24;
+const MID_COLOR = 'var(--muted-foreground)';
 
 type Hover = { mark: Mark; x: number; y: number };
+type Placed = Mark & { node: Span; inner: Span; labelAt: number };
 
 function Sankey({ from, to, total }: { from: Mark[]; to: Mark[]; total: string }) {
   const { t } = useTranslation();
+  const gradient = useId().replace(/:/g, '');
   const [hover, setHover] = useState<Hover | null>(null);
   const h = Math.max(200, LINE * Math.max(from.length, to.length) + 24);
-  const height = h + TOP + 12;
-  const at = (s: Span) => ({ y0: s.y0 + TOP, y1: s.y1 + TOP });
   // Each side's nodes with gaps, and the same bands against the middle node without them, in the same order.
-  const side = (marks: Mark[]) => {
+  const side = (marks: Mark[]): Placed[] => {
     const nodes = stack(marks, h, 8);
     const inner = stack(marks, h, 0);
     const labels = spread(nodes.map((n) => (n.y0 + n.y1) / 2), h, LINE);
-    return nodes.map((n, i) => ({ ...n, node: at(n), inner: at(inner[i]!), labelAt: labels[i]! + TOP + 4 }));
+    return nodes.map((n, i) => ({ ...n, node: n, inner: inner[i]!, labelAt: labels[i]! }));
   };
   const left = side(from);
   const right = side(to);
   const rect = (x: { x0: number; x1: number }, s: Span, color: string) =>
     <rect x={x.x0} y={s.y0} width={x.x1 - x.x0} height={s.y1 - s.y0} rx={2} fill={color} />;
-  // A mark's band, node and label make one hover target, bigger than the band alone; a link's focus shows it too.
-  const target = (m: Mark, x: number, s: Span, children: ReactNode) => {
-    const show = () => setHover({ mark: m, x, y: (s.y0 + s.y1) / 2 });
+  // A mark's band and its label are each a hover target; a link's focus shows it too.
+  const handlers = (m: Placed, x: number) => {
+    const show = () => setHover({ mark: m, x, y: (m.node.y0 + m.node.y1) / 2 });
     const hide = () => setHover((v) => (v?.mark.key === m.key ? null : v));
-    return <g key={m.key} onPointerEnter={show} onPointerLeave={hide} onFocus={show} onBlur={hide}>{children}</g>;
+    return { onPointerEnter: show, onPointerLeave: hide, onFocus: show, onBlur: hide };
   };
-  const label = (m: Mark, x: number, y: number, anchor: 'start' | 'end', share: boolean) => {
-    const text = (
-      <text x={x} y={y} textAnchor={anchor} fontSize={13} className={m.key === 'rest' ? 'fill-foreground font-semibold' : 'fill-foreground'}>
-        {m.name} <tspan className="fill-muted-foreground font-normal">{share && m.share ? `${m.money} · ${m.share}` : m.money}</tspan>
-      </text>
-    );
-    return m.link ? m.link(text) : text;
-  };
+  const labels = (marks: Placed[], x: number, align: 'start' | 'end') => (
+    <div className="relative">
+      {marks.map((m) => (
+        <p key={m.key} {...handlers(m, x)} style={{ top: m.labelAt }}
+          className={cn('absolute inset-x-0 flex -translate-y-1/2 items-baseline gap-1.5 text-sm whitespace-nowrap [&_a:hover]:underline',
+            align === 'end' ? 'justify-end pr-3 text-right' : 'pl-3', m.key === 'rest' && 'font-semibold')}>
+          <span className="truncate">{m.link ? m.link(m.name) : m.name}</span>{' '}
+          <span className="shrink-0 font-normal text-muted-foreground tabular-nums">{m.share ? `${m.money} · ${m.share}` : m.money}</span>
+        </p>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="relative mx-auto w-full max-w-[52rem]">
-      <svg viewBox={`0 0 ${W} ${height}`} className="block w-full" role="group" aria-label={t('dashboard.month.chart')}>
-        <text x={(MID.x0 + MID.x1) / 2} y={18} textAnchor="middle" fontSize={13} className="fill-foreground font-semibold">
-          {t('dashboard.month.per_month', { amount: total })}
-        </text>
-        {rect(MID, at({ y0: 0, y1: h }), 'var(--foreground)')}
-        {/* The left labels have no room for the share: the tooltip and the table give it. */}
-        {left.map((m) => target(m, LEFT.x1, m.node, (
-          <>
-            <path data-band={m.key} d={band(LEFT.x1, m.node, MID.x0, m.inner)} fill={m.color} fillOpacity={hover?.mark.key === m.key ? 0.4 : 0.22} />
-            {rect(LEFT, m.node, m.color)}
-            {label(m, LEFT.x0 - 8, m.labelAt, 'end', false)}
-          </>
-        )))}
-        {right.map((m) => target(m, RIGHT.x0, m.node, (
-          <>
-            <path data-band={m.key} d={band(MID.x1, m.inner, RIGHT.x0, m.node)} fill={m.color} fillOpacity={hover?.mark.key === m.key ? 0.55 : 0.35} />
-            {rect(RIGHT, m.node, m.color)}
-            {label(m, RIGHT.x1 + 8, m.labelAt, 'start', true)}
-          </>
-        )))}
-      </svg>
-      {hover ? (
-        <div role="tooltip" className="pointer-events-none absolute z-10 grid min-w-44 -translate-x-1/2 -translate-y-[calc(100%+8px)] gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl"
-          style={{ left: `${(hover.x / W) * 100}%`, top: `${(hover.y / height) * 100}%` }}>
-          <div className="flex items-center gap-2 font-medium">
-            <span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: hover.mark.color }} />
-            {hover.mark.name}
-          </div>
-          <div className="flex justify-between gap-4"><span>{t('dashboard.month.col_per_month')}</span><span className="tabular-nums">{hover.mark.money}</span></div>
-          {hover.mark.share
-            ? <div className="flex justify-between gap-4"><span>{t('dashboard.month.col_share')}</span><span className="tabular-nums">{hover.mark.share}</span></div>
-            : null}
+    <div role="group" aria-label={t('dashboard.month.chart')}>
+      <p className="mb-2 text-center text-sm font-semibold">{t('dashboard.month.per_month', { amount: total })}</p>
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(12rem,1.4fr)_minmax(0,1fr)]" style={{ height: h }}>
+        {labels(left, LEFT.x1, 'end')}
+        <div className="relative">
+          <svg viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" aria-hidden="true" className="block w-full animate-reveal" style={{ height: h }}>
+            <defs>
+              {/* Each band fades from where it starts to where it goes. */}
+              {left.map((m) => (
+                <linearGradient key={m.key} id={`${gradient}-${m.key}`} gradientUnits="userSpaceOnUse" x1={LEFT.x1} x2={MID.x0} y1={0} y2={0}>
+                  <stop offset="0" stopColor={m.color} /><stop offset="1" stopColor={MID_COLOR} />
+                </linearGradient>
+              ))}
+              {right.map((m) => (
+                <linearGradient key={m.key} id={`${gradient}-${m.key}`} gradientUnits="userSpaceOnUse" x1={MID.x1} x2={RIGHT.x0} y1={0} y2={0}>
+                  <stop offset="0" stopColor={MID_COLOR} /><stop offset="1" stopColor={m.color} />
+                </linearGradient>
+              ))}
+            </defs>
+            {rect(MID, { y0: 0, y1: h }, MID_COLOR)}
+            {left.map((m) => (
+              <g key={m.key} {...handlers(m, LEFT.x1)}>
+                <path data-band={m.key} d={band(LEFT.x1, m.node, MID.x0, m.inner)} fill={`url(#${gradient}-${m.key})`}
+                  fillOpacity={hover?.mark.key === m.key ? 0.5 : 0.25} className="transition-[fill-opacity] duration-200" />
+                {rect(LEFT, m.node, m.color)}
+              </g>
+            ))}
+            {right.map((m) => (
+              <g key={m.key} {...handlers(m, RIGHT.x0)}>
+                <path data-band={m.key} d={band(MID.x1, m.inner, RIGHT.x0, m.node)} fill={`url(#${gradient}-${m.key})`}
+                  fillOpacity={hover?.mark.key === m.key ? 0.7 : 0.45} className="transition-[fill-opacity] duration-200" />
+                {rect(RIGHT, m.node, m.color)}
+              </g>
+            ))}
+          </svg>
+          {hover ? (
+            <div role="tooltip" className="pointer-events-none absolute z-10 grid min-w-44 -translate-x-1/2 -translate-y-[calc(100%+8px)] gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl"
+              style={{ left: `${(hover.x / W) * 100}%`, top: hover.y }}>
+              <div className="flex items-center gap-2 font-medium">
+                <span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: hover.mark.color }} />
+                {hover.mark.name}
+              </div>
+              <div className="flex justify-between gap-4"><span>{t('dashboard.month.col_per_month')}</span><span className="tabular-nums">{hover.mark.money}</span></div>
+              {hover.mark.share
+                ? <div className="flex justify-between gap-4"><span>{t('dashboard.month.col_share')}</span><span className="tabular-nums">{hover.mark.share}</span></div>
+                : null}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+        {labels(right, RIGHT.x0, 'start')}
+      </div>
     </div>
   );
 }

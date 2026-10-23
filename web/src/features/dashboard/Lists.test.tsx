@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { todayIso } from '../subscriptions/today';
 import type { DashboardView } from './api';
 import { dashboard, event } from './testData';
 
@@ -38,7 +39,8 @@ describe('dashboard lists', () => {
     const { container } = await renderApp('/dashboard');
 
     const items = within(await section('À venir')).getAllByRole('listitem');
-    expect(items[0]).toHaveTextContent('10 novembre 2025');
+    // One list per day, named by its date (« Aujourd’hui » and « Demain » only near today).
+    expect(within(await section('À venir')).getByRole('list', { name: 'lundi 10 novembre 2025' })).toContainElement(items[0] as HTMLElement);
     expect(items[0]).toHaveTextContent('Amazon Prime');
     expect(items[0]).toHaveTextContent('Renouvellement');
     expect(items[0]).toHaveTextContent('69,90 €');
@@ -72,6 +74,18 @@ describe('dashboard lists', () => {
     expect(items[3]).toHaveTextContent('Fin de la phase 1 : taux ou différé qui change');
     expect(items[4]).toHaveTextContent('Fin du bail « T2 meublé »');
     await expectNoAxeViolations(container);
+  });
+
+  it('names today and tomorrow rather than their dates', async () => {
+    const today = todayIso();
+    const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+    const tomorrow = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+    serve(dashboard({ upcoming: [event({ on: today }), event({ on: tomorrow, kind: 'subscription_expiry', name: 'NordVPN', amount: null })] }));
+    await renderApp('/dashboard');
+
+    const upcoming = await section('À venir');
+    expect(within(upcoming).getByRole('list', { name: 'Aujourd’hui' })).toHaveTextContent('Amazon Prime');
+    expect(within(upcoming).getByRole('list', { name: 'Demain' })).toHaveTextContent('NordVPN');
   });
 
   it('says nothing is coming in the next 60 days', async () => {
