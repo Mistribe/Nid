@@ -94,11 +94,11 @@ function Chart({ d, label }: { d: PropertiesOverview; label: (p: PropertyPoint, 
         <ChartTooltip content={<PointTooltip />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Area dataKey="balance" stackId="worth" type="linear" fill="var(--color-balance)" fillOpacity={0.5} stroke="var(--background)" strokeWidth={2}
-          connectNulls={false} dot={false} activeDot={false} isAnimationActive={false} />
+          connectNulls={false} dot={false} activeDot={false} animationDuration={800} />
         <Area dataKey="net" stackId="worth" type="linear" fill="var(--color-net)" fillOpacity={0.85} stroke="var(--background)" strokeWidth={2}
-          connectNulls={false} dot={false} activeDot={false} isAnimationActive={false} />
+          connectNulls={false} dot={false} activeDot={false} animationDuration={800} />
         <Line dataKey="value" stroke="var(--color-value)" strokeWidth={2} type="linear" connectNulls={false} dot={false} activeDot={{ r: 4 }}
-          isAnimationActive={false} />
+          animationDuration={800} />
       </ComposedChart>
     </ChartContainer>
   );

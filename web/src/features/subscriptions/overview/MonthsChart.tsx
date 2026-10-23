@@ -51,8 +51,8 @@ export function MonthsChart({ months }: { months: MonthView[] }) {
           <XAxis dataKey="name" tickLine={false} tickMargin={8} interval={0} />
           <YAxis hide />
           <ChartTooltip content={<MonthTooltip />} />
-          <Bar dataKey="recurring" stackId="m" fill="var(--color-recurring)" isAnimationActive={false} {...barClick} />
-          <Bar dataKey="longCycle" stackId="m" fill="var(--color-longCycle)" radius={[4, 4, 0, 0]} isAnimationActive={false} {...barClick}>
+          <Bar dataKey="recurring" stackId="m" fill="var(--color-recurring)" animationDuration={800} {...barClick} />
+          <Bar dataKey="longCycle" stackId="m" fill="var(--color-longCycle)" radius={[4, 4, 0, 0]} animationDuration={800} {...barClick}>
             <LabelList dataKey="label" position="top" className="fill-foreground text-[10px]" />
           </Bar>
         </BarChart>

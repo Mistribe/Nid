@@ -74,7 +74,7 @@ function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) 
   if (!items)
     return (
       <ul aria-busy="true" aria-label={t('properties.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
+        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
       </ul>
     );
   if (items.length === 0) return <EmptyState title={t('properties.empty_title')} body={t('properties.empty_body')} action={add} />;

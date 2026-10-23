@@ -18,7 +18,7 @@ export function SaleTaxSection({ item, canWrite }: { item: string; canWrite: boo
   }
   const view = answer.data;
   const first = view?.items[0];
-  if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />;
+  if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-24 shimmer rounded-md border bg-muted" />;
   if (!first) return null;
   return (
     <Section title={t('tax.sale.title')}>

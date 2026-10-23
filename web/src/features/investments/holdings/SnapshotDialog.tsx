@@ -43,7 +43,7 @@ export function SnapshotDialog({ envelope, holdings, onClose, onDone }: {
   return (
     <FormDialog title={t('holdings.snapshot.title')} onClose={onClose} onDone={onDone}>
       {({ titleId, done }) => (snapshots.error ? <ProblemMessage problem={present(toProblem(snapshots.error))} />
-        : !snapshots.data ? <div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-20 animate-pulse rounded-md bg-muted" />
+        : !snapshots.data ? <div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-20 shimmer rounded-md bg-muted" />
           : <SnapshotForm envelope={envelope} holdings={holdings} previous={snapshots.data.items[0]} titleId={titleId} done={done} />)}
     </FormDialog>
   );

@@ -132,7 +132,7 @@ export function SendStep({ id, file, onChanged, onOtherFile, onCancelled }: {
         {phase.kind === 'paused' ? <p>{t('import.paused')}</p> : null}
       </div>
       {phase.kind === 'validating' ? (
-        <div aria-busy="true" className="h-16 animate-pulse rounded-md bg-muted">
+        <div aria-busy="true" className="h-16 shimmer rounded-md bg-muted">
           <span className="sr-only">{t('import.validating')}</span>
         </div>
       ) : null}

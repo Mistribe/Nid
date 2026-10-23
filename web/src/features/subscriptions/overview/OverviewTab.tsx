@@ -56,7 +56,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
       ]} />
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title={t('overview.months')} className="lg:order-1 lg:col-span-2">
-          <Suspense fallback={<div className="h-64 animate-pulse rounded-md bg-muted" />}><MonthsChart months={d.months} /></Suspense>
+          <Suspense fallback={<div className="h-64 shimmer rounded-md bg-muted" />}><MonthsChart months={d.months} /></Suspense>
         </Panel>
         <Panel title={t('overview.watch')} className="lg:order-5"><Watch d={d} scope={scope} /></Panel>
         <Panel title={t('overview.upcoming')} className="lg:order-4"

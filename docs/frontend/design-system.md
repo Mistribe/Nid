@@ -20,6 +20,8 @@
 | Contours | `border`, `input`, `ring` |
 | Barre latérale | `sidebar`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring` |
 | Forme | `--radius` (les autres rayons en dérivent) |
+| Relief | `--elevation-card` (`shadow-card`) : une carte posée un cran au-dessus de la page ; `--elevation-raised` (`shadow-raised`) : une carte cliquable survolée. En mode sombre, un liseré clair en haut remplace l'ombre, qui ne se voit pas sur un fond sombre. Communs à tous les thèmes |
+| Mouvement | Dans `@theme` : `ease-emphasized` (décélération), `animate-enter` (fondu et 6 px vers le haut, 400 ms), `animate-shimmer`, `animate-draw` (une ligne qui se trace), `animate-grow` (une barre qui se remplit) ; utilitaires `stagger` et `shimmer` |
 | Graphiques | `--chart-1` à `--chart-8` : palette **fixe**, indépendante du thème (`dataviz.md` §3) |
 | Statuts | `--status-good`, `--status-warning`, `--status-serious`, `--status-critical` : **fixes**, indépendants du thème (`dataviz.md` §4). `--status-warning-text` et `--status-good-text` pour du texte : `--status-warning` n'atteint que 1,75:1 sur fond clair, `--status-good` 3,20:1 (assez pour une icône, pas pour un texte) |
 
@@ -34,7 +36,22 @@ Les jetons de graphiques et de statuts ne sont **jamais redéfinis par un thème
 | Montants | `Intl` en `fr-FR` : espace fine insécable pour les milliers, virgule décimale, « € » après le montant |
 | Dates | Jour et mois en toutes lettres selon la locale, via un utilitaire en UTC (`architecture.md` §11) |
 | Icônes | Lucide, 16 à 20 px dans le texte |
-| Mouvement | Discret ; réduit à rien avec `prefers-reduced-motion` |
+| Mouvement | Présent mais bref, jamais sur le chemin de la personne ; réduit à rien avec `prefers-reduced-motion` (règle globale de `globals.css`, et `isAnimationActive` laissé à `'auto'` dans Recharts). Voir §3.1 |
+
+### 3.1 Mouvement et relief
+
+Refonte du 2026-10-23 (passe « relief et mouvement ») : l'interface restait plate et figée ; elle garde sa sobriété mais donne de la profondeur et répond au geste.
+
+- **Entrée d'un écran** : sous `main`, le conteneur qui porte le `PageHeader` (`data-page-header`) fait entrer ses enfants l'un après l'autre (`stagger`), chacun quand il arrive dans le DOM : un contenu qui remplace son squelette entre aussi. CSS seul, sans remonter l'écran : un écran garde son état et le focus qu'il a placé.
+- **Onglets** : le contenu d'un onglet entre (`animate-enter`) quand il s'affiche.
+- **Cartes** : `Card` porte `shadow-card` ; une carte cliquable (tuile de l'accueil) monte de 2 px et prend `shadow-raised` et un contour teinté de l'accent au survol.
+- **Choix exclusifs** : dans `Segmented`, une pastille glisse sous l'option choisie.
+- **Chargement** : `Skeleton` et les emplacements faits main portent `shimmer` (un reflet qui balaie) au lieu d'une pulsation.
+- **Graphiques** : Recharts anime ses marques (800 ms). Un test qui lit la forme d'une marque appelle `reduceMotion()` (`test/motion.ts`).
+- **Accueil** : le patrimoine net est le chiffre héros (grand, légère teinte de l'accent, variation dans une pastille, courbe des 12 mois tracée sans axe ni libellé, cachée aux lecteurs d'écran) ; les trois autres chiffres suivent.
+- **Barre latérale** : l'écran courant est une pastille teintée de l'accent, en gras.
+- **Ligne de chiffres** (`StatLine`) : chiffres séparés par l'espace, sans filet (un filet restait en tête de la deuxième ligne quand elle passait à la ligne).
+- **Sens d'une variation** (`Direction`) : flèche et signe à l'écran ; le mot (« en hausse ») reste pour le lecteur d'écran.
 
 ## 4. Composants métier
 

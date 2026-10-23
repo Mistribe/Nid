@@ -91,7 +91,7 @@ function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: R
   if (!answer.data)
     return (
       <ul aria-busy="true" aria-label={t('investments.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
+        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
       </ul>
     );
 
@@ -110,7 +110,7 @@ function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: R
           { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
           { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.figures.value?.amount),
             cell: (r) => r.figures.value ? <Money value={r.figures.value} tabular /> : <span className="text-muted-foreground">{t('investments.no_value')}</span> },
-          { id: 'gain', header: t('lists.col.gain'), cell: (r) => r.figures.value ? <Gain figures={r.figures} /> : <span aria-hidden="true">{t('investments.dash')}</span> },
+          { id: 'gain', header: t('lists.col.gain'), align: 'end', cell: (r) => r.figures.value ? <Gain figures={r.figures} /> : <span aria-hidden="true">{t('investments.dash')}</span> },
           { id: 'updated', header: t('lists.col.updated'), sort: (r) => r.figures.asOf ?? '', cell: (r) => <Updated item={r} /> },
         ]}
         mobile={(r) => (

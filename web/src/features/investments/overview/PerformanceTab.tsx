@@ -250,7 +250,7 @@ function Months({ d }: { d: HouseholdPerformance }) {
             <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
             <ReferenceLine y={0} stroke="var(--border)" />
             <ChartTooltip cursor={false} content={<MonthTooltip />} />
-            <Bar dataKey="value" radius={2} isAnimationActive={false}>
+            <Bar dataKey="value" radius={2} animationDuration={800}>
               {rows.map((r) => <Cell key={r.month} fill={r.value !== null && r.value < 0 ? 'var(--destructive)' : 'var(--color-value)'} />)}
             </Bar>
           </BarChart>

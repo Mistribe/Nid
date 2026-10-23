@@ -65,7 +65,7 @@ export function RoutinePage() {
       {envelopes ? (
         <>
           {answer.error && !answer.data ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-          {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('routine.loading')} className="h-48 animate-pulse rounded-md border bg-muted" /> : null}
+          {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('routine.loading')} className="h-48 shimmer rounded-md border bg-muted" /> : null}
           {answer.data && answer.data.lines.length === 0 ? (
             <p className="flex flex-wrap items-center gap-2">
               {t('routine.none')}

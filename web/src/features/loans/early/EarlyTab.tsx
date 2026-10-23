@@ -371,9 +371,9 @@ function Curve({ view }: { view: LoansSimulation }) {
                 tickFormatter={(i: number) => rows[i]?.month.slice(0, 4) ?? ''} tickLine={false} axisLine={false} tickMargin={8} />
               <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
               <ChartTooltip content={<CurveTooltip />} />
-              <Line dataKey="before" stroke="var(--color-before)" strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false}
+              <Line dataKey="before" stroke="var(--color-before)" strokeWidth={2} strokeDasharray="5 4" dot={false} animationDuration={800}
                 label={endLabel('before')} />
-              <Line dataKey="after" stroke="var(--color-after)" strokeWidth={2} dot={false} isAnimationActive={false} label={endLabel('after')} />
+              <Line dataKey="after" stroke="var(--color-after)" strokeWidth={2} dot={false} animationDuration={800} label={endLabel('after')} />
             </LineChart>
           </ChartContainer>
         </figure>

@@ -172,10 +172,10 @@ function MonthsChart({ months, currency }: { months: RentalMonth[]; currency: st
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip content={<MonthTooltip />} />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="rent" stackId="month" fill="var(--color-rent)" isAnimationActive={false} />
-        <Bar dataKey="charges" stackId="month" fill="var(--color-charges)" isAnimationActive={false} />
-        <Bar dataKey="loans" stackId="month" fill="var(--color-loans)" isAnimationActive={false} />
-        <Line dataKey="cash" stroke="var(--color-cash)" strokeWidth={2} type="linear" dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
+        <Bar dataKey="rent" stackId="month" fill="var(--color-rent)" animationDuration={800} />
+        <Bar dataKey="charges" stackId="month" fill="var(--color-charges)" animationDuration={800} />
+        <Bar dataKey="loans" stackId="month" fill="var(--color-loans)" animationDuration={800} />
+        <Line dataKey="cash" stroke="var(--color-cash)" strokeWidth={2} type="linear" dot={{ r: 3 }} connectNulls={false} animationDuration={800} />
       </ComposedChart>
     </ChartContainer>
   );

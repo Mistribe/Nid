@@ -51,7 +51,7 @@ export function HistoryTab({ source }: { source: IncomeSourceDetail }) {
       </div>
       {/* A failed refetch keeps the data: the error shows only when there is nothing to show. */}
       {!data && error ? <ProblemMessage problem={present(toProblem(error))} />
-        : !data ? <div role="status" aria-busy="true" aria-label={t('income_detail.expected.loading')} className="h-64 animate-pulse rounded-md border bg-muted" />
+        : !data ? <div role="status" aria-busy="true" aria-label={t('income_detail.expected.loading')} className="h-64 shimmer rounded-md border bg-muted" />
           : data.months.every((m) => m.occurrences.length === 0 && m.oneOffs.length === 0)
             ? <p className="text-muted-foreground">{t('income_detail.expected.empty')}</p>
             : <ExpectedTable months={data.months} label={label === ALL ? undefined : label.slice(PREFIX.length)} />}

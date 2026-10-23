@@ -39,7 +39,7 @@ export function ProposalsPage() {
         options={STATUSES.map((s) => ({ value: s, label: t(`proposals.tab.${s}`) }))} />
       <div>
         {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-        {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 animate-pulse rounded-md border bg-muted" /> : null}
+        {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
         {answer.data && answer.data.items.length === 0 ? <p>{t(`proposals.empty.${status}`)}</p> : null}
         {answer.data && answer.data.items.length > 0 ? (
           <SortableTable<ProposalView> caption={t('proposals.list')} rows={answer.data.items} rowKey={(p) => p.id}

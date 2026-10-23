@@ -69,7 +69,7 @@ export function PeriodPerformance({ envelopeId }: { envelopeId: string }) {
         </form>
       ) : null}
       {range && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-      {range && !answer.error && !data ? <div role="status" aria-busy="true" aria-label={t('envelope.period.loading')} className="h-24 animate-pulse rounded-md border bg-muted" /> : null}
+      {range && !answer.error && !data ? <div role="status" aria-busy="true" aria-label={t('envelope.period.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
       {data ? (
         <StatLine items={[
           { label: t('envelope.period.start'), value: data.startValue && data.startAsOf

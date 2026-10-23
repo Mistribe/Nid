@@ -117,7 +117,7 @@ export function IncomeSourceDetailPage() {
   // Mounted from the first render, loading included, so the text written later is announced.
   const status = <p role="status" aria-live="polite">{statusAnnouncement}</p>;
   if (answer.error) return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
-  if (!source) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></article>;
+  if (!source) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('income_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   // Every write affordance: the header actions, the row menus and the settings.
   const writable = source.canWrite && !source.ended;
@@ -149,7 +149,7 @@ export function IncomeSourceDetailPage() {
           </>
         )}>
         {overview.data ? <SourceFigures figures={overview.data.figures} />
-          : overview.error ? null : <div aria-busy="true" aria-label={t('income_detail.figures_loading')} className="h-16 animate-pulse rounded-md bg-muted" />}
+          : overview.error ? null : <div aria-busy="true" aria-label={t('income_detail.figures_loading')} className="h-16 shimmer rounded-md bg-muted" />}
       </PageHeader>
       {status}
       {source.canWrite ? null : <p>{t('income_detail.read_only')}</p>}
@@ -201,7 +201,7 @@ export function IncomeSourceDetailPage() {
                   </div>
                 </>
               ) : overview.error ? <ProblemMessage problem={present(toProblem(overview.error))} />
-                : <div aria-busy="true" aria-label={t('income_detail.loading')} className="h-64 animate-pulse rounded-md border bg-muted" />}
+                : <div aria-busy="true" aria-label={t('income_detail.loading')} className="h-64 shimmer rounded-md border bg-muted" />}
               <Section title={t('income_detail.timeline.title')} headingRef={headingRef}>
                 {source.phases.length === 0
                   ? <p className="text-muted-foreground">{t('income_detail.no_phases')}</p>

@@ -129,6 +129,8 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 ## 6. Règles de tracé
 
 - **Un seul axe vertical**, jamais deux.
+- **Axe du temps proportionnel** quand les points tombent à des dates irrégulières (valeurs d'une enveloppe, d'une ligne) : `type="number"` et `scale="time"`, sinon les années riches en relevés s'étirent et les autres se tassent. Des points mensuels réguliers peuvent rester catégoriels.
+- **Animation** : les marques entrent (800 ms) ; Recharts les coupe de lui-même avec `prefers-reduced-motion` (`isAnimationActive` laissé à `'auto'`).
 - **Légende** dès 2 séries ; libellés directs jusqu'à 4 séries, sélectifs (jamais un nombre sur chaque point) ; pas de légende pour une série unique (le titre la nomme).
 - Marques fines, extrémités arrondies de 4 px ancrées sur la ligne de base, lignes de 2 px, marqueurs d'au moins 8 px, **séparation de 2 px** entre remplissages adjacents, anneau de 2 px de la couleur de surface entre marques qui se chevauchent.
 - Quadrillage et axes discrets ; le texte utilise les jetons de texte, **jamais la couleur de la série** (une pastille colorée porte l'identité).

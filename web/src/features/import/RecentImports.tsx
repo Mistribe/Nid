@@ -19,7 +19,7 @@ export function RecentImports() {
   if (list.error) return <ProblemMessage problem={present(toProblem(list.error))} />;
   if (!list.data) {
     return (
-      <div aria-busy="true" className="h-24 animate-pulse rounded-md bg-muted">
+      <div aria-busy="true" className="h-24 shimmer rounded-md bg-muted">
         <span className="sr-only">{t('import.loading')}</span>
       </div>
     );

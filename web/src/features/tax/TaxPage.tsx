@@ -55,7 +55,7 @@ export function TaxPage() {
         {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       </PageHeader>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-      {!estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /> : null}
+      {!estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {estimate ? <Notes estimate={estimate} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[

@@ -32,7 +32,7 @@ export function ContractPage() {
 
   // An unknown loan and another adult's private one both answer 404: « Cet élément est introuvable. ».
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
-  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('loan_contract.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
+  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('loan_contract.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   const loan = answer.data;
   return (

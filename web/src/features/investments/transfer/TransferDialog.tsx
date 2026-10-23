@@ -55,7 +55,7 @@ export function TransferDialog({ source, onClose, onDone }: {
           </>
         ) : null}
         {!envelopes.data && !envelopes.error ? (
-          <div aria-busy="true" className="h-20 animate-pulse rounded-md bg-muted"><span className="sr-only">{t('envelope.transfer.loading')}</span></div>
+          <div aria-busy="true" className="h-20 shimmer rounded-md bg-muted"><span className="sr-only">{t('envelope.transfer.loading')}</span></div>
         ) : null}
         {envelopes.data && destinations.length === 0 ? (
           <>

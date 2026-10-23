@@ -195,7 +195,7 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
   if (!data || (data.items.length === 0 && bare && !everything.data && !everything.error))
     return page(
       <ul aria-busy="true" aria-label={t('subscriptions.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
+        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
       </ul>,
     );
 

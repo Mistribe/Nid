@@ -21,7 +21,7 @@ export function DetailTabs<T extends string>({ value, onChange, tabs, guide }: {
       <TabsList variant="line" data-guide={guide} className="h-auto max-w-full justify-start print:hidden overflow-x-auto overflow-y-hidden pb-1.5">
         {tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} data-guide={tab.guide} className="flex-none">{tab.label}</TabsTrigger>)}
       </TabsList>
-      {tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="space-y-6 pt-4">{tab.content}</TabsContent>)}
+      {tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="animate-enter space-y-6 pt-4">{tab.content}</TabsContent>)}
     </Tabs>
   );
 }

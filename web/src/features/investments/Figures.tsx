@@ -12,7 +12,7 @@ const TONE = { up: 'text-status-good', down: 'text-status-critical', flat: 'text
 const signed = (locale: string, currency: string, amount: string) =>
   new Intl.NumberFormat(locale, { style: 'currency', currency, signDisplay: 'exceptZero' }).format(amount as `${number}`);
 
-/** An amount with its direction as icon and word, colour only on the icon (never alone, never on text); `children` sit between the amount and the word. */
+/** An amount with its direction as icon and word (the word for a screen reader), colour only on the icon (never alone, never on text); `children` sit between the amount and the word. */
 export function Direction({ amount, children }: { amount: { amount: string; currency: string }; children?: ReactNode }) {
   const { t } = useTranslation();
   const direction = directionOf(amount.amount);
@@ -22,7 +22,8 @@ export function Direction({ amount, children }: { amount: { amount: string; curr
       <Icon aria-hidden="true" className={`size-4 ${TONE[direction]}`} />
       <span className="tabular-nums">{signed('fr-FR', amount.currency, amount.amount)}</span>
       {children}
-      <span>{t(`investments.direction.${direction}`)}</span>
+      {/* The sign and the arrow say it on screen; the word is for a screen reader. */}
+      <span className="sr-only">{t(`investments.direction.${direction}`)}</span>
     </span>
   );
 }

@@ -8,7 +8,7 @@ export function PageHeader({ crumbs, title, titleRef, meta, actions, children }:
   titleRef?: Ref<HTMLHeadingElement>; crumbs?: { label: string; to: LinkProps['to']; params?: LinkProps['params'] }[]; title: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode;
 }) {
   return (
-    <header className="space-y-3">
+    <header data-page-header className="space-y-3">
       {crumbs?.length ? (
         <Breadcrumb>
           <BreadcrumbList>

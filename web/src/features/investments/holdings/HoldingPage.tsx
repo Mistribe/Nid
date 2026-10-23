@@ -49,7 +49,7 @@ export function HoldingPage() {
 
   const error = envelope.error ?? holdings.error;
   if (error) return <ProblemMessage problem={present(toProblem(error))} />;
-  if (!envelope.data || !holdings.data) return <div aria-busy="true" aria-label={t('holdings.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  if (!envelope.data || !holdings.data) return <div aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
   const holding = holdings.data.holdings.find((h) => h.id === holdingId);
   if (!holding) return <ProblemMessage problem={{ kind: 'not_found' }} />;
 
@@ -108,7 +108,7 @@ export function HoldingPage() {
             <>
               <Section title={t('envelope.evolution')}>
                 {series.error ? <ProblemMessage problem={present(toProblem(series.error))} />
-                  : !series.data ? <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 animate-pulse rounded-md border bg-muted" />
+                  : !series.data ? <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 shimmer rounded-md border bg-muted" />
                     : <SeriesChart id={holding.id} points={series.data.points} currency={detail.currency} netLabel={t('holdings.net_money_in')}
                       title={t('holdings.chart_title')} tableLabel={t('holdings.chart_table')} />}
               </Section>

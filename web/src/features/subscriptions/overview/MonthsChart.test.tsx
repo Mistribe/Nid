@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { render as rtlRender, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { reduceMotion } from '@/test/motion';
 import type { MonthView } from '../api';
 import { eur } from '../testData';
 import { MonthsChart } from './MonthsChart';
@@ -20,6 +21,7 @@ const year = (over: Partial<Record<string, Partial<MonthView>>> = {}): MonthView
   });
 
 describe('MonthsChart', () => {
+  reduceMotion();
   it('Each_month_has_a_row_in_the_accessible_table', async () => {
     await render(<MonthsChart months={year()} />);
 

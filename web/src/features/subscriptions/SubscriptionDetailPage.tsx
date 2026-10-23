@@ -45,7 +45,7 @@ export function SubscriptionDetailPage() {
   const status = <p role="status" aria-live="polite">{announcement}</p>;
 
   if (answer.error) return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
-  if (!answer.data) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></article>;
+  if (!answer.data) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('subscription.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const detail = answer.data;
   const findings = visibleFindings(detail.findings);

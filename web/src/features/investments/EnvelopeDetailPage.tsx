@@ -151,7 +151,7 @@ export function EnvelopeDetailPage() {
   }, [landOn, isClosed]);
 
   if (answer.error) return <>{back}<ProblemMessage problem={present(toProblem(answer.error))} /></>;
-  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></>;
+  if (!answer.data) return <>{back}<div aria-busy="true" aria-label={t('envelope.loading')} className="h-40 shimmer rounded-md border bg-muted" /></>;
 
   const detail = answer.data;
   const figures = detail.figures;
@@ -348,7 +348,7 @@ export function EnvelopeDetailPage() {
         {
           id: 'holdings', label: t('holdings.tab_label'), guide: 'investments.holdings',
           content: (
-            <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />}>
+            <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" />}>
               <HoldingsTab envelope={detail} writable={writable} />
             </Suspense>
           ),

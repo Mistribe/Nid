@@ -50,7 +50,7 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
   const close = () => setDialog(null);
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
 
   const view = answer.data;
   const holdings = view.holdings;

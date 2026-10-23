@@ -84,7 +84,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
               <ChartTooltip cursor={false} content={<MonthTooltip />} />
               <ChartLegend content={<ChartLegendContent />} />
               {series.map((key, i) => (
-                <Bar key={key} dataKey={key} stackId="month" fill={`var(--color-${key})`} isAnimationActive={false}
+                <Bar key={key} dataKey={key} stackId="month" fill={`var(--color-${key})`} animationDuration={800}
                   radius={i === series.length - 1 ? [4, 4, 0, 0] : undefined}>
                   {rows.map((r) => <Cell key={r.key} fillOpacity={dim(r)} />)}
                 </Bar>

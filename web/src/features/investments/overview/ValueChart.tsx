@@ -116,12 +116,12 @@ function Chart({ d, label, view }: { d: InvestmentsOverview; label: (p: Overview
         {view === 'kind'
           ? kinds.map((k) => (
             <Area key={k} dataKey={key(k)} stackId="value" type="linear" fill={kindColor(k)} fillOpacity={0.85}
-              stroke="var(--background)" strokeWidth={2} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false} />
+              stroke="var(--background)" strokeWidth={2} connectNulls={false} dot={false} activeDot={false} animationDuration={800} />
           ))
           : <Area dataKey="total" type="linear" fill="var(--color-total)" fillOpacity={0.25} stroke="var(--color-total)" strokeWidth={2}
-              connectNulls={false} dot={false} isAnimationActive={false} />}
+              connectNulls={false} dot={false} animationDuration={800} />}
         <Line dataKey="net" stroke="var(--color-net)" strokeWidth={2} strokeDasharray="5 4" type="stepAfter" connectNulls={false}
-          dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+          dot={false} activeDot={{ r: 4 }} animationDuration={800} />
       </ComposedChart>
     </ChartContainer>
   );

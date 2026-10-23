@@ -62,11 +62,11 @@ export function MonthsChart({ months, missingRates, period, year }: {
                   <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
                   <ChartTooltip cursor={false} content={<MonthTooltip />} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Bar xAxisId="prev" dataKey="previous" fill="var(--color-previous)" fillOpacity={0.3} barSize={back} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                  <Bar xAxisId="now" dataKey="recurring" stackId="now" fill="var(--color-recurring)" barSize={front} isAnimationActive={false}>
+                  <Bar xAxisId="prev" dataKey="previous" fill="var(--color-previous)" fillOpacity={0.3} barSize={back} radius={[4, 4, 0, 0]} animationDuration={800} />
+                  <Bar xAxisId="now" dataKey="recurring" stackId="now" fill="var(--color-recurring)" barSize={front} animationDuration={800}>
                     {rows.map((r) => <Cell key={r.key} fillOpacity={dim(r)} />)}
                   </Bar>
-                  <Bar xAxisId="now" dataKey="oneOff" stackId="now" fill="var(--color-oneOff)" barSize={front} radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  <Bar xAxisId="now" dataKey="oneOff" stackId="now" fill="var(--color-oneOff)" barSize={front} radius={[4, 4, 0, 0]} animationDuration={800}>
                     {rows.map((r) => <Cell key={r.key} fillOpacity={dim(r)} />)}
                   </Bar>
                 </BarChart>

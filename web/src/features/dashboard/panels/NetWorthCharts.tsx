@@ -25,7 +25,7 @@ function EnvelopeChart({ rows }: { rows: DashboardEnvelope[] }) {
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
           <ChartTooltip cursor={false} content={<RowTooltip />} />
-          <Bar dataKey="value" fill="var(--color-value)" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+          <Bar dataKey="value" fill="var(--color-value)" radius={[0, 4, 4, 0]} animationDuration={800} />
         </BarChart>
       </ChartContainer>
     </figure>
@@ -58,7 +58,7 @@ function PeopleChart({ people }: { people: DashboardPerson[] }) {
           <YAxis type="category" dataKey="key" hide />
           <ChartTooltip cursor={false} content={({ active }) => (active ? <PeopleTooltip people={people} /> : null)} />
           {people.map((p, i) => (
-            <Bar key={p.id} dataKey={`p${i}`} stackId="people" fill={personColor(p.slot)} stroke="var(--background)" strokeWidth={2} isAnimationActive={false} />
+            <Bar key={p.id} dataKey={`p${i}`} stackId="people" fill={personColor(p.slot)} stroke="var(--background)" strokeWidth={2} animationDuration={800} />
           ))}
         </BarChart>
       </ChartContainer>
@@ -94,7 +94,7 @@ function AllocationChart({ lines, color, name }: { lines: AllocationLine[]; colo
             </div>
           ) : null)} />
           {shown.map((l) => (
-            <Bar key={l.key} dataKey={l.key} stackId="allocation" fill={color(l.key)} stroke="var(--background)" strokeWidth={2} isAnimationActive={false} />
+            <Bar key={l.key} dataKey={l.key} stackId="allocation" fill={color(l.key)} stroke="var(--background)" strokeWidth={2} animationDuration={800} />
           ))}
         </BarChart>
       </ChartContainer>

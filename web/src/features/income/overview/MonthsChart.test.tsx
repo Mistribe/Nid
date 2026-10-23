@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { reduceMotion } from '@/test/motion';
 import { eur } from '../testData';
 import { MonthsChart } from './MonthsChart';
 
@@ -12,6 +13,7 @@ const months = [month(1), month(2, { oneOff: eur('50.00'), total: eur('1050.00')
 const show = () => render(<MonthsChart months={months} missingRates={['USD']} period="year" year={2026} />);
 
 describe('MonthsChart', () => {
+  reduceMotion();
   it('draws one bar group per month, dims the upcoming ones and names each series', async () => {
     const { container } = show();
     const region = screen.getByRole('region', { name: 'Mois par mois · 2026 vs 2025' });

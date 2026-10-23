@@ -67,7 +67,7 @@ export function FileStep({ title, hint, onReady }: { title: string; hint: string
         </label>
       </div>
       {reading.status === 'reading' ? (
-        <div aria-busy="true" className="h-16 animate-pulse rounded-md bg-muted">
+        <div aria-busy="true" className="h-16 shimmer rounded-md bg-muted">
           <span className="sr-only">{t('import.reading')}</span>
         </div>
       ) : null}

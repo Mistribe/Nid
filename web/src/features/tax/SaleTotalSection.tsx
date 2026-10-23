@@ -25,7 +25,7 @@ export function SaleTotalSection({ scope }: { scope: 'me' | 'household' }) {
   const answer = $api.useQuery('get', TAX_SALE, { params: { query: { scope } } });
   const view = answer.data;
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
   if (!view.items.length) return <EmptyState title={t('tax.sale.all.empty_title')} body={t('tax.sale.all.empty_body')} />;
   const { totals } = view;
   const money = (amount?: string | null) => (amount ? eur(amount) : '—');

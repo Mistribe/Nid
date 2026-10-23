@@ -122,9 +122,9 @@ function History({ p, to }: { p: ValuationRow; to: string }) {
             <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} tickLine={false} axisLine={false}
               tickFormatter={(n: number) => String(new Date(n).getUTCFullYear())} />
             <YAxis width={56} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={(n: number) => axis.format(n)} />
-            <Line dataKey="cost" type="stepAfter" stroke="var(--color-cost)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+            <Line dataKey="cost" type="stepAfter" stroke="var(--color-cost)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} animationDuration={800} />
             {/* A dot on each estimate's own date: a single estimate makes no step, and would not show without it. */}
-            <Line dataKey="value" type="stepAfter" stroke="var(--color-value)" strokeWidth={2} connectNulls={false} isAnimationActive={false}
+            <Line dataKey="value" type="stepAfter" stroke="var(--color-value)" strokeWidth={2} connectNulls={false} animationDuration={800}
               dot={({ cx, cy, index, payload }: { cx?: number; cy?: number; index?: number; payload?: Point }) => (payload?.estimated && cx != null && cy != null
                 ? <circle key={index} cx={cx} cy={cy} r={3} fill="var(--color-value)" /> : <g key={index} />)} />
           </LineChart>

@@ -58,7 +58,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div className="space-y-4 md:col-span-3">
         <Notice d={data} />
-        <KeyFigures d={data} onOpen={open} />
+        <KeyFigures d={data} onOpen={open} scope={scope} />
       </div>
       <div className="md:col-span-3"><HouseholdMonth d={data} scope={scope} /></div>
       <div className={data.envelopes > 0 ? 'md:order-2' : 'md:col-span-3'}><Upcoming d={data} /></div>

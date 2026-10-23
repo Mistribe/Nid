@@ -139,8 +139,8 @@ function CurveChart({ data, label }: { data: NetWorthHistory; label: (p: NetWort
         <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
         <ChartTooltip content={<CurveTooltip />} />
         <ChartLegend content={<ChartLegendContent />} />
-        <Area dataKey="value" type="monotone" stroke="var(--color-value)" strokeWidth={2} fill={`url(#${gradient})`} connectNulls={false} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-        <Line dataKey="paid" stroke="var(--color-paid)" strokeWidth={2} strokeDasharray="5 4" type="stepAfter" connectNulls={false} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+        <Area dataKey="value" type="monotone" stroke="var(--color-value)" strokeWidth={2} fill={`url(#${gradient})`} connectNulls={false} dot={false} activeDot={{ r: 4 }} animationDuration={800} />
+        <Line dataKey="paid" stroke="var(--color-paid)" strokeWidth={2} strokeDasharray="5 4" type="stepAfter" connectNulls={false} dot={false} activeDot={{ r: 4 }} animationDuration={800} />
       </ComposedChart>
     </ChartContainer>
   );

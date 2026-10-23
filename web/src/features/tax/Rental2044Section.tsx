@@ -26,7 +26,7 @@ export function Rental2044Section({ year, scope }: { year: number; scope: 'me' |
   const answer = $api.useQuery('get', TAX_2044, { params: { query: { year, scope } } });
   const view = answer.data;
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!view) return <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 animate-pulse rounded-md border bg-muted" />;
+  if (!view) return <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
   const real = view.regime !== 'micro';
   if (real && view.properties.length === 0) return <EmptyState title={t('tax.d2044.empty_title')} body={t('tax.d2044.empty_body')} />;
   return (

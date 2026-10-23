@@ -57,7 +57,7 @@ export function PropertyDetailPage() {
     // An unknown property and another adult's private one both answer 404: « Cet élément est introuvable. ».
     return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
   }
-  if (!property) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></article>;
+  if (!property) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('property_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const shown = property.canWrite || tab !== 'settings' ? tab : 'overview';
   const actions = property.canWrite ? (

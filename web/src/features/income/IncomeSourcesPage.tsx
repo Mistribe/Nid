@@ -58,7 +58,7 @@ function Sources({ data, filtered, withEnded, deciding }: { data: Overview; filt
   if (!data || deciding)
     return (
       <ul aria-busy="true" aria-label={t('income.loading')} className="space-y-2">
-        {[0, 1, 2].map((i) => <li key={i} className="h-16 animate-pulse rounded-md border bg-muted" />)}
+        {[0, 1, 2].map((i) => <li key={i} className="h-16 shimmer rounded-md border bg-muted" />)}
       </ul>
     );
 

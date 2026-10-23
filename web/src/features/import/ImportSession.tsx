@@ -35,7 +35,7 @@ export function ImportSession() {
   if (session.error) return <ProblemMessage problem={present(toProblem(session.error))} />;
   if (!session.data) {
     return (
-      <div aria-busy="true" className="h-32 animate-pulse rounded-md bg-muted">
+      <div aria-busy="true" className="h-32 shimmer rounded-md bg-muted">
         <span className="sr-only">{t('import.loading')}</span>
       </div>
     );

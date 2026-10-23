@@ -110,7 +110,7 @@ function Chart({ d }: { d: LoansOverview }) {
           })}
           {d.loans.map((l, k) => (
             <Area key={l.id} dataKey={key(k)} name={l.name} stackId="balance" type="linear" fill={loanColor(k)} fillOpacity={0.85}
-              stroke="var(--background)" strokeWidth={2} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false} />
+              stroke="var(--background)" strokeWidth={2} connectNulls={false} dot={false} activeDot={false} animationDuration={800} />
           ))}
           <DirectLabels rows={rows} names={d.loans.map((l) => l.name)} />
         </AreaChart>

@@ -37,7 +37,7 @@ export function PhaseChangeForm({ source, phase, titleId, onDone }: {
   if (!answer.data) {
     return answer.error
       ? <div className="space-y-3"><ProblemMessage problem={present(toProblem(answer.error))} /><div className="flex justify-end">{cancel}</div></div>
-      : <div role="status" aria-busy="true" aria-label={t('income_detail.change.loading')} className="h-24 animate-pulse rounded-md border bg-muted" />;
+      : <div role="status" aria-busy="true" aria-label={t('income_detail.change.loading')} className="h-24 shimmer rounded-md border bg-muted" />;
   }
   if (dates.length === 0) {
     return (

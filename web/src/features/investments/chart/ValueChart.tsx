@@ -14,7 +14,8 @@ import { SERIES } from '../api';
 import { toPlot } from './plot';
 import '@/locales/investments';
 
-type Row = { asOf: string; value: number; net: number; valueText: string; netText: string };
+// `at` places the point in time: an axis of dates evenly spaced would squeeze the sparse years and stretch the dense ones.
+type Row = { asOf: string; at: number; value: number; net: number; valueText: string; netText: string };
 type Point = components['schemas']['SeriesPoint'];
 
 /** The envelope's value against its net contributions over time; the same points are one button away as a table. */
@@ -24,7 +25,7 @@ export function ValueChart({ envelopeId, currency }: { envelopeId: string; curre
   const answer = $api.useQuery('get', SERIES, { params: { path: { id: envelopeId } } });
 
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 animate-pulse rounded-md border bg-muted" />;
+  if (!answer.data) return <div role="status" aria-busy="true" aria-label={t('envelope.chart_loading')} className="h-64 shimmer rounded-md border bg-muted" />;
   return <SeriesChart id={envelopeId} points={answer.data.points} currency={currency} netLabel={t('envelope.net_contributions')}
     title={t('envelope.chart_title')} tableLabel={t('envelope.chart_table')} />;
 }
@@ -43,6 +44,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
   } satisfies ChartConfig;
   const rows: Row[] = points.map((p) => ({
     asOf: p.asOf,
+    at: Date.parse(p.asOf),
     value: toPlot(p.value.amount),
     net: toPlot(p.netContributions.amount),
     valueText: formatMoney(p.value),
@@ -87,12 +89,13 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="asOf" tickLine={false} tickMargin={8} tickFormatter={(d: string) => formatLocalDate(d, 'short')} />
+            <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} tickLine={false} tickMargin={8}
+              tickFormatter={(at: number) => formatLocalDate(new Date(at).toISOString().slice(0, 10), 'short')} />
             <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
             <ChartTooltip content={<ValueTooltip netLabel={netLabel} />} />
             <ChartLegend content={<ChartLegendContent />} />
-            <Area dataKey="value" type="monotone" stroke="var(--color-value)" strokeWidth={2} fill={`url(#fill-${id})`} dot={false} isAnimationActive={false} />
-            <Line dataKey="net" stroke="var(--color-net)" strokeWidth={2} strokeDasharray="4 4" type="stepAfter" dot={false} isAnimationActive={false} />
+            <Area dataKey="value" type="monotone" stroke="var(--color-value)" strokeWidth={2} fill={`url(#fill-${id})`} dot={false} animationDuration={800} />
+            <Line dataKey="net" stroke="var(--color-net)" strokeWidth={2} strokeDasharray="4 4" type="stepAfter" dot={false} animationDuration={800} />
           </ComposedChart>
         </ChartContainer>
       )}

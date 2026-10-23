@@ -93,7 +93,7 @@ export function NewProviderDialog({ onCreated, onClose }: {
             <legend className="text-sm">{t('provider_new.labels')}</legend>
             {labels.error ? <ProblemMessage problem={present(toProblem(labels.error))} /> : null}
             {!labels.data && !labels.error ? (
-              <div aria-busy="true" className="h-10 animate-pulse rounded-md bg-muted"><span className="sr-only">{t('provider_new.labels_loading')}</span></div>
+              <div aria-busy="true" className="h-10 shimmer rounded-md bg-muted"><span className="sr-only">{t('provider_new.labels_loading')}</span></div>
             ) : null}
             {labels.data ? (
               <Controller control={form.control} name="labelKeys" render={({ field }) => (

@@ -74,7 +74,7 @@ export function LoanDetailPage() {
     // An unknown loan and another adult's private one both answer 404: « Cet élément est introuvable. ».
     return <article className="space-y-6">{back}{status}<ProblemMessage problem={present(toProblem(answer.error))} /></article>;
   }
-  if (!loan) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /></article>;
+  if (!loan) return <article className="space-y-6">{back}{status}<div aria-busy="true" aria-label={t('loan_detail.loading')} className="h-40 shimmer rounded-md border bg-muted" /></article>;
 
   const actions = loan.ended ? null : (
     <Button type="button" data-guide="loans.simulation" onClick={() => { setLandOnSimulation(true); setTab('operations'); }}>{t('loan_detail.simulate')}</Button>
@@ -150,7 +150,7 @@ export function LoanDetailPage() {
   );
 }
 
-const loadingRow = (label: string, height = 'h-40') => <div role="status" aria-busy="true" aria-label={label} className={`${height} animate-pulse rounded-md border bg-muted`} />;
+const loadingRow = (label: string, height = 'h-40') => <div role="status" aria-busy="true" aria-label={label} className={`${height} shimmer rounded-md border bg-muted`} />;
 
 /** Where the loan stands: the repaid part of the principal, the next payments, the yearly chart, the cost. */
 function Overview({ loan }: { loan: LoanDetail }) {
@@ -217,7 +217,7 @@ function OverviewSchedule({ loan }: { loan: LoanDetail }) {
               first: first.year, last: last.year, interest: m(plan.totalInterest), principal: m(plan.totalPrincipal),
             })}
           </p>
-          <Suspense fallback={<div className="h-64 animate-pulse rounded-md border bg-muted" />}>
+          <Suspense fallback={<div className="h-64 shimmer rounded-md border bg-muted" />}>
             <ScheduleChart years={plan.years} currency={loan.currency} summaryId={summaryId} />
           </Suspense>
         </Section>

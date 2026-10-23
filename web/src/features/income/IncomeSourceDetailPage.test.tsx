@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { reduceMotion } from '@/test/motion';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -29,6 +30,7 @@ const timeline = () => within(screen.getByRole('list', { name: 'Changements, du 
 const text = (el: HTMLElement) => el.textContent?.replace(/\s/g, ' ');
 
 describe('IncomeSourceDetailPage', () => {
+  reduceMotion();
   // The lazy route chunk loaded cold inside the first test races its timeouts under load.
   beforeAll(async () => { await import('./IncomeSourceDetailPage'); }, 30_000);
 

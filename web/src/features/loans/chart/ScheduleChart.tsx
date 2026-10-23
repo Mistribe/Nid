@@ -38,9 +38,9 @@ export function ScheduleChart({ years, currency, summaryId }: { years: LoanSched
           <YAxis yAxisId="balance" orientation="right" width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
           <ChartTooltip content={<YearTooltip />} />
           <ChartLegend content={<ChartLegendContent />} />
-          <Bar yAxisId="booked" dataKey="interest" stackId="booked" fill="var(--color-interest)" isAnimationActive={false} />
-          <Bar yAxisId="booked" dataKey="principal" stackId="booked" fill="var(--color-principal)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-          <Line yAxisId="balance" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} isAnimationActive={false} />
+          <Bar yAxisId="booked" dataKey="interest" stackId="booked" fill="var(--color-interest)" animationDuration={800} />
+          <Bar yAxisId="booked" dataKey="principal" stackId="booked" fill="var(--color-principal)" radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Line yAxisId="balance" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} animationDuration={800} />
         </ComposedChart>
       </ChartContainer>
     </figure>
