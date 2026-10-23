@@ -14,6 +14,7 @@ import { toPlot } from '../investments/chart/plot';
 import type { DashboardView } from './api';
 import { band, spread, stack, type Span } from './flow';
 import { percent } from './format';
+import '@/locales/tax';
 
 const SOURCES = [
   { key: 'subscriptions', color: 'var(--chart-1)' },
