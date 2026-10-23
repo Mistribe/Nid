@@ -17467,6 +17467,7 @@ export interface components {
             status: string;
             otherTaxable: string;
             perContributions: string;
+            perUnusedCeiling: string;
             contributionRate?: null | string;
             actualExpenses?: null | string;
         };
@@ -17503,6 +17504,7 @@ export interface components {
             homeEmployment: string;
             donations: string;
             donationsAid: string;
+            rentalDeficitCarried: string;
         };
         TaxNoticeView: {
             code: string;
@@ -17531,6 +17533,10 @@ export interface components {
             actualExpenses?: null | {
                 [key: string]: string;
             };
+            perUnusedCeilings?: null | {
+                [key: string]: string;
+            };
+            rentalDeficitCarried?: null | string;
         };
         TaxProfileView: {
             statuses: {
@@ -17552,6 +17558,10 @@ export interface components {
             actualExpenses: {
                 [key: string]: string;
             };
+            perUnusedCeilings: {
+                [key: string]: string;
+            };
+            rentalDeficitCarried: string;
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -17569,6 +17579,7 @@ export interface components {
             declarants: components["schemas"]["TaxDeclarantResultView"][];
             rentalRegime: string;
             rentalTaxable: string;
+            rentalDeficitCarriedUsed: string;
             rentalDeficit: string;
             netTaxableIncome: string;
             grossTax: string;

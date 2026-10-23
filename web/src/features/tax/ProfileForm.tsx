@@ -36,10 +36,12 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   const [regime, setRegime] = useState(p.rentalRegime ?? 'auto');
   const [amounts, setAmounts] = useState({
     childcareOutsideHome: p.childcareOutsideHome, homeEmployment: p.homeEmployment, donations: p.donations, donationsAid: p.donationsAid,
+    rentalDeficitCarried: p.rentalDeficitCarried,
   });
   const [pinel, setPinel] = useState<PinelCommitment[]>(p.pinel);
   const [rates, setRates] = useState<Record<string, string>>(p.contributionRates);
   const [expenses, setExpenses] = useState<Record<string, string>>(p.actualExpenses);
+  const [unused, setUnused] = useState<Record<string, string>>(p.perUnusedCeilings);
   // Only the adults' typed values go back: an empty one keeps the default.
   const filled = (values: Record<string, string>) =>
     Object.fromEntries(Object.entries(values).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, toWireAmount(v)]));
@@ -48,7 +50,8 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
 
   const amountOk = Object.values(amounts).every((a) => AMOUNT.test(a.trim()));
   const countsOk = (dependents === '' || COUNT.test(dependents)) && COUNT.test(under6)
-    && Object.values(rates).every((v) => optional(RATE, v)) && Object.values(expenses).every((v) => optional(AMOUNT, v));
+    && Object.values(rates).every((v) => optional(RATE, v)) && Object.values(expenses).every((v) => optional(AMOUNT, v))
+    && Object.values(unused).every((v) => optional(AMOUNT, v));
   const amountField = (key: keyof typeof amounts, hint?: string) => (
     <Field label={t(`tax.profile.${key}`)} hint={hint} error={AMOUNT.test(amounts[key].trim()) ? undefined : t('tax.amount_format')}>
       {(c) => <Input inputMode="decimal" {...c} value={amounts[key]} onChange={(e) => setAmounts({ ...amounts, [key]: e.target.value })} />}
@@ -76,6 +79,7 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
         body: {
           statuses, dependents: dependents === '' ? null : Number(dependents), childrenUnder6: Number(under6),
           rentalRegime: regime === 'auto' ? null : regime, pinel, contributionRates: filled(rates), actualExpenses: filled(expenses),
+          perUnusedCeilings: filled(unused), rentalDeficitCarried: toWireAmount(amounts.rentalDeficitCarried),
           childcareOutsideHome: toWireAmount(amounts.childcareOutsideHome), homeEmployment: toWireAmount(amounts.homeEmployment),
           donations: toWireAmount(amounts.donations), donationsAid: toWireAmount(amounts.donationsAid),
         },
@@ -99,7 +103,7 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
         <fieldset className="grid gap-3 sm:grid-cols-2">
           <legend className="mb-2 font-medium">{t('tax.profile.household')}</legend>
           {estimate.adults.map((a) => (
-            <div key={a.id} className="grid gap-3 sm:col-span-2 sm:grid-cols-3">
+            <div key={a.id} className="grid gap-3 sm:col-span-2 sm:grid-cols-2 lg:grid-cols-4">
               <Field label={t('tax.profile.status', { name: a.displayName })} hint={t('tax.profile.status_hint')}>
                 {(c) => <SelectField {...c} value={statuses[a.id] ?? 'non_executive'} onValueChange={(v) => setStatuses({ ...statuses, [a.id]: v })}
                   options={STATUSES.map((s) => ({ value: s, label: t(`tax.status.${s}`) }))} />}
@@ -111,6 +115,10 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
               <Field label={t('tax.profile.expenses_actual', { name: a.displayName })} hint={t('tax.profile.expenses_actual_hint')}
                 error={optional(AMOUNT, expenses[a.id] ?? '') ? undefined : t('tax.amount_format')}>
                 {(c) => <Input inputMode="decimal" {...c} value={expenses[a.id] ?? ''} onChange={(e) => setExpenses({ ...expenses, [a.id]: e.target.value })} />}
+              </Field>
+              <Field label={t('tax.profile.per_unused', { name: a.displayName })} hint={t('tax.profile.per_unused_hint')}
+                error={optional(AMOUNT, unused[a.id] ?? '') ? undefined : t('tax.amount_format')}>
+                {(c) => <Input inputMode="decimal" {...c} value={unused[a.id] ?? ''} onChange={(e) => setUnused({ ...unused, [a.id]: e.target.value })} />}
               </Field>
             </div>
           ))}
@@ -134,6 +142,7 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
             <legend className="mb-2 font-medium">{t('tax.profile.rental')}</legend>
             <Segmented aria-label={t('tax.profile.regime')} value={regime} onValueChange={setRegime}
               options={REGIMES.map((r) => ({ value: r, label: regimeText(t, r) }))} />
+            <div className="grid gap-3 sm:grid-cols-2">{amountField('rentalDeficitCarried', t('tax.profile.deficit_carried_hint'))}</div>
             {estimate.rentalProperties.map((property) => (
               <div key={property.id} className="grid items-end gap-3 sm:grid-cols-2">
                 <Field label={t('tax.profile.pinel', { name: property.name, year: property.acquiredIn })}>

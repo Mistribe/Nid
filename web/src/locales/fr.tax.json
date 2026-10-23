@@ -11,7 +11,7 @@
     "detail_table": "Calcul de l’impôt étape par étape",
     "notes": "À savoir",
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
-    "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, déficit foncier reporté, plafonds PER non utilisés, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
+    "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "tab": { "2044": "Déclaration 2044", "detail": "Détail", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation", "sale": "Si tout était vendu" },
     "figure": {
       "net_taxable": "Net fiscal",
@@ -62,6 +62,7 @@
       "rental": "Revenus fonciers imposables",
       "rental_value": "{{amount}} ({{regime}})",
       "deficit": "Déficit foncier imputé",
+      "deficit_carried": "Déficits fonciers antérieurs imputés",
       "net_taxable": "Revenu net imposable",
       "parts": "Nombre de parts",
       "gross_tax": "Impôt au barème",
@@ -179,6 +180,8 @@
       "rate_hint": "Vide : celui du statut (22, 25 ou 18 %). Sur la fiche de paie : (brut − net avant impôt) ÷ brut.",
       "expenses_actual": "Frais réels de {{name}}",
       "expenses_actual_hint": "Vide : abattement de 10 %. Renseignés, ils le remplacent.",
+      "per_unused": "Plafonds PER non utilisés de {{name}}",
+      "per_unused_hint": "Somme des plafonds non utilisés des 3 années précédentes, sur l’avis d’imposition (« Plafond épargne retraite »).",
       "dependents": "Enfants à charge",
       "dependents_hint": "Vide : les {{count}} enfants du foyer.",
       "under6": "Dont enfants de moins de 6 ans au 1er janvier",
@@ -194,6 +197,8 @@
       "regime": "Régime des revenus fonciers",
       "pinel": "{{name}} (acheté en {{year}})",
       "pinel_plus": "Pinel+",
+      "rentalDeficitCarried": "Déficits fonciers antérieurs à reporter",
+      "deficit_carried_hint": "Déclaration 2042, case 4BD : ils s’imputent sur les revenus fonciers seulement.",
       "save": "Enregistrer le profil",
       "saved": "Profil enregistré."
     },
@@ -201,6 +206,7 @@
       "salaryGross": "Salaire brut annuel",
       "otherTaxable": "Autres revenus imposables (chômage)",
       "perContributions": "Versements PER",
+      "perUnusedCeiling": "Plafonds PER non utilisés",
       "status": "Statut",
       "contributionRate": "Taux de cotisations (%)",
       "contributionRate_hint": "Vide : celui du statut.",
@@ -217,7 +223,8 @@
       "childcareOutsideHome": "Garde hors du domicile",
       "homeEmployment": "Emploi à domicile",
       "donations": "Dons",
-      "donationsAid": "Dons aux personnes en difficulté"
+      "donationsAid": "Dons aux personnes en difficulté",
+      "rentalDeficitCarried": "Déficits fonciers antérieurs"
     },
     "simulation": {
       "title": "Simulation",

@@ -17,8 +17,8 @@ import { ResultTable } from './ResultTable';
 import '@/locales/tax';
 
 const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'nonTaxableIncome', 'pinelReduction',
-  'childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid'] as const;
-const DECLARANT_AMOUNTS = ['salaryGross', 'otherTaxable', 'perContributions'] as const;
+  'childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'rentalDeficitCarried'] as const;
+const DECLARANT_AMOUNTS = ['salaryGross', 'otherTaxable', 'perContributions', 'perUnusedCeiling'] as const;
 const COUNT = /^\d{1,2}$/;
 
 /**

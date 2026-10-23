@@ -174,6 +174,32 @@ public class TaxCalculatorTests
     }
 
     [Fact]
+    public void Unused_per_ceilings_raise_the_year_ceiling()
+    {
+        var declarant = new TaxDeclarant("A", 0m, EmploymentStatus.NonExecutive, 55_555.56m, 8_000m, PerUnusedCeiling: 2_000m);
+
+        var result = TaxCalculator.Compute(Inputs([declarant, Other(0m)]));
+
+        Assert.Equal(7_000m, result.Declarants[0].PerDeducted);
+    }
+
+    [Theory]
+    [InlineData(null, 10_000, 4_000, 3_000)] // micro: 7 000 net, 4 000 absorbed
+    [InlineData(null, 10_000, 9_000, 0)] // only up to the net: the rest stays carried, never on the global income
+    [InlineData(RentalRegime.Real, 10_000, 4_000, 4_000)] // real: 10 000 − 2 000 charges = 8 000
+    public void Carried_rental_deficit_offsets_the_rental_income_only(RentalRegime? regime, int gross, int carried, int taxable)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m), Other(0m)]) with
+        {
+            RentalGross = gross, RentalCharges = regime is null ? 0m : 2_000m, RentalRegime = regime, RentalDeficitCarried = carried,
+        });
+
+        Assert.Equal(taxable, result.RentalTaxable);
+        Assert.Equal(Math.Min(carried, gross - (regime is null ? 3_000 : 2_000)), result.RentalDeficitCarriedUsed);
+        Assert.Equal(27_000m + taxable, result.NetTaxableIncome); // 30 000 − 10 % allowance
+    }
+
+    [Fact]
     public void Capital_income_pays_the_flat_tax_and_the_2026_levies()
     {
         var result = TaxCalculator.Compute(Inputs([Other(0m), Other(0m)], year: 2026) with { CapitalIncome = 1_000m });

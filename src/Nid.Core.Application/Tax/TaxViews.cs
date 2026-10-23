@@ -54,36 +54,39 @@ public sealed record TaxAdultView(Guid Id, string DisplayName);
 
 public sealed record TaxPropertyView(ItemId Id, string Name, int AcquiredIn);
 
-/// <summary><c>ContributionRates</c> in percent (<c>"23.5"</c>); an adult absent from it or from <c>ActualExpenses</c> keeps the default.</summary>
+/// <summary><c>ContributionRates</c> in percent (<c>"23.5"</c>); an adult absent from it, <c>ActualExpenses</c> or <c>PerUnusedCeilings</c> keeps the default.</summary>
 public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime, IReadOnlyList<PinelCommitment> Pinel,
     string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid,
-    IReadOnlyDictionary<Guid, string> ContributionRates, IReadOnlyDictionary<Guid, string> ActualExpenses)
+    IReadOnlyDictionary<Guid, string> ContributionRates, IReadOnlyDictionary<Guid, string> ActualExpenses,
+    IReadOnlyDictionary<Guid, string> PerUnusedCeilings, string RentalDeficitCarried)
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
         Amount(p.ChildcareOutsideHome), Amount(p.HomeEmployment), Amount(p.Donations), Amount(p.DonationsAid),
         (p.ContributionRates ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Percent(x.Value)),
-        (p.ActualExpenses ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)));
+        (p.ActualExpenses ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
+        (p.PerUnusedCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), Amount(p.RentalDeficitCarried));
 }
 
 /// <summary><c>ContributionRate</c> in percent, null for the status's; <c>ActualExpenses</c> null for the 10 % allowance.</summary>
 public sealed record TaxDeclarantView(
-    string Name, string SalaryGross, string Status, string OtherTaxable, string PerContributions, string? ContributionRate = null, string? ActualExpenses = null);
+    string Name, string SalaryGross, string Status, string OtherTaxable, string PerContributions, string PerUnusedCeiling,
+    string? ContributionRate = null, string? ActualExpenses = null);
 
 /// <summary>What the calculation read, as the simulation sends it back once edited.</summary>
 public sealed record TaxInputsView(
     int Year, IReadOnlyList<TaxDeclarantView> Declarants, int Dependents, int ChildrenUnder6,
     string RentalGross, string RentalInterest, string RentalCharges, string? RentalRegime,
     string CapitalIncome, string NonTaxableIncome, string PinelReduction,
-    string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid)
+    string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid, string RentalDeficitCarried)
 {
     public static TaxInputsView Of(TaxInputs i) => new(
-        i.Year, i.Declarants.Select(d => new TaxDeclarantView(d.Name, Amount(d.SalaryGross), Wire(d.Status), Amount(d.OtherTaxable), Amount(d.PerContributions),
+        i.Year, i.Declarants.Select(d => new TaxDeclarantView(d.Name, Amount(d.SalaryGross), Wire(d.Status), Amount(d.OtherTaxable), Amount(d.PerContributions), Amount(d.PerUnusedCeiling),
             d.ContributionRate is { } r ? Percent(r) : null, d.ActualExpenses is { } e ? Amount(e) : null)).ToList(),
         i.Dependents, i.ChildrenUnder6, Amount(i.RentalGross), Amount(i.RentalInterest), Amount(i.RentalCharges),
         i.RentalRegime is { } r ? Wire(r) : null, Amount(i.CapitalIncome), Amount(i.NonTaxableIncome), Amount(i.PinelReduction),
-        Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid));
+        Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried));
 }
 
 public sealed record TaxDeclarantResultView(string Name, string NetSalary, string NetTaxableIncome, string Allowance, string Taxable, string PerDeducted);
@@ -91,7 +94,7 @@ public sealed record TaxDeclarantResultView(string Name, string NetSalary, strin
 /// <summary>Spec §4, each step's figure as a decimal string; rates in percent (<c>"30"</c>, <c>"4.27"</c>).</summary>
 public sealed record TaxResultView(
     int Year, int RulesYear, string Parts, IReadOnlyList<TaxDeclarantResultView> Declarants,
-    string RentalRegime, string RentalTaxable, string RentalDeficit, string NetTaxableIncome,
+    string RentalRegime, string RentalTaxable, string RentalDeficitCarriedUsed, string RentalDeficit, string NetTaxableIncome,
     string GrossTax, bool FamilyCapApplied, string Decote, string PinelReduction, string DonationReduction,
     string ChildcareCredit, string HomeEmploymentCredit, string NicheCapExcess,
     string IncomeTax, string CapitalFlatTax, string SocialLevies, string TotalTax,
@@ -101,7 +104,7 @@ public sealed record TaxResultView(
     public static TaxResultView Of(TaxResult r) => new(
         r.Year, r.RulesYear, r.Parts.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
         r.Declarants.Select(d => new TaxDeclarantResultView(d.Name, Amount(d.NetSalary), Amount(d.NetTaxableIncome), Amount(d.Allowance), Amount(d.Taxable), Amount(d.PerDeducted))).ToList(),
-        Wire(r.RentalRegime), Amount(r.RentalTaxable), Amount(r.RentalDeficit), Amount(r.NetTaxableIncome),
+        Wire(r.RentalRegime), Amount(r.RentalTaxable), Amount(r.RentalDeficitCarriedUsed), Amount(r.RentalDeficit), Amount(r.NetTaxableIncome),
         Amount(r.GrossTax), r.FamilyCapApplied, Amount(r.Decote), Amount(r.PinelReduction), Amount(r.DonationReduction),
         Amount(r.ChildcareCredit), Amount(r.HomeEmploymentCredit), Amount(r.NicheCapExcess),
         Amount(r.IncomeTax), Amount(r.CapitalFlatTax), Amount(r.SocialLevies), Amount(r.TotalTax),

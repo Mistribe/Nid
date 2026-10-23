@@ -86,12 +86,13 @@ describe('TaxPage', () => {
     await user.clear(home);
     await user.type(home, '9000');
     await user.type(screen.getByLabelText('Taux de cotisations de Alice (%)'), '23,5');
+    await user.type(screen.getByLabelText('Plafonds PER non utilisés de Alice'), '4000');
     await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
 
     expect(await screen.findByText('Profil enregistré.')).toBeInTheDocument();
     expect(sent[0]).toMatchObject({ year: '2026', body: {
       homeEmployment: '9000', childrenUnder6: 2, dependents: null, statuses: { [ADULT]: 'non_executive' },
-      contributionRates: { [ADULT]: '23.5' }, actualExpenses: {},
+      contributionRates: { [ADULT]: '23.5' }, actualExpenses: {}, perUnusedCeilings: { [ADULT]: '4000' },
     } });
   });
 });

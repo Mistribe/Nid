@@ -29086,7 +29086,8 @@
           "salaryGross",
           "status",
           "otherTaxable",
-          "perContributions"
+          "perContributions",
+          "perUnusedCeiling"
         ],
         "type": "object",
         "properties": {
@@ -29103,6 +29104,9 @@
             "type": "string"
           },
           "perContributions": {
+            "type": "string"
+          },
+          "perUnusedCeiling": {
             "type": "string"
           },
           "contributionRate": {
@@ -29191,7 +29195,8 @@
           "childcareOutsideHome",
           "homeEmployment",
           "donations",
-          "donationsAid"
+          "donationsAid",
+          "rentalDeficitCarried"
         ],
         "type": "object",
         "properties": {
@@ -29247,6 +29252,9 @@
             "type": "string"
           },
           "donationsAid": {
+            "type": "string"
+          },
+          "rentalDeficitCarried": {
             "type": "string"
           }
         }
@@ -29357,6 +29365,21 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "perUnusedCeilings": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "rentalDeficitCarried": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -29370,7 +29393,9 @@
           "donations",
           "donationsAid",
           "contributionRates",
-          "actualExpenses"
+          "actualExpenses",
+          "perUnusedCeilings",
+          "rentalDeficitCarried"
         ],
         "type": "object",
         "properties": {
@@ -29426,6 +29451,15 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "perUnusedCeilings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "rentalDeficitCarried": {
+            "type": "string"
           }
         }
       },
@@ -29458,6 +29492,7 @@
           "declarants",
           "rentalRegime",
           "rentalTaxable",
+          "rentalDeficitCarriedUsed",
           "rentalDeficit",
           "netTaxableIncome",
           "grossTax",
@@ -29502,6 +29537,9 @@
             "type": "string"
           },
           "rentalTaxable": {
+            "type": "string"
+          },
+          "rentalDeficitCarriedUsed": {
             "type": "string"
           },
           "rentalDeficit": {

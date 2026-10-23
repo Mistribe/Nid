@@ -193,7 +193,8 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
             // A net amount (a phase without its gross, a one-off) goes back to its gross at the status's rate.
             decimal? rate = profile.ContributionRates?.TryGetValue(adult.Id.Value, out var r) == true ? r : null;
             decimal? expenses = profile.ActualExpenses?.TryGetValue(adult.Id.Value, out var e) == true ? e : null;
-            var declarant = new TaxDeclarant(adult.DisplayName, 0m, status, Sum(TaxLineCodes.OtherTaxable), Sum(TaxLineCodes.PerContribution), rate, expenses);
+            var unused = profile.PerUnusedCeilings?.GetValueOrDefault(adult.Id.Value) ?? 0m;
+            var declarant = new TaxDeclarant(adult.DisplayName, 0m, status, Sum(TaxLineCodes.OtherTaxable), Sum(TaxLineCodes.PerContribution), rate, expenses, unused);
             var gross = Sum(TaxLineCodes.SalaryGross) + (Sum(TaxLineCodes.SalaryNet) + Sum(TaxLineCodes.SalaryOneOff)) / (1 - declarant.EffectiveContributionRate);
             declarants.Add(declarant with { SalaryGross = gross });
         }
@@ -244,7 +245,7 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
-            profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid);
+            profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried);
         return (inputs, notices, columns);
     }
 
@@ -267,8 +268,9 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
                  && p.Pinel.All(c => c.InitialYears is 6 or 9 && c.TotalYears is 6 or 9 or 12 && c.TotalYears >= c.InitialYears
                                      && c.StartYear is null or (>= 2014 and <= 2040))
                  && p.Pinel.Select(c => c.Property).Distinct().Count() == p.Pinel.Count
-                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid }.All(a => a is >= 0 and <= 10_000_000m)
-                 && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true);
+                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried }.All(a => a is >= 0 and <= 10_000_000m)
+                 && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
+                 && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true);
         return ok ? null : new Failure(TaxCodes.InvalidProfile,
             "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative.", null);
     }

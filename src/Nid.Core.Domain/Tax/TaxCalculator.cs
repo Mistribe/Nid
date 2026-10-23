@@ -7,11 +7,12 @@ public enum RentalRegime { Micro, Real }
 /// <summary>
 /// A declarant's year, in euros: the gross salary, other taxable income already net (unemployment), PER contributions.
 /// <c>ContributionRate</c> (a fraction) replaces the status's flat rate when the payslip's is known; <c>ActualExpenses</c>, when
-/// given, replace the 10 % allowance (frais réels).
+/// given, replace the 10 % allowance (frais réels). <c>PerUnusedCeiling</c>: the unused PER ceilings of the three previous years,
+/// added to the year's.
 /// </summary>
 public sealed record TaxDeclarant(
     string Name, decimal SalaryGross, EmploymentStatus Status, decimal OtherTaxable, decimal PerContributions,
-    decimal? ContributionRate = null, decimal? ActualExpenses = null)
+    decimal? ContributionRate = null, decimal? ActualExpenses = null, decimal PerUnusedCeiling = 0m)
 {
     public decimal EffectiveContributionRate => ContributionRate ?? TaxRules.ContributionRate(Status);
 }
@@ -19,19 +20,23 @@ public sealed record TaxDeclarant(
 /// <summary>
 /// Tax estimate spec §4: everything the calculation reads, in euros for the revenue year. <c>RentalRegime</c> null: micro when the
 /// rents allow it. <c>RentalCharges</c> already holds the 20 € per property. <c>PinelReduction</c> is the year's (<see cref="Pinel"/>).
+/// <c>RentalDeficitCarried</c>: the earlier years' rental deficits not yet imputed, which only offset the year's rental income.
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
     decimal RentalGross, decimal RentalInterest, decimal RentalCharges, RentalRegime? RentalRegime,
     decimal CapitalIncome, decimal NonTaxableIncome, decimal PinelReduction,
-    decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid);
+    decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid, decimal RentalDeficitCarried = 0m);
 
 public sealed record DeclarantResult(string Name, decimal NetSalary, decimal NetTaxableIncome, decimal Allowance, decimal Taxable, decimal PerDeducted);
 
-/// <summary>Spec §4, each step's figure. <c>IncomeTax</c> is negative for a refund; <c>AverageRate</c> null without taxable income.</summary>
+/// <summary>
+/// Spec §4, each step's figure. <c>IncomeTax</c> is negative for a refund; <c>AverageRate</c> null without taxable income.
+/// <c>RentalTaxable</c> is after <c>RentalDeficitCarriedUsed</c>, the part of the earlier deficits the year's rents absorb.
+/// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
-    RentalRegime RentalRegime, decimal RentalTaxable, decimal RentalDeficit, decimal NetTaxableIncome,
+    RentalRegime RentalRegime, decimal RentalTaxable, decimal RentalDeficitCarriedUsed, decimal RentalDeficit, decimal NetTaxableIncome,
     decimal GrossTax, bool FamilyCapApplied, decimal Decote, decimal PinelReduction, decimal DonationReduction,
     decimal ChildcareCredit, decimal HomeEmploymentCredit, decimal NicheCapExcess,
     decimal IncomeTax, decimal CapitalFlatTax, decimal SocialLevies, decimal TotalTax,
@@ -94,6 +99,9 @@ public static class TaxCalculator
             // Interest only offsets rents; the other charges' deficit goes on the global income, capped (the rest carried, not followed).
             deficit = Rental2044.GlobalDeficit(inputs.RentalGross, inputs.RentalCharges, inputs.RentalInterest, rules.RentalDeficitCap);
         }
+        // Earlier deficits offset the net rental income, micro or real, never the global income.
+        var carriedUsed = Math.Min(rentalTaxable, Math.Max(0m, inputs.RentalDeficitCarried));
+        rentalTaxable -= carriedUsed;
 
         var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit);
         var taxable = Math.Floor(Math.Max(0m, global - declarants.Sum(d => d.PerDeducted)));
@@ -136,7 +144,7 @@ public static class TaxCalculator
             + inputs.RentalGross + inputs.CapitalIncome + inputs.NonTaxableIncome;
         var netAfter = netBefore - total;
         return new TaxResult(
-            inputs.Year, rules.RulesYear, parts, declarants, regime, Euros(rentalTaxable), Euros(deficit), taxable,
+            inputs.Year, rules.RulesYear, parts, declarants, regime, Euros(rentalTaxable), Euros(carriedUsed), Euros(deficit), taxable,
             Euros(grossTax), familyCapped, Euros(decote), Euros(pinel), Euros(donation), Euros(childcare), Euros(home), Euros(excess),
             incomeTax, flat, levies, total, MarginalRate(rules, taxable / parts),
             taxable == 0m ? null : Math.Round(Math.Max(0m, incomeTax) / taxable, 4, MidpointRounding.AwayFromZero),
@@ -186,8 +194,8 @@ public static class TaxCalculator
         var allowance = Math.Min(income, d.ActualExpenses
             ?? Math.Min(rules.SalaryAllowanceMax, Math.Max(rules.SalaryAllowanceMin, rules.SalaryAllowanceRate * income)));
         var taxable = income - allowance;
-        // shortcut: the ceiling uses this year's income and PASS, the real one the previous year's (and adds unused ceilings); upgrade if the avis d'imposition's figure is ever stored.
-        var perCap = Math.Max(0.10m * Math.Min(taxable, 8 * rules.Pass), 0.10m * rules.Pass);
+        // shortcut: the year's ceiling uses this year's income and PASS, the real one the previous year's; upgrade if the avis d'imposition's figure is ever stored.
+        var perCap = Math.Max(0.10m * Math.Min(taxable, 8 * rules.Pass), 0.10m * rules.Pass) + Math.Max(0m, d.PerUnusedCeiling);
         return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), Euros(Math.Min(Math.Max(0m, d.PerContributions), perCap)));
     }
 

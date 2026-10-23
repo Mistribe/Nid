@@ -54,19 +54,22 @@ public static class TaxEndpoints
     public sealed record TaxProfileBody(
         IReadOnlyDictionary<Guid, string>? Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime, IReadOnlyList<PinelCommitment>? Pinel,
         string? ChildcareOutsideHome, string? HomeEmployment, string? Donations, string? DonationsAid,
-        IReadOnlyDictionary<Guid, string>? ContributionRates = null, IReadOnlyDictionary<Guid, string>? ActualExpenses = null)
+        IReadOnlyDictionary<Guid, string>? ContributionRates = null, IReadOnlyDictionary<Guid, string>? ActualExpenses = null,
+        IReadOnlyDictionary<Guid, string>? PerUnusedCeilings = null, string? RentalDeficitCarried = null)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
             var rates = (ContributionRates ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Rate(reader, x.Value, $"contributionRates.{x.Key}"));
             var expenses = (ActualExpenses ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Amount(reader, x.Value, $"actualExpenses.{x.Key}"));
+            var unused = (PerUnusedCeilings ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Amount(reader, x.Value, $"perUnusedCeilings.{x.Key}"));
+            var carried = Amount(reader, RentalDeficitCarried, "rentalDeficitCarried");
             var childcare = Amount(reader, ChildcareOutsideHome, "childcareOutsideHome");
             var home = Amount(reader, HomeEmployment, "homeEmployment");
             var donations = Amount(reader, Donations, "donations");
             var aid = Amount(reader, DonationsAid, "donationsAid");
             return reader.Ok
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
-                    rates, expenses)
+                    rates, expenses, unused, carried)
                 : null;
         }
     }
@@ -82,7 +85,8 @@ public static class TaxEndpoints
             declarants.Add(new TaxDeclarant(d.Name ?? "", Amount(reader, d.SalaryGross, $"declarants[{i}].salaryGross"), status,
                 Amount(reader, d.OtherTaxable, $"declarants[{i}].otherTaxable"), Amount(reader, d.PerContributions, $"declarants[{i}].perContributions"),
                 d.ContributionRate is null ? null : Rate(reader, d.ContributionRate, $"declarants[{i}].contributionRate"),
-                d.ActualExpenses is null ? null : Amount(reader, d.ActualExpenses, $"declarants[{i}].actualExpenses")));
+                d.ActualExpenses is null ? null : Amount(reader, d.ActualExpenses, $"declarants[{i}].actualExpenses"),
+                Amount(reader, d.PerUnusedCeiling, $"declarants[{i}].perUnusedCeiling")));
         }
         RentalRegime? regime = null;
         if (body.RentalRegime is not null)
@@ -96,7 +100,8 @@ public static class TaxEndpoints
             Amount(reader, body.RentalCharges, "rentalCharges"), regime,
             Amount(reader, body.CapitalIncome, "capitalIncome"), Amount(reader, body.NonTaxableIncome, "nonTaxableIncome"),
             Amount(reader, body.PinelReduction, "pinelReduction"), Amount(reader, body.ChildcareOutsideHome, "childcareOutsideHome"),
-            Amount(reader, body.HomeEmployment, "homeEmployment"), Amount(reader, body.Donations, "donations"), Amount(reader, body.DonationsAid, "donationsAid"));
+            Amount(reader, body.HomeEmployment, "homeEmployment"), Amount(reader, body.Donations, "donations"), Amount(reader, body.DonationsAid, "donationsAid"),
+            Amount(reader, body.RentalDeficitCarried, "rentalDeficitCarried"));
         return reader.Ok ? inputs : null;
     }
 

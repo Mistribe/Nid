@@ -30,6 +30,7 @@ export function ResultTable({ columns, label, declarants = true }: {
         money(t('tax.row.allowance', { name: d.name }), (r) => r.declarants[i]?.allowance ?? '0'),
         money(t('tax.row.per', { name: d.name }), (r) => r.declarants[i]?.perDeducted ?? '0'),
       ]),
+      money(t('tax.row.deficit_carried'), (r) => r.rentalDeficitCarriedUsed),
       { title: t('tax.row.rental'), cell: (r) => t('tax.row.rental_value', { amount: eur(r.rentalTaxable), regime: regimeText(t, r.rentalRegime) }), amount: (r) => r.rentalTaxable },
       money(t('tax.row.deficit'), (r) => r.rentalDeficit),
       money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true),

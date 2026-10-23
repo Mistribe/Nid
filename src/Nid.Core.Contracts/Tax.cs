@@ -128,11 +128,14 @@ public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalY
 /// <c>non_executive</c>, <c>executive</c> or <c>public</c>; <c>Dependents</c> null counts the household's dependents;
 /// <c>RentalRegime</c> is <c>micro</c>, <c>real</c> or null (micro when allowed). <c>ContributionRates</c> (fractions) and
 /// <c>ActualExpenses</c> map an adult to the payslip's rate and to frais réels; absent, the status's rate and the 10 % allowance.
+/// <c>PerUnusedCeilings</c> maps an adult to the unused PER ceilings of the three previous years (the avis d'imposition's);
+/// <c>RentalDeficitCarried</c> is the household's earlier rental deficits not yet imputed.
 /// </summary>
 public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime,
     IReadOnlyList<PinelCommitment> Pinel, decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid,
-    IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null)
+    IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null,
+    IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }
