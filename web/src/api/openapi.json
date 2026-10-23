@@ -11856,6 +11856,102 @@
         }
       }
     },
+    "/api/v1/tax/2044": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rental2044View"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tax/profile/{year}": {
       "put": {
         "tags": [
@@ -25521,6 +25617,7 @@
           "currency",
           "tenancyId",
           "label",
+          "category",
           "amount",
           "occurredOn"
         ],
@@ -25541,6 +25638,9 @@
             "format": "uuid"
           },
           "label": {
+            "type": "string"
+          },
+          "category": {
             "type": "string"
           },
           "amount": {
@@ -26332,6 +26432,179 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "Rental2044CheckView": {
+        "required": [
+          "property",
+          "name",
+          "occurredOn",
+          "category",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "category": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": "string"
+          }
+        }
+      },
+      "Rental2044LineView": {
+        "required": [
+          "line",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        }
+      },
+      "Rental2044PropertyView": {
+        "required": [
+          "id",
+          "name",
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rental2044LineView"
+            }
+          }
+        }
+      },
+      "Rental2044TotalsView": {
+        "required": [
+          "receipts",
+          "charges",
+          "interest",
+          "result",
+          "interestDeficit",
+          "chargesDeficit",
+          "globalDeficit",
+          "carriedDeficit",
+          "box4BA",
+          "box4BB",
+          "box4BC",
+          "box4BE"
+        ],
+        "type": "object",
+        "properties": {
+          "receipts": {
+            "type": "string"
+          },
+          "charges": {
+            "type": "string"
+          },
+          "interest": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          },
+          "interestDeficit": {
+            "type": "string"
+          },
+          "chargesDeficit": {
+            "type": "string"
+          },
+          "globalDeficit": {
+            "type": "string"
+          },
+          "carriedDeficit": {
+            "type": "string"
+          },
+          "box4BA": {
+            "type": "string"
+          },
+          "box4BB": {
+            "type": "string"
+          },
+          "box4BC": {
+            "type": "string"
+          },
+          "box4BE": {
+            "type": "string"
+          }
+        }
+      },
+      "Rental2044View": {
+        "required": [
+          "year",
+          "regime",
+          "provisional",
+          "properties",
+          "totals",
+          "toCheck",
+          "notices"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "regime": {
+            "type": "string"
+          },
+          "provisional": {
+            "type": "boolean"
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rental2044PropertyView"
+            }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Rental2044TotalsView"
+          },
+          "toCheck": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rental2044CheckView"
+            }
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxNoticeView"
+            }
           }
         }
       },

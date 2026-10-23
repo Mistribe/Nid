@@ -119,7 +119,7 @@ internal static class PropertiesCostsMath
             return (Read: r, Converted: Convert(r.Figures.RealCost, r.Currency), Row: new CostRow(r.Source.Item.Id, r.Source.Item.DisplayName, r.Currency.Code,
                 Amount(periodFlows.Where(f => f.Kind == FlowKind.Expense).Sum(f => f.Amount.Amount)),
                 Amount(running.Sum(PropertyMath.MonthlyEquivalent)),
-                Amount(periodFlows.Where(f => f.Kind == FlowKind.Income && f.Category == PropertyCategories.Rent).Sum(f => f.Amount.Amount)),
+                Amount(periodFlows.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount)),
                 Amount(LoanPayment(r.Source, r.Currency, rates, thisMonth, today)),
                 Amount(Line("acquisition")), Amount(Line(PropertyCategories.Works)), Amount(Line("loan_interest")), Amount(Line("loan_insurance")),
                 Amount(Line("loan_fees")), Amount(other), Amount(r.Figures.RealCost), Amount(r.Figures.RealCost - r.Figures.NetCostOfRents),

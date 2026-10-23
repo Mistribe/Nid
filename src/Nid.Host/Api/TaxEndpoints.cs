@@ -18,6 +18,11 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new GetTaxEstimateQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<TaxEstimateView>();
 
+        // Rental 2044 spec §5.
+        api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<Rental2044View>();
+
         api.MapPut("/profile/{year:int}", async (int year, string? scope, TaxProfileBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();

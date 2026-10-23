@@ -86,10 +86,82 @@ public class PropertyRoutineTests(PostgresFixture fixture) : IClassFixture<Postg
 
         var rents = Lines(await ReadAsync(app), "rents");
 
-        // 9 days of 30 at 900, then 21 days of 30 at 650; the lease that ended on 1 September covers none of the month.
-        Assert.Equal([("Ancien bail", "270.00", "2025-09-01"), ("Nouveau bail", "455.00", "2025-09-10")],
-            rents.Select(r => (S(r, "label"), S(r, "amount"), S(r, "occurredOn"))));
+        // 9 days of 30 at 900, then 21 days of 30 at 600 and 50 of charges; the lease that ended on 1 September covers none of the month.
+        Assert.Equal([("Ancien bail", "rent", "270.00", "2025-09-01"), ("Nouveau bail", "rent", "420.00", "2025-09-10"), ("Nouveau bail", "recoverable_charges", "35.00", "2025-09-10")],
+            rents.Select(r => (S(r, "label"), S(r, "category"), S(r, "amount"), S(r, "occurredOn"))));
         Assert.All(rents, r => Assert.Equal(id, r.GetProperty("property").GetGuid()));
+    }
+
+    [Fact]
+    public async Task A_tenancy_with_charges_gives_a_rent_line_and_a_charges_line()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+        await PostAsync(app, id, "tenancies", new { label = "Avec", startsOn = "2021-01-01", rentMonthly = "800", chargesMonthly = "50" });
+        var other = await NewPropertyAsync(app, Home(app, "Autre"));
+        await PostAsync(app, other, "tenancies", new { label = "Sans", startsOn = "2021-01-01", rentMonthly = "500" });
+
+        var rents = Lines(await ReadAsync(app), "rents");
+
+        Assert.Equal([("Sans", "rent", "500.00"), ("Avec", "rent", "800.00"), ("Avec", "recoverable_charges", "50.00")],
+            rents.Select(r => (S(r, "label"), S(r, "category"), S(r, "amount"))));
+        Assert.All(rents, r => Assert.Equal(JsonValueKind.Null, r.GetProperty("alreadyEntered").ValueKind));
+    }
+
+    [Fact]
+    public async Task A_month_recorded_as_rent_with_charges_shows_both_lines_entered() // Review Focus #1
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+        await PostAsync(app, id, "tenancies", new { label = "T2", startsOn = "2021-01-01", rentMonthly = "800", chargesMonthly = "50" });
+        await PostAsync(app, id, "flows", new { occurredOn = "2025-09-05", kind = "income", category = "rent", amount = "850" });
+
+        var rents = Lines(await ReadAsync(app), "rents");
+
+        Assert.Equal([("rent", "850.00"), ("recoverable_charges", "50.00")], rents.Select(r => (S(r, "category"), S(r, "alreadyEntered"))));
+    }
+
+    [Fact]
+    public async Task Rents_recorded_bare_leave_every_charges_line_of_a_property_open() // Review Focus #1
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app, "Locatif"));
+        await PostAsync(app, id, "tenancies", new { label = "Ancien bail", startsOn = "2021-01-01", endsOn = "2025-09-10", rentMonthly = "900", chargesMonthly = "50" });
+        await PostAsync(app, id, "tenancies", new { label = "Nouveau bail", startsOn = "2025-09-10", rentMonthly = "600", chargesMonthly = "50" });
+        await PostAsync(app, id, "flows", new { occurredOn = "2025-09-01", kind = "income", category = "rent", amount = "270" });
+        await PostAsync(app, id, "flows", new { occurredOn = "2025-09-10", kind = "income", category = "rent", amount = "420" });
+
+        var rents = Lines(await ReadAsync(app), "rents");
+
+        Assert.Equal([("Ancien bail", "rent", "690.00"), ("Ancien bail", "recoverable_charges", null), ("Nouveau bail", "rent", "690.00"), ("Nouveau bail", "recoverable_charges", null)], // rent rows sum the month, as before
+            rents.Select(r => (S(r, "label"), S(r, "category"), S(r, "alreadyEntered"))));
+    }
+
+    [Fact]
+    public async Task A_recoverable_charges_flow_marks_the_charges_line_alone()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+        await PostAsync(app, id, "tenancies", new { label = "T2", startsOn = "2021-01-01", rentMonthly = "800", chargesMonthly = "50" });
+        await PostAsync(app, id, "flows", new { occurredOn = "2025-09-05", kind = "income", category = "rent", amount = "800" });
+        await PostAsync(app, id, "flows", new { occurredOn = "2025-09-05", kind = "income", category = "recoverable_charges", amount = "45" });
+
+        var rents = Lines(await ReadAsync(app), "rents");
+
+        Assert.Equal([("rent", "800.00"), ("recoverable_charges", "45.00")], rents.Select(r => (S(r, "category"), S(r, "alreadyEntered"))));
+    }
+
+    [Fact]
+    public async Task The_routine_records_tenant_charges()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewPropertyAsync(app, Home(app));
+        var estimate = Estimate(id, "300000");
+
+        var response = await RecordAsync(app, new { on = "2025-09-30", estimates = new[] { estimate }, flows = new[] { Flow(id, "income", "recoverable_charges", "2025-09-01", "50") } });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("recoverable_charges", S(Assert.Single(Lines(Assert.Single(Lines(await JsonAsync(response), "lines")), "flows")), "category"));
     }
 
     [Fact]

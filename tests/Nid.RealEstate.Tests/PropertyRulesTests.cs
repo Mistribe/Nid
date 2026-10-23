@@ -75,11 +75,21 @@ public class PropertyRulesTests
             Assert.Equal("name", Loans.FieldOf(PropertyRules.Name(bad)!));
     }
 
+    [Fact]
+    public void A_planned_cost_has_neither_works_nor_management_fees() // the DB check ck_property_recurring_cost_category has no management_fees
+    {
+        Assert.DoesNotContain("management_fees", PropertyRules.RecurringCategories);
+        Assert.DoesNotContain("works", PropertyRules.RecurringCategories);
+    }
+
     [Theory]
     [InlineData("expense", "works", null)]
     [InlineData("expense", "property_tax", null)]
     [InlineData("income", "rent", null)]
     [InlineData("income", "other_income", null)]
+    [InlineData("expense", "management_fees", null)]
+    [InlineData("income", "recoverable_charges", null)]
+    [InlineData("income", "management_fees", "category")]
     [InlineData("contribution", "works", "kind")]
     [InlineData(null, "works", "kind")]
     [InlineData("expense", "rent", "category")]

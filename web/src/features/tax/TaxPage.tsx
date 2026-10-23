@@ -1,10 +1,10 @@
-import { useSearch } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
-import type { RootSearch } from '@/app/router';
+import type { TaxSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
@@ -18,10 +18,11 @@ import { noticeText, percentText, warningText, ZERO } from './format';
 import { ProfileForm } from './ProfileForm';
 import { DeclarantTable, eur, ResultTable } from './ResultTable';
 import { SimulationForm } from './SimulationForm';
+import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-const TABS = ['detail', 'withholding', 'profile', 'simulation'] as const;
+const TABS = ['detail', 'withholding', 'profile', 'simulation', '2044'] as const;
 
 /**
  * Tax estimate spec §9: the year's figures inline, then the calculation step by step, the household's profile, and a
@@ -30,29 +31,38 @@ const TABS = ['detail', 'withholding', 'profile', 'simulation'] as const;
 export function TaxPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const search: RootSearch = useSearch({ strict: false });
+  const search: TaxSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
   const scope = search.scope === 'me' ? 'me' : 'household';
   const thisYear = todayIso().slice(0, 4);
-  const [year, setYear] = useState(thisYear);
-  const years = [String(Number(thisYear) - 1), thisYear].map((y) => ({ value: y, label: y }));
-  const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } });
+  const lastYear = String(Number(thisYear) - 1);
   const [tab, setTab] = useDetailTab(TABS);
+  // The 2044 is filed for the year just ended; the estimate opens on the current one. The default stays out of the URL.
+  const defaultYear = tab === '2044' ? lastYear : thisYear;
+  const years = [lastYear, thisYear].map((y) => ({ value: y, label: y }));
+  // A year the page does not offer (the server refuses it) falls back to the tab's default.
+  const year = years.some((y) => y.value === search.year) ? search.year! : defaultYear;
+  const setYear = (next: string) => {
+    void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, year: next === defaultYear ? undefined : next })) as never });
+  };
+  const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } });
   const estimate = answer.data;
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('tax.title')} actions={<Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} />}>
-        {estimate ? <Figures estimate={estimate} onAdjust={() => setTab('withholding')} /> : null}
+      <PageHeader title={t('tax.title')} actions={<div className="print:hidden"><Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} /></div>}>
+        {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       </PageHeader>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 animate-pulse rounded-md border bg-muted" /> : null}
-      {estimate ? <Notes estimate={estimate} /> : null}
+      {estimate ? <Notes estimate={estimate} printed={tab !== '2044'} /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} /> },
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: <ProfileForm key={`${estimate.year}-${scope}`} estimate={estimate} scope={scope} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
+          { id: '2044', label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
         ]} />
       ) : null}
     </div>
@@ -126,7 +136,7 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
 }
 
 /** The server's warnings and notices, above the tabs: they matter whichever tab is open. */
-function Notes({ estimate }: { estimate: TaxEstimate }) {
+function Notes({ estimate, printed }: { estimate: TaxEstimate; printed: boolean }) {
   const { t } = useTranslation();
   const notes = [
     ...estimate.result.warnings.map((w) => warningText(t, w, estimate.result.rulesYear)),
@@ -134,7 +144,7 @@ function Notes({ estimate }: { estimate: TaxEstimate }) {
   ];
   if (!notes.length) return null;
   return (
-    <div className="flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4">
+    <div className={`flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4${printed ? '' : ' print:hidden'}`}>
       <AlertTriangle aria-hidden="true" className="mt-1 size-4 shrink-0 text-status-warning" />
       <Section title={t('tax.notes')}>
         <ul className="list-disc space-y-1 pl-5 text-sm">{notes.map((n) => <li key={n}>{n}</li>)}</ul>

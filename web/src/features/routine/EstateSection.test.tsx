@@ -89,6 +89,21 @@ describe('the properties’ routine', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows a tenancy\'s charges as their own line and sends them as recoverable_charges', async () => {
+    const posted: unknown[] = [];
+    serve(estateRoutine({ estimates: [estimate()], rents: [rent(), rent({ category: 'recoverable_charges', amount: '50.00' })] }), posted);
+    const { user } = await renderApp('/routine');
+    const biens = await section();
+
+    await user.click(await within(biens).findByLabelText('Charges locatives · T2 de Locatif'));
+    await user.click(within(biens).getByRole('button', { name: 'Enregistrer les biens' }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toMatchObject({
+      flows: [{ property: LOCATIF, kind: 'income', category: 'recoverable_charges', occurredOn: '2025-09-01', amount: '50.00' }],
+    });
+  });
+
   it('opens the folded other estimates when a refusal lands on one of them', async () => {
     serve(september());
     const { user } = await renderApp('/routine');

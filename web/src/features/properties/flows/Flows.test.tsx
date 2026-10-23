@@ -137,11 +137,11 @@ describe('flows', () => {
     await waitFor(() => expect(form.getByRole('combobox', { name: 'Type' })).toHaveFocus());
     expect(form.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Dépense');
     expect(form.getByLabelText('Date')).toHaveValue(fr(todayIso()));
-    expect(await choices(user, 'Catégorie')).toEqual(['Travaux', 'Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Autre']);
+    expect(await choices(user, 'Catégorie')).toEqual(['Travaux', 'Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Frais de gestion', 'Autre']);
     expect(category()).toHaveTextContent('Travaux');
     await pick(user, 'Catégorie', 'Énergie');
     await pick(user, 'Type', 'Revenu');
-    expect(await choices(user, 'Catégorie')).toEqual(['Loyer', 'Autre revenu']);
+    expect(await choices(user, 'Catégorie')).toEqual(['Loyer', 'Charges locatives', 'Autre revenu']);
     expect(category()).toHaveTextContent('Loyer');
     await pick(user, 'Type', 'Dépense');
     expect(category()).toHaveTextContent('Travaux');

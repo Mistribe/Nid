@@ -22,6 +22,8 @@ export type RouterContext = { capabilities: Capabilities };
 
 /** Foyer is the default and stays out of the URL; Moi is `?scope=me` (screens.md §1). */
 export type RootSearch = { scope?: 'me' };
+/** The tax page's tab and the year of its figures (absent: the tab's own default). */
+export type TaxSearch = RootSearch & DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
 export type DashboardSearch = { curve?: '3y' | 'all'; panel?: Panel };
 
@@ -64,8 +66,9 @@ export type PropertiesSearch = { tab?: string; history?: '12m' | 'all'; property
 export type DetailSearch = { tab?: string };
 const isIsoDate = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
+// The router parses a numeric value (`tab=2044`) to a number: both spellings are read.
 export const detailSearch = (search: Record<string, unknown>): DetailSearch =>
-  (typeof search.tab === 'string' && search.tab !== '' ? { tab: search.tab } : {});
+  ((typeof search.tab === 'string' && search.tab !== '') || typeof search.tab === 'number' ? { tab: String(search.tab) } : {});
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
 export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
@@ -187,7 +190,11 @@ const taxRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/tax',
   beforeLoad: requireModule('income'),
-  validateSearch: detailSearch,
+  // The router parses `year=2025` to a number: both spellings are read, anything but 4 digits is dropped.
+  validateSearch: (search: Record<string, unknown>): TaxSearch => ({
+    ...detailSearch(search),
+    ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/tax/TaxPage'), 'TaxPage'),
 });
 

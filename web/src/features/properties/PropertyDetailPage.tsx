@@ -3,6 +3,7 @@ import { AlertTriangle, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { useSession } from '@/app/Providers';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
@@ -32,6 +33,7 @@ const TABS = ['overview', 'rental', 'valuations', 'expenses', 'settings'] as con
  */
 export function PropertyDetailPage() {
   const { t } = useTranslation();
+  const { capabilities } = useSession();
   const { $api } = useApi();
   const { id } = useParams({ from: '/properties/$id' });
   const answer = $api.useQuery('get', PROPERTY, { params: { path: { id } } });
@@ -71,6 +73,9 @@ export function PropertyDetailPage() {
             <span className="text-sm text-muted-foreground">{typeText(t, property.type)}</span>
             {property.locationLabel ? <span className="text-sm text-muted-foreground">{property.locationLabel}</span> : null}
             <AccessBadge access={property.visibility === 'private' ? 'private' : 'shared'} />
+            {property.type === 'rental' && capabilities.modules.includes('income') ? (
+              <Link to="/tax" search={{ tab: '2044' }} className="text-sm hover:underline">{t('property_detail.tax_2044')}</Link>
+            ) : null}
           </>
         )}>
         <section aria-label={t('property_detail.figures')} className="space-y-2"><PropertyStats property={property} /></section>

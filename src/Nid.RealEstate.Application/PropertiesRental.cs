@@ -174,7 +174,7 @@ internal static class PropertiesRentalMath
         var start = monthStart < first ? first : monthStart;
         var end = monthEnd > today ? today : monthEnd;
         var flows = p.Flows.Where(f => f.OccurredOn >= start && f.OccurredOn <= end).ToList();
-        var rent = flows.Where(f => f.Kind == FlowKind.Income && f.Category == PropertyCategories.Rent).Sum(f => f.Amount.Amount);
+        var rent = flows.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount);
         var expenses = flows.Where(f => f.Kind == FlowKind.Expense).ToList();
         decimal? loans = 0m;
         foreach (var (loan, item) in p.Loans)

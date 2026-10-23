@@ -6,9 +6,12 @@ namespace Nid.Core.Contracts;
 /// <summary>
 /// Tax estimate spec §6: one figure a module holds for a revenue year, in euros. <c>Person</c> is set when the figure is a
 /// person's (a salary, a PER contribution: one line per owner, at their share); <c>On</c> and <c>Surface</c> describe a
-/// rental property (its purchase date, its surface).
+/// rental property (its purchase date, its surface). Rental 2044 spec §4: <c>On</c>, <c>Category</c> and <c>Note</c> describe a flow
+/// « À vérifier » (<see cref="TaxLineCodes.RentalToCheck"/>).
 /// </summary>
-public sealed record TaxLine(string Code, ItemId Item, string Name, PersonId? Person, decimal Amount, LocalDate? On = null, decimal? Surface = null);
+public sealed record TaxLine(
+    string Code, ItemId Item, string Name, PersonId? Person, decimal Amount, LocalDate? On = null, decimal? Surface = null,
+    string? Category = null, string? Note = null);
 
 /// <summary>Tax estimate spec §6: the codes of <see cref="TaxLine"/>.</summary>
 public static class TaxLineCodes
@@ -21,9 +24,21 @@ public static class TaxLineCodes
     public const string NonTaxable = "non_taxable";
     /// <summary>An income the estimate does not compute (pension, self-employment, alimony): shown, never counted.</summary>
     public const string Unsupported = "unsupported";
-    public const string Rent = "rent";
-    public const string RentalCharges = "rental_charges";
-    public const string RentalInterest = "rental_interest";
+    /// <summary>Rental 2044 spec §3: a property's amount on a line of the form; <c>Item</c> is the property, a loan's interest included.</summary>
+    public const string Rental211 = "rental_211";
+    public const string Rental221 = "rental_221";
+    public const string Rental222 = "rental_222";
+    public const string Rental223 = "rental_223";
+    public const string Rental224 = "rental_224";
+    public const string Rental227 = "rental_227";
+    public const string Rental229 = "rental_229";
+    public const string Rental250 = "rental_250";
+    /// <summary>Rental 2044 spec §3: one expense « À vérifier » (<c>works</c>, <c>other</c>), out of the totals.</summary>
+    public const string RentalToCheck = "rental_to_check";
+    /// <summary>Rental 2044 spec §4: a property's charges taken out of rents recorded with them.</summary>
+    public const string RentalChargesRemoved = "rental_charges_removed";
+    /// <summary>Rental 2044 spec §3: a loan's early-repayment penalties and other fees of the year, not counted on line 250.</summary>
+    public const string RentalFeeNotCounted = "rental_fee_not_counted";
     /// <summary>A rental property: its cost price, purchase date and surface (the 20 € per property, Pinel's base).</summary>
     public const string RentalProperty = "rental_property";
     public const string CapitalIncome = "capital_income";
@@ -43,12 +58,18 @@ public static class TaxLineCodes
     public static DateRange Year(int year)
         => DateRange.Create(new LocalDate(year, 1, 1), new LocalDate(year + 1, 1, 1)).TryGetValue(out var r) ? r : throw new InvalidOperationException();
 
-    /// <summary>The year's lines are in euros only: another currency gives one <see cref="OtherCurrency"/> line.</summary>
-    public static bool InEuros(ItemAccess item, ICollection<TaxLine> lines)
+    /// <summary>Rental 2044 spec §2: the <c>Category</c> of an <see cref="OtherCurrency"/> line left out of the 2044 (a rental property, its loan).</summary>
+    public const string Rental2044 = "rental_2044";
+
+    /// <summary>
+    /// The year's lines are in euros only: another currency gives one <see cref="OtherCurrency"/> line, of <paramref name="category"/>
+    /// (<see cref="Rental2044"/> for RealEstate's items).
+    /// </summary>
+    public static bool InEuros(ItemAccess item, ICollection<TaxLine> lines, string? category = null)
     {
         if (item.Currency?.Trim() is null or "EUR")
             return true;
-        lines.Add(new TaxLine(OtherCurrency, item.Id, item.DisplayName, null, 0m));
+        lines.Add(new TaxLine(OtherCurrency, item.Id, item.DisplayName, null, 0m, Category: category));
         return false;
     }
 }

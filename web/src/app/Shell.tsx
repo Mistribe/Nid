@@ -41,8 +41,8 @@ export function Shell() {
   );
 
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[14rem_minmax(0,1fr)]">
-      <nav aria-label={t('nav.sidebar')} className="hidden gap-1 border-r bg-sidebar p-4 text-sidebar-foreground md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:overflow-y-auto">
+    <div className="min-h-dvh md:grid md:grid-cols-[14rem_minmax(0,1fr)] print:block">
+      <nav aria-label={t('nav.sidebar')} className="hidden gap-1 border-r print:hidden bg-sidebar p-4 text-sidebar-foreground md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:overflow-y-auto">
         <p className="mb-2 px-3 text-lg font-semibold">{t('app.name')}</p>
         {groups.map(({ group, entries }) => (
           <div key={group} className="mt-3">
@@ -60,7 +60,7 @@ export function Shell() {
         </div>
       </nav>
       <div className="flex min-h-dvh flex-col pb-16 md:pb-0">
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 md:gap-4">
+        <header className="flex flex-wrap print:hidden items-center justify-between gap-2 border-b px-4 py-3 md:gap-4">
           <p className="font-semibold md:invisible">{t('app.name')}</p>
           <ScopeSwitch />
           <Guides />
@@ -70,7 +70,7 @@ export function Shell() {
           <Outlet />
         </main>
       </div>
-      <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex border-t bg-background md:hidden">
+      <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex border-t bg-background md:hidden print:hidden">
         {items.filter((item) => item.mobile === 'tab').sort((a, b) => TAB_ORDER.indexOf(a.to) - TAB_ORDER.indexOf(b.to)).map((item) => link(item, TAB))}
         <Link to="/more" aria-current={inMore ? 'page' : undefined} className={inMore ? `${TAB} font-semibold` : TAB}>
           <Ellipsis aria-hidden="true" className="size-5 shrink-0" />

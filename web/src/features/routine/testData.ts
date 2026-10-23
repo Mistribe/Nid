@@ -38,7 +38,7 @@ export const cost = (over: Partial<EstateCost> = {}): EstateCost => ({
 });
 
 export const rent = (over: Partial<EstateRent> = {}): EstateRent => ({
-  property: LOCATIF, name: 'Locatif', currency: 'EUR', tenancyId: LEASE, label: 'T2', amount: '950.00', occurredOn: '2025-09-01',
+  property: LOCATIF, name: 'Locatif', currency: 'EUR', tenancyId: LEASE, label: 'T2', category: 'rent', amount: '950.00', occurredOn: '2025-09-01',
   alreadyEntered: null, ...over,
 });
 

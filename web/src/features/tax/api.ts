@@ -11,3 +11,7 @@ export const TAX_PROFILE = '/api/v1/tax/profile/{year}' as const;
 export const TAX_SIMULATE = '/api/v1/tax/simulate' as const;
 
 export const STATUSES = ['non_executive', 'executive', 'public'] as const;
+
+export type Rental2044 = components['schemas']['Rental2044View'];
+
+export const TAX_2044 = '/api/v1/tax/2044' as const;

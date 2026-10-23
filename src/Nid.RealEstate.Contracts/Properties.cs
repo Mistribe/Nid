@@ -21,9 +21,14 @@ public static class PropertyCategories
 {
     public const string Works = "works";
     public const string Rent = "rent";
+    public const string ManagementFees = "management_fees";
+    public const string RecoverableCharges = "recoverable_charges";
 
-    public static readonly IReadOnlyList<string> Expense = [Works, "property_tax", "condo_fees", "insurance", "energy", "maintenance", "other"];
-    public static readonly IReadOnlyList<string> Income = [Rent, "other_income"];
+    public static readonly IReadOnlyList<string> Expense = [Works, "property_tax", "condo_fees", "insurance", "energy", "maintenance", ManagementFees, "other"];
+    public static readonly IReadOnlyList<string> Income = [Rent, RecoverableCharges, "other_income"];
+
+    /// <summary>What a tenant pays in cash: the rent and the charges recorded apart.</summary>
+    public static readonly IReadOnlySet<string> CashIn = new HashSet<string> { Rent, RecoverableCharges };
 }
 
 public static class PropertyCodes

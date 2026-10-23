@@ -11,6 +11,7 @@
     "no_last": "Pas encore d’estimation",
     "cost_line": "{{category}} de {{name}}",
     "rent_line": "Loyer {{label}} de {{name}}",
+    "charges_line": "Charges locatives · {{label}} de {{name}}",
     "amount_of": "Montant : {{line}}",
     "date_of": "Date : {{line}}",
     "already": "Déjà saisi ce mois-ci : {{amount}}",

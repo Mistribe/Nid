@@ -1085,6 +1085,7 @@
     "rental_starts_on_help": "Date de mise en location, si elle précède le premier bail."
   },
   "property_detail": {
+    "tax_2044": "Déclaration 2044",
     "back": "Retour aux biens",
     "loading": "Chargement du bien",
     "read_only": "Vous pouvez consulter ce bien, pas le modifier.",
@@ -1128,7 +1129,7 @@
     "kind": "Type",
     "kind_option": { "expense": "Dépense", "income": "Revenu" },
     "category": "Catégorie",
-    "category_option": { "works": "Travaux", "property_tax": "Taxe foncière", "condo_fees": "Charges de copropriété", "insurance": "Assurance", "energy": "Énergie", "maintenance": "Entretien", "other": "Autre", "rent": "Loyer", "other_income": "Autre revenu" },
+    "category_option": { "works": "Travaux", "property_tax": "Taxe foncière", "condo_fees": "Charges de copropriété", "insurance": "Assurance", "energy": "Énergie", "maintenance": "Entretien", "management_fees": "Frais de gestion", "other": "Autre", "rent": "Loyer", "recoverable_charges": "Charges locatives", "other_income": "Autre revenu" },
     "date": "Date",
     "amount": "Montant",
     "note": "Note",

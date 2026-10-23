@@ -92,7 +92,7 @@ public static class TaxCalculator
         {
             rentalTaxable = Math.Max(0m, inputs.RentalGross - inputs.RentalInterest - inputs.RentalCharges);
             // Interest only offsets rents; the other charges' deficit goes on the global income, capped (the rest carried, not followed).
-            deficit = Math.Min(rules.RentalDeficitCap, Math.Max(0m, inputs.RentalCharges - Math.Max(0m, inputs.RentalGross - inputs.RentalInterest)));
+            deficit = Rental2044.GlobalDeficit(inputs.RentalGross, inputs.RentalCharges, inputs.RentalInterest, rules.RentalDeficitCap);
         }
 
         var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit);

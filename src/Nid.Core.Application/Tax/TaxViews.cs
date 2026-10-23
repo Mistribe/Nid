@@ -15,8 +15,40 @@ public sealed record TaxEstimateView(
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id));
 }
 
-/// <summary>An item the estimate left out or could not compute: <c>missing_gross</c>, <c>unsupported_income</c>, <c>withdrawal_not_estimated</c>, <c>other_currency</c>, <c>not_a_declarant</c>.</summary>
+/// <summary>
+/// An item the estimate left out or could not compute: <c>missing_gross</c>, <c>unsupported_income</c>, <c>withdrawal_not_estimated</c>,
+/// <c>other_currency</c>, <c>not_a_declarant</c>; a property's <c>rental_charges_removed</c>, a loan's <c>rental_fee_not_counted</c>.
+/// </summary>
 public sealed record TaxNoticeView(string Code, ItemId Item, string Name, string Amount);
+
+/// <summary>
+/// Rental 2044 spec §5. <c>Regime</c> <c>micro</c> or <c>real</c>; <c>Provisional</c> for the current year and after (the tenancies'
+/// rents to come included); <c>ToCheck</c> the expenses « À vérifier », out of the totals.
+/// </summary>
+public sealed record Rental2044View(
+    int Year, string Regime, bool Provisional, IReadOnlyList<Rental2044PropertyView> Properties, Rental2044TotalsView Totals,
+    IReadOnlyList<Rental2044CheckView> ToCheck, IReadOnlyList<TaxNoticeView> Notices) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems()
+        => Properties.Select(p => p.Id).Concat(ToCheck.Select(c => c.Property)).Concat(Notices.Select(n => n.Item));
+}
+
+/// <summary>A property's column: lines 211, 215, 221, 222, 223, 224, 227, 229, 230, 240, 250 and 263, in that order.</summary>
+public sealed record Rental2044PropertyView(ItemId Id, string Name, IReadOnlyList<Rental2044LineView> Lines);
+
+/// <summary><c>Line</c> is the form's number (<c>"211"</c>); <c>Amount</c> in whole euros.</summary>
+public sealed record Rental2044LineView(string Line, string Amount);
+
+/// <summary>
+/// Spec §3: lines 420 (<c>Result</c>), 430 → 441 for a deficit, then the 2042's boxes to copy: 4BA the taxable income, 4BB the
+/// deficit carried, 4BC the deficit on the global income (all <c>"0.00"</c> under the micro-foncier), 4BE the micro's gross rents.
+/// </summary>
+public sealed record Rental2044TotalsView(
+    string Receipts, string Charges, string Interest, string Result, string InterestDeficit, string ChargesDeficit,
+    string GlobalDeficit, string CarriedDeficit, string Box4BA, string Box4BB, string Box4BC, string Box4BE);
+
+/// <summary>Spec §3: an expense « À vérifier » (<c>works</c>, <c>other</c>) of a property.</summary>
+public sealed record Rental2044CheckView(ItemId Property, string Name, NodaTime.LocalDate OccurredOn, string Category, string? Note, string Amount);
 
 public sealed record TaxAdultView(Guid Id, string DisplayName);
 

@@ -43,7 +43,7 @@ public static class PropertyMath
                 .Select(g => new CostLine(g.Key, g.Sum(f => f.Amount.Amount))),
         ];
         var realCost = lines.Sum(l => l.Amount);
-        var rents = past.Where(f => f.Kind == FlowKind.Income && f.Category == PropertyCategories.Rent).Sum(f => f.Amount.Amount);
+        var rents = past.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount);
 
         List<PropertyWarning> warnings = [];
         if (latest is null)
@@ -141,7 +141,7 @@ public static class PropertyMath
     {
         var first = d.PlusMonths(-12).PlusDays(1);
         var inWindow = flows.Where(f => f.OccurredOn >= first && f.OccurredOn <= d).ToList();
-        var rent = inWindow.Where(f => f.Kind == FlowKind.Income && f.Category == PropertyCategories.Rent).Sum(f => f.Amount.Amount);
+        var rent = inWindow.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount);
         // Spec 3C2 §1.4: works are in the cost price already; loan costs are never deducted.
         var charges = inWindow.Where(f => f.Kind == FlowKind.Expense && f.Category != PropertyCategories.Works).Sum(f => f.Amount.Amount);
         var expected = tenancies.Sum(t => Expected(t, first, d));

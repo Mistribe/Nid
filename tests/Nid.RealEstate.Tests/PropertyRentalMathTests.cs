@@ -55,6 +55,17 @@ public class PropertyRentalMathTests
     }
 
     [Fact]
+    public void A_tenancys_charges_recorded_apart_still_count_as_received()
+    {
+        var months = Enumerable.Range(0, 12).Select(m => new LocalDate(2024, 11, 5).PlusMonths(m)).ToList();
+        var flows = months.SelectMany(on => new[] { Rent(on, 800m),
+            new Flow(Guid.NewGuid(), Home, on, FlowKind.Income, Eur(50m), PropertyCategories.RecoverableCharges, null, null) });
+        var r = At(Bought(), flows, Lease(new LocalDate(2020, 9, 1), rent: 800m, charges: 50m)).Rental;
+        Assert.Equal(0m, r.Arrears);
+        Assert.Equal(10_200m, r.RentReceived);
+    }
+
+    [Fact]
     public void The_net_yield_deducts_the_expenses_of_W_but_its_works()
     {
         var r = At(Bought(), [.. AYearOfRent(), Expense(new LocalDate(2025, 9, 20), "property_tax", 1_500m),

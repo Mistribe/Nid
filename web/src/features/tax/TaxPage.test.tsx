@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { TaxEstimate, TaxResult } from './api';
+import type { Rental2044, TaxEstimate, TaxResult } from './api';
 
 const ADULT = '0192f0aa-0000-7000-8000-0000000000a1';
 
@@ -121,5 +121,116 @@ describe('TaxPage', () => {
       homeEmployment: '9000', childrenUnder6: 2, dependents: null, statuses: { [ADULT]: 'non_executive' },
       contributionRates: { [ADULT]: '23.5' }, actualExpenses: {},
     } });
+  });
+});
+
+const view2044 = (over: Partial<Rental2044> = {}): Rental2044 => ({
+  year: 2025, regime: 'real', provisional: false,
+  properties: [
+    { id: 'a', name: 'Studio', lines: [{ line: '211', amount: '6000.00' }, { line: '263', amount: '4500.00' }] },
+    { id: 'b', name: 'Loft', lines: [{ line: '211', amount: '1200.00' }] },
+  ],
+  totals: {
+    receipts: '7200.00', charges: '1500.00', interest: '0.00', result: '5700.00', interestDeficit: '0.00', chargesDeficit: '0.00',
+    globalDeficit: '0.00', carriedDeficit: '0.00', box4BA: '5700.00', box4BB: '0.00', box4BC: '0.00', box4BE: '0.00',
+  },
+  toCheck: [], notices: [],
+  ...over,
+});
+
+describe('TaxPage, Déclaration 2044 tab', () => {
+  beforeAll(async () => { await import('./TaxPage'); }, 30_000);
+
+  it('asks last year, shows each property’s lines, the figures, the to-check list and the provisional mark', async () => {
+    const asked: string[] = [];
+    const loaded = view2044({
+      provisional: true,
+      toCheck: [{ property: 'a', name: 'Studio', occurredOn: '2025-04-02', category: 'works', note: 'Salle de bain', amount: '3000.00' }],
+      notices: [{ code: 'rental_charges_removed', item: 'a', name: 'Studio', amount: '600.00' }],
+    });
+    server.use(
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(loaded); }),
+    );
+    const { container } = await renderApp('/tax?tab=2044');
+
+    const studio = await screen.findByRole('region', { name: 'Studio' });
+    expect(within(studio).getByText('211')).toBeInTheDocument();
+    expect(within(studio).getByText('Loyers bruts')).toBeInTheDocument();
+    expect(within(studio).getByText('6 000,00 €')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Loft' })).toBeInTheDocument();
+    expect(screen.getByText('Provisoire : l’année n’est pas terminée.')).toBeInTheDocument();
+    expect(screen.getByText('Recettes')).toBeInTheDocument();
+    expect(screen.getAllByText('5 700,00 €').length).toBeGreaterThan(0);
+    const check = screen.getByRole('region', { name: 'À vérifier' });
+    expect(within(check).getByRole('link', { name: 'Studio' })).toHaveAttribute('href', '/properties/a?tab=expenses');
+    expect(within(check).getByText('Travaux')).toBeInTheDocument();
+    expect(screen.getByText(/Studio : 600,00 € de charges/)).toBeInTheDocument();
+    expect(asked).toContain('2044 2025');
+    expect(asked).toContain('tax 2025');
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows case 4BE and no form to fill under the micro-foncier', async () => {
+    // The server always sends the columns; under micro none is shown, nor the to-check list.
+    const micro = view2044({
+      regime: 'micro', totals: { ...view2044().totals, box4BE: '7200.00' },
+      toCheck: [{ property: 'a', name: 'Studio', occurredOn: '2025-04-02', category: 'works', note: null, amount: '3000.00' }],
+    });
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(micro)),
+    );
+    await renderApp('/tax?tab=2044');
+
+    expect(await screen.findByText('Pas de 2044 à remplir au micro-foncier')).toBeInTheDocument();
+    expect(screen.getByText('4BE')).toBeInTheDocument();
+    expect(screen.getByText('7 200,00 €')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Studio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Loft' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'À vérifier' })).not.toBeInTheDocument();
+    expect(screen.queryByText('211')).not.toBeInTheDocument();
+  });
+
+  it('numbers the deficit lines 435 and 438 when the interest exceeds the rents, 440 and 441 otherwise', async () => {
+    const totals = { ...view2044().totals, result: '-500.00', globalDeficit: '500.00', carriedDeficit: '100.00' };
+    const answer = (interestDeficit: string) => server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...totals, interestDeficit } }))),
+    );
+    answer('300.00');
+    const first = await renderApp('/tax?tab=2044');
+    expect(await screen.findByText('435')).toBeInTheDocument();
+    expect(screen.getByText('438')).toBeInTheDocument();
+    expect(screen.queryByText('440')).not.toBeInTheDocument();
+    first.unmount();
+    answer('0.00');
+    await renderApp('/tax?tab=2044');
+    expect(await screen.findByText('440')).toBeInTheDocument();
+    expect(screen.getByText('441')).toBeInTheDocument();
+    expect(screen.queryByText('435')).not.toBeInTheDocument();
+  });
+
+  it('falls back to last year when ?year= is not one of the offered years', async () => {
+    const asked: string[] = [];
+    server.use(
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(view2044()); }),
+    );
+    await renderApp('/tax?tab=2044&year=2024');
+
+    await screen.findByRole('region', { name: 'Studio' });
+    expect(asked).not.toContain('2044 2024');
+    expect(asked).not.toContain('tax 2024');
+  });
+
+  it('says so when the year has no rental income', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ properties: [] }))),
+    );
+    await renderApp('/tax?tab=2044');
+
+    expect(await screen.findByText('Aucun revenu foncier cette année-là')).toBeInTheDocument();
   });
 });

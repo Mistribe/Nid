@@ -38,7 +38,7 @@ export function freshEstate(view: EstateRoutineView): EstateValues {
   return {
     estimates: view.estimates.map((e) => ({ property: e.property, amount: '' })),
     costs: view.costs.map((c) => ({ key: c.costId, checked: false, amount: c.amount, date: c.dueOn })),
-    rents: view.rents.map((r) => ({ key: r.tenancyId, checked: false, amount: r.amount, date: r.occurredOn })),
+    rents: view.rents.map((r) => ({ key: `${r.tenancyId}:${r.category}`, checked: false, amount: r.amount, date: r.occurredOn })),
   };
 }
 
@@ -129,7 +129,7 @@ export function EstateForm({ view, initial, onSaved }: {
         property: view.costs[i]!.property, kind: 'expense', category: view.costs[i]!.category, occurredOn: l.date, amount: toWireAmount(l.amount),
       } }] : [])),
       ...v.rents.flatMap((l, i) => (l.checked ? [{ group: 'rents' as const, i, body: {
-        property: view.rents[i]!.property, kind: 'income', category: 'rent', occurredOn: l.date, amount: toWireAmount(l.amount),
+        property: view.rents[i]!.property, kind: 'income', category: view.rents[i]!.category, occurredOn: l.date, amount: toWireAmount(l.amount),
       } }] : [])),
     ];
     save.mutate(
@@ -223,8 +223,8 @@ export function EstateForm({ view, initial, onSaved }: {
       </section>
       {groupOf('costs', t('routine_estate.costs'), view.costs.map((c, i) => tickedRow('costs', i, c.costId,
         t('routine_estate.cost_line', { category: categoryText(t, c.category), name: c.name }), c.currency, c.alreadyEntered)))}
-      {groupOf('rents', t('routine_estate.rents'), view.rents.map((r, i) => tickedRow('rents', i, r.tenancyId,
-        t('routine_estate.rent_line', { label: r.label, name: r.name }), r.currency, r.alreadyEntered)))}
+      {groupOf('rents', t('routine_estate.rents'), view.rents.map((r, i) => tickedRow('rents', i, `${r.tenancyId}:${r.category}`,
+        t(r.category === 'recoverable_charges' ? 'routine_estate.charges_line' : 'routine_estate.rent_line', { label: r.label, name: r.name }), r.currency, r.alreadyEntered)))}
       <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
         <Button type="submit" disabled={!ready || save.isPending}>{t('routine_estate.save')}</Button>
       </div>

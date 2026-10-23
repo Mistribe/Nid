@@ -20,9 +20,12 @@ public sealed record PropertyRoutineEstimateView(ItemId Property, string Name, s
 public sealed record PropertyRoutineCostView(
     ItemId Property, string Name, string Currency, Guid CostId, string Category, string Amount, LocalDate DueOn, string? AlreadyEntered);
 
-/// <summary>A tenancy's expected rent of the month, to confirm as an income <c>rent</c>; <c>AlreadyEntered</c> sums the month's rents.</summary>
+/// <summary>
+/// A tenancy's expected rent of the month, to confirm as an income: its bare rent (<c>rent</c>) and, when it has charges, a second line for them
+/// (<c>recoverable_charges</c>). <c>AlreadyEntered</c> sums the month's flows of the line's category.
+/// </summary>
 public sealed record PropertyRoutineRentView(
-    ItemId Property, string Name, string Currency, Guid TenancyId, string Label, string Amount, LocalDate OccurredOn, string? AlreadyEntered);
+    ItemId Property, string Name, string Currency, Guid TenancyId, string Label, string Category, string Amount, LocalDate OccurredOn, string? AlreadyEntered);
 
 public sealed record PropertyRoutineView(
     LocalDate On, IReadOnlyList<PropertyRoutineEstimateView> Estimates, IReadOnlyList<PropertyRoutineCostView> Costs,
@@ -57,7 +60,7 @@ internal static class PropertyRoutine
     }
 
     /// <summary>Spec 3E2 §3: a routine's income is a rent; its expenses are the planned costs' categories.</summary>
-    private static readonly IReadOnlyList<string> Rents = [PropertyCategories.Rent];
+    private static readonly IReadOnlyList<string> Rents = [PropertyCategories.Rent, PropertyCategories.RecoverableCharges];
 
     /// <summary>Spec 3E2 §3: the request's own refusals, before any read — each estimate, then each flow, in order; the first wins.</summary>
     public static Failure? Refusal(RecordPropertyRoutineCommand command, LocalDate today)
@@ -154,10 +157,26 @@ public sealed class GetPropertyRoutineHandler(
                 if (PropertyMath.DueIn(cost.Cost, first) is { } dueOn)
                     costs.Add(new(property.ItemId, item.DisplayName, currency, cost.Id, cost.Cost.Category, LoanReading.Amount(cost.Cost.Amount), dueOn,
                         PropertyRoutine.Entered(ofMonth, FlowKind.Expense, cost.Cost.Category)));
-            foreach (var tenancy in property.Tenancies)
-                if (PropertyMath.RentIn(tenancy.Tenancy, first) is { } rent)
-                    rents.Add(new(property.ItemId, item.DisplayName, currency, tenancy.Id, tenancy.Tenancy.Label, LoanReading.Amount(rent.Amount), rent.From,
-                        PropertyRoutine.Entered(ofMonth, FlowKind.Income, PropertyCategories.Rent)));
+            // Before the two lines, a month was one `rent` flow of rent + charges: with no charges flow, what the month's rents exceed the property's bare rents by
+            // stands for the charges, handed out to its charges lines in their order.
+            var covering = property.Tenancies.Select(t => (t, Bare: PropertyMath.RentIn(t.Tenancy, first, charges: false))).Where(x => x.Bare is not null)
+                .OrderBy(x => x.Bare!.Value.From).ThenBy(x => x.t.Id).ToList();
+            var chargesEntered = PropertyRoutine.Entered(ofMonth, FlowKind.Income, PropertyCategories.RecoverableCharges);
+            var remaining = ofMonth.Where(f => f.Kind == FlowKind.Income && f.Category == PropertyCategories.Rent).Sum(f => f.Amount.Amount)
+                - covering.Sum(x => x.Bare!.Value.Amount);
+            foreach (var (tenancy, bare) in covering)
+            {
+                var rent = bare!.Value;
+                rents.Add(new(property.ItemId, item.DisplayName, currency, tenancy.Id, tenancy.Tenancy.Label, PropertyCategories.Rent, LoanReading.Amount(rent.Amount), rent.From,
+                    PropertyRoutine.Entered(ofMonth, FlowKind.Income, PropertyCategories.Rent)));
+                var charges = PropertyMath.RentIn(tenancy.Tenancy, first, charges: true)!.Value.Amount - rent.Amount;
+                if (charges <= 0)
+                    continue;
+                var legacy = Math.Min(charges, Math.Max(remaining, 0m));
+                remaining -= legacy;
+                rents.Add(new(property.ItemId, item.DisplayName, currency, tenancy.Id, tenancy.Tenancy.Label, PropertyCategories.RecoverableCharges, LoanReading.Amount(charges), rent.From,
+                    chargesEntered ?? (legacy > 0 ? LoanReading.Amount(legacy) : null)));
+            }
         }
         return Result.Success(new PropertyRoutineView(on,
             estimates.OrderBy(e => e.Due ? 0 : 1).ThenBy(e => e.Name, PropertyRoutine.French).ThenBy(e => e.Property.Value).ToList(),

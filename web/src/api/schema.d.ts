@@ -10992,6 +10992,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tax/2044": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    year?: number;
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Rental2044View"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tax/profile/{year}": {
         parameters: {
             query?: never;
@@ -16448,6 +16540,7 @@ export interface components {
             /** Format: uuid */
             tenancyId: string;
             label: string;
+            category: string;
             amount: string;
             /** Format: date */
             occurredOn: string;
@@ -16633,6 +16726,50 @@ export interface components {
             /** Format: uint32 */
             version: number;
             note?: null | string;
+        };
+        Rental2044CheckView: {
+            /** Format: uuid */
+            property: string;
+            name: string;
+            /** Format: date */
+            occurredOn: string;
+            category: string;
+            note?: null | string;
+            amount: string;
+        };
+        Rental2044LineView: {
+            line: string;
+            amount: string;
+        };
+        Rental2044PropertyView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            lines: components["schemas"]["Rental2044LineView"][];
+        };
+        Rental2044TotalsView: {
+            receipts: string;
+            charges: string;
+            interest: string;
+            result: string;
+            interestDeficit: string;
+            chargesDeficit: string;
+            globalDeficit: string;
+            carriedDeficit: string;
+            box4BA: string;
+            box4BB: string;
+            box4BC: string;
+            box4BE: string;
+        };
+        Rental2044View: {
+            /** Format: int32 */
+            year: number;
+            regime: string;
+            provisional: boolean;
+            properties: components["schemas"]["Rental2044PropertyView"][];
+            totals: components["schemas"]["Rental2044TotalsView"];
+            toCheck: components["schemas"]["Rental2044CheckView"][];
+            notices: components["schemas"]["TaxNoticeView"][];
         };
         RentalMonthView: {
             month: string;

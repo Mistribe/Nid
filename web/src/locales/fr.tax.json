@@ -12,7 +12,7 @@
     "notes": "À savoir",
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, déficit foncier reporté, plafonds PER non utilisés, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
-    "tab": { "detail": "Détail", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation" },
+    "tab": { "2044": "Déclaration 2044", "detail": "Détail", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
@@ -104,7 +104,50 @@
       "unsupported_income": "{{name}} : ce type de revenu ({{amount}}) n’est pas calculé.",
       "withdrawal_not_estimated": "{{name}} : l’impôt sur les retraits ({{amount}}) n’est pas estimé.",
       "other_currency": "{{name}} : hors euro, non compté.",
-      "not_a_declarant": "{{name}} : la part d’un enfant ({{amount}}) n’est pas comptée."
+      "not_a_declarant": "{{name}} : la part d’un enfant ({{amount}}) n’est pas comptée.",
+      "rental_charges_removed": "{{name}} : {{amount}} de charges locatives retirés des loyers enregistrés avec leurs charges.",
+      "rental_fee_not_counted": "{{name}} : {{amount}} de pénalité de remboursement anticipé ou de frais de prêt non comptés en ligne 250.",
+      "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (travaux, autres) non comptées — voir Déclaration 2044."
+    },
+    "d2044": {
+      "csv": "Exporter en CSV",
+      "print": "Imprimer",
+      "provisional": "Provisoire : l’année n’est pas terminée.",
+      "empty_title": "Aucun revenu foncier cette année-là",
+      "empty_body": "Aucun loyer, charge déductible ni intérêt d’emprunt n’est enregistré pour un bien locatif cette année.",
+      "micro_note": "Pas de 2044 à remplir au micro-foncier",
+      "household": "Foyer",
+      "totals": "Totaux du foyer",
+      "notes": "À savoir pour la 2044",
+      "to_check": "À vérifier",
+      "to_check_help": "Ces dépenses ne sont pas comptées : classez-les dans une catégorie déductible ou laissez-les de côté.",
+      "csv_header": { "property": "Bien", "line": "Ligne", "label": "Libellé", "amount": "Montant" },
+      "figure": { "receipts": "Recettes", "charges": "Charges", "interest": "Intérêts", "result": "Résultat", "deficit": "Déficit" },
+      "note": {
+        "227": "Retirez la taxe d’enlèvement des ordures ménagères (TEOM) si elle y est incluse.",
+        "230": "Non suivie : à saisir sur le formulaire si votre syndic a régularisé."
+      },
+      "line": {
+        "211": "Loyers bruts",
+        "215": "Total des recettes",
+        "221": "Frais d’administration et de gestion",
+        "222": "Autres frais de gestion",
+        "223": "Primes d’assurance",
+        "224": "Dépenses de réparation, d’entretien et d’amélioration",
+        "227": "Taxes foncières",
+        "229": "Provisions pour charges de copropriété",
+        "230": "Régularisation des provisions de l’année précédente",
+        "240": "Total des frais et charges",
+        "250": "Intérêts d’emprunt, assurance et frais d’emprunt",
+        "263": "Revenus nets du bien",
+        "420": "Résultat",
+        "435": "Déficit des charges hors intérêts imputable sur le revenu global (case 4BC)",
+        "438": "Déficit reportable : excédent et intérêts non couverts (case 4BB)",
+        "440": "Déficit imputable sur le revenu global (case 4BC)",
+        "441": "Déficit reportable (case 4BB)",
+        "4BA": "Revenu foncier imposable",
+        "4BE": "Recettes brutes (case 4BE)"
+      }
     },
     "withholding": {
       "title": "À saisir sur impots.gouv.fr",
