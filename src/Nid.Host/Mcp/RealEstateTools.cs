@@ -57,6 +57,12 @@ public sealed class RealEstateTools
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetRentRevisionsQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
 
+    [McpServerTool(Name = "get_rent_arrears", ReadOnly = true)]
+    [Description("The rents still due per property, one account per tenant: each month's due, imputed and remaining amounts and whether it is overdue (ended more than 10 days ago); a month two tenants share appears once per tenant. Properties with nothing due are omitted. No names or addresses. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetRentArrears(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetRentArrearsQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+
     [McpServerTool(Name = "simulate_early_repayment", ReadOnly = true)]
     [Description("Simulates an early repayment of a loan without recording it: the new term or payment and the interest saved. " + McpSetup.Untrusted)]
     public static async Task<CallToolResult> SimulateEarlyRepayment(IServiceProvider services, [Description("The loan's id.")] Guid id,

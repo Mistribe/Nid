@@ -240,6 +240,11 @@ public static class RealEstateEndpoints
             })
             .Returns<RentReceiptView>();
 
+        // Rental arrears spec §5: the months still due and the reminder letter's content.
+        api.MapGet("/properties/{id:guid}/arrears", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPropertyArrearsQuery(new ItemId(id)), ct)).ToHttp(view => view))
+            .Returns<PropertyArrearsView>();
+
         api.MapPost("/properties", async (CreatePropertyBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();

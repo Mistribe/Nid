@@ -252,18 +252,17 @@ internal static class PropertiesOverviewMath
         var shared = p.Item.Visibility == Visibility.Shared;
         var figures = PropertyMath.At(p.Property.Details, shared, p.Values, p.Flows,
             p.Loans.Select(l => PropertyReading.Linked(l.Loan, l.Item, currency, rates, today)).ToList(),
-            p.Property.Tenancies.Select(t => t.Tenancy).ToList(), today);
+            p.Property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), today);
         return shared
             ? figures with { Warnings = [.. figures.Warnings, .. p.LeftOut.Select(id => new PropertyWarning(PropertyWarnings.VisibilityMismatch, id))] }
             : figures;
     }
 
     /// <summary>Rental receipts: a month's rent is watched once the month has been over for more than 10 days.</summary>
-    private const int ArrearsGraceDays = 10;
 
     /// <summary>
     /// Spec §3.2: the detail's warnings (but a loan in another currency, which is no task), the rent ledger's arrears of the months
-    /// over by more than <see cref="ArrearsGraceDays"/> days, and on 60 days, as « À venir », each planned cost's next due date and
+    /// over by more than <see cref="RentArrears.GraceDays"/> days, tenant by tenant (a former tenant's credit never hides a debt), and on 60 days, as « À venir », each planned cost's next due date and
     /// each tenancy's end; with the warnings, each chain's rent revision (rental spec §3.3). Warnings first, then by date.
     /// </summary>
 
@@ -277,9 +276,9 @@ internal static class PropertiesOverviewMath
             var id = r.Source.Item.Id;
             foreach (var w in r.Figures.Warnings.Where(w => w.Code != PropertyWarnings.LoanOtherCurrency))
                 warnings.Add(new PropertyWatchView(w.Code, id, w.LoanId, w.Code == PropertyWarnings.ValuationStale ? r.Figures.ValueOn : null, null));
-            // The watch leaves the month just ended a grace of ArrearsGraceDays: the figure itself owes the current month from its 1st.
+            // The watch leaves the month just ended a grace of RentArrears.GraceDays: the figure itself owes the current month from its 1st.
             if (r.Figures.Rental.RentedSince is not null
-                && RentLedger.ArrearsDueBy(r.Source.Property.Tenancies.Select(t => t.Tenancy).ToList(), r.Source.Flows, today, ArrearsGraceDays) is > 0m and var owed)
+                && RentLedger.PropertyArrearsDueBy(r.Source.Property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), r.Source.Flows, today, RentArrears.GraceDays) is > 0m and var owed)
                 warnings.Add(new PropertyWatchView(PropertyOverviewCodes.RentArrears, id, null, null, Money(owed, r.Currency)));
             foreach (var chain in RentRevisions.Of(r.Source.Property, irl, today))
             {

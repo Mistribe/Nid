@@ -81,7 +81,7 @@ public class RentLedgerTests
             // overpaid: arrears negative, remainders all 0
             _ => (new[] { Standard }, on5.Select(on => Cash(on, 2000m)).ToList()),
         };
-        var arrears = PropertyMath.At(Bought, true, [], flows, [], tenancies, d).Rental.Arrears;
+        var arrears = PropertyMath.At(Bought, true, [], flows, [], Loans.Chain(tenancies), d).Rental.Arrears;
         var months = RentLedger.Months(tenancies, flows, d);
         Assert.Equal(Math.Max(0m, arrears), months.Sum(m => m.Remaining));
     }
@@ -164,7 +164,7 @@ public class RentLedgerTests
     private static List<Flow> Monthly(LocalDate first, int count) => Enumerable.Range(0, count).Select(m => Cash(first.PlusMonths(m), 850m)).ToList();
 
     private static decimal Arrears(IReadOnlyList<Flow> flows, LocalDate d, params Tenancy[] tenancies)
-        => PropertyMath.At(Bought, true, [], flows, [], tenancies, d).Rental.Arrears;
+        => PropertyMath.At(Bought, true, [], flows, [], Loans.Chain(tenancies), d).Rental.Arrears;
 
     [Fact]
     public void A_lease_older_than_its_recorded_rents_counts_from_the_first_one_or_from_the_month_set()
@@ -225,7 +225,7 @@ public class RentLedgerTests
     public void Without_any_cash_in_the_arrears_are_the_last_12_months_and_the_current_one_whole()
     {
         Assert.Equal(new LocalDate(2025, 10, 24), RentLedger.Tracked(Since2018, [], October23));
-        var rental = PropertyMath.At(Bought, true, [], [], [], [Since2018], October23).Rental;
+        var rental = PropertyMath.At(Bought, true, [], [], [], Loans.Chain([Since2018]), October23).Rental;
         Assert.Equal(PropertyMath.Expected(Since2018, new LocalDate(2025, 10, 24), new LocalDate(2026, 10, 31)), rental.Arrears);
         Assert.Equal(rental.ExpectedRent + 850m * 8 / 31, rental.Arrears, 2); // the 8 days of October still to come
         Assert.Null(RentReceipt.For([Since2018], [], new LocalDate(2025, 9, 1), October23));

@@ -16,6 +16,7 @@ import { RowActions } from '@/components/page/RowActions';
 import { RowMenu } from '@/components/page/RowMenu';
 import { presentRefusal } from '../../loans/refusal';
 import { useRowDialog } from '../useRowDialog';
+import { ArrearsSection } from '../arrears/ArrearsSection';
 import { RentalFigures } from './RentalFigures';
 import { REVISION, RevisionDialog } from './RevisionDialog';
 import { TenancyDialog } from './TenancyForm';
@@ -58,6 +59,7 @@ export function RentalSection({ property }: { property: PropertyDetail }) {
         <RevisionDialog property={property} tenancy={revising} onClose={() => setRevising(null)}
           onDone={(message) => { setRevising(null); s.announce(message); }} />
       ) : null}
+      {property.figures.rentedSince ? <ArrearsSection propertyId={property.id} /> : null}
       {newestFirst.length === 0 ? null : (
         <Table aria-label={t('property_rental.table')}>
           <TableHeader>

@@ -35,7 +35,7 @@ public class PropertyRentalMathTests
 
     /// <summary>No estimate and no loan: only the rental matters here; the works always count in the cost price.</summary>
     private static PropertyFigures At(PropertyDetails property, IEnumerable<Flow> flows, params Tenancy[] tenancies)
-        => PropertyMath.At(property, true, [], [Works, .. flows], [], tenancies, D);
+        => PropertyMath.At(property, true, [], [Works, .. flows], [], Loans.Chain(tenancies), D);
 
     private static RecurringCost Cost(decimal amount, int count, DurationUnit unit, LocalDate starts, LocalDate? ends = null)
         => new("property_tax", amount, Loans.Ok(Duration.Create(count, unit)), starts, ends, null);

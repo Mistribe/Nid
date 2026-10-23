@@ -16,7 +16,7 @@ public static class PropertyMath
 
     public static PropertyFigures At(
         PropertyDetails property, bool shared, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows,
-        IReadOnlyList<LinkedLoan> loans, IReadOnlyList<Tenancy> tenancies, LocalDate d)
+        IReadOnlyList<LinkedLoan> loans, IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> tenancies, LocalDate d)
     {
         var latest = values.Where(v => v.AsOf <= d).OrderByDescending(v => v.AsOf).FirstOrDefault();
         var stale = latest is not null && StaleThreshold(property.Cadence, property.StaleAfterDays) is { } limit
@@ -136,9 +136,10 @@ public static class PropertyMath
         return (Expected(tenancy, first, last, charges), tenancy.StartsOn > first ? tenancy.StartsOn : first);
     }
 
-    /// <summary>Spec 3C2 §4 over W = (d − 12 months, d]; the arrears over the rent ledger (<see cref="RentLedger"/>).</summary>
-    private static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<Tenancy> tenancies, decimal costPrice, LocalDate d)
+    /// <summary>Spec 3C2 §4 over W = (d − 12 months, d]; the arrears over the rent ledger, one account per tenant (<see cref="RentLedger.PropertyArrears"/>).</summary>
+    private static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> linked, decimal costPrice, LocalDate d)
     {
+        var tenancies = linked.Select(t => t.Tenancy).ToList();
         var first = d.PlusMonths(-12).PlusDays(1);
         var inWindow = flows.Where(f => f.OccurredOn >= first && f.OccurredOn <= d).ToList();
         var rent = inWindow.Where(f => f.Kind == FlowKind.Income && PropertyCategories.CashIn.Contains(f.Category!)).Sum(f => f.Amount.Amount);
@@ -163,7 +164,7 @@ public static class PropertyMath
 
         // Significant once let since d − 12 months or before (R before W's first day).
         var significant = rentedSince is { } r && r < first;
-        return new RentalFigures(rentedSince, expected, rent, RentLedger.Arrears(tenancies, flows, d), vacantDays, vacancyRate,
+        return new RentalFigures(rentedSince, expected, rent, RentLedger.PropertyArrears(linked, flows, d), vacantDays, vacancyRate,
             significant ? rent / costPrice : null, significant ? (rent - charges) / costPrice : null);
     }
 

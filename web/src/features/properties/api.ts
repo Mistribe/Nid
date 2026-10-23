@@ -5,6 +5,7 @@ import { OVERVIEW } from '../income/api';
 import { TAX_SALE } from '../tax/api';
 
 export type PropertySummary = components['schemas']['PropertySummary'];
+export type PropertyArrears = components['schemas']['PropertyArrearsView'];
 export type PropertyList = components['schemas']['PropertyList'];
 export type PropertyDetail = components['schemas']['PropertyDetail'];
 export type PropertyWarning = components['schemas']['PropertyWarningView'];
@@ -39,6 +40,7 @@ export const TENANCIES = '/api/v1/realestate/properties/{id}/tenancies' as const
 export const TENANCY = '/api/v1/realestate/properties/{id}/tenancies/{tenancyId}' as const;
 export const RECURRING_COSTS = '/api/v1/realestate/properties/{id}/recurring-costs' as const;
 export const RECURRING_COST = '/api/v1/realestate/properties/{id}/recurring-costs/{costId}' as const;
+export const PROPERTY_ARREARS = '/api/v1/realestate/properties/{id}/arrears' as const;
 export const PROPERTY_RECEIPTS = '/api/v1/realestate/properties/{id}/receipts' as const;
 
 /**
@@ -46,5 +48,5 @@ export const PROPERTY_RECEIPTS = '/api/v1/realestate/properties/{id}/receipts' a
  * (§7); the income page and the home income too, which count the rents (income dashboard §5).
  */
 export function invalidateProperties(queryClient: QueryClient): Promise<void> {
-  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, PROPERTY_ARREARS, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

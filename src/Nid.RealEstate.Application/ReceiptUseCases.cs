@@ -46,6 +46,7 @@ public sealed class GetRentReceiptHandler(IPropertyStore properties, IItemRegist
         var today = await calendar.TodayAsync(ct);
         var stored = found.Property.Tenancies;
         var tenancies = stored.Select(t => t.Tenancy).ToList();
+        var accounts = ReceiptMonths.Accounts(stored, all!);
 
         var months = ReceiptMonths.Of(stored, all!, today);
 
@@ -56,22 +57,22 @@ public sealed class GetRentReceiptHandler(IPropertyStore properties, IItemRegist
         var month = query.Month is { } asked ? First(asked)
             : months.Where(cashMonths.Contains).Cast<LocalDate?>().FirstOrDefault() ?? (months.Contains(First(today)) ? First(today) : months[0]);
 
-        if (RentReceipt.For(tenancies, all!, month, today) is not { } receipt)
+        // A month of one tenant reads that tenant's account; none, or two tenants, the whole property's (to refuse it on the right code).
+        var covering = ReceiptMonths.Covering(stored, month);
+        var account = ReceiptMonths.AccountOf(stored, accounts, covering);
+        if (RentReceipt.For(account?.Tenancies ?? tenancies, account?.Cash ?? all!, month, today) is not { } receipt)
         {
             // Null is a month after today's, one no tenancy covers, or one before the rents tracked.
             return Result.Failure<RentReceiptView>(month <= today && tenancies.All(t => PropertyMath.RentIn(t, month) is null)
                 ? RentRevisions.Refusal(PropertyCodes.ReceiptNoTenancy, "No tenancy covers this month.", "month")
                 : RentRevisions.Refusal(PropertyCodes.ReceiptMonth, "A receipt can be asked for a month of the rent ledger, up to the current one.", "month"));
         }
-        if (ReceiptMonths.Covering(stored, month) is not { } covering)
+        if (account is null)
             return Result.Failure<RentReceiptView>(RentRevisions.Refusal(PropertyCodes.ReceiptTwoLeases,
                 "Two leases that are not one revision chain cover this month: a receipt is for one lease.", "month"));
 
         // A revision never changes the parties: the identity is the chain's last link's, the one the screen edits.
-        var named = covering[^1];
-        while (stored.FirstOrDefault(t => t.RevisedFrom == named.Id) is { } next)
-            named = next;
-        var lease = named.Tenancy;
+        var lease = stored.First(t => t.Id == account.Chain).Tenancy;
         var postal = found.Property.Details.PostalAddress;
         var missing = new List<string>();
         if (postal is null) missing.Add("postal_address");
@@ -94,17 +95,27 @@ internal static class ReceiptMonths
 
     public static string Wire(LocalDate m) => $"{m.Year:0000}-{m.Month:00}";
 
-    /// <summary>Down from the current month to the ledger's start: a month some tenancy owes, of one lease or one revision chain.</summary>
+    /// <summary>Down from the current month to the ledger's start: a month of one lease or one revision chain that its tenant's account owes.</summary>
     public static List<LocalDate> Of(IReadOnlyList<StoredTenancy> stored, IReadOnlyList<Flow> flows, LocalDate today)
     {
-        var tenancies = stored.Select(t => t.Tenancy).ToList();
-        var start = RentLedger.Start(tenancies, flows, today);
+        var accounts = Accounts(stored, flows);
+        var start = accounts.Count == 0 ? today : accounts.Min(a => RentLedger.Start(a.Tenancies, a.Cash, today));
         var months = new List<LocalDate>();
         for (var m = new LocalDate(today.Year, today.Month, 1); months.Count < Shown && m >= new LocalDate(start.Year, start.Month, 1); m = m.PlusMonths(-1))
-            if (RentReceipt.InRange(tenancies, flows, m, today) && Covering(stored, m) is not null)
+            if (AccountOf(stored, accounts, Covering(stored, m)) is { } account && RentReceipt.InRange(account.Tenancies, account.Cash, m, today))
                 months.Add(m);
         return months;
     }
+
+    public static IReadOnlyList<RentAccount> Accounts(IReadOnlyList<StoredTenancy> stored, IReadOnlyList<Flow> flows)
+        => RentLedger.Accounts(Linked(stored), flows);
+
+    /// <summary>The account of the one tenant whose links cover the month; null when none or two tenants do.</summary>
+    public static RentAccount? AccountOf(IReadOnlyList<StoredTenancy> stored, IReadOnlyList<RentAccount> accounts, List<StoredTenancy>? covering)
+        => covering is { Count: > 0 } ? accounts.First(a => a.Chain == RentLedger.LastLink(Linked(stored), covering[^1].Id)) : null;
+
+    private static List<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> Linked(IReadOnlyList<StoredTenancy> stored)
+        => stored.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList();
 
     /// <summary>The links covering a day of the month, oldest first; null when two of them are not one revision chain (a change of tenant).</summary>
     public static List<StoredTenancy>? Covering(IReadOnlyList<StoredTenancy> stored, LocalDate month)

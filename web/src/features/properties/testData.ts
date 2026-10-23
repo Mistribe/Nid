@@ -1,5 +1,5 @@
 import { LOAN } from '../loans/testData';
-import type { CostRow, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
+import type { CostRow, PropertyArrears, PropertiesCosts, PropertiesOverview, PropertiesRental, PropertiesValuation, PropertyDetail, PropertyList, PropertyRecurringCost, PropertySummary, PropertyTenancy } from './api';
 
 export const PROPERTY = '0192f0bb-0000-7000-8000-00000000e001';
 
@@ -183,6 +183,20 @@ export const householdCosts = (): PropertiesCosts => propertiesCosts({
     }),
   ],
   realCost: eur('482523.35'), netCostOfRents: eur('456783.35'),
+});
+
+/** One overdue month and one still running, with the letter the server would build for the overdue one. */
+export const arrears = (over: Partial<PropertyArrears> = {}): PropertyArrears => ({
+  property: PROPERTY, propertyName: 'Maison de Nantes', currency: 'EUR', total: '1900.00', overdueTotal: '950.00',
+  months: [
+    { month: '2026-09', due: '950.00', imputed: '0.00', remaining: '950.00', overdue: true, inLetter: true },
+    { month: '2026-10', due: '950.00', imputed: '0.00', remaining: '950.00', overdue: false, inLetter: false },
+  ],
+  letter: {
+    total: '950.00', months: ['2026-09'], postalAddress: '12 rue des Lilas, 44000 Nantes', tenantNames: 'Jeanne Martin',
+    landlordName: 'Paul Durand', landlordAddress: '3 quai Duguay, 44000 Nantes', missing: [], leavesOutEarlierTenant: false, formerTenant: false,
+  },
+  ...over,
 });
 
 /** No property: what the page reads by default. */

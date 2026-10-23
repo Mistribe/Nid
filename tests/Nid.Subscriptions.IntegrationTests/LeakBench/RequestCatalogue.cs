@@ -449,6 +449,8 @@ public static class RequestCatalogue
         new(typeof(GetRentReceiptQuery), true, (_, item) => new GetRentReceiptQuery(item, null)),
         new(typeof(AcceptRentRevisionCommand), true, (_, item) => new AcceptRentRevisionCommand(item, Guid.NewGuid(), new LocalDate(2025, 9, 1))),
         new(typeof(UndoRentRevisionCommand), true, (_, item) => new UndoRentRevisionCommand(item, Guid.NewGuid())),
+        new(typeof(GetPropertyArrearsQuery), true, (_, item) => new GetPropertyArrearsQuery(item)),
+        new(typeof(GetRentArrearsQuery), false, (_, _) => new GetRentArrearsQuery(VisibilityScope.Me)),
         new(typeof(GetRentRevisionsQuery), false, (_, _) => new GetRentRevisionsQuery(VisibilityScope.Me)),
     ];
 

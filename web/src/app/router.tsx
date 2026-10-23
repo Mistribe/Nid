@@ -76,6 +76,8 @@ export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
 /** Issue #17: a new loan opened from a new property, already linked to it. */
 export type NewLoanSearch = { property?: string };
 export type ReceiptSearch = { month?: string };
+/** The arrears letter's payment deadline, in days from today: 1 to 60, anything else dropped (default 15 on the page). */
+export type ArrearsLetterSearch = { days?: number };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
@@ -327,6 +329,19 @@ const propertyReceiptRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/properties/receipt/ReceiptPage'), 'ReceiptPage'),
 });
 
+// Loaded on demand: the reminder letter is read once, then printed.
+const propertyArrearsLetterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/properties/$id/arrears-letter',
+  validateSearch: (search: Record<string, unknown>): ArrearsLetterSearch => {
+    const days = Number(search.days);
+    // An explicit `undefined`: the router keeps the raw keys a validator leaves out.
+    return { days: Number.isInteger(days) && days >= 1 && days <= 60 ? days : undefined };
+  },
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/properties/arrears/ArrearsLetterPage'), 'ArrearsLetterPage'),
+});
+
 // Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
 const subscriptionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -421,7 +436,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

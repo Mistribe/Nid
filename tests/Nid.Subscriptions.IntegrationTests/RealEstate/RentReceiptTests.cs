@@ -169,9 +169,10 @@ public class RentReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await PaidAsync(app, ended, "2026-10-05", "850");
         Assert.Equal("2026-06", S(await OkAsync(await ReceiptAsync(app, ended)), "month"));
 
-        // No cash in at all and the current month uncovered: the newest covered month.
+        // No cash in at all on a lease that has ended: its rents were never tracked in Nid, no month is owed nor offered.
         var quiet = await LetAsync(app, endsOn: "2026-08-16");
-        Assert.Equal("2026-08", S(await OkAsync(await ReceiptAsync(app, quiet)), "month"));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, NoTenancy, "month"), await RefusalAsync(await ReceiptAsync(app, quiet)));
+        Assert.Empty(Strings(await PropertyAsync(app, quiet), "receiptMonths"));
     }
 
     [Fact]
@@ -253,6 +254,7 @@ public class RentReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresF
         {
             label = "T2", startsOn = "2026-06-16", rentMonthly = "900", chargesMonthly = "50", tenantNames = "M. Durand",
         }));
+        await PaidAsync(app, property, "2026-05-05", "850"); // Mme Martin's rents are tracked from May: a former tenant without any owes nothing
 
         Assert.Equal((HttpStatusCode.UnprocessableEntity, TwoLeases, "month"), await RefusalAsync(await ReceiptAsync(app, property, "2026-06")));
         var may = await OkAsync(await ReceiptAsync(app, property, "2026-05"));

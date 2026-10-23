@@ -47,4 +47,13 @@ internal static class Loans
 
     public static string? FieldOf(Failure failure)
         => failure.Metadata is { } m && m.TryGetValue("field", out var f) ? f as string : null;
+
+    /// <summary>The tenancies as one revision chain, each revising the one before: a single tenant's rent account.</summary>
+    public static IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> Chain(IEnumerable<Tenancy> tenancies)
+    {
+        var links = new List<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)>();
+        foreach (var t in tenancies)
+            links.Add((Guid.NewGuid(), links.Count == 0 ? null : links[^1].Id, t));
+        return links;
+    }
 }

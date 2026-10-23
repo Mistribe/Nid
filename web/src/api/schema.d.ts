@@ -9838,6 +9838,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/realestate/properties/{id}/arrears": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PropertyArrearsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}/valuations": {
         parameters: {
             query?: never;
@@ -15535,6 +15626,25 @@ export interface components {
             version: number;
             editedPayload?: null | components["schemas"]["JsonElement"];
         };
+        ArrearsLetterView: {
+            total: string;
+            months: string[];
+            postalAddress?: null | string;
+            tenantNames?: null | string;
+            landlordName?: null | string;
+            landlordAddress?: null | string;
+            missing: string[];
+            leavesOutEarlierTenant: boolean;
+            formerTenant: boolean;
+        };
+        ArrearsMonthView: {
+            month: string;
+            due: string;
+            imputed: string;
+            remaining: string;
+            overdue: boolean;
+            inLetter: boolean;
+        };
         AuditActorView: {
             kind: string;
             /** Format: uuid */
@@ -17837,6 +17947,16 @@ export interface components {
             withoutValueCount: number;
             properties: components["schemas"]["ValuationRow"][];
             findings: components["schemas"]["LoanFindingView"][];
+        };
+        PropertyArrearsView: {
+            /** Format: uuid */
+            property: string;
+            propertyName: string;
+            currency: string;
+            total: string;
+            overdueTotal: string;
+            months: components["schemas"]["ArrearsMonthView"][];
+            letter?: null | components["schemas"]["ArrearsLetterView"];
         };
         PropertyCostLineView: {
             code: string;

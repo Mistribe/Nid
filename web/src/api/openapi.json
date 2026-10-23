@@ -10578,6 +10578,96 @@
         }
       }
     },
+    "/api/v1/realestate/properties/{id}/arrears": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyArrearsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/properties/{id}/valuations": {
       "post": {
         "tags": [
@@ -16658,6 +16748,94 @@
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
+          }
+        }
+      },
+      "ArrearsLetterView": {
+        "required": [
+          "total",
+          "months",
+          "missing",
+          "leavesOutEarlierTenant",
+          "formerTenant"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "string"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "postalAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tenantNames": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "leavesOutEarlierTenant": {
+            "type": "boolean"
+          },
+          "formerTenant": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ArrearsMonthView": {
+        "required": [
+          "month",
+          "due",
+          "imputed",
+          "remaining",
+          "overdue",
+          "inLetter"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "due": {
+            "type": "string"
+          },
+          "imputed": {
+            "type": "string"
+          },
+          "remaining": {
+            "type": "string"
+          },
+          "overdue": {
+            "type": "boolean"
+          },
+          "inLetter": {
+            "type": "boolean"
           }
         }
       },
@@ -26687,6 +26865,51 @@
             "items": {
               "$ref": "#/components/schemas/LoanFindingView"
             }
+          }
+        }
+      },
+      "PropertyArrearsView": {
+        "required": [
+          "property",
+          "propertyName",
+          "currency",
+          "total",
+          "overdueTotal",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyName": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string"
+          },
+          "overdueTotal": {
+            "type": "string"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrearsMonthView"
+            }
+          },
+          "letter": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ArrearsLetterView"
+              }
+            ]
           }
         }
       },

@@ -101,7 +101,7 @@ public sealed class PropertyReading(
 
         return new PropertyRead(values, flowList, readable.Select(l => l.Item).ToList(),
             PropertyMath.At(property.Details, item.Visibility == Visibility.Shared, values, flowList, linked,
-                property.Tenancies.Select(t => t.Tenancy).ToList(), today));
+                property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), today));
     }
 
     /// <summary>A linked loan at <paramref name="today"/>, with its rate to the property's currency: the detail's and the overview's.</summary>
