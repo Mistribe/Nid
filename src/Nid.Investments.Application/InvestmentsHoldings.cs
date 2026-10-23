@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using Nid.Investments.Domain;
 using Nid.Platform.Contracts;
@@ -52,7 +53,9 @@ public sealed record FeesProjectionView(
 
 /// <summary>
 /// Spec §5.2. D16: <c>Detailed + Unallocated + Undetailed = Value</c>, the overview's. D18: <c>Cost</c> is an estimate of
-/// <c>CostYear</c>. Every amount in <c>Currency</c> at today's rate; null when a rate is missing.
+/// <c>CostYear</c>. Every amount in <c>Currency</c> at today's rate; null when a rate is missing. Holding prices spec §5.4: an envelope
+/// counted at its estimate (<c>Estimated</c>, any of them) is detailed by its estimated lines; its fees and the share of units of
+/// account (D19, against the floor) stay on its snapshot.
 /// </summary>
 public sealed record InvestmentsHoldings(
     string Currency, AmountView? Value, AmountView? Detailed, AmountView? Unallocated, AmountView? Undetailed, decimal? DetailedPct,
@@ -60,7 +63,7 @@ public sealed record InvestmentsHoldings(
     IReadOnlyList<EnvelopeUcShareView> EnvelopesUc, IReadOnlyList<HoldingOverviewRow> Holdings, IReadOnlyList<ConcentrationView> Concentrations,
     int CostYear, AmountView? Cost, decimal? CostPct, int WithoutReportCount, IReadOnlyList<UndetailedEnvelopeView> UndetailedEnvelopes,
     IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings,
-    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection) : IExposesItems
+    IReadOnlyList<EnvelopeFeesView> EnvelopeFees, FeesProjectionView? Projection, bool Estimated) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
         => Holdings.Select(h => h.EnvelopeId).Concat(UndetailedEnvelopes.Select(e => e.EnvelopeId)).Concat(EnvelopeFees.Select(e => e.EnvelopeId)).Distinct();
@@ -69,7 +72,7 @@ public sealed record InvestmentsHoldings(
 [RequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>]
 public sealed class GetInvestmentsHoldingsHandler(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdings,
-    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx)
+    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, EnvelopeEstimator estimator)
     : IRequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>
 {
     public async ValueTask<Result<InvestmentsHoldings>> HandleAsync(GetInvestmentsHoldingsQuery query, CancellationToken ct = default)
@@ -96,10 +99,13 @@ public sealed class GetInvestmentsHoldingsHandler(
         foreach (var envelope in export.Snapshots.Select(s => s.Envelope).Distinct())
             reports[envelope] = await holdings.CostReportsAsync(envelope, ct);
 
+        // Holding prices spec §5.4: estimated as the reader, over the envelopes already read.
+        var estimates = await estimator.EstimateAsync(facts.Select(f => f.Item.Id).ToList(), ct);
+
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, query.AssumedReturnPct, query.ReferenceFeesPct));
+        return Result.Success(InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, query.AssumedReturnPct, query.ReferenceFeesPct, estimates));
     }
 }
 
@@ -120,9 +126,11 @@ internal static class InvestmentsHoldingsMath
 
     private static readonly int[] Horizons = [10, 20];
 
+    /// <param name="estimates">The envelopes' estimates (holding prices spec §5.4); none, the valuations and snapshots.</param>
     public static InvestmentsHoldings Build(
         IReadOnlyList<EnvelopePerformance.Facts> facts, HoldingsExport export, IReadOnlyDictionary<ItemId, IReadOnlyList<CostReport>> reports,
-        Currency reference, RateTable rates, LocalDate today, decimal assumedReturnPct = FeesProjection.DefaultReturnPct, decimal referenceFeesPct = FeesProjection.DefaultReferencePct)
+        Currency reference, RateTable rates, LocalDate today, decimal assumedReturnPct = FeesProjection.DefaultReturnPct, decimal referenceFeesPct = FeesProjection.DefaultReferencePct,
+        IReadOnlyDictionary<ItemId, Prices.EnvelopeEstimate>? estimates = null)
     {
         var convert = new Converter(reference, rates);
         decimal? At(decimal amount, Currency currency) => convert.Of(amount, currency, today);
@@ -142,12 +150,15 @@ internal static class InvestmentsHoldingsMath
         var envelopeFees = new List<EnvelopeFeesView>();
         var reportedLines = new List<(decimal? Converted, decimal FeesPct)>();
         var detailedCount = 0;
+        var estimated = false;
 
         foreach (var f in facts.OrderBy(f => f.Item.DisplayName, French).ThenBy(f => f.Item.Id.Value))
         {
             var figures = EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             // D16: an envelope without a value is not in the overview's value, so not here either.
-            if (figures.Value is not { } value) continue;
+            if (figures.Value is null) continue;
+            var (value, asOf, isEstimated, estimatedLines) = TodayValue.Pick(figures, estimates?.GetValueOrDefault(f.Item.Id));
+            estimated |= isEstimated;
             var valueConverted = At(value.Amount, f.Currency);
             values.Add(valueConverted);
 
@@ -163,43 +174,46 @@ internal static class InvestmentsHoldingsMath
             detailedCount++;
             var movements = export.Movements.Where(m => m.Envelope == f.Item.Id).ToList();
             var envelopeReports = reports.GetValueOrDefault(f.Item.Id) ?? [];
-            var lines = snapshot.Lines.Where(l => l.Value != 0m).Select(l => (Line: l, Converted: At(l.Value, f.Currency))).ToList();
+            // The statement's lines carry the fees and the share of units of account; today's, the estimated ones when the estimate is the value.
+            var statement = snapshot.Lines.Where(l => l.Value != 0m).Select(l => (l.HoldingId, l.Value, Converted: At(l.Value, f.Currency))).ToList();
+            var lines = estimatedLines is null ? statement
+                : estimatedLines.Where(l => l.Value != 0m).Select(l => (l.HoldingId, l.Value, Converted: At(l.Value, f.Currency))).ToList();
             detailedParts.AddRange(lines.Select(l => l.Converted));
-            unallocatedParts.Add(At(value.Amount - HoldingMath.Total(snapshot), f.Currency));
+            unallocatedParts.Add(At(value.Amount - (estimatedLines?.Sum(l => l.Value) ?? HoldingMath.Total(snapshot)), f.Currency));
 
-            foreach (var (line, converted) in lines)
+            foreach (var (holdingId, lineValue, converted) in lines)
             {
-                var holding = holdingsOf.GetValueOrDefault(line.HoldingId);
-                var report = envelopeReports.FirstOrDefault(r => r.HoldingId == line.HoldingId && r.Year == costYear);
+                var holding = holdingsOf.GetValueOrDefault(holdingId);
+                var report = envelopeReports.FirstOrDefault(r => r.HoldingId == holdingId && r.Year == costYear);
                 var implicitCost = report is null ? null : HoldingMath.ImplicitCost(report, snapshots, f.Currency);
                 var costConverted = implicitCost is { } c ? At(c.Amount, f.Currency) : null;
-                var figuresOf = HoldingMath.At(line.HoldingId, snapshots, movements, f.Currency, today);
-                rows.Add((new HoldingOverviewRow(f.Item.Id, f.Item.DisplayName, line.HoldingId, holding?.Name ?? string.Empty, holding?.Isin,
-                        holding?.Kind ?? "other", f.Currency.Code, snapshot.AsOf, line.Value.ToString("0.00", CultureInfo.InvariantCulture),
+                var figuresOf = HoldingMath.At(holdingId, snapshots, movements, f.Currency, today);
+                rows.Add((new HoldingOverviewRow(f.Item.Id, f.Item.DisplayName, holdingId, holding?.Name ?? string.Empty, holding?.Isin,
+                        holding?.Kind ?? "other", f.Currency.Code, isEstimated ? asOf : snapshot.AsOf, lineValue.ToString("0.00", CultureInfo.InvariantCulture),
                         convert.View(converted), null, figuresOf?.GainPct, figuresOf?.AnnualReturnPct, report?.TotalFeesPct,
                         convert.View(costConverted), holding?.MaturesOn),
                     converted, implicitCost is not null ? Base(report!, snapshots, f.Currency, At) : null, costConverted));
             }
 
             // Issue #103: cash has no fees to report, as D18.
-            var feeable = lines.Where(l => holdingsOf.GetValueOrDefault(l.Line.HoldingId)?.Kind != "cash").ToList();
+            var feeable = statement.Where(l => holdingsOf.GetValueOrDefault(l.HoldingId)?.Kind != "cash").ToList();
             var reported = feeable
-                .Select(l => (l.Line, l.Converted, Report: envelopeReports.FirstOrDefault(r => r.HoldingId == l.Line.HoldingId && r.Year == costYear)))
+                .Select(l => (l.HoldingId, l.Value, l.Converted, Report: envelopeReports.FirstOrDefault(r => r.HoldingId == l.HoldingId && r.Year == costYear)))
                 .Where(l => l.Report is not null).ToList();
             reportedLines.AddRange(reported.Select(l => (l.Converted, l.Report!.TotalFeesPct)));
             if (feeable.Count > 0)
             {
-                var weight = reported.Sum(l => l.Line.Value);
+                var weight = reported.Sum(l => l.Value);
                 decimal? Weighted(Func<CostReport, decimal?> pick)
                 {
                     var known = reported.Where(l => pick(l.Report!) is not null).ToList();
-                    var w = known.Sum(l => l.Line.Value);
-                    return w > 0m ? Math.Round(known.Sum(l => l.Line.Value * pick(l.Report!)!.Value) / w, 2, MidpointRounding.AwayFromZero) : null;
+                    var w = known.Sum(l => l.Value);
+                    return w > 0m ? Math.Round(known.Sum(l => l.Value * pick(l.Report!)!.Value) / w, 2, MidpointRounding.AwayFromZero) : null;
                 }
-                var feeableValue = feeable.Sum(l => l.Line.Value);
+                var feeableValue = feeable.Sum(l => l.Value);
                 envelopeFees.Add(new EnvelopeFeesView(f.Item.Id, f.Item.DisplayName, Weighted(r => r.ContractFeesPct), Weighted(r => r.SupportFeesPct),
                     Weighted(r => r.TotalFeesPct),
-                    weight > 0m ? convert.View(At(reported.Sum(l => l.Line.Value * l.Report!.TotalFeesPct / 100m), f.Currency)) : null,
+                    weight > 0m ? convert.View(At(reported.Sum(l => l.Value * l.Report!.TotalFeesPct / 100m), f.Currency)) : null,
                     feeableValue > 0m ? EnvelopeMath.RoundPercent(weight / feeableValue * 100m) : null));
             }
 
@@ -208,8 +222,9 @@ internal static class InvestmentsHoldingsMath
                 var kinds = export.Holdings.Where(h => h.Envelope == f.Item.Id).ToDictionary(h => h.Id, h => h.Kind);
                 var share = HoldingMath.UcSharePct(snapshot, kinds);
                 envelopesUc.Add(new EnvelopeUcShareView(f.Item.Id, share, f.Envelope.UcShareFloorPct));
-                unitLinkedLines.AddRange(lines.Select(l => l.Converted));
-                ucLines.AddRange(lines.Where(l => kinds.TryGetValue(l.Line.HoldingId, out var k) && HoldingWire.HasUnits(k)).Select(l => l.Converted));
+                // On the statement, as each envelope's share and its floor: never a share above the floor beside its warning.
+                unitLinkedLines.AddRange(statement.Select(l => l.Converted));
+                ucLines.AddRange(statement.Where(l => kinds.TryGetValue(l.HoldingId, out var k) && HoldingWire.HasUnits(k)).Select(l => l.Converted));
                 if (share < f.Envelope.UcShareFloorPct)
                     watch.Add(new EnvelopeWatchView(HoldingWarnings.UcShareBelowFloor, f.Item.Id, null, snapshot.AsOf));
             }
@@ -257,7 +272,7 @@ internal static class InvestmentsHoldingsMath
             watch.OrderBy(w => w.On ?? LocalDate.MaxIsoValue).ThenBy(w => w.Code, StringComparer.Ordinal).ThenBy(w => w.EnvelopeId.Value).ToList(),
             convert.Missing,
             envelopeFees.OrderBy(e => e.TotalFeesPct is null).ThenByDescending(e => e.TotalFeesPct).ThenBy(e => e.Name, French).ToList(),
-            Projection(reportedLines, assumedReturnPct, referenceFeesPct, convert));
+            Projection(reportedLines, assumedReturnPct, referenceFeesPct, convert), estimated);
     }
 
     /// <summary>

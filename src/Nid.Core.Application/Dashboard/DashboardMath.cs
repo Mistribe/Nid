@@ -9,15 +9,19 @@ public sealed record DashboardMoneyView(string Amount, string Currency);
 /// <summary>A figure's per-currency sums and their total in the household currency: null with nothing to sum, or when a rate is missing (then <c>MissingCurrency</c> names it).</summary>
 public sealed record DashboardFigure(IReadOnlyList<DashboardMoneyView> PerCurrency, DashboardMoneyView? Total, string? MissingCurrency);
 
-/// <summary>2D2a spec §4: one envelope of the split; <c>Converted</c> null without a value or with a missing rate (then <c>MissingCurrency</c> names it).</summary>
+/// <summary>
+/// 2D2a spec §4: one envelope of the split; <c>Converted</c> null without a value or with a missing rate (then <c>MissingCurrency</c> names it).
+/// Holding prices spec §5.4: <c>Estimated</c> when the value is the envelope's estimate, dated <c>AsOf</c>; <c>ValuedOn</c> is the latest
+/// valuation's date, the one <c>Stale</c> speaks of (D17).
+/// </summary>
 public sealed record DashboardEnvelopeView(
     ItemId Id, string Module, string Name, DashboardMoneyView? Value, DashboardMoneyView? Converted, string? MissingCurrency,
-    LocalDate? AsOf, bool Stale);
+    LocalDate? AsOf, bool Stale, bool Estimated, LocalDate? ValuedOn);
 
 /// <summary>2D2a spec §4: an event of « À venir »; the amount in its own currency.</summary>
 public sealed record DashboardEventView(LocalDate On, string Kind, ItemId Id, string Module, string Name, string? Label, DashboardMoneyView? Amount);
 
-/// <summary>2D2a spec §4: a line of « À faire »: <c>stale_value</c> (dated by the last value), <c>no_value</c>, <c>income_gap_soon</c> (dated by the end).</summary>
+/// <summary>2D2a spec §4: a line of « À faire »: <c>stale_value</c> (dated by the latest valuation, not the estimate), <c>no_value</c>, <c>income_gap_soon</c> (dated by the end).</summary>
 public sealed record DashboardTodoView(string Kind, ItemId Id, string Module, string Name, LocalDate? On, string? Label);
 
 /// <summary>2D2a spec §4: a person's pro-rata share. <c>Slot</c> is their colour rank: adults by creation, then dependents.</summary>
@@ -45,7 +49,7 @@ public sealed record AllocationView(
 
 public sealed record DashboardView(
     string Currency,
-    DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes,
+    DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes, int EstimatedEnvelopes,
     DashboardFigure Commitments, DashboardFigure CashThisMonth, int Subscriptions,
     DashboardFigure Income, int IncomeSources, DashboardMoneyView? Margin, decimal? CommittedPct, decimal? MarginPct,
     DashboardFigure Change, DashboardFigure ChangeContributions, decimal? ChangePct,
@@ -124,7 +128,7 @@ public static class DashboardMath
                 h.Holding.Item, h.Holding.Module, h.Holding.Name,
                 h.Holding.Value is { } v ? Money(v.Amount, v.Currency) : null,
                 h.Converted.Amount is { } c ? Money(c, reference) : null,
-                h.Converted.Missing, h.Holding.AsOf, h.Holding.Stale))
+                h.Converted.Missing, h.Holding.AsOf, h.Holding.Stale, h.Holding.Estimated, h.Holding.ValuedOn ?? h.Holding.AsOf))
             .ToList();
         var peopleMissing = holdings.Select(h => h.Converted.Missing).OfType<string>().Order(StringComparer.Ordinal).FirstOrDefault();
         var people = peopleMissing is null ? People(holdings.Select(h => (h.Holding.Owners, h.Converted.Amount)), persons, reference) : null;
@@ -135,8 +139,8 @@ public static class DashboardMath
                 e.Amount is { } a ? Money(a.Amount, a.Currency) : null))
             .ToList();
         var todo = holdings.Where(h => h.Holding is { Value: not null, Stale: true })
-            .OrderBy(h => h.Holding.AsOf).ThenBy(h => h.Holding.Name, French)
-            .Select(h => new DashboardTodoView("stale_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, h.Holding.AsOf, null))
+            .OrderBy(h => h.Holding.ValuedOn ?? h.Holding.AsOf).ThenBy(h => h.Holding.Name, French)
+            .Select(h => new DashboardTodoView("stale_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, h.Holding.ValuedOn ?? h.Holding.AsOf, null))
             .Concat(holdings.Where(h => h.Holding.Value is null).OrderBy(h => h.Holding.Name, French)
                 .Select(h => new DashboardTodoView("no_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, null, null)))
             .Concat(events.Where(e => e.Kind == UpcomingKinds.IncomeGapSoon).OrderBy(e => e.On).ThenBy(e => e.Name, French)
@@ -146,7 +150,7 @@ public static class DashboardMath
         return new DashboardView(
             reference.Code,
             netWorth.View(reference), worth.Select(p => p.OldestAsOf).Min(), worth.Sum(p => p.Envelopes),
-            worth.Sum(p => p.WithoutValue), worth.Sum(p => p.Stale),
+            worth.Sum(p => p.WithoutValue), worth.Sum(p => p.Stale), holdings.Count(h => h.Holding.Estimated),
             amortized.View(reference), cash.View(reference),
             commitments.Where(p => p.Source == CommitmentSources.Subscriptions).Sum(p => p.Count),
             sources > 0 ? monthly.View(reference) : Sum.Nothing.View(reference), sources,

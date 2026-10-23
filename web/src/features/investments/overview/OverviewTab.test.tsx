@@ -104,6 +104,32 @@ describe('Placements › vue d’ensemble', () => {
       .toHaveAttribute('href', expect.stringMatching(/tab=list.*closed=1|closed=1.*tab=list/));
   });
 
+  it('says what is estimated: the count, the total and the row with its date', async () => {
+    const body = household();
+    body.estimatedCount = 1;
+    body.envelopes = [{ ...body.envelopes[0]!, estimated: true, estimatedOn: '2025-10-12' }, body.envelopes[1]!];
+    serve(body);
+    const { container } = await renderApp('/investments');
+
+    expect((await screen.findByText('Valeur des placements')).closest('dl')).toHaveTextContent('1 valeur estimée');
+    const envelopes = await region('Enveloppes');
+    expect(envelopes).toHaveTextContent('Total · 2 enveloppes35 000,00 € estimé · +3 200,00 €');
+    const [pea, livret] = within(envelopes).getAllByRole('row').slice(1);
+    expect(pea).toHaveTextContent('estimée au 12 oct. 2025');
+    expect(livret).not.toHaveTextContent('estimée');
+    const card = within(envelopes).getAllByRole('listitem').find((li) => li.textContent?.includes('PEA'));
+    expect(card).toHaveTextContent('estimée au 12 oct. 2025');
+    await expectNoAxeViolations(container);
+  });
+
+  it('says nothing about estimates when none is counted', async () => {
+    serve(household());
+    await renderApp('/investments');
+
+    await region('Enveloppes');
+    expect(document.body).not.toHaveTextContent(/estimée?\b/);
+  });
+
   it('an envelope in another currency shows its own amount, the converted one in a tooltip', async () => {
     const usd = { amount: '1200.0000', currency: 'USD' };
     const body = household();

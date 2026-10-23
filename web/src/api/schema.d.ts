@@ -14580,6 +14580,9 @@ export interface components {
             /** Format: date */
             asOf?: null | string;
             stale: boolean;
+            estimated: boolean;
+            /** Format: date */
+            valuedOn?: null | string;
         };
         DashboardEventView: {
             /** Format: date */
@@ -14632,6 +14635,8 @@ export interface components {
             envelopesWithoutValue: number;
             /** Format: int32 */
             staleEnvelopes: number;
+            /** Format: int32 */
+            estimatedEnvelopes: number;
             commitments: components["schemas"]["DashboardFigure"];
             cashThisMonth: components["schemas"]["DashboardFigure"];
             /** Format: int32 */
@@ -14804,6 +14809,9 @@ export interface components {
             figures: components["schemas"]["FiguresView"];
             valueConverted?: null | components["schemas"]["AmountView"];
             gainConverted?: null | components["schemas"]["AmountView"];
+            estimated: boolean;
+            /** Format: date */
+            estimatedOn?: null | string;
         };
         EnvelopePeriodRow: {
             /** Format: uuid */
@@ -15533,6 +15541,7 @@ export interface components {
             findings: components["schemas"]["OverviewFindingView"][];
             envelopeFees: components["schemas"]["EnvelopeFeesView"][];
             projection?: null | components["schemas"]["FeesProjectionView"];
+            estimated: boolean;
         };
         InvestmentsOverview: {
             currency: string;
@@ -15567,6 +15576,8 @@ export interface components {
             points: components["schemas"]["OverviewPointView"][];
             watch: components["schemas"]["EnvelopeWatchView"][];
             findings: components["schemas"]["OverviewFindingView"][];
+            /** Format: int32 */
+            estimatedCount: number;
         };
         InvestmentsPerformance: {
             currency: string;

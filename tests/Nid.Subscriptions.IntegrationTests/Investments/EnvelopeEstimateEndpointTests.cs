@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
@@ -13,13 +14,13 @@ namespace Nid.Subscriptions.IntegrationTests.Investments;
 /// <summary>Holding prices spec §5.3: the envelope's estimate and each holding's latest price in the holdings view.</summary>
 public class EnvelopeEstimateEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    private const string EtfIsin = "IE00B4L5Y983";
+    internal const string EtfIsin = "IE00B4L5Y983";
     private const string UsIsin = "US0378331005";
     private const string OtherIsin = "FR0010315770";
     private const string UnknownIsin = "LU0274208692";
 
     // NidApp's today is 2025-10-15; the statement is two weeks older.
-    private static readonly LocalDate Day = new(2025, 10, 14);
+    internal static readonly LocalDate Day = new(2025, 10, 14);
 
     private static string Url(ItemId id) => $"/api/v1/investments/envelopes/{id.Value}";
 
@@ -42,10 +43,11 @@ public class EnvelopeEstimateEndpointTests(PostgresFixture fixture) : IClassFixt
         return (await JsonAsync(response)).GetProperty("id").GetGuid();
     }
 
-    /// <summary>Statement of 30/09: the ETF 10 u @ 100 = 1 000, the euro fund 500, and its valuation of 1 500; prices on.</summary>
-    private static async Task<(ItemId Id, Guid Etf)> EnvelopeAsync(NidApp app, bool enable = true, params (string Isin, string Value)[] others)
+    /// <summary>Statement of 30/09 (or <paramref name="statement"/>): the ETF 10 u @ 100 = 1 000, the euro fund 500, and its valuation of 1 500; prices on.</summary>
+    internal static async Task<(ItemId Id, Guid Etf)> EnvelopeAsync(
+        NidApp app, bool enable = true, Visibility visibility = Visibility.Shared, string statement = "2025-09-30", params (string Isin, string Value)[] others)
     {
-        var id = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var id = await app.NewEnvelopeAsync("PEA", app.AdultA, visibility);
         var euro = await AddAsync(app, id, new { name = "Fonds euros", kind = "euro_fund" });
         var etf = await AddAsync(app, id, new { name = "ETF Monde", kind = "etf", isin = EtfIsin });
         var lines = new List<object>
@@ -56,14 +58,14 @@ public class EnvelopeEstimateEndpointTests(PostgresFixture fixture) : IClassFixt
         foreach (var (isin, value) in others)
             lines.Add(new { holdingId = await AddAsync(app, id, new { name = isin, kind = "fund", isin }), value = Eur(value) });
         var snapshot = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holding-snapshots",
-            new { asOf = "2025-09-30", recordValuation = true, lines });
+            new { asOf = statement, recordValuation = true, lines });
         Assert.Equal(HttpStatusCode.Created, snapshot.StatusCode);
         if (enable)
             (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { pricesEnabled = true })).EnsureSuccessStatusCode();
         return (id, etf);
     }
 
-    private static async Task PriceAsync(
+    internal static async Task PriceAsync(
         NidApp app, string isin, decimal price, LocalDate on, Currency? currency = null, PriceStatus status = PriceStatus.Accepted, decimal? previous = null)
     {
         await using var scope = Scope(app);
@@ -215,5 +217,34 @@ public class EnvelopeEstimateEndpointTests(PostgresFixture fixture) : IClassFixt
         Assert.Equal(JsonValueKind.Null, past.GetProperty("estimate").ValueKind);
         Assert.Equal("rejected", past.GetProperty("holdings").EnumerateArray().Single(h => h.GetProperty("id").GetGuid() == etf)
             .GetProperty("price").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task An_envelope_that_cannot_be_read_is_unreadable_without_a_failure()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (shared, _) = await EnvelopeAsync(app);
+        var (hidden, _) = await EnvelopeAsync(app, visibility: Visibility.Private);
+        await PriceAsync(app, EtfIsin, 110m, Day);
+        var unknown = ItemId.New();
+
+        async Task<IReadOnlyDictionary<ItemId, EnvelopeEstimate>> EstimateAsync(Actor actor, params ItemId[] ids)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = actor;
+            return await scope.ServiceProvider.GetRequiredService<EnvelopeEstimator>().EstimateAsync(ids, default);
+        }
+        static void Unreadable(EnvelopeEstimate e) => Assert.Equal((null, "unreadable"), (e.Value, e.MissingReason));
+
+        // No person actor: every envelope is a key, none has a value.
+        var system = await EstimateAsync(Actor.System, shared, hidden);
+        Assert.Equal(2, system.Count);
+        Unreadable(system[shared]);
+        Unreadable(system[hidden]);
+        // B cannot read A's private envelope; an id nobody knows has no currency.
+        Unreadable((await EstimateAsync(Actor.Browser(app.AdultB), hidden))[hidden]);
+        var mixed = await EstimateAsync(Actor.Browser(app.AdultB), shared, unknown);
+        Assert.Equal(1_600m, mixed[shared].Value?.Amount);
+        Unreadable(mixed[unknown]);
     }
 }

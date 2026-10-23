@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Investments.Application;
 using Nid.Investments.Contracts;
+using Nid.Investments.Domain;
 using NodaTime;
 
 namespace Nid.Investments.Tests;
@@ -52,6 +53,20 @@ public class EnvelopeAllocationTests
         var slices = EnvelopeAllocation.Of(EnvelopeKind.Pea, 900m, Snapshot(new LocalDate(2026, 9, 30), (a, 100m), (b, 200m), (gone, 0m)), Of(a, b, gone));
 
         Assert.Equal([new AllocationSlice("equity", "days", 900m, false)], slices);
+    }
+
+    [Fact]
+    public void Estimated_lines_weigh_instead_of_the_snapshot_the_slices_summing_to_the_value_exactly()
+    {
+        var euro = Holding("euro_fund");
+        var etf = Holding("etf");
+        var snapshot = Snapshot(new LocalDate(2026, 9, 30), (euro, 500m), (etf, 1000m));
+        var slices = EnvelopeAllocation.Of(EnvelopeKind.Pea, 1_600.01m, snapshot, Of(euro, etf),
+            [new EstimatedLine(euro.Id, 500m), new EstimatedLine(etf.Id, 1100m)]);
+
+        // The statement's weights would give the ETF 1 066.67; the estimated lines give it 1 100.
+        Assert.Equal([("equity", 1100.01m), ("capital_guaranteed", 500m)], slices.Select(s => (s.Class, Math.Round(s.Amount, 2))));
+        Assert.Equal(1_600.01m, slices.Sum(s => s.Amount));
     }
 
     [Fact]

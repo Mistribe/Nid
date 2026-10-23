@@ -39,6 +39,14 @@ describe('Placements › supports et frais', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('says « estimé » next to a total that counts an estimate', async () => {
+    serve(householdHoldings({ estimated: true }));
+    const { container } = await renderApp('/investments?tab=holdings');
+
+    expect((await screen.findByText('Détaillé par support')).closest('dl')).toHaveTextContent('139 700,00 € estimé2 enveloppes sur 3');
+    await expectNoAxeViolations(container);
+  });
+
   it('splits by kind, says what is outside, and lists the holdings to their page', async () => {
     serve(householdHoldings());
     const { user } = await renderApp('/investments?tab=holdings');

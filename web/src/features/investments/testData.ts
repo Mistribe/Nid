@@ -43,12 +43,12 @@ export const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
 export const overview = (over: Partial<InvestmentsOverview> = {}): InvestmentsOverview => ({
   currency: 'EUR', openCount: 0, closedCount: 0, value: null, oldestAsOf: null, staleCount: 0, withoutValueCount: 0,
   netContributions: null, paidIn: null, gain: null, gainPct: null, annualReturnPct: null, sinceJanuary: null, sinceJanuaryPct: null,
-  withoutStartCount: 0, byKind: [], byPerson: [], envelopes: [], points: [], watch: [], findings: [], ...over,
+  withoutStartCount: 0, byKind: [], byPerson: [], envelopes: [], points: [], watch: [], findings: [], estimatedCount: 0, ...over,
 });
 
 export const overviewRow = (over: Partial<EnvelopeOverviewRow> = {}): EnvelopeOverviewRow => ({
   id: PEA, name: 'PEA', kind: 'pea', institution: 'Banque', owners: [{ personId: ALICE, shareBp: 10000 }], currency: 'EUR',
-  figures: figures(), valueConverted: eur('25000.00'), gainConverted: eur('3000.00'), ...over,
+  figures: figures(), valueConverted: eur('25000.00'), gainConverted: eur('3000.00'), estimated: false, estimatedOn: null, ...over,
 });
 
 /** A PEA and a savings account, the savings account's value old, with a year of points. */
@@ -107,7 +107,7 @@ export const LIFE = '0192f0aa-0000-7000-8000-00000000e004';
 export const holdings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldings => ({
   currency: 'EUR', value: null, detailed: null, unallocated: null, undetailed: null, detailedPct: null, detailedCount: 0, envelopeCount: 0,
   byKind: [], ucSharePct: null, envelopesUc: [], holdings: [], concentrations: [], costYear: 2024, cost: null, costPct: null,
-  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, ...over,
+  withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, estimated: false, ...over,
 });
 
 export const holdingRow = (over: Partial<HoldingOverviewRow>): HoldingOverviewRow => ({

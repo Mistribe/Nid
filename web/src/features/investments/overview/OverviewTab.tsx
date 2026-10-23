@@ -92,6 +92,12 @@ const share = (value: number) => new Intl.NumberFormat('fr-FR', { minimumFractio
 
 const signed = (value: MoneyValue) => (value.amount.startsWith('-') ? formatMoney(value) : `+${formatMoney(value)}`);
 
+/** What an estimated envelope adds under its valuation's date: words, not colour. */
+function Estimated({ on }: { on: string }) {
+  const { t } = useTranslation();
+  return <span className="block text-xs text-muted-foreground">{t('investments_overview.estimated_on', { date: formatLocalDate(on, 'short') })}</span>;
+}
+
 function Figures({ d }: { d: InvestmentsOverview }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
@@ -103,6 +109,7 @@ function Figures({ d }: { d: InvestmentsOverview }) {
           {figure(d.value)}
           {d.oldestAsOf ? <Sub>{t('investments_overview.value_as_of', { date: formatLocalDate(d.oldestAsOf, 'short') })}</Sub> : null}
           {d.staleCount > 0 ? <Sub><span className="inline-flex items-center gap-1"><Clock aria-hidden="true" className="size-3.5" />{t('investments_overview.stale', { count: d.staleCount })}</span></Sub> : null}
+          {d.estimatedCount > 0 ? <Sub>{t('investments_overview.estimated_count', { count: d.estimatedCount })}</Sub> : null}
           {d.withoutValueCount > 0 ? <Sub>{t('investments_overview.without_value', { count: d.withoutValueCount })}</Sub> : null}
         </>
       ) },
@@ -254,10 +261,13 @@ function Envelopes({ d }: { d: InvestmentsOverview }) {
     if (!asOf) return <span className="text-muted-foreground">{t('investments.no_value')}</span>;
     const stale = staleDays !== null && staleDays !== undefined;
     return (
-      <span className="inline-flex items-center gap-1">
-        {stale ? <Clock aria-hidden="true" className="size-4" /> : null}
-        <LocalDate value={asOf} style="short" />
-        {stale ? <span className="sr-only">{t('investments.stale', { count: staleDays })}</span> : null}
+      <span>
+        <span className="inline-flex items-center gap-1">
+          {stale ? <Clock aria-hidden="true" className="size-4" /> : null}
+          <LocalDate value={asOf} style="short" />
+          {stale ? <span className="sr-only">{t('investments.stale', { count: staleDays })}</span> : null}
+        </span>
+        {r.estimated && r.estimatedOn ? <Estimated on={r.estimatedOn} /> : null}
       </span>
     );
   };
@@ -288,11 +298,12 @@ function Envelopes({ d }: { d: InvestmentsOverview }) {
               {r.figures.value ? <Amount value={r.figures.value} converted={r.valueConverted} /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
               {r.figures.value ? <Gain figures={r.figures} /> : null}
             </div>
+            {r.estimated && r.estimatedOn ? <Estimated on={r.estimatedOn} /> : null}
           </div>
         )} />
       <p className="flex flex-wrap justify-between gap-2 border-t pt-2 text-sm font-medium">
         <span>{t('investments_overview.total_row', { count: d.openCount })}</span>
-        <span className="tabular-nums">{figure(d.value)}{d.gain ? ` · ${signed(d.gain)}` : null}</span>
+        <span className="tabular-nums">{figure(d.value)}{d.estimatedCount > 0 ? <span className="font-normal text-muted-foreground"> {t('investments_overview.estimated')}</span> : null}{d.gain ? ` · ${signed(d.gain)}` : null}</span>
       </p>
     </SectionCard>
   );

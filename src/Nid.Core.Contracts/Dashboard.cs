@@ -18,10 +18,12 @@ public sealed record NetWorthPart(
 /// <summary>
 /// 2D2a spec §4: one visible open envelope of the net worth; <c>Value</c> null when it has none (or its facts cannot be read).
 /// Issue #104: <c>Slices</c> splits <c>Value</c> by asset class and liquidity; null lets the dashboard classify it by module.
+/// Holding prices spec §5.4: <c>Estimated</c> when <c>Value</c> and <c>AsOf</c> are an estimate; <c>Stale</c> still follows the valuation
+/// (D17), dated by <c>ValuedOn</c>, the latest valuation's date (null: <c>AsOf</c>).
 /// </summary>
 public sealed record Holding(
     ItemId Item, string Module, string Name, Money? Value, LocalDate? AsOf, bool Stale, IReadOnlyList<OwnerShare> Owners,
-    IReadOnlyList<AllocationSlice>? Slices = null);
+    IReadOnlyList<AllocationSlice>? Slices = null, bool Estimated = false, LocalDate? ValuedOn = null);
 
 /// <summary>Issue #104: a part of a holding's value, in its currency; <c>Approximate</c> when the class is guessed from a kind.</summary>
 public sealed record AllocationSlice(string Class, string Liquidity, decimal Amount, bool Approximate);

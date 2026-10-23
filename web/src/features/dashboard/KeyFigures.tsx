@@ -33,7 +33,10 @@ export function KeyFigures({ d, onOpen }: { d: DashboardView; onOpen: (panel: Pa
   return (
     <div data-guide="dashboard.tiles" className="grid grid-cols-2 gap-3 md:grid-cols-4">
       <Tile label={t('dashboard.key.net_worth')} panel="net_worth" onOpen={onOpen} className="col-span-2 md:col-span-1">
-        <Value figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} />
+        <span>
+          <Value figure={d.netWorth} unknown={t('dashboard.net_worth_unknown')} />
+          {d.netWorth.total && d.estimatedEnvelopes > 0 ? <span className="text-xs text-muted-foreground"> {t('dashboard.estimated_total')}</span> : null}
+        </span>
         <span className="text-sm">
           {change ? (
             <Direction amount={change}>

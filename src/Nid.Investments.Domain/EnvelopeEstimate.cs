@@ -19,17 +19,24 @@ public static class EstimateReasons
     public const string IncompleteSnapshot = "incomplete_snapshot";
     public const string NewerValuation = "newer_valuation";
     public const string NoNewerPrice = "no_newer_price";
+    public const string Unreadable = "unreadable";
 }
 
 /// <summary>
 /// The latest price of a holding's ISIN, already in the envelope's currency, or the <see cref="Reason"/> the caller could not use it
 /// (<c>rejected_price</c>, <c>not_found</c>, <c>rate_missing</c>). <see cref="PriceOn"/> gives the latest accepted price on or before a date.
+/// <see cref="Converted"/>: the price was quoted in another currency.
 /// </summary>
-public sealed record HoldingPrice(decimal? Price, LocalDate? OnDate, string? Reason, Func<LocalDate, decimal?> PriceOn);
+public sealed record HoldingPrice(decimal? Price, LocalDate? OnDate, string? Reason, Func<LocalDate, decimal?> PriceOn, bool Converted = false);
 
 public sealed record EstimateLine(Guid HoldingId, string Reason);
 
-public sealed record EnvelopeEstimateResult(decimal? Value, LocalDate? AsOf, LocalDate? BasedOn, IReadOnlyList<EstimateLine> Stale, string? MissingReason);
+/// <summary>A holding counted in the estimate and its value: units × price (to the cent) or kept (statement + movements since).</summary>
+public sealed record EstimatedLine(Guid HoldingId, decimal Value);
+
+/// <summary><see cref="Converted"/>: a holding priced in the estimate had a converted price. Σ <see cref="Lines"/> + the unallocated part rounds to <see cref="Value"/>.</summary>
+public sealed record EnvelopeEstimateResult(
+    decimal? Value, LocalDate? AsOf, LocalDate? BasedOn, bool Converted, IReadOnlyList<EstimateLine> Stale, string? MissingReason, IReadOnlyList<EstimatedLine> Lines);
 
 /// <summary>Spec §5.2: an envelope's value today from its latest complete snapshot, the movements since and the latest prices. Writes nothing (D1).</summary>
 public static class EnvelopeEstimate
@@ -50,9 +57,11 @@ public static class EnvelopeEstimate
             return Missing(EstimateReasons.NewerValuation);
 
         var since = movements.Where(m => m.OccurredOn > s.AsOf && m.OccurredOn <= today).ToList();
-        var total = (valuationAtSnapshot ?? HoldingMath.Total(s)) - HoldingMath.Total(s); // the unallocated part, unchanged
+        var unallocated = (valuationAtSnapshot ?? HoldingMath.Total(s)) - HoldingMath.Total(s); // kept as it is
         var used = new List<LocalDate>();
         var stale = new List<EstimateLine>();
+        var lines = new List<EstimatedLine>();
+        var converted = false;
         foreach (var h in holdings)
         {
             // D16: a holding opened after the snapshot starts from nothing once it has a movement.
@@ -63,7 +72,7 @@ public static class EnvelopeEstimate
             var kept = line.Value + HoldingMath.NetIn(h.Id, since, _ => true);
             if (!HoldingWire.HasUnits(h.Kind))
             {
-                total += kept;
+                lines.Add(new EstimatedLine(h.Id, kept));
                 continue;
             }
             var price = prices.GetValueOrDefault(h.Id);
@@ -74,17 +83,19 @@ public static class EnvelopeEstimate
             if (reason is null && price is { Price: { } p, OnDate: { } on }
                 && HoldingMath.UnitsAt(line, since, s.AsOf, today, price.PriceOn) is { } units)
             {
-                total += Math.Round(units * p, 2, MidpointRounding.AwayFromZero);
+                lines.Add(new EstimatedLine(h.Id, Math.Round(units * p, 2, MidpointRounding.AwayFromZero)));
                 used.Add(on);
+                converted |= price.Converted;
                 continue;
             }
-            total += kept;
+            lines.Add(new EstimatedLine(h.Id, kept));
             stale.Add(new EstimateLine(h.Id, reason ?? EstimateReasons.NoUnits));
         }
+        var total = unallocated + lines.Sum(l => l.Value);
         // Without a newer price the stale lines still say why each holding was not valued.
         return used.Count == 0
-            ? new EnvelopeEstimateResult(null, null, s.AsOf, stale, EstimateReasons.NoNewerPrice)
-            : new EnvelopeEstimateResult(Math.Round(total, 2, MidpointRounding.AwayFromZero), used.Max(), s.AsOf, stale, null);
+            ? new EnvelopeEstimateResult(null, null, s.AsOf, false, stale, EstimateReasons.NoNewerPrice, lines)
+            : new EnvelopeEstimateResult(Math.Round(total, 2, MidpointRounding.AwayFromZero), used.Max(), s.AsOf, converted, stale, null, lines);
     }
 
     /// <summary>A price dated on or before the snapshot is no newer price; one more than <see cref="FreshDays"/> days old is stale, converted or not.</summary>
@@ -94,5 +105,5 @@ public static class EnvelopeEstimate
             : price.Price is null ? EstimateReasons.NoPrice
             : null;
 
-    private static EnvelopeEstimateResult Missing(string reason) => new(null, null, null, [], reason);
+    private static EnvelopeEstimateResult Missing(string reason) => new(null, null, null, false, [], reason, []);
 }

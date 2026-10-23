@@ -152,6 +152,10 @@
     "value_as_of": "au {{date}}",
     "stale_one": "{{count}} valeur à mettre à jour",
     "stale_other": "{{count}} valeurs à mettre à jour",
+    "estimated": "estimé",
+    "estimated_count_one": "{{count}} valeur estimée",
+    "estimated_count_other": "{{count}} valeurs estimées",
+    "estimated_on": "estimée au {{date}}",
     "without_value_one": "{{count}} enveloppe sans valeur",
     "without_value_other": "{{count}} enveloppes sans valeur",
     "net": "Versé net",
@@ -298,6 +302,7 @@
   "investments_holdings": {
     "loading": "Chargement des supports",
     "detailed": "Détaillé par support",
+    "estimated": "estimé",
     "detailed_note": "{{count}} enveloppes sur {{total}} · {{pct}} de la valeur",
     "uc": "Part en unités de compte",
     "uc_note": "assurance-vie et PER · plancher {{floor}}",

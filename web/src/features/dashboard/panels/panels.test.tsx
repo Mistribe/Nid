@@ -85,6 +85,34 @@ describe('key figure panels', () => {
     expect(router.state.location.search).toEqual({ scope: 'me' });
   });
 
+  it('says what is estimated: the count on the tile and each row, with its date and what is stale', async () => {
+    serve(dashboard({
+      estimatedEnvelopes: 2, staleEnvelopes: 1,
+      envelopeSplit: [
+        envelope({ name: 'PEA', estimated: true, asOf: '2025-10-12', valuedOn: '2025-09-30' }),
+        envelope({ id: '00000000-0000-7000-8000-0000000000e3', name: 'Livret A', estimated: true, stale: true, asOf: '2025-10-12', valuedOn: '2025-06-03' }),
+        envelope({ id: '00000000-0000-7000-8000-0000000000e4', name: 'Compte' }),
+      ],
+    }));
+    const { container } = await renderApp('/dashboard?panel=net_worth');
+
+    const panel = await dialog('Patrimoine net');
+    expect(panel).toHaveTextContent('2 valeurs estimées');
+    const rows = within(panel).getAllByRole('row');
+    expect(panel).toHaveTextContent('1 valeur à mettre à jour');
+    expect(rows.find((r) => r.textContent?.includes('PEA'))).toHaveTextContent('12 octobre 2025estimée');
+    expect(rows.find((r) => r.textContent?.includes('Livret A'))).toHaveTextContent('estimée, valeur du 3 juin 2025 à mettre à jour');
+    expect(rows.find((r) => r.textContent?.includes('Compte'))).not.toHaveTextContent('estimée');
+    await expectNoAxeViolations(container);
+  });
+
+  it('says nothing about estimates when none is counted', async () => {
+    serve(dashboard({ envelopeSplit: [envelope()] }));
+    await renderApp('/dashboard?panel=net_worth');
+
+    expect(await dialog('Patrimoine net')).not.toHaveTextContent('estimée');
+  });
+
   it('flags a stale value in amber with its date and links to the routine', async () => {
     serve(dashboard({
       staleEnvelopes: 1,

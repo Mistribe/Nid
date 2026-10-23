@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
+using Nid.Investments.Domain;
 using NodaTime;
 
 namespace Nid.Investments.Application;
@@ -7,22 +8,25 @@ namespace Nid.Investments.Application;
 /// <summary>
 /// Issue #104: an envelope's value by asset class and liquidity. Pro rata of its latest snapshot's lines when it has one, each
 /// line classed by its holding's asset class, else by its kind; without a snapshot, by the envelope's kind. Guessed classes are approximate.
+/// Holding prices spec §5.4: an estimated value is split by the estimate's lines (their estimated values) instead of the snapshot's.
 /// </summary>
 internal static class EnvelopeAllocation
 {
     public static IReadOnlyList<AllocationSlice> Of(
-        EnvelopeKind kind, decimal value, HoldingSnapshot? snapshot, IReadOnlyDictionary<Guid, EnvelopeHolding> holdings)
+        EnvelopeKind kind, decimal value, HoldingSnapshot? snapshot, IReadOnlyDictionary<Guid, EnvelopeHolding> holdings,
+        IReadOnlyList<EstimatedLine>? lines = null)
     {
         var liquidity = Liquidity(kind);
-        var lines = snapshot?.Lines.Where(l => l.Value != 0m).ToList() ?? [];
-        var total = lines.Sum(l => l.Value);
+        var weights = (lines?.Select(l => (l.HoldingId, l.Value)) ?? snapshot?.Lines.Select(l => (l.HoldingId, l.Value)) ?? [])
+            .Where(l => l.Value != 0m).ToList();
+        var total = weights.Sum(l => l.Value);
         if (total <= 0m)
         {
             var (cls, approximate) = ClassOf(kind);
             return [new AllocationSlice(cls, liquidity, value, approximate)];
         }
 
-        var parts = lines
+        var parts = weights
             .Select(l => (Class: ClassOf(holdings.GetValueOrDefault(l.HoldingId)), l.Value))
             .GroupBy(p => p.Class)
             .Select(g => (Key: g.Key, Weight: g.Sum(p => p.Value)))

@@ -16768,7 +16768,8 @@
           "id",
           "module",
           "name",
-          "stale"
+          "stale",
+          "estimated"
         ],
         "type": "object",
         "properties": {
@@ -16817,6 +16818,16 @@
           },
           "stale": {
             "type": "boolean"
+          },
+          "estimated": {
+            "type": "boolean"
+          },
+          "valuedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -16984,6 +16995,7 @@
           "envelopes",
           "envelopesWithoutValue",
           "staleEnvelopes",
+          "estimatedEnvelopes",
           "commitments",
           "cashThisMonth",
           "subscriptions",
@@ -17021,6 +17033,10 @@
             "format": "int32"
           },
           "staleEnvelopes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estimatedEnvelopes": {
             "type": "integer",
             "format": "int32"
           },
@@ -17735,7 +17751,8 @@
           "kind",
           "owners",
           "currency",
-          "figures"
+          "figures",
+          "estimated"
         ],
         "type": "object",
         "properties": {
@@ -17786,6 +17803,16 @@
                 "$ref": "#/components/schemas/AmountView"
               }
             ]
+          },
+          "estimated": {
+            "type": "boolean"
+          },
+          "estimatedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -20731,7 +20758,8 @@
           "undetailedEnvelopes",
           "watch",
           "findings",
-          "envelopeFees"
+          "envelopeFees",
+          "estimated"
         ],
         "type": "object",
         "properties": {
@@ -20882,6 +20910,9 @@
                 "$ref": "#/components/schemas/FeesProjectionView"
               }
             ]
+          },
+          "estimated": {
+            "type": "boolean"
           }
         }
       },
@@ -20898,7 +20929,8 @@
           "envelopes",
           "points",
           "watch",
-          "findings"
+          "findings",
+          "estimatedCount"
         ],
         "type": "object",
         "properties": {
@@ -21045,6 +21077,10 @@
             "items": {
               "$ref": "#/components/schemas/OverviewFindingView"
             }
+          },
+          "estimatedCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

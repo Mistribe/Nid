@@ -61,7 +61,9 @@ function Composition({ d }: { d: DashboardView }) {
                 <TableCell className={row.stale ? 'text-right text-status-warning-text' : 'text-right'}>
                   {row.stale ? <Clock aria-hidden="true" className="mr-1 inline size-3" /> : null}
                   {row.asOf ? formatLocalDate(row.asOf) : null}
-                  {row.stale ? <span className="block text-xs">{t('dashboard.split.stale')}</span> : null}
+                  {row.estimated
+                    ? <span className={row.stale ? 'block text-xs' : 'block text-xs text-muted-foreground'}>{row.stale && row.valuedOn ? t('dashboard.split.estimated_stale', { valuedOn: formatLocalDate(row.valuedOn) }) : t('dashboard.split.estimated')}</span>
+                    : row.stale ? <span className="block text-xs">{t('dashboard.split.stale')}</span> : null}
                 </TableCell>
               </TableRow>
             ))}
@@ -136,6 +138,7 @@ export function NetWorthPanel({ d }: { d: DashboardView }) {
               : t('dashboard.stale', { count: d.staleEnvelopes })}
           </li>
         ) : null}
+        {d.estimatedEnvelopes > 0 ? <li className="text-muted-foreground">{t('dashboard.estimated', { count: d.estimatedEnvelopes })}</li> : null}
         {d.envelopesWithoutValue > 0 ? <li className="text-muted-foreground">{t('dashboard.without_value', { count: d.envelopesWithoutValue })}</li> : null}
       </ul>
       {d.envelopeSplit.length > 0 ? (

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using Nid.Investments.Domain;
 using Nid.Platform.Contracts;
@@ -24,10 +25,13 @@ public sealed record KindShareView(string Kind, AmountView? Value, decimal? Shar
 /// <summary>D7: a person's part of each envelope by its shares; the parts of an envelope add up to it to the cent.</summary>
 public sealed record PersonEnvelopeShareView(Guid PersonId, AmountView? Value, AmountView? Gain, decimal? SharePct);
 
-/// <summary>An open envelope: its figures in its currency, as the list's, and its value and gain converted (D4).</summary>
+/// <summary>
+/// An open envelope: its figures in its currency, as the list's, and its value and gain converted (D4). Holding prices spec §5.4: when
+/// <c>Estimated</c>, the value (in the figures and converted) is the estimate of <c>EstimatedOn</c>; the rest of the figures stay on the valuation.
+/// </summary>
 public sealed record EnvelopeOverviewRow(
     ItemId Id, string Name, string Kind, string? Institution, IReadOnlyList<ItemOwnerView> Owners, string Currency, FiguresView Figures,
-    AmountView? ValueConverted, AmountView? GainConverted);
+    AmountView? ValueConverted, AmountView? GainConverted, bool Estimated, LocalDate? EstimatedOn);
 
 public sealed record KindValueView(string Kind, AmountView? Value);
 
@@ -40,7 +44,9 @@ public sealed record EnvelopeWatchView(string Code, ItemId EnvelopeId, Guid? Hol
 /// <summary>
 /// Spec §3.2. Every household figure is in <c>Currency</c>, null when a rate is missing (then a finding names it). Today's figures
 /// count the open envelopes; the points count a closed one before its closing (D9). <c>FirstAsOf</c> is the oldest value of any
-/// visible envelope, where « Tout » of the performance starts (spec §4.2).
+/// visible envelope, where « Tout » of the performance starts (spec §4.2). Holding prices spec §5.4: today's value, its shares and the
+/// last point count an envelope at its estimate when newer than its valuation (<c>EstimatedCount</c> of them); the gain, what was paid
+/// in and the returns stay on the valuations.
 /// </summary>
 public sealed record InvestmentsOverview(
     string Currency, int OpenCount, int ClosedCount,
@@ -48,7 +54,8 @@ public sealed record InvestmentsOverview(
     AmountView? NetContributions, AmountView? PaidIn, AmountView? Gain, decimal? GainPct, decimal? AnnualReturnPct,
     AmountView? SinceJanuary, decimal? SinceJanuaryPct, int WithoutStartCount,
     IReadOnlyList<KindShareView> ByKind, IReadOnlyList<PersonEnvelopeShareView> ByPerson, IReadOnlyList<EnvelopeOverviewRow> Envelopes,
-    IReadOnlyList<OverviewPointView> Points, IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings) : IExposesItems
+    IReadOnlyList<OverviewPointView> Points, IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings,
+    int EstimatedCount) : IExposesItems
 {
     // The watch list names open envelopes only, all in the rows.
     public IEnumerable<ItemId> ExposedItems() => Envelopes.Select(e => e.Id);
@@ -64,7 +71,8 @@ public static class OverviewCodes
 [RequestHandler<GetInvestmentsOverviewQuery, InvestmentsOverview>]
 public sealed class GetInvestmentsOverviewHandler(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdings,
-    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
+    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons,
+    EnvelopeEstimator estimator)
     : IRequestHandler<GetInvestmentsOverviewQuery, InvestmentsOverview>
 {
     public async ValueTask<Result<InvestmentsOverview>> HandleAsync(GetInvestmentsOverviewQuery query, CancellationToken ct = default)
@@ -87,6 +95,8 @@ public sealed class GetInvestmentsOverviewHandler(
         }
 
         var open = facts.Where(f => f.Item.ArchivedAt is null).ToList();
+        // Holding prices spec §5.4: estimated as the reader, over the open envelopes already read.
+        var estimates = await estimator.EstimateAsync(open.Select(f => f.Item.Id).ToList(), ct);
         var watch = new List<EnvelopeWatchView>();
         foreach (var m in await holdings.MaturingAsync(open.Select(f => f.Item.Id).ToList(), today, today.PlusDays(InvestmentsOverviewMath.MaturityDays), ct))
             watch.Add(new EnvelopeWatchView(UpcomingKinds.HoldingMaturity, m.Envelope, m.HoldingId, m.MaturesOn));
@@ -101,7 +111,7 @@ public sealed class GetInvestmentsOverviewHandler(
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], grid[0], today, ct);
-        return Result.Success(InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, query.Span, watch, await persons.ListAsync(ct)));
+        return Result.Success(InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, query.Span, watch, await persons.ListAsync(ct), estimates));
     }
 }
 
@@ -149,23 +159,27 @@ internal static class InvestmentsOverviewMath
         public AmountView? View(decimal? amount) => amount is { } a ? new AmountView(Text(a), reference.Code) : null;
     }
 
-    /// <summary>An open envelope with a value today, read once.</summary>
-    internal sealed record Valued(EnvelopePerformance.Facts Facts, EnvelopeFigures Figures, decimal? Value, decimal? Gain);
+    /// <summary>An open envelope with a value today, read once; <c>Estimate</c> and its date when <see cref="TodayValue"/> picks it.</summary>
+    internal sealed record Valued(EnvelopePerformance.Facts Facts, EnvelopeFigures Figures, decimal? Value, decimal? Gain, Money? Estimate = null, LocalDate? EstimatedOn = null);
 
     /// <param name="facts">The visible envelopes, closed ones included (D9).</param>
     /// <param name="holdingWatch">The holdings' warnings (maturities, units of account under the floor), read by the handler.</param>
     /// <param name="persons">The household in creation order, for the order of <c>ByPerson</c>.</param>
+    /// <param name="estimates">The open envelopes' estimates (holding prices spec §5.4); none, the valuations.</param>
     public static InvestmentsOverview Build(
         IReadOnlyList<EnvelopePerformance.Facts> facts, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<LocalDate> grid,
-        OverviewSpan span, IReadOnlyList<EnvelopeWatchView> holdingWatch, IReadOnlyList<PersonInfo> persons)
+        OverviewSpan span, IReadOnlyList<EnvelopeWatchView> holdingWatch, IReadOnlyList<PersonInfo> persons,
+        IReadOnlyDictionary<ItemId, Prices.EnvelopeEstimate>? estimates = null)
     {
         var convert = new Converter(reference, rates);
         var open = facts.Where(f => f.Item.ArchivedAt is null).ToList();
         var figures = open.Select(f => (Facts: f, Figures: EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today)))
             .ToList();
         var valued = figures.Where(x => x.Figures.Value is not null)
-            .Select(x => new Valued(x.Facts, x.Figures, convert.Of(x.Figures.Value!.Value.Amount, x.Facts.Currency, today),
-                convert.Of(x.Figures.Gain!.Value.Amount, x.Facts.Currency, today)))
+            .Select(x => (x.Facts, x.Figures, Today: TodayValue.Pick(x.Figures, estimates?.GetValueOrDefault(x.Facts.Item.Id))))
+            .Select(x => new Valued(x.Facts, x.Figures, convert.Of(x.Today.Value.Amount, x.Facts.Currency, today),
+                convert.Of(x.Figures.Gain!.Value.Amount, x.Facts.Currency, today),
+                x.Today.Estimated ? x.Today.Value : null, x.Today.Estimated ? x.Today.AsOf : null))
             .ToList();
 
         var value = SumOrNull(valued.Select(v => v.Value));
@@ -181,13 +195,15 @@ internal static class InvestmentsOverviewMath
         var sinceGain = SumOrNull(since.Select(x => convert.Of(x.Period!.Performance!.Value.Amount, x.Facts.Currency, today)));
         var sinceBase = SumOrNull(since.Select(x => convert.Of(x.Period!.StartValue!.Value.Amount + x.Period.NetContributions!.Value.Amount, x.Facts.Currency, today)));
 
-        var rows = valued.Select(v => (Facts: v.Facts, v.Figures, v.Value, v.Gain))
-            .Concat(figures.Where(x => x.Figures.Value is null).Select(x => (x.Facts, x.Figures, Value: (decimal?)null, Gain: (decimal?)null)))
+        var rows = valued.Select(v => (Facts: v.Facts, v.Figures, v.Value, v.Gain, v.Estimate, v.EstimatedOn))
+            .Concat(figures.Where(x => x.Figures.Value is null)
+                .Select(x => (x.Facts, x.Figures, Value: (decimal?)null, Gain: (decimal?)null, Estimate: (Money?)null, EstimatedOn: (LocalDate?)null)))
             .OrderBy(x => x.Figures.Value is null ? 2 : x.Value is null ? 1 : 0).ThenByDescending(x => x.Value)
             .ThenBy(x => x.Facts.Item.DisplayName, French).ThenBy(x => x.Facts.Item.Id.Value)
             .Select(x => new EnvelopeOverviewRow(x.Facts.Item.Id, x.Facts.Item.DisplayName, EnvelopeWire.Of(x.Facts.Envelope.Kind),
-                x.Facts.Envelope.Institution, x.Facts.Item.OwnerViews(), x.Facts.Currency.Code, FiguresView.From(x.Figures),
-                convert.View(x.Value), convert.View(x.Gain)))
+                x.Facts.Envelope.Institution, x.Facts.Item.OwnerViews(), x.Facts.Currency.Code,
+                x.Estimate is { } estimate ? FiguresView.From(x.Figures) with { Value = AmountView.From(estimate) } : FiguresView.From(x.Figures),
+                convert.View(x.Value), convert.View(x.Gain), x.Estimate is not null, x.EstimatedOn))
             .ToList();
 
         var byKind = valued.GroupBy(v => EnvelopeWire.Of(v.Facts.Envelope.Kind))
@@ -203,7 +219,7 @@ internal static class InvestmentsOverviewMath
             .ToList();
 
         return new InvestmentsOverview(reference.Code, open.Count, facts.Count - open.Count,
-            convert.View(value), valued.Select(v => v.Figures.AsOf).Min(), facts.SelectMany(f => f.Values).Select(v => (LocalDate?)v.AsOf).Min(),
+            convert.View(value), valued.Select(v => v.EstimatedOn ?? v.Figures.AsOf).Min(), facts.SelectMany(f => f.Values).Select(v => (LocalDate?)v.AsOf).Min(),
             valued.Count(v => v.Figures.StaleDays is not null),
             figures.Count - valued.Count,
             convert.View(net), convert.View(paidIn), convert.View(gain),
@@ -212,12 +228,14 @@ internal static class InvestmentsOverviewMath
             convert.View(sinceGain), sinceGain is { } sg && sinceBase is { } sb && sb > 0m ? EnvelopeMath.RoundPercent(sg / sb * 100m) : null,
             valued.Count - since.Count,
             byKind, People(valued, persons, value, convert), rows,
-            Points(facts, grid, span, convert), watch, convert.Missing);
+            Points(facts, grid, span, convert, today, valued.Where(v => v.Estimate is not null).ToDictionary(v => v.Facts.Item.Id, v => v.Estimate!.Value)),
+            watch, convert.Missing, valued.Count(v => v.Estimate is not null));
     }
 
     /// <summary>
     /// D6: the XIRR of every valued envelope's cash flows to its own date <c>v</c>, its value at <c>v</c> as the final flow, each
-    /// converted at today's rate; a transfer's two legs cancel. Null when not meaningful, or when a rate is missing.
+    /// converted at today's rate; a transfer's two legs cancel. Null when not meaningful, or when a rate is missing. On the valuation,
+    /// never the estimate (holding prices spec §5.4).
     /// </summary>
     internal static decimal? AnnualReturn(IReadOnlyList<Valued> valued, Converter convert, LocalDate today)
     {
@@ -231,7 +249,7 @@ internal static class InvestmentsOverviewMath
                 if (convert.Of(f.Kind == FlowKind.Withdrawal ? f.Amount.Amount : -f.Amount.Amount, v.Facts.Currency, today) is not { } amount) return null;
                 cash.Add((f.OccurredOn, amount));
             }
-            if (v.Value is not { } final) return null;
+            if (convert.Of(v.Figures.Value!.Value.Amount, v.Facts.Currency, today) is not { } final) return null;
             cash.Add((asOf, final));
         }
         return Xirr.AnnualPercent(cash, valued.Max(v => v.Figures.AsOf!.Value));
@@ -291,8 +309,11 @@ internal static class InvestmentsOverviewMath
     /// <summary>
     /// As the net worth curve (2D2b): at each date, each envelope's last reading on or before it, with its net contributions up to
     /// that reading; a closed envelope counts strictly before its closing. « Tout » starts at the first date with a reading.
+    /// Holding prices spec §5.4: at today's date only, an envelope's value is its estimate when <see cref="TodayValue"/> picks it.
     /// </summary>
-    private static List<OverviewPointView> Points(IReadOnlyList<EnvelopePerformance.Facts> facts, IReadOnlyList<LocalDate> grid, OverviewSpan span, Converter convert)
+    private static List<OverviewPointView> Points(
+        IReadOnlyList<EnvelopePerformance.Facts> facts, IReadOnlyList<LocalDate> grid, OverviewSpan span, Converter convert,
+        LocalDate today, IReadOnlyDictionary<ItemId, Money> estimates)
     {
         var series = facts.Select(f => (Facts: f, Readings: EnvelopeMath.Series(f.Values, f.Flows, f.Currency))).ToList();
         var points = new List<OverviewPointView>();
@@ -303,8 +324,8 @@ internal static class InvestmentsOverviewMath
                 .Select(s => (s.Facts, Reading: s.Readings.LastOrDefault(r => r.AsOf <= date)))
                 .Where(x => x.Reading is not null)
                 .Select(x => (Kind: EnvelopeWire.Of(x.Facts.Envelope.Kind),
-                    Value: convert.Of(x.Reading!.Value.Amount, x.Facts.Currency, date),
-                    Net: convert.Of(x.Reading.NetContributions.Amount, x.Facts.Currency, date)))
+                    Value: convert.Of(date == today && estimates.TryGetValue(x.Facts.Item.Id, out var e) ? e.Amount : x.Reading!.Value.Amount, x.Facts.Currency, date),
+                    Net: convert.Of(x.Reading!.NetContributions.Amount, x.Facts.Currency, date)))
                 .ToList();
             if (at.Count == 0)
             {

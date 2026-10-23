@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
+using static Nid.Subscriptions.IntegrationTests.Investments.EnvelopeEstimateEndpointTests;
 
 namespace Nid.Subscriptions.IntegrationTests.Investments;
 
@@ -91,6 +92,91 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
         // Moi: the shared envelopes and the reader's own private ones.
         Assert.Equal([shared.Value], mine.GetProperty("envelopes").EnumerateArray().Select(e => e.GetProperty("id").GetGuid()));
         Assert.Equal(2, theirs.GetProperty("openCount").GetInt32());
+    }
+
+    /// <summary>Holding prices spec §5.4: the PEA's statement is 1 500 on 15/06; the ETF at 110 (14/10) makes it 1 600 today.</summary>
+    [Fact]
+    public async Task An_estimate_newer_than_the_valuation_is_the_value_today_and_the_gain_stays()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // A statement of 15/06, so the 30/09 point falls between it and today.
+        var (id, _) = await EnvelopeAsync(app, statement: "2025-06-15");
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows", new { occurredOn = "2025-01-02", kind = "opening", amount = Eur("1200.00") });
+        var before = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Overview}?scope=household"));
+        await PriceAsync(app, EtfIsin, 110m, Day);
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Overview}?scope=household"));
+
+        Assert.Equal(("1500.00", 0), (S(before.GetProperty("value"), "amount"), before.GetProperty("estimatedCount").GetInt32()));
+        Assert.Equal(("1600.00", 1), (S(body.GetProperty("value"), "amount"), body.GetProperty("estimatedCount").GetInt32()));
+        // As the home's « valeurs au »: the date of the value counted.
+        Assert.Equal(("2025-06-15", "2025-10-14"), (S(before, "oldestAsOf"), S(body, "oldestAsOf")));
+        var row = Assert.Single(body.GetProperty("envelopes").EnumerateArray());
+        Assert.Equal(("1600.00", "1600.00", true, "2025-10-14"), (S(row.GetProperty("valueConverted"), "amount"),
+            S(row.GetProperty("figures").GetProperty("value"), "amount"), row.GetProperty("estimated").GetBoolean(), S(row, "estimatedOn")));
+        // « estimée au 14/10 », the statement of 15/06 still the row's date.
+        Assert.Equal("2025-06-15", S(row.GetProperty("figures"), "asOf"));
+        var unestimated = Assert.Single(before.GetProperty("envelopes").EnumerateArray());
+        Assert.Equal((false, JsonValueKind.Null), (unestimated.GetProperty("estimated").GetBoolean(), unestimated.GetProperty("estimatedOn").ValueKind));
+        Assert.Equal("1600.00", S(Assert.Single(body.GetProperty("byKind").EnumerateArray()).GetProperty("value"), "amount"));
+        Assert.Equal("1600.00", S(Assert.Single(body.GetProperty("byPerson").EnumerateArray()).GetProperty("value"), "amount"));
+        // The gain, what was paid in and the returns stay on the valuation: 1 500 − 1 200.
+        Assert.Equal("300.00", S(body.GetProperty("gain"), "amount"));
+        foreach (var name in new[] { "gain", "gainPct", "paidIn", "netContributions", "annualReturnPct", "sinceJanuary", "staleCount" })
+            Assert.Equal(before.GetProperty(name).ToString(), body.GetProperty(name).ToString());
+        Assert.Equal(before.GetProperty("envelopes")[0].GetProperty("figures").GetProperty("gain").ToString(), row.GetProperty("figures").GetProperty("gain").ToString());
+        // Only today's point.
+        var points = body.GetProperty("points");
+        Assert.Equal(("2025-10-15", "1600.00"), (S(points[12], "on"), S(points[12].GetProperty("value"), "amount")));
+        Assert.Equal(("2025-09-30", "1500.00"), (S(points[11], "on"), S(points[11].GetProperty("value"), "amount")));
+        Assert.Equal(before.GetProperty("points")[11].ToString(), points[11].ToString());
+    }
+
+    /// <summary>Holding prices: with prices off, an accepted price changes nothing on the Placements pages.</summary>
+    [Fact]
+    public async Task With_prices_off_the_placements_are_unchanged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await EnvelopeAsync(app, enable: false);
+        await EnvelopeAsync(app, enable: false);
+        const string Holdings = "/api/v1/investments/overview/holdings?scope=household";
+        var overview = await app.GetRawAsync(app.AdultA, $"{Overview}?scope=household");
+        var holdings = await app.GetRawAsync(app.AdultA, Holdings);
+
+        await PriceAsync(app, EtfIsin, 110m, Day);
+
+        Assert.Equal(overview, await app.GetRawAsync(app.AdultA, $"{Overview}?scope=household"));
+        Assert.Equal(holdings, await app.GetRawAsync(app.AdultA, Holdings));
+        var body = JsonDocument.Parse(overview).RootElement;
+        Assert.Equal(("3000.00", 0), (S(body.GetProperty("value"), "amount"), body.GetProperty("estimatedCount").GetInt32()));
+        Assert.All(body.GetProperty("envelopes").EnumerateArray(), e => Assert.False(e.GetProperty("estimated").GetBoolean()));
+        Assert.False(JsonDocument.Parse(holdings).RootElement.GetProperty("estimated").GetBoolean());
+        Assert.DoesNotContain("\"estimated\":true", overview + holdings);
+    }
+
+    /// <summary>Holding prices Review Focus 1: the home dashboard and the Placements count the same envelopes at the same value today.</summary>
+    [Fact]
+    public async Task Home_and_placements_agree()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await EnvelopeAsync(app);
+        await EnvelopeAsync(app, visibility: Visibility.Private);
+        await EnvelopeAsync(app, statement: "2025-06-15"); // estimated and stale
+        await PeaAsync(app, "PEA de B", app.AdultB, Visibility.Shared); // valued only
+        await PriceAsync(app, EtfIsin, 110m, Day);
+
+        foreach (var (reader, scope) in new[] { (app.AdultA, "household"), (app.AdultA, "me"), (app.AdultB, "me") })
+        {
+            var home = JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/dashboard?scope={scope}")).RootElement;
+            var curve = JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/dashboard/net-worth?scope={scope}&period=12m")).RootElement.GetProperty("points");
+            var placements = await JsonAsync(await app.RawAsync(reader, HttpMethod.Get, $"{Overview}?scope={scope}"));
+
+            Assert.Equal(S(home.GetProperty("netWorth").GetProperty("total"), "amount"), S(placements.GetProperty("value"), "amount"));
+            Assert.Equal(home.GetProperty("estimatedEnvelopes").GetInt32(), placements.GetProperty("estimatedCount").GetInt32());
+            Assert.Equal(S(curve[curve.GetArrayLength() - 1].GetProperty("value"), "amount"), S(placements.GetProperty("points")[12].GetProperty("value"), "amount"));
+        }
+        // Two estimated PEAs (1 600 each) and B's valued 25 000.
+        Assert.Equal("28200.00", S((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Overview}?scope=household"))).GetProperty("value"), "amount"));
     }
 }
 
@@ -234,6 +320,36 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
 
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?assumedReturn=30")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?referenceFees=-1")).StatusCode);
+    }
+
+    /// <summary>
+    /// Holding prices spec §5.4: two PEAs holding the same ETF, each 1 000 + 500 on 30/09, the ETF at 110 (14/10): each estimated 1 600,
+    /// its ETF line 1 100. A savings account of 500 is undetailed.
+    /// </summary>
+    [Fact]
+    public async Task The_estimated_lines_are_the_detail_and_still_add_up_to_the_value()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await EnvelopeAsync(app);
+        await EnvelopeAsync(app);
+        var savings = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{savings.Value}/valuations", new { asOf = "2025-09-30", amount = Eur("500.00") });
+        await PriceAsync(app, EtfIsin, 110m, Day);
+
+        var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?scope=household"));
+        var overview = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/investments/overview?scope=household"));
+
+        // D16: Detailed + Unallocated + Undetailed = Value, the overview's.
+        Assert.Equal(("3700.00", "3200.00", "0.00", "500.00"), (S(body.GetProperty("value"), "amount"), S(body.GetProperty("detailed"), "amount"),
+            S(body.GetProperty("unallocated"), "amount"), S(body.GetProperty("undetailed"), "amount")));
+        Assert.Equal(S(overview.GetProperty("value"), "amount"), S(body.GetProperty("value"), "amount"));
+        Assert.True(body.GetProperty("estimated").GetBoolean());
+        var concentration = Assert.Single(body.GetProperty("concentrations").EnumerateArray());
+        Assert.Equal((EtfIsin, "2200.00"), (S(concentration, "isin"), S(concentration.GetProperty("value"), "amount")));
+        var byKind = body.GetProperty("byKind").EnumerateArray().ToDictionary(k => S(k, "kind")!, k => S(k.GetProperty("value"), "amount"));
+        Assert.Equal(("2200.00", "1000.00"), (byKind["etf"], byKind["euro_fund"]));
+        Assert.All(body.GetProperty("holdings").EnumerateArray().Where(h => S(h, "name") == "ETF Monde"),
+            h => Assert.Equal(("1100.00", "2025-10-14"), (S(h, "value"), S(h, "asOf"))));
     }
 
     [Fact]

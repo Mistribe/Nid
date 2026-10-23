@@ -37,9 +37,9 @@ public class InvestmentsHoldingsTests
         public void Snapshot(ItemId envelope, LocalDate on, params SnapshotLine[] lines)
             => Snapshots.Add(new HoldingSnapshot(Guid.NewGuid(), envelope, on, null, true, lines));
 
-        public InvestmentsHoldings Build()
+        public InvestmentsHoldings Build(IReadOnlyDictionary<ItemId, Application.Prices.EnvelopeEstimate>? estimates = null)
             => InvestmentsHoldingsMath.Build(Facts, new HoldingsExport(Holdings, Snapshots, Movements, new Dictionary<Guid, ImportMark>()),
-                Reports, Currency.Eur, Rates, Today);
+                Reports, Currency.Eur, Rates, Today, estimates: estimates);
     }
 
     private static SnapshotLine Line(Guid holding, decimal value, decimal? units = null, decimal? price = null) => new(holding, units, price, value, null);
@@ -195,6 +195,33 @@ public class InvestmentsHoldingsTests
         Assert.Equal((64.0m, 70m), (life.UcSharePct, life.FloorPct));
         Assert.Equal(["uc_share_below_floor", "unexplained_units", "holding_maturity"], o.Watch.Select(w => w.Code));
         Assert.Equal((peaWorld, D(2026, 9, 30)), (o.Watch[1].HoldingId!.Value, o.Watch[1].On!.Value));
+    }
+
+    /// <summary>
+    /// Holding prices spec §5.4: the life insurance estimated on 21/10, its ETF at 41 400 instead of 31 400. The detail follows the
+    /// estimate; the share of units of account and the fees stay on the statement, as the floor's warning.
+    /// </summary>
+    [Fact]
+    public void An_estimated_envelope_is_detailed_by_its_estimated_lines_its_units_of_account_and_fees_by_its_statement()
+    {
+        var (h, lifeWorld, _) = Fixture(floor: 70m);
+        var life = h.Facts[0].Item.Id;
+        var lines = h.Snapshots.Last(s => s.Envelope == life).Lines
+            .Select(l => new EstimatedLine(l.HoldingId, l.HoldingId == lifeWorld ? 41_400m : l.Value)).ToList();
+        var estimate = new Application.Prices.EnvelopeEstimate(life, Money.Create(88_400m, Currency.Eur).TryGetValue(out var m) ? m : throw new InvalidOperationException(),
+            D(2026, 10, 21), D(2026, 9, 30), false, [], null, lines);
+
+        var o = h.Build(new Dictionary<ItemId, Application.Prices.EnvelopeEstimate> { [life] = estimate });
+
+        Assert.True(o.Estimated);
+        Assert.Equal((88_400m + 61_500m + 22_950m, 88_400m + 61_300m, 200m), (N(o.Value), N(o.Detailed), N(o.Unallocated)));
+        Assert.Equal(N(o.Value), N(o.Detailed) + N(o.Unallocated) + N(o.Undetailed));
+        Assert.Equal(41_400m + 38_900m, N(Assert.Single(o.Concentrations).Value));
+        Assert.Equal(("41400.00", D(2026, 10, 21)), (o.Holdings.Single(r => r.HoldingId == lifeWorld).Value, o.Holdings.Single(r => r.HoldingId == lifeWorld).AsOf));
+        // As without the estimate: 64 %, under the floor of 70 %.
+        Assert.Equal((64.0m, 64.0m), (o.UcSharePct, Assert.Single(o.EnvelopesUc).UcSharePct));
+        Assert.Contains(o.Watch, w => w.Code == "uc_share_below_floor");
+        Assert.Equal((233.75m, 0.9m), (N(o.Cost), o.CostPct));
     }
 
     [Fact]

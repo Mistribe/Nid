@@ -5,14 +5,19 @@ using NodaTime;
 
 namespace Nid.Investments.Application.Prices;
 
-/// <summary>Holding prices spec §5.3: an envelope's value today in its currency, or no value and the <see cref="MissingReason"/>.</summary>
+/// <summary>
+/// Holding prices spec §5.3: an envelope's value today in its currency, or no value and the <see cref="MissingReason"/>.
+/// <see cref="Lines"/>: each holding counted and its value, in the envelope's currency (see <see cref="EnvelopeEstimateResult"/>).
+/// </summary>
 public sealed record EnvelopeEstimate(
-    ItemId Envelope, Money? Value, LocalDate? AsOf, LocalDate? BasedOn, bool Converted, IReadOnlyList<EstimateLine> Stale, string? MissingReason);
+    ItemId Envelope, Money? Value, LocalDate? AsOf, LocalDate? BasedOn, bool Converted, IReadOnlyList<EstimateLine> Stale, string? MissingReason,
+    IReadOnlyList<EstimatedLine> Lines);
 
 /// <summary>
 /// Spec §5.4: the one source of the envelopes' estimates (holdings view, net worth, Placements). Loads what
-/// <see cref="Domain.EnvelopeEstimate.Of"/> needs in a fixed number of queries. Callers check first, with a person actor, that the person
-/// may read every envelope they pass: the valuations read refuses otherwise, and the estimate throws.
+/// <see cref="Domain.EnvelopeEstimate.Of"/> needs in a fixed number of queries. It needs a person actor who may read every envelope
+/// passed: the valuations read is checked as a block, and when it refuses (no person actor, one envelope the person cannot read) every
+/// envelope is <c>unreadable</c>, as is one without a currency. Every envelope passed is a key of the result.
 /// </summary>
 public sealed class EnvelopeEstimator(
     IHouseholdSettings settings, IHouseholdCalendar calendar, IItemRegistry items, IHoldingStore holdings, IValuations valuations,
@@ -21,7 +26,7 @@ public sealed class EnvelopeEstimator(
     public async Task<IReadOnlyDictionary<ItemId, EnvelopeEstimate>> EstimateAsync(IReadOnlyCollection<ItemId> envelopes, CancellationToken ct)
     {
         if (!(await settings.ReadAsync(ct)).PricesEnabled)
-            return envelopes.Distinct().ToDictionary(e => e, e => new EnvelopeEstimate(e, null, null, null, false, [], EstimateReasons.Disabled));
+            return envelopes.Distinct().ToDictionary(e => e, e => Missing(e, EstimateReasons.Disabled));
 
         var today = await calendar.TodayAsync(ct);
         var currencies = new Dictionary<ItemId, Currency>();
@@ -33,9 +38,12 @@ public sealed class EnvelopeEstimator(
         var bases = export.Snapshots.Where(s => s.AsOf <= today).GroupBy(s => s.Envelope).ToDictionary(g => g.Key, g => g.Max(s => s.AsOf));
         var from = bases.Count == 0 ? today : bases.Values.Min();
 
-        var series = bases.Count == 0 ? new Dictionary<ItemId, IReadOnlyList<Valuation>>()
-            : (await valuations.SeriesManyAsync(bases.Keys.ToList(), DateRange.Create(from, null).TryGetValue(out var range) ? range : throw new InvalidOperationException(), ct))
-                .TryGetValue(out var read) ? read! : throw new InvalidOperationException("The estimate's callers pass envelopes the person may read.");
+        // Every envelope with a currency, so that a caller without the right is refused whether or not it has a snapshot.
+        var series = currencies.Count == 0 ? new Dictionary<ItemId, IReadOnlyList<Valuation>>()
+            : (await valuations.SeriesManyAsync(currencies.Keys.ToList(), DateRange.Create(from, null).TryGetValue(out var range) ? range : throw new InvalidOperationException(), ct))
+                .TryGetValue(out var read) ? read : null;
+        if (series is null)
+            return envelopes.Distinct().ToDictionary(e => e, e => Missing(e, EstimateReasons.Unreadable));
 
         var priced = export.Holdings.Where(h => h.Isin is not null && HoldingWire.HasUnits(h.Kind) && bases.ContainsKey(h.Envelope)).ToList();
         var isins = priced.Select(h => h.Isin!).Distinct().ToList();
@@ -59,7 +67,6 @@ public sealed class EnvelopeEstimator(
             var values = series.GetValueOrDefault(envelope) ?? [];
             var asOf = bases.GetValueOrDefault(envelope);
             var holdingPrices = new Dictionary<Guid, HoldingPrice>();
-            var foreign = new HashSet<Guid>();
             foreach (var h in priced.Where(h => h.Envelope == envelope))
             {
                 var last = latest.GetValueOrDefault(h.Isin!);
@@ -74,20 +81,18 @@ public sealed class EnvelopeEstimator(
                     : null;
                 var dated = history.GetValueOrDefault(h.Isin!) ?? [];
                 holdingPrices[h.Id] = new HoldingPrice(price, accepted?.OnDate, reason,
-                    d => dated.LastOrDefault(p => p.OnDate <= d) is { } p ? Convert(p, currency) : null);
-                if (accepted is not null && accepted.Currency != currency)
-                    foreign.Add(h.Id);
+                    d => dated.LastOrDefault(p => p.OnDate <= d) is { } p ? Convert(p, currency) : null, accepted is not null && accepted.Currency != currency);
             }
 
             var estimate = Domain.EnvelopeEstimate.Of(snapshots, values.FirstOrDefault(v => v.AsOf == asOf)?.Value.Amount,
                 values.LastOrDefault(v => v.AsOf <= today)?.AsOf, mine, movements, holdingPrices, today);
-            // Converted: a holding the estimate priced (counted, not listed stale) had a price in another currency.
-            var counted = snapshots.FirstOrDefault(s => s.AsOf == asOf)?.Lines.Select(l => l.HoldingId)
-                .Concat(movements.Where(m => m.OccurredOn > asOf && m.OccurredOn <= today).Select(m => m.HoldingId)).ToHashSet() ?? [];
-            var converted = estimate.Value is not null && foreign.Any(h => counted.Contains(h) && estimate.Stale.All(s => s.HoldingId != h));
             result[envelope] = new EnvelopeEstimate(envelope, estimate.Value is { } v ? Amounts.Of(v, currency) : null, estimate.AsOf, estimate.BasedOn,
-                converted, estimate.Stale, estimate.MissingReason);
+                estimate.Converted, estimate.Stale, estimate.MissingReason, estimate.Lines);
         }
+        foreach (var envelope in envelopes)
+            result.TryAdd(envelope, Missing(envelope, EstimateReasons.Unreadable));
         return result;
     }
+
+    private static EnvelopeEstimate Missing(ItemId envelope, string reason) => new(envelope, null, null, null, false, [], reason, []);
 }

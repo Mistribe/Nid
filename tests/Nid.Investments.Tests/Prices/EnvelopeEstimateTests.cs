@@ -145,6 +145,42 @@ public class EnvelopeEstimateTests
         // Statement values, + 50 in on noPrice, − 70 out on noUnits (a fee is not money out); the ETF at 110.
         Assert.Equal(150m + 50m + 200m + 300m + 400m + 500m + 600m + 630m + 1_100m + 500m, estimate.Value);
         Assert.Equal(Oct(20), estimate.AsOf);
+        // Stale lines count at their kept value; the snapshot has nothing unallocated.
+        Assert.Equal(holdings.Count, estimate.Lines.Count);
+        Assert.Equal(new EstimatedLine(noUnits, 630m), estimate.Lines.Single(l => l.HoldingId == noUnits));
+        Assert.Equal(estimate.Value, estimate.Lines.Sum(l => l.Value));
+    }
+
+    [Fact]
+    public void The_lines_and_the_unallocated_part_add_up_to_the_value()
+    {
+        var estimate = Estimate([Movement(EuroFund, Oct(5), MovementKinds.AllocationIn, 40m)],
+            new Dictionary<Guid, HoldingPrice> { [Etf] = Price(110.0049m, Oct(20)) }, valuation: 1_600m);
+        // The priced line is rounded to the cent, the kept one is the statement plus the movements.
+        Assert.Equal([new EstimatedLine(Etf, 1_100.05m), new EstimatedLine(EuroFund, 540m)], estimate.Lines);
+        Assert.Equal(estimate.Value, Math.Round(estimate.Lines.Sum(l => l.Value) + 100m, 2, MidpointRounding.AwayFromZero));
+
+        var bought = Guid.NewGuid();
+        var opened = Estimate([Movement(bought, Oct(5), MovementKinds.AllocationIn, 150m, 3m, 50m)],
+            new Dictionary<Guid, HoldingPrice> { [Etf] = Price(110m, Oct(20)), [bought] = Price(60m, Oct(21)) },
+            holdings: [.. BaseHoldings, Holding(bought, isin: "FR0000120271")]);
+        Assert.Equal(opened.Value, opened.Lines.Sum(l => l.Value));
+        Assert.Equal(new EstimatedLine(bought, 180m), opened.Lines[^1]);
+    }
+
+    [Fact]
+    public void Converted_when_a_priced_line_used_a_converted_price()
+    {
+        var foreign = Guid.NewGuid();
+        var snapshot = Snapshot(Statement, true, Line(Etf, 10m, 100m, 1_000m), Line(EuroFund, null, null, 500m), Line(foreign, 1m, 100m, 100m));
+        IReadOnlyList<EnvelopeHolding> holdings = [.. BaseHoldings, Holding(foreign, isin: "US0378331005")];
+        // A converted price too old to be used converts nothing.
+        var stale = Estimate([], new Dictionary<Guid, HoldingPrice> { [Etf] = Price(110m, Oct(20)), [foreign] = Price(120m, Oct(10)) with { Converted = true } },
+            holdings: holdings, snapshot: snapshot, valuation: 1_600m);
+        Assert.False(stale.Converted);
+        var used = Estimate([], new Dictionary<Guid, HoldingPrice> { [Etf] = Price(110m, Oct(20)), [foreign] = Price(120m, Oct(21)) with { Converted = true } },
+            holdings: holdings, snapshot: snapshot, valuation: 1_600m);
+        Assert.True(used.Converted);
     }
 
     [Fact]

@@ -20,6 +20,16 @@ const tile = (name: string) => screen.findByRole('button', { name: new RegExp(na
 beforeAll(async () => { await import('./NetWorthCurve'); }, 30_000);
 
 describe('DashboardPage', () => {
+  it('labels the net worth total « estimé » only when an estimate is in it', async () => {
+    serve(dashboard({ estimatedEnvelopes: 1 }));
+    const { unmount } = await renderApp('/dashboard');
+    expect(await tile('Patrimoine net')).toHaveTextContent('12 900,00 € estimé');
+    unmount();
+    serve(dashboard());
+    await renderApp('/dashboard');
+    expect(await tile('Patrimoine net')).not.toHaveTextContent('estimé');
+  });
+
   it('shows the four key figures in one row', async () => {
     serve(dashboard());
     const { container, router, user } = await renderApp('/dashboard');

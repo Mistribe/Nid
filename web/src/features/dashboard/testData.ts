@@ -8,7 +8,7 @@ export const figure = (amount: string | null, over: Partial<DashboardFigure> = {
 
 export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => ({
   currency: 'EUR',
-  netWorth: figure('12900.00'), valuesAsOf: '2025-09-30', envelopes: 2, envelopesWithoutValue: 0, staleEnvelopes: 0,
+  netWorth: figure('12900.00'), valuesAsOf: '2025-09-30', envelopes: 2, envelopesWithoutValue: 0, staleEnvelopes: 0, estimatedEnvelopes: 0,
   commitments: figure('250.56'), cashThisMonth: figure('120.00'), subscriptions: 3,
   income: figure('2500.00'), incomeSources: 1, margin: eur('2249.45'), committedPct: 10,
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
@@ -25,7 +25,7 @@ export const emptyDashboard = dashboard({
 
 export const envelope = (over: Partial<DashboardEnvelope> = {}): DashboardEnvelope => ({
   id: '00000000-0000-7000-8000-0000000000e1', module: 'investments', name: 'PEA',
-  value: eur('25000.00'), converted: eur('25000.00'), missingCurrency: null, asOf: '2025-09-30', stale: false, ...over,
+  value: eur('25000.00'), converted: eur('25000.00'), missingCurrency: null, asOf: '2025-09-30', stale: false, estimated: false, valuedOn: '2025-09-30', ...over,
 });
 
 export const person = (over: Partial<DashboardPerson> = {}): DashboardPerson => ({
