@@ -140,6 +140,14 @@ location / {
 }
 ```
 
+**Compression** : `nid-web` compresse déjà (zstd ou gzip) les fichiers de l'application et les réponses de `/api`.
+Votre proxy n'a rien à ajouter, et les exemples ci-dessus ne compressent rien : Caddy ne compresse qu'avec `encode`,
+Traefik qu'avec le middleware `compress`, et nginx, même avec `gzip on`, ne compresse que le HTML sans `gzip_types`.
+Si votre proxy compresse quand même, n'activez pas la compression pour `/auth` et `/api/v1/me/tokens` : leurs réponses
+portent un secret (le jeton CSRF, un jeton d'accès à sa création), et une réponse compressée qui mêle un secret à des
+données qu'un tiers influence l'expose à l'attaque BREACH. Pour vérifier ce qui arrive au navigateur :
+`curl -sI -H "Accept-Encoding: gzip" https://nid.<domaine>/auth/session` ne doit pas montrer `Content-Encoding`.
+
 Le sous-réseau interne `172.30.10.0/24` est fixé par le compose : s'il chevauche un réseau que vous utilisez déjà,
 `docker compose up` refuse de démarrer avec « Pool overlaps ».
 

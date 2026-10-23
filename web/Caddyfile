@@ -13,6 +13,13 @@
 :8080 {
 	@api path /api /api/* /auth /auth/* /mcp /mcp/* /health /health/*
 	handle @api {
+		# Compressed except what carries a secret (BREACH, #84): the CSRF token (/auth/session) and a new token's
+		# secret (/api/v1/me/tokens). /mcp is left alone: agents, not page loads.
+		@compressible {
+			path /api/*
+			not path /api/v1/me/tokens /api/v1/me/tokens/*
+		}
+		encode @compressible zstd gzip
 		reverse_proxy nid-api:8080
 	}
 
