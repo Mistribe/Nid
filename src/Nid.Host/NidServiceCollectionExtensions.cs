@@ -123,6 +123,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
         services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
         services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
+        services.AddScoped<ICommitmentsContribution, Nid.Core.Application.Tax.TaxCommitments>();
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.

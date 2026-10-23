@@ -6,7 +6,7 @@ import type { DashboardView } from '../api';
 import { percent } from '../format';
 import { Value } from '../KeyFigures';
 
-const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs'] as const;
+const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax'] as const;
 
 /** Spec §4.2: what the month's commitments are made of, as the server split them. */
 export function CommitmentsPanel({ d }: { d: DashboardView }) {

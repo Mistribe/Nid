@@ -153,12 +153,14 @@
     "commitment_source": {
       "subscriptions": "Abonnements {{amount}}",
       "loans": "Crédits {{amount}}",
-      "property_costs": "Charges des biens {{amount}}"
+      "property_costs": "Charges des biens {{amount}}",
+      "tax": "Impôts estimés {{amount}}"
     },
     "commitment_name": {
       "subscriptions": "Abonnements",
       "loans": "Crédits",
-      "property_costs": "Charges des biens"
+      "property_costs": "Charges des biens",
+      "tax": "Impôts estimés"
     },
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",

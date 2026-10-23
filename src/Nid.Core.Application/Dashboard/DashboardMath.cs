@@ -216,13 +216,14 @@ public static class DashboardMath
             : (null, v.Currency.Code);
     }
 
-    /// <summary>3E1 spec §3: « Abonnements · Crédits · Charges des biens ».</summary>
+    /// <summary>3E1 spec §3: « Abonnements · Crédits · Charges des biens », then « Impôts ».</summary>
     private static int SourceRank(string source) => source switch
     {
         CommitmentSources.Subscriptions => 0,
         CommitmentSources.Loans => 1,
         CommitmentSources.PropertyCosts => 2,
-        _ => 3,
+        CommitmentSources.Tax => 3,
+        _ => 4,
     };
 
     /// <summary>Spec decision 2: value × share, pro rata; a person at zero is left out; percent of the persons' total.</summary>

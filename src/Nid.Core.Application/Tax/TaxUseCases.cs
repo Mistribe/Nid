@@ -117,6 +117,16 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
             lines.Where(l => l.Code == TaxLineCodes.RentalProperty).Select(l => new TaxPropertyView(l.Item, l.Name, l.On!.Value.Year)).ToList()));
     }
 
+    /// <summary>The year's result alone, as <see cref="EstimateAsync"/> computes it.</summary>
+    public async Task<Result<TaxResult>> ComputeAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+    {
+        var read = await ReadAsync(year, scope, today, ct);
+        if (read.TryGetFailure(out var failure)) return Result.Failure<TaxResult>(failure!);
+        read.TryGetValue(out var r);
+        var (inputs, _, _) = Assemble(year, r.Lines, r.Stored?.Profile ?? TaxProfile.Empty, r.People);
+        return Result.Success(TaxCalculator.Compute(inputs));
+    }
+
     /// <summary>
     /// Rental 2044 spec §4–§5: the form from the estimate's own lines and calculation, so the two never differ; the regime is the
     /// estimate's, the totals <see cref="Rental2044.Totals"/>' and the 2042 boxes theirs (4BE alone under the micro-foncier).
@@ -296,4 +306,22 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
     internal static string Percent(decimal fraction) => (fraction * 100).ToString("0.##", CultureInfo.InvariantCulture);
 
     internal static string Amount(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture);
+}
+
+/// <summary>
+/// The dashboard's « Impôts »: a twelfth of this year's estimated total tax, in euros (the estimate reads euro lines only), as a
+/// commitment so the month's rest is what is left after it. A refund costs nothing a month: no source then.
+/// </summary>
+public sealed class TaxCommitments(TaxEstimates estimates) : ICommitmentsContribution
+{
+    public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+    {
+        var result = await estimates.ComputeAsync(today.Year, scope, today, ct);
+        if (result.TryGetFailure(out var failure)) return Result.Failure<CommitmentsPart>(failure!);
+        result.TryGetValue(out var r);
+        var monthly = Math.Max(0m, r!.TotalTax) / 12;
+        // Nothing to pay puts no euro entry, which would ask for a rate in a household of another currency.
+        var amortized = monthly > 0m ? new Dictionary<Currency, decimal> { [Currency.Eur] = monthly } : new Dictionary<Currency, decimal>();
+        return Result.Success(new CommitmentsPart(CommitmentSources.Tax, amortized.Count, amortized, new Dictionary<Currency, decimal>()));
+    }
 }

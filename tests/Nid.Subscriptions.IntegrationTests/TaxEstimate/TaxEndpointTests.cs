@@ -54,6 +54,25 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task The_dashboard_counts_a_twelfth_of_this_years_tax_as_a_commitment_taken_out_of_the_rest()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var salary = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        await AddPhaseAsync(app, app.AdultA, salary, "78000", "100000");
+
+        var total = decimal.Parse(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/tax?scope=me")).RootElement
+            .GetProperty("result").GetProperty("totalTax").GetString()!, CultureInfo.InvariantCulture);
+        var dashboard = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=me")).RootElement;
+
+        Assert.True(total > 0m);
+        var tax = Assert.Single(dashboard.GetProperty("commitmentSources").EnumerateArray(), s => s.GetProperty("source").GetString() == "tax");
+        Assert.Equal(Math.Round(total / 12, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture),
+            tax.GetProperty("amortized").GetProperty("amount").GetString());
+        Assert.Equal(Math.Round(6500m - total / 12, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture), // 78000 / 12 − the tax
+            dashboard.GetProperty("margin").GetProperty("amount").GetString());
+    }
+
+    [Fact]
     public async Task Every_PER_payment_of_the_year_is_deducted_the_opening_of_a_PER_opened_that_year_included()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -67,6 +67,7 @@ public static class CommitmentSources
     public const string Subscriptions = "subscriptions";
     public const string Loans = "loans";
     public const string PropertyCosts = "property_costs";
+    public const string Tax = "tax";
 }
 
 /// <summary>
