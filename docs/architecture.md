@@ -145,6 +145,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 | **Investments** | `Envelope` (PEA, assurance-vie, PER, livret…) ; valorisations et flux via Core | Gain €/%, TRI plus tard, contribution au patrimoine | Core |
 | **Income** | `IncomeSource`, `IncomePhase` ; revenus exceptionnels via les flux du Core | Revenus mensuels lissés, part engagée, marge (`IIncomeContribution`, `IIncomeSummary`) | Core, `RealEstate.Contracts` (loyers) |
 | **RealEstate** | `Property`, `Loan`, `LoanPhase`, `LoanEvent`, `Insurance` | Tableau d'amortissement, capital restant dû, valeur nette, engagements ; loyers pour Income (`IRentIncome`) | Core |
+| **Goals** | `Goal` (objectif d'épargne ou de précaution), ses liens aux enveloppes (`share_bp`) et ses relevés | Rien (lit `IEnvelopeFunding` d'Investments et `ICommitmentsContribution`) | Core, `Investments.Contracts` |
 | **Ingestion** | Pipeline de documents, table `job`, contrats de jobs, résultats d'extraction | Entrée des propositions vers Core, API interne pour les workers | Core |
 | **Dashboard** (hébergé dans Core : `Core.Application/Dashboard`) | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + contributions des modules |
 | **Tax** (hébergé dans Core : `Core.Application/Tax`, `Core.Domain/Tax`) | Profil fiscal du foyer par année (`core.tax_profile`) | Estimation d'impôt ; les modules fournissent leurs lignes (`ITaxContribution`) | Core + contributions des modules |
