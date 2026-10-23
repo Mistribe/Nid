@@ -12,7 +12,7 @@ import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
-import { PageHeader } from '@/components/page/PageHeader';
+import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -132,8 +132,7 @@ export function NewIncomeSource() {
   );
 
   return (
-    <article className="max-w-3xl space-y-4">
-      <PageHeader crumbs={[{ label: t('nav.income'), to: '/income' }]} title={t('income_form.title')} />
+    <FormPage crumbs={[{ label: t('nav.income'), to: '/income' }]} title={t('income_form.title')}>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <StepForm
         trigger={(fields) => form.trigger(fields as Path<NewIncomeValues>[])}
@@ -144,6 +143,6 @@ export function NewIncomeSource() {
           { id: 'components', title: t('income_form.step_components'), fields: [...FIELDS.components], content: components },
         ]}
       />
-    </article>
+    </FormPage>
   );
 }

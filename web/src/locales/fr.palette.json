@@ -1,0 +1,14 @@
+{
+  "palette": {
+    "title": "Aller à",
+    "placeholder": "Une page ou une action…",
+    "empty": "Aucun résultat.",
+    "go": "Aller à",
+    "create": "Créer",
+    "new_envelope": "Ajouter une enveloppe",
+    "new_property": "Ajouter un bien",
+    "new_loan": "Ajouter un crédit",
+    "new_subscription": "Ajouter un abonnement",
+    "new_income": "Ajouter un revenu"
+  }
+}

@@ -99,9 +99,11 @@ Cible **WCAG 2.2 AA**.
 
 ### 6.1 Grammaire des pages
 
+- **Coquille** : le contenu se centre au-delà de 1 280 px (`max-w-7xl`) ; la barre du haut reste collée en haut de page, avec la recherche (palette ⌘K / Ctrl K : chaque page et chaque création, `app/CommandMenu.tsx`, chargée à la première ouverture), le choix Foyer / Moi et les guides.
+- **Vue d’ensemble** : chaque bloc dans un `SectionCard` (Placements, Biens, Crédits, Abonnements) ; `Section`, sans carte, reste aux fiches. Les chiffres clés en tête dans `StatLine`, en colonnes égales qui remplissent la ligne.
 - **Liste** : `PageHeader`, puis un `SortableTable` dense avec la colonne des propriétaires ; création par un bouton `primary` unique vers une page de formulaire.
 - **Fiche** : chiffres clés en ligne dans l'en-tête, onglets (`?tab=`), saisies en dialogues, actions de ligne dans un `RowMenu`. La vue d'ensemble tient dans environ 1 350 px de haut à 1440×900.
-- **Formulaire** : page à part, grille de champs ; `StepForm` pour un crédit, un revenu, un bien et l'assistant d'abonnement ; champs rares repliés, devises cherchables.
+- **Formulaire** : page à part dans `FormPage` (colonne centrée de 3xl, le formulaire sur une carte, ses boutons dans `FormActions` au pied, séparés par un filet), grille de champs ; `StepForm` pour un crédit, un revenu, un bien et l’assistant d’abonnement, avec un indicateur d’étapes (pastille numérotée, coche une fois passée) ; champs rares repliés, devises cherchables.
 - **Panneau latéral** : un chiffre de l'accueil s'ouvre dans un panneau (`?panel=`), sans quitter la page.
 
 ## 7. Thèmes

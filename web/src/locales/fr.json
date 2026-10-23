@@ -77,6 +77,11 @@
     "group_budget": "Budget",
     "routine_badge": "{{count}} à faire"
   },
+  "command": {
+    "open": "Rechercher ou aller à…",
+    "shortcut_mac": "⌘ K",
+    "shortcut": "Ctrl K"
+  },
   "more": {
     "title": "Plus",
     "list": "Autres sections"

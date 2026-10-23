@@ -11,7 +11,7 @@ import { CurrencyField } from '@/components/form/CurrencyField';
 import { Field } from '@/components/form/Field';
 import { Segmented } from '@/components/form/Segmented';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
-import { PageHeader } from '@/components/page/PageHeader';
+import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Input } from '@/components/ui/input';
@@ -112,8 +112,7 @@ export function NewLoan() {
   );
 
   return (
-    <article className="max-w-3xl space-y-4">
-      <PageHeader crumbs={[{ label: t('nav.loans'), to: '/loans' }]} title={t('loan_form.title')} />
+    <FormPage crumbs={[{ label: t('nav.loans'), to: '/loans' }]} title={t('loan_form.title')}>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <StepForm
         trigger={(fields) => form.trigger(fields as Path<NewLoanValues>[])}
@@ -134,6 +133,6 @@ export function NewLoan() {
           { id: 'insurance', title: t('loan_form.step_insurance'), fields: [...FIELDS.insurance], content: <InsuranceSection contract={contract} /> },
         ]}
       />
-    </article>
+    </FormPage>
   );
 }

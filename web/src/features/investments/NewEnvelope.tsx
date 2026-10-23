@@ -13,7 +13,7 @@ import { OwnershipFields } from '@/components/ownership/OwnershipFields';
 import { CurrencyField } from '@/components/form/CurrencyField';
 import { DateField } from '@/components/form/DateField';
 import { SelectField } from '@/components/form/SelectField';
-import { PageHeader } from '@/components/page/PageHeader';
+import { FormActions, FormPage } from '@/components/page/FormPage';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -88,8 +88,7 @@ export function NewEnvelope() {
   const [moreOpen, setMoreOpen] = useState(false);
 
   return (
-    <article className="max-w-3xl space-y-4">
-      <PageHeader crumbs={[{ label: t('nav.investments'), to: '/investments' }]} title={t('investments_form.title')} />
+    <FormPage crumbs={[{ label: t('nav.investments'), to: '/investments' }]} title={t('investments_form.title')}>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <form noValidate onSubmit={(e) => void form.handleSubmit((values) => create.mutate({ body: toCreateBody(values) }))(e)} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -145,9 +144,9 @@ export function NewEnvelope() {
             </Field>
           )} />
         </Fold>
-        <Button type="submit" disabled={create.isPending}>{t('investments_form.submit')}</Button>
+        <FormActions><Button type="submit" disabled={create.isPending}>{t('investments_form.submit')}</Button></FormActions>
       </form>
-    </article>
+    </FormPage>
   );
 }
 

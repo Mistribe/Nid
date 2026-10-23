@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney, type MoneyValue } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
-import { Section } from '@/components/page/Section';
+import { SectionCard } from '@/components/page/SectionCard';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
@@ -57,11 +57,11 @@ export function OverviewTab({ scope }: { scope: Scope }) {
     <TooltipProvider>
     <div className="flex flex-col gap-6">
       <Figures d={d} />
-      <Section title={t('loans_overview.progress_title')}><Advance d={d} /></Section>
-      <Section title={t('loans_overview.chart_title')}><BalanceChart d={d} /></Section>
+      <SectionCard title={t('loans_overview.progress_title')}><Advance d={d} /></SectionCard>
+      <SectionCard title={t('loans_overview.chart_title')}><BalanceChart d={d} /></SectionCard>
       <DurationSection d={d} />
-      <div className="md:order-last"><Section title={t('loans_overview.upcoming')}><Upcoming d={d} /></Section></div>
-      <Section title={t('loans_overview.running')}><Running d={d} /></Section>
+      <div className="md:order-last"><SectionCard title={t('loans_overview.upcoming')}><Upcoming d={d} /></SectionCard></div>
+      <SectionCard title={t('loans_overview.running')}><Running d={d} /></SectionCard>
     </div>
     </TooltipProvider>
   );

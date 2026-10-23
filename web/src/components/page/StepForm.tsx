@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { FormActions } from './FormPage';
 
 /** A form in steps: « Continuer » validates the step's fields and stays, focusing the first invalid one, when they are not valid. */
 export function StepForm({ steps, trigger, onSubmit, submitLabel, pending, reveal, onAdvance }: {
@@ -37,21 +40,28 @@ export function StepForm({ steps, trigger, onSubmit, submitLabel, pending, revea
 
   return (
     <form noValidate className="space-y-6" onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void submit(); }}>
+      {/* A stepper: each step a numbered dot (a tick once passed), joined by a line that fills as the person goes. */}
       <nav aria-label={t('wizard.steps')}>
-        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
           {steps.map((s, i) => (
-            <li key={s.id} aria-current={i === index ? 'step' : undefined} className={i === index ? 'font-semibold' : 'text-muted-foreground'}>
-              {i + 1}. {s.title}
+            <li key={s.id} aria-current={i === index ? 'step' : undefined}
+              className={cn('flex items-center gap-2', i === index ? 'font-semibold' : 'text-muted-foreground')}>
+              {i > 0 ? <span aria-hidden="true" className={cn('h-px w-6 transition-colors', i <= index ? 'bg-primary' : 'bg-border')} /> : null}
+              <span aria-hidden="true" className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
+                i < index ? 'bg-primary text-primary-foreground' : i === index ? 'border-2 border-primary text-primary' : 'border text-muted-foreground')}>
+                {i < index ? <Check className="size-3.5" /> : i + 1}
+              </span>
+              {s.title}
             </li>
           ))}
         </ol>
       </nav>
       <p className="sr-only" aria-live="polite">{t('wizard.step_progress', { n: index + 1, total: steps.length })}</p>
       <div ref={body} className="space-y-4">{step.content}</div>
-      <div className="flex justify-between gap-2">
+      <FormActions className="justify-between">
         {index > 0 ? <Button type="button" variant="outline" onClick={() => setIndex(index - 1)}>{t('wizard.back')}</Button> : <span />}
         <Button key={step.id} type="submit" disabled={pending}>{last ? submitLabel : t('wizard.next')}</Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

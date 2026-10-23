@@ -11,7 +11,7 @@ import { Field } from '@/components/form/Field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Segmented } from '@/components/form/Segmented';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
-import { PageHeader } from '@/components/page/PageHeader';
+import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Input } from '@/components/ui/input';
@@ -101,8 +101,7 @@ export function NewProperty() {
   );
 
   return (
-    <article className="max-w-3xl space-y-4">
-      <PageHeader crumbs={[{ label: t('nav.properties'), to: '/properties' }]} title={t('property_form.title')} />
+    <FormPage crumbs={[{ label: t('nav.properties'), to: '/properties' }]} title={t('property_form.title')}>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       {/* The property's fields are shared with the settings (3D1 design §6): they read this form from the context. */}
       <FormProvider {...form}>
@@ -128,6 +127,6 @@ export function NewProperty() {
           ]}
         />
       </FormProvider>
-    </article>
+    </FormPage>
   );
 }

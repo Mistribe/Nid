@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { Bird, Ellipsis } from 'lucide-react';
+import { Bird, Ellipsis, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Guides } from '@/features/guides/Guides';
@@ -14,6 +14,9 @@ import { useSession } from './Providers';
 const PersonMenu = lazy(() => import('./PersonMenu').then((m) => ({ default: m.PersonMenu })));
 const VersionInfo = lazy(() => import('./VersionInfo').then((m) => ({ default: m.VersionInfo })));
 const VERSION = import.meta.env.VITE_NID_VERSION ?? 'dev';
+// cmdk and the dialog load on the first ⌘K (200 kB budget).
+const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m.CommandMenu })));
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 const LINK = 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-accent hover:text-accent-foreground';
 // The current page: a tinted pill in the accent colour, the text bold so the colour is never alone.
@@ -26,6 +29,18 @@ export function Shell() {
   const { t } = useTranslation();
   const { capabilities, session } = useSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // null until first opened: the palette's code is not fetched before it is wanted.
+  const [palette, setPalette] = useState<boolean | null>(null);
+  useEffect(() => {
+    const toggle = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPalette((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', toggle);
+    return () => window.removeEventListener('keydown', toggle);
+  }, []);
   const items = visibleNav(capabilities);
   const side = items.filter((item) => item.group !== 'account');
   const groups = (['follow', 'estate', 'budget'] as const).map((group) => ({ group, entries: side.filter((item) => item.group === group) })).filter((g) => g.entries.length > 0);
@@ -65,14 +80,24 @@ export function Shell() {
         </div>
       </nav>
       <div className="flex min-h-dvh flex-col pb-16 md:pb-0">
-        <header className="flex flex-wrap print:hidden items-center justify-between gap-2 border-b px-4 py-3 md:gap-4 md:border-b-0">
-          <p className="font-semibold md:invisible">{t('app.name')}</p>
-          <ScopeSwitch />
-          <Guides />
+        {/* Sticky over the page it scrolls; the search opens the ⌘K palette, the scope and the guides sit at the end. */}
+        <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur print:hidden">
+          <div className="mx-auto flex w-full max-w-7xl items-center gap-2 px-4 py-2.5 md:gap-4">
+            <p className="font-semibold md:hidden">{t('app.name')}</p>
+            <button type="button" onClick={() => setPalette(true)} aria-label={t('command.open')} aria-keyshortcuts={MAC ? 'Meta+K' : 'Control+K'}
+              className="flex h-9 items-center gap-2 rounded-md border bg-card px-2.5 text-sm text-muted-foreground shadow-xs transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:w-full md:max-w-sm">
+              <Search aria-hidden="true" className="size-4 shrink-0" />
+              <span aria-hidden="true" className="hidden flex-1 text-left md:inline">{t('command.open')}</span>
+              <kbd aria-hidden="true" className="hidden rounded border bg-muted px-1.5 font-sans text-xs md:inline">{t(MAC ? 'command.shortcut_mac' : 'command.shortcut')}</kbd>
+            </button>
+            <div className="ml-auto flex items-center gap-2"><ScopeSwitch /><Guides /></div>
+          </div>
         </header>
+        {palette !== null ? <Suspense fallback={null}><CommandMenu open={palette} onOpenChange={setPalette} /></Suspense> : null}
         <TokenBanner />
         <main className="flex-1 p-4">
-          <Outlet />
+          {/* A line of reading and charts that stay legible on a wide screen: past 1 280 px the page centres. */}
+          <div className="mx-auto w-full max-w-7xl"><Outlet /></div>
         </main>
       </div>
       <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex border-t bg-background md:hidden print:hidden">

@@ -53,12 +53,13 @@ export function DurationSection({ d }: { d: LoansOverview }) {
 
   return (
     <>
-      <Section title={t('loans_overview.duration_title')}>
-        <div className="flex justify-end">
+      <SectionCard title={t('loans_overview.duration_title')} className="space-y-3" actions={
+        <>
           <span id={labelId} className="sr-only">{t('loans_overview.span_label')}</span>
           <Segmented value={window} onValueChange={choose} aria-labelledby={labelId}
             options={(['5y', '10y', 'all'] as const).map((w) => ({ value: w, label: t(`loans_overview.span_${w}`) }))} />
-        </div>
+        </>
+      }>
         <div className="hidden md:block">
           <Timeline d={d} axis={axis} today={today} />
           <Steps d={d} axis={axis} today={today} />
@@ -68,7 +69,7 @@ export function DurationSection({ d }: { d: LoansOverview }) {
           <StepsList d={d} />
         </div>
         <SpansTable d={d} />
-      </Section>
+      </SectionCard>
       <Persons d={d} />
     </>
   );

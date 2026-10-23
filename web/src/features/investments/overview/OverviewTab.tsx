@@ -285,7 +285,7 @@ function Envelopes({ d }: { d: InvestmentsOverview }) {
           { id: 'owner', header: t('investments_overview.col_owners'), cell: (r) => <OwnerChips owners={r.owners} /> },
           { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.valueConverted?.amount ?? null),
             cell: (r) => (r.figures.value ? <Amount value={r.figures.value} converted={r.valueConverted} /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>) },
-          { id: 'gain', header: t('investments_overview.col_gain'), sort: (r) => amountKey(r.gainConverted?.amount ?? null),
+          { id: 'gain', header: t('investments_overview.col_gain'), align: 'end', sort: (r) => amountKey(r.gainConverted?.amount ?? null),
             cell: (r) => (r.figures.value ? <Gain figures={r.figures} /> : dash) },
           { id: 'annual', header: t('investments_overview.col_annual'), align: 'end', sort: (r) => r.figures.annualReturnPct ?? Number.NEGATIVE_INFINITY,
             cell: (r) => (r.figures.annualReturnPct === null || r.figures.annualReturnPct === undefined ? dash : <AnnualReturn value={r.figures.annualReturnPct} />) },

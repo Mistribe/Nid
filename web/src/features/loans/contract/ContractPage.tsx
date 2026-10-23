@@ -9,6 +9,7 @@ import { present, toProblem } from '@/api/errors';
 import { formatLocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { FormActions } from '@/components/page/FormPage';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { fieldErrorsOf } from '../../subscriptions/fieldErrors';
@@ -36,12 +37,14 @@ export function ContractPage() {
 
   const loan = answer.data;
   return (
-    <article className="max-w-2xl space-y-4">
+    <article className="mx-auto w-full max-w-2xl space-y-4">
       {back}
       <h1 className="text-2xl font-semibold">{t('loan_contract.title', { name: loan.name })}</h1>
+      <div className="rounded-xl border bg-card p-4 shadow-card sm:p-6">
       {loan.canWrite
         ? <ContractForm key={generation} loan={loan} onReload={() => answer.refetch().then(() => setGeneration((g) => g + 1))} />
         : <p>{t('loan_detail.read_only')}</p>}
+      </div>
     </article>
   );
 }
@@ -93,7 +96,7 @@ function ContractForm({ loan, onReload }: { loan: LoanDetail; onReload: () => Pr
           </>
         ) : null}
         <ContractFields stored startListed={!isPlain(opened.contract)} />
-        <Button type="submit" disabled={save.isPending}>{t('loan_contract.submit')}</Button>
+        <FormActions><Button type="submit" disabled={save.isPending}>{t('loan_contract.submit')}</Button></FormActions>
       </form>
     </FormProvider>
   );

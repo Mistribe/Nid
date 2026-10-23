@@ -8,7 +8,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { PageHeader } from '@/components/page/PageHeader';
+import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
 import { invalidateSubscriptions, LIST, PERSONS } from './api';
 import { useSubmitErrors } from './edits/useSubmitErrors';
@@ -117,8 +117,7 @@ export function NewSubscription() {
   };
 
   return (
-    <article className="max-w-3xl space-y-4">
-      <PageHeader crumbs={[{ label: t('nav.subscriptions'), to: '/subscriptions' }]} title={t('wizard.title')} />
+    <FormPage crumbs={[{ label: t('nav.subscriptions'), to: '/subscriptions' }]} title={t('wizard.title')}>
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       {people.error ? <ProblemMessage problem={present(toProblem(people.error))} /> : null}
       {/* The owner and payer selects are born with their options: a select registered before them would show its
@@ -135,7 +134,7 @@ export function NewSubscription() {
           onSubmit={() => void form.handleSubmit((v) => { errors.clear(); create.mutate({ body: toCreateBody(v) }); })()}
           submitLabel={t('wizard.submit')} pending={create.isPending} reveal={reveal} />
       )}
-    </article>
+    </FormPage>
   );
 }
 

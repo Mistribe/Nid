@@ -74,9 +74,9 @@ export function OverviewTab({ scope }: { scope: Scope }) {
 function Panel({ title, className, action, children }: { title: string; className?: string; action?: ReactNode; children: ReactNode }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className={cn('space-y-3 rounded-lg border p-4', className)}>
+    <section aria-labelledby={id} className={cn('space-y-3 rounded-xl border bg-card p-4 shadow-card', className)}>
       <div className="flex items-center justify-between gap-2">
-        <h2 id={id} className="text-sm font-semibold">{title}</h2>
+        <h2 id={id} className="text-base font-semibold">{title}</h2>
         {action}
       </div>
       {children}
