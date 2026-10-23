@@ -22,6 +22,14 @@ public sealed class TaxProfileRow
     public string Data { get; set; } = "{}";
 }
 
+public sealed class ScenarioRow
+{
+    public Guid ItemId { get; set; }
+    public string Kind { get; set; } = "";
+    public string Scope { get; set; } = "";
+    public string Data { get; set; } = "{}";
+}
+
 public sealed class PersonRow
 {
     public Guid Id { get; set; }

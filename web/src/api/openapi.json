@@ -12353,6 +12353,627 @@
         }
       }
     },
+    "/api/v1/scenarios": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scenarios/simulate": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scenarios/defaults": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioDefaultsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scenarios/{id}": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/imports": {
       "post": {
         "tags": [
@@ -15592,6 +16213,63 @@
           }
         }
       },
+      "CapacityView": {
+        "required": [
+          "retainedMonth",
+          "newPayment",
+          "loansCost",
+          "lastPayment",
+          "leftBefore",
+          "leftAfter",
+          "monthlyTaxIncrease",
+          "savingsAfterByLiquidity"
+        ],
+        "type": "object",
+        "properties": {
+          "retainedMonth": {
+            "type": "string"
+          },
+          "newPayment": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "loansCost": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "lastPayment": {
+            "type": "string",
+            "format": "date"
+          },
+          "debtRatioBefore": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "debtRatioAfter": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "leftBefore": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "leftAfter": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "monthlyTaxIncrease": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "savingsAfterByLiquidity": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DashboardMoneyView"
+            }
+          }
+        }
+      },
       "CatalogDuplicate": {
         "required": [
           "file",
@@ -18548,6 +19226,46 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "FundingCandidateView": {
+        "required": [
+          "id",
+          "name",
+          "value",
+          "liquidity"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "liquidity": {
+            "type": "string"
+          }
+        }
+      },
+      "FundingLineView": {
+        "required": [
+          "item",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string"
           }
         }
       },
@@ -23733,6 +24451,22 @@
           }
         }
       },
+      "OwnerShare": {
+        "required": [
+          "personId",
+          "shareBp"
+        ],
+        "type": "object",
+        "properties": {
+          "personId": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "shareBp": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "OwnerView": {
         "required": [
           "personId",
@@ -23944,6 +24678,18 @@
               "number"
             ],
             "format": "double"
+          }
+        }
+      },
+      "PersonId": {
+        "required": [
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -24590,6 +25336,26 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ProjectionPointView": {
+        "required": [
+          "on",
+          "without",
+          "with"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "without": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "with": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
           }
         }
       },
@@ -25662,6 +26428,84 @@
                 "$ref": "#/components/schemas/LoanMoneyView"
               }
             ]
+          }
+        }
+      },
+      "PropertyPurchaseView": {
+        "required": [
+          "version",
+          "use",
+          "purchaseOn",
+          "price",
+          "notaryFees",
+          "agencyFees",
+          "otherCosts",
+          "monthlyCharges",
+          "currentRent",
+          "expectedRent",
+          "vacancyMonths",
+          "funding",
+          "loans",
+          "assumptions"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "use": {
+            "type": "string"
+          },
+          "purchaseOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "price": {
+            "type": "string"
+          },
+          "notaryFees": {
+            "type": "string"
+          },
+          "agencyFees": {
+            "type": "string"
+          },
+          "otherCosts": {
+            "type": "string"
+          },
+          "monthlyCharges": {
+            "type": "string"
+          },
+          "currentRent": {
+            "type": "string"
+          },
+          "expectedRent": {
+            "type": "string"
+          },
+          "vacancyMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "funding": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FundingLineView"
+            }
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioLoanDocView"
+            }
+          },
+          "assumptions": {
+            "$ref": "#/components/schemas/ScenarioAssumptionsView"
           }
         }
       },
@@ -27781,6 +28625,496 @@
           }
         }
       },
+      "ScenarioAssumptionsView": {
+        "required": [
+          "horizonYears",
+          "classRates",
+          "monthlySavings",
+          "savingsClass"
+        ],
+        "type": "object",
+        "properties": {
+          "horizonYears": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "classRates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "propertyGrowth": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monthlySavings": {
+            "type": "string"
+          },
+          "savingsClass": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "visibility": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owners": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/OwnerBody"
+            }
+          },
+          "scope": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "document": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyPurchaseView"
+              }
+            ]
+          }
+        }
+      },
+      "ScenarioDefaultsView": {
+        "required": [
+          "classRates",
+          "commitments",
+          "holdings"
+        ],
+        "type": "object",
+        "properties": {
+          "classRates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "monthlyIncome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "commitments": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FundingCandidateView"
+            }
+          }
+        }
+      },
+      "ScenarioDeferralView": {
+        "required": [
+          "kind",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ScenarioInsuranceView": {
+        "required": [
+          "kind",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioList": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioListItemView"
+            }
+          }
+        }
+      },
+      "ScenarioListItemView": {
+        "required": [
+          "id",
+          "name",
+          "use",
+          "price",
+          "newPayment",
+          "gap",
+          "owners",
+          "visibility"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "use": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "newPayment": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "debtRatioAfter": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "gap": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnerShare"
+            }
+          },
+          "visibility": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioLoanDocView": {
+        "required": [
+          "name",
+          "amount",
+          "rate",
+          "months",
+          "insurance",
+          "fileFees",
+          "guaranteeFees"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "rate": {
+            "type": "string"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "deferral": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScenarioDeferralView"
+              }
+            ]
+          },
+          "insurance": {
+            "$ref": "#/components/schemas/ScenarioInsuranceView"
+          },
+          "fileFees": {
+            "type": "string"
+          },
+          "guaranteeFees": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioLoanView": {
+        "required": [
+          "name",
+          "interest",
+          "insurance",
+          "fees",
+          "schedule"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "interest": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "insurance": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "fees": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "lastPayment": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ScenarioScheduleView"
+          }
+        }
+      },
+      "ScenarioResultView": {
+        "required": [
+          "capacity",
+          "points",
+          "withoutAtHorizon",
+          "withAtHorizon",
+          "gap",
+          "loans",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "capacity": {
+            "$ref": "#/components/schemas/CapacityView"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionPointView"
+            }
+          },
+          "withoutAtHorizon": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "withAtHorizon": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "gap": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioLoanView"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioWarningView"
+            }
+          }
+        }
+      },
+      "ScenarioScheduleRowView": {
+        "required": [
+          "number",
+          "dueDate",
+          "payment",
+          "interest",
+          "principal",
+          "insurance",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "payment": {
+            "type": "string"
+          },
+          "interest": {
+            "type": "string"
+          },
+          "principal": {
+            "type": "string"
+          },
+          "insurance": {
+            "type": "string"
+          },
+          "earlyRepayment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "balance": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioScheduleView": {
+        "required": [
+          "rows",
+          "years",
+          "totalInterest",
+          "totalPrincipal"
+        ],
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioScheduleRowView"
+            }
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScenarioScheduleYearView"
+            }
+          },
+          "totalInterest": {
+            "type": "string"
+          },
+          "totalPrincipal": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioScheduleYearView": {
+        "required": [
+          "year",
+          "payment",
+          "interest",
+          "principal",
+          "insurance",
+          "earlyRepayment",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payment": {
+            "type": "string"
+          },
+          "interest": {
+            "type": "string"
+          },
+          "principal": {
+            "type": "string"
+          },
+          "insurance": {
+            "type": "string"
+          },
+          "earlyRepayment": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
+          }
+        }
+      },
+      "ScenarioView": {
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "scope",
+          "document",
+          "result",
+          "canWrite"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "document": {
+            "$ref": "#/components/schemas/PropertyPurchaseView"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ScenarioResultView"
+          },
+          "canWrite": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ScenarioWarningView": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ScheduleComparisonView": {
         "required": [
           "maxGap",
@@ -27989,6 +29323,27 @@
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "SimulateBody": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "document": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyPurchaseView"
+              }
             ]
           }
         }

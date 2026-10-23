@@ -653,6 +653,38 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ScenarioRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("scope");
+
+                    b.HasKey("ItemId")
+                        .HasName("pk_scenario");
+
+                    b.ToTable("scenario", "core", t =>
+                        {
+                            t.HasCheckConstraint("ck_scenario_kind", "kind = 'property_purchase'");
+
+                            t.HasCheckConstraint("ck_scenario_scope", "scope in ('me','household')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.TaxProfileRow", b =>
                 {
                     b.Property<int>("Year")
@@ -948,6 +980,16 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TargetItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_proposal_item_target_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ScenarioRow", b =>
+                {
+                    b.HasOne("Nid.Core.Infrastructure.Persistence.ItemRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_scenario_item_item_id");
                 });
 
             modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>

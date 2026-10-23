@@ -178,10 +178,7 @@ public static class DashboardMath
                 debts += amount;
                 continue;
             }
-            var slices = holding.Slices ?? (holding.Module == "properties"
-                ? [new AllocationSlice(AllocationClasses.RealEstate, AllocationLiquidity.Locked, value.Amount, false)]
-                : [new AllocationSlice(AllocationClasses.Other, AllocationLiquidity.Days, value.Amount, true)]);
-            foreach (var slice in slices)
+            foreach (var slice in SlicesOf(holding, value.Amount))
             {
                 var part = slice.Amount * amount / value.Amount; // the holding's own rate, as its converted value
                 classes[slice.Class] = classes.GetValueOrDefault(slice.Class) + part;
@@ -206,8 +203,14 @@ public static class DashboardMath
             target);
     }
 
+    /// <summary>A holding's slices, or without them its module's: a property is real estate, locked; anything else is guessed as other.</summary>
+    internal static IReadOnlyList<AllocationSlice> SlicesOf(Holding holding, decimal amount)
+        => holding.Slices ?? (holding.Module == "properties"
+            ? [new AllocationSlice(AllocationClasses.RealEstate, AllocationLiquidity.Locked, amount, false)]
+            : [new AllocationSlice(AllocationClasses.Other, AllocationLiquidity.Days, amount, true)]);
+
     /// <summary>One holding at today's rate: zero converts to zero at any rate, as <see cref="Sum.Of"/>.</summary>
-    private static (decimal? Amount, string? Missing) Convert(Money? value, Currency reference, RateTable rates, LocalDate today)
+    internal static (decimal? Amount, string? Missing) Convert(Money? value, Currency reference, RateTable rates, LocalDate today)
     {
         if (value is not { } v) return (null, null);
         if (v.Amount == 0m) return (0m, null);

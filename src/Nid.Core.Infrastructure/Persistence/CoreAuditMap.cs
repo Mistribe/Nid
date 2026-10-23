@@ -12,6 +12,9 @@ public sealed class CoreAuditMap : IAuditMap
         [typeof(PersonRow)] = AuditRule.NoItem,
         [typeof(HouseholdSettingsRow)] = AuditRule.NoItem,
         [typeof(TaxProfileRow)] = AuditRule.NoItem,
+        // A scenario's document names its funding envelopes: never shown in an item's history, where a reader who no longer sees
+        // an envelope would find its id (property purchase spec §5).
+        [typeof(ScenarioRow)] = AuditRule.NoItem,
         [typeof(ValuationRow)] = new(e => AuditItems.Of(e, nameof(ValuationRow.ItemId))),
         [typeof(FlowRow)] = new(e => AuditItems.Of(e, nameof(FlowRow.ItemId))),
         [typeof(ProposalRow)] = new(e => AuditItems.Of(e, nameof(ProposalRow.TargetItemId))),

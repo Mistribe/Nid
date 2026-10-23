@@ -6,6 +6,8 @@ using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
+using Nid.Core.Application.Scenarios;
+using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
 using Nid.Income.Application;
 using Nid.Income.Contracts;
@@ -324,6 +326,23 @@ public static class RequestCatalogue
         new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
         new(typeof(SimulateTaxQuery), false, (_, _) => new SimulateTaxQuery(new TaxInputs(
             2025, [new TaxDeclarant("bench", 1m, EmploymentStatus.NonExecutive, 0m, 0m)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m, 0m, 0m, 0m, 0m))),
+        // Scenario spec §5: the scenario requests run against the scenario twins; a replace may name a funding envelope, which the
+        // actor only has to read (the envelope twin of the other row). A creation has no target, so it is not on the second axis:
+        // ScenarioUseCaseTests checks its funding refusals. Delete archives its twin, so it comes after the other twin requests.
+        new(typeof(ListScenariosQuery), false, (_, _) => new ListScenariosQuery(VisibilityScope.Me)),
+        new(typeof(SimulateScenarioQuery), false, (_, _) => new SimulateScenarioQuery(VisibilityScope.Me, BenchScenario([]))),
+        new(typeof(GetScenarioDefaultsQuery), false, (_, _) => new GetScenarioDefaultsQuery(VisibilityScope.Me)),
+        new(typeof(CreateScenarioCommand), false, (d, _) => new CreateScenarioCommand("bench", Visibility.Shared,
+            [new OwnerShare(d.App.AdultA, 10_000)], VisibilityScope.Me, BenchScenario([]))),
+        new(typeof(GetScenarioQuery), true, (_, item) => new GetScenarioQuery(item)),
+        // The twin keeps its visibility: a private twin turned shared would change what the rest of the matrix expects.
+        new(typeof(ReplaceScenarioCommand), true, (d, item) => new ReplaceScenarioCommand(item, "bench", d.VisibilityOf(item), VisibilityScope.Me, BenchScenario([])))
+        {
+            BuildNamingAnother = (d, target, other) => Task.FromResult<object>(new ReplaceScenarioCommand(
+                target, "bench", d.VisibilityOf(target), VisibilityScope.Me, BenchScenario([new FundingLine(d.EnvelopeTwinOf(other), 100m)]))),
+            SecondItemAccess = AccessKind.Read,
+        },
+        new(typeof(DeleteScenarioCommand), true, (_, item) => new DeleteScenarioCommand(item)),
         new(typeof(GetIncomeSourceQuery), true, (_, item) => new GetIncomeSourceQuery(item)),
         new(typeof(EditIncomeSourceCommand), true, (_, item) => new EditIncomeSourceCommand(item, null, null, new IncomeSourceChange(Note: "bench"))),
         new(typeof(CreateIncomeSourceCommand), false, (d, _) => new CreateIncomeSourceCommand("bench", "salary", Currency.Eur, Visibility.Shared,
@@ -421,6 +440,12 @@ public static class RequestCatalogue
         new(typeof(EditPropertyTenancyCommand), true, (_, item) => new EditPropertyTenancyCommand(item, Guid.NewGuid(), BenchTenancy, 1)),
         new(typeof(DeletePropertyTenancyCommand), true, (_, item) => new DeletePropertyTenancyCommand(item, Guid.NewGuid(), 1)),
     ];
+
+    /// <summary>A scenario that computes: 100 000 borrowed at 3 % over 20 years, from 2025-12-01.</summary>
+    internal static PropertyPurchase BenchScenario(IReadOnlyList<FundingLine> funding) => new(
+        1, PurchaseUse.Primary, new LocalDate(2025, 12, 1), 100_000m, 0m, 0m, 0m, 0m, 0m, 0m, 0, null, funding,
+        [new ScenarioLoan("bench", 100_000m, 0.03m, 240, null, new ScenarioInsurance(ScenarioInsuranceKind.FixedMonthly, 0m), 0m, 0m)],
+        new ScenarioAssumptions(10, ScenarioRules.Defaults, null, 0m, AllocationClasses.Cash));
 
     /// <summary>A small loan that computes: 1 000 at 1 % over 12 payments from 2025-02-15.</summary>
     private static LoanContract BenchContract => new(1_000m, new LocalDate(2025, 1, 15), new LocalDate(2025, 2, 15), 12,

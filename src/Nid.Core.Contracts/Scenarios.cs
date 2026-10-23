@@ -56,3 +56,16 @@ public interface IRealEstateProjection
     Task<Result<RealEstateProjection>> ProjectAsync(
         PersonId reader, VisibilityScope scope, LocalDate today, int months, decimal annualGrowth, CancellationToken ct);
 }
+
+/// <summary>Spec §5: a scenario's document, stored as a JSON row keyed by its registry item. <c>Scope</c> is what it is computed on.</summary>
+public sealed record StoredScenario(ItemId Item, string Kind, VisibilityScope Scope, PropertyPurchase Document);
+
+public interface IScenarioStore
+{
+    Task<StoredScenario?> FindAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>The scenarios that exist among <paramref name="ids"/>.</summary>
+    Task<IReadOnlyList<StoredScenario>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
+    Task SaveAsync(StoredScenario scenario, CancellationToken ct);
+}

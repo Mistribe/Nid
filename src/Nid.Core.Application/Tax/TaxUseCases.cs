@@ -117,6 +117,15 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
             lines.Where(l => l.Code == TaxLineCodes.RentalProperty).Select(l => new TaxPropertyView(l.Item, l.Name, l.On!.Value.Year)).ToList()));
     }
 
+    /// <summary>The year's inputs as the estimate computes them (the property purchase scenario replays the engine on them).</summary>
+    public async Task<Result<TaxInputs>> InputsAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+    {
+        var read = await ReadAsync(year, scope, today, ct);
+        if (read.TryGetFailure(out var failure)) return Result.Failure<TaxInputs>(failure!);
+        read.TryGetValue(out var r);
+        return Result.Success(Assemble(year, r.Lines, r.Stored?.Profile ?? TaxProfile.Empty, r.People).Inputs);
+    }
+
     /// <summary>The year's result alone, as <see cref="EstimateAsync"/> computes it.</summary>
     public async Task<Result<TaxResult>> ComputeAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
     {

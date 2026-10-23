@@ -11462,6 +11462,601 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScenarioList"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ScenarioBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scenarios/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SimulateBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScenarioResultView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scenarios/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScenarioDefaultsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scenarios/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScenarioView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ScenarioBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScenarioView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/imports": {
         parameters: {
             query?: never;
@@ -14381,6 +14976,23 @@ export interface components {
             modules: string[];
             admin: boolean;
         };
+        CapacityView: {
+            retainedMonth: string;
+            newPayment: components["schemas"]["DashboardMoneyView"];
+            loansCost: components["schemas"]["DashboardMoneyView"];
+            /** Format: date */
+            lastPayment: string;
+            /** Format: double */
+            debtRatioBefore?: null | number;
+            /** Format: double */
+            debtRatioAfter?: null | number;
+            leftBefore: components["schemas"]["DashboardMoneyView"];
+            leftAfter: components["schemas"]["DashboardMoneyView"];
+            monthlyTaxIncrease: components["schemas"]["DashboardMoneyView"];
+            savingsAfterByLiquidity: {
+                [key: string]: components["schemas"]["DashboardMoneyView"];
+            };
+        };
         CatalogDuplicate: {
             file: string;
             key: string;
@@ -15059,6 +15671,18 @@ export interface components {
             category?: null | string;
             externalRef?: null | string;
             note?: null | string;
+        };
+        FundingCandidateView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            value: components["schemas"]["DashboardMoneyView"];
+            liquidity: string;
+        };
+        FundingLineView: {
+            /** Format: uuid */
+            item: string;
+            amount: string;
         };
         FxRateView: {
             /** Format: date */
@@ -16248,6 +16872,11 @@ export interface components {
             /** Format: int32 */
             shareBp: number;
         };
+        OwnerShare: {
+            personId: components["schemas"]["PersonId"];
+            /** Format: int32 */
+            shareBp: number;
+        };
         OwnerView: {
             /** Format: uuid */
             personId: string;
@@ -16297,6 +16926,10 @@ export interface components {
             gain?: null | components["schemas"]["AmountView"];
             /** Format: double */
             sharePct?: null | number;
+        };
+        PersonId: {
+            /** Format: uuid */
+            value: string;
         };
         PersonIdResponse: {
             /** Format: uuid */
@@ -16452,6 +17085,12 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+        };
+        ProjectionPointView: {
+            /** Format: date */
+            on: string;
+            without: components["schemas"]["DashboardMoneyView"];
+            with: components["schemas"]["DashboardMoneyView"];
         };
         PropertiesCosts: {
             currency: string;
@@ -16672,6 +17311,26 @@ export interface components {
             value?: null | components["schemas"]["LoanMoneyView"];
             linkedBalance?: null | components["schemas"]["LoanMoneyView"];
             netValue?: null | components["schemas"]["LoanMoneyView"];
+        };
+        PropertyPurchaseView: {
+            /** Format: int32 */
+            version: number;
+            use: string;
+            /** Format: date */
+            purchaseOn: string;
+            price: string;
+            notaryFees: string;
+            agencyFees: string;
+            otherCosts: string;
+            monthlyCharges: string;
+            currentRent: string;
+            expectedRent: string;
+            /** Format: int32 */
+            vacancyMonths: number;
+            rentalRegime?: null | string;
+            funding: components["schemas"]["FundingLineView"][];
+            loans: components["schemas"]["ScenarioLoanDocView"][];
+            assumptions: components["schemas"]["ScenarioAssumptionsView"];
         };
         PropertyRecurringCostBody: {
             category?: null | string;
@@ -17177,6 +17836,127 @@ export interface components {
             surtax: string;
             net: string;
         };
+        ScenarioAssumptionsView: {
+            /** Format: int32 */
+            horizonYears: number;
+            classRates: {
+                [key: string]: string;
+            };
+            propertyGrowth?: null | string;
+            monthlySavings: string;
+            savingsClass: string;
+        };
+        ScenarioBody: {
+            name?: null | string;
+            visibility?: null | string;
+            owners?: null | components["schemas"]["OwnerBody"][];
+            scope?: null | string;
+            document?: null | components["schemas"]["PropertyPurchaseView"];
+        };
+        ScenarioDefaultsView: {
+            classRates: {
+                [key: string]: string;
+            };
+            monthlyIncome?: null | components["schemas"]["DashboardMoneyView"];
+            commitments: components["schemas"]["DashboardMoneyView"];
+            holdings: components["schemas"]["FundingCandidateView"][];
+        };
+        ScenarioDeferralView: {
+            kind: string;
+            /** Format: int32 */
+            months: number;
+        };
+        ScenarioInsuranceView: {
+            kind: string;
+            value: string;
+        };
+        ScenarioList: {
+            items: components["schemas"]["ScenarioListItemView"][];
+        };
+        ScenarioListItemView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            use: string;
+            price: components["schemas"]["DashboardMoneyView"];
+            newPayment: components["schemas"]["DashboardMoneyView"];
+            /** Format: double */
+            debtRatioAfter?: null | number;
+            gap: components["schemas"]["DashboardMoneyView"];
+            owners: components["schemas"]["OwnerShare"][];
+            visibility: string;
+        };
+        ScenarioLoanDocView: {
+            name: string;
+            amount: string;
+            rate: string;
+            /** Format: int32 */
+            months: number;
+            deferral?: null | components["schemas"]["ScenarioDeferralView"];
+            insurance: components["schemas"]["ScenarioInsuranceView"];
+            fileFees: string;
+            guaranteeFees: string;
+        };
+        ScenarioLoanView: {
+            name: string;
+            interest: components["schemas"]["DashboardMoneyView"];
+            insurance: components["schemas"]["DashboardMoneyView"];
+            fees: components["schemas"]["DashboardMoneyView"];
+            /** Format: date */
+            lastPayment?: null | string;
+            schedule: components["schemas"]["ScenarioScheduleView"];
+        };
+        ScenarioResultView: {
+            capacity: components["schemas"]["CapacityView"];
+            points: components["schemas"]["ProjectionPointView"][];
+            withoutAtHorizon: components["schemas"]["DashboardMoneyView"];
+            withAtHorizon: components["schemas"]["DashboardMoneyView"];
+            gap: components["schemas"]["DashboardMoneyView"];
+            loans: components["schemas"]["ScenarioLoanView"][];
+            warnings: components["schemas"]["ScenarioWarningView"][];
+        };
+        ScenarioScheduleRowView: {
+            /** Format: int32 */
+            number: number;
+            /** Format: date */
+            dueDate: string;
+            payment: string;
+            interest: string;
+            principal: string;
+            insurance: string;
+            earlyRepayment?: null | string;
+            balance: string;
+        };
+        ScenarioScheduleView: {
+            rows: components["schemas"]["ScenarioScheduleRowView"][];
+            years: components["schemas"]["ScenarioScheduleYearView"][];
+            totalInterest: string;
+            totalPrincipal: string;
+        };
+        ScenarioScheduleYearView: {
+            /** Format: int32 */
+            year: number;
+            payment: string;
+            interest: string;
+            principal: string;
+            insurance: string;
+            earlyRepayment: string;
+            balance: string;
+        };
+        ScenarioView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            visibility: string;
+            scope: string;
+            document: components["schemas"]["PropertyPurchaseView"];
+            result: components["schemas"]["ScenarioResultView"];
+            canWrite: boolean;
+        };
+        ScenarioWarningView: {
+            code: string;
+            value?: null | string;
+        };
         ScheduleComparisonView: {
             maxGap: string;
             /** Format: date */
@@ -17238,6 +18018,10 @@ export interface components {
             sessionEpoch?: null | number;
             preferences?: null | components["schemas"]["Preferences"];
             identityProvider?: null | string;
+        };
+        SimulateBody: {
+            scope?: null | string;
+            document?: null | components["schemas"]["PropertyPurchaseView"];
         };
         SimulatedLoanView: {
             /** Format: uuid */

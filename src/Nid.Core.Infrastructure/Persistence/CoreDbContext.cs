@@ -20,6 +20,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<PersonalAccessTokenRow> PersonalAccessTokens => Set<PersonalAccessTokenRow>();
     public DbSet<ProposalRow> Proposals => Set<ProposalRow>();
     public DbSet<TaxProfileRow> TaxProfiles => Set<TaxProfileRow>();
+    public DbSet<ScenarioRow> Scenarios => Set<ScenarioRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +48,20 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasKey(x => x.Year);
             e.Property(x => x.Year).ValueGeneratedNever();
             e.Property(x => x.Data).HasColumnType("jsonb");
+        });
+
+        // Property purchase scenario spec §5: the document of a registry item.
+        modelBuilder.Entity<ScenarioRow>(e =>
+        {
+            e.ToTable("scenario", t =>
+            {
+                t.HasCheckConstraint("ck_scenario_kind", "kind = 'property_purchase'");
+                t.HasCheckConstraint("ck_scenario_scope", "scope in ('me','household')");
+            });
+            e.HasKey(x => x.ItemId);
+            e.Property(x => x.ItemId).ValueGeneratedNever();
+            e.Property(x => x.Data).HasColumnType("jsonb");
+            e.HasOne<ItemRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PersonRow>(e =>
