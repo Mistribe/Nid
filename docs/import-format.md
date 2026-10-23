@@ -1,6 +1,6 @@
 # Format d'import et d'export de Nid
 
-> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30), Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) et Immobilier (les huit sections de `realestate/README.md` §10 et `realestate/loans.md` §10) (3F1, 2026-10-15) sont définies ; `loan_bank_schedule` les complète en 3F2.
+> Statut : v1 en vigueur pour l'import (1D1, 2026-09-23) et l'export (1D2, 2026-09-25) ; l'écran d'export du navigateur suit. Décrit le fichier JSON standard, ses règles de validation et le protocole d'échange avec le serveur, orchestré par le navigateur. Les sections Abonnements (1D1), Placements et Core (`valuations`, `flows`) (2B1b, 2026-09-30), Revenus (`income_sources`, `income_phases`) (2C1, 2026-10-02) et Immobilier (les huit sections de `realestate/README.md` §10 et `realestate/loans.md` §10) (3F1, 2026-10-15) sont définies ; `loan_bank_schedule` les complète en 3F2. Les objectifs d'épargne (`goals`) viennent en dernier (savings goals spec D16, 2026-10-23).
 > Références : `subscription-data-model.md` (sens des entités), `core-data-model.md` (personnes, propriété, provenance), `architecture.md` §11 (export) et §5.4 (Synapse).
 
 ---
@@ -54,6 +54,7 @@ Un **seul format** sert à trois usages :
 | `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` livrée en 3F2 (§12bis) |
 | `income_sources`, `income_phases` | tableaux | Module Revenus (`income-data-model.md` §9) |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
+| `goals` | tableau | Module Objectifs (`superpowers/specs/2026-10-23-savings-goals-design.md` D16 et §2) : l'objectif, ses liens vers les enveloppes du fichier et ses relevés |
 
 Section **réservée**, pas encore définie : `documents`. Un fichier qui la contient est refusé. Une section d'un module désactivé est refusée elle aussi.
 
@@ -282,7 +283,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes
@@ -436,3 +437,10 @@ Détail et raisons : `superpowers/specs/2026-09-23-import-protocol-design.md`.
 - Format des documents dans l'export (section `documents` référençant les `sha256`).
 - Sections des autres modules : définies quand ces modules le seront.
 - Politique de migration entre versions du format : l'import de la version précédente est prévu, sa conversion reste à spécifier au premier changement de version.
+- **Décisions prises pour les objectifs (2026-10-23)** (détail et raisons : `superpowers/specs/2026-10-23-savings-goals-design.md` D16) :
+  - **Une section `goals`** : `{ id, name, kind, target_amount?, months?, target_date?, note?, visibility, ownership, closed, funding: [{ envelope, share_bp }], entries: [{ on, amount }] }`. Les montants sont des chaînes décimales (un nombre JSON est accepté), dans la devise de référence du foyer ; `ownership` liste `{ person, share_bp }` ; `envelope` est l'`id` d'une entité `envelopes` **du même fichier**. Elle passe en dernier (ordre 100) : les enveloppes existent déjà.
+  - **Règles de l'API**, `target_date` passée exceptée (un import restaure le passé) : genre, cible et mois selon le genre (`goals.unknown_kind`, `goals.invalid_target`, `goals.invalid_months`), parts de 1 à 10 000 et une enveloppe une fois par objectif (`goals.invalid_share`). Un relevé n'est pas daté du futur (`goals.progress_in_future`), a un montant positif ou nul, et une seule fois par date.
+  - **Somme des parts (D10)** : elle n'est pas vérifiée à l'import, qui restaure ce que le fichier dit (un export peut porter plus de 100 % sur une enveloppe, D10 le permet) ; la lecture signale `over_allocated`. Seule la part de chaque lien est vérifiée (1 à 10 000). Un lien vers une enveloppe clôturée est accepté.
+  - **`closed: true`** : l'objectif est créé puis archivé ; `replace` le ferme ou le rouvre.
+  - **`replace`** remplace le nom, les détenteurs, les champs, les liens et les relevés (ceux que le fichier ne nomme plus sont supprimés) ; le genre ne change pas. Les liens vers une enveloppe que l'importeur ne voit pas sont gardés tels quels (D10c).
+  - **Export** : les objectifs que le lecteur peut lire, par nom puis `id` (`goal-<uuid>` sans référence d'import). Un lien vers une enveloppe absente de l'export du lecteur (l'enveloppe privée d'un autre adulte) est omis, sans rien révéler ; réimporter ce fichier avec `replace` le garde (D10c : un lien vers une enveloppe que l'importeur ne voit pas est gardé tel quel).

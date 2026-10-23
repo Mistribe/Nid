@@ -56,6 +56,25 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Empty(await SecurityEventTests.EventsAsync(app, "access_violation"));
     }
 
+    /// <summary>A funding row names its goal and its envelope: B's history of a shared goal never shows A's private envelope.</summary>
+    [Fact]
+    public async Task A_goal_link_to_a_hidden_envelope_stays_out_of_the_history()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var hidden = await app.NewEnvelopeAsync("PEA de A", app.AdultA, Visibility.Private);
+        var goal = await app.NewGoalAsync("Voyage", app.AdultA, Visibility.Shared, [(hidden, 5000)]);
+
+        var forB = await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/platform/audit/items/{goal.Value}");
+        var forA = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/platform/audit/items/{goal.Value}"));
+
+        Assert.Equal(HttpStatusCode.OK, forB.StatusCode);
+        var body = await forB.Content.ReadAsStringAsync();
+        Assert.DoesNotContain(hidden.Value.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(forA.GetProperty("entries").EnumerateArray(), e => e.GetProperty("entity").GetString() == "goals.funding");
+        Assert.Contains(Json(await app.GetRawAsync(app.AdultA, $"/api/v1/platform/audit/items/{hidden.Value}")).GetProperty("entries").EnumerateArray(),
+            e => e.GetProperty("entity").GetString() == "goals.funding");
+    }
+
     [Fact]
     public async Task Pages_follow_the_cursor()
     {

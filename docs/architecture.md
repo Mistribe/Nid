@@ -136,7 +136,7 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 
 ### 5.2 Modules
 
-Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits), celui de Revenus dans `income-data-model.md`.
+Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits), celui de Revenus dans `income-data-model.md`, celui d'Objectifs dans `goals-data-model.md`.
 
 | Module | Possède | Expose (Contracts) | Dépend de |
 |---|---|---|---|

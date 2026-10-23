@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
+using Nid.Goals.Contracts;
 using Nid.Host.Auth;
 using Nid.Income.Contracts;
 using Nid.Investments.Contracts;
@@ -166,6 +167,7 @@ public static class ResultHttp
             _ when failure.Code == InvestmentsCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
             _ when failure.Code is IncomeCodes.SourceEnded or IncomeCodes.SourceOpen or IncomeCodes.PhaseConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == IncomeCodes.InvalidPeriod => StatusCodes.Status400BadRequest,
+            _ when failure.Code is GoalsCodes.GoalClosed or GoalsCodes.GoalOpen or GoalsCodes.ShareExceeded or GoalsCodes.Conflict => StatusCodes.Status409Conflict,
             _ when failure.Code is LoanCodes.LoanConflict or LoanCodes.FeeConflict or LoanCodes.RepaymentConflict
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
             _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
@@ -178,6 +180,9 @@ public static class ResultHttp
         // 2C2a spec §6: a rule that names its field in metadata (Investments', Income's) reaches the client the same way.
         else if (failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) && field is string path)
             extensions["errors"] = new[] { new { path, code = failure.Code, message = failure.Message } };
+        // Savings goals D10: the share still free on the envelope, among the goals the actor sees.
+        if (failure.Metadata is { } more && more.TryGetValue("freeBp", out var freeBp))
+            extensions["freeBp"] = freeBp;
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Persistence;
@@ -19,7 +20,8 @@ namespace Nid.Subscriptions.IntegrationTests.BatchedReads;
 /// <summary>
 /// Batched reads spec §4, the permanent guard: each route issues as many SQL commands for 2N items as for N — no read per item.
 /// Every round adds, for A, a shared envelope with a value and a contribution, a shared property with an estimate, a planned
-/// cost and a tenancy, a loan linked to it reading its bank's table (3F2) and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription and an income source with a phase: the same shapes each
+/// cost and a tenancy, a loan linked to it reading its bank's table (3F2) and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription, an income source with a phase, and three goals (on the envelopes, an emergency
+/// fund, a free one with entries): the same shapes each
 /// round, so every branch a route takes is taken alike for N and 2N.
 /// </summary>
 public class CommandCountTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
@@ -34,6 +36,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
     [InlineData("/api/v1/platform/export/manifest")]
     [InlineData("/api/v1/investments/envelopes?scope=me")]
     [InlineData("/api/v1/investments/envelopes?scope=me&archived=true")]
+    [InlineData("/api/v1/goals?scope=me&closed=true")]
     [InlineData("/api/v1/realestate/routine?on=2025-10-15")] // 3E2: the round's tax (due 20 October) and tenancy are both proposed
     public async Task A_route_issues_as_many_commands_for_2N_items_as_for_N(string route)
     {
@@ -59,6 +62,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         services.ConfigureDbContext<SubscriptionsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<InvestmentsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<IncomeDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<GoalsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<RealEstateDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<PlatformDbContext>(o => o.AddInterceptors(counter));
     }
@@ -99,6 +103,16 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         var closed = await app.NewEnvelopeAsync($"Clos {i}", app.AdultA, Visibility.Shared);
         await PostAsync(app, $"/api/v1/investments/envelopes/{closed.Value}/valuations",
             new { asOf = "2025-03-01", amount = Eur("500.00"), note = (string?)null });
+        // Goals: one on the open envelope and the closed one (linked before it closed), an emergency fund on it, a free one with entries.
+        await app.NewGoalAsync($"Voyage {i}", app.AdultA, funding: [(envelope, 5000), (closed, 10_000)]);
+        await PostAsync(app, "/api/v1/goals", new
+        {
+            name = $"Précaution {i}", kind = "emergency_fund", months = 3, visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, funding = new[] { new { envelopeId = envelope.Value, shareBp = 2000 } },
+        });
+        var free = await app.NewGoalAsync($"Libre {i}", app.AdultA);
+        foreach (var on in new[] { "2025-01-15", "2025-09-15" })
+            Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/goals/{free.Value}/progress/{on}", new { amount = "100" })).StatusCode);
         await PostAsync(app, $"/api/v1/investments/envelopes/{closed.Value}/close", new { closedOn = "2025-06-01" }, HttpStatusCode.OK);
 
         await app.NewMonthlyAsync(app.AdultA, 10m + i);

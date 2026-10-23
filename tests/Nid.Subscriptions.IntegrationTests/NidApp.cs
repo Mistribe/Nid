@@ -411,6 +411,25 @@ public sealed class NidApp : IAsyncDisposable
     }
 
     /// <summary>
+    /// A savings goal of 10 000 through the real API, created by <paramref name="actor"/>, owned by <paramref name="owners"/> (the
+    /// actor alone by default) and funded by <paramref name="funding"/> (a free goal without).
+    /// </summary>
+    public async Task<ItemId> NewGoalAsync(
+        string name, PersonId actor, Visibility visibility = Visibility.Shared, IReadOnlyList<(ItemId Envelope, int ShareBp)>? funding = null,
+        IReadOnlyList<(PersonId Person, int ShareBp)>? owners = null)
+    {
+        var response = await RawAsync(actor, HttpMethod.Post, "/api/v1/goals", new
+        {
+            name, kind = "savings", targetAmount = "10000", visibility = visibility == Visibility.Private ? "private" : "shared",
+            owners = (owners ?? [(actor, 10_000)]).Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+            funding = (funding ?? []).Select(f => new { envelopeId = f.Envelope.Value, shareBp = f.ShareBp }).ToArray(),
+        });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        return new ItemId(created.GetProperty("id").GetGuid());
+    }
+
+    /// <summary>
     /// Runs a request through the real Synapse pipeline as <paramref name="actor"/> — the same invoker, the
     /// same behaviors and the same access policy the HTTP entry point uses, with the actor established the
     /// way <c>ActorFilter</c> establishes it. Returns the failure the pipeline produced, or <c>null</c> on

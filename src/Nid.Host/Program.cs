@@ -8,6 +8,7 @@ using Nid.Host.Api;
 using Nid.Host.Auth;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
+using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
@@ -103,6 +104,7 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IncomeDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<GoalsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<RealEstateDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
@@ -121,6 +123,7 @@ app.MapProposalEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
+app.MapGoalEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
 app.MapTaxEndpoints();

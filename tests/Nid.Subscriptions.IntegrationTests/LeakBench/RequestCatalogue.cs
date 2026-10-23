@@ -2,6 +2,7 @@ using Nid.Core.Application.Tax;
 using Nid.Core.Domain.Tax;
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Dashboard;
@@ -9,6 +10,8 @@ using Nid.Core.Application.Fx;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
+using Nid.Goals.Application;
+using Nid.Goals.Contracts;
 using Nid.Income.Application;
 using Nid.Income.Contracts;
 using Nid.Income.Domain;
@@ -265,6 +268,7 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holdings", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_snapshots", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_movements", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("goals", null, null)),
 
         new(typeof(ListEnvelopesQuery), false, (_, _) => new ListEnvelopesQuery(VisibilityScope.Me, true)),
         new(typeof(GetInvestmentsOverviewQuery), false, (_, _) => new GetInvestmentsOverviewQuery(VisibilityScope.Me, OverviewSpan.All)),
@@ -374,6 +378,28 @@ public static class RequestCatalogue
         new(typeof(DeleteIncomeOneOffCommand), true, (_, item) => new DeleteIncomeOneOffCommand(item, Guid.NewGuid())),
         new(typeof(CloseIncomeSourceCommand), true, (_, item) => new CloseIncomeSourceCommand(item, new LocalDate(2020, 1, 1))),
         new(typeof(ReopenIncomeSourceCommand), true, (_, item) => new ReopenIncomeSourceCommand(item)),
+
+        new(typeof(ListGoalsQuery), false, (_, _) => new ListGoalsQuery(VisibilityScope.Me, true)),
+        new(typeof(GetGoalQuery), true, (_, item) => new GetGoalQuery(item, VisibilityScope.Me)),
+        new(typeof(CreateGoalCommand), false, (d, _) => new CreateGoalCommand("bench", GoalKinds.Savings, 1000m, null, null, null, [],
+            Visibility.Shared, [new OwnerShare(d.App.AdultA, 10_000)])),
+        // Version 1 is never a row's xmin: an allowed writer meets goals.conflict, never an access refusal.
+        new(typeof(EditGoalCommand), true, (_, item) => new EditGoalCommand(item, "bench", 1000m, null, null, null, [], 1))
+        {
+            // D10: a goal links an envelope its actor sees; the bench names the envelope twin of the other row, at 1 bp so that the
+            // links its successful runs leave never fill an envelope. The goal's current version, so an allowed edit succeeds.
+            BuildNamingAnother = async (d, target, other) =>
+            {
+                await using var scope = d.App.Services.CreateAsyncScope();
+                var version = (await scope.ServiceProvider.GetRequiredService<IGoalStore>().FindAsync(target, default))!.Version;
+                return new EditGoalCommand(target, "bench", 1000m, null, null, null, [new FundingShare(d.EnvelopeTwinOf(other), 1)], version);
+            },
+            SecondItemAccess = AccessKind.Read,
+        },
+        new(typeof(CloseGoalCommand), true, (_, item) => new CloseGoalCommand(item)),
+        new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
+        new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
+        new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),
 
         new(typeof(ListLoansQuery), false, (_, _) => new ListLoansQuery(VisibilityScope.Me, true)),
         new(typeof(GetLoansOverviewQuery), false, (_, _) => new GetLoansOverviewQuery(VisibilityScope.Me)),

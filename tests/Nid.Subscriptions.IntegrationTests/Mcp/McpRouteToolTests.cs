@@ -184,6 +184,25 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(0, (await PendingAsync(app, app.AdultA)).GetArrayLength());
     }
 
+    /// <summary>Savings goals §5: a progress entry's route names its date, an ISO date the tool reads and replays.</summary>
+    [Fact]
+    public async Task A_goal_progress_entry_is_written_through_its_date_route_parameter()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var goal = await app.NewGoalAsync("Voyage", app.AdultA);
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+
+        var (error, text) = await CallAsync(direct, "propose_record_goal_progress", new { id = goal.Value, on = "15/10/2025", body = new { amount = "100" }, apply = true });
+        Assert.True(error);
+        Assert.Contains("payload.on: An ISO date (yyyy-mm-dd) is required.", text);
+
+        var applied = await AnswerAsync(direct, "propose_record_goal_progress", new { id = goal.Value, on = "2025-10-15", body = new { amount = "100" }, apply = true });
+        Assert.Equal("applied", applied.GetProperty("outcome").GetString());
+        await using var scope = app.Services.CreateAsyncScope();
+        var entry = Assert.Single(await scope.ServiceProvider.GetRequiredService<Nid.Goals.Application.IGoalStore>().EntriesOfAsync([goal], default));
+        Assert.Equal((new NodaTime.LocalDate(2025, 10, 15), 100m), (entry.On, entry.Amount));
+    }
+
     [Fact]
     public async Task A_change_to_an_item_targets_it_and_another_adults_private_item_is_not_found()
     {

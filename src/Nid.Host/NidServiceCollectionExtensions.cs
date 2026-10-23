@@ -8,6 +8,8 @@ using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Admin;
 using Nid.Host.Jobs;
+using Nid.Goals.Application;
+using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Application.Import;
 using Nid.Income.Contracts;
 using Nid.Income.Infrastructure.Persistence;
@@ -68,6 +70,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, SubscriptionsAuditMap>();
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
+        services.AddSingleton<IAuditMap, GoalsAuditMap>();
         services.AddSingleton<IAuditMap, RealEstateAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
@@ -100,7 +103,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<AccessDeniedThrottle>();
         services.AddScoped<IAccessDenials, AccessDenials>();
         services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -164,6 +167,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
+        services.AddScoped<Nid.Investments.Contracts.IEnvelopeFunding, Nid.Investments.Application.EnvelopeFunding>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
         services.AddScoped<ISaleContribution, Nid.Investments.Application.EnvelopesSale>();
         services.AddScoped<IUpcomingEvents, Nid.Investments.Application.InvestmentsUpcoming>();
@@ -183,6 +187,15 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
+
+        services.AddDbContext<GoalsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", GoalsDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<GoalsDbContext>>();
+        services.AddScoped<IGoalStore, GoalStore>();
+        services.AddScoped<GoalReader>();
 
         services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -245,6 +258,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, EnvelopesImportSection>();
         services.AddScoped<IImportSection, HoldingsImportSection>();
         services.AddScoped<IImportSection, IncomeImportSection>();
+        services.AddScoped<IImportSection, Nid.Goals.Application.Import.GoalsImportSection>();
         services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();
 
@@ -257,6 +271,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
         });
         return services;

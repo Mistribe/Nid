@@ -59,6 +59,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
         foreach (var name in action.RouteParameters)
             properties[name] = action.IsInteger(name)
                 ? new JsonObject { ["type"] = "integer", ["description"] = $"The {name}." }
+                : action.IsDate(name) ? new JsonObject { ["type"] = "string", ["format"] = "date", ["description"] = $"The {name} date (yyyy-mm-dd)." }
                 : new JsonObject
                 {
                     ["type"] = "string", ["format"] = "uuid",

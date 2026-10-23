@@ -1,4 +1,5 @@
 using static Nid.Host.Api.CatalogEndpoints;
+using static Nid.Host.Api.GoalEndpoints;
 using static Nid.Host.Api.IncomeEndpoints;
 using static Nid.Host.Api.InvestmentEndpoints;
 using static Nid.Host.Api.PersonEndpoints;
@@ -25,8 +26,10 @@ public sealed record RouteAction(
 
     public bool Targeted => RouteParameters.Contains("id");
 
-    /// <summary>`{year:int}` is an integer; every other route parameter is a UUID.</summary>
+    /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); every other route parameter a UUID.</summary>
     public bool IsInteger(string parameter) => Route.Contains($"{{{parameter}:int}}", StringComparison.Ordinal);
+
+    public bool IsDate(string parameter) => parameter == "on";
 }
 
 /// <summary>
@@ -187,6 +190,22 @@ public static class RouteActions
             "End an income source on a date. " + Ids + Amounts, Destructive: true),
         new("reopen_income_source", "POST", "/api/v1/income/sources/{id:guid}/reopen", null,
             "Reopen an ended income source. " + Ids),
+
+        // Savings goals.
+        new("create_goal", "POST", "/api/v1/goals/", typeof(CreateGoalBody),
+            "Create a savings goal: kind 'savings' with a targetAmount, or 'emergency_fund' with months (1 to 24, 6 by default) and "
+            + "no amount; an optional targetDate; funded by envelopes (envelopeId, shareBp of the envelope, 10000 = all of it, "
+            + "list_envelopes gives the ids) or, without funding, by progress entries. " + Owners + Amounts),
+        new("edit_goal", "PUT", "/api/v1/goals/{id:guid}", typeof(EditGoalBody),
+            "Replace a goal's name, target, months, target date, note and funding (send them all; the kind stays). " + Ids + Versioned + Amounts),
+        new("close_goal", "POST", "/api/v1/goals/{id:guid}/close", null,
+            "Close a goal: it stays readable and no longer holds its envelopes' shares. " + Ids),
+        new("reopen_goal", "POST", "/api/v1/goals/{id:guid}/reopen", null,
+            "Reopen a closed goal. " + Ids),
+        new("record_goal_progress", "PUT", "/api/v1/goals/{id:guid}/progress/{on}", typeof(GoalProgressBody),
+            "Record the amount a goal without envelopes has reached on a date (on, not in the future); it replaces that date's entry. " + Ids + Amounts),
+        new("delete_goal_progress", "DELETE", "/api/v1/goals/{id:guid}/progress/{on}", null,
+            "Remove a goal's progress entry of a date. " + Ids, Destructive: true),
 
         // Subscriptions.
         new("create_subscription", "POST", "/api/v1/subscriptions/", typeof(CreateSubscriptionBody),

@@ -18,7 +18,7 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     /// dependent, which no file references, has a different name in each: person refs must not depend on who else
     /// lives in the household (§5.4).
     /// </summary>
-    private static async Task PrepareAsync(NidApp app, string unreferencedDependent)
+    internal static async Task PrepareAsync(NidApp app, string unreferencedDependent)
     {
         app.Catalog.Serve(CatalogFixtures.RealLabels(), CatalogFixtures.RealProviders());
         await using (var scope = app.Services.CreateAsyncScope())
@@ -35,7 +35,7 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
     private static object Adults(NidApp app) => new Dictionary<string, Guid> { ["adult-1"] = app.AdultA.Value, ["adult-2"] = app.AdultB.Value };
 
-    private static async Task CommitAsync(NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections)
+    internal static async Task CommitAsync(NidApp app, PersonId actor, IReadOnlyDictionary<string, string> sections)
     {
         var client = new ImportClient(app);
         var validated = await client.RunAsync(actor, Adults(app), sections);
@@ -44,7 +44,7 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.True(committed.IsSuccessStatusCode, await committed.Content.ReadAsStringAsync());
     }
 
-    private static Dictionary<string, string> AsFile(Dictionary<string, List<JsonElement>> export)
+    internal static Dictionary<string, string> AsFile(Dictionary<string, List<JsonElement>> export)
         => export.Where(s => s.Value.Count > 0).ToDictionary(s => s.Key, s => JsonSerializer.Serialize(s.Value));
 
     /// <summary>
@@ -261,6 +261,16 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
           "net_amount":{"amount":"1800.00","currency":"EUR"},"every":{"count":1,"unit":"year"}}]
         """;
 
+    /// <summary>A goal on a private envelope and one on a shared one (closed later through the API), a closed emergency fund, a free goal with entries.</summary>
+    private const string GoalsJson = """
+        [{"id":"goal-trip","name":"Voyage","kind":"savings","target_amount":"5000.00","target_date":"2026-06-30","note":"Japon",
+          "ownership":[{"person":"adult-1","share_bp":10000}],"funding":[{"envelope":"env-pea","share_bp":5000},{"envelope":"env-livret","share_bp":10000}]},
+         {"id":"goal-fund","name":"Précaution","kind":"emergency_fund","months":4,"closed":true,
+          "ownership":[{"person":"adult-1","share_bp":10000}],"funding":[{"envelope":"env-pea","share_bp":5000}]},
+         {"id":"goal-free","name":"Vélo","kind":"savings","target_amount":"800.00","ownership":[{"person":"adult-1","share_bp":10000}],
+          "entries":[{"on":"2025-01-01","amount":"100.00"},{"on":"2025-06-01","amount":"250.00"}]}]
+        """;
+
     /// <summary>What the interface adds on top of an imported source: a raise, a one-off, and a source with no import reference that is ended.</summary>
     private static async Task AddIncomeDataThroughTheApiAsync(NidApp app)
     {
@@ -300,7 +310,7 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         return result.ToJsonString();
     }
 
-    private static string Canonical(Dictionary<string, List<JsonElement>> export)
+    internal static string Canonical(Dictionary<string, List<JsonElement>> export)
         => JsonSerializer.Serialize(export.OrderBy(s => s.Key, StringComparer.Ordinal).ToDictionary(s => s.Key, s => s.Value));
 
     [Fact]
@@ -324,6 +334,7 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             ["flows"] = WithoutLivretClosing(FactsImportTests.Flows, "f-livret-out"),
             ["income_sources"] = IncomeSources,
             ["income_phases"] = IncomePhases,
+            ["goals"] = GoalsJson,
         });
         await AddEnvelopeDataThroughTheApiAsync(source);
         await AddHoldingsThroughTheApiAsync(source);
@@ -348,6 +359,9 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(await InvestmentReadsAsync(source, source.AdultA), await InvestmentReadsAsync(target, target.AdultA));
         Assert.Equal(await IncomeReadsAsync(source), await IncomeReadsAsync(target));
         Assert.Equal(6, first["subscriptions"].Count);
+        Assert.Equal(3, first["goals"].Count);
+        Assert.Contains(first["goals"], g => g.GetProperty("funding").GetArrayLength() == 2 && g.GetProperty("entries").GetArrayLength() == 0);
+        Assert.Contains(first["goals"], g => g.GetProperty("entries").GetArrayLength() == 2);
         Assert.Equal(4, first["envelopes"].Count);
         // The comparison is not vacuous: the API-made facts are in the reads and in the file.
         var reads = await InvestmentReadsAsync(target, target.AdultA);

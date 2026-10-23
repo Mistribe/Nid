@@ -181,6 +181,13 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                 properties.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
 
+            // And for the goal twins.
+            var goals = await app.GetAsync<IdListResponse>(actor, $"/api/v1/goals?scope={scope}");
+            var expectedGoals = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Goals);
+            Assert.Equal(
+                expectedGoals.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                goals.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
             // And the dashboard (2D2a, 3E1): its split lists exactly the visible open envelopes, properties and loans (a private
             // loan only in « me »), and every item named in « À venir » or « À faire » is one this actor may read.
             var dashboard = System.Text.Json.JsonDocument.Parse(await app.GetRawAsync(actor, $"/api/v1/dashboard?scope={scope}")).RootElement;
@@ -232,7 +239,10 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                      "/api/v1/dashboard/net-worth?scope=household&period=all",
                      "/api/v1/dashboard/net-worth?scope=me&period=all",
                      "/api/v1/core/persons",
-                 })
+                     "/api/v1/goals?scope=household",
+                     "/api/v1/goals?scope=me",
+                 }.Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
+                     .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" })))
         {
             var body = await app.GetRawAsync(actor, url);
             Assert.DoesNotContain(data.ForbiddenLabel(actor), body, StringComparison.Ordinal);

@@ -58,6 +58,7 @@ public static class McpSetup
             .WithTools<SubscriptionTools>(json)
             .WithTools<InvestmentTools>(json)
             .WithTools<IncomeTools>(json)
+            .WithTools<GoalTools>(json)
             .WithTools<RealEstateTools>(json)
             .WithTools<TaxTools>(json)
             .WithTools<WriteTools>(json)

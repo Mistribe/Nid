@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -62,7 +63,10 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
             {
                 if (action.IsInteger(field.Name) && field.Value.ValueKind == JsonValueKind.Number && field.Value.TryGetInt32(out var n))
                     route[field.Name] = n.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                else if (!action.IsInteger(field.Name) && field.Value.ValueKind == JsonValueKind.String && Guid.TryParse(field.Value.GetString(), out var id))
+                else if (action.IsDate(field.Name) && field.Value.ValueKind == JsonValueKind.String && LocalDatePattern.Iso.Parse(field.Value.GetString()!).Success)
+                    route[field.Name] = field.Value.GetString()!;
+                else if (!action.IsInteger(field.Name) && !action.IsDate(field.Name) && field.Value.ValueKind == JsonValueKind.String
+                         && Guid.TryParse(field.Value.GetString(), out var id))
                     route[field.Name] = id.ToString();
                 else
                     errors.Add(new FieldError($"payload.{field.Name}", FieldErrors.ShapeCode, Required(action, field.Name)));
@@ -91,7 +95,8 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
         return errors.Count > 0 ? Result.Failure<RouteCall>(FieldErrors.Shape(errors)) : Result.Success(new RouteCall(route, query, body));
     }
 
-    private static string Required(RouteAction action, string parameter) => action.IsInteger(parameter) ? "An integer is required." : "A UUID is required.";
+    private static string Required(RouteAction action, string parameter)
+        => action.IsInteger(parameter) ? "An integer is required." : action.IsDate(parameter) ? "An ISO date (yyyy-mm-dd) is required." : "A UUID is required.";
 
     private static JsonElement Normalized(RouteCall call)
     {
