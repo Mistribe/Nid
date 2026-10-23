@@ -104,7 +104,10 @@ public sealed class ScenarioFactsReader(
         if (simulated.TryGetFailure(out failure)) return Result.Failure<ScenarioReading>(failure!);
         simulated.TryGetValue(out var scenarioLoans);
 
-        var projected = await realEstate.ProjectAsync(Reader, scope, today.Date, doc.Assumptions.HorizonYears * 12,
+        // The existing loans are read up to the scenario's last payment (the retained month can lie past the horizon).
+        var lastDue = scenarioLoans!.SelectMany(l => l.Rows).Select(r => r.DueDate).DefaultIfEmpty(today.Date).Max();
+        var months = Math.Max(doc.Assumptions.HorizonYears * 12, (lastDue.Year - today.Date.Year) * 12 + lastDue.Month - today.Date.Month + 1);
+        var projected = await realEstate.ProjectAsync(Reader, scope, today.Date, months,
             doc.Assumptions.ClassRates.GetValueOrDefault(AllocationClasses.RealEstate), ct);
         if (projected.TryGetFailure(out failure)) return Result.Failure<ScenarioReading>(failure!);
         projected.TryGetValue(out var existing);
@@ -118,14 +121,22 @@ public sealed class ScenarioFactsReader(
             shown, today.Reference, unavailable));
     }
 
-    /// <summary>Spec §3 and §6, on a write: the document's limits, its loans as the engine reads them, and each funding line.</summary>
-    public async Task<Failure?> RefusalAsync(PropertyPurchase doc, VisibilityScope scope, CancellationToken ct)
+    /// <summary>
+    /// Spec §3 and §6, on a write: the document's limits, its loans as the engine reads them, and each funding line;
+    /// <c>Visible</c> is the writer's savings holdings in the scope.
+    /// </summary>
+    public async Task<(Failure? Refused, IReadOnlySet<ItemId> Visible)> RefusalAsync(PropertyPurchase doc, VisibilityScope scope, CancellationToken ct)
     {
         var read = await TodayAsync(scope, ct);
-        if (read.TryGetFailure(out var failure)) return failure;
+        if (read.TryGetFailure(out var failure)) return (failure, new HashSet<ItemId>());
         read.TryGetValue(out var today);
-        if (Check(doc, today!.Date) is { } invalid) return invalid;
-        if (Simulate(today.Reference, Max(doc.PurchaseOn, today.Date), doc.Loans).TryGetFailure(out failure)) return failure;
+        return (Refusal(doc, today!), today!.Savings.Select(s => s.Holding.Item).ToHashSet());
+    }
+
+    private Failure? Refusal(PropertyPurchase doc, ScenarioToday today)
+    {
+        if (Check(doc, today.Date) is { } invalid) return invalid;
+        if (Simulate(today.Reference, Max(doc.PurchaseOn, today.Date), doc.Loans).TryGetFailure(out var failure)) return failure;
 
         for (var i = 0; i < doc.Funding.Count; i++)
         {
@@ -175,7 +186,7 @@ public sealed class ScenarioFactsReader(
         var replayed = inputs with
         {
             RentalGross = inputs.RentalGross + doc.ExpectedRent * (12 - doc.VacancyMonths),
-            RentalCharges = inputs.RentalCharges + (real ? doc.MonthlyCharges * 12 : 0m),
+            RentalCharges = inputs.RentalCharges + (real ? doc.MonthlyCharges * 12 + 20m : 0m),   // + the engine's flat charge per rental (TaxUseCases)
             RentalInterest = inputs.RentalInterest + (real ? scenarioLoans.Sum(l => l.Rows.Take(12).Sum(r => r.Interest + r.Insurance)) : 0m),
             RentalRegime = regime,
         };

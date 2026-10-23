@@ -57,7 +57,7 @@ internal static class ScenarioResults
         var capacity = ScenarioCalculator.Capacity(r.Document, r.Facts);
         var projection = ScenarioCalculator.Project(r.Document, r.Facts, capacity);
         var warnings = new List<ScenarioWarningView>();
-        // The gap of the document the reader sees: a hidden line's amount cannot be read back from it.
+        // The gap of the document the reader sees, hidden lines left out: when the author balanced the plan, it equals their total.
         if (ScenarioRules.FundingGap(r.Document) is { } gap) warnings.Add(new("funding_gap", PropertyPurchaseView.Amount(gap)));
         if (r.HiddenFunding > 0) warnings.Add(new("funding_source_hidden", r.HiddenFunding.ToString(CultureInfo.InvariantCulture)));
         warnings.AddRange(capacity.Warnings.Select(w => new ScenarioWarningView(w, null)));
@@ -123,7 +123,7 @@ public sealed class ListScenariosHandler(
             rows.Add(new ScenarioListItemView(
                 item.Id, item.DisplayName, scenario.Document.Use == PurchaseUse.Rental ? "rental" : "primary",
                 CapacityView.Money(scenario.Document.Price, reading!.Currency), result.Capacity.NewPayment, result.Capacity.DebtRatioAfter,
-                result.Gap, item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList(), ScenarioResults.Wire(item.Visibility)));
+                result.Gap, item.OwnerViews(), ScenarioResults.Wire(item.Visibility)));
         }
         return Result.Success(new ScenarioList(ScenarioResults.ByName(rows, r => r.Name).ToList()));
     }
@@ -149,7 +149,7 @@ public sealed class CreateScenarioHandler(IItemRegistry items, IScenarioStore st
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateScenarioCommand command, CancellationToken ct = default)
     {
-        if ((ScenarioResults.Name(command.Name) ?? await facts.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
+        if ((ScenarioResults.Name(command.Name) ?? (await facts.RefusalAsync(command.Document, command.Scope, ct)).Refused) is { } refused)
             return Result.Failure<ItemId>(refused);
 
         // The Core item and the document row: one transaction, or an orphan item when the second write fails.
@@ -174,11 +174,18 @@ public sealed class ReplaceScenarioHandler(
         var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure)) return Result.Failure<ScenarioView>(failure!);
         loaded.TryGetValue(out var found);
-        if ((ScenarioResults.Name(command.Name) ?? await facts.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
-            return Result.Failure<ScenarioView>(refused);
+        if (ScenarioResults.Name(command.Name) is { } unnamed) return Result.Failure<ScenarioView>(unnamed);
+        var (refused, visible) = await facts.RefusalAsync(command.Document, command.Scope, ct);
+        if (refused is not null) return Result.Failure<ScenarioView>(refused);
 
+        // Spec §5: the writer was sent the document without the lines they cannot see; those lines are kept, not dropped.
+        // No envelope twice: the refusal above turns down any envelope the writer cannot see.
+        var document = command.Document with
+        {
+            Funding = [.. command.Document.Funding, .. found.Stored.Document.Funding.Where(f => !visible.Contains(f.Item))],
+        };
         var owners = found.Item.Owners.Select(o => new OwnerShare(o.PersonId, o.ShareBp)).ToList();
-        var stored = found.Stored with { Scope = command.Scope, Document = command.Document };
+        var stored = found.Stored with { Scope = command.Scope, Document = document };
         await using (var transaction = await unitOfWork.BeginAsync(ct))
         {
             var replaced = await items.ReplaceAsync(command.ItemId, command.Name, command.Visibility, owners, ct);

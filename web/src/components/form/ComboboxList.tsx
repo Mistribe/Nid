@@ -11,7 +11,7 @@ export default function ComboboxList({ options, onPick, searchPlaceholder, empty
       <CommandList>
         <CommandEmpty>{empty}</CommandEmpty>
         {options.map((o) => (
-          <CommandItem key={o.value} value={o.label} onSelect={() => onPick(o.value)}>{o.icon}{o.label}</CommandItem>
+          <CommandItem key={o.value} value={o.label} disabled={o.disabled} onSelect={() => onPick(o.value)}>{o.icon}{o.label}</CommandItem>
         ))}
       </CommandList>
     </Command>

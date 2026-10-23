@@ -1,0 +1,112 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { renderApp } from '@/test/renderApp';
+import { server } from '@/test/server';
+import type { ScenarioListItem } from './api';
+
+const ALICE = '0192f0aa-0000-7000-8000-0000000000a1';
+const eur = (amount: string) => ({ amount, currency: 'EUR' });
+
+const item = (over: Partial<ScenarioListItem> = {}): ScenarioListItem => ({
+  id: '0192f0aa-0000-7000-8000-0000000000b1', name: 'Studio Lyon', use: 'rental', price: eur('180000.00'), newPayment: eur('950.00'),
+  debtRatioAfter: 31.4, gap: eur('-12000.00'), owners: [{ personId: ALICE, shareBp: 10000 }], visibility: 'shared', ...over,
+});
+
+const serve = (items: ScenarioListItem[]) => {
+  server.use(
+    http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ALICE, kind: 'adult', displayName: 'Alice', email: null }])),
+    http.get('*/api/v1/scenarios', () => HttpResponse.json({ items })),
+  );
+};
+
+async function rows(): Promise<HTMLElement[]> {
+  const table = await screen.findByRole('table', { name: 'Liste des scénarios' });
+  return within(table).getAllByRole('row').slice(1);
+}
+
+describe('ScenariosPage', () => {
+  beforeAll(async () => { await import('./ScenariosPage'); }, 30_000);
+
+  it('lists the scenarios with their figures and owners', async () => {
+    serve([item(), item({ id: 'b', name: 'T3 Paris', use: 'primary', debtRatioAfter: null })]);
+    await renderApp('/scenarios');
+
+    const table = await screen.findByRole('table', { name: 'Liste des scénarios' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
+      .toEqual(['Nom', 'Usage', 'Prix', 'Mensualité', 'Endettement', 'Écart à l\'horizon', 'Propriétaire', 'Actions']);
+    const items = await rows();
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Studio Lyon');
+    expect(items[0]).toHaveTextContent('Locatif');
+    expect(items[0]).toHaveTextContent('180 000,00 €');
+    expect(items[0]).toHaveTextContent('31,4 %');
+    await waitFor(() => expect(items[0]).toHaveTextContent('Alice'));
+    expect(items[1]).toHaveTextContent('Résidence principale');
+    expect(screen.getByRole('link', { name: 'Nouveau scénario' })).toHaveAttribute('href', '/scenarios/new');
+  });
+
+  it('duplicates a scenario by posting its document under « (copie) »', async () => {
+    serve([item()]);
+    const document = { version: 1, use: 'rental', price: '180000.00' };
+    const posted: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ id: item().id, name: 'Studio Lyon', visibility: 'shared', scope: 'household', document, result: {}, canWrite: true })),
+      http.post('*/api/v1/scenarios', async ({ request }) => { posted.push(await request.json()); return HttpResponse.json({ id: 'new' }, { status: 201 }); }),
+    );
+    const { user } = await renderApp('/scenarios');
+
+    await rows();
+    await user.click(screen.getAllByRole('button', { name: 'Actions pour Studio Lyon' })[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Dupliquer' }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toMatchObject({ name: 'Studio Lyon (copie)', document, visibility: 'shared', scope: 'household' });
+  });
+
+  it('says so when a duplicate is refused', async () => {
+    serve([item()]);
+    server.use(
+      http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ id: item().id, name: 'Studio Lyon', visibility: 'shared', scope: 'household', document: {}, result: {}, canWrite: true })),
+      http.post('*/api/v1/scenarios', () => HttpResponse.json({ type: 'about:blank', title: 'Forbidden', status: 403 }, { status: 403, headers: { 'Content-Type': 'application/problem+json' } })),
+    );
+    const { user } = await renderApp('/scenarios');
+
+    await rows();
+    await user.click(screen.getAllByRole('button', { name: 'Actions pour Studio Lyon' })[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Dupliquer' }));
+    expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0);
+  });
+
+  it('says so when the scenario to duplicate cannot be read', async () => {
+    serve([item()]);
+    server.use(http.get('*/api/v1/scenarios/:id', () => HttpResponse.json({ type: 'about:blank', title: 'Not found', status: 404 }, { status: 404, headers: { 'Content-Type': 'application/problem+json' } })));
+    const { user } = await renderApp('/scenarios');
+
+    await rows();
+    await user.click(screen.getAllByRole('button', { name: 'Actions pour Studio Lyon' })[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Dupliquer' }));
+    expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0);
+  });
+
+  it('deletes after a confirmation', async () => {
+    serve([item()]);
+    const deleted: string[] = [];
+    server.use(http.delete('*/api/v1/scenarios/:id', ({ params }) => { deleted.push(String(params.id)); return new HttpResponse(null, { status: 204 }); }));
+    const { user } = await renderApp('/scenarios');
+
+    await rows();
+    await user.click(screen.getAllByRole('button', { name: 'Actions pour Studio Lyon' })[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
+    expect(deleted).toEqual([]);
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(deleted).toEqual([item().id]));
+  });
+
+  it('shows an empty state without scenarios', async () => {
+    serve([]);
+    await renderApp('/scenarios');
+
+    expect(await screen.findByText('Aucun scénario pour l\'instant')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Nouveau scénario' }).length).toBeGreaterThan(0);
+  });
+});

@@ -101,6 +101,18 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
         var body = JsonSerializer.Serialize(view, Wire);
         Assert.DoesNotContain(theirs.Value.ToString(), body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Bérénice", body, StringComparison.Ordinal);
+
+        // A's edit sends back the document without B's line: it is kept in the store, still hidden from A.
+        var mine = await ValuedEnvelopeAsync(app, app.AdultA, "Livret d'Alice", 10_000m);
+        var edited = await OkAsync<ScenarioView>(app, app.AdultA, new ReplaceScenarioCommand(
+            id, "Appartement", Visibility.Shared, VisibilityScope.Household, Doc([new FundingLine(mine, 5_000m)])));
+        Assert.Equal([new FundingLine(mine, 5_000m)], edited.Document.Funding.Select(f => new FundingLine(f.Item, D(f.Amount))));
+        Assert.DoesNotContain(theirs.Value.ToString(), JsonSerializer.Serialize(edited, Wire), StringComparison.OrdinalIgnoreCase);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var stored = await scope.ServiceProvider.GetRequiredService<IScenarioStore>().FindAsync(id, CancellationToken.None);
+            Assert.Equal([new FundingLine(mine, 5_000m), new FundingLine(theirs, 16_000m)], stored!.Document.Funding);
+        }
     }
 
     [Fact]
@@ -161,6 +173,23 @@ public class ScenarioUseCaseTests(PostgresFixture fixture) : IClassFixture<Postg
         var expected = Math.Round((replayed.TotalTax - TaxCalculator.Compute(inputs).TotalTax) / 12m, 2, MidpointRounding.AwayFromZero);
         Assert.True(expected > 0m);
         Assert.Equal(expected, D(result.Capacity.MonthlyTaxIncrease.Amount));
+    }
+
+    [Fact]
+    public async Task An_existing_loan_still_running_at_a_retained_month_past_the_horizon_counts()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewAsync(app, Golden(app)); // paid until 2040
+        // A PTZ deferred two years then 216 even payments of 250: its first payment, the retained month, falls after the one-year horizon.
+        var ptz = new ScenarioLoan("PTZ", 54_000m, 0m, 240, new ScenarioDeferral(DeferralKind.Total, 24),
+            new ScenarioInsurance(ScenarioInsuranceKind.FixedMonthly, 0m), 0m, 0m);
+        var doc = Doc() with { Loans = [ptz], Assumptions = Doc().Assumptions with { HorizonYears = 1 } };
+
+        var result = await OkAsync<ScenarioResultView>(app, app.AdultA, new SimulateScenarioQuery(VisibilityScope.Household, doc));
+
+        Assert.Equal("2028-01", result.Capacity.RetainedMonth);
+        // The golden loan still runs then: nothing of today's payment is given back.
+        Assert.Equal(D(result.Capacity.LeftBefore.Amount) - D(result.Capacity.NewPayment.Amount) - 100m + 800m, D(result.Capacity.LeftAfter.Amount));
     }
 
     [Fact]

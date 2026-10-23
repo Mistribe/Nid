@@ -4,19 +4,23 @@ import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { LoanSchedule } from '../api';
+import type { LoanSchedule, LoanScheduleRow } from '../api';
 import { money } from '../format';
 import { monthsOf } from '../schedule';
 import '@/locales/loans';
 
 const num = 'text-right tabular-nums';
 
+/** The fields the table reads: a loan's schedule, or a scenario's (no bank rows there). */
+type ScheduleRow = Pick<LoanScheduleRow, 'number' | 'dueDate' | 'payment' | 'interest' | 'principal' | 'insurance' | 'earlyRepayment' | 'balance'> & { fromBank?: boolean };
+type Schedule = { rows: ScheduleRow[]; years: LoanSchedule['years'] };
+
 /**
  * Spec 3B1 §7: one line per year — the server's totals and the balance on 31 December — each a button with
  * `aria-expanded` folding out its months; only open years render their months (precision 8). The marked payment is the
  * figures' next one and its year is the one open (3B2 design §4.1–4.2), marked by words, never by colour alone; with the bank as the reference, its rows say « Banque » (3F2).
  */
-export function ScheduleTable({ schedule, currency, nextPaymentOn }: { schedule: LoanSchedule; currency: string; nextPaymentOn?: string | null }) {
+export function ScheduleTable({ schedule, currency, nextPaymentOn }: { schedule: Schedule; currency: string; nextPaymentOn?: string | null }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set(nextPaymentOn ? [Number(nextPaymentOn.slice(0, 4))] : []));
   // A payment due today counts as paid, as the server's figures say: the marked row is theirs, never the browser's today.

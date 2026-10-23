@@ -116,7 +116,7 @@ public sealed record ScenarioResultView(
 
 public sealed record ScenarioListItemView(
     ItemId Id, string Name, string Use, DashboardMoneyView Price, DashboardMoneyView NewPayment, decimal? DebtRatioAfter,
-    DashboardMoneyView Gap, IReadOnlyList<OwnerShare> Owners, string Visibility);
+    DashboardMoneyView Gap, IReadOnlyList<ItemOwnerView> Owners, string Visibility);
 
 public sealed record ScenarioView(
     ItemId Id, string Name, string Visibility, string Scope, PropertyPurchaseView Document, ScenarioResultView Result, bool CanWrite)

@@ -74,6 +74,22 @@ public class ScenarioCapacityTests
     }
 
     [Fact]
+    public void An_existing_loan_still_running_at_a_retained_month_past_the_horizon_counts()
+    {
+        // A PTZ deferred 130 months: retained in 2037, past the 10-year horizon; the existing series reaches it.
+        var loans = new[] { Main, Loan("PTZ", 130, 110, 277.78m) };
+        var retained = new YearMonth(2026, 12).PlusMonths(131);
+        var facts = new ScenarioFacts(Today, 5_000m, 150m, 0m, [],
+            [new(new YearMonth(2026, 10), 0m, 0m, 400m), new(retained, 0m, 0m, 400m)], loans, 0m);
+
+        var r = ScenarioCalculator.Capacity(Doc(), facts);
+
+        Assert.Equal(retained, r.RetainedMonth);
+        Assert.Equal((400m + 1_498.00m) / 5_000m, r.DebtRatioAfter);
+        Assert.Equal(4_450m - 1_498.00m - 200m + 1_100m, r.LeftAfter);
+    }
+
+    [Fact]
     public void An_existing_loan_ending_before_the_retained_month_no_longer_counts()
     {
         var r = ScenarioCalculator.Capacity(Doc(), Facts(5_000m, [Main], existingToday: 400m));

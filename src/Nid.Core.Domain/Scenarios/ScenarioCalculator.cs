@@ -138,6 +138,7 @@ public static partial class ScenarioCalculator
             if (exhausted is null && with.Where(p => p.Liquidity == AllocationLiquidity.Available).Sum(p => p.Amount) + potWith < 0m)
                 exhausted = month;
 
+            // shortcut: the existing real estate at point k is the row of month k − 1's growth, one month behind the savings; align the grids if a month's lag shows.
             var existing = Existing(month);
             var netWithout = without.Sum(p => p.Amount) + potWithout + existing;
             var netWith = with.Sum(p => p.Amount) + potWith + existing;

@@ -24451,22 +24451,6 @@
           }
         }
       },
-      "OwnerShare": {
-        "required": [
-          "personId",
-          "shareBp"
-        ],
-        "type": "object",
-        "properties": {
-          "personId": {
-            "$ref": "#/components/schemas/PersonId"
-          },
-          "shareBp": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "OwnerView": {
         "required": [
           "personId",
@@ -24678,18 +24662,6 @@
               "number"
             ],
             "format": "double"
-          }
-        }
-      },
-      "PersonId": {
-        "required": [
-          "value"
-        ],
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string",
-            "format": "uuid"
           }
         }
       },
@@ -28822,7 +28794,7 @@
           "owners": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OwnerShare"
+              "$ref": "#/components/schemas/ItemOwnerView"
             }
           },
           "visibility": {

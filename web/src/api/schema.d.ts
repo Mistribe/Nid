@@ -16872,11 +16872,6 @@ export interface components {
             /** Format: int32 */
             shareBp: number;
         };
-        OwnerShare: {
-            personId: components["schemas"]["PersonId"];
-            /** Format: int32 */
-            shareBp: number;
-        };
         OwnerView: {
             /** Format: uuid */
             personId: string;
@@ -16926,10 +16921,6 @@ export interface components {
             gain?: null | components["schemas"]["AmountView"];
             /** Format: double */
             sharePct?: null | number;
-        };
-        PersonId: {
-            /** Format: uuid */
-            value: string;
         };
         PersonIdResponse: {
             /** Format: uuid */
@@ -17883,7 +17874,7 @@ export interface components {
             /** Format: double */
             debtRatioAfter?: null | number;
             gap: components["schemas"]["DashboardMoneyView"];
-            owners: components["schemas"]["OwnerShare"][];
+            owners: components["schemas"]["ItemOwnerView"][];
             visibility: string;
         };
         ScenarioLoanDocView: {
