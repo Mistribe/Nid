@@ -12061,6 +12061,102 @@
         }
       }
     },
+    "/api/v1/tax/sale": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "item",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaleTaxView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tax/profile/{year}": {
       "put": {
         "tags": [
@@ -16345,6 +16441,12 @@
                 "$ref": "#/components/schemas/FirstValuationBody"
               }
             ]
+          },
+          "premiumsBefore2017": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -17286,6 +17388,18 @@
               "null",
               "boolean"
             ]
+          },
+          "premiumsBefore2017": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPremiumsBefore2017": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -17611,6 +17725,16 @@
             ],
             "format": "double"
           },
+          "premiumsBefore2017": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
           "figures": {
             "$ref": "#/components/schemas/FiguresView"
           },
@@ -17860,6 +17984,41 @@
               "number"
             ],
             "format": "double"
+          }
+        }
+      },
+      "EnvelopeSaleView": {
+        "required": [
+          "remainingCapital"
+        ],
+        "type": "object",
+        "properties": {
+          "remainingCapital": {
+            "type": "string"
+          },
+          "gainBefore2017": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gainReduced": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gainFull": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "allowanceUsed": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -26001,6 +26160,40 @@
           }
         }
       },
+      "PropertySaleView": {
+        "required": [
+          "costPrice",
+          "feesMethod",
+          "worksMethod",
+          "incomeAllowancePct",
+          "socialAllowancePct",
+          "owners"
+        ],
+        "type": "object",
+        "properties": {
+          "costPrice": {
+            "type": "string"
+          },
+          "feesMethod": {
+            "type": "string"
+          },
+          "worksMethod": {
+            "type": "string"
+          },
+          "incomeAllowancePct": {
+            "type": "string"
+          },
+          "socialAllowancePct": {
+            "type": "string"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleOwnerView"
+            }
+          }
+        }
+      },
       "PropertySummary": {
         "required": [
           "id",
@@ -27359,6 +27552,232 @@
             "items": {
               "$ref": "#/components/schemas/RoutineLineView"
             }
+          }
+        }
+      },
+      "SaleItemView": {
+        "required": [
+          "item",
+          "module",
+          "name",
+          "kind",
+          "status",
+          "estimated",
+          "stale",
+          "approximate",
+          "notes"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "finding": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "valueOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "estimated": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "approximate": {
+            "type": "boolean"
+          },
+          "yearsHeld": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "gain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "incomeTax": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "socialTax": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "surtax": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "net": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "property": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertySaleView"
+              }
+            ]
+          },
+          "envelope": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EnvelopeSaleView"
+              }
+            ]
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SaleOwnerView": {
+        "required": [
+          "person",
+          "gain",
+          "incomeTax",
+          "socialTax",
+          "surtax"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gain": {
+            "type": "string"
+          },
+          "incomeTax": {
+            "type": "string"
+          },
+          "socialTax": {
+            "type": "string"
+          },
+          "surtax": {
+            "type": "string"
+          }
+        }
+      },
+      "SaleTaxView": {
+        "required": [
+          "currency",
+          "rulesYear",
+          "carriedForward",
+          "total",
+          "items",
+          "notes"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "rulesYear": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "carriedForward": {
+            "type": "boolean"
+          },
+          "total": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleItemView"
+            }
+          },
+          "totals": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SaleTotalsView"
+              }
+            ]
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SaleTotalsView": {
+        "required": [
+          "value",
+          "incomeTax",
+          "socialTax",
+          "surtax",
+          "net"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "incomeTax": {
+            "type": "string"
+          },
+          "socialTax": {
+            "type": "string"
+          },
+          "surtax": {
+            "type": "string"
+          },
+          "net": {
+            "type": "string"
           }
         }
       },

@@ -14,6 +14,7 @@ public sealed class EnvelopeRow
     public string? Note { get; set; }
     public LocalDate? ClosedOn { get; set; }
     public decimal? UcShareFloorPct { get; set; }
+    public decimal? PremiumsBefore2017 { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }

@@ -267,4 +267,70 @@ public class EnvelopeEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.DoesNotContain(forA.GetProperty("items").EnumerateArray(), e => e.GetProperty("id").GetGuid() == hidden.Value);
         Assert.Contains(forB.GetProperty("items").EnumerateArray(), e => e.GetProperty("id").GetGuid() == hidden.Value);
     }
+
+    [Fact]
+    public async Task A_life_insurance_keeps_its_premiums_before_2017_until_they_are_cleared()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string url = "/api/v1/investments/envelopes";
+        var body = new
+        {
+            displayName = "AV", kind = "life_insurance", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, premiumsBefore2017 = "12000.50",
+        };
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, url, body);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await JsonAsync(created)).GetProperty("id").GetGuid();
+        async Task<(string Amount, string Currency)?> Premiums()
+        {
+            var premiums = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"))).GetProperty("premiumsBefore2017");
+            return premiums.ValueKind == JsonValueKind.Null ? null : (premiums.GetProperty("amount").GetString()!, premiums.GetProperty("currency").GetString()!);
+        }
+
+        Assert.Equal(("12000.5000", "EUR"), await Premiums());
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { premiumsBefore2017 = "8000" })).EnsureSuccessStatusCode();
+        Assert.Equal(("8000.0000", "EUR"), await Premiums());
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { clearPremiumsBefore2017 = true })).EnsureSuccessStatusCode();
+        Assert.Null(await Premiums());
+    }
+
+    [Fact]
+    public async Task A_life_insurance_changed_to_another_kind_drops_its_premiums_before_2017()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string url = "/api/v1/investments/envelopes";
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, url, new
+        {
+            displayName = "AV", kind = "life_insurance", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, premiumsBefore2017 = "12000",
+        });
+        var id = (await JsonAsync(created)).GetProperty("id").GetGuid();
+
+        var changed = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { kind = "brokerage" });
+
+        Assert.True(changed.IsSuccessStatusCode, await changed.Content.ReadAsStringAsync());
+        var envelope = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"));
+        Assert.Equal(("brokerage", JsonValueKind.Null), (envelope.GetProperty("kind").GetString(), envelope.GetProperty("premiumsBefore2017").ValueKind));
+    }
+
+    [Fact]
+    public async Task Premiums_before_2017_are_refused_when_negative_or_off_a_life_insurance()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string url = "/api/v1/investments/envelopes";
+        var life = await app.NewEnvelopeAsync("AV", app.AdultA, Visibility.Shared);
+        var pea = await app.RawAsync(app.AdultA, HttpMethod.Post, url, new
+        {
+            displayName = "PEA", kind = "pea", currency = "EUR", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, premiumsBefore2017 = "100",
+        });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, pea.StatusCode);
+        Assert.Equal("premiumsBefore2017", (await JsonAsync(pea)).GetProperty("errors")[0].GetProperty("path").GetString());
+
+        var other = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{life.Value}", new { premiumsBefore2017 = "100" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, other.StatusCode);
+        var negative = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{life.Value}", new { kind = "life_insurance", premiumsBefore2017 = "-1" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
+        Assert.Equal("premiumsBefore2017", (await JsonAsync(negative)).GetProperty("errors")[0].GetProperty("path").GetString());
+    }
 }

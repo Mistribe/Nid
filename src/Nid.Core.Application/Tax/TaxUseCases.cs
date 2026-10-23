@@ -21,6 +21,12 @@ public sealed record GetRental2044Query(int? Year, VisibilityScope Scope) : IQue
 /// <summary>Tax estimate spec §8: the calculation of given inputs; nothing is read nor stored.</summary>
 public sealed record SimulateTaxQuery(TaxInputs Inputs) : IQuery<TaxResultView>;
 
+/// <summary>Sale tax spec §6: with <c>ItemId</c>, that item's page among everything the reader sees; without, the scope's total.</summary>
+public sealed record GetSaleTaxQuery(VisibilityScope Scope, ItemId? ItemId) : IQuery<SaleTaxView>, IOptionalItemScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
+
 public static class TaxCodes
 {
     public const string InvalidYear = "tax.invalid_year";
@@ -52,6 +58,14 @@ public sealed class GetRental2044Handler(TaxEstimates estimates, IHouseholdCalen
             ? Result.Failure<Rental2044View>(failure)
             : await estimates.Rental2044Async(year, query.Scope, today, ct);
     }
+}
+
+[RequestHandler<GetSaleTaxQuery, SaleTaxView>]
+public sealed class GetSaleTaxHandler(SaleTaxEstimates estimates, IHouseholdCalendar calendar, IActorAccessor actor)
+    : IRequestHandler<GetSaleTaxQuery, SaleTaxView>
+{
+    public async ValueTask<Result<SaleTaxView>> HandleAsync(GetSaleTaxQuery query, CancellationToken ct = default)
+        => await estimates.ComputeAsync(actor.Current!.PersonId!.Value, query.Scope, query.ItemId, await calendar.TodayAsync(ct), ct);
 }
 
 [RequestHandler<SaveTaxProfileCommand, TaxEstimateView>]

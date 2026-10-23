@@ -326,4 +326,38 @@ public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal((ImportCodes.NotPermitted, "envelopes[0]"), (issue.Code, issue.Path));
         Assert.Empty(await ListAsync(app, app.AdultA, archived: true));
     }
+
+    [Fact]
+    public async Task Premiums_before_2017_import_replace_and_export_only_when_set()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        const string life = """
+            [{"id":"env-av","name":"AV","kind":"life_insurance","currency":"EUR","premiums_before_2017":"12000.50",
+              "ownership":[{"person":"adult-1","share_bp":10000}]},
+             {"id":"env-pea","name":"PEA","kind":"pea","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}]}]
+            """;
+
+        await CommitAsync(client, app, app.AdultA, File(life));
+        var av = await StoredAsync(app, await IdOf(app, "AV"));
+        Assert.Equal(12000.50m, av.PremiumsBefore2017);
+        Assert.Null((await StoredAsync(app, await IdOf(app, "PEA"))).PremiumsBefore2017);
+
+        var exported = (await new Export.ExportClient(app).ExportAllAsync(app.AdultA))["envelopes"];
+        Assert.Equal(["AV"], exported.Where(e => e.TryGetProperty("premiums_before_2017", out _)).Select(e => e.GetProperty("name").GetString()).ToList());
+
+        Assert.DoesNotContain("premiums", exported.Single(e => e.GetProperty("name").GetString() == "PEA").GetRawText());
+        var again = await CommitAsync(client, app, app.AdultA, File(life)); // an envelope without the field keeps its import hash
+        Assert.Equal(new CountsResponse(0, 2, 0), again.Report!.Sections["envelopes"]);
+
+        var changed = life.Replace("12000.50", "9000");
+        await CommitAsync(client, app, app.AdultA, File(changed), replace: true);
+        Assert.Equal(9000m, (await StoredAsync(app, av.ItemId.Value)).PremiumsBefore2017);
+
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutAsync(app.AdultA, session.Id, "envelopes", 0,
+            life.Replace("\"kind\":\"pea\"", "\"kind\":\"pea\",\"premiums_before_2017\":\"1\""));
+        await client.CancelRawAsync(app.AdultA, session.Id);
+        Assert.Equal([("investments.invalid_envelope", "envelopes[1].premiums_before_2017")], batch.Issues.Select(i => (i.Code, i.Path)).ToList());
+    }
 }

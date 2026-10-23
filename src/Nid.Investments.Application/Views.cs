@@ -40,7 +40,7 @@ public sealed record FlowView(Guid Id, LocalDate OccurredOn, string Kind, Amount
 public sealed record EnvelopeDetail(
     ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string ValuationCadence, int? StaleAfterDays, string? Note,
-    decimal? UcShareFloorPct, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows) : IExposesItems
+    decimal? UcShareFloorPct, AmountView? PremiumsBefore2017, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 }

@@ -23,6 +23,11 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<Rental2044View>();
 
+        // Sale tax spec §6.
+        api.MapGet("/sale", async (string? scope, Guid? item, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetSaleTaxQuery(ParseScope(scope), item is { } g ? new ItemId(g) : null), ct)).ToHttp(view => view))
+            .Returns<SaleTaxView>();
+
         api.MapPut("/profile/{year:int}", async (int year, string? scope, TaxProfileBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();

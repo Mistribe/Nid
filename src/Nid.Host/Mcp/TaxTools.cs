@@ -2,6 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Nid.Core.Application.Tax;
+using Nid.Core.Contracts;
 using Nid.Host.Api;
 
 namespace Nid.Host.Mcp;
@@ -17,4 +18,13 @@ public sealed class TaxTools
         [Description("The revenue year (default: last year).")] int? year = null,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetRental2044Query(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+    /// <summary>Sale tax spec §6: the same view as <c>GET /api/v1/tax/sale</c>.</summary>
+    [McpServerTool(Name = "get_sale_tax_estimate", ReadOnly = true)]
+    [Description("The tax a sale of everything held today would cost: each property's and each open PEA, life insurance or brokerage " +
+                 "account's gain, income tax, social levies, property surtax and net proceeds, and the household total. Savings and checking " +
+                 "accounts are listed as not taxable, a PER as not estimated. With 'item', that one item's page. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetSaleTaxEstimate(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null,
+        [Description("One property or envelope's id, for its page instead of the total.")] Guid? item = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetSaleTaxQuery(SubscriptionEndpoints.ParseScope(scope), item is { } g ? new ItemId(g) : null), ct);
 }

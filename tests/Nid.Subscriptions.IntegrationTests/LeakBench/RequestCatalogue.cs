@@ -320,6 +320,7 @@ public static class RequestCatalogue
         new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
+        new(typeof(GetSaleTaxQuery), true, (_, item) => new GetSaleTaxQuery(VisibilityScope.Me, item)),
         new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
         new(typeof(SimulateTaxQuery), false, (_, _) => new SimulateTaxQuery(new TaxInputs(
             2025, [new TaxDeclarant("bench", 1m, EmploymentStatus.NonExecutive, 0m, 0m)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m, 0m, 0m, 0m, 0m))),

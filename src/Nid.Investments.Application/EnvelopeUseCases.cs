@@ -15,7 +15,7 @@ public sealed record FirstValuationDraft(LocalDate AsOf, Money Amount);
 public sealed record CreateEnvelopeCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
-    OpeningDraft? Opening, FirstValuationDraft? FirstValuation) : ICommand<ItemId>, ICreatesItem;
+    OpeningDraft? Opening, FirstValuationDraft? FirstValuation, decimal? PremiumsBefore2017 = null) : ICommand<ItemId>, ICreatesItem;
 
 public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence)
     : ICommand<ItemId>, IItemScoped
@@ -44,6 +44,8 @@ public sealed class CreateEnvelopeHandler(
             || EnvelopeRules.Check(command.Institution, command.AccountHint, command.StaleAfterDays, command.Note).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         kind.TryGetValue(out var k);
+        if (EnvelopeRules.PremiumsBefore2017(command.PremiumsBefore2017, k).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
         cadence.TryGetValue(out var c);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -52,7 +54,7 @@ public sealed class CreateEnvelopeHandler(
         if (!created.TryGetValue(out var id))
             return created;
         await envelopes.CreateAsync(new Envelope(id, k, command.Institution, command.AccountHint, command.OpenedOn, c,
-            command.StaleAfterDays, command.Note), ct);
+            command.StaleAfterDays, command.Note, PremiumsBefore2017: command.PremiumsBefore2017), ct);
 
         if (command.Opening is { } opening)
         {
@@ -107,8 +109,14 @@ public sealed class EditEnvelopeHandler(IItemRegistry items, IEnvelopeStore enve
         }
 
         var change = command.Change with { Kind = kind, Cadence = cadence };
+        // Off a life insurance, premiums before 2017 mean nothing: the ones kept are dropped, the ones sent still refused.
+        if (kind is { } changed && changed != EnvelopeKind.LifeInsurance && change.PremiumsBefore2017 is null)
+            change = change with { ClearPremiumsBefore2017 = true };
         if (EnvelopeRules.Check(change.Institution, change.AccountHint, change.StaleAfterDays, change.Note).TryGetFailure(out failure)
-            || EnvelopeRules.UcShareFloor(change.UcShareFloorPct).TryGetFailure(out failure))
+            || EnvelopeRules.UcShareFloor(change.UcShareFloorPct).TryGetFailure(out failure)
+            || EnvelopeRules.PremiumsBefore2017(
+                change.ClearPremiumsBefore2017 ? null : change.PremiumsBefore2017 ?? envelope.Envelope.PremiumsBefore2017,
+                change.Kind ?? envelope.Envelope.Kind).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -149,6 +157,7 @@ public sealed class GetEnvelopeHandler(
             query.ItemId, f.Item.DisplayName, EnvelopeWire.Of(e.Kind), f.Currency.Code,
             f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite,
             e.Institution, e.AccountHint, e.OpenedOn, EnvelopeWire.Of(e.Cadence), e.StaleAfterDays, e.Note, e.UcShareFloorPct,
+            e.PremiumsBefore2017 is { } premiums && Money.Create(premiums, f.Currency).TryGetValue(out var money) ? AmountView.From(money) : null,
             FiguresView.From(figures),
             f.Values.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, AmountView.From(v.Value), v.Note)).ToList(),
             f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note)).ToList()));

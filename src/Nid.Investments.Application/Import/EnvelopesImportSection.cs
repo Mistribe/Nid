@@ -236,6 +236,7 @@ public sealed class EnvelopesImportSection(
                 Currency = head.Currency!,
                 ValuationCadence = EnvelopeWire.Of(e.Envelope.Cadence),
                 StaleAfterDays = e.Envelope.StaleAfterDays,
+                PremiumsBefore2017 = e.Envelope.PremiumsBefore2017,
                 Ownership = head.Owners
                     .Select(w => new ShareRecord { Person = context.PersonRef(w.PersonId), ShareBp = w.ShareBp })
                     .OrderBy(w => w.Person, StringComparer.Ordinal).ToList(),
@@ -317,5 +318,5 @@ public sealed class EnvelopesImportSection(
             parsed.Currency.Code, "envelope", path, adults, ct);
 
     private static Envelope ToEnvelope(ItemId id, EnvelopeRecord record, ParsedEnvelope parsed)
-        => new(id, parsed.Kind, record.Institution, record.AccountHint, parsed.OpenedOn, parsed.Cadence, record.StaleAfterDays, record.Note, parsed.ClosedOn);
+        => new(id, parsed.Kind, record.Institution, record.AccountHint, parsed.OpenedOn, parsed.Cadence, record.StaleAfterDays, record.Note, parsed.ClosedOn, PremiumsBefore2017: record.PremiumsBefore2017);
 }

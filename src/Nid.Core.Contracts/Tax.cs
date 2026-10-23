@@ -80,6 +80,46 @@ public interface ITaxContribution
     Task<Result<IReadOnlyList<TaxLine>>> TaxLinesAsync(PersonId reader, VisibilityScope scope, int year, LocalDate today, CancellationToken ct);
 }
 
+/// <summary>Sale tax spec §6: what a module supplies about the items the reader sees in the scope, to estimate the tax if each were sold today.</summary>
+public interface ISaleContribution
+{
+    Task<Result<SaleAssets>> SaleAssetsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
+}
+
+/// <summary>A module's visible active properties and envelopes, open or closed; one module fills one list.</summary>
+public sealed record SaleAssets(IReadOnlyList<PropertyForSale> Properties, IReadOnlyList<EnvelopeForSale> Envelopes);
+
+/// <summary>
+/// A property: <c>Type</c> on the wire (<c>primary_residence</c>…); <c>ActualFees</c> the notary, agency and other acquisition costs;
+/// <c>ActualWorks</c> the <c>works</c> expenses dated on or before today; <c>Value</c> its latest valuation, null without one or when
+/// its facts cannot be read.
+/// </summary>
+public sealed record PropertyForSale(
+    ItemId Item, string Name, string? Currency, IReadOnlyList<Owner> Owners, string Type, LocalDate PurchasedOn, decimal PurchasePrice,
+    decimal ActualFees, decimal ActualWorks, decimal? Value, LocalDate? ValueOn, bool Stale);
+
+/// <summary>
+/// An envelope's payment or withdrawal: <c>Kind</c> is <c>opening</c>, <c>contribution</c> or <c>withdrawal</c>. A transfer leg carries
+/// its <c>TransferRef</c> (the legs' shared reference) and <c>CounterpartKind</c>, the other leg's envelope kind when the reader sees it.
+/// </summary>
+public sealed record SaleFlow(LocalDate On, string Kind, decimal Amount, string? TransferRef, string? CounterpartKind);
+
+public sealed record SaleValue(LocalDate On, decimal Value);
+
+/// <summary>A holding of the latest snapshot: its value (estimated when the envelope's value is), units and cost per unit (PRU).</summary>
+public sealed record SaleLine(decimal Value, decimal? Units, decimal? CostPerUnit);
+
+/// <summary>
+/// An envelope: <c>Kind</c> on the wire; <c>Value</c> its value today (the estimate when newer than the latest valuation), null
+/// without one or when its facts cannot be read; <c>Lines</c> the latest snapshot on or before today, dated <c>LinesOn</c>, null
+/// without one. A closed one (<c>ClosedOn</c>) comes for its flows and values only, without value or lines: never sold, replayed as a
+/// transfer's source.
+/// </summary>
+public sealed record EnvelopeForSale(
+    ItemId Item, string Name, string? Currency, IReadOnlyList<Owner> Owners, string Kind, LocalDate? OpenedOn, decimal? PremiumsBefore2017,
+    decimal? Value, LocalDate? ValueOn, bool Stale, bool Estimated, IReadOnlyList<SaleFlow> Flows, IReadOnlyList<SaleValue> Values,
+    IReadOnlyList<SaleLine>? Lines, LocalDate? LinesOn, bool LinesComplete, LocalDate? ClosedOn);
+
 /// <summary>Tax estimate spec §5: a rental property under Pinel.</summary>
 public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalYears, int? StartYear, bool Plus);
 

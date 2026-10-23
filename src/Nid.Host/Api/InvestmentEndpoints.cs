@@ -59,8 +59,12 @@ public static class InvestmentEndpoints
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
-        api.MapPatch("/envelopes/{id:guid}", async (Guid id, EditEnvelopeBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+        api.MapPatch("/envelopes/{id:guid}", async (Guid id, EditEnvelopeBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), reader);
+                return command is null ? reader.Problem() : (await invoker.InvokeAsync(command, ct)).ToHttp(x => new IdResponse(x.Value));
+            })
             .Returns<IdResponse>();
 
         api.MapPost("/envelopes/{id:guid}/valuations", async (Guid id, ValuationBody body, IInvoker invoker, CancellationToken ct)
@@ -279,7 +283,7 @@ public static class InvestmentEndpoints
     public sealed record CreateEnvelopeBody(
         string DisplayName, string Kind, string Currency, string? Visibility, IReadOnlyList<OwnerBody> Owners,
         string? Institution, string? AccountHint, string? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
-        OpeningBody? Opening, FirstValuationBody? FirstValuation)
+        OpeningBody? Opening, FirstValuationBody? FirstValuation, string? PremiumsBefore2017)
     {
         internal CreateEnvelopeCommand? ToCommand(FieldReader reader)
         {
@@ -293,12 +297,13 @@ public static class InvestmentEndpoints
             var openingAmount = Opening is null ? null : reader.Money(Opening.Amount, "opening.amount");
             var firstOn = FirstValuation is null ? null : reader.Date(FirstValuation.AsOf, "firstValuation.asOf");
             var firstAmount = FirstValuation is null ? null : reader.Money(FirstValuation.Amount, "firstValuation.amount");
+            var premiums = reader.Decimal(PremiumsBefore2017, "premiumsBefore2017");
             return reader.Ok
                 ? new CreateEnvelopeCommand(DisplayName, Kind, currency, visibility!.Value,
                     (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
                     Institution, AccountHint, openedOn, ValuationCadence, StaleAfterDays, Note,
                     Opening is null ? null : new OpeningDraft(openingOn!.Value, openingAmount!.Value),
-                    FirstValuation is null ? null : new FirstValuationDraft(firstOn!.Value, firstAmount!.Value))
+                    FirstValuation is null ? null : new FirstValuationDraft(firstOn!.Value, firstAmount!.Value), premiums)
                 : null;
         }
     }
@@ -306,13 +311,21 @@ public static class InvestmentEndpoints
     public sealed record EditEnvelopeBody(
         string? DisplayName, string? Kind, string? Institution, bool ClearInstitution, string? AccountHint, bool ClearAccountHint,
         string? OpenedOn, bool ClearOpenedOn, string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays,
-        string? Note, bool ClearNote, decimal? UcShareFloorPct, bool? ClearUcShareFloorPct)
+        string? Note, bool ClearNote, decimal? UcShareFloorPct, bool? ClearUcShareFloorPct,
+        string? PremiumsBefore2017, bool? ClearPremiumsBefore2017)
     {
-        public EditEnvelopeCommand ToCommand(ItemId id) => new(id, DisplayName, Kind, new EnvelopeChange(
+        internal EditEnvelopeCommand? ToCommand(ItemId id, FieldReader reader)
+        {
+            var premiums = reader.Decimal(PremiumsBefore2017, "premiumsBefore2017");
+            return reader.Ok ? ToCommand(id, premiums) : null;
+        }
+
+        private EditEnvelopeCommand ToCommand(ItemId id, decimal? premiums) => new(id, DisplayName, Kind, new EnvelopeChange(
             Institution: Institution, ClearInstitution: ClearInstitution, AccountHint: AccountHint, ClearAccountHint: ClearAccountHint,
             OpenedOn: OptionalDate(OpenedOn), ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
             ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote, UcShareFloorPct: UcShareFloorPct,
-            ClearUcShareFloorPct: ClearUcShareFloorPct ?? false), ValuationCadence);
+            ClearUcShareFloorPct: ClearUcShareFloorPct ?? false, PremiumsBefore2017: premiums,
+            ClearPremiumsBefore2017: ClearPremiumsBefore2017 ?? false), ValuationCadence);
     }
 
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member

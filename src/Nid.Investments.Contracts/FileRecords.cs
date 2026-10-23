@@ -17,6 +17,13 @@ public sealed record EnvelopeRecord
     public required string Currency { get; init; }
     public string ValuationCadence { get; init; } = "monthly";
     public int? StaleAfterDays { get; init; }
+
+    /// <summary>Written only when set, so a file of before the field imports with the same hash.</summary>
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("premiums_before_2017")] // the snake case policy writes no underscore before digits
+    public decimal? PremiumsBefore2017 { get; init; }
+
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; init; } = "shared";
 }

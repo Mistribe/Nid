@@ -11180,6 +11180,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tax/sale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    item?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SaleTaxView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tax/profile/{year}": {
         parameters: {
             query?: never;
@@ -14490,6 +14582,7 @@ export interface components {
             note?: null | string;
             opening?: null | components["schemas"]["OpeningBody"];
             firstValuation?: null | components["schemas"]["FirstValuationBody"];
+            premiumsBefore2017?: null | string;
         };
         CreateIncomeSourceBody: {
             displayName: string;
@@ -14696,6 +14789,8 @@ export interface components {
             /** Format: double */
             ucShareFloorPct?: null | number;
             clearUcShareFloorPct?: null | boolean;
+            premiumsBefore2017?: null | string;
+            clearPremiumsBefore2017?: null | boolean;
         };
         EditIncomeSourceBody: {
             displayName?: null | string;
@@ -14767,6 +14862,7 @@ export interface components {
             note?: null | string;
             /** Format: double */
             ucShareFloorPct?: null | number;
+            premiumsBefore2017?: null | components["schemas"]["AmountView"];
             figures: components["schemas"]["FiguresView"];
             valuations: components["schemas"]["ValuationView"][];
             flows: components["schemas"]["FlowView"][];
@@ -14823,6 +14919,13 @@ export interface components {
             performanceConverted?: null | components["schemas"]["AmountView"];
             /** Format: double */
             annualReturnPct?: null | number;
+        };
+        EnvelopeSaleView: {
+            remainingCapital: string;
+            gainBefore2017?: null | string;
+            gainReduced?: null | string;
+            gainFull?: null | string;
+            allowanceUsed?: null | string;
         };
         EnvelopeSeries: {
             /** Format: uuid */
@@ -16698,6 +16801,14 @@ export interface components {
             costs: components["schemas"]["PropertyRoutineCostView"][];
             rents: components["schemas"]["PropertyRoutineRentView"][];
         };
+        PropertySaleView: {
+            costPrice: string;
+            feesMethod: string;
+            worksMethod: string;
+            incomeAllowancePct: string;
+            socialAllowancePct: string;
+            owners: components["schemas"]["SaleOwnerView"][];
+        };
         PropertySummary: {
             /** Format: uuid */
             id: string;
@@ -17015,6 +17126,56 @@ export interface components {
             /** Format: date */
             on: string;
             lines: components["schemas"]["RoutineLineView"][];
+        };
+        SaleItemView: {
+            /** Format: uuid */
+            item: string;
+            module: string;
+            name: string;
+            kind: string;
+            status: string;
+            finding?: null | string;
+            value?: null | string;
+            /** Format: date */
+            valueOn?: null | string;
+            estimated: boolean;
+            stale: boolean;
+            approximate: boolean;
+            /** Format: int32 */
+            yearsHeld?: null | number;
+            gain?: null | string;
+            incomeTax?: null | string;
+            socialTax?: null | string;
+            surtax?: null | string;
+            net?: null | string;
+            property?: null | components["schemas"]["PropertySaleView"];
+            envelope?: null | components["schemas"]["EnvelopeSaleView"];
+            notes: string[];
+        };
+        SaleOwnerView: {
+            /** Format: uuid */
+            person: string;
+            gain: string;
+            incomeTax: string;
+            socialTax: string;
+            surtax: string;
+        };
+        SaleTaxView: {
+            currency: string;
+            /** Format: int32 */
+            rulesYear: number;
+            carriedForward: boolean;
+            total: boolean;
+            items: components["schemas"]["SaleItemView"][];
+            totals?: null | components["schemas"]["SaleTotalsView"];
+            notes: string[];
+        };
+        SaleTotalsView: {
+            value: string;
+            incomeTax: string;
+            socialTax: string;
+            surtax: string;
+            net: string;
         };
         ScheduleComparisonView: {
             maxGap: string;

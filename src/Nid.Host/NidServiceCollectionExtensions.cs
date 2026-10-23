@@ -122,6 +122,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
         services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
+        services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
@@ -158,6 +159,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
+        services.AddScoped<ISaleContribution, Nid.Investments.Application.EnvelopesSale>();
         services.AddScoped<IUpcomingEvents, Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
@@ -191,6 +193,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
         services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
         services.AddScoped<ITaxContribution, Nid.RealEstate.Application.RentalTax>();
+        services.AddScoped<ISaleContribution, Nid.RealEstate.Application.PropertiesSale>();
         services.AddScoped<Nid.RealEstate.Application.RealEstateRents>();
         services.AddScoped<IRentIncome>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateRents>());
         services.AddScoped<IIncomeContribution>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateRents>());

@@ -14,7 +14,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     private static readonly string[] Expected =
     [
         "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
-        "get_net_worth_history", "get_property", "get_property_routine", "get_rental_2044", "get_routine", "get_subscription", "list_envelopes",
+        "get_net_worth_history", "get_property", "get_property_routine", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "list_envelopes",
         "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment", "simulate_household_early_repayment",
     ];
 
@@ -69,6 +69,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/routine?on=2025-10-01"), await CallAsync(client, "get_routine", new { on = "2025-10-01" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/realestate/routine"), await CallAsync(client, "get_property_routine"));
             SameJson(await app.GetRawAsync(a, "/api/v1/tax/2044?year=2025&scope=me"), await CallAsync(client, "get_rental_2044", new { year = 2025, scope = "me" }));
+            SameJson(await app.GetRawAsync(a, "/api/v1/tax/sale?scope=me"), await CallAsync(client, "get_sale_tax_estimate", new { scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/subscriptions?scope=me"), await CallAsync(client, "list_subscriptions", new { scope = "me" }));
             SameJson(await app.GetRawAsync(a, "/api/v1/investments/envelopes?scope=household&archived=true"), await CallAsync(client, "list_envelopes", new { scope = "household", archived = true }));
             SameJson(await app.GetRawAsync(a, "/api/v1/income/sources"), await CallAsync(client, "list_income_sources"));

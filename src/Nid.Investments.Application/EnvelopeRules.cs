@@ -42,6 +42,13 @@ internal static class EnvelopeRules
             ? Invalid("ucShareFloorPct", "A units-of-account floor is 0 to 100 percent, with 4 decimals at most.")
             : Result.Success();
 
+    /// <summary>Sale tax data: the premiums paid before 27/09/2017 that remain in a life insurance contract, never negative.</summary>
+    public static Result PremiumsBefore2017(decimal? premiums, EnvelopeKind kind)
+        => premiums is null ? Result.Success()
+            : kind != EnvelopeKind.LifeInsurance ? Invalid("premiumsBefore2017", "Premiums before 27/09/2017 only apply to a life insurance contract.")
+            : premiums is < 0 || Math.Round(premiums.Value, 4) != premiums ? Invalid("premiumsBefore2017", "Premiums before 27/09/2017 are zero or more, with 4 decimals at most.")
+            : Result.Success();
+
     public static Result<EnvelopeKind> Kind(string? wire)
         => EnvelopeWire.TryKind(wire, out var kind) ? Result.Success(kind)
             : Result.Failure<EnvelopeKind>(new Failure(InvestmentsCodes.UnknownKind, $"'{wire}' is not an envelope kind.", null));

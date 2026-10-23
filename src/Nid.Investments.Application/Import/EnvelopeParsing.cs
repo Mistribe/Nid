@@ -22,7 +22,7 @@ internal static class EnvelopeParsing
     private static readonly Dictionary<string, string> Members = new(StringComparer.Ordinal)
     {
         ["displayName"] = "name", ["institution"] = "institution", ["accountHint"] = "account_hint",
-        ["staleAfterDays"] = "stale_after_days", ["note"] = "note",
+        ["staleAfterDays"] = "stale_after_days", ["note"] = "note", ["premiumsBefore2017"] = "premiums_before_2017",
     };
 
     /// <summary>
@@ -38,6 +38,8 @@ internal static class EnvelopeParsing
                  & Take(EnvelopeRules.Cadence(r.ValuationCadence), path + ".valuation_cadence", issues, out var cadence)
                  & Check(EnvelopeRules.Name(r.Name), path, issues)
                  & Check(EnvelopeRules.Check(r.Institution, r.AccountHint, r.StaleAfterDays, r.Note), path, issues);
+        if (EnvelopeWire.TryKind(r.Kind, out var known)) // an unknown kind is already reported
+            ok &= Check(EnvelopeRules.PremiumsBefore2017(r.PremiumsBefore2017, known), path, issues);
         if (!Currency.TryCreate(r.Currency, out var currency))
             ok = Invalid(issues, path + ".currency", "A currency is an ISO 4217 code in capitals.");
 

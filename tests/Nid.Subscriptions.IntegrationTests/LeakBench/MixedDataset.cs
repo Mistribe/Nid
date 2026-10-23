@@ -90,13 +90,19 @@ public sealed class MixedDataset
 
     public ItemId this[string name] => Items[name];
 
+    /// <summary>The sale tax estimate's items: each row's property twin under its §2 name, and its envelope twin (« S-A (envelope) »…).</summary>
+    private IReadOnlyDictionary<string, ItemId> SaleItems
+        => Properties.Concat(Envelopes.Select(kv => KeyValuePair.Create(kv.Key + " (envelope)", kv.Value))).ToDictionary();
+
     /// <summary>
     /// The rows a request is run against: the envelope twins for a request of <c>Nid.Investments.Application</c>
     /// (a subscription is not an envelope, so it would only ever be refused on its own merits), the income twins for
-    /// one of <c>Nid.Income.Application</c>, the subscriptions for every other one.
+    /// one of <c>Nid.Income.Application</c>, the property and envelope twins for the sale tax estimate, the subscriptions
+    /// for every other one.
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
-        => requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
+        => requestType == typeof(Nid.Core.Application.Tax.GetSaleTaxQuery) ? SaleItems
+            : requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
             : requestType.Assembly == typeof(Nid.RealEstate.Application.ListLoansQuery).Assembly
                 // Every property request carries « Propert » in its name (ListPropertiesQuery, RecordPropertyValuationCommand…).

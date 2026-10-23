@@ -58,7 +58,7 @@ public static class EnvelopeWire
 /// <summary>The module's attributes of an envelope (spec §3.2); name, owners, visibility and currency are the item's.</summary>
 public sealed record Envelope(
     ItemId ItemId, EnvelopeKind Kind, string? Institution, string? AccountHint, LocalDate? OpenedOn,
-    ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null, decimal? UcShareFloorPct = null);
+    ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null, decimal? UcShareFloorPct = null, decimal? PremiumsBefore2017 = null);
 
 public sealed record ImportedEnvelope(ItemId Item, string Hash, PersonId ImportedBy);
 public sealed record StoredEnvelope(Envelope Envelope, ImportMark? Import);
@@ -68,7 +68,8 @@ public sealed record EnvelopeChange(
     EnvelopeKind? Kind = null, string? Institution = null, bool ClearInstitution = false,
     string? AccountHint = null, bool ClearAccountHint = false, LocalDate? OpenedOn = null, bool ClearOpenedOn = false,
     ValuationCadence? Cadence = null, int? StaleAfterDays = null, bool ClearStaleAfterDays = false,
-    string? Note = null, bool ClearNote = false, decimal? UcShareFloorPct = null, bool ClearUcShareFloorPct = false);
+    string? Note = null, bool ClearNote = false, decimal? UcShareFloorPct = null, bool ClearUcShareFloorPct = false,
+    decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false);
 
 public interface IEnvelopeStore
 {

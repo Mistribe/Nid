@@ -22,6 +22,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
             StaleAfterDays = envelope.StaleAfterDays,
             Note = envelope.Note,
             ClosedOn = envelope.ClosedOn,
+            PremiumsBefore2017 = envelope.PremiumsBefore2017,
         };
         Mark(row, import);
         db.Envelopes.Add(row);
@@ -39,6 +40,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         row.StaleAfterDays = envelope.StaleAfterDays;
         row.Note = envelope.Note;
         row.ClosedOn = envelope.ClosedOn;
+        row.PremiumsBefore2017 = envelope.PremiumsBefore2017;
         Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
@@ -98,6 +100,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (change.ClearStaleAfterDays) row.StaleAfterDays = null; else if (change.StaleAfterDays is { } days) row.StaleAfterDays = days;
         if (change.ClearNote) row.Note = null; else if (change.Note is { } note) row.Note = note;
         if (change.ClearUcShareFloorPct) row.UcShareFloorPct = null; else if (change.UcShareFloorPct is { } floor) row.UcShareFloorPct = floor;
+        if (change.ClearPremiumsBefore2017) row.PremiumsBefore2017 = null; else if (change.PremiumsBefore2017 is { } premiums) row.PremiumsBefore2017 = premiums;
         await db.SaveChangesAsync(ct);
     }
 
@@ -105,6 +108,6 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
     {
         if (!EnvelopeWire.TryKind(row.Kind, out var kind) || !EnvelopeWire.TryCadence(row.ValuationCadence, out var cadence))
             throw new InvalidOperationException($"Envelope {row.ItemId} has a stored kind or cadence this code does not know.");
-        return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct);
+        return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct, row.PremiumsBefore2017);
     }
 }
