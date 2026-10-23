@@ -11,7 +11,7 @@ export function StatLine({ items }: { items: { label: string; value: ReactNode; 
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
           <dt className="text-sm text-muted-foreground">{item.label}</dt>
-          <dd className={cn('text-lg font-semibold tabular-nums', item.tone === 'up' && 'text-status-good-text', item.tone === 'down' && 'text-destructive')}>
+          <dd className={cn('text-xl font-semibold tracking-tight', item.tone === 'up' && 'text-status-good-text', item.tone === 'down' && 'text-destructive')}>
             {item.value}
           </dd>
         </div>

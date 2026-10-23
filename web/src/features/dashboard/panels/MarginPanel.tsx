@@ -10,7 +10,7 @@ export function MarginPanel({ d, scope }: { d: DashboardView; scope: 'me' | 'hou
     <div className="space-y-4">
       {d.margin ? (
         <div className="space-y-1">
-          <span className="text-xl font-semibold tabular-nums">{formatMoney(d.margin)}</span>
+          <span className="text-2xl font-semibold tracking-tight">{formatMoney(d.margin)}</span>
           <p className="text-sm text-muted-foreground">{t('dashboard.key.margin_hint')}</p>
         </div>
       ) : null}

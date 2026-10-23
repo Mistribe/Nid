@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Inter, variable in weight and optical size (design-system.md §3), served from our own origin (font-src 'self'): each
+   subset has its unicode-range, so a French page fetches the Latin file alone. */
+@import "@fontsource-variable/inter/opsz.css";
 @import "./themes/sobre.css";
 @import "./themes/ardoise.css";
 @import "./themes/sauge.css";
@@ -73,6 +76,8 @@
 
 /* Motion (design-system.md §3): short and decelerating; `prefers-reduced-motion` at the end of this file cuts it all. */
 @theme {
+  /* The system stack shows while Inter loads (font-display: swap) and if it never does. */
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   /* `backwards`, never `both`: a transform kept after the end would trap the fixed elements inside. */
   --animate-enter: enter 400ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
@@ -123,7 +128,7 @@ main :has(> [data-page-header]) { @apply stagger; }
 
 @layer base {
   * { @apply border-border outline-ring/50; }
-  body { @apply bg-background text-foreground; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { @apply bg-background text-foreground; }
 }
 
 /* The tour's ring (module guides spec §4.4): unlayered, so it beats a button's `outline-none`; `ring` on `background` is

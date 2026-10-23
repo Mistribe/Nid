@@ -31,8 +31,8 @@ Les jetons de graphiques et de statuts ne sont **jamais redéfinis par un thème
 
 | Sujet | Décision |
 |---|---|
-| Police | Pile système (`system-ui`), aucun chargement de police |
-| Chiffres | Proportionnels pour les grands montants ; `tabular-nums` seulement dans les colonnes et sur les axes |
+| Police | **Inter**, variable en graisse et en taille optique (`@fontsource-variable/inter`, `opsz.css`), servie depuis notre origine (`font-src 'self'`) : la taille optique resserre les grands chiffres et ouvre le petit texte. Chaque sous-ensemble porte son `unicode-range` : une page en français ne charge que le fichier latin (73 kB, hors budget JS). Pile système en attendant (`font-display: swap`) et en secours. Refonte du 2026-10-23 (passe « typographie ») |
+| Chiffres | Proportionnels pour les grands montants (`StatLine`, chiffres de l'accueil : `text-xl` à `text-4xl`, `tracking-tight`) ; `tabular-nums` seulement dans les colonnes et sur les axes |
 | Montants | `Intl` en `fr-FR` : espace fine insécable pour les milliers, virgule décimale, « € » après le montant |
 | Dates | Jour et mois en toutes lettres selon la locale, via un utilitaire en UTC (`architecture.md` §11) |
 | Icônes | Lucide, 16 à 20 px dans le texte |

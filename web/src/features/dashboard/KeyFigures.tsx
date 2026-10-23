@@ -11,11 +11,11 @@ import { Sparkline } from './Sparkline';
 export type Panel = 'net_worth' | 'income' | 'commitments' | 'margin';
 
 /** The figure, or « Inconnu » with its reason (a missing rate names its currency). */
-export function Value({ figure, unknown, unknownRate = 'dashboard.unknown_rate', className = 'text-xl' }: {
+export function Value({ figure, unknown, unknownRate = 'dashboard.unknown_rate', className = 'text-2xl' }: {
   figure: DashboardFigure; unknown: string; unknownRate?: 'dashboard.unknown_rate' | 'dashboard.change_unknown_rate'; className?: string;
 }) {
   const { t } = useTranslation();
-  if (figure.total) return <span className={cn('font-semibold tabular-nums', className)}>{formatMoney(figure.total)}</span>;
+  if (figure.total) return <span className={cn('font-semibold tracking-tight', className)}>{formatMoney(figure.total)}</span>;
   return <span className="text-sm text-muted-foreground">{figure.missingCurrency ? t(unknownRate, { code: figure.missingCurrency }) : unknown}</span>;
 }
 
@@ -62,7 +62,7 @@ export function KeyFigures({ d, onOpen, scope }: { d: DashboardView; onOpen: (pa
       <Tile label={t('dashboard.key.margin')} panel="margin" onOpen={onOpen} className="md:order-4">
         {d.margin ? (
           <>
-            <span className="text-xl font-semibold tabular-nums">{formatMoney(d.margin)}</span>
+            <span className="text-2xl font-semibold tracking-tight">{formatMoney(d.margin)}</span>
             <span className="text-xs text-muted-foreground">{t('dashboard.key.margin_hint')}</span>
           </>
         ) : (
