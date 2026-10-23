@@ -108,6 +108,31 @@ public class RentRevisionTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task A_revision_copies_the_tenant_and_landlord_identity() // Rental receipts spec §2
+    {
+        await using var app = await StartAsync(fixture);
+        var (property, old) = await LetAsync(app);
+        var url = $"{Properties}/{property}/tenancies/{old}";
+        var version = Tenancies(await PropertyAsync(app, property))[0].GetProperty("version").GetUInt32();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url, new
+        {
+            label = "T2", startsOn = "2025-09-01", rentMonthly = "800", chargesMonthly = "50", deposit = "800", note = "Bail Dupont",
+            tenantNames = "Mme Martin", landlordName = "Alice et Bob", landlordAddress = "1 rue A\n75001 Paris", rentsTrackedFrom = "2025-10", version,
+        })).StatusCode);
+
+        await CreatedAsync(await AcceptAsync(app, property, old, "2026-09-01"));
+
+        var next = Tenancies(await PropertyAsync(app, property))[1];
+        Assert.Equal(("Mme Martin", "Alice et Bob", "1 rue A\n75001 Paris", "2025-10"),
+            (S(next, "tenantNames"), S(next, "landlordName"), S(next, "landlordAddress"), S(next, "rentsTrackedFrom")));
+        // The copied month, before the new link's own start, is its chain's: a correction of the link keeps it.
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Properties}/{property}/tenancies/{next.GetProperty("id").GetGuid()}", new
+        {
+            label = "T2 révisé", startsOn = S(next, "startsOn"), rentMonthly = S(next, "rentMonthly"), chargesMonthly = "50", version = next.GetProperty("version").GetUInt32(),
+        })).StatusCode);
+    }
+
+    [Fact]
     public async Task The_effective_date_lies_between_the_anniversary_and_today()
     {
         await using var app = await StartAsync(fixture);

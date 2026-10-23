@@ -446,6 +446,7 @@ public static class RequestCatalogue
         new(typeof(DeletePropertyTenancyCommand), true, (_, item) => new DeletePropertyTenancyCommand(item, Guid.NewGuid(), 1)),
         // Rental spec §3.3: a revision is looked up in the route's property only, as its tenancy.
         new(typeof(GetTenancyRevisionQuery), true, (_, item) => new GetTenancyRevisionQuery(item, Guid.NewGuid())),
+        new(typeof(GetRentReceiptQuery), true, (_, item) => new GetRentReceiptQuery(item, null)),
         new(typeof(AcceptRentRevisionCommand), true, (_, item) => new AcceptRentRevisionCommand(item, Guid.NewGuid(), new LocalDate(2025, 9, 1))),
         new(typeof(UndoRentRevisionCommand), true, (_, item) => new UndoRentRevisionCommand(item, Guid.NewGuid())),
         new(typeof(GetRentRevisionsQuery), false, (_, _) => new GetRentRevisionsQuery(VisibilityScope.Me)),

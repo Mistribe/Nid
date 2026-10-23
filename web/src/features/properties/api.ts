@@ -39,11 +39,12 @@ export const TENANCIES = '/api/v1/realestate/properties/{id}/tenancies' as const
 export const TENANCY = '/api/v1/realestate/properties/{id}/tenancies/{tenancyId}' as const;
 export const RECURRING_COSTS = '/api/v1/realestate/properties/{id}/recurring-costs' as const;
 export const RECURRING_COST = '/api/v1/realestate/properties/{id}/recurring-costs/{costId}' as const;
+export const PROPERTY_RECEIPTS = '/api/v1/realestate/properties/{id}/receipts' as const;
 
 /**
  * Every write on a property invalidates the list, the overview's tabs and every detail (3D1 design §6), as do the loan link's
  * (§7); the income page and the home income too, which count the rents (income dashboard §5).
  */
 export function invalidateProperties(queryClient: QueryClient): Promise<void> {
-  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([PROPERTIES, PROPERTIES_OVERVIEW, PROPERTIES_RENTAL, PROPERTIES_COSTS, PROPERTIES_VALUATION, PROPERTY, PROPERTY_RECEIPTS, OVERVIEW, DASHBOARD, TAX_SALE].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

@@ -9745,6 +9745,99 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/realestate/properties/{id}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    month?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RentReceiptView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/realestate/properties/{id}/valuations": {
         parameters: {
             query?: never;
@@ -15764,6 +15857,7 @@ export interface components {
             rentalStartsOn?: null | string;
             note?: null | string;
             energyClass?: null | string;
+            postalAddress?: null | string;
         };
         CreateProviderBody: {
             name: string;
@@ -15969,6 +16063,9 @@ export interface components {
             energyClass?: null | string;
             /** @default false */
             clearEnergyClass: boolean;
+            postalAddress?: null | string;
+            /** @default false */
+            clearPostalAddress: boolean;
         };
         EditSubscriptionBody: {
             autoRenew?: null | boolean;
@@ -17768,6 +17865,8 @@ export interface components {
             rentalStartsOn?: null | string;
             note?: null | string;
             energyClass?: null | string;
+            postalAddress?: null | string;
+            receiptMonths: string[];
             /** Format: uint32 */
             version: number;
             figures: components["schemas"]["PropertyFiguresView"];
@@ -18052,6 +18151,10 @@ export interface components {
             indexed?: null | boolean;
             /** Format: int32 */
             irlReferenceQuarter?: null | number;
+            tenantNames?: null | string;
+            landlordName?: null | string;
+            landlordAddress?: null | string;
+            rentsTrackedFrom?: null | string;
         };
         PropertyTenancyView: {
             /** Format: uuid */
@@ -18074,6 +18177,10 @@ export interface components {
             /** Format: uuid */
             revisedFrom?: null | string;
             revision?: null | components["schemas"]["TenancyRevisionView"];
+            tenantNames?: null | string;
+            landlordName?: null | string;
+            landlordAddress?: null | string;
+            rentsTrackedFrom?: null | string;
         };
         PropertyTypeShareView: {
             type: string;
@@ -18275,6 +18382,26 @@ export interface components {
             startsOn: string;
             /** Format: date */
             endsOn?: null | string;
+        };
+        RentReceiptView: {
+            /** Format: uuid */
+            property: string;
+            propertyName: string;
+            currency: string;
+            month: string;
+            kind: string;
+            rent: string;
+            charges: string;
+            total: string;
+            paid: string;
+            /** Format: date */
+            paidOn?: null | string;
+            postalAddress?: null | string;
+            tenantNames?: null | string;
+            landlordName?: null | string;
+            landlordAddress?: null | string;
+            missing: string[];
+            months: string[];
         };
         RentRevisionBody: {
             effectiveOn?: null | string;

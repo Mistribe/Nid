@@ -37,7 +37,8 @@ public sealed record PropertyRecurringCostView(
 /// </summary>
 public sealed record PropertyTenancyView(
     Guid Id, uint Version, string Label, LocalDate StartsOn, LocalDate? EndsOn, string RentMonthly, string ChargesMonthly, string? Deposit,
-    string? Note, bool Current, bool Indexed, int? IrlReferenceQuarter, Guid? RevisedFrom, TenancyRevisionView? Revision);
+    string? Note, bool Current, bool Indexed, int? IrlReferenceQuarter, Guid? RevisedFrom, TenancyRevisionView? Revision,
+    string? TenantNames, string? LandlordName, string? LandlordAddress, string? RentsTrackedFrom);
 
 /// <summary>A linked loan the reader can read: its balance today, and in the property's currency (null when the rate is missing).</summary>
 public sealed record PropertyLoanView(ItemId Id, string Name, string Currency, string Balance, string? BalanceConverted);
@@ -52,12 +53,15 @@ public sealed record PropertyFiguresView(
     LocalDate? RentedSince, string ExpectedRent, string RentReceived, string Arrears, int? VacantDays, string? VacancyRate,
     string? GrossYield, string? NetYieldBeforeTax);
 
-/// <summary>Spec 3C1 §4: shaped like an envelope's detail.</summary>
+/// <summary>
+/// Spec 3C1 §4: shaped like an envelope's detail. <c>ReceiptMonths</c> (<c>yyyy-mm</c>, newest first, 36 at most) are the months a rent
+/// receipt is given for (rental receipts spec §4).
+/// </summary>
 public sealed record PropertyDetail(
     ItemId Id, string Name, string Type, string Currency, string Visibility, IReadOnlyList<PropertyOwnerView> Owners,
     LocalDate PurchaseDate, string PurchasePrice, string NotaryFees, string AgencyFees, string OtherAcquisitionCosts, string? SurfaceM2,
-    string? LocationLabel, string ValuationCadence, int? StaleAfterDays, LocalDate? RentalStartsOn, string? Note, string? EnergyClass, uint Version,
-    PropertyFiguresView Figures, IReadOnlyList<PropertyWarningView> Warnings, IReadOnlyList<PropertyValuationView> Valuations,
+    string? LocationLabel, string ValuationCadence, int? StaleAfterDays, LocalDate? RentalStartsOn, string? Note, string? EnergyClass, string? PostalAddress, IReadOnlyList<string> ReceiptMonths,
+    uint Version, PropertyFiguresView Figures, IReadOnlyList<PropertyWarningView> Warnings, IReadOnlyList<PropertyValuationView> Valuations,
     IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyRecurringCostView> RecurringCosts, IReadOnlyList<PropertyTenancyView> Tenancies,
     IReadOnlyList<PropertyLoanView> Loans, bool CanWrite) : IExposesItems
 {
@@ -81,7 +85,8 @@ internal static class PropertyViews
         return new PropertyDetail(property.ItemId, item.DisplayName, LoanWire.Of(d.Type), LoanViews.CurrencyOf(item).Code,
             LoanViews.Wire(item.Visibility), item.Owners.Select(o => new PropertyOwnerView(o.PersonId.Value, o.ShareBp)).ToList(),
             d.PurchaseDate, Amount(d.PurchasePrice), Amount(d.NotaryFees), Amount(d.AgencyFees), Amount(d.OtherAcquisitionCosts),
-            Amount(d.SurfaceM2), d.LocationLabel, LoanWire.Of(d.Cadence), d.StaleAfterDays, d.RentalStartsOn, d.Note, d.EnergyClass, property.Version,
+            Amount(d.SurfaceM2), d.LocationLabel, LoanWire.Of(d.Cadence), d.StaleAfterDays, d.RentalStartsOn, d.Note, d.EnergyClass, d.PostalAddress,
+            ReceiptMonths.Of(property.Tenancies, read.Flows, today).Select(ReceiptMonths.Wire).ToList(), property.Version,
             new PropertyFiguresView(Amount(f.Value), f.ValueOn, f.Stale, Amount(f.CostPrice), Amount(f.LatentGain), Amount(f.LinkedBalance),
                 Amount(f.NetValue), Amount(f.RealCost), f.RealCostLines.Select(l => new PropertyCostLineView(l.Code, Amount(l.Amount))).ToList(),
                 Amount(f.NetCostOfRents), f.Rental.RentedSince, Amount(f.Rental.ExpectedRent), Amount(f.Rental.RentReceived),
@@ -96,7 +101,8 @@ internal static class PropertyViews
             property.Tenancies.Select(t => new PropertyTenancyView(t.Id, t.Version, t.Tenancy.Label, t.Tenancy.StartsOn, t.Tenancy.EndsOn,
                 Amount(t.Tenancy.RentMonthly), Amount(t.Tenancy.ChargesMonthly), Amount(t.Tenancy.Deposit), t.Tenancy.Note,
                 PropertyMath.Covers(t.Tenancy, today), t.Tenancy.Indexed, t.Tenancy.IrlReferenceQuarter, t.RevisedFrom,
-                revisions.GetValueOrDefault(t.Id))).ToList(),
+                revisions.GetValueOrDefault(t.Id), t.Tenancy.TenantNames, t.Tenancy.LandlordName, t.Tenancy.LandlordAddress,
+                t.Tenancy.RentsTrackedFrom is { } m ? $"{m.Year:0000}-{m.Month:00}" : null)).ToList(),
             read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanViews.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
             canWrite);
     }

@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
@@ -13,6 +14,7 @@ import { presentRefusal } from '../../loans/refusal';
 import { useRowDialog } from '../useRowDialog';
 import { FlowDialog } from './FlowForm';
 import '@/locales/loans';
+import '@/locales/properties';
 
 /**
  * 3D1 design §6: the property's expenses and income, newest first (the server lists them oldest first). Adding and
@@ -23,6 +25,8 @@ export function FlowsSection({ property }: { property: PropertyDetail }) {
   const writable = property.canWrite;
   const s = useRowDialog(property.flows, 'flow-menu');
   const newestFirst = [...property.flows].reverse();
+  // The months the server gives a receipt for: in the rent ledger, up to the current one, of one lease or one revision chain.
+  const receiptMonth = (month: string) => property.receiptMonths.includes(month);
   return (
     <Section title={t('property_flows.title')} headingRef={s.headingRef} announcement={s.announcement}>
       {writable ? <Button ref={s.addButtonRef} type="button" variant="outline" size="sm" onClick={() => s.open()}>{t('property_flows.add')}</Button> : null}
@@ -47,7 +51,15 @@ export function FlowsSection({ property }: { property: PropertyDetail }) {
               <TableCell>{kindText(t, f.kind)}</TableCell>
               <TableCell>{categoryText(t, f.category)}</TableCell>
               <TableCell className="text-right tabular-nums">{money(property.currency, f.amount)}</TableCell>
-              <TableCell className="whitespace-normal">{f.note}</TableCell>
+              <TableCell className="whitespace-normal">
+                {f.note}
+                {/* Readers get the receipt too: the link is in the row, not in the writer's menu. */}
+                {f.kind === 'income' && f.category === 'rent' && receiptMonth(f.occurredOn.slice(0, 7)) ? (
+                  <Link to="/properties/$id/receipt" params={{ id: property.id }} search={{ month: f.occurredOn.slice(0, 7) }} className="ml-2 text-sm underline">
+                    {t('property_receipt.link')}
+                  </Link>
+                ) : null}
+              </TableCell>
               {writable ? (
                 <TableCell>
                   <FlowRowActions property={property} flow={f} onEdit={() => s.open(f)} onDeleteStarted={() => s.setAnnouncement('')}

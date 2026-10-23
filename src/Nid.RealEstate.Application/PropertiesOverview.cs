@@ -258,11 +258,15 @@ internal static class PropertiesOverviewMath
             : figures;
     }
 
+    /// <summary>Rental receipts: a month's rent is watched once the month has been over for more than 10 days.</summary>
+    private const int ArrearsGraceDays = 10;
+
     /// <summary>
-    /// Spec §3.2: the detail's warnings (but a loan in another currency, which is no task), arrears over the 12 months, and on 60
-    /// days, as « À venir », each planned cost's next due date and each tenancy's end; with the warnings, each chain's rent revision
-    /// (rental spec §3.3). Warnings first, then by date.
+    /// Spec §3.2: the detail's warnings (but a loan in another currency, which is no task), the rent ledger's arrears of the months
+    /// over by more than <see cref="ArrearsGraceDays"/> days, and on 60 days, as « À venir », each planned cost's next due date and
+    /// each tenancy's end; with the warnings, each chain's rent revision (rental spec §3.3). Warnings first, then by date.
     /// </summary>
+
     private static List<PropertyWatchView> Watch(IReadOnlyList<Read> read, LocalDate today, IReadOnlyList<IrlValue> irl)
     {
         var until = today.PlusDays(UpcomingDays);
@@ -273,8 +277,10 @@ internal static class PropertiesOverviewMath
             var id = r.Source.Item.Id;
             foreach (var w in r.Figures.Warnings.Where(w => w.Code != PropertyWarnings.LoanOtherCurrency))
                 warnings.Add(new PropertyWatchView(w.Code, id, w.LoanId, w.Code == PropertyWarnings.ValuationStale ? r.Figures.ValueOn : null, null));
-            if (r.Figures.Rental is { RentedSince: not null, Arrears: > 0m } rental)
-                warnings.Add(new PropertyWatchView(PropertyOverviewCodes.RentArrears, id, null, null, Money(rental.Arrears, r.Currency)));
+            // The watch leaves the month just ended a grace of ArrearsGraceDays: the figure itself owes the current month from its 1st.
+            if (r.Figures.Rental.RentedSince is not null
+                && RentLedger.ArrearsDueBy(r.Source.Property.Tenancies.Select(t => t.Tenancy).ToList(), r.Source.Flows, today, ArrearsGraceDays) is > 0m and var owed)
+                warnings.Add(new PropertyWatchView(PropertyOverviewCodes.RentArrears, id, null, null, Money(owed, r.Currency)));
             foreach (var chain in RentRevisions.Of(r.Source.Property, irl, today))
             {
                 if (chain.Lost is { } lost)

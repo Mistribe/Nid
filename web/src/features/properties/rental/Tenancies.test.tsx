@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { todayIso } from '../../subscriptions/today';
@@ -27,10 +28,14 @@ function serve(initial: PropertyDetail = propertyDetail({ figures: rentedFigures
   let next = 3;
   const reads = { detail: 0 };
   const sent: { method: string; url: string; body?: Body }[] = [];
-  const view = (id: string, b: Body, version: number): PropertyTenancy => ({
+  const ident = (sent: string | null | undefined, stored: string | null | undefined) => (sent === undefined || sent === null ? (stored ?? null) : (sent || null));
+  const view = (id: string, b: Body, version: number, old?: PropertyTenancy): PropertyTenancy => ({
     id, version, label: b.label!, startsOn: b.startsOn!, endsOn: b.endsOn ?? null, rentMonthly: written(b.rentMonthly!),
     chargesMonthly: written(b.chargesMonthly ?? '0'), deposit: b.deposit ? written(b.deposit) : null, note: b.note ?? null,
     current: b.startsOn! <= todayIso() && todayIso() < (b.endsOn ?? OPEN), indexed: b.indexed ?? false, irlReferenceQuarter: b.irlReferenceQuarter ?? null,
+    // Tri-state on a PUT, as the server: absent keeps the stored value, "" clears it.
+    tenantNames: ident(b.tenantNames, old?.tenantNames), landlordName: ident(b.landlordName, old?.landlordName),
+    landlordAddress: ident(b.landlordAddress, old?.landlordAddress), rentsTrackedFrom: ident(b.rentsTrackedFrom, old?.rentsTrackedFrom),
   });
   const byStart = (all: PropertyTenancy[]) => [...all].sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   const overlaps = (b: Body, self?: string) => current.tenancies.some((x) => x.id !== self
@@ -59,7 +64,7 @@ function serve(initial: PropertyDetail = propertyDetail({ figures: rentedFigures
       if (!old) return missing();
       if (old.version !== body.version) return conflict();
       if (overlaps(body, old.id)) return overlap();
-      current = { ...current, tenancies: byStart(current.tenancies.map((x) => (x.id === old.id ? view(old.id, body, old.version + 1) : x))) };
+      current = { ...current, tenancies: byStart(current.tenancies.map((x) => (x.id === old.id ? view(old.id, body, old.version + 1, old) : x))) };
       return HttpResponse.json({ id: old.id });
     }),
     http.delete('*/api/v1/realestate/properties/:id/tenancies/:tenancyId', ({ request, params }) => {
@@ -123,7 +128,7 @@ describe('tenancies', () => {
     await user.click(within(section).getByRole('button', { name: 'Ajouter un bail' }));
     const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
     await waitFor(() => expect(form.getByLabelText('Libellé')).toHaveFocus());
-    expect(form.getByText('Pas de nom de locataire : une colocation est un seul bail.')).toBeInTheDocument();
+    expect(form.getByText('Pas de nom de locataire ici, il a son champ : une colocation est un seul bail.')).toBeInTheDocument();
     expect(form.getByLabelText('Début')).toHaveValue(fr(todayIso()));
     expect(form.getByLabelText('Charges mensuelles')).toHaveValue('0');
     await user.type(form.getByLabelText('Libellé'), 'T2 meublé');
@@ -162,7 +167,7 @@ describe('tenancies', () => {
       expect(sent[0]!.url).toContain('/tenancies/t2');
       expect(sent[0]!.body).toEqual({
         label: 'T2 meublé', startsOn: '2023-01-01', endsOn: '2025-12-31', rentMonthly: '900.00', chargesMonthly: '50.00',
-        note: 'bail de 3 ans', version: 3, indexed: false,
+        note: 'bail de 3 ans', version: 3, indexed: false, tenantNames: '', landlordName: '', landlordAddress: '', rentsTrackedFrom: '',
       });
     });
     await waitFor(async () => {
@@ -170,6 +175,77 @@ describe('tenancies', () => {
       expect((await rows())[0]).not.toHaveTextContent('En cours');
     });
     await expectNoAxeViolations(container);
+  });
+
+  it('proposes the owners as landlord on a new lease only, and sends the identity typed', async () => {
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
+      { id: '01926b9e-0000-7000-8000-00000000000a', kind: 'adult', displayName: 'Alice Dev', email: null },
+      { id: '01926b9e-0000-7000-8000-00000000000b', kind: 'adult', displayName: 'Bob Dev', email: null },
+    ])));
+    const { sent } = serve(propertyDetail({
+      owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 5000 }, { personId: '01926b9e-0000-7000-8000-00000000000b', shareBp: 5000 }],
+    }));
+    const { user } = await renderApp(PAGE);
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    await waitFor(() => expect(form.getByLabelText('Bailleur')).toHaveValue('Alice Dev et Bob Dev'));
+    await user.type(form.getByLabelText('Libellé'), 'T2');
+    await user.clear(form.getByLabelText('Début'));
+    await user.type(form.getByLabelText('Début'), '01/01/2021');
+    await user.type(form.getByLabelText('Loyer mensuel'), '900');
+    await user.type(form.getByLabelText('Locataire(s)'), 'Mme Martin');
+    await user.type(form.getByLabelText('Adresse du bailleur'), '1 rue A');
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
+
+    await waitFor(() => expect(sent[0]!.body).toMatchObject({ tenantNames: 'Mme Martin', landlordName: 'Alice Dev et Bob Dev', landlordAddress: '1 rue A' }));
+
+    // A correction shows the stored identity, never the owners, and sends an emptied field as "" to clear it.
+    await rowAction(user, (await rows())[0]!, '1 janvier 2021', 'Corriger');
+    const edit = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    expect(edit.getByLabelText('Bailleur')).toHaveValue('Alice Dev et Bob Dev');
+    await user.clear(edit.getByLabelText('Bailleur'));
+    await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent[1]!.body).toMatchObject({ tenantNames: 'Mme Martin', landlordName: '', landlordAddress: '1 rue A' }));
+  });
+
+  it('picks the month the rents are tracked from, among the lease\'s months, and clears it back to automatic', async () => {
+    const { sent } = serve(propertyDetail());
+    const { user } = await renderApp(PAGE);
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    expect(form.getByText('Mois du premier loyer suivi dans Nid ; laissez vide pour le calcul automatique')).toBeInTheDocument();
+    expect(form.getByRole('combobox', { name: 'Loyers suivis depuis' })).toHaveTextContent('Automatique');
+    await user.type(form.getByLabelText('Libellé'), 'T2');
+    await user.clear(form.getByLabelText('Début'));
+    await user.type(form.getByLabelText('Début'), '15/01/2021');
+    await user.type(form.getByLabelText('Loyer mensuel'), '900');
+    await user.click(form.getByRole('combobox', { name: 'Loyers suivis depuis' }));
+    const list = await screen.findByRole('listbox');
+    // Nothing before the lease's own month.
+    expect(within(list).queryByRole('option', { name: 'décembre 2020' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await pick(user, 'Loyers suivis depuis', 'janvier 2021');
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(sent[0]!.body).toMatchObject({ rentsTrackedFrom: '2021-01' }));
+
+    // A creation left on automatic sends nothing; a correction back to automatic sends "" to clear it.
+    await rowAction(user, (await rows())[0]!, '15 janvier 2021', 'Corriger');
+    const edit = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    expect(edit.getByRole('combobox', { name: 'Loyers suivis depuis' })).toHaveTextContent('janvier 2021');
+    await pick(user, 'Loyers suivis depuis', 'Automatique');
+    await user.click(edit.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent[1]!.body).toMatchObject({ rentsTrackedFrom: '' }));
+  });
+
+  it('shows no proposed landlord when correcting a lease without one', async () => {
+    serve();
+    const { user } = await renderApp(PAGE);
+
+    await rowAction(user, (await rows())[0]!, '1 janvier 2023', 'Corriger');
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    expect(form.getByLabelText('Bailleur')).toHaveValue('');
   });
 
   it('reopening an ended tenancy sends no end, and the overlap it creates reads under « Début »', async () => {
@@ -321,6 +397,21 @@ describe('tenancies', () => {
     await user.click(form.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(sent[0]!.body).toMatchObject({ label: 'Bail Dupont', startsOn: '2024-01-01', rentMonthly: '927.00' }));
+  });
+
+  it('offers a revised link the months of its whole chain to track the rents from', async () => {
+    const first = tenancy({ id: 'a', label: 'Bail', startsOn: '2023-01-01', endsOn: '2024-01-01', rentMonthly: '900.00', current: false, indexed: true, irlReferenceQuarter: 2 });
+    const last = tenancy({ id: 'b', label: 'Bail', startsOn: '2024-01-01', rentMonthly: '927.00', indexed: true, irlReferenceQuarter: 2, revisedFrom: 'a' });
+    const { sent } = serve(propertyDetail({ figures: rentedFigures(), tenancies: [first, last] }));
+    const { user } = await renderApp(PAGE);
+
+    await user.click(within((await rows())[0]!).getByRole('button', { name: /^Actions pour le 1 janvier 2024/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Corriger' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    await pick(user, 'Loyers suivis depuis', 'mars 2023');
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent[0]!.body).toMatchObject({ rentsTrackedFrom: '2023-03' }));
   });
 
   it.each([

@@ -28,7 +28,8 @@ public sealed record PropertyChange(
     decimal? AgencyFees = null, decimal? OtherAcquisitionCosts = null, decimal? SurfaceM2 = null, bool ClearSurfaceM2 = false,
     string? LocationLabel = null, bool ClearLocationLabel = false, PropertyCadence? Cadence = null, int? StaleAfterDays = null,
     bool ClearStaleAfterDays = false, LocalDate? RentalStartsOn = null, bool ClearRentalStartsOn = false, string? Note = null,
-    bool ClearNote = false, string? EnergyClass = null, bool ClearEnergyClass = false)
+    bool ClearNote = false, string? EnergyClass = null, bool ClearEnergyClass = false, string? PostalAddress = null,
+    bool ClearPostalAddress = false)
 {
     public PropertyDetails ApplyTo(PropertyDetails d) => new(
         Type ?? d.Type, PurchaseDate ?? d.PurchaseDate, PurchasePrice ?? d.PurchasePrice, NotaryFees ?? d.NotaryFees,
@@ -36,7 +37,7 @@ public sealed record PropertyChange(
         ClearSurfaceM2 ? null : SurfaceM2 ?? d.SurfaceM2, ClearLocationLabel ? null : LocationLabel ?? d.LocationLabel,
         Cadence ?? d.Cadence, ClearStaleAfterDays ? null : StaleAfterDays ?? d.StaleAfterDays,
         ClearRentalStartsOn ? null : RentalStartsOn ?? d.RentalStartsOn, ClearNote ? null : Note ?? d.Note,
-        ClearEnergyClass ? null : EnergyClass ?? d.EnergyClass);
+        ClearEnergyClass ? null : EnergyClass ?? d.EnergyClass, ClearPostalAddress ? null : PostalAddress ?? d.PostalAddress);
 }
 
 /// <summary>Spec 3C1 §4: the <paramref name="Version"/> read, and only what changes; the name is the Core item's.</summary>

@@ -135,6 +135,7 @@ public class PropertiesRentalEndpointTests(PostgresFixture fixture) : IClassFixt
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await JsonAsync(response);
         Assert.Equal(("2024-10-16", "2025-10-15", 1), (S(body, "from"), S(body, "to"), body.GetProperty("count").GetInt32()));
+        // Arrears follow the rent ledger from the first rent (November 2024) to October, paid on the 5th.
         Assert.Equal(("10800.00", "10800.00", "0.00"),
             (S(body.GetProperty("expectedRent"), "amount"), S(body.GetProperty("rentReceived"), "amount"), S(body.GetProperty("arrears"), "amount")));
         // 10 800 ÷ 269 000 (no works here), and (10 800 − 1 500) ÷ 269 000.

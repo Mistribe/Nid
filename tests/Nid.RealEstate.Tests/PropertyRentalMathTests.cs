@@ -47,6 +47,7 @@ public class PropertyRentalMathTests
         Assert.Equal(new LocalDate(2020, 9, 1), r.RentedSince);
         Assert.Equal(10_800m, r.ExpectedRent); // 464.52 (16 days of October 2024) + 11 × 900 + 435.48 (15 days of October 2025)
         Assert.Equal(10_800m, r.RentReceived);
+        // The rent ledger counts from the first rent, in November 2024, to the end of October 2025, paid on the 5th.
         Assert.Equal(0m, r.Arrears);
         Assert.Equal(0, r.VacantDays);
         Assert.Equal(0m, r.VacancyRate);
@@ -93,7 +94,8 @@ public class PropertyRentalMathTests
         Assert.Equal(0.0274m, decimal.Round(r.VacancyRate!.Value, 4)); // 10 ÷ 365
         // March: 9 days of the first (261.29) and 12 days of the second (348.39), each prorated and rounded on its own.
         Assert.Equal(10_509.68m, r.ExpectedRent);
-        Assert.Equal(10_509.68m, r.Arrears); // nothing received
+        // Nothing received: the ledger's last 12 months, October 2025 due whole (16 more days of the second lease, 464.52).
+        Assert.Equal(10_974.20m, r.Arrears);
     }
 
     [Fact]
@@ -135,14 +137,15 @@ public class PropertyRentalMathTests
     }
 
     [Theory]
-    [InlineData(11, 900)]  // a month unpaid
-    [InlineData(13, -900)] // a month paid twice: negative, shown as is
-    public void Arrears_are_the_expected_rent_less_the_rent_received(int rents, int arrears)
+    [InlineData(11, "900")]  // a month unpaid
+    [InlineData(13, "-900")] // a month paid twice: negative, shown as is
+    public void Arrears_are_the_ledger_s_due_since_the_first_rent_less_all_the_cash(int rents, string arrears)
     {
+        // The first rent is in November 2024: the ledger owes November to October 2025, the current month whole.
         var flows = Enumerable.Range(0, rents).Select(i => Rent(new LocalDate(2024, 11, 5).PlusDays(i)));
         var r = At(Bought(), flows, Lease(new LocalDate(2020, 9, 1))).Rental;
-        Assert.Equal(10_800m, r.ExpectedRent);
-        Assert.Equal((decimal)arrears, r.Arrears);
+        Assert.Equal(10_800m, r.ExpectedRent); // W's figure is unchanged
+        Assert.Equal(decimal.Parse(arrears, CultureInfo.InvariantCulture), r.Arrears);
     }
 
     [Fact]

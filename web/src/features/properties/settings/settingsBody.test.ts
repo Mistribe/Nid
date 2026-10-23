@@ -41,11 +41,21 @@ describe('the energy class', () => {
   });
 });
 
+describe('the postal address', () => {
+  it('is sent trimmed once typed and cleared once emptied', () => {
+    expect(values.postalAddress).toBe('');
+    expect(toEditBody(propertyDetail(), { ...values, postalAddress: ' 12 rue A\n75011 Paris ' })).toEqual({ postalAddress: '12 rue A\n75011 Paris' });
+    const before = propertyDetail({ postalAddress: '12 rue A' });
+    expect(toEditBody(before, settingsValuesOf(before))).toBeNull();
+    expect(toEditBody(before, { ...settingsValuesOf(before), postalAddress: '' })).toEqual({ clearPostalAddress: true });
+  });
+});
+
 describe('toWireBody', () => {
   it('states the version and every clear flag, which the wire type requires', () => {
     expect(toWireBody({ name: 'Maison' }, 7)).toEqual({
       name: 'Maison', version: 7, clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false,
-      clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false,
+      clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false, clearPostalAddress: false,
     });
   });
 });

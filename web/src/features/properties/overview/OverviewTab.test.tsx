@@ -66,7 +66,7 @@ describe('Biens › vue d’ensemble', () => {
     const items = within(watch).getAllByRole('listitem');
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent('T2 VilleurbanneEstimation à mettre à jour, dernière au 30 sept. 2024');
-    expect(items[1]).toHaveTextContent('T2 VilleurbanneImpayés sur 12 mois : 780,00 €');
+    expect(items[1]).toHaveTextContent('T2 VilleurbanneImpayés : 780,00 €');
     expect(items[2]).toHaveTextContent('T2 VilleurbanneCharge prévue le 15 nov. 2026 : 1 120,00 €');
     expect(within(items[0]!).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=valuations`);
     expect(within(items[1]!).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=rental`);

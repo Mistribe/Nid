@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
+import { ComboboxField } from '@/components/form/ComboboxField';
 import { DateField } from '@/components/form/DateField';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -14,10 +15,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { presentRefusal } from '../../loans/refusal';
 import { Field } from '@/components/form/Field';
+import { PERSONS } from '../../subscriptions/api';
 import { Reload } from '../../subscriptions/edits/Reload';
 import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { invalidateProperties, TENANCIES, TENANCY, type PropertyDetail, type PropertyTenancy } from '../api';
-import { TENANCY_PATHS, tenancySchema, tenancyValuesOf, toTenancyBody, type TenancyValues } from './tenancy';
+import { monthText } from '../format';
+import { todayIso } from '../../subscriptions/today';
+import { chainStart, TENANCY_PATHS, tenancySchema, tenancyValuesOf, toTenancyBody, trackedMonths, type TenancyValues } from './tenancy';
 import '@/locales/loans';
 import '@/locales/properties';
 
@@ -48,6 +52,13 @@ function TenancyForm({ property, editing, titleId, onDone }: { property: Propert
   // The version the form opened on: a refetch meanwhile must not turn the expected 409 into an overwrite.
   const [version] = useState(editing?.version);
   const form = useForm<TenancyValues>({ resolver: zodResolver(tenancySchema(t)), defaultValues: tenancyValuesOf(editing) });
+  // A new lease proposes the owners as landlord (rental receipts spec §2); typed text is never overwritten.
+  const people = $api.useQuery('get', PERSONS, {}, { enabled: !editing });
+  useEffect(() => {
+    if (editing || !people.data || form.getValues('landlordName') !== '') return;
+    const names = property.owners.flatMap((o) => people.data.find((p) => p.id === o.personId)?.displayName ?? []);
+    if (names.length > 0 && !form.formState.dirtyFields.landlordName) form.setValue('landlordName', names.join(' et '));
+  }, [editing, people.data, property.owners, form]);
   const errors = useSubmitErrors(form.setError, TENANCY_PATHS);
   const add = $api.useMutation('post', TENANCIES);
   const correct = $api.useMutation('put', TENANCY);
@@ -114,6 +125,27 @@ function TenancyForm({ property, editing, titleId, onDone }: { property: Propert
           </Field>
         )} />
       ) : null}
+      <Field label={t('property_rental.tenant_names')} hint={t('property_rental.identity_help')} error={e.tenantNames?.message}>
+        {(c) => <Input {...c} {...form.register('tenantNames')} />}
+      </Field>
+      <Field label={t('property_rental.landlord_name')} error={e.landlordName?.message}>
+        {(c) => <Input {...c} {...form.register('landlordName')} />}
+      </Field>
+      <Field label={t('property_rental.landlord_address')} error={e.landlordAddress?.message}>
+        {(c) => <Textarea {...c} {...form.register('landlordAddress')} />}
+      </Field>
+      <Controller control={form.control} name="rentsTrackedFrom" render={({ field }) => {
+        // From the lease's month — a revised link's chain's first one: the server sets it on every link — to the current one.
+        const months = trackedMonths(revised && editing ? chainStart(property.tenancies, editing) : form.watch('startsOn'), todayIso());
+        if (field.value && !months.includes(field.value)) months.push(field.value);
+        return (
+          <Field label={t('property_rental.rents_tracked_from')} hint={t('property_rental.rents_tracked_from_help')} error={e.rentsTrackedFrom?.message}>
+            {(c) => <ComboboxField {...c} value={field.value} onValueChange={field.onChange}
+              searchPlaceholder={t('property_rental.rents_tracked_search')} empty={t('property_rental.rents_tracked_empty')}
+              options={[{ value: '', label: t('property_rental.rents_tracked_auto') }, ...months.map((m) => ({ value: m, label: monthText(m) }))]} />}
+          </Field>
+        );
+      }} />
       <Field label={t('property_rental.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>

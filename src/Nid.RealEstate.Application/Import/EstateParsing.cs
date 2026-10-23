@@ -54,7 +54,7 @@ internal static partial class EstateParsing
         if (!ok)
             return false;
         var details = new PropertyDetails(type, purchaseDate!.Value, price!.Value, notary ?? 0m, agency ?? 0m, other ?? 0m, r.SurfaceM2,
-            r.LocationLabel, cadence, r.StaleAfterDays, rentalStartsOn, r.Note, r.EnergyClass);
+            r.LocationLabel, cadence, r.StaleAfterDays, rentalStartsOn, r.Note, r.EnergyClass, r.PostalAddress?.Trim());
         if (!Check(PropertyRules.Name(r.Name) ?? PropertyRules.Details(details, today ?? LocalDate.MaxIsoValue), path, issues))
             return false;
         parsed = new ParsedProperty(details, currency!.Value, visibility, owners);
@@ -90,11 +90,14 @@ internal static partial class EstateParsing
                  & TryDate(r.EndsOn, path + ".ends_on", issues, out var endsOn)
                  & TryMoney(r.RentMonthly, path + ".rent_monthly", currency, issues, out var rent)
                  & TryMoney(r.ChargesMonthly, path + ".charges_monthly", currency, issues, out var charges)
-                 & TryMoney(r.Deposit, path + ".deposit", currency, issues, out var deposit);
+                 & TryMoney(r.Deposit, path + ".deposit", currency, issues, out var deposit)
+                 & TryDate(r.RentsTrackedFrom, path + ".rents_tracked_from", issues, out var tracked);
         if (!ok)
             return false;
-        var parsed = new Tenancy(r.Label, startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, r.Note, r.Indexed, r.IrlReferenceQuarter);
-        if (!Check(PropertyRules.TenancyFields(parsed, LocalDate.MinIsoValue), path, issues))
+        var parsed = new Tenancy(r.Label, startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, r.Note, r.Indexed, r.IrlReferenceQuarter,
+            r.TenantNames?.Trim(), r.LandlordName?.Trim(), r.LandlordAddress?.Trim(), tracked);
+        // The file has no revision chains: a revised link keeps the month its chain was tracked from, before its own start.
+        if (!Check(PropertyRules.TenancyFields(parsed, LocalDate.MinIsoValue, LocalDate.MinIsoValue), path, issues))
             return false;
         tenancy = parsed;
         return true;

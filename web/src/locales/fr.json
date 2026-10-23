@@ -1249,7 +1249,10 @@
     "rental_starts_on_help": "Date de mise en location, si elle précède le premier bail.",
     "energy_class": "DPE (classe énergétique)",
     "energy_class_help": "Facultatif. En F ou G, la révision du loyer est interdite.",
-    "energy_class_none": "Non renseigné"
+    "energy_class_none": "Non renseigné",
+    "postal_address": "Adresse postale",
+    "postal_address_help": "Facultatif : sert aux quittances et aux courriers de ce bien, sans autre usage.",
+    "postal_address_max": "400 caractères au plus."
   },
   "property_detail": {
     "tax_2044": "Déclaration 2044",

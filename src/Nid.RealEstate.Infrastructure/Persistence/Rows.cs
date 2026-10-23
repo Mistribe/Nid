@@ -125,6 +125,7 @@ public sealed class PropertyRow : IImportMarked
     public LocalDate? RentalStartsOn { get; set; }
     public string? Note { get; set; }
     public string? EnergyClass { get; set; }
+    public string? PostalAddress { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
@@ -163,6 +164,10 @@ public sealed class PropertyTenancyRow : IImportMarked
     public string? Note { get; set; }
     public bool Indexed { get; set; }
     public int? IrlReferenceQuarter { get; set; }
+    public string? TenantNames { get; set; }
+    public string? LandlordName { get; set; }
+    public string? LandlordAddress { get; set; }
+    public LocalDate? RentsTrackedFrom { get; set; }
 
     /// <summary>The tenancy a rent revision continues (rental spec §3.2).</summary>
     public Guid? RevisedFrom { get; set; }

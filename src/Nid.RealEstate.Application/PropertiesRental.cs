@@ -151,7 +151,7 @@ internal static class PropertiesRentalMath
             .ToList();
 
         return new PropertiesRental(reference.Code, first, today, let.Count,
-            View(Household(l => l.Figures.Rental.ExpectedRent)), View(rentTotal), View(Household(l => l.Figures.Rental.Arrears)),
+            View(Household(l => l.Figures.Rental.ExpectedRent)), View(rentTotal), View(Household(l => Math.Max(0m, l.Figures.Rental.Arrears))),
             let.Count == 0 ? null : vacant, days > 0 ? Fraction((decimal)vacant / days) : null,
             yieldRent is { } yr && yieldCost is { } yc && yc > 0m ? Fraction(yr / yc) : null,
             yieldRent is { } nr && yieldCharges is { } nc && yieldCost is { } ncost && ncost > 0m ? Fraction((nr - nc) / ncost) : null,

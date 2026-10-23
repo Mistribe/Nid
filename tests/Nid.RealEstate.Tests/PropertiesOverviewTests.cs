@@ -212,11 +212,13 @@ public class PropertiesOverviewTests
     }
 
     [Fact]
-    public void Arrears_over_the_twelve_months_are_watched_with_their_amount()
+    public void Arrears_over_the_rent_ledger_are_watched_with_their_amount()
     {
-        var flat = Flat() with { Flows = Enumerable.Range(0, 11).Select(m => Rent(FlatItem, new LocalDate(2025, 11, 5).PlusMonths(m), 780m)).ToList() };
+        var flat = Flat() with { Flows = Enumerable.Range(0, 10).Select(m => Rent(FlatItem, new LocalDate(2025, 11, 5).PlusMonths(m), 780m)).ToList() };
         var overview = Build(set: [flat]);
 
+        // The ledger counts from the first rent, in November 2025: September 2026, over for more than 10 days, is unpaid; October,
+        // unpaid too, is not watched yet.
         var arrears = overview.Watch.Single(w => w.Code == PropertyOverviewCodes.RentArrears);
         Assert.Equal(("780.00", "EUR"), (arrears.Amount!.Amount, arrears.Amount.Currency));
     }

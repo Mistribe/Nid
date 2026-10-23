@@ -232,4 +232,29 @@ describe('flows', () => {
     expect(within(section).queryByRole('button')).not.toBeInTheDocument();
     expect(within(section).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
   });
+
+  it('links a rent row to its month\'s receipt, readers included, and no other row', async () => {
+    const rent = { id: 'f9', occurredOn: '2026-09-05', kind: 'income', amount: '950.00', category: 'rent', note: null } as const;
+    // A month the server gives no receipt for (before the rents tracked, or of two leases): no link.
+    const older = { ...rent, id: 'f8', occurredOn: '2025-08-05' };
+    const base = propertyDetail({ canWrite: false, receiptMonths: ['2026-10', '2026-09'] });
+    serve({ ...base, flows: [...base.flows, older, rent] });
+    await renderApp(PAGE);
+
+    const table = await screen.findByRole('table', { name: 'Dépenses et revenus du bien' });
+    const links = within(table).getAllByRole('link', { name: 'Quittance' });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('href', `/properties/${PROPERTY}/receipt?month=2026-09`);
+  });
+
+  it('links no rent to a receipt when the server gives no receipt month', async () => {
+    const rent = { id: 'f9', occurredOn: '2026-09-05', kind: 'income', amount: '950.00', category: 'rent', note: null } as const;
+    const base = propertyDetail({ receiptMonths: [] });
+    serve({ ...base, flows: [...base.flows, rent] });
+    await renderApp(PAGE);
+
+    const table = await screen.findByRole('table', { name: 'Dépenses et revenus du bien' });
+    await within(table).findByText('950,00 €');
+    expect(within(table).queryByRole('link', { name: 'Quittance' })).not.toBeInTheDocument();
+  });
 });

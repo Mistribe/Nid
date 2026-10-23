@@ -14,7 +14,7 @@ public enum PropertyCadence { Yearly, Manual }
 public sealed record PropertyDetails(
     PropertyType Type, LocalDate PurchaseDate, decimal PurchasePrice, decimal NotaryFees, decimal AgencyFees,
     decimal OtherAcquisitionCosts, decimal? SurfaceM2, string? LocationLabel, PropertyCadence Cadence, int? StaleAfterDays,
-    LocalDate? RentalStartsOn, string? Note, string? EnergyClass = null);
+    LocalDate? RentalStartsOn, string? Note, string? EnergyClass = null, string? PostalAddress = null);
 
 /// <summary>README §4: a property's flow categories by kind, in the order the real cost lists them.</summary>
 public static class PropertyCategories
@@ -49,6 +49,11 @@ public static class PropertyCodes
     public const string RevisionEffectiveOn = "realestate.revision_effective_on";
     public const string RevisionForbiddenDpe = "realestate.revision_forbidden_dpe";
     public const string RevisionUndoRefused = "realestate.revision_undo_refused";
+
+    /// <summary>Rental receipts spec §4: a month outside the ledger's window or after the current one; a month no tenancy covers.</summary>
+    public const string ReceiptMonth = "realestate.receipt_month";
+    public const string ReceiptNoTenancy = "realestate.receipt_no_tenancy";
+    public const string ReceiptTwoLeases = "realestate.receipt_two_leases";
 
     /// <summary>Spec 3E2 §3: a routine with nothing to record, a line twice, an estimate already at the routine's date.</summary>
     public const string RoutineEmpty = "realestate.routine_empty";
@@ -86,10 +91,13 @@ public sealed record PropertyWarning(string Code, ItemId? LoanId = null);
 /// <summary>Spec 3C2 §2: a planned cost; it generates no flow (§1.1). <c>Every</c> is months or years; the range is [StartsOn, EndsOn).</summary>
 public sealed record RecurringCost(string Category, decimal Amount, Duration Every, LocalDate StartsOn, LocalDate? EndsOn, string? Note);
 
-/// <summary>Spec 3C2 §2: a lease on the property, [StartsOn, EndsOn); a flat share is one tenancy at the total rent, its label never personal data.</summary>
+/// <summary>Spec 3C2 §2: a lease on the property, [StartsOn, EndsOn); a flat share is one tenancy at the total rent, its label never personal data.
+/// The names and the landlord's address are optional and serve receipts and letters (rental receipts spec §2). <c>RentsTrackedFrom</c>, the first
+/// day of a month, is the first rent recorded in Nid; null lets the rent ledger find it (<c>RentLedger.Tracked</c>).</summary>
 public sealed record Tenancy(
     string Label, LocalDate StartsOn, LocalDate? EndsOn, decimal RentMonthly, decimal ChargesMonthly, decimal? Deposit, string? Note,
-    bool Indexed = false, int? IrlReferenceQuarter = null);
+    bool Indexed = false, int? IrlReferenceQuarter = null, string? TenantNames = null, string? LandlordName = null,
+    string? LandlordAddress = null, LocalDate? RentsTrackedFrom = null);
 
 /// <summary>
 /// Spec 3C2 §4 over W = (d − 12 months, d]. <c>RentedSince</c> is R. Rates are fractions in full precision; vacancy is null when R

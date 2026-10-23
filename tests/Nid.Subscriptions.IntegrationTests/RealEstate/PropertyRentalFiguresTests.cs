@@ -5,7 +5,7 @@ using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 
 namespace Nid.Subscriptions.IntegrationTests.RealEstate;
 
-/// <summary>Spec 3C2 §4: a property's rental figures in its detail and the list, over the 12 rolling months before the host's today (2025-10-15).</summary>
+/// <summary>Spec 3C2 §4: a property's rental figures in its detail and the list, over the 12 rolling months before the host's today (2025-10-15), the arrears over the rent ledger.</summary>
 public class PropertyRentalFiguresTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static async Task PostAsync(NidApp app, Guid property, string route, object body)
@@ -35,6 +35,7 @@ public class PropertyRentalFiguresTests(PostgresFixture fixture) : IClassFixture
 
         var detail = await PropertyAsync(app, id);
         var figures = detail.GetProperty("figures");
+        // Arrears follow the rent ledger from the first rent (November 2024) to October, paid on the 5th.
         Assert.Equal(("2020-09-01", "10800.00", "10800.00", "0.00"),
             (S(figures, "rentedSince"), S(figures, "expectedRent"), S(figures, "rentReceived"), S(figures, "arrears")));
         Assert.Equal((0, "0.0000"), (figures.GetProperty("vacantDays").GetInt32(), S(figures, "vacancyRate")));
@@ -62,12 +63,13 @@ public class PropertyRentalFiguresTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal(JsonValueKind.Null, row.GetProperty("grossYield").ValueKind);
         Assert.Equal(JsonValueKind.Null, row.GetProperty("vacancyRate").ValueKind);
 
-        // Let since January, nothing received: the warning goes, nine months and 15 days of October are owed, the yields still wait.
+        // Let since January, nothing received: the warning goes, nine months and 15 days of October are expected, the yields still
+        // wait; the ledger owes October whole.
         await PostAsync(app, id, "tenancies", new { label = "T3", startsOn = "2025-01-01", rentMonthly = "900" });
         detail = await PropertyAsync(app, id);
         Assert.Equal(["no_valuation"], detail.GetProperty("warnings").EnumerateArray().Select(w => S(w, "code")));
         figures = detail.GetProperty("figures");
-        Assert.Equal(("2025-01-01", "8535.48", "8535.48", "0.0000"),
+        Assert.Equal(("2025-01-01", "8535.48", "9000.00", "0.0000"),
             (S(figures, "rentedSince"), S(figures, "expectedRent"), S(figures, "arrears"), S(figures, "vacancyRate")));
         Assert.Equal(JsonValueKind.Null, figures.GetProperty("grossYield").ValueKind);
     }

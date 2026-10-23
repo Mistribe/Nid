@@ -90,6 +90,9 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>An identity field emptied (or only whitespace) is not stored.</summary>
+    private static string? Blank(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
+
     private static void Fill(PropertyRow row, PropertyDetails d)
     {
         row.PropertyType = LoanWire.Of(d.Type);
@@ -105,6 +108,7 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         row.RentalStartsOn = d.RentalStartsOn;
         row.Note = d.Note;
         row.EnergyClass = d.EnergyClass;
+        row.PostalAddress = Blank(d.PostalAddress);
     }
 
     private static void Fill(PropertyRecurringCostRow row, RecurringCost c)
@@ -129,11 +133,15 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         row.Note = t.Note;
         row.Indexed = t.Indexed;
         row.IrlReferenceQuarter = t.IrlReferenceQuarter;
+        row.TenantNames = Blank(t.TenantNames);
+        row.LandlordName = Blank(t.LandlordName);
+        row.LandlordAddress = Blank(t.LandlordAddress);
+        row.RentsTrackedFrom = t.RentsTrackedFrom;
     }
 
     private static PropertyDetails ToDetails(PropertyRow r) => new(
         Parse<PropertyType>(r.PropertyType), r.PurchaseDate, r.PurchasePrice, r.NotaryFees, r.AgencyFees, r.OtherAcquisitionCosts,
-        r.SurfaceM2, r.LocationLabel, Parse<PropertyCadence>(r.ValuationCadence), r.StaleAfterDays, r.RentalStartsOn, r.Note, r.EnergyClass);
+        r.SurfaceM2, r.LocationLabel, Parse<PropertyCadence>(r.ValuationCadence), r.StaleAfterDays, r.RentalStartsOn, r.Note, r.EnergyClass, r.PostalAddress);
 
     /// <summary>The check constraints admit counts of 1 to 120 only: the Core's period always builds.</summary>
     private static StoredRecurringCost ToCost(PropertyRecurringCostRow r)
@@ -144,7 +152,9 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
             r.StartsOn, r.EndsOn, r.Note), r.Version);
 
     private static StoredTenancy ToTenancy(PropertyTenancyRow r)
-        => new(r.Id, new Tenancy(r.Label, r.StartsOn, r.EndsOn, r.RentMonthly, r.ChargesMonthly, r.Deposit, r.Note, r.Indexed, r.IrlReferenceQuarter), r.Version, r.RevisedFrom);
+        => new(r.Id, new Tenancy(r.Label, r.StartsOn, r.EndsOn, r.RentMonthly, r.ChargesMonthly, r.Deposit, r.Note, r.Indexed, r.IrlReferenceQuarter, r.TenantNames, r.LandlordName, r.LandlordAddress,
+                r.RentsTrackedFrom),
+            r.Version, r.RevisedFrom);
 
     /// <summary>The check constraints admit only these texts: anything else is a broken invariant.</summary>
     private static T Parse<T>(string text) where T : struct, Enum

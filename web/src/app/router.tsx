@@ -75,6 +75,7 @@ export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
 
 /** Issue #17: a new loan opened from a new property, already linked to it. */
 export type NewLoanSearch = { property?: string };
+export type ReceiptSearch = { month?: string };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
@@ -315,6 +316,17 @@ const loanContractRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/loans/contract/ContractPage'), 'ContractPage'),
 });
 
+// Loaded on demand: the printable receipt is read once, then printed.
+const propertyReceiptRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/properties/$id/receipt',
+  // A malformed month would be a 422: it is dropped, and the server picks the default month.
+  validateSearch: (search: Record<string, unknown>): ReceiptSearch =>
+    ({ month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined }),
+  beforeLoad: requireModule('realestate'),
+  component: lazyRouteComponent(() => import('@/features/properties/receipt/ReceiptPage'), 'ReceiptPage'),
+});
+
 // Loaded on demand like the import: the forms and their libraries stay out of the initial bundle (1E2a design §5).
 const subscriptionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -409,7 +421,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

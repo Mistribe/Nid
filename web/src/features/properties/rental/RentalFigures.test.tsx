@@ -27,8 +27,8 @@ describe('rental figures', () => {
     expect(figure('Début de location')).toHaveTextContent('1 janvier 2021');
     expect(figure('Loyers attendus sur 12 mois')).toHaveTextContent('10 800,00 €');
     expect(figure('Loyers perçus sur 12 mois')).toHaveTextContent('10 800,00 €');
-    expect(figure('Impayés sur 12 mois')).toHaveTextContent('0,00 €');
-    expect(figure('Impayés sur 12 mois')).not.toHaveTextContent('plus perçu');
+    expect(figure('Impayés')).toHaveTextContent('0,00 €');
+    expect(figure('Impayés')).not.toHaveTextContent('plus perçu');
     expect(figure('Vacance sur 12 mois')).toHaveTextContent('0 jour (0 %)');
     expect(figure('Rendement brut')).toHaveTextContent('3,84 %');
     expect(figure('Rendement net avant impôt')).toHaveTextContent('3,31 %');
@@ -44,7 +44,7 @@ describe('rental figures', () => {
     await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
-    expect(figure('Impayés sur 12 mois')).toHaveTextContent('-900,00 € (plus perçu que prévu)');
+    expect(figure('Impayés')).toHaveTextContent('-900,00 € (plus perçu que prévu)');
     expect(figure('Vacance sur 12 mois')).toHaveTextContent('30 jours (8,22 %)');
     expect(figure('Rendement brut')).toHaveTextContent('Non significatif (moins de 12 mois de location)');
     expect(figure('Rendement net avant impôt')).toHaveTextContent('Non significatif (moins de 12 mois de location)');
@@ -63,7 +63,7 @@ describe('rental figures', () => {
     await renderApp(`/properties/${PROPERTY}?tab=rental`);
 
     await heading();
-    expect(figure('Impayés sur 12 mois')).toHaveTextContent('+900,00 €');
+    expect(figure('Impayés')).toHaveTextContent('+900,00 €');
   });
 
   it('reads a rental start after today as an unknown vacancy and yields not significant, never 0 %', async () => {

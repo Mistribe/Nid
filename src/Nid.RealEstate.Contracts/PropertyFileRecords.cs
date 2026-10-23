@@ -30,6 +30,9 @@ public sealed record PropertyRecord
 
     /// <summary>The DPE class, A to G.</summary>
     public string? EnergyClass { get; init; }
+
+    /// <summary>Optional, for receipts and letters.</summary>
+    public string? PostalAddress { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; init; } = "shared";
 }
@@ -66,4 +69,10 @@ public sealed record TenancyRecord
     public string? Note { get; init; }
     public bool Indexed { get; init; }
     public int? IrlReferenceQuarter { get; init; }
+    public string? TenantNames { get; init; }
+    public string? LandlordName { get; init; }
+    public string? LandlordAddress { get; init; }
+
+    /// <summary>ISO date, the first day of the month of the first rent recorded in Nid.</summary>
+    public string? RentsTrackedFrom { get; init; }
 }

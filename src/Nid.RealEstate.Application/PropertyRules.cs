@@ -40,15 +40,20 @@ internal static class PropertyRules
              ?? (d.SurfaceM2 is { } surface ? Positive(surface, "surfaceM2") : null)) is { } amount)
             return amount;
         if (d.LocationLabel is { Length: > LocationLabelMax })
-            return Invalid("locationLabel", $"A location has at most {LocationLabelMax} characters: never a full address.");
+            return Invalid("locationLabel", $"A location has at most {LocationLabelMax} characters: the full address is the postal address's.");
         if (d.StaleAfterDays is < 1 or > StaleAfterDaysMax)
             return Invalid("staleAfterDays", $"A staleness threshold is 1 to {StaleAfterDaysMax} days.");
         if (d.RentalStartsOn < d.PurchaseDate)
             return Invalid(rentalField, "A rental starts on or after the purchase.");
         if (d.EnergyClass is not null && !EnergyClasses.Contains(d.EnergyClass))
             return Invalid("energyClass", "An energy class (DPE) is a letter from A to G.");
+        if (d.PostalAddress is { Length: > AddressMax })
+            return Invalid("postalAddress", $"A postal address has at most {AddressMax} characters.");
         return d.Note is { Length: > LoanRules.NoteMax } ? Invalid("note", $"A note has at most {LoanRules.NoteMax} characters.") : null;
     }
+
+    /// <summary>Rental receipts spec §2: a name, 200 characters; an address, 400.</summary>
+    public const int IdentityMax = 200, AddressMax = 400;
 
     /// <summary>Rental spec §3.2: the DPE classes.</summary>
     public static readonly IReadOnlyList<string> EnergyClasses = ["A", "B", "C", "D", "E", "F", "G"];
@@ -98,10 +103,10 @@ internal static class PropertyRules
     public const int TenancyLabelMax = 100;
 
     /// <summary>Spec 3C2 §2: a tenancy alone, against its property's purchase; the overlap with the others is <see cref="Overlap"/>'s.</summary>
-    public static Failure? TenancyFields(Tenancy t, LocalDate purchaseDate)
+    public static Failure? TenancyFields(Tenancy t, LocalDate purchaseDate, LocalDate? chainStart = null)
     {
         if (t.Label.Trim().Length is < 1 or > TenancyLabelMax)
-            return Invalid("label", $"A label is 1 to {TenancyLabelMax} characters, and not only whitespace: never personal data.");
+            return Invalid("label", $"A label is 1 to {TenancyLabelMax} characters, and not only whitespace: no personal data (the names are the tenant fields').");
         if ((InYears(t.StartsOn, "startsOn") ?? InYears(t.EndsOn, "endsOn")) is { } year)
             return year;
         if (t.StartsOn < purchaseDate)
@@ -111,6 +116,10 @@ internal static class PropertyRules
                ?? NotNegative(t.ChargesMonthly, "chargesMonthly")
                ?? (t.Deposit is { } deposit ? Positive(deposit, "deposit") : null)
                ?? Quarter(t)
+               ?? Tracked(t, chainStart ?? t.StartsOn)
+               ?? Identity(t.TenantNames, "tenantNames", IdentityMax)
+               ?? Identity(t.LandlordName, "landlordName", IdentityMax)
+               ?? Identity(t.LandlordAddress, "landlordAddress", AddressMax)
                ?? Note(t.Note);
     }
 
@@ -122,6 +131,12 @@ internal static class PropertyRules
         => others.Any(o => o.StartsOn < (t.EndsOn ?? LocalDate.MaxIsoValue) && t.StartsOn < (o.EndsOn ?? LocalDate.MaxIsoValue))
             ? new Failure(PropertyCodes.TenancyOverlap, "Another tenancy of this property covers part of this period.",
                 new Dictionary<string, object?> { ["field"] = "startsOn" })
+            : null;
+
+    /// <summary>Rental receipts: the first rent tracked is the first day of a month, not before the lease's (its chain's first link's).</summary>
+    private static Failure? Tracked(Tenancy t, LocalDate start)
+        => t.RentsTrackedFrom is { } m && (m.Day != 1 || m < new LocalDate(start.Year, start.Month, 1) || LoanRules.InYears(m, "rentsTrackedFrom") is not null)
+            ? Invalid("rentsTrackedFrom", "The rents are tracked from the first day of a month, not before the lease's month.")
             : null;
 
     /// <summary>Rental spec §3.2: a quarter is 1 to 4; an indexed tenancy has one. A quarter without <c>indexed</c> is kept.</summary>
@@ -137,6 +152,9 @@ internal static class PropertyRules
     /// <summary>The loans' years (1900–2200), under this module's property code.</summary>
     private static Failure? InYears(LocalDate? date, string field)
         => LoanRules.InYears(date, field) is { } refused ? Invalid(field, refused.Message) : null;
+
+    private static Failure? Identity(string? text, string field, int max)
+        => text is { } && text.Length > max ? Invalid(field, $"At most {max} characters.") : null;
 
     private static Failure? Note(string? note)
         => note is { Length: > LoanRules.NoteMax } ? Invalid("note", $"A note has at most {LoanRules.NoteMax} characters.") : null;

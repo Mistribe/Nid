@@ -36,7 +36,8 @@ describe('Biens › location', () => {
     expect(await screen.findByRole('tab', { name: 'Location' })).toHaveAttribute('aria-selected', 'true');
     const figures = (await screen.findByText('Loyers reçus', { selector: 'dt' })).closest('dl')!;
     expect(figures).toHaveTextContent('12 060,00 €sur 12 510,00 € attendus');
-    expect(figures).toHaveTextContent('Impayés450,00 €');
+    // A balance today, not a figure of the 12 months above it.
+    expect(figures).toHaveTextContent('Impayés à ce jour450,00 €');
     expect(figures).toHaveTextContent('Vacance2,59 %14 jours sans bail');
     expect(figures).toHaveTextContent('Rendement brut4,98 %net avant impôt 4,38 %1 bien loué depuis moins de 12 mois n’y compte pas');
     expect(figures).toHaveTextContent('Cash-flow-604,00 €après charges et mensualités · ≈ -50,33 € par mois');
@@ -54,11 +55,23 @@ describe('Biens › location', () => {
     const [flat, studio] = within(table).getAllByRole('row').slice(1);
     expect(flat).toHaveTextContent('Bail Martin, depuis le 1 mars 2024');
     expect(flat).toHaveTextContent('-3 304,00 €');
+    expect(flat).toHaveTextContent('À jour');
     expect(within(flat!).getByRole('link', { name: /T2 Villeurbanne/ })).toHaveAttribute('href', `/properties/${RENTAL}?tab=rental`);
     expect(studio).toHaveTextContent('Bail Dupont, jusqu’au 30 nov. 2026');
     expect(studio).toHaveTextContent('+450,00 €');
     // A lease ending within 60 days is named.
     expect(await region('Baux')).toHaveTextContent('Studio : le bail se termine le 30 nov. 2026.');
+  });
+
+  it('reads a property paid ahead as up to date, more received than expected', async () => {
+    const d = householdRental();
+    serve({ ...d, properties: d.properties.map((p) => (p.name === 'Studio' ? { ...p, arrears: '-120.00' } : p)) });
+    await renderApp('/properties?tab=rental');
+
+    const table = await screen.findByRole('table', { name: 'Location par bien' });
+    const studio = within(table).getAllByRole('row').slice(1)[1]!;
+    expect(studio).toHaveTextContent('À jourplus perçu que prévu');
+    expect(studio).not.toHaveTextContent('120,00');
   });
 
   it('shows one property alone from its own answer, kept in the URL, and the months as a table', async () => {

@@ -788,6 +788,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("other_acquisition_costs");
 
+                    b.Property<string>("PostalAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("postal_address");
+
                     b.Property<string>("PropertyType")
                         .IsRequired()
                         .HasColumnType("text")
@@ -899,6 +903,14 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("label");
 
+                    b.Property<string>("LandlordAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("landlord_address");
+
+                    b.Property<string>("LandlordName")
+                        .HasColumnType("text")
+                        .HasColumnName("landlord_name");
+
                     b.Property<string>("Note")
                         .HasColumnType("text")
                         .HasColumnName("note");
@@ -911,6 +923,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("rent_monthly");
 
+                    b.Property<LocalDate?>("RentsTrackedFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("rents_tracked_from");
+
                     b.Property<Guid?>("RevisedFrom")
                         .HasColumnType("uuid")
                         .HasColumnName("revised_from");
@@ -918,6 +934,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate>("StartsOn")
                         .HasColumnType("date")
                         .HasColumnName("starts_on");
+
+                    b.Property<string>("TenantNames")
+                        .HasColumnType("text")
+                        .HasColumnName("tenant_names");
 
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()

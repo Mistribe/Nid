@@ -42,7 +42,14 @@ public sealed class RealEstateTools
     [McpServerTool(Name = "get_property", ReadOnly = true)]
     [Description("One property: its details, valuations, flows, recurring costs and tenancies. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetProperty(IServiceProvider services, [Description("The property's id.")] Guid id, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetPropertyQuery(new ItemId(id)), ct);
+        => McpCalls.RunAsync(services, () => new GetPropertyQuery(new ItemId(id)), WithoutIdentity, ct);
+
+    /// <summary>Rental receipts spec §2: the postal address and the parties' names and address serve receipts and letters, never MCP.</summary>
+    private static PropertyDetail WithoutIdentity(PropertyDetail detail) => detail with
+    {
+        PostalAddress = null,
+        Tenancies = detail.Tenancies.Select(t => t with { TenantNames = null, LandlordName = null, LandlordAddress = null }).ToList(),
+    };
 
     [McpServerTool(Name = "get_rent_revisions", ReadOnly = true)]
     [Description("The yearly rent revisions due (IRL): each tenancy's anniversary, the two IRL values, the current and the new rent. " + McpSetup.Untrusted)]

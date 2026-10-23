@@ -20,7 +20,7 @@ export const propertyDetail = (over: Partial<PropertyDetail> = {}): PropertyDeta
   owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }],
   purchaseDate: '2020-06-15', purchasePrice: '250000.00', notaryFees: '19000.00', agencyFees: '0.00', otherAcquisitionCosts: '0.00',
   surfaceM2: '85.50', locationLabel: 'Nantes', valuationCadence: 'yearly', staleAfterDays: null, rentalStartsOn: null, note: null,
-  version: 7,
+  receiptMonths: [], version: 7,
   figures: {
     value: '290000.00', valueOn: '2026-06-01', stale: false, costPrice: '281000.00', latentGain: '9000.00', linkedBalance: '193564.23',
     netValue: '96435.77', realCost: '288823.35',

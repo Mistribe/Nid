@@ -249,7 +249,9 @@ function Rows({ d }: { d: PropertiesRental }) {
           { id: 'rent', header: t('properties_rental.col_rent'), align: 'end', sort: (r) => amountKey(r.rentMonthly ?? null), cell: (r) => amount(r, r.rentMonthly) },
           { id: 'received', header: t('properties_rental.col_received'), align: 'end', sort: (r) => amountKey(r.rentReceived), cell: (r) => amount(r, r.rentReceived) },
           { id: 'arrears', header: t('properties_rental.col_arrears'), align: 'end', sort: (r) => amountKey(r.arrears),
-            cell: (r) => (isZero(r.arrears) ? dash : <span className="tabular-nums">{signedMoney(r.currency, r.arrears)}</span>) },
+            cell: (r) => (isZero(r.arrears) || r.arrears.startsWith('-')
+              ? <>{t('properties_rental.up_to_date')}{r.arrears.startsWith('-') ? <Sub>{t('properties_rental.arrears_over')}</Sub> : null}</>
+              : <span className="tabular-nums">{signedMoney(r.currency, r.arrears)}</span>) },
           { id: 'vacancy', header: t('properties_rental.col_vacancy'), align: 'end', sort: (r) => amountKey(r.vacancyRate ?? null), cell: (r) => rate(r.vacancyRate) },
           { id: 'gross', header: t('properties_rental.col_gross'), align: 'end', sort: (r) => amountKey(r.grossYield ?? null), cell: (r) => rate(r.grossYield) },
           { id: 'net', header: t('properties_rental.col_net'), align: 'end', sort: (r) => amountKey(r.netYieldBeforeTax ?? null), cell: (r) => rate(r.netYieldBeforeTax) },

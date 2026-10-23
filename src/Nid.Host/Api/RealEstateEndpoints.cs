@@ -2,6 +2,8 @@ using Nid.Core.Contracts;
 using Nid.RealEstate.Application;
 using Nid.RealEstate.Application.Irl;
 using Nid.RealEstate.Contracts;
+using NodaTime;
+using NodaTime.Text;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 
@@ -219,6 +221,25 @@ public static class RealEstateEndpoints
             => (await invoker.InvokeAsync(new GetPropertyQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<PropertyDetail>();
 
+        // Rental receipts spec §4: the receipt of a month (yyyy-mm), by default the latest cash in's.
+        api.MapGet("/properties/{id:guid}/receipts", async (Guid id, string? month, IInvoker invoker, CancellationToken ct) =>
+            {
+                LocalDate? asked = null;
+                if (month is not null)
+                {
+                    var parsed = LocalDatePattern.CreateWithInvariantCulture("yyyy-MM").Parse(month);
+                    if (!parsed.Success)
+                    {
+                        var reader = new FieldReader();
+                        reader.Add("month", PropertyCodes.ReceiptMonth, "The month is yyyy-mm.");
+                        return reader.Problem();
+                    }
+                    asked = parsed.Value;
+                }
+                return (await invoker.InvokeAsync(new GetRentReceiptQuery(new ItemId(id), asked), ct)).ToHttp(view => view);
+            })
+            .Returns<RentReceiptView>();
+
         api.MapPost("/properties", async (CreatePropertyBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
@@ -328,7 +349,8 @@ public static class RealEstateEndpoints
                 var version = RequireVersion(reader, body.Version);
                 return tenancy is null || version is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new EditPropertyTenancyCommand(new ItemId(id), tenancyId, tenancy, version.Value, body.Indexed, body.IrlReferenceQuarter), ct))
+                    : (await invoker.InvokeAsync(new EditPropertyTenancyCommand(new ItemId(id), tenancyId, tenancy, version.Value, body.Indexed, body.IrlReferenceQuarter,
+                        body.ClearsRentsTrackedFrom), ct))
                         .ToHttp(x => new IdResponse(x));
             })
             .Returns<IdResponse>();
@@ -562,7 +584,7 @@ public static class RealEstateEndpoints
     public sealed record CreatePropertyBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Type, string? PurchaseDate,
         string? PurchasePrice, string? NotaryFees, string? AgencyFees, string? OtherAcquisitionCosts, string? SurfaceM2,
-        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note, string? EnergyClass = null)
+        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note, string? EnergyClass = null, string? PostalAddress = null)
     {
         internal CreatePropertyCommand? ToCommand(FieldReader reader)
         {
@@ -582,7 +604,7 @@ public static class RealEstateEndpoints
             return reader.Ok
                 ? new CreatePropertyCommand(Name ?? "", currency, visibility!.Value, owners!, new PropertyDetails(
                     type!.Value, purchaseDate!.Value, price!.Value, notary ?? 0m, agency ?? 0m, other ?? 0m, surface, LocationLabel,
-                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note, EnergyClass))
+                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note, EnergyClass, PostalAddress?.Trim()))
                 : null;
         }
     }
@@ -595,7 +617,8 @@ public static class RealEstateEndpoints
         uint? Version, string? Name, string? Type, string? PurchaseDate, string? PurchasePrice, string? NotaryFees, string? AgencyFees,
         string? OtherAcquisitionCosts, string? SurfaceM2, bool ClearSurfaceM2, string? LocationLabel, bool ClearLocationLabel,
         string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays, string? RentalStartsOn, bool ClearRentalStartsOn,
-        string? Note, bool ClearNote, string? EnergyClass = null, bool ClearEnergyClass = false)
+        string? Note, bool ClearNote, string? EnergyClass = null, bool ClearEnergyClass = false, string? PostalAddress = null,
+        bool ClearPostalAddress = false)
     {
         internal EditPropertyCommand? ToCommand(ItemId id, FieldReader reader)
         {
@@ -612,7 +635,7 @@ public static class RealEstateEndpoints
                 PropertyBodies.Wire<PropertyCadence>(reader, ValuationCadence, "valuationCadence", required: false),
                 StaleAfterDays, ClearStaleAfterDays,
                 reader.Date(RentalStartsOn, "rentalStartsOn", required: false), ClearRentalStartsOn,
-                Note, ClearNote, EnergyClass, ClearEnergyClass);
+                Note, ClearNote, EnergyClass, ClearEnergyClass, PostalAddress?.Trim(), ClearPostalAddress);
             return reader.Ok ? new EditPropertyCommand(id, Name, change, version!.Value) : null;
         }
     }
@@ -655,16 +678,30 @@ public static class RealEstateEndpoints
     /// <c>version</c>, the <c>POST</c> ignores it.
     /// </summary>
     public sealed record PropertyTenancyBody(
-        string? Label, string? StartsOn, string? EndsOn, string? RentMonthly, string? ChargesMonthly, string? Deposit, string? Note, uint? Version, bool? Indexed = null, int? IrlReferenceQuarter = null)
+        string? Label, string? StartsOn, string? EndsOn, string? RentMonthly, string? ChargesMonthly, string? Deposit, string? Note, uint? Version, bool? Indexed = null, int? IrlReferenceQuarter = null,
+        string? TenantNames = null, string? LandlordName = null, string? LandlordAddress = null, string? RentsTrackedFrom = null)
     {
+        /// <summary>Rental receipts: <c>rentsTrackedFrom</c> is <c>yyyy-mm</c>; <c>""</c> clears it on a <c>PUT</c>, absent keeps it.</summary>
+        internal bool ClearsRentsTrackedFrom => RentsTrackedFrom is { Length: 0 };
+
         internal Tenancy? Read(FieldReader reader)
         {
+            LocalDate? tracked = null;
+            if (RentsTrackedFrom is { Length: > 0 })
+            {
+                var parsed = LocalDatePattern.CreateWithInvariantCulture("yyyy-MM").Parse(RentsTrackedFrom);
+                if (parsed.Success)
+                    tracked = parsed.Value;
+                else
+                    reader.Add("rentsTrackedFrom", PropertyCodes.InvalidPropertyField, "The month is yyyy-mm.");
+            }
             var startsOn = reader.Date(StartsOn, "startsOn");
             var endsOn = reader.Date(EndsOn, "endsOn", required: false);
             var rent = LoanBodies.Number(reader, RentMonthly, "rentMonthly");
             var charges = LoanBodies.Number(reader, ChargesMonthly, "chargesMonthly", required: false);
             var deposit = LoanBodies.Number(reader, Deposit, "deposit", required: false);
-            return reader.Ok ? new Tenancy(Label ?? "", startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, Note, Indexed ?? false, IrlReferenceQuarter) : null;
+            return reader.Ok ? new Tenancy(Label ?? "", startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, Note, Indexed ?? false, IrlReferenceQuarter,
+                TenantNames?.Trim(), LandlordName?.Trim(), LandlordAddress?.Trim(), tracked) : null;
         }
     }
 

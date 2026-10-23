@@ -125,9 +125,21 @@ public class PropertiesRentalTests
         var rental = Build();
 
         Assert.Equal(rental.Properties.Sum(p => D(p.ExpectedRent)), D(rental.ExpectedRent));
-        Assert.Equal(rental.Properties.Sum(p => D(p.Arrears)), D(rental.Arrears));
+        Assert.Equal(rental.Properties.Sum(p => Math.Max(0m, D(p.Arrears))), D(rental.Arrears));
         Assert.Equal(["T2 Villeurbanne", "Studio"], rental.Properties.Select(p => p.Name));
         Assert.Equal(2, rental.Tenancies.Count);
+    }
+
+    [Fact]
+    public void One_property_s_credit_never_hides_another_s_arrears()
+    {
+        // The flat's October rent is missing (780 owed); the studio paid its October rent on the 20th, ahead of its lease's
+        // prorated first month: a credit of 203.23. The household owes 780, not 576.77.
+        var flat = Flat() with { Flows = Flat().Flows.Where(f => f.OccurredOn != new LocalDate(2026, 10, 5)).ToList() };
+        var rental = PropertiesRentalMath.Build([flat, Studio(), Home()], Currency.Eur, RateTable.Empty(Today, 0), Today, null)!;
+
+        Assert.Equal(("780.00", "-203.23"), (rental.Properties.Single(p => p.Name == "T2 Villeurbanne").Arrears, rental.Properties.Single(p => p.Name == "Studio").Arrears));
+        Assert.Equal(780m, D(rental.Arrears));
     }
 
     [Fact]

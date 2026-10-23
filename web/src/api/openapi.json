@@ -10481,6 +10481,103 @@
         }
       }
     },
+    "/api/v1/realestate/properties/{id}/receipts": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentReceiptView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/realestate/properties/{id}/valuations": {
       "post": {
         "tags": [
@@ -17958,6 +18055,12 @@
               "null",
               "string"
             ]
+          },
+          "postalAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -18744,6 +18847,7 @@
           "clearSurfaceM2",
           "clearLocationLabel",
           "clearStaleAfterDays",
+          "clearPostalAddress",
           "clearRentalStartsOn",
           "clearEnergyClass",
           "clearNote"
@@ -18858,6 +18962,16 @@
             ]
           },
           "clearEnergyClass": {
+            "type": "boolean",
+            "default": false
+          },
+          "postalAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPostalAddress": {
             "type": "boolean",
             "default": false
           }
@@ -26605,6 +26719,7 @@
           "agencyFees",
           "otherAcquisitionCosts",
           "valuationCadence",
+          "receiptMonths",
           "version",
           "figures",
           "warnings",
@@ -26695,6 +26810,18 @@
               "null",
               "string"
             ]
+          },
+          "postalAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receiptMonths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "version": {
             "type": "integer",
@@ -27873,6 +28000,30 @@
               "integer"
             ],
             "format": "int32"
+          },
+          "tenantNames": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentsTrackedFrom": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -27957,6 +28108,30 @@
               {
                 "$ref": "#/components/schemas/TenancyRevisionView"
               }
+            ]
+          },
+          "tenantNames": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentsTrackedFrom": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
@@ -28835,6 +29010,95 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "RentReceiptView": {
+        "required": [
+          "property",
+          "propertyName",
+          "currency",
+          "month",
+          "kind",
+          "rent",
+          "charges",
+          "total",
+          "paid",
+          "missing",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyName": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "month": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "rent": {
+            "type": "string"
+          },
+          "charges": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string"
+          },
+          "paid": {
+            "type": "string"
+          },
+          "paidOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "postalAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tenantNames": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landlordAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

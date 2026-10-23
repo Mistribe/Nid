@@ -35,6 +35,7 @@ function serve(initial: PropertyDetail = propertyDetail()) {
         locationLabel: body.clearLocationLabel ? null : (body.locationLabel ?? current.locationLabel),
         rentalStartsOn: body.clearRentalStartsOn ? null : (body.rentalStartsOn ?? current.rentalStartsOn),
         note: body.clearNote ? null : (body.note ?? current.note),
+        postalAddress: body.clearPostalAddress ? null : (body.postalAddress ?? current.postalAddress),
         version: fields ? current.version + 1 : current.version,
       };
       return HttpResponse.json({ id: current.id });
@@ -47,7 +48,7 @@ const settings = () => screen.getByRole('form', { name: 'Réglages' });
 const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
 const save = () => within(settings()).getByRole('button', { name: 'Enregistrer les réglages' });
 const heading = (name = 'Maison de Nantes') => screen.findByRole('heading', { name, level: 1 });
-const FLAGS = { clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false };
+const FLAGS = { clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false, clearPostalAddress: false };
 
 describe('property settings', () => {
   beforeAll(async () => { await import('../PropertyDetailPage'); }, 30_000);
@@ -71,6 +72,21 @@ describe('property settings', () => {
       expect(within(settings()).getByLabelText('Prix d’achat')).toHaveValue('255000.00');
       expect(screen.getByRole('heading', { name: 'Réglages' })).toHaveFocus();
     });
+  });
+
+  it('sends the postal address typed, then its clearing once emptied', async () => {
+    const { sent } = serve();
+    const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
+
+    await heading();
+    await user.type(within(settings()).getByLabelText('Adresse postale'), '12 rue des Lilas');
+    await user.click(save());
+    await waitFor(() => expect(sent).toEqual([{ ...FLAGS, postalAddress: '12 rue des Lilas', version: 7 }]));
+    await waitFor(() => expect(within(settings()).getByLabelText('Adresse postale')).toHaveValue('12 rue des Lilas'));
+
+    await user.clear(within(settings()).getByLabelText('Adresse postale'));
+    await user.click(save());
+    await waitFor(() => expect(sent[1]).toEqual({ ...FLAGS, clearPostalAddress: true, version: 8 }));
   });
 
   it('says there is nothing to save rather than sending an empty change', async () => {

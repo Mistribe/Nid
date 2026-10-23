@@ -104,6 +104,9 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
               options={[{ value: '', label: t('property_form.energy_class_none') }, ...ENERGY_CLASSES.map((v) => ({ value: v, label: v }))]} />}
           </Field>
         )} />
+        <Field label={t('property_form.postal_address')} hint={t('property_form.postal_address_help')} error={e.postalAddress?.message}>
+          {(c) => <Textarea {...c} {...form.register('postalAddress')} />}
+        </Field>
         <Field label={t('property_form.note')} error={e.note?.message}>
           {(c) => <Textarea {...c} {...form.register('note')} />}
         </Field>

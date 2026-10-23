@@ -136,7 +136,7 @@ public static class PropertyMath
         return (Expected(tenancy, first, last, charges), tenancy.StartsOn > first ? tenancy.StartsOn : first);
     }
 
-    /// <summary>Spec 3C2 §4 over W = (d − 12 months, d].</summary>
+    /// <summary>Spec 3C2 §4 over W = (d − 12 months, d]; the arrears over the rent ledger (<see cref="RentLedger"/>).</summary>
     private static RentalFigures Rental(PropertyDetails property, IReadOnlyList<Flow> flows, IReadOnlyList<Tenancy> tenancies, decimal costPrice, LocalDate d)
     {
         var first = d.PlusMonths(-12).PlusDays(1);
@@ -163,12 +163,12 @@ public static class PropertyMath
 
         // Significant once let since d − 12 months or before (R before W's first day).
         var significant = rentedSince is { } r && r < first;
-        return new RentalFigures(rentedSince, expected, rent, expected - rent, vacantDays, vacancyRate,
+        return new RentalFigures(rentedSince, expected, rent, RentLedger.Arrears(tenancies, flows, d), vacantDays, vacancyRate,
             significant ? rent / costPrice : null, significant ? (rent - charges) / costPrice : null);
     }
 
     /// <summary>Month by month over W: a month the tenancy covers whole counts in full, a partial one prorated to its days, half up to the cent.</summary>
-    private static decimal Expected(Tenancy tenancy, LocalDate first, LocalDate d, bool charges = true)
+    public static decimal Expected(Tenancy tenancy, LocalDate first, LocalDate d, bool charges = true)
     {
         var monthly = tenancy.RentMonthly + (charges ? tenancy.ChargesMonthly : 0m);
         var total = 0m;
@@ -184,7 +184,7 @@ public static class PropertyMath
     }
 
     /// <summary>The days of [from, to] the tenancy covers.</summary>
-    private static int Covered(Tenancy tenancy, LocalDate from, LocalDate to)
+    public static int Covered(Tenancy tenancy, LocalDate from, LocalDate to)
     {
         var start = tenancy.StartsOn > from ? tenancy.StartsOn : from;
         var end = tenancy.EndsOn is { } ends && ends.PlusDays(-1) < to ? ends.PlusDays(-1) : to;

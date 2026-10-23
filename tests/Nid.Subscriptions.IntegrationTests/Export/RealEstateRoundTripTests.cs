@@ -50,7 +50,11 @@ public class RealEstateRoundTripTests(PostgresFixture fixture) : IClassFixture<P
         var main = (await JsonAsync(source, source.AdultA, "/api/v1/realestate/loans?scope=me")).GetProperty("items").EnumerateArray()
             .Single(l => l.GetProperty("name").GetString() == "Prêt principal").GetProperty("id").GetGuid();
         await PostAsync(source, $"/api/v1/realestate/properties/{home}/tenancies",
-            new { label = "Chambre", startsOn = "2023-01-01", endsOn = "2023-07-01", rentMonthly = "400" });
+            new { label = "Chambre", startsOn = "2023-01-01", endsOn = "2023-07-01", rentMonthly = "400",
+                tenantNames = "Mme Martin", landlordName = "Adulte 1", landlordAddress = "1 rue A\n75001 Paris", rentsTrackedFrom = "2023-02" });
+        var version = (await JsonAsync(source, source.AdultA, $"/api/v1/realestate/properties/{home}")).GetProperty("version").GetUInt32();
+        var patched = await source.RawAsync(source.AdultA, HttpMethod.Patch, $"/api/v1/realestate/properties/{home}", new { version, postalAddress = "2 rue B, 75002 Paris" });
+        Assert.True(patched.IsSuccessStatusCode, await patched.Content.ReadAsStringAsync());
         await PostAsync(source, $"/api/v1/realestate/properties/{home}/flows",
             new { occurredOn = "2025-02-01", kind = "expense", amount = "800", category = "insurance" });
         await PostAsync(source, $"/api/v1/realestate/loans/{main}/repayments",
@@ -72,6 +76,10 @@ public class RealEstateRoundTripTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(3, first["loan_bank_schedule"].Count);
         Assert.Contains(first["loans"], l => l.GetProperty("id").GetString() == "loan-main" && l.GetProperty("schedule_source").GetString() == "bank");
         Assert.Contains(first["tenancies"], t => t.GetProperty("label").GetString() == "Chambre" && t.GetProperty("id").GetString() is not ("ten-1" or "ten-2"));
+        Assert.Contains(first["tenancies"], t => t.GetProperty("tenant_names").GetString() == "Mme Martin"
+            && t.GetProperty("landlord_name").GetString() == "Adulte 1" && t.GetProperty("landlord_address").GetString() == "1 rue A\n75001 Paris"
+            && t.GetProperty("rents_tracked_from").GetString() == "2023-02-01");
+        Assert.Contains(first["properties"], p => p.GetProperty("postal_address").GetString() == "2 rue B, 75002 Paris");
         Assert.Contains(first["loans"], l => l.GetProperty("id").GetString() == "loan-ptz" && l.GetProperty("property").GetString() == "prop-home");
     }
 }
