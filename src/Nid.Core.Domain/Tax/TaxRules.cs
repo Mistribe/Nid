@@ -20,6 +20,9 @@ public sealed record TaxRules(
 
     public const int FirstYear = 2025;
 
+    /// <summary>The rates and scales of a sale (sale tax spec §2), for this revenue year.</summary>
+    public SaleTaxRules Sale => SaleTaxRules.For(RevenueYear);
+
     /// <summary>Revenus 2025: loi n° 2026-103 du 19 février 2026 (barème revalorisé de 0,9 %), LFSS 2026 for the capital levies of 2026.</summary>
     public static TaxRules For(int revenueYear)
     {
