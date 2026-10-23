@@ -1,4 +1,5 @@
 using Nid.Core.Application.Fx;
+using Nid.Investments.Application.Prices;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 
@@ -37,6 +38,14 @@ public class AdminMarkerTests
         Type[] journal = [typeof(SyncCatalogCommand), typeof(RequestCatalogSyncCommand), typeof(GetCatalogRunsQuery)];
         var unmarked = journal.Where(t => !typeof(IAdminOnly).IsAssignableFrom(t)).ToList();
         Assert.True(unmarked.Count == 0, "Not IAdminOnly:\n  " + string.Join("\n  ", unmarked.Select(t => t.FullName)));
+    }
+
+    /// <summary>Holding prices spec §6: the collection, its trigger and its journal are the admin's.</summary>
+    [Fact]
+    public void The_price_collection_is_admin_only()
+    {
+        Type[] prices = [typeof(CollectPricesCommand), typeof(RequestPriceSyncCommand), typeof(GetPriceRunsQuery)];
+        Assert.DoesNotContain(prices, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
     /// <summary>Adding a subscription needs them, so no admin marker may creep onto them.</summary>

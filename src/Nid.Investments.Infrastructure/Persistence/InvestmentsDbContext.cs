@@ -20,6 +20,12 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 
     public DbSet<HoldingCostReportRow> HoldingCostReports => Set<HoldingCostReportRow>();
 
+    public DbSet<SecurityListingRow> SecurityListings => Set<SecurityListingRow>();
+
+    public DbSet<SecurityPriceRow> SecurityPrices => Set<SecurityPriceRow>();
+
+    public DbSet<PriceRunRow> PriceRuns => Set<PriceRunRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -59,6 +65,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Isin).HasColumnType("char(12)");
             e.Property(x => x.EntryCostPct).HasColumnType("numeric(9,4)");
+            e.Property(x => x.AutoPrice).HasDefaultValue(true).ValueGeneratedNever(); // else EF leaves false out of the INSERT
             e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
             e.HasIndex(x => new { x.EnvelopeItemId, x.Isin }).IsUnique().HasFilter("isin is not null");
             MapImportMark(e, "holding");
@@ -122,6 +129,37 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.HasOne<HoldingRow>().WithMany().HasForeignKey(x => x.HoldingId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<EnvelopeRow>().WithMany().HasForeignKey(x => x.EnvelopeItemId);
             e.HasIndex(x => x.EnvelopeItemId);
+        });
+
+        modelBuilder.Entity<SecurityListingRow>(e =>
+        {
+            e.ToTable("security_listing");
+            e.HasKey(x => x.Isin);
+            e.Property(x => x.Isin).HasColumnType("char(12)").ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<SecurityPriceRow>(e =>
+        {
+            e.ToTable("security_price", t =>
+            {
+                t.HasCheckConstraint("ck_security_price_price", "price > 0");
+                t.HasCheckConstraint("ck_security_price_status", "status in ('accepted','rejected')");
+            });
+            e.HasKey(x => new { x.Isin, x.OnDate });
+            e.Property(x => x.Isin).HasColumnType("char(12)");
+            e.Property(x => x.Price).HasColumnType("numeric(20,6)");
+            e.Property(x => x.Previous).HasColumnType("numeric(20,6)");
+            e.Property(x => x.Currency).HasColumnType("char(3)");
+        });
+
+        modelBuilder.Entity<PriceRunRow>(e =>
+        {
+            e.ToTable("price_run", t => t.HasCheckConstraint("ck_price_run_status", "status in ('running','succeeded','failed')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // At most one running row, as core.fx_sync_run: a second start fails on this index.
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'running'");
+            e.HasIndex(x => x.StartedAt);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

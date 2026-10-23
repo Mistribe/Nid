@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
+using Nid.Investments.Contracts;
 using Nid.Host.Admin;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
@@ -104,7 +105,7 @@ public static class JobsSetup
     /// Platform migration; Quartz only validates them. No clustering: one nid-api instance runs (architecture §10),
     /// and a second instance would be the moment to turn it on, with its own test.
     /// </summary>
-    public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, string schedulerName)
+    public static IServiceCollection AddNidJobs(this IServiceCollection services, string connectionString, FxOptions options, PriceOptions prices, string schedulerName)
     {
         services.AddQuartz(schedulerName, q =>
         {
@@ -125,6 +126,12 @@ public static class JobsSetup
                 .WithIdentity("fx-daily")
                 .WithCronSchedule(options.DailyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
 
+            q.AddJob<PriceDailyJob>(job => job.WithIdentity(PriceJobs.DailyKey));
+            q.AddTrigger(t => t
+                .ForJob(PriceJobs.DailyKey)
+                .WithIdentity("prices-daily")
+                .WithCronSchedule(prices.DailyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
             // Durable: it has no trigger of its own, it is fired on demand and at startup.
             q.AddJob<FxBackfillJob>(job => job.WithIdentity(FxJobs.BackfillKey).StoreDurably());
 
@@ -140,6 +147,8 @@ public static class JobsSetup
         // A named scheduler's parts are keyed services: there is no unkeyed ISchedulerFactory to inject.
         services.Replace(ServiceDescriptor.Singleton<IFxJobTrigger>(sp =>
             new QuartzFxJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
+        services.Replace(ServiceDescriptor.Singleton<IPriceJobTrigger>(sp =>
+            new QuartzPriceJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<ICatalogJobTrigger>(sp =>
             new QuartzCatalogJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<IJobStatusReader>(sp =>

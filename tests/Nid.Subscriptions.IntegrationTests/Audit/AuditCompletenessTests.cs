@@ -59,6 +59,8 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)
         ["src/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
         ["src/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
+        ["src/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
+        ["src/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 1, // security_price: excluded
         ["src/Nid.Platform.Infrastructure/Persistence/ImportStagingStore.cs"] = 4, // import staging: excluded
         ["src/Nid.RealEstate.Infrastructure/Persistence/LoanStore.cs"] = 1, // the loan's row lock (3A2 precision 5): writes nothing
         ["src/Nid.RealEstate.Infrastructure/Persistence/PropertyStore.cs"] = 1, // the property's row lock (3C1 precision 4): writes nothing

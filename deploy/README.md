@@ -66,6 +66,9 @@ Vous pouvez le relancer : **il ne remplace jamais un secret existant**, sauf le 
 `--oidc-client-secret`. Les noms de groupe `nid-users` et `nid-admins` sont des valeurs par défaut : pour d'autres noms,
 définissez `Auth__AccessGroup` et `Auth__AdminGroup` pour `nid-api` dans un `deploy/compose.override.yaml`.
 
+Une liste `Outbound:AllowedHosts` configurée remplace celle par défaut : elle doit contenir `www.boursorama.com` et
+`query2.finance.yahoo.com` pour la collecte des cours.
+
 ## 3. Brancher le proxy
 
 Le compose ne publie aucun port. Votre proxy rejoint deux cibles sur le réseau Docker `nid_edge` (le préfixe `nid_`

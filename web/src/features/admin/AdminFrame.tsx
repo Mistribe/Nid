@@ -12,6 +12,7 @@ const SECTIONS = [
   { to: '/admin/users', label: 'admin.nav.users' },
   { to: '/admin/household', label: 'admin.nav.household' },
   { to: '/admin/fx', label: 'admin.nav.fx' },
+  { to: '/admin/prices', label: 'admin.nav.prices' },
   { to: '/admin/catalog', label: 'admin.nav.catalog' },
   { to: '/admin/jobs', label: 'admin.nav.jobs' },
   { to: '/admin/system', label: 'admin.nav.system' },

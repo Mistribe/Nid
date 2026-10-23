@@ -18,7 +18,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public sealed record Adult(Guid Id, string DisplayName, string? Email, string Status, bool IsAdmin);
-    public sealed record Settings(int MaxAdults, string ReferenceCurrency, int AdultCount);
+    public sealed record Settings(int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled);
 
     private static async Task<string?> CodeOf(HttpResponseMessage response)
         => (await response.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("code").GetString();
@@ -58,7 +58,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
                      (HttpMethod.Delete, $"{Users}/{app.AdultA.Value}", null),
                      (HttpMethod.Post, $"{Users}/{app.AdultA.Value}/revoke-sessions", null),
                      (HttpMethod.Get, Household, null),
-                     (HttpMethod.Patch, Household, new { maxAdults = 5 }),
+                     (HttpMethod.Patch, Household, new { maxAdults = 5, pricesEnabled = true }),
                  })
         {
             var response = await app.RawAsync(app.AdultB, method, url, body);
@@ -166,7 +166,7 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        Assert.Equal(new Settings(2, "EUR", 2), await app.GetAsync<Settings>(app.AdultA, Household));
+        Assert.Equal(new Settings(2, "EUR", 2, false), await app.GetAsync<Settings>(app.AdultA, Household));
 
         var below = await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { maxAdults = 1 });
         Assert.Equal((HttpStatusCode.UnprocessableEntity, PersonCodes.CapBelowCount), (below.StatusCode, await CodeOf(below)));
@@ -176,6 +176,10 @@ public class AdminUsersTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(HttpStatusCode.BadRequest, unknownKey.StatusCode);
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { referenceCurrency = "USD" })).EnsureSuccessStatusCode();
-        Assert.Equal(new Settings(2, "USD", 2), await app.GetAsync<Settings>(app.AdultA, Household));
+        Assert.Equal(new Settings(2, "USD", 2, false), await app.GetAsync<Settings>(app.AdultA, Household));
+
+        var enabled = await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { pricesEnabled = true });
+        Assert.True((await enabled.Content.ReadFromJsonAsync<Settings>(Json))!.PricesEnabled);
+        Assert.Equal(new Settings(2, "USD", 2, true), await app.GetAsync<Settings>(app.AdultA, Household));
     }
 }

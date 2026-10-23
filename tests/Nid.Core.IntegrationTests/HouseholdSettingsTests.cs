@@ -21,7 +21,7 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
 
         var settings = await new HouseholdSettings(db).ReadAsync(default);
 
-        Assert.Equal(new HouseholdSettingsInfo(2, Currency.Eur, 2), settings);
+        Assert.Equal(new HouseholdSettingsInfo(2, Currency.Eur, 2, false), settings);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         Assert.Equal(PersonCodes.UnknownCurrency, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, "usd"), default)));
 
         Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(4, "USD"), default)).TryGetValue(out var changed));
-        Assert.Equal(new HouseholdSettingsInfo(4, Currency.Usd, 2), changed);
+        Assert.Equal(new HouseholdSettingsInfo(4, Currency.Usd, 2, false), changed);
         Assert.Equal(Currency.Usd, await settings.ReferenceCurrencyAsync(default));
     }
 }

@@ -149,6 +149,7 @@ public static class ResultHttp
             _ when failure.Code == "core.access_violation" => StatusCodes.Status500InternalServerError,
             _ when failure.Code == FxCodes.SyncRunning => StatusCodes.Status409Conflict,
             _ when failure.Code == CatalogCodes.SyncRunning => StatusCodes.Status409Conflict,
+            _ when failure.Code is PriceCodes.SyncRunning or PriceCodes.Disabled => StatusCodes.Status409Conflict,
             _ when failure.Code is FxCodes.InvalidRate or FxCodes.InvalidRange => StatusCodes.Status400BadRequest,
             _ when failure.Code == ExportCodes.RevisionChanged => StatusCodes.Status409Conflict,
             _ when failure.Code == ExportCodes.BadCursor => StatusCodes.Status400BadRequest,

@@ -1,7 +1,7 @@
 {
   "admin": {
     "loading": "Chargement",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "security": "Journal de sécurité" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "prices": "Cours", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "security": "Journal de sécurité" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -32,6 +32,26 @@
       "currency_warning": "Code ISO à trois lettres (EUR, USD…). En la changeant, tous les totaux seront reconvertis dans la nouvelle devise.",
       "save": "Enregistrer",
       "saved": "Réglages enregistrés."
+    },
+    "prices": {
+      "title": "Cours",
+      "enabled": "Récupérer les cours",
+      "saved": "Enregistré",
+      "hint": "Chaque soir de semaine, Nid lit le dernier cours de chaque support doté d'un ISIN sur Boursorama, et sur Yahoo Finance quand Boursorama ne le trouve pas. Ce ne sont pas des services officiels : la lecture peut cesser de fonctionner si leurs pages changent. Une requête par ISIN et par soir ; aucun identifiant bancaire n'est utilisé.",
+      "sync": "Mettre à jour maintenant",
+      "sync_confirm": "Une lecture des cours va démarrer maintenant pour tous les supports dotés d'un ISIN.",
+      "sync_requested": "Mise à jour demandée : elle apparaîtra dans le journal ci-dessous.",
+      "already_running": "Une mise à jour est déjà en cours : son résultat apparaîtra dans le journal.",
+      "runs_title": "Journal des lectures",
+      "no_runs": "Aucune lecture pour l'instant.",
+      "started": "Début",
+      "status": "État",
+      "queried": "Interrogés",
+      "accepted": "Acceptés",
+      "rejected": "Refusés",
+      "not_found": "Introuvables",
+      "source_errors": "Erreurs",
+      "failure": "Échec"
     },
     "fx": {
       "title": "Taux de change",

@@ -106,6 +106,15 @@ public sealed record HoldingsExport(
 
 public interface IHoldingStore
 {
+    /// <summary>
+    /// The distinct ISINs to price: holdings with an ISIN and <c>auto_price</c>, neither <c>euro_fund</c> nor <c>cash</c>, not closed,
+    /// in envelopes that are not closed.
+    /// </summary>
+    Task<IReadOnlyList<string>> PricedIsinsAsync(CancellationToken ct);
+
+    /// <summary>Per ISIN, the unit price of its latest snapshot line that has a positive one, with its envelope.</summary>
+    Task<IReadOnlyList<SnapshotPrice>> SnapshotUnitPricesAsync(IReadOnlyCollection<string> isins, CancellationToken ct);
+
     Task<IReadOnlyList<StoredHolding>> HoldingsAsync(ItemId envelope, CancellationToken ct);
 
     Task AddAsync(EnvelopeHolding holding, CancellationToken ct);

@@ -12,6 +12,8 @@ public sealed class HouseholdSettingsRow
     public int MaxAdults { get; set; } = 2;
     /// <summary>Issue #104: the target allocation, a JSON object of class → %; null without one.</summary>
     public string? AllocationTarget { get; set; }
+    /// <summary>The admin switch of the nightly price collection (holding prices spec §2.1).</summary>
+    public bool PricesEnabled { get; set; }
 }
 
 public sealed class TaxProfileRow

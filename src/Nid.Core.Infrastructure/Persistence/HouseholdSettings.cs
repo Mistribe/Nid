@@ -19,7 +19,7 @@ public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
         var row = await db.HouseholdSettings.AsNoTracking().FirstOrDefaultAsync(ct) ?? new HouseholdSettingsRow();
         var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
         return new HouseholdSettingsInfo(
-            row.MaxAdults, Currency.TryCreate(row.ReferenceCurrency.Trim(), out var currency) ? currency : Currency.Eur, adults);
+            row.MaxAdults, Currency.TryCreate(row.ReferenceCurrency.Trim(), out var currency) ? currency : Currency.Eur, adults, row.PricesEnabled);
     }
 
     public async Task<Result<HouseholdSettingsInfo>> UpdateAsync(HouseholdSettingsChange change, CancellationToken ct)
@@ -53,6 +53,9 @@ public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
 
         if (currency is { } chosen)
             row.ReferenceCurrency = chosen.Code;
+
+        if (change.PricesEnabled is { } prices)
+            row.PricesEnabled = prices;
 
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

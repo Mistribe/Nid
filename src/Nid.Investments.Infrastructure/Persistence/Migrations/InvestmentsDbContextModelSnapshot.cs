@@ -265,6 +265,12 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("asset_class");
 
+                    b.Property<bool>("AutoPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("auto_price");
+
                     b.Property<LocalDate?>("ClosedOn")
                         .HasColumnType("date")
                         .HasColumnName("closed_on");
@@ -449,6 +455,150 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                     b.ToTable("holding_snapshot", "investments", t =>
                         {
                             t.HasCheckConstraint("ck_holding_snapshot_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.PriceRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Accepted")
+                        .HasColumnType("integer")
+                        .HasColumnName("accepted");
+
+                    b.Property<string>("FailureCode")
+                        .HasColumnType("text")
+                        .HasColumnName("failure_code");
+
+                    b.Property<string>("FailureMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("failure_message");
+
+                    b.Property<Instant?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<int>("NotFound")
+                        .HasColumnType("integer")
+                        .HasColumnName("not_found");
+
+                    b.Property<int>("Queried")
+                        .HasColumnType("integer")
+                        .HasColumnName("queried");
+
+                    b.Property<int>("Rejected")
+                        .HasColumnType("integer")
+                        .HasColumnName("rejected");
+
+                    b.Property<int>("SourceErrors")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_errors");
+
+                    b.Property<Instant>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_price_run");
+
+                    b.HasIndex("StartedAt")
+                        .HasDatabaseName("ix_price_run_started_at");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasDatabaseName("ix_price_run_status")
+                        .HasFilter("status = 'running'");
+
+                    b.ToTable("price_run", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_price_run_status", "status in ('running','succeeded','failed')");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.SecurityListingRow", b =>
+                {
+                    b.Property<string>("Isin")
+                        .HasColumnType("char(12)")
+                        .HasColumnName("isin");
+
+                    b.Property<string>("BoursoramaPath")
+                        .HasColumnType("text")
+                        .HasColumnName("boursorama_path");
+
+                    b.Property<Instant?>("NotFoundAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("not_found_at");
+
+                    b.Property<Instant>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("YahooSymbol")
+                        .HasColumnType("text")
+                        .HasColumnName("yahoo_symbol");
+
+                    b.HasKey("Isin")
+                        .HasName("pk_security_listing");
+
+                    b.ToTable("security_listing", "investments");
+                });
+
+            modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.SecurityPriceRow", b =>
+                {
+                    b.Property<string>("Isin")
+                        .HasColumnType("char(12)")
+                        .HasColumnName("isin");
+
+                    b.Property<LocalDate>("OnDate")
+                        .HasColumnType("date")
+                        .HasColumnName("on_date");
+
+                    b.Property<Guid?>("AcceptedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("accepted_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<Instant>("FetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<decimal?>("Previous")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("previous");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric(20,6)")
+                        .HasColumnName("price");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Isin", "OnDate")
+                        .HasName("pk_security_price");
+
+                    b.ToTable("security_price", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_security_price_price", "price > 0");
+
+                            t.HasCheckConstraint("ck_security_price_status", "status in ('accepted','rejected')");
                         });
                 });
 

@@ -13,4 +13,7 @@
     <ProjectReference Include="..\..\src\Nid.Investments.Domain\Nid.Investments.Domain.csproj" />
     <ProjectReference Include="..\..\src\Nid.Investments.Application\Nid.Investments.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\vectors\prices\*" LinkBase="vectors\prices" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

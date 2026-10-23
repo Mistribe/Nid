@@ -7,6 +7,24 @@ namespace Nid.Investments.Infrastructure.Persistence;
 
 public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
 {
+    public async Task<IReadOnlyList<string>> PricedIsinsAsync(CancellationToken ct)
+        => await db.Holdings.AsNoTracking()
+            .Where(h => h.Isin != null && h.AutoPrice && h.Kind != "euro_fund" && h.Kind != "cash" && h.ClosedOn == null
+                && db.Envelopes.Any(e => e.ItemId == h.EnvelopeItemId && e.ClosedOn == null))
+            .Select(h => h.Isin!).Distinct().OrderBy(i => i).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<SnapshotPrice>> SnapshotUnitPricesAsync(IReadOnlyCollection<string> isins, CancellationToken ct)
+    {
+        var lines = await (from l in db.HoldingSnapshotLines.AsNoTracking()
+                join h in db.Holdings on l.HoldingId equals h.Id
+                join s in db.HoldingSnapshots on l.SnapshotId equals s.Id
+                where h.Isin != null && isins.Contains(h.Isin) && l.UnitPrice > 0
+                select new { Isin = h.Isin!, UnitPrice = l.UnitPrice!.Value, s.AsOf, Envelope = s.EnvelopeItemId })
+            .ToListAsync(ct);
+        var latest = lines.GroupBy(l => l.Isin).Select(g => g.OrderByDescending(l => l.AsOf).First()).ToList();
+        return latest.Select(l => new SnapshotPrice(l.Isin, l.UnitPrice, new ItemId(l.Envelope), l.AsOf)).OrderBy(p => p.Isin).ToList();
+    }
+
     public async Task<IReadOnlyList<StoredHolding>> HoldingsAsync(ItemId envelope, CancellationToken ct)
     {
         var rows = await db.Holdings.AsNoTracking().Where(h => h.EnvelopeItemId == envelope.Value)

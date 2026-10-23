@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
+using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -39,7 +40,7 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot)
+        FakeFxSources sources, FakePriceSources prices, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot)
     {
         this.factory = factory;
         ConnectionString = connectionString;
@@ -47,6 +48,7 @@ public sealed class NidApp : IAsyncDisposable
         AdultB = b;
         Dependent = d;
         Sources = sources;
+        Prices = prices;
         Catalog = catalog;
         Icons = icons;
         AssetsRoot = assetsRoot;
@@ -68,6 +70,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="IFxSourceClient"/> this host runs against; every request fails unless a test configures it.</summary>
     public FakeFxSources Sources { get; }
 
+    /// <summary>The offline <see cref="IPriceSourceClient"/> this host runs against; every request fails unless a test serves pages.</summary>
+    public FakePriceSources Prices { get; }
+
     /// <summary>The offline <see cref="ICatalogSourceClient"/> this host runs against; every fetch fails unless a test serves files.</summary>
     public FakeCatalogSource Catalog { get; }
 
@@ -87,6 +92,7 @@ public sealed class NidApp : IAsyncDisposable
     {
         var connectionString = await fixture.NewConnectionStringAsync();
         var sources = FakeFxSources.Offline();
+        var prices = FakePriceSources.Offline();
         var catalog = FakeCatalogSource.Offline();
         var icons = FakeIconSource.Offline();
         var assetsRoot = Path.Combine(Path.GetTempPath(), "nid-assets-" + Guid.NewGuid().ToString("N"));
@@ -120,6 +126,7 @@ public sealed class NidApp : IAsyncDisposable
                 {
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
+                    services.AddSingleton<IPriceSourceClient>(prices);
                     services.AddSingleton<ICatalogSourceClient>(catalog);
                     services.AddSingleton<ICatalogIconSource>(icons);
                     // No test reaches the identity provider (https://auth.test.localhost does not exist).
@@ -128,7 +135,7 @@ public sealed class NidApp : IAsyncDisposable
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, catalog, icons, assetsRoot);
+            return new NidApp(factory, connectionString, a, b, d, sources, prices, catalog, icons, assetsRoot);
         }
     }
 

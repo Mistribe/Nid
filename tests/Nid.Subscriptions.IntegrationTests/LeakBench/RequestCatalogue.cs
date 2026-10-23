@@ -11,6 +11,7 @@ using Nid.Income.Application;
 using Nid.Income.Contracts;
 using Nid.Income.Domain;
 using Nid.Investments.Application;
+using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using Nid.Platform;
 using Nid.Platform.Admin;
@@ -133,6 +134,9 @@ public static class RequestCatalogue
         new(typeof(GetFxRatesQuery), false,
             (_, _) => new GetFxRatesQuery("EUR", new NodaTime.LocalDate(2025, 1, 1), new NodaTime.LocalDate(2025, 1, 31))),
         new(typeof(GetFxSyncRunsQuery), false, (_, _) => new GetFxSyncRunsQuery()),
+        new(typeof(CollectPricesCommand), false, (_, _) => new CollectPricesCommand()),
+        new(typeof(RequestPriceSyncCommand), false, (_, _) => new RequestPriceSyncCommand()),
+        new(typeof(GetPriceRunsQuery), false, (_, _) => new GetPriceRunsQuery()),
         new(typeof(SyncCatalogCommand), false, (_, _) => new SyncCatalogCommand()),
         new(typeof(RequestCatalogSyncCommand), false, (_, _) => new RequestCatalogSyncCommand()),
         new(typeof(GetCatalogRunsQuery), false, (_, _) => new GetCatalogRunsQuery()),
@@ -161,7 +165,7 @@ public static class RequestCatalogue
         new(typeof(ApproveProposalCommand), false, (data, _) => new ApproveProposalCommand(data.Proposals["P-B"][0], 0, null)),
         new(typeof(RejectProposalCommand), false, (data, _) => new RejectProposalCommand(data.Proposals["P-B"][0], 0, null)),
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
-        new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null)),
+        new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null, null)),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
         new(typeof(GetSystemStatusQuery), false, (_, _) => new GetSystemStatusQuery()),
         new(typeof(ItemHistoryQuery), true, (_, item) => new ItemHistoryQuery(item, null, null)),

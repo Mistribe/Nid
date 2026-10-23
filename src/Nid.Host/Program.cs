@@ -9,6 +9,7 @@ using Nid.Host.Auth;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
 using Nid.Income.Infrastructure.Persistence;
+using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
 using Nid.Platform.Contracts;
@@ -44,6 +45,8 @@ builder.AddServiceDefaults();
 var generatingOpenApi = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 var fxOptions = builder.Configuration.GetSection("Fx").Get<FxOptions>() ?? new FxOptions();
 builder.Services.AddSingleton(fxOptions);
+var priceOptions = builder.Configuration.GetSection("Prices").Get<PriceOptions>() ?? new PriceOptions();
+builder.Services.AddSingleton(priceOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Catalog").Get<CatalogOptions>() ?? new CatalogOptions());
 // Parsed here so a bad setting stops the host at startup (spec 4D1 D6).
@@ -54,7 +57,7 @@ var connectionString = builder.Configuration.GetConnectionString("nid")
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
-    builder.Services.AddNidJobs(connectionString, fxOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
+    builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
 
 builder.Services.AddNidAuthentication(builder.Configuration);
 builder.Services.AddTokenRateLimiter();

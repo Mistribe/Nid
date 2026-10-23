@@ -281,6 +281,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<bool>("PricesEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("prices_enabled");
+
                     b.Property<string>("ReferenceCurrency")
                         .IsRequired()
                         .HasColumnType("char(3)")

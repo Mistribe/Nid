@@ -112,7 +112,10 @@ public static class NidServiceCollectionExtensions
             sp.GetRequiredService<OutboundOptions>(),
             sp.GetRequiredService<ILogger<SafeHttpClient>>()));
         services.TryAddSingleton<IFxSourceClient, FxSourceClient>();
+        services.TryAddSingleton(new PriceOptions());
+        services.TryAddSingleton<IPriceSourceClient, Nid.Investments.Infrastructure.Prices.PriceSourceClient>();
         services.TryAddSingleton<IFxJobTrigger, JobsDisabledFxTrigger>();
+        services.TryAddSingleton<IPriceJobTrigger, JobsDisabledPriceTrigger>();
         services.AddScoped<IFxRateStore, FxRateStore>();
         services.AddScoped<IFxRunLog, FxRunLog>();
         services.AddScoped<IFxRates, FxRates>();
@@ -147,6 +150,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<InvestmentsDbContext>>();
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
         services.AddScoped<IHoldingStore, HoldingStore>();
+        services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
+        services.AddScoped<IPriceRunLog, PriceRunLog>();
+        services.AddScoped<Nid.Investments.Application.Prices.PriceCollector>();
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();

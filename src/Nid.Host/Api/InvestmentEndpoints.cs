@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Investments.Application;
+using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
@@ -12,6 +13,14 @@ public static class InvestmentEndpoints
     {
         var api = routes.MapGroup("/api/v1/investments").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+
+        api.MapPost("/prices/sync", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new RequestPriceSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))
+            .Returns<PriceSyncRequested>(StatusCodes.Status202Accepted);
+
+        api.MapGet("/prices/runs", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetPriceRunsQuery(), ct)).ToHttp(r => r))
+            .Returns<IReadOnlyList<PriceRunView>>();
 
         api.MapGet("/envelopes", async (string? scope, bool? archived, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))

@@ -15,5 +15,5 @@ public sealed class InvestmentsAuditMap : IAuditMap
         [typeof(HoldingCostReportRow)] = new(e => AuditItems.Of(e, nameof(HoldingCostReportRow.EnvelopeItemId))),
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(SecurityListingRow), typeof(SecurityPriceRow), typeof(PriceRunRow) };
 }

@@ -3,10 +3,10 @@ using UnambitiousFx.Functional;
 namespace Nid.Core.Contracts;
 
 /// <summary><paramref name="AdultCount"/> counts active and pending adults: both count against the cap.</summary>
-public sealed record HouseholdSettingsInfo(int MaxAdults, Currency ReferenceCurrency, int AdultCount);
+public sealed record HouseholdSettingsInfo(int MaxAdults, Currency ReferenceCurrency, int AdultCount, bool PricesEnabled);
 
 /// <summary>A field left <c>null</c> is left unchanged.</summary>
-public sealed record HouseholdSettingsChange(int? MaxAdults, string? ReferenceCurrency);
+public sealed record HouseholdSettingsChange(int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled = null);
 
 public interface IHouseholdSettings
 {

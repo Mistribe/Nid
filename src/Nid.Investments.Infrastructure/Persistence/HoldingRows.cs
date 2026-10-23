@@ -28,6 +28,8 @@ public sealed class HoldingRow : IImportMarked
     public decimal? EntryCostPct { get; set; }
     public LocalDate? ClosedOn { get; set; }
     public string? Note { get; set; }
+    /// <summary>Whether the nightly collection prices the holding; without effect without an ISIN (holding prices spec §2.2).</summary>
+    public bool AutoPrice { get; set; } = true;
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
