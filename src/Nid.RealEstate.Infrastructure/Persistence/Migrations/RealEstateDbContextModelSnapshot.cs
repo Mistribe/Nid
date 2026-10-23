@@ -129,6 +129,94 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.IrlRow", b =>
+                {
+                    b.Property<string>("Quarter")
+                        .HasColumnType("text")
+                        .HasColumnName("quarter");
+
+                    b.Property<LocalDate>("FetchedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("fetched_on");
+
+                    b.Property<LocalDate?>("PublishedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("published_on");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("numeric(10,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Quarter")
+                        .HasName("pk_irl");
+
+                    b.ToTable("irl", "realestate", t =>
+                        {
+                            t.HasCheckConstraint("ck_irl_quarter", "quarter ~ '^[0-9]{4}-Q[1-4]$'");
+
+                            t.HasCheckConstraint("ck_irl_source", "source in ('insee','manual')");
+
+                            t.HasCheckConstraint("ck_irl_value", "value > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.IrlRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Added")
+                        .HasColumnType("integer")
+                        .HasColumnName("added");
+
+                    b.Property<Instant?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<int>("Rejected")
+                        .HasColumnType("integer")
+                        .HasColumnName("rejected");
+
+                    b.Property<int>("Replaced")
+                        .HasColumnType("integer")
+                        .HasColumnName("replaced");
+
+                    b.Property<Instant>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_irl_run");
+
+                    b.HasIndex("StartedAt")
+                        .HasDatabaseName("ix_irl_run_started_at");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasDatabaseName("ix_irl_run_status")
+                        .HasFilter("status = 'running'");
+
+                    b.ToTable("irl_run", "realestate", t =>
+                        {
+                            t.HasCheckConstraint("ck_irl_run_status", "status in ('running','succeeded','failed')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.LoanBankScheduleRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -668,6 +756,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("agency_fees");
 
+                    b.Property<string>("EnergyClass")
+                        .HasColumnType("text")
+                        .HasColumnName("energy_class");
+
                     b.Property<string>("ImportHash")
                         .HasColumnType("char(64)")
                         .HasColumnName("import_hash");
@@ -744,6 +836,8 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_property_cadence", "valuation_cadence in ('yearly','manual')");
 
+                            t.HasCheckConstraint("ck_property_energy_class", "energy_class is null or energy_class in ('A','B','C','D','E','F','G')");
+
                             t.HasCheckConstraint("ck_property_fees", "notary_fees >= 0 and agency_fees >= 0 and other_acquisition_costs >= 0");
 
                             t.HasCheckConstraint("ck_property_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
@@ -790,6 +884,16 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("imported_by");
 
+                    b.Property<bool>("Indexed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("indexed");
+
+                    b.Property<int?>("IrlReferenceQuarter")
+                        .HasColumnType("integer")
+                        .HasColumnName("irl_reference_quarter");
+
                     b.Property<string>("Label")
                         .IsRequired()
                         .HasColumnType("text")
@@ -807,6 +911,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("rent_monthly");
 
+                    b.Property<Guid?>("RevisedFrom")
+                        .HasColumnType("uuid")
+                        .HasColumnName("revised_from");
+
                     b.Property<LocalDate>("StartsOn")
                         .HasColumnType("date")
                         .HasColumnName("starts_on");
@@ -823,6 +931,9 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("PropertyItemId")
                         .HasDatabaseName("ix_property_tenancy_property_item_id");
 
+                    b.HasIndex("RevisedFrom")
+                        .HasDatabaseName("ix_property_tenancy_revised_from");
+
                     b.HasIndex("ImportedBy", "ImportRef")
                         .IsUnique()
                         .HasDatabaseName("ix_property_tenancy_imported_by_import_ref")
@@ -835,7 +946,20 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_property_tenancy_dates", "ends_on is null or ends_on > starts_on");
 
                             t.HasCheckConstraint("ck_property_tenancy_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
+
+                            t.HasCheckConstraint("ck_property_tenancy_indexed", "not indexed or irl_reference_quarter is not null");
+
+                            t.HasCheckConstraint("ck_property_tenancy_irl_quarter", "irl_reference_quarter is null or irl_reference_quarter between 1 and 4");
                         });
+                });
+
+            modelBuilder.Entity("Nid.RealEstate.Infrastructure.Persistence.PropertyTenancyRow", b =>
+                {
+                    b.HasOne("Nid.RealEstate.Infrastructure.Persistence.PropertyTenancyRow", null)
+                        .WithMany()
+                        .HasForeignKey("RevisedFrom")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_property_tenancy_property_tenancy_revised_from");
                 });
 #pragma warning restore 612, 618
         }

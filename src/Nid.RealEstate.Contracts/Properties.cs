@@ -14,7 +14,7 @@ public enum PropertyCadence { Yearly, Manual }
 public sealed record PropertyDetails(
     PropertyType Type, LocalDate PurchaseDate, decimal PurchasePrice, decimal NotaryFees, decimal AgencyFees,
     decimal OtherAcquisitionCosts, decimal? SurfaceM2, string? LocationLabel, PropertyCadence Cadence, int? StaleAfterDays,
-    LocalDate? RentalStartsOn, string? Note);
+    LocalDate? RentalStartsOn, string? Note, string? EnergyClass = null);
 
 /// <summary>README §4: a property's flow categories by kind, in the order the real cost lists them.</summary>
 public static class PropertyCategories
@@ -40,6 +40,15 @@ public static class PropertyCodes
     public const string RecurringCostConflict = "realestate.recurring_cost_conflict";
     public const string TenancyOverlap = "realestate.tenancy_overlap";
     public const string TenancyConflict = "realestate.tenancy_conflict";
+
+    /// <summary>Rental spec §3.2: a tenancy of a revised chain keeps its rent, dates and existence.</summary>
+    public const string TenancyRevised = "realestate.tenancy_revised";
+
+    /// <summary>Rental spec §3.3: accepting a revision that is not due, on a date outside its window, in F or G; undoing one too late.</summary>
+    public const string RevisionNotDue = "realestate.revision_not_due";
+    public const string RevisionEffectiveOn = "realestate.revision_effective_on";
+    public const string RevisionForbiddenDpe = "realestate.revision_forbidden_dpe";
+    public const string RevisionUndoRefused = "realestate.revision_undo_refused";
 
     /// <summary>Spec 3E2 §3: a routine with nothing to record, a line twice, an estimate already at the routine's date.</summary>
     public const string RoutineEmpty = "realestate.routine_empty";
@@ -79,7 +88,8 @@ public sealed record RecurringCost(string Category, decimal Amount, Duration Eve
 
 /// <summary>Spec 3C2 §2: a lease on the property, [StartsOn, EndsOn); a flat share is one tenancy at the total rent, its label never personal data.</summary>
 public sealed record Tenancy(
-    string Label, LocalDate StartsOn, LocalDate? EndsOn, decimal RentMonthly, decimal ChargesMonthly, decimal? Deposit, string? Note);
+    string Label, LocalDate StartsOn, LocalDate? EndsOn, decimal RentMonthly, decimal ChargesMonthly, decimal? Deposit, string? Note,
+    bool Indexed = false, int? IrlReferenceQuarter = null);
 
 /// <summary>
 /// Spec 3C2 §4 over W = (d − 12 months, d]. <c>RentedSince</c> is R. Rates are fractions in full precision; vacancy is null when R
@@ -98,8 +108,8 @@ public sealed record PropertyFigures(
 /// <summary>A planned cost as stored; <c>Version</c> is its row's <c>xmin</c>.</summary>
 public sealed record StoredRecurringCost(Guid Id, RecurringCost Cost, uint Version);
 
-/// <summary>A tenancy as stored; <c>Version</c> is its row's <c>xmin</c>.</summary>
-public sealed record StoredTenancy(Guid Id, Tenancy Tenancy, uint Version);
+/// <summary>A tenancy as stored; <c>Version</c> is its row's <c>xmin</c>; <c>RevisedFrom</c> is the tenancy a rent revision continues.</summary>
+public sealed record StoredTenancy(Guid Id, Tenancy Tenancy, uint Version, Guid? RevisedFrom = null);
 
 /// <summary>
 /// A property as stored. <c>Version</c> is its row's <c>xmin</c>: it moves when one of its fields changes, not on a rename, nor when
@@ -130,7 +140,7 @@ public interface IPropertyStore
 
     Task DeleteCostAsync(ItemId property, Guid id, CancellationToken ct);
 
-    Task AddTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct);
+    Task AddTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct, Guid? revisedFrom = null);
 
     /// <summary>Every value in place; the tenancy's version always moves.</summary>
     Task UpdateTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct);

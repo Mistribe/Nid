@@ -12,14 +12,15 @@ const AMOUNTS = ['purchasePrice', 'notaryFees', 'agencyFees', 'otherAcquisitionC
 
 /** The settings' fields (3D2 design §5): the property's own, and its rental start — empty, or a date from the date input. */
 export function settingsSchema(t: TFunction) {
-  return propertyFieldsSchema(t).extend({ rentalStartsOn: z.string() });
+  // The energy class (DPE) is a letter A to G, or empty when unknown.
+  return propertyFieldsSchema(t).extend({ rentalStartsOn: z.string(), energyClass: z.string() });
 }
 
 export type SettingsValues = z.infer<ReturnType<typeof settingsSchema>>;
 
 /** A server path to the field that owns it: the rental start (refused before the purchase), or one of the property's fields. */
 export function settingsPath(path: string): keyof SettingsValues | undefined {
-  return path === 'rentalStartsOn' ? path : propertyFieldPath(path);
+  return path === 'rentalStartsOn' || path === 'energyClass' ? path : propertyFieldPath(path);
 }
 
 /** The form's values for a property as the server wrote it: amounts as their strings, an absent optional field empty. */
@@ -29,7 +30,7 @@ export function settingsValuesOf(p: PropertyDetail): SettingsValues {
     name: p.name, type: p.type as SettingsValues['type'], purchaseDate: p.purchaseDate, purchasePrice: p.purchasePrice,
     notaryFees: p.notaryFees, agencyFees: p.agencyFees, otherAcquisitionCosts: p.otherAcquisitionCosts, surfaceM2: p.surfaceM2 ?? '',
     locationLabel: p.locationLabel ?? '', valuationCadence: p.valuationCadence as SettingsValues['valuationCadence'],
-    staleAfterDays: p.staleAfterDays == null ? '' : String(p.staleAfterDays), rentalStartsOn: p.rentalStartsOn ?? '', note: p.note ?? '',
+    staleAfterDays: p.staleAfterDays == null ? '' : String(p.staleAfterDays), rentalStartsOn: p.rentalStartsOn ?? '', note: p.note ?? '', energyClass: p.energyClass ?? '',
   };
 }
 
@@ -52,6 +53,7 @@ export function toEditBody(before: PropertyDetail, v: SettingsValues): EditBody 
   if (v.rentalStartsOn !== was.rentalStartsOn) {
     if (v.rentalStartsOn === '') body.clearRentalStartsOn = true; else body.rentalStartsOn = v.rentalStartsOn;
   }
+  if (v.energyClass !== was.energyClass) { if (v.energyClass === '') body.clearEnergyClass = true; else body.energyClass = v.energyClass; }
   if (v.note.trim() !== was.note.trim()) { if (v.note.trim() === '') body.clearNote = true; else body.note = v.note; }
   return Object.keys(body).length === 0 ? null : body;
 }
@@ -59,7 +61,7 @@ export function toEditBody(before: PropertyDetail, v: SettingsValues): EditBody 
 /** The wire body: the version the form opened on, and every `clear*` flag stated (the wire type requires them). */
 export function toWireBody(body: EditBody, version: number): components['schemas']['EditPropertyBody'] {
   return {
-    clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false,
+    clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false,
     ...body, version,
   };
 }

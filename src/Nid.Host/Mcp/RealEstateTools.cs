@@ -44,6 +44,12 @@ public sealed class RealEstateTools
     public static Task<CallToolResult> GetProperty(IServiceProvider services, [Description("The property's id.")] Guid id, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetPropertyQuery(new ItemId(id)), ct);
 
+    [McpServerTool(Name = "get_rent_revisions", ReadOnly = true)]
+    [Description("The yearly rent revisions due (IRL): each tenancy's anniversary, the two IRL values, the current and the new rent. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetRentRevisions(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetRentRevisionsQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+
     [McpServerTool(Name = "simulate_early_repayment", ReadOnly = true)]
     [Description("Simulates an early repayment of a loan without recording it: the new term or payment and the interest saved. " + McpSetup.Untrusted)]
     public static async Task<CallToolResult> SimulateEarlyRepayment(IServiceProvider services, [Description("The loan's id.")] Guid id,

@@ -19,5 +19,6 @@
   <ItemGroup>
     <None Include="..\fixtures\**\*" LinkBase="fixtures" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\vectors\prices\*" LinkBase="vectors\prices" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\vectors\irl\*" LinkBase="vectors\irl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

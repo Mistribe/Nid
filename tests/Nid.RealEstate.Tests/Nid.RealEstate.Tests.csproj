@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\loans\vectors.json" Link="vectors\loans\vectors.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\vectors\loans\vectors.json')" />
+    <None Include="..\vectors\irl\*" LinkBase="vectors\irl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

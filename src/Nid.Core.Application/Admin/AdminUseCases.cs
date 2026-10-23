@@ -15,10 +15,10 @@ public sealed record AdultView(Guid Id, string DisplayName, string? Email, strin
         => new(person.Id.Value, person.DisplayName, person.Email, person.IsPending ? "pending" : "active", person.IsAdmin);
 }
 
-public sealed record HouseholdSettingsView(int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled)
+public sealed record HouseholdSettingsView(int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled)
 {
     public static HouseholdSettingsView From(HouseholdSettingsInfo settings)
-        => new(settings.MaxAdults, settings.ReferenceCurrency.Code, settings.AdultCount, settings.PricesEnabled);
+        => new(settings.MaxAdults, settings.ReferenceCurrency.Code, settings.AdultCount, settings.PricesEnabled, settings.IrlEnabled);
 }
 
 public sealed record ListAdultsQuery : IQuery<IReadOnlyList<AdultView>>, IAdminOnly;
@@ -51,12 +51,12 @@ public sealed record RevokeTokensCommand(PersonId Person) : ICommand<TokensRevok
 
 public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, IAdminOnly;
 
-public sealed record UpdateHouseholdSettingsCommand(int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled)
+public sealed record UpdateHouseholdSettingsCommand(int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled = null)
     : ICommand<HouseholdSettingsView>, IAdminOnly, IRecordsSecurityEvent
 {
     public SecurityEvent? EventFor(object response)
     {
-        var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency", PricesEnabled is null ? null : "prices_enabled" };
+        var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency", PricesEnabled is null ? null : "prices_enabled", IrlEnabled is null ? null : "irl_enabled" };
         var joined = string.Join(",", fields.OfType<string>());
         // No field was given (Minor #4): nothing changed, so nothing is worth an event.
         return joined.Length == 0 ? null : new SecurityEvent(SecurityEventNames.HouseholdSettingsChanged, null, [],
@@ -120,7 +120,7 @@ public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
     : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>
 {
     public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
-        => (await settings.UpdateAsync(new HouseholdSettingsChange(command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled), ct))
+        => (await settings.UpdateAsync(new HouseholdSettingsChange(command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled), ct))
             .Map(HouseholdSettingsView.From);
 }
 

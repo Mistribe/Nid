@@ -265,6 +265,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("allocation_target");
 
+                    b.Property<bool>("IrlEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("irl_enabled");
+
                     b.Property<string>("Locale")
                         .IsRequired()
                         .HasColumnType("text")

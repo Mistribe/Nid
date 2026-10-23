@@ -31,11 +31,21 @@ describe('toEditBody', () => {
   });
 });
 
+describe('the energy class', () => {
+  it('is sent as a letter once chosen and cleared once emptied', () => {
+    expect(values.energyClass).toBe('');
+    expect(toEditBody(propertyDetail(), { ...values, energyClass: 'F' })).toEqual({ energyClass: 'F' });
+    const before = propertyDetail({ energyClass: 'D' });
+    expect(toEditBody(before, settingsValuesOf(before))).toBeNull();
+    expect(toEditBody(before, { ...settingsValuesOf(before), energyClass: '' })).toEqual({ clearEnergyClass: true });
+  });
+});
+
 describe('toWireBody', () => {
   it('states the version and every clear flag, which the wire type requires', () => {
     expect(toWireBody({ name: 'Maison' }, 7)).toEqual({
       name: 'Maison', version: 7, clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false,
-      clearRentalStartsOn: false, clearNote: false,
+      clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false,
     });
   });
 });

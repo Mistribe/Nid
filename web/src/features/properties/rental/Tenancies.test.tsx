@@ -30,7 +30,7 @@ function serve(initial: PropertyDetail = propertyDetail({ figures: rentedFigures
   const view = (id: string, b: Body, version: number): PropertyTenancy => ({
     id, version, label: b.label!, startsOn: b.startsOn!, endsOn: b.endsOn ?? null, rentMonthly: written(b.rentMonthly!),
     chargesMonthly: written(b.chargesMonthly ?? '0'), deposit: b.deposit ? written(b.deposit) : null, note: b.note ?? null,
-    current: b.startsOn! <= todayIso() && todayIso() < (b.endsOn ?? OPEN),
+    current: b.startsOn! <= todayIso() && todayIso() < (b.endsOn ?? OPEN), indexed: b.indexed ?? false, irlReferenceQuarter: b.irlReferenceQuarter ?? null,
   });
   const byStart = (all: PropertyTenancy[]) => [...all].sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   const overlaps = (b: Body, self?: string) => current.tenancies.some((x) => x.id !== self
@@ -136,7 +136,7 @@ describe('tenancies', () => {
     await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Bail ajouté.'));
     await waitFor(() => {
       expect(sent).toEqual([expect.objectContaining({
-        method: 'POST', body: { label: 'T2 meublé', startsOn: '2021-01-01', rentMonthly: '900.5', chargesMonthly: '0' },
+        method: 'POST', body: { label: 'T2 meublé', startsOn: '2021-01-01', rentMonthly: '900.5', chargesMonthly: '0', indexed: false },
       })]);
       expect(screen.getByRole('heading', { name: 'Location' })).toHaveFocus();
     });
@@ -162,7 +162,7 @@ describe('tenancies', () => {
       expect(sent[0]!.url).toContain('/tenancies/t2');
       expect(sent[0]!.body).toEqual({
         label: 'T2 meublé', startsOn: '2023-01-01', endsOn: '2025-12-31', rentMonthly: '900.00', chargesMonthly: '50.00',
-        note: 'bail de 3 ans', version: 3,
+        note: 'bail de 3 ans', version: 3, indexed: false,
       });
     });
     await waitFor(async () => {
@@ -255,5 +255,92 @@ describe('tenancies', () => {
     expect(within(section).getByText('En cours')).toBeInTheDocument();
     expect(within(section).queryByRole('button')).not.toBeInTheDocument();
     expect(within(section).queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
+  });
+
+  it('indexes a tenancy on the IRL: the switch asks for its reference quarter, both go out', async () => {
+    const { sent } = serve(propertyDetail());
+    const { user } = await renderApp(PAGE);
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un bail' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Nouveau bail' }));
+    expect(form.queryByRole('radio', { name: 'T2' })).not.toBeInTheDocument();
+    await user.type(form.getByLabelText('Libellé'), 'T2 meublé');
+    await user.type(form.getByLabelText('Loyer mensuel'), '900');
+    await user.click(form.getByRole('switch', { name: 'Indexé sur l\u2019IRL' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
+    expect(await form.findByText('Ce champ est obligatoire.')).toBeInTheDocument();
+    await user.click(form.getByRole('radio', { name: 'T2' }));
+    await user.click(form.getByRole('button', { name: 'Ajouter' }));
+
+    await waitFor(() => expect(sent[0]!.body).toMatchObject({ indexed: true, irlReferenceQuarter: 2 }));
+  });
+
+  it('shows a revised lease as one row, its history unfolding, and undoes the last revision', async () => {
+    const first = tenancy({ id: 'a', label: 'Bail', startsOn: '2023-01-01', endsOn: '2024-01-01', rentMonthly: '900.00', current: false, indexed: true, irlReferenceQuarter: 2 });
+    const last = tenancy({ id: 'b', label: 'Bail', startsOn: '2024-01-01', rentMonthly: '927.00', indexed: true, irlReferenceQuarter: 2, revisedFrom: 'a' });
+    let undone = 0;
+    serve(propertyDetail({ figures: rentedFigures(), tenancies: [first, last] }));
+    server.use(http.delete('*/api/v1/realestate/properties/:id/tenancies/:tenancyId/revision', ({ params }) => {
+      undone += params.tenancyId === 'b' ? 1 : 0;
+      return new HttpResponse(null, { status: 204 });
+    }));
+    const { user } = await renderApp(PAGE);
+
+    const [row, ...others] = await rows();
+    expect(others).toHaveLength(0);
+    expect(row).toHaveTextContent('927,00 €');
+    // The lease runs since its first link.
+    expect(within(row!).getAllByRole('cell')[1]).toHaveTextContent('depuis le 1 janvier 2023');
+    await user.click(within(row!).getByRole('button', { name: 'Historique des loyers' }));
+    const history = within(row!).getByRole('list', { name: 'Historique des loyers' });
+    expect(history).toHaveTextContent('depuis le 1 janvier 2024 · 927,00 €');
+    expect(history).toHaveTextContent('depuis le 1 janvier 2023 · 900,00 €');
+
+    await user.click(within(row!).getByRole('button', { name: 'Annuler la révision' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(undone).toBe(1));
+  });
+
+  it('corrects a revised link with its rent and start kept, and never deletes it', async () => {
+    const first = tenancy({ id: 'a', label: 'Bail', startsOn: '2023-01-01', endsOn: '2024-01-01', rentMonthly: '900.00', current: false, indexed: true, irlReferenceQuarter: 2 });
+    const last = tenancy({ id: 'b', label: 'Bail', startsOn: '2024-01-01', rentMonthly: '927.00', indexed: true, irlReferenceQuarter: 2, revisedFrom: 'a' });
+    const { sent } = serve(propertyDetail({ figures: rentedFigures(), tenancies: [first, last] }));
+    const { user } = await renderApp(PAGE);
+
+    await user.click(within((await rows())[0]!).getByRole('button', { name: /^Actions pour le 1 janvier 2024/ }));
+    expect(await screen.findByRole('menuitem', { name: 'Corriger' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Supprimer' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: 'Corriger' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Corriger le bail' }));
+    expect(form.getByLabelText('Loyer mensuel')).toHaveAttribute('readonly');
+    expect(form.getByLabelText('Début')).toHaveAttribute('readonly');
+    // Ending a lease is correcting it with an end: the chain's last link keeps that.
+    expect(form.getByLabelText('Fin')).not.toHaveAttribute('readonly');
+    await user.clear(form.getByLabelText('Libellé'));
+    await user.type(form.getByLabelText('Libellé'), 'Bail Dupont');
+    await user.click(form.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent[0]!.body).toMatchObject({ label: 'Bail Dupont', startsOn: '2024-01-01', rentMonthly: '927.00' }));
+  });
+
+  it.each([
+    ['irl_missing', 'IRL du 2ᵉ trimestre 2026 manquant', '2026-Q2'],
+    ['irl_missing', 'IRL du 1ᵉʳ trimestre 2027 manquant', '2027-Q1'],
+    ['forbidden_dpe', 'Révision interdite (DPE F/G)', null],
+  ])('says why a revision is not offered: %s', async (state, text, missingQuarter) => {
+    const revision = { state, dpeUnknown: false, missingQuarter };
+    serve(propertyDetail({ figures: rentedFigures(), tenancies: [tenancy({ indexed: true, irlReferenceQuarter: 2, revision })] }));
+    await renderApp(PAGE);
+
+    expect((await rows())[0]).toHaveTextContent(text);
+    expect(screen.queryByRole('button', { name: 'Réviser le loyer' })).not.toBeInTheDocument();
+  });
+
+  it('says a revision was missed', async () => {
+    const revision = { state: 'none', dpeUnknown: false, lostAnniversary: '2025-01-01' };
+    serve(propertyDetail({ figures: rentedFigures(), tenancies: [tenancy({ indexed: true, irlReferenceQuarter: 2, revision })] }));
+    await renderApp(PAGE);
+
+    expect((await rows())[0]).toHaveTextContent('Révision du 1 janvier 2025 non faite');
   });
 });

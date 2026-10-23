@@ -13,7 +13,8 @@ public sealed record AddPropertyTenancyCommand(ItemId ItemId, Tenancy Tenancy) :
 }
 
 /// <summary>A correction in place — ending a tenancy is one, with an end (spec 3C2 §3); <paramref name="Version"/> is the tenancy's as read.</summary>
-public sealed record EditPropertyTenancyCommand(ItemId ItemId, Guid TenancyId, Tenancy Values, uint Version) : ICommand<Guid>, IItemScoped
+public sealed record EditPropertyTenancyCommand(ItemId ItemId, Guid TenancyId, Tenancy Values, uint Version, bool? Indexed = null, int? IrlReferenceQuarter = null)
+    : ICommand<Guid>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -38,6 +39,27 @@ internal static class TenancyCheck
             return new NotFoundFailure("tenancy", id.ToString());
         return tenancy.Version != version ? LoanCheck.Conflict(PropertyCodes.TenancyConflict, "tenancy") : null;
     }
+
+    /// <summary>
+    /// Rental spec §3.2: a tenancy with a successor keeps its rent and dates; one that continues another keeps its start (undo, then
+    /// revise again) and is not deleted by hand.
+    /// </summary>
+    public static Failure? Revised(StoredProperty property, Guid id, Tenancy? values)
+    {
+        var stored = property.Tenancies.First(t => t.Id == id);
+        var succeeded = property.Tenancies.Any(t => t.RevisedFrom == id);
+        if (values is null)
+            return stored.RevisedFrom is not null || succeeded ? Locked(null) : null;
+        var old = stored.Tenancy;
+        var changed = succeeded && values.RentMonthly != old.RentMonthly ? "rentMonthly"
+            : (succeeded || stored.RevisedFrom is not null) && values.StartsOn != old.StartsOn ? "startsOn"
+            : succeeded && values.EndsOn != old.EndsOn ? "endsOn" : null;
+        return changed is null ? null : Locked(changed);
+    }
+
+    private static Failure Locked(string? field)
+        => new(PropertyCodes.TenancyRevised, "A revised tenancy keeps its rent and dates, and a revision is only removed by undoing it.",
+            field is null ? null : new Dictionary<string, object?> { ["field"] = field });
 }
 
 /// <summary>Spec 3C2 §2: the property's row is locked before the overlap is checked, so two concurrent writes cannot both pass.</summary>
@@ -73,11 +95,20 @@ public sealed class EditPropertyTenancyHandler(IItemRegistry items, IPropertySto
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
         loaded.TryGetValue(out var found);
-        if ((TenancyCheck.Writable(found.Property, command.TenancyId, command.Version)
-             ?? TenancyCheck.Fits(found.Property, command.Values, command.TenancyId)) is { } refused)
+        if (TenancyCheck.Writable(found.Property, command.TenancyId, command.Version) is { } unwritable)
+            return Result.Failure<Guid>(unwritable);
+
+        // Indexation is tri-state on a PUT: absent keeps what is stored, present overrides; the rules see the merged values.
+        var stored = found.Property.Tenancies.First(t => t.Id == command.TenancyId).Tenancy;
+        var values = command.Values with
+        {
+            Indexed = command.Indexed ?? stored.Indexed, IrlReferenceQuarter = command.IrlReferenceQuarter ?? stored.IrlReferenceQuarter,
+        };
+        if ((TenancyCheck.Revised(found.Property, command.TenancyId, values)
+             ?? TenancyCheck.Fits(found.Property, values, command.TenancyId)) is { } refused)
             return Result.Failure<Guid>(refused);
 
-        await properties.UpdateTenancyAsync(command.ItemId, command.TenancyId, command.Values, ct);
+        await properties.UpdateTenancyAsync(command.ItemId, command.TenancyId, values, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(command.TenancyId);
     }
@@ -94,7 +125,8 @@ public sealed class DeletePropertyTenancyHandler(IItemRegistry items, IPropertyS
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
         loaded.TryGetValue(out var found);
-        if (TenancyCheck.Writable(found.Property, command.TenancyId, command.Version) is { } unwritable)
+        if ((TenancyCheck.Writable(found.Property, command.TenancyId, command.Version)
+             ?? TenancyCheck.Revised(found.Property, command.TenancyId, null)) is { } unwritable)
             return Result.Failure<bool>(unwritable);
 
         await properties.DeleteTenancyAsync(command.ItemId, command.TenancyId, ct);

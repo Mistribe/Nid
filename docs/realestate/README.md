@@ -39,6 +39,7 @@ Un bien est un `item` du Core. Un prêt est un autre `item`, lié à un bien par
 | `valuation_cadence` | text | `yearly` par défaut, péremption à 400 jours |
 | `stale_after_days` | int? | Remplace le seuil dérivé de la cadence |
 | `rental_starts_on` | date? | Début de mise en location, sert à la vacance ; ≥ `purchase_date` |
+| `energy_class` | text? | Classe DPE, `A` à `G` ; `F` ou `G` interdit la révision du loyer par l'IRL |
 | `note` | text? | |
 
 Les **estimations** sont des valorisations du Core (une à deux fois par an, avec rappel, note « estimation en ligne » ou autre). L'interface propose des liens vers des estimateurs en ligne ; aucune donnée n'y est envoyée. Les données publiques de transactions restent à explorer plus tard (`../Project.md` §13).
@@ -105,7 +106,7 @@ Calculs indicatifs :
 **Livré en 3C2** (2026-10-13, `superpowers/specs/2026-10-13-property-rental-design.md`) : tables `realestate.property_recurring_cost` et `realestate.property_tenancy`, chaque ligne avec sa `version`. API sous `/api/v1/realestate/properties/{id}` :
 
 - `POST /recurring-costs`, `PUT /recurring-costs/{costId}` (avec la `version` lue ; une version périmée répond `409 realestate.recurring_cost_conflict`), `DELETE /recurring-costs/{costId}?version=` ; corps `{ category, amount, every: { count, unit }, startsOn, endsOn?, note? }`, `unit` valant `month` ou `year`, `count` de 1 à 120 ;
-- `POST /tenancies`, `PUT /tenancies/{tenancyId}` (`409 realestate.tenancy_conflict`), `DELETE /tenancies/{tenancyId}?version=` ; corps `{ label, startsOn, endsOn?, rentMonthly, chargesMonthly?, deposit?, note? }` ; terminer un bail, c’est le corriger avec un `endsOn` ;
+- `POST /tenancies`, `PUT /tenancies/{tenancyId}` (`409 realestate.tenancy_conflict`), `DELETE /tenancies/{tenancyId}?version=` ; corps `{ label, startsOn, endsOn?, rentMonthly, chargesMonthly?, deposit?, note?, indexed?, irlReferenceQuarter? }` (`indexed` exige un trimestre IRL de référence de 1 à 4, `irlReferenceQuarter`) ; la fiche porte aussi `revisedFrom` (lecture seule), le bail que celui-ci prolonge ; un bail qui a un successeur ne se supprime pas et garde `rentMonthly`, `startsOn` et `endsOn` (`422 realestate.tenancy_revised`), et un bail qui en prolonge un ne se supprime pas à la main ; terminer un bail, c’est le corriger avec un `endsOn` ;
 - `GET /properties/{id}` ajoute `recurringCosts` (avec `monthlyEquivalent` et `nextDueOn`, `null` une fois la charge terminée) et `tenancies` (avec `current`), par date de début, et dans `figures` : `rentedSince`, `expectedRent`, `rentReceived`, `arrears`, `vacantDays`, `vacancyRate`, `grossYield`, `netYieldBeforeTax` ; `GET /properties` ajoute à chaque ligne `grossYield` et `vacancyRate`.
 
 Une charge récurrente ne crée aucun flux. Deux baux d’un même bien ne se chevauchent jamais (`realestate.tenancy_overlap` sur `startsOn`) : chaque écriture de bail verrouille la ligne du bien avant de vérifier. Un `PATCH` du bien refuse une date d’achat postérieure au début d’un de ses baux (`purchaseDate`). Une charge de catégorie `works` est refusée (`realestate.invalid_category`) : les travaux sont déjà dans le prix de revient. Avertissement `rental_without_tenancy` : un bien de type `rental` sans bail ni `rental_starts_on`.
@@ -174,12 +175,12 @@ Sections de `../import-format.md` définies par ce module (les `valuations` et `
 | `purchase_price` | montant | |
 | `notary_fees`, `agency_fees`, `other_acquisition_costs` | montant? | |
 | `surface_m2`, `location_label`, `note` | | |
-| `valuation_cadence`, `stale_after_days`, `rental_starts_on` | | |
+| `valuation_cadence`, `stale_after_days`, `rental_starts_on`, `energy_class?` | | |
 | `ownership`, `visibility` | | Comme pour les abonnements |
 
 **`property_recurring_costs`** : `id`, `property` (référence), `category`, `amount` (montant), `every`, `starts_on`, `ends_on?`, `note?`.
 
-**`tenancies`** : `id`, `property` (référence), `label`, `starts_on`, `ends_on?`, `rent_monthly` (montant), `charges_monthly?` (montant), `deposit?` (montant), `note?`.
+**`tenancies`** : `id`, `property` (référence), `label`, `starts_on`, `ends_on?`, `rent_monthly` (montant), `charges_monthly?` (montant), `deposit?` (montant), `note?`, `indexed?` (faux par défaut), `irl_reference_quarter?` (1 à 4). Le lien `revised_from` d'une révision n'est pas exporté.
 
 **Livré en 3F1** (`superpowers/specs/2026-10-15-realestate-import-export-design.md`) : les trois sections ci-dessus. Montants `{ amount, currency }` dans la devise du bien ; `notary_fees`, `agency_fees`, `other_acquisition_costs` et `charges_monthly` valent 0 s’ils manquent, `valuation_cadence` `yearly`, `visibility` `shared` ; `surface_m2` est une chaîne décimale ; `every` vaut `{ count, unit }`, de 1 à 120 mois ou années. Une charge ou un bail nomme un bien du même fichier. Les erreurs du §11 s’appliquent à ce que le bien contient une fois l’import écrit ; un bien dont le fichier recule l’achat après un bail qu’il garde est refusé. Un flux de bien (section `flows` du Core) respecte la convention du §4 : `expense` ou `income`, avec une catégorie de sa nature (`realestate.invalid_category` sinon). L’export écrit chaque bien lisible, ses charges prévues et ses baux.
 

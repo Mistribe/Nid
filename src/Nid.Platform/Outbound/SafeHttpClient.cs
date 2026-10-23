@@ -8,11 +8,11 @@ public sealed class OutboundOptions
 {
     /// <summary>
     /// An array, not a list: configuration binding replaces an array but appends to a pre-filled list. The catalog and
-    /// the ECB (1C2a), and the hosts of the catalog's icons (1C2c design §5), and the two price sources (holding prices spec §2): an icon anywhere else is refused
+    /// the ECB (1C2a), and the hosts of the catalog's icons (1C2c design §5), the two price sources (holding prices spec §2) and INSEE (rental spec §3): an icon anywhere else is refused
     /// <c>host_not_allowed</c> until the operator adds its host here.
     /// </summary>
     public string[] AllowedHosts { get; set; } =
-        ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com"];
+        ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr"];
 
     /// <summary>Sent on every request: <c>upload.wikimedia.org</c> refuses a request without one (403).</summary>
     public string UserAgent { get; set; } = "Nid/1.0 (+https://github.com/Mistribe/Nid)";

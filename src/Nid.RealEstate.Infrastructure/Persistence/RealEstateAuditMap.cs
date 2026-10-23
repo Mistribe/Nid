@@ -18,5 +18,5 @@ public sealed class RealEstateAuditMap : IAuditMap
         [typeof(PropertyTenancyRow)] = new(e => AuditItems.Of(e, nameof(PropertyTenancyRow.PropertyItemId))),
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(IrlRow), typeof(IrlRunRow) };
 }

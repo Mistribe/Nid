@@ -48,6 +48,12 @@ public sealed record PropertiesOverview(
 public static class PropertyOverviewCodes
 {
     public const string RentArrears = "rent_arrears";
+
+    /// <summary>Rental spec §3.3: on the anniversary (<c>revision_lost</c>: the previous one), <c>revision_due</c> with the new rent.</summary>
+    public const string RevisionDue = "revision_due";
+    public const string RevisionLost = "revision_lost";
+    public const string IrlMissing = "irl_missing";
+    public const string RevisionForbiddenDpe = "revision_forbidden_dpe";
 }
 
 /// <summary>
@@ -61,7 +67,8 @@ internal sealed record OverviewProperty(
 [RequestHandler<GetPropertiesOverviewQuery, PropertiesOverview>]
 public sealed class GetPropertiesOverviewHandler(
     IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations, IFlows flows,
-    IAccessPolicy policy, IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
+    IAccessPolicy policy, IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons,
+    IIrlStore irl)
     : IRequestHandler<GetPropertiesOverviewQuery, PropertiesOverview>
 {
     public async ValueTask<Result<PropertiesOverview>> HandleAsync(GetPropertiesOverviewQuery query, CancellationToken ct = default)
@@ -81,7 +88,8 @@ public sealed class GetPropertiesOverviewHandler(
         var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], grid[0], today, ct);
-        return Result.Success(PropertiesOverviewMath.Build(set, reference, rates, today, grid, query.Span, await persons.ListAsync(ct)));
+        return Result.Success(PropertiesOverviewMath.Build(set, reference, rates, today, grid, query.Span, await persons.ListAsync(ct),
+            await irl.ListAsync(ct)));
     }
 }
 
@@ -173,9 +181,10 @@ internal static class PropertiesOverviewMath
     private sealed record Owed(ItemAccess Item, Currency Currency, LoanTerms Terms, LoanSchedule Schedule, decimal Balance, decimal? Converted);
 
     /// <param name="persons">The household in creation order, for the order of <c>ByPerson</c>.</param>
+    /// <param name="irl">The stored IRL series, for the rent revisions' findings.</param>
     public static PropertiesOverview Build(
         IReadOnlyList<OverviewProperty> set, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<LocalDate> grid,
-        PropertiesSpan span, IReadOnlyList<PersonInfo> persons)
+        PropertiesSpan span, IReadOnlyList<PersonInfo> persons, IReadOnlyList<IrlValue> irl)
     {
         var convert = new Converter(reference, rates);
         var read = set.Select(p =>
@@ -230,7 +239,7 @@ internal static class PropertiesOverviewMath
             convert.View(cost), convert.View(gain), Pct(gain, cost),
             let.Count == 0 ? null : convert.View(rent),
             yieldRent is { } yr && yieldCost is { } yc && yc > 0m ? Fraction(yr / yc) : null,
-            byType, People(valued, owed, persons, net, convert), rows, Points(set, owed, grid, span, convert), Watch(read, today), convert.Missing);
+            byType, People(valued, owed, persons, net, convert), rows, Points(set, owed, grid, span, convert), Watch(read, today, irl), convert.Missing);
     }
 
     /// <summary>
@@ -251,9 +260,10 @@ internal static class PropertiesOverviewMath
 
     /// <summary>
     /// Spec §3.2: the detail's warnings (but a loan in another currency, which is no task), arrears over the 12 months, and on 60
-    /// days, as « À venir », each planned cost's next due date and each tenancy's end. Warnings first, then by date.
+    /// days, as « À venir », each planned cost's next due date and each tenancy's end; with the warnings, each chain's rent revision
+    /// (rental spec §3.3). Warnings first, then by date.
     /// </summary>
-    private static List<PropertyWatchView> Watch(IReadOnlyList<Read> read, LocalDate today)
+    private static List<PropertyWatchView> Watch(IReadOnlyList<Read> read, LocalDate today, IReadOnlyList<IrlValue> irl)
     {
         var until = today.PlusDays(UpcomingDays);
         var warnings = new List<PropertyWatchView>();
@@ -265,10 +275,23 @@ internal static class PropertiesOverviewMath
                 warnings.Add(new PropertyWatchView(w.Code, id, w.LoanId, w.Code == PropertyWarnings.ValuationStale ? r.Figures.ValueOn : null, null));
             if (r.Figures.Rental is { RentedSince: not null, Arrears: > 0m } rental)
                 warnings.Add(new PropertyWatchView(PropertyOverviewCodes.RentArrears, id, null, null, Money(rental.Arrears, r.Currency)));
+            foreach (var chain in RentRevisions.Of(r.Source.Property, irl, today))
+            {
+                if (chain.Lost is { } lost)
+                    warnings.Add(new PropertyWatchView(PropertyOverviewCodes.RevisionLost, id, null, lost, null));
+                if (chain.State switch
+                    {
+                        RevisionDue d => new PropertyWatchView(PropertyOverviewCodes.RevisionDue, id, null, d.Anniversary, Money(d.NewRent, r.Currency)),
+                        RevisionIrlMissing m => new PropertyWatchView(PropertyOverviewCodes.IrlMissing, id, null, m.Anniversary, null),
+                        RevisionForbiddenDpe f => new PropertyWatchView(PropertyOverviewCodes.RevisionForbiddenDpe, id, null, f.Anniversary, null),
+                        _ => null,
+                    } is { } revision)
+                    warnings.Add(revision);
+            }
             foreach (var cost in r.Source.Property.Costs.Select(c => c.Cost))
                 if (PropertyMath.NextDueOn(cost, today) is { } next && next <= until)
                     dated.Add(new PropertyWatchView(UpcomingKinds.PropertyCostDue, id, null, next, Money(cost.Amount, r.Currency)));
-            foreach (var tenancy in r.Source.Property.Tenancies.Select(t => t.Tenancy))
+            foreach (var tenancy in RentRevisions.LastLinks(r.Source.Property).Select(t => t.Tenancy))
                 if (tenancy.EndsOn is { } ends && ends >= today && ends <= until)
                     dated.Add(new PropertyWatchView(UpcomingKinds.TenancyEnd, id, null, ends, null));
         }

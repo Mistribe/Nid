@@ -124,6 +124,7 @@ public sealed class PropertyRow : IImportMarked
     public int? StaleAfterDays { get; set; }
     public LocalDate? RentalStartsOn { get; set; }
     public string? Note { get; set; }
+    public string? EnergyClass { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
@@ -160,8 +161,36 @@ public sealed class PropertyTenancyRow : IImportMarked
     public decimal ChargesMonthly { get; set; }
     public decimal? Deposit { get; set; }
     public string? Note { get; set; }
+    public bool Indexed { get; set; }
+    public int? IrlReferenceQuarter { get; set; }
+
+    /// <summary>The tenancy a rent revision continues (rental spec §3.2).</summary>
+    public Guid? RevisedFrom { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
+}
+
+/// <summary>realestate.irl (rental spec §3): one IRL value per quarter, <c>2026-Q2</c>; <c>Source</c> is <c>insee</c> or <c>manual</c>.</summary>
+public sealed class IrlRow
+{
+    public string Quarter { get; set; } = "";
+    public decimal Value { get; set; }
+    public LocalDate? PublishedOn { get; set; }
+    public LocalDate FetchedOn { get; set; }
+    public string Source { get; set; } = "";
+}
+
+/// <summary>realestate.irl_run (rental spec §3): one collection of the series.</summary>
+public sealed class IrlRunRow
+{
+    public Guid Id { get; set; }
+    public Instant StartedAt { get; set; }
+    public Instant? FinishedAt { get; set; }
+    public string Status { get; set; } = "";
+    public int Added { get; set; }
+    public int Replaced { get; set; }
+    public int Rejected { get; set; }
+    public string? Message { get; set; }
 }

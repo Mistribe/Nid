@@ -114,6 +114,9 @@ public static class NidServiceCollectionExtensions
         services.TryAddSingleton<IFxSourceClient, FxSourceClient>();
         services.TryAddSingleton(new PriceOptions());
         services.TryAddSingleton<IPriceSourceClient, Nid.Investments.Infrastructure.Prices.PriceSourceClient>();
+        services.TryAddSingleton(new IrlOptions());
+        services.TryAddSingleton<IIrlSourceClient, Nid.RealEstate.Infrastructure.Irl.IrlSourceClient>();
+        services.TryAddSingleton<IIrlJobTrigger, JobsDisabledIrlTrigger>();
         services.TryAddSingleton<IFxJobTrigger, JobsDisabledFxTrigger>();
         services.TryAddSingleton<IPriceJobTrigger, JobsDisabledPriceTrigger>();
         services.AddScoped<IFxRateStore, FxRateStore>();
@@ -189,6 +192,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
         services.AddScoped<ILoanStore, LoanStore>();
         services.AddScoped<IPropertyStore, PropertyStore>();
+        services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
+        services.AddScoped<IIrlRunLog, IrlRunLog>();
+        services.AddScoped<Nid.RealEstate.Application.Irl.IrlCollector>();
         services.AddScoped<IRealEstateImports, RealEstateImports>();
         services.AddScoped<ILoanSimulator, Nid.RealEstate.Application.ScenarioLoans>();
         services.AddScoped<IRealEstateProjection, Nid.RealEstate.Application.RealEstateScenarioProjection>();

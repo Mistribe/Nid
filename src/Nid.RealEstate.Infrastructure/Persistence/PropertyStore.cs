@@ -68,9 +68,9 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task AddTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct)
+    public async Task AddTenancyAsync(ItemId property, Guid id, Tenancy tenancy, CancellationToken ct, Guid? revisedFrom = null)
     {
-        var row = new PropertyTenancyRow { Id = id, PropertyItemId = property.Value };
+        var row = new PropertyTenancyRow { Id = id, PropertyItemId = property.Value, RevisedFrom = revisedFrom };
         Fill(row, tenancy);
         db.Tenancies.Add(row);
         await db.SaveChangesAsync(ct);
@@ -104,6 +104,7 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         row.StaleAfterDays = d.StaleAfterDays;
         row.RentalStartsOn = d.RentalStartsOn;
         row.Note = d.Note;
+        row.EnergyClass = d.EnergyClass;
     }
 
     private static void Fill(PropertyRecurringCostRow row, RecurringCost c)
@@ -126,11 +127,13 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
         row.ChargesMonthly = t.ChargesMonthly;
         row.Deposit = t.Deposit;
         row.Note = t.Note;
+        row.Indexed = t.Indexed;
+        row.IrlReferenceQuarter = t.IrlReferenceQuarter;
     }
 
     private static PropertyDetails ToDetails(PropertyRow r) => new(
         Parse<PropertyType>(r.PropertyType), r.PurchaseDate, r.PurchasePrice, r.NotaryFees, r.AgencyFees, r.OtherAcquisitionCosts,
-        r.SurfaceM2, r.LocationLabel, Parse<PropertyCadence>(r.ValuationCadence), r.StaleAfterDays, r.RentalStartsOn, r.Note);
+        r.SurfaceM2, r.LocationLabel, Parse<PropertyCadence>(r.ValuationCadence), r.StaleAfterDays, r.RentalStartsOn, r.Note, r.EnergyClass);
 
     /// <summary>The check constraints admit counts of 1 to 120 only: the Core's period always builds.</summary>
     private static StoredRecurringCost ToCost(PropertyRecurringCostRow r)
@@ -141,7 +144,7 @@ public sealed class PropertyStore(RealEstateDbContext db) : IPropertyStore
             r.StartsOn, r.EndsOn, r.Note), r.Version);
 
     private static StoredTenancy ToTenancy(PropertyTenancyRow r)
-        => new(r.Id, new Tenancy(r.Label, r.StartsOn, r.EndsOn, r.RentMonthly, r.ChargesMonthly, r.Deposit, r.Note), r.Version);
+        => new(r.Id, new Tenancy(r.Label, r.StartsOn, r.EndsOn, r.RentMonthly, r.ChargesMonthly, r.Deposit, r.Note, r.Indexed, r.IrlReferenceQuarter), r.Version, r.RevisedFrom);
 
     /// <summary>The check constraints admit only these texts: anything else is a broken invariant.</summary>
     private static T Parse<T>(string text) where T : struct, Enum

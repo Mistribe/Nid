@@ -290,7 +290,7 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
                 if (PropertyMath.NextDueOn(cost, today) is { } next && next <= until)
                     events.Add(new UpcomingEvent(next, UpcomingKinds.PropertyCostDue, property.ItemId, "properties", item.DisplayName, cost.Category,
                         PropertyFacts.MoneyOf(cost.Amount, currency)));
-            foreach (var tenancy in property.Tenancies.Select(t => t.Tenancy))
+            foreach (var tenancy in RentRevisions.LastLinks(property).Select(t => t.Tenancy))
                 if (tenancy.EndsOn is { } ends && Within(ends))
                     events.Add(new UpcomingEvent(ends, UpcomingKinds.TenancyEnd, property.ItemId, "properties", item.DisplayName, tenancy.Label, null));
         }

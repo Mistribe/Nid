@@ -47,7 +47,7 @@ const settings = () => screen.getByRole('form', { name: 'Réglages' });
 const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
 const save = () => within(settings()).getByRole('button', { name: 'Enregistrer les réglages' });
 const heading = (name = 'Maison de Nantes') => screen.findByRole('heading', { name, level: 1 });
-const FLAGS = { clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false };
+const FLAGS = { clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false };
 
 describe('property settings', () => {
   beforeAll(async () => { await import('../PropertyDetailPage'); }, 30_000);

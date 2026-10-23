@@ -11,7 +11,7 @@ public class PropertyStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
 {
     /// <summary>Every optional field set, cent-precise amounts and a half square metre: what the columns must keep.</summary>
     private static PropertyDetails Home() => new(PropertyType.Rental, new LocalDate(2020, 6, 15), 250_000.5m, 19_000m, 3_500.25m, 0m,
-        85.5m, "Nantes", PropertyCadence.Manual, 200, new LocalDate(2020, 9, 1), "achat");
+        85.5m, "Nantes", PropertyCadence.Manual, 200, new LocalDate(2020, 9, 1), "achat", "D");
 
     [Fact]
     public async Task A_property_reads_back_whole_and_its_version_moves_on_a_change()
@@ -47,7 +47,7 @@ public class PropertyStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         var yearly = new RecurringCost("property_tax", 1_200.5m, Every(1, DurationUnit.Year), new LocalDate(2021, 10, 15), new LocalDate(2030, 1, 1), "taxe");
         var quarterly = new RecurringCost("condo_fees", 250m, Every(3, DurationUnit.Month), new LocalDate(2020, 7, 1), null, null);
-        var lease = new Tenancy("T2 meublé", new LocalDate(2020, 9, 1), new LocalDate(2023, 9, 1), 900.25m, 50m, 1_800m, "bail");
+        var lease = new Tenancy("T2 meublé", new LocalDate(2020, 9, 1), new LocalDate(2023, 9, 1), 900.25m, 50m, 1_800m, "bail", true, 2);
         var (c1, c2, t1) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
         await store.AddCostAsync(id, c1, yearly, default);
         await store.AddCostAsync(id, c2, quarterly, default);
@@ -56,6 +56,11 @@ public class PropertyStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         var stored = (await store.FindAsync(id, default))!;
         Assert.Equal([(c2, quarterly), (c1, yearly)], stored.Costs.Select(c => (c.Id, c.Cost))); // by start date
         Assert.Equal([(t1, lease)], stored.Tenancies.Select(t => (t.Id, t.Tenancy)));
+        Assert.Null(stored.Tenancies[0].RevisedFrom);
+        var t2 = Guid.CreateVersion7();
+        await store.AddTenancyAsync(id, t2, lease with { StartsOn = new LocalDate(2023, 9, 1), EndsOn = null }, default, revisedFrom: t1);
+        Assert.Equal(t1, (await store.FindAsync(id, default))!.Tenancies[1].RevisedFrom);
+        await store.DeleteTenancyAsync(id, t2, default);
         Assert.All(stored.Costs, c => Assert.NotEqual(0u, c.Version));
         Assert.Empty((await store.FindAsync(other, default))!.Costs);
 

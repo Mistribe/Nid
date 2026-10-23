@@ -8,6 +8,8 @@ import { DateField } from '@/components/form/DateField';
 import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Segmented } from '@/components/form/Segmented';
+import { SwitchField } from '@/components/page/SwitchField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { presentRefusal } from '../../loans/refusal';
@@ -64,16 +66,18 @@ function TenancyForm({ property, editing, titleId, onDone }: { property: Propert
   });
 
   const e = form.formState.errors;
+  // A revision's rent and start are the chain's (rental spec §3.2): shown, sent back unchanged; the end stays, to end the lease.
+  const revised = !!editing?.revisedFrom;
   const problem = errors.problem ? presentRefusal(t, editing ? correct.error : add.error) : null;
   const amount = (name: 'rentMonthly' | 'chargesMonthly' | 'deposit', label: string, hint?: string) => (
     <Field label={label} hint={hint} error={e[name]?.message}>
-      {(c) => <Input inputMode="decimal" {...c} {...form.register(name)} />}
+      {(c) => <Input inputMode="decimal" {...c} {...form.register(name)} readOnly={revised && name === 'rentMonthly'} />}
     </Field>
   );
   const date = (name: 'startsOn' | 'endsOn', label: string, hint?: string) => (
     <Controller control={form.control} name={name} render={({ field }) => (
       <Field label={label} hint={hint} error={e[name]?.message}>
-        {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+        {(c) => <DateField {...c} value={field.value} onChange={field.onChange} readOnly={revised && name === 'startsOn'} />}
       </Field>
     )} />
   );
@@ -99,6 +103,17 @@ function TenancyForm({ property, editing, titleId, onDone }: { property: Propert
         {amount('chargesMonthly', t('property_rental.charges'))}
         {amount('deposit', t('property_rental.deposit'), t('loan_form.optional'))}
       </div>
+      <Controller control={form.control} name="indexed" render={({ field }) => (
+        <SwitchField label={t('property_rental.indexed')} checked={field.value} onCheckedChange={(on) => { field.onChange(on); if (!on) form.setValue('irlQuarter', ''); }} />
+      )} />
+      {form.watch('indexed') ? (
+        <Controller control={form.control} name="irlQuarter" render={({ field }) => (
+          <Field label={t('property_rental.irl_quarter')} hint={t('property_rental.irl_quarter_help')} error={e.irlQuarter?.message}>
+            {(c) => <Segmented {...c} aria-label={t('property_rental.irl_quarter')} value={field.value} onValueChange={field.onChange}
+              options={[1, 2, 3, 4].map((q) => ({ value: String(q), label: `T${q}` }))} />}
+          </Field>
+        )} />
+      ) : null}
       <Field label={t('property_rental.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>

@@ -32,7 +32,7 @@ public class QuartzTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         var jobs = await core.Database
             .SqlQueryRaw<string>("select job_name as \"Value\" from platform.qrtz_job_details order by job_name")
             .ToListAsync();
-        Assert.Equal(["catalog-sync", "fx-backfill", "fx-daily", "prices-daily"], jobs);
+        Assert.Equal(["catalog-sync", "fx-backfill", "fx-daily", "irl-weekly", "prices-daily"], jobs);
         Assert.Equal(1, await core.Database
             .SqlQueryRaw<int>("select count(*)::int as \"Value\" from platform.qrtz_cron_triggers where cron_expression = '0 0 7 * * ?'")
             .SingleAsync());

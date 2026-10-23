@@ -27,6 +27,10 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     public DbSet<PropertyTenancyRow> Tenancies => Set<PropertyTenancyRow>();
 
+    public DbSet<IrlRow> Irl => Set<IrlRow>();
+
+    public DbSet<IrlRunRow> IrlRuns => Set<IrlRunRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -143,6 +147,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_property_cadence", "valuation_cadence in ('yearly','manual')");
                 t.HasCheckConstraint("ck_property_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
                 t.HasCheckConstraint("ck_property_rental_starts_on", "rental_starts_on is null or rental_starts_on >= purchase_date");
+                t.HasCheckConstraint("ck_property_energy_class", "energy_class is null or energy_class in ('A','B','C','D','E','F','G')");
                 t.HasCheckConstraint("ck_property_import", ImportCheck);
             });
             e.HasKey(x => x.ItemId);
@@ -180,6 +185,8 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             {
                 t.HasCheckConstraint("ck_property_tenancy_amounts", "rent_monthly > 0 and charges_monthly >= 0 and (deposit is null or deposit > 0)");
                 t.HasCheckConstraint("ck_property_tenancy_dates", "ends_on is null or ends_on > starts_on");
+                t.HasCheckConstraint("ck_property_tenancy_irl_quarter", "irl_reference_quarter is null or irl_reference_quarter between 1 and 4");
+                t.HasCheckConstraint("ck_property_tenancy_indexed", "not indexed or irl_reference_quarter is not null");
                 t.HasCheckConstraint("ck_property_tenancy_import", ImportCheck);
             });
             e.HasKey(x => x.Id);
@@ -187,8 +194,35 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             e.Property(x => x.RentMonthly).HasColumnType("numeric(19,4)");
             e.Property(x => x.ChargesMonthly).HasColumnType("numeric(19,4)");
             e.Property(x => x.Deposit).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Indexed).HasDefaultValue(false);
             e.HasIndex(x => x.PropertyItemId);
+            // A revision keeps its predecessor: it is deleted first, never the other way (rental spec §3.2).
+            e.HasOne<PropertyTenancyRow>().WithMany().HasForeignKey(x => x.RevisedFrom).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.RevisedFrom);
             MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<IrlRow>(e =>
+        {
+            e.ToTable("irl", t =>
+            {
+                t.HasCheckConstraint("ck_irl_quarter", "quarter ~ '^[0-9]{4}-Q[1-4]$'");
+                t.HasCheckConstraint("ck_irl_value", "value > 0");
+                t.HasCheckConstraint("ck_irl_source", "source in ('insee','manual')");
+            });
+            e.HasKey(x => x.Quarter);
+            e.Property(x => x.Quarter).ValueGeneratedNever();
+            e.Property(x => x.Value).HasColumnType("numeric(10,4)");
+        });
+
+        modelBuilder.Entity<IrlRunRow>(e =>
+        {
+            e.ToTable("irl_run", t => t.HasCheckConstraint("ck_irl_run_status", "status in ('running','succeeded','failed')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // At most one running row, as investments.price_run: a second start fails on this index.
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'running'");
+            e.HasIndex(x => x.StartedAt);
         });
 
         // Spec 3F1 §2: every table an import writes keeps the file id it came from, unique per importer (import-format.md §8);

@@ -44,7 +44,7 @@ Toute requête que `nid-api` émet vers l'extérieur passe par un **`SafeHttpCli
 | **Redirections** | Non suivies automatiquement ; **chaque saut est revalidé** (mêmes règles) |
 | Résolution épinglée | La résolution vérifiée est celle utilisée pour la connexion (contre la liaison DNS) |
 | Bornes | Délais, taille maximale de réponse |
-| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes (`1000logos.net`, `upload.wikimedia.org`, `www.nounou-top.fr`, `raw.githubusercontent.com`), sources de cours des titres (`www.boursorama.com`, `query2.finance.yahoo.com`), hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
+| **Liste d'hôtes** | Configurable et **explicite** : dépôt `SubTracker-Data` (`raw.githubusercontent.com`), historique de la BCE (`www.ecb.europa.eu`), hôtes d'icônes (`1000logos.net`, `upload.wikimedia.org`, `www.nounou-top.fr`, `raw.githubusercontent.com`), sources de cours des titres (`www.boursorama.com`, `query2.finance.yahoo.com`), série IRL de l'INSEE (`bdm.insee.fr`), hôtes des profils LLM **activés**, serveur SMTP. Tout autre hôte est refusé |
 | `User-Agent` | Envoyé sur **chaque** requête (`Nid/1.0 (+https://github.com/Mistribe/Nid)`) : `upload.wikimedia.org` refuse une requête qui n'en porte pas (`403`) |
 | Journal | Chaque refus est journalisé (hôte, motif) |
 

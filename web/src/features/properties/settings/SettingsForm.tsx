@@ -7,6 +7,7 @@ import { useApi } from '@/api/ApiProvider';
 import { DateField } from '@/components/form/DateField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { SelectField } from '@/components/form/SelectField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Section } from '@/components/page/Section';
@@ -18,6 +19,8 @@ import { invalidateProperties, PROPERTY, type PropertyDetail } from '../api';
 import { PropertyFields } from '../new/PropertyFields';
 import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/loans';
+
+const ENERGY_CLASSES = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
 
 /**
  * 3D1 design §6: « Réglages », its live region and its focus. The form remounts on the stored property — its new values
@@ -93,6 +96,12 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
         <Controller control={form.control} name="rentalStartsOn" render={({ field }) => (
           <Field label={t('property_form.rental_starts_on')} hint={t('property_form.rental_starts_on_help')} error={e.rentalStartsOn?.message}>
             {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+          </Field>
+        )} />
+        <Controller control={form.control} name="energyClass" render={({ field }) => (
+          <Field label={t('property_form.energy_class')} hint={t('property_form.energy_class_help')} error={e.energyClass?.message}>
+            {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+              options={[{ value: '', label: t('property_form.energy_class_none') }, ...ENERGY_CLASSES.map((v) => ({ value: v, label: v }))]} />}
           </Field>
         )} />
         <Field label={t('property_form.note')} error={e.note?.message}>

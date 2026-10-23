@@ -14,6 +14,7 @@ public sealed class HouseholdSettingsRow
     public string? AllocationTarget { get; set; }
     /// <summary>The admin switch of the nightly price collection (holding prices spec §2.1).</summary>
     public bool PricesEnabled { get; set; }
+    public bool IrlEnabled { get; set; }
 }
 
 public sealed class TaxProfileRow

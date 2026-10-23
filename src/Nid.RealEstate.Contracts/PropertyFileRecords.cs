@@ -27,6 +27,9 @@ public sealed record PropertyRecord
     public int? StaleAfterDays { get; init; }
     public string? RentalStartsOn { get; init; }
     public string? Note { get; init; }
+
+    /// <summary>The DPE class, A to G.</summary>
+    public string? EnergyClass { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public string Visibility { get; init; } = "shared";
 }
@@ -61,4 +64,6 @@ public sealed record TenancyRecord
     public MoneyRecord? ChargesMonthly { get; init; }
     public MoneyRecord? Deposit { get; init; }
     public string? Note { get; init; }
+    public bool Indexed { get; init; }
+    public int? IrlReferenceQuarter { get; init; }
 }

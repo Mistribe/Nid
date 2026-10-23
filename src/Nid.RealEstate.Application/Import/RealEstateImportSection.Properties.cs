@@ -194,7 +194,7 @@ public sealed partial class RealEstateImportSection
                 OtherAcquisitionCosts = Money(d.OtherAcquisitionCosts, currency),
                 SurfaceM2 = d.SurfaceM2 is { } surface ? decimal.Parse(LoanReading.Amount(surface), CultureInfo.InvariantCulture) : null,
                 LocationLabel = d.LocationLabel, ValuationCadence = LoanWire.Of(d.Cadence), StaleAfterDays = d.StaleAfterDays,
-                RentalStartsOn = Iso(d.RentalStartsOn), Note = d.Note, Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility),
+                RentalStartsOn = Iso(d.RentalStartsOn), Note = d.Note, EnergyClass = d.EnergyClass, Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility),
             });
         }
         sections[PropertiesSection] = Elements(records);
@@ -221,7 +221,7 @@ public sealed partial class RealEstateImportSection
                 Id = tenancyIds[t.Row.Id], Property = fileIds[t.Property], Label = t.Row.Tenancy.Label, StartsOn = Iso(t.Row.Tenancy.StartsOn),
                 EndsOn = Iso(t.Row.Tenancy.EndsOn), RentMonthly = Money(t.Row.Tenancy.RentMonthly, currencies[t.Property]),
                 ChargesMonthly = Money(t.Row.Tenancy.ChargesMonthly, currencies[t.Property]), Deposit = Money(t.Row.Tenancy.Deposit, currencies[t.Property]),
-                Note = t.Row.Tenancy.Note,
+                Note = t.Row.Tenancy.Note, Indexed = t.Row.Tenancy.Indexed, IrlReferenceQuarter = t.Row.Tenancy.IrlReferenceQuarter,
             })
             .OrderBy(r => r.Property, StringComparer.Ordinal).ThenBy(r => r.StartsOn, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal));
 

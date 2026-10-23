@@ -14,7 +14,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     private static readonly string[] Expected =
     [
         "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
-        "get_net_worth_history", "get_property", "get_property_routine", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "list_envelopes",
+        "get_net_worth_history", "get_property", "get_property_routine", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "list_envelopes",
         "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment", "simulate_household_early_repayment",
     ];
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
@@ -27,14 +28,15 @@ public sealed record PropertyChange(
     decimal? AgencyFees = null, decimal? OtherAcquisitionCosts = null, decimal? SurfaceM2 = null, bool ClearSurfaceM2 = false,
     string? LocationLabel = null, bool ClearLocationLabel = false, PropertyCadence? Cadence = null, int? StaleAfterDays = null,
     bool ClearStaleAfterDays = false, LocalDate? RentalStartsOn = null, bool ClearRentalStartsOn = false, string? Note = null,
-    bool ClearNote = false)
+    bool ClearNote = false, string? EnergyClass = null, bool ClearEnergyClass = false)
 {
     public PropertyDetails ApplyTo(PropertyDetails d) => new(
         Type ?? d.Type, PurchaseDate ?? d.PurchaseDate, PurchasePrice ?? d.PurchasePrice, NotaryFees ?? d.NotaryFees,
         AgencyFees ?? d.AgencyFees, OtherAcquisitionCosts ?? d.OtherAcquisitionCosts,
         ClearSurfaceM2 ? null : SurfaceM2 ?? d.SurfaceM2, ClearLocationLabel ? null : LocationLabel ?? d.LocationLabel,
         Cadence ?? d.Cadence, ClearStaleAfterDays ? null : StaleAfterDays ?? d.StaleAfterDays,
-        ClearRentalStartsOn ? null : RentalStartsOn ?? d.RentalStartsOn, ClearNote ? null : Note ?? d.Note);
+        ClearRentalStartsOn ? null : RentalStartsOn ?? d.RentalStartsOn, ClearNote ? null : Note ?? d.Note,
+        ClearEnergyClass ? null : EnergyClass ?? d.EnergyClass);
 }
 
 /// <summary>Spec 3C1 §4: the <paramref name="Version"/> read, and only what changes; the name is the Core item's.</summary>
@@ -75,7 +77,8 @@ public sealed class ListPropertiesHandler(
 
 [RequestHandler<GetPropertyQuery, PropertyDetail>]
 public sealed class GetPropertyHandler(
-    IPropertyStore properties, IItemRegistry items, PropertyReading reading, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
+    IPropertyStore properties, IItemRegistry items, PropertyReading reading, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
+    IIrlStore irl)
     : IRequestHandler<GetPropertyQuery, PropertyDetail>
 {
     public async ValueTask<Result<PropertyDetail>> HandleAsync(GetPropertyQuery query, CancellationToken ct = default)
@@ -91,7 +94,7 @@ public sealed class GetPropertyHandler(
             return Result.Failure<PropertyDetail>(failure!);
         read.TryGetValue(out var r);
         var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today));
+        return Result.Success(PropertyViews.Detail(found.Item, found.Property, r!, canWrite, today, await irl.ListAsync(ct)));
     }
 }
 

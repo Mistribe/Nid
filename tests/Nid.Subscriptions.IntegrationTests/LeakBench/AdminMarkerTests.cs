@@ -1,5 +1,6 @@
 using Nid.Core.Application.Fx;
 using Nid.Investments.Application.Prices;
+using Nid.RealEstate.Application.Irl;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 
@@ -46,6 +47,14 @@ public class AdminMarkerTests
     {
         Type[] prices = [typeof(CollectPricesCommand), typeof(RequestPriceSyncCommand), typeof(GetPriceRunsQuery)];
         Assert.DoesNotContain(prices, t => !typeof(IAdminOnly).IsAssignableFrom(t));
+    }
+
+    /// <summary>Rental spec §3.1: the IRL collection, its trigger, its journal and the manual entry are the admin's.</summary>
+    [Fact]
+    public void The_irl_collection_is_admin_only()
+    {
+        Type[] irl = [typeof(CollectIrlCommand), typeof(RequestIrlSyncCommand), typeof(GetIrlQuery), typeof(SetIrlValueCommand)];
+        Assert.DoesNotContain(irl, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
     /// <summary>Adding a subscription needs them, so no admin marker may creep onto them.</summary>

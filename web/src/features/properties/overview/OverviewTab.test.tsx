@@ -73,6 +73,21 @@ describe('Biens › vue d’ensemble', () => {
     expect(within(items[2]!).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=expenses`);
   });
 
+  it('says the four rent revision findings, each to the rental tab', async () => {
+    const line = (code: string, on: string | null, amount: string | null) => ({ code, propertyId: RENTAL, loanId: null, on, amount: amount ? { amount, currency: 'EUR' } : null });
+    serve({ ...householdOverview(),
+      watch: [line('revision_due', '2026-09-01', '919.84'), line('revision_lost', '2025-09-01', null), line('irl_missing', null, null), line('revision_forbidden_dpe', null, null)],
+    });
+    await renderApp('/properties');
+
+    const items = within(await region('À surveiller')).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Révision possible depuis le 1 sept. 2026 : nouveau loyer 919,84 €');
+    expect(items[1]).toHaveTextContent('Révision du 1 sept. 2025 non faite');
+    expect(items[2]).toHaveTextContent('IRL manquant');
+    expect(items[3]).toHaveTextContent('Révision interdite (DPE F/G)');
+    for (const item of items) expect(within(item).getByRole('link')).toHaveAttribute('href', `/properties/${RENTAL}?tab=rental`);
+  });
+
   it('draws the curve, then a table on demand, and keeps the span in the URL', async () => {
     const seen: string[] = [];
     serve(householdOverview(), seen);

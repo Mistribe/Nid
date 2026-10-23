@@ -14,6 +14,7 @@ using Nid.Income.Contracts;
 using Nid.Income.Domain;
 using Nid.Investments.Application;
 using Nid.Investments.Application.Prices;
+using Nid.RealEstate.Application.Irl;
 using Nid.Investments.Contracts;
 using Nid.Platform;
 using Nid.Platform.Admin;
@@ -139,6 +140,10 @@ public static class RequestCatalogue
         new(typeof(CollectPricesCommand), false, (_, _) => new CollectPricesCommand()),
         new(typeof(RequestPriceSyncCommand), false, (_, _) => new RequestPriceSyncCommand()),
         new(typeof(GetPriceRunsQuery), false, (_, _) => new GetPriceRunsQuery()),
+        new(typeof(CollectIrlCommand), false, (_, _) => new CollectIrlCommand()),
+        new(typeof(RequestIrlSyncCommand), false, (_, _) => new RequestIrlSyncCommand()),
+        new(typeof(GetIrlQuery), false, (_, _) => new GetIrlQuery()),
+        new(typeof(SetIrlValueCommand), false, (_, _) => new SetIrlValueCommand(2026, 2, 148.37m, new NodaTime.LocalDate(2026, 7, 12))),
         new(typeof(SyncCatalogCommand), false, (_, _) => new SyncCatalogCommand()),
         new(typeof(RequestCatalogSyncCommand), false, (_, _) => new RequestCatalogSyncCommand()),
         new(typeof(GetCatalogRunsQuery), false, (_, _) => new GetCatalogRunsQuery()),
@@ -439,6 +444,11 @@ public static class RequestCatalogue
         new(typeof(AddPropertyTenancyCommand), true, (_, item) => new AddPropertyTenancyCommand(item, BenchTenancy)),
         new(typeof(EditPropertyTenancyCommand), true, (_, item) => new EditPropertyTenancyCommand(item, Guid.NewGuid(), BenchTenancy, 1)),
         new(typeof(DeletePropertyTenancyCommand), true, (_, item) => new DeletePropertyTenancyCommand(item, Guid.NewGuid(), 1)),
+        // Rental spec §3.3: a revision is looked up in the route's property only, as its tenancy.
+        new(typeof(GetTenancyRevisionQuery), true, (_, item) => new GetTenancyRevisionQuery(item, Guid.NewGuid())),
+        new(typeof(AcceptRentRevisionCommand), true, (_, item) => new AcceptRentRevisionCommand(item, Guid.NewGuid(), new LocalDate(2025, 9, 1))),
+        new(typeof(UndoRentRevisionCommand), true, (_, item) => new UndoRentRevisionCommand(item, Guid.NewGuid())),
+        new(typeof(GetRentRevisionsQuery), false, (_, _) => new GetRentRevisionsQuery(VisibilityScope.Me)),
     ];
 
     /// <summary>A scenario that computes: 100 000 borrowed at 3 % over 20 years, from 2025-12-01.</summary>

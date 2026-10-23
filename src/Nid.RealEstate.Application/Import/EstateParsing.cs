@@ -54,7 +54,7 @@ internal static partial class EstateParsing
         if (!ok)
             return false;
         var details = new PropertyDetails(type, purchaseDate!.Value, price!.Value, notary ?? 0m, agency ?? 0m, other ?? 0m, r.SurfaceM2,
-            r.LocationLabel, cadence, r.StaleAfterDays, rentalStartsOn, r.Note);
+            r.LocationLabel, cadence, r.StaleAfterDays, rentalStartsOn, r.Note, r.EnergyClass);
         if (!Check(PropertyRules.Name(r.Name) ?? PropertyRules.Details(details, today ?? LocalDate.MaxIsoValue), path, issues))
             return false;
         parsed = new ParsedProperty(details, currency!.Value, visibility, owners);
@@ -93,7 +93,7 @@ internal static partial class EstateParsing
                  & TryMoney(r.Deposit, path + ".deposit", currency, issues, out var deposit);
         if (!ok)
             return false;
-        var parsed = new Tenancy(r.Label, startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, r.Note);
+        var parsed = new Tenancy(r.Label, startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, r.Note, r.Indexed, r.IrlReferenceQuarter);
         if (!Check(PropertyRules.TenancyFields(parsed, LocalDate.MinIsoValue), path, issues))
             return false;
         tenancy = parsed;

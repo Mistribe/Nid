@@ -184,11 +184,13 @@ function Persons({ d }: { d: PropertiesOverview }) {
 const WATCH_SHOWN = 4;
 const WATCH_CODES = [
   'no_valuation', 'valuation_stale', 'rental_without_tenancy', 'visibility_mismatch', 'fx_missing', 'rent_arrears', 'property_cost_due', 'tenancy_end',
+  'revision_due', 'revision_lost', 'irl_missing', 'revision_forbidden_dpe',
 ] as const;
 
 /** The detail's tab where each code is dealt with (spec §3.3). */
 const WATCH_TAB: Partial<Record<(typeof WATCH_CODES)[number], string>> = {
-  no_valuation: 'valuations', valuation_stale: 'valuations', rental_without_tenancy: 'rental', rent_arrears: 'rental', tenancy_end: 'rental',
+  no_valuation: 'valuations', valuation_stale: 'valuations', rental_without_tenancy: 'rental', rent_arrears: 'rental', tenancy_end: 'rental', revision_due: 'rental', revision_lost: 'rental',
+  irl_missing: 'rental', revision_forbidden_dpe: 'rental',
   property_cost_due: 'expenses',
 };
 

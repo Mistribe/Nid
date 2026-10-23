@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.RealEstate.Application;
+using Nid.RealEstate.Application.Irl;
 using Nid.RealEstate.Contracts;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
@@ -9,10 +10,33 @@ namespace Nid.Host.Api;
 /// <summary>Spec 3A2 §4: <c>/api/v1/realestate</c>. Every body member is read through <see cref="FieldReader"/>: a missing one binds to null.</summary>
 public static class RealEstateEndpoints
 {
+    /// <summary><c>Value</c>: a decimal string, like every amount on the wire; <c>PublishedOn</c>: the Journal officiel's date.</summary>
+    public sealed record IrlValueBody(string? Value, string? PublishedOn);
+
     public static IEndpointRouteBuilder MapRealEstateEndpoints(this IEndpointRouteBuilder routes)
     {
         var api = routes.MapGroup("/api/v1/realestate").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+
+        api.MapPost("/irl/sync", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new RequestIrlSyncCommand(), ct)).ToHttp(r => r, StatusCodes.Status202Accepted))
+            .Returns<IrlSyncRequested>(StatusCodes.Status202Accepted);
+
+        api.MapGet("/irl", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetIrlQuery(), ct)).ToHttp(r => r))
+            .Returns<IrlAdminView>();
+
+        api.MapPut("/irl/{year:int}/{quarter:int}", async (int year, int quarter, IrlValueBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (!decimal.TryParse(body.Value, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var value))
+                    reader.Add("value", "request.amount", "An IRL value is a decimal string such as \"148.37\".");
+                var publishedOn = reader.Date(body.PublishedOn, "publishedOn");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new SetIrlValueCommand(year, quarter, value, publishedOn!.Value), ct)).ToHttp(r => r);
+            })
+            .Returns<IrlValueView>();
 
         api.MapGet("/loans", async (string? scope, bool? ended, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListLoansQuery(ParseScope(scope), ended ?? false), ct)).ToHttp(list => list))
@@ -304,7 +328,7 @@ public static class RealEstateEndpoints
                 var version = RequireVersion(reader, body.Version);
                 return tenancy is null || version is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new EditPropertyTenancyCommand(new ItemId(id), tenancyId, tenancy, version.Value), ct))
+                    : (await invoker.InvokeAsync(new EditPropertyTenancyCommand(new ItemId(id), tenancyId, tenancy, version.Value, body.Indexed, body.IrlReferenceQuarter), ct))
                         .ToHttp(x => new IdResponse(x));
             })
             .Returns<IdResponse>();
@@ -315,6 +339,29 @@ public static class RealEstateEndpoints
                 if (RequireVersion(reader, version) is not { } read)
                     return reader.Problem();
                 var result = await invoker.InvokeAsync(new DeletePropertyTenancyCommand(new ItemId(id), tenancyId, read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
+        // Rental spec §3.4: the tenancy's revision of the moment, accepting it, undoing the chain's last one.
+        api.MapGet("/properties/{id:guid}/tenancies/{tenancyId:guid}/revision", async (Guid id, Guid tenancyId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetTenancyRevisionQuery(new ItemId(id), tenancyId), ct)).ToHttp(view => view))
+            .Returns<TenancyRevisionView>();
+
+        api.MapPost("/properties/{id:guid}/tenancies/{tenancyId:guid}/revision", async (Guid id, Guid tenancyId, RentRevisionBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var effectiveOn = reader.Date(body.EffectiveOn, "effectiveOn");
+                return effectiveOn is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AcceptRentRevisionCommand(new ItemId(id), tenancyId, effectiveOn.Value), ct))
+                        .ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapDelete("/properties/{id:guid}/tenancies/{tenancyId:guid}/revision", async (Guid id, Guid tenancyId, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new UndoRentRevisionCommand(new ItemId(id), tenancyId), ct);
                 return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
             })
             .ReturnsNoContent();
@@ -515,7 +562,7 @@ public static class RealEstateEndpoints
     public sealed record CreatePropertyBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Type, string? PurchaseDate,
         string? PurchasePrice, string? NotaryFees, string? AgencyFees, string? OtherAcquisitionCosts, string? SurfaceM2,
-        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note)
+        string? LocationLabel, string? ValuationCadence, int? StaleAfterDays, string? RentalStartsOn, string? Note, string? EnergyClass = null)
     {
         internal CreatePropertyCommand? ToCommand(FieldReader reader)
         {
@@ -535,7 +582,7 @@ public static class RealEstateEndpoints
             return reader.Ok
                 ? new CreatePropertyCommand(Name ?? "", currency, visibility!.Value, owners!, new PropertyDetails(
                     type!.Value, purchaseDate!.Value, price!.Value, notary ?? 0m, agency ?? 0m, other ?? 0m, surface, LocationLabel,
-                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note))
+                    cadence ?? PropertyCadence.Yearly, StaleAfterDays, rentalStartsOn, Note, EnergyClass))
                 : null;
         }
     }
@@ -548,7 +595,7 @@ public static class RealEstateEndpoints
         uint? Version, string? Name, string? Type, string? PurchaseDate, string? PurchasePrice, string? NotaryFees, string? AgencyFees,
         string? OtherAcquisitionCosts, string? SurfaceM2, bool ClearSurfaceM2, string? LocationLabel, bool ClearLocationLabel,
         string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays, string? RentalStartsOn, bool ClearRentalStartsOn,
-        string? Note, bool ClearNote)
+        string? Note, bool ClearNote, string? EnergyClass = null, bool ClearEnergyClass = false)
     {
         internal EditPropertyCommand? ToCommand(ItemId id, FieldReader reader)
         {
@@ -565,7 +612,7 @@ public static class RealEstateEndpoints
                 PropertyBodies.Wire<PropertyCadence>(reader, ValuationCadence, "valuationCadence", required: false),
                 StaleAfterDays, ClearStaleAfterDays,
                 reader.Date(RentalStartsOn, "rentalStartsOn", required: false), ClearRentalStartsOn,
-                Note, ClearNote);
+                Note, ClearNote, EnergyClass, ClearEnergyClass);
             return reader.Ok ? new EditPropertyCommand(id, Name, change, version!.Value) : null;
         }
     }
@@ -608,7 +655,7 @@ public static class RealEstateEndpoints
     /// <c>version</c>, the <c>POST</c> ignores it.
     /// </summary>
     public sealed record PropertyTenancyBody(
-        string? Label, string? StartsOn, string? EndsOn, string? RentMonthly, string? ChargesMonthly, string? Deposit, string? Note, uint? Version)
+        string? Label, string? StartsOn, string? EndsOn, string? RentMonthly, string? ChargesMonthly, string? Deposit, string? Note, uint? Version, bool? Indexed = null, int? IrlReferenceQuarter = null)
     {
         internal Tenancy? Read(FieldReader reader)
         {
@@ -617,7 +664,7 @@ public static class RealEstateEndpoints
             var rent = LoanBodies.Number(reader, RentMonthly, "rentMonthly");
             var charges = LoanBodies.Number(reader, ChargesMonthly, "chargesMonthly", required: false);
             var deposit = LoanBodies.Number(reader, Deposit, "deposit", required: false);
-            return reader.Ok ? new Tenancy(Label ?? "", startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, Note) : null;
+            return reader.Ok ? new Tenancy(Label ?? "", startsOn!.Value, endsOn, rent!.Value, charges ?? 0m, deposit, Note, Indexed ?? false, IrlReferenceQuarter) : null;
         }
     }
 
@@ -660,6 +707,8 @@ public static class RealEstateEndpoints
             return reader.Ok ? new RecordPropertyRoutineCommand(on!.Value, estimates.Select(e => e!).ToList(), flows.Select(f => f!).ToList()) : null;
         }
     }
+
+    public sealed record RentRevisionBody(string? EffectiveOn);
 
     public sealed record PropertyRoutineEstimateBody(Guid? Property, string? Amount);
 

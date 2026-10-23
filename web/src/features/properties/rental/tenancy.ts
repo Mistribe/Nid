@@ -24,7 +24,11 @@ export function tenancySchema(t: TFunction) {
     chargesMonthly: z.string().trim().regex(FEE_AMOUNT, t('property_form.fee_format')),
     deposit: z.string().refine(optionalAmount, t('loan_form.amount_format')),
     note: z.string().max(2000, t('investments_form.note_too_long')),
+    indexed: z.boolean(),
+    // « 1 » to « 4 », or empty while the tenancy is not indexed.
+    irlQuarter: z.string(),
   }).superRefine((v, ctx) => {
+    if (v.indexed && v.irlQuarter === '') ctx.addIssue({ code: 'custom', path: ['irlQuarter'], message: t('edit.required') });
     if (v.endsOn && v.endsOn <= v.startsOn) ctx.addIssue({ code: 'custom', path: ['endsOn'], message: t('field_error.subscriptions_phase_range') });
   });
 }
@@ -34,7 +38,7 @@ export type TenancyValues = z.infer<ReturnType<typeof tenancySchema>>;
 /** A server path to the field that owns it: the body's names are the form's (the overlap answers at `startsOn`). */
 export const TENANCY_PATHS = {
   label: 'label', startsOn: 'startsOn', endsOn: 'endsOn', rentMonthly: 'rentMonthly', chargesMonthly: 'chargesMonthly', deposit: 'deposit',
-  note: 'note',
+  note: 'note', indexed: 'indexed', irlReferenceQuarter: 'irlQuarter',
 } as const satisfies Record<string, keyof TenancyValues>;
 
 /** A new tenancy from today, charges 0 (spec §3); a stored one as the server wrote it, an absent end, deposit or note empty. */
@@ -42,9 +46,9 @@ export function tenancyValuesOf(x?: PropertyTenancy): TenancyValues {
   return x
     ? {
       label: x.label, startsOn: x.startsOn, endsOn: x.endsOn ?? '', rentMonthly: x.rentMonthly, chargesMonthly: x.chargesMonthly,
-      deposit: x.deposit ?? '', note: x.note ?? '',
+      deposit: x.deposit ?? '', note: x.note ?? '', indexed: x.indexed, irlQuarter: x.irlReferenceQuarter == null ? '' : String(x.irlReferenceQuarter),
     }
-    : { label: '', startsOn: todayIso(), endsOn: '', rentMonthly: '', chargesMonthly: '0', deposit: '', note: '' };
+    : { label: '', startsOn: todayIso(), endsOn: '', rentMonthly: '', chargesMonthly: '0', deposit: '', note: '', indexed: false, irlQuarter: '' };
 }
 
 /**
@@ -57,6 +61,8 @@ export function toTenancyBody(v: TenancyValues, version?: number): components['s
     ...(v.endsOn ? { endsOn: v.endsOn } : {}),
     ...(v.deposit.trim() ? { deposit: toWireAmount(v.deposit) } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
+    indexed: v.indexed,
+    ...(v.indexed ? { irlReferenceQuarter: Number(v.irlQuarter) } : {}),
     ...(version === undefined ? {} : { version }),
   };
 }

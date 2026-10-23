@@ -45,8 +45,13 @@ internal static class PropertyRules
             return Invalid("staleAfterDays", $"A staleness threshold is 1 to {StaleAfterDaysMax} days.");
         if (d.RentalStartsOn < d.PurchaseDate)
             return Invalid(rentalField, "A rental starts on or after the purchase.");
+        if (d.EnergyClass is not null && !EnergyClasses.Contains(d.EnergyClass))
+            return Invalid("energyClass", "An energy class (DPE) is a letter from A to G.");
         return d.Note is { Length: > LoanRules.NoteMax } ? Invalid("note", $"A note has at most {LoanRules.NoteMax} characters.") : null;
     }
+
+    /// <summary>Rental spec §3.2: the DPE classes.</summary>
+    public static readonly IReadOnlyList<string> EnergyClasses = ["A", "B", "C", "D", "E", "F", "G"];
 
     /// <summary>Two decimals at most, below 10¹², above zero: a price, a surface, an estimate, a flow's amount (precision 2).</summary>
     public static Failure? Positive(decimal amount, string field)
@@ -105,6 +110,7 @@ internal static class PropertyRules
                ?? Positive(t.RentMonthly, "rentMonthly")
                ?? NotNegative(t.ChargesMonthly, "chargesMonthly")
                ?? (t.Deposit is { } deposit ? Positive(deposit, "deposit") : null)
+               ?? Quarter(t)
                ?? Note(t.Note);
     }
 
@@ -116,6 +122,12 @@ internal static class PropertyRules
         => others.Any(o => o.StartsOn < (t.EndsOn ?? LocalDate.MaxIsoValue) && t.StartsOn < (o.EndsOn ?? LocalDate.MaxIsoValue))
             ? new Failure(PropertyCodes.TenancyOverlap, "Another tenancy of this property covers part of this period.",
                 new Dictionary<string, object?> { ["field"] = "startsOn" })
+            : null;
+
+    /// <summary>Rental spec §3.2: a quarter is 1 to 4; an indexed tenancy has one. A quarter without <c>indexed</c> is kept.</summary>
+    private static Failure? Quarter(Tenancy t)
+        => t.IrlReferenceQuarter is < 1 or > 4 || (t.Indexed && t.IrlReferenceQuarter is null)
+            ? Invalid("irlReferenceQuarter", "An indexed tenancy names its IRL reference quarter, 1 to 4.")
             : null;
 
     /// <summary>A range is half-open: it ends after it starts.</summary>

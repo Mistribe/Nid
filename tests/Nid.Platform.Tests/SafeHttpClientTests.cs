@@ -107,9 +107,9 @@ public class SafeHttpClientTests
     }
 
     [Fact]
-    public void The_default_hosts_are_the_catalog_the_ecb_the_icon_hosts_and_the_price_sources()
+    public void The_default_hosts_are_the_catalog_the_ecb_the_icon_hosts_the_price_sources_and_insee()
         => Assert.Equal(
-            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com"],
+            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr"],
             new OutboundOptions().AllowedHosts);
 
     /// <summary>upload.wikimedia.org answers 403 to a request without one (checked 2026-09-25, 1C2c plan).</summary>

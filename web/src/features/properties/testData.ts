@@ -58,7 +58,7 @@ export const rentedFigures = (over: Partial<PropertyDetail['figures']> = {}): Pr
 /** A tenancy under way since 2023-01-01, as the server writes it (3C2 §3). */
 export const tenancy = (over: Partial<PropertyTenancy> = {}): PropertyTenancy => ({
   id: 't2', version: 3, label: 'T2 meublé', startsOn: '2023-01-01', endsOn: null, rentMonthly: '900.00', chargesMonthly: '50.00',
-  deposit: '1800.00', note: 'bail de 3 ans', current: true, ...over,
+  deposit: '1800.00', note: 'bail de 3 ans', current: true, indexed: false, ...over,
 });
 
 /** A property tax of 1 200 € a year from 2021-10-15, as the server writes it: 100 € a month, next due on 2026-10-15 (3C2 §3). */

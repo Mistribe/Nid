@@ -79,7 +79,7 @@ public class PropertiesOverviewTests
         [Estimate(ChaletItem, new LocalDate(2024, 10, 1), 200_000m)]);
 
     private static PropertiesOverview Build(PropertiesSpan span = PropertiesSpan.ThreeYears, params OverviewProperty[] set)
-        => PropertiesOverviewMath.Build(set, Currency.Eur, Rates, Today, PropertiesOverviewMath.Grid(span, Today), span, Persons);
+        => PropertiesOverviewMath.Build(set, Currency.Eur, Rates, Today, PropertiesOverviewMath.Grid(span, Today), span, Persons, []);
 
     private static decimal D(string amount) => decimal.Parse(amount, CultureInfo.InvariantCulture);
 
@@ -184,7 +184,7 @@ public class PropertiesOverviewTests
         Assert.Equal("200000.00", overview.Properties[0].Value);
 
         var noRate = PropertiesOverviewMath.Build([Chalet()], Currency.Eur, RateTable.Empty(Today, 0), Today,
-            PropertiesOverviewMath.Grid(PropertiesSpan.TwelveMonths, Today), PropertiesSpan.TwelveMonths, Persons);
+            PropertiesOverviewMath.Grid(PropertiesSpan.TwelveMonths, Today), PropertiesSpan.TwelveMonths, Persons, []);
         Assert.Null(noRate.Value);
         Assert.Null(noRate.NetValue);
         Assert.Contains(noRate.Findings, f => f.Code == FxCodes.RateMissing);
