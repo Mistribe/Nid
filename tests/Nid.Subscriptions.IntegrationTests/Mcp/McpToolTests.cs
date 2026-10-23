@@ -13,9 +13,9 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 {
     private static readonly string[] Expected =
     [
-        "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule",
+        "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
         "get_net_worth_history", "get_property", "get_property_routine", "get_routine", "get_subscription", "list_envelopes",
-        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment",
+        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment", "simulate_household_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -121,6 +121,12 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
             var rest = await app.RawAsync(a, HttpMethod.Post, $"/api/v1/realestate/loans/{loan}/simulations", new { on = "2026-01-15", amount = "10000.00" });
             SameJson(await rest.Content.ReadAsStringAsync(), await CallAsync(client, "simulate_early_repayment", new { id = loan, on = "2026-01-15", amount = "10000.00" }));
+
+            SameJson(await app.GetRawAsync(a, "/api/v1/realestate/loans/overview"), await CallAsync(client, "get_loans_overview"));
+            var household = new { on = "2026-01-15", amount = "10000.00", split = "chosen", loanId = loan, effect = "reduce_term", penalties = new[] { new { loanId = loan, amount = "300.00" } } };
+            var restHousehold = await app.RawAsync(a, HttpMethod.Post, "/api/v1/realestate/loans/overview/simulations", household);
+            Assert.True(restHousehold.IsSuccessStatusCode, await restHousehold.Content.ReadAsStringAsync());
+            SameJson(await restHousehold.Content.ReadAsStringAsync(), await CallAsync(client, "simulate_household_early_repayment", household));
         }
     }
 
@@ -190,6 +196,23 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             Assert.True(result.IsError);
             Assert.Contains("on:", McpHarness.TextOf(result));
             Assert.Contains("amount:", McpHarness.TextOf(result));
+        }
+    }
+
+    [Fact]
+    public async Task A_malformed_household_simulation_names_each_refused_field()
+    {
+        var (app, client) = await StartAsync(fixture);
+        await using (app) await using (client)
+        {
+            var result = await client.CallToolAsync("simulate_household_early_repayment", new Dictionary<string, object?>
+            {
+                ["on"] = "15/01/2026", ["amount"] = "1 000,50", ["split"] = "chosen", ["effect"] = "shorter",
+            });
+
+            Assert.True(result.IsError);
+            foreach (var field in new[] { "on:", "amount:", "loanId:", "effect:" })
+                Assert.Contains(field, McpHarness.TextOf(result));
         }
     }
 }

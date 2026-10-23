@@ -17,6 +17,12 @@ public sealed class RealEstateTools
         CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new ListLoansQuery(SubscriptionEndpoints.ParseScope(scope), ended), ct);
 
+    [McpServerTool(Name = "get_loans_overview", ReadOnly = true)]
+    [Description("The household's loans together: remaining balance, monthly payments, interest still due and when each loan ends. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetLoansOverview(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetLoansOverviewQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+
     [McpServerTool(Name = "get_loan", ReadOnly = true)]
     [Description("One loan: its contract, phases, insurances, fees, early repayments and figures today. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetLoan(IServiceProvider services, [Description("The loan's id.")] Guid id, CancellationToken ct = default)
@@ -47,6 +53,23 @@ public sealed class RealEstateTools
     {
         var reader = new FieldReader();
         var query = new RealEstateEndpoints.LoanSimulationBody(on, amount, effect, penalty).ToQuery(new ItemId(id), reader);
+        return query is null
+            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            : await McpCalls.RunAsync(services, () => query, ct);
+    }
+
+    [McpServerTool(Name = "simulate_household_early_repayment", ReadOnly = true)]
+    [Description("Simulates an early repayment split across the household's loans without recording it: what goes to each loan and the interest saved. " + McpSetup.Untrusted)]
+    public static async Task<CallToolResult> SimulateHouseholdEarlyRepayment(IServiceProvider services,
+        [Description("ISO date of the repayment.")] string on, [Description("Amount, a decimal string (e.g. '20000.00').")] string amount,
+        [Description("'highest_rate', 'smallest_balance' or 'chosen' (everything on loan_id).")] string split,
+        [Description("'reduce_term' or 'reduce_payment'.")] string effect,
+        [Description("The loan's id, with the 'chosen' split only.")] Guid? loanId = null,
+        [Description("Penalties per loan: { loanId, amount } with amount a decimal string.")] IReadOnlyList<RealEstateEndpoints.LoanPenaltyBody>? penalties = null,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+    {
+        var reader = new FieldReader();
+        var query = new RealEstateEndpoints.LoansSimulationBody(scope, on, amount, split, loanId, effect, penalties).ToQuery(reader);
         return query is null
             ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
             : await McpCalls.RunAsync(services, () => query, ct);
