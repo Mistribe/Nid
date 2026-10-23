@@ -43,6 +43,10 @@ public sealed record HoldingRecord
 
     public string? ClosedOn { get; init; }
     public string? Note { get; init; }
+
+    /// <summary>Written only when false, so a file of before the field imports with the same hash.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AutoPrice { get; init; }
 }
 
 /// <summary>A snapshot of an envelope's holdings at a date, its lines nested; a line names a holding by its file id.</summary>

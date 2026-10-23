@@ -347,7 +347,7 @@ public sealed partial class HoldingsImportSection(
             {
                 Id = holdingIds[h.Id], Item = named[h.Envelope], Name = h.Name, Isin = h.Isin, Kind = h.Kind, AssetClass = h.AssetClass,
                 Issuer = h.Issuer, RiskIndicator = h.RiskIndicator, OpenedOn = Iso(h.OpenedOn), MaturesOn = Iso(h.MaturesOn),
-                EntryCostPct = h.EntryCostPct, ClosedOn = Iso(h.ClosedOn), Note = h.Note,
+                EntryCostPct = h.EntryCostPct, ClosedOn = Iso(h.ClosedOn), Note = h.Note, AutoPrice = h.AutoPrice ? null : false,
             })
             .OrderBy(r => r.Item, StringComparer.Ordinal).ThenBy(r => r.Name, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal);
         var snapshotRecords = snapshots

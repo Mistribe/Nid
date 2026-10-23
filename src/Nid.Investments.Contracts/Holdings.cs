@@ -41,7 +41,7 @@ public static class MovementKinds
 /// <summary>One line of an envelope (holdings spec §2.1): a fund, a share, the euro fund, a structured product, cash.</summary>
 public sealed record EnvelopeHolding(
     Guid Id, ItemId Envelope, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
-    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note);
+    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, bool AutoPrice = true);
 
 public sealed record StoredHolding(EnvelopeHolding Holding, uint Version);
 

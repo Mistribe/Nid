@@ -91,6 +91,65 @@ public class PriceStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task Latest_gives_the_newest_accepted_and_a_rejected_only_when_more_recent()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 21), 100m), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 101m), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 23), 1m, PriceStatus.Rejected), default);
+        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 20), 1m, PriceStatus.Rejected), default);
+        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 22), 10m), default);
+
+        var latest = await store.LatestAsync([X, Y, Z], default);
+
+        Assert.Equal([X, Y], latest.Keys.Order());
+        Assert.Equal((101m, 1m), (latest[X].Accepted!.Price, latest[X].Rejected!.Price));
+        Assert.Equal(10m, latest[Y].Accepted!.Price);
+        Assert.Null(latest[Y].Rejected);
+    }
+
+    [Fact]
+    public async Task Accepted_in_a_window_skips_rejected_and_other_days()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 19), 99m), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 21), 100m), default);
+        await store.WriteAsync(Price(X, new LocalDate(2026, 10, 22), 1m, PriceStatus.Rejected), default);
+        await store.WriteAsync(Price(Y, new LocalDate(2026, 10, 21), 10m), default);
+
+        var found = await store.AcceptedOnOrBeforeAsync([X], new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 23), default);
+
+        Assert.Equal([100m], found.Select(p => p.Price));
+    }
+
+    [Fact]
+    public async Task Accepting_flips_a_rejected_row_and_records_who_and_when()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<ISecurityPriceStore>();
+        var day = new LocalDate(2026, 10, 23);
+        var person = new PersonId(Guid.NewGuid());
+        var at = Instant.FromUtc(2026, 10, 24, 8, 0);
+        await store.WriteAsync(Price(X, day, 1m, PriceStatus.Rejected), default);
+        await store.WriteAsync(Price(Y, day, 1m), default);
+
+        Assert.True(await store.AcceptAsync(X, day, person, at, default));
+        Assert.False(await store.AcceptAsync(X, day, person, at, default));
+        Assert.False(await store.AcceptAsync(Y, day, person, at, default));
+        Assert.False(await store.AcceptAsync(Z, day, person, at, default));
+
+        await using var db = PostgresFixture.NewInvestmentsContext(app.ConnectionString);
+        var row = await db.SecurityPrices.SingleAsync(p => p.Isin == X);
+        Assert.Equal(("accepted", person.Value, at), (row.Status, row.AcceptedBy, row.AcceptedAt));
+        Assert.False(await store.WriteAsync(Price(X, day, 5m), default));
+    }
+
+    [Fact]
     public async Task A_listing_round_trips()
     {
         await using var app = await NidApp.StartAsync(fixture);

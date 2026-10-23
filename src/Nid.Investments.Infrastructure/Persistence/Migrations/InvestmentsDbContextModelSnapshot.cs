@@ -266,7 +266,6 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnName("asset_class");
 
                     b.Property<bool>("AutoPrice")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("auto_price");
@@ -559,6 +558,10 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                     b.Property<LocalDate>("OnDate")
                         .HasColumnType("date")
                         .HasColumnName("on_date");
+
+                    b.Property<Instant?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
 
                     b.Property<Guid?>("AcceptedBy")
                         .HasColumnType("uuid")

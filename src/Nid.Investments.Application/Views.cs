@@ -152,25 +152,45 @@ public static class Units6
 public sealed record HoldingView(
     Guid Id, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
     LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line,
-    HoldingFiguresView? Figures)
+    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price)
 {
-    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures)
+    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price)
     {
         var h = s.Holding;
         return new(h.Id, h.Name, h.Isin, h.Kind, h.AssetClass, h.Issuer, h.RiskIndicator, h.OpenedOn, h.MaturesOn, h.EntryCostPct, h.ClosedOn, h.Note,
-            s.Version, line, HoldingFiguresView.Of(figures));
+            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price);
     }
+}
+
+/// <summary>Holding prices spec §5.3: the latest price of a holding's ISIN, in the source's currency: the accepted one, or a newer refused one.</summary>
+public sealed record PriceView(string Value, string Currency, LocalDate OnDate, string Source, string Status, string? Previous)
+{
+    public static PriceView? Of(LatestPrices? latest)
+        => (latest?.Rejected ?? latest?.Accepted) is { } p
+            ? new(Units6.Of(p.Price)!, p.Currency.Code, p.OnDate, p.Source, p.Status.ToString().ToLowerInvariant(), Units6.Of(p.Previous))
+            : null;
+}
+
+public sealed record EstimateLineView(Guid HoldingId, string Reason);
+
+/// <summary>Holding prices spec §5.3: the envelope's estimate today, or no <c>Value</c> and the <c>MissingReason</c>.</summary>
+public sealed record EnvelopeEstimateView(
+    AmountView? Value, LocalDate? AsOf, LocalDate? BasedOn, bool Converted, IReadOnlyList<EstimateLineView> Stale, string? MissingReason)
+{
+    public static EnvelopeEstimateView Of(Prices.EnvelopeEstimate e)
+        => new(AmountView.From(e.Value), e.AsOf, e.BasedOn, e.Converted, e.Stale.Select(s => new EstimateLineView(s.HoldingId, s.Reason)).ToList(), e.MissingReason);
 }
 
 /// <summary>
 /// Holdings spec §3: every holding of the envelope and its line in the latest snapshot on or before the date. <c>Unallocated</c> is the
 /// envelope's valuation of the snapshot's date minus the total, null without one. <c>ExplicitFees</c> is Σ <c>fee</c> movements up to the
 /// snapshot's date. <c>UcSharePct</c> is the snapshot's share of units of account (neither euro fund nor cash), 0.1 %.
+/// <c>Estimate</c> is a figure of today: null when the date is another.
 /// </summary>
 public sealed record HoldingsView(
     ItemId EnvelopeId, string Currency, LocalDate? HoldingsAsOf, Guid? SnapshotId, bool? Complete, AmountView? Total, AmountView? Unallocated,
     AmountView? ExplicitFees, decimal? UcSharePct, decimal? UcShareFloorPct,
-    IReadOnlyList<HoldingView> Holdings, IReadOnlyList<HoldingWarningView> Warnings) : IExposesItems
+    IReadOnlyList<HoldingView> Holdings, IReadOnlyList<HoldingWarningView> Warnings, EnvelopeEstimateView? Estimate) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
 }

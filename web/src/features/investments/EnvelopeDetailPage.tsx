@@ -193,6 +193,10 @@ export function EnvelopeDetailPage() {
             { label: t('envelope.gain'), value: <Gain figures={figures} /> },
             ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
+            ...(holdings.data?.estimate?.value && holdings.data.estimate.asOf ? [{
+              label: t('holding_prices.estimate_at', { date: formatLocalDate(holdings.data.estimate.asOf) }),
+              value: <><Money value={holdings.data.estimate.value} tabular />{holdings.data.estimate.converted ? <span className="ml-2 text-sm font-normal text-muted-foreground">{t('holding_prices.estimate_converted')}</span> : null}</>,
+            }] : []),
             ...extra(t('envelope.fees'), figures.fees),
             ...extra(t('envelope.gain_after_fees'), figures.gainAfterFees),
             ...extra(t('envelope.income'), figures.income),

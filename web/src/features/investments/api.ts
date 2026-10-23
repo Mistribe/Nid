@@ -40,6 +40,7 @@ export const REOPEN = '/api/v1/investments/envelopes/{id}/reopen' as const;
 export const FLOW = '/api/v1/investments/envelopes/{id}/flows/{flowId}' as const;
 export const HOLDINGS = '/api/v1/investments/envelopes/{id}/holdings' as const;
 export const HOLDING = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}' as const;
+export const PRICE_ACCEPT = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/price/accept' as const;
 export const MOVEMENTS = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/movements' as const;
 export const HOLDING_SERIES = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/series' as const;
 export const COST_REPORTS = '/api/v1/investments/envelopes/{id}/holdings/{holdingId}/cost-reports' as const;

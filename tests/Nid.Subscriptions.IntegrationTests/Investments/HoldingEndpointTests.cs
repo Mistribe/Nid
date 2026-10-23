@@ -212,6 +212,27 @@ public class HoldingEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task A_holding_is_priced_automatically_unless_its_body_says_otherwise_and_an_edit_without_it_keeps_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (id, euro, fund) = await GoldenAsync(app);
+        var off = await AddAsync(app, id, new { name = "Fonds B", kind = "fund", autoPrice = false });
+        async Task<JsonElement> ReadAsync(Guid holding)
+            => (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings"))).GetProperty("holdings").EnumerateArray()
+                .Single(h => h.GetProperty("id").GetGuid() == holding);
+
+        Assert.Equal((true, false), ((await ReadAsync(fund)).GetProperty("autoPrice").GetBoolean(), (await ReadAsync(off)).GetProperty("autoPrice").GetBoolean()));
+
+        var edited = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url(id)}/holdings/{off}",
+            new { name = "Fonds B bis", kind = "fund", version = (await ReadAsync(off)).GetProperty("version").GetUInt32() });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        Assert.False((await ReadAsync(off)).GetProperty("autoPrice").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url(id)}/holdings/{off}",
+            new { name = "Fonds B bis", kind = "fund", autoPrice = true, version = (await ReadAsync(off)).GetProperty("version").GetUInt32() })).StatusCode);
+        Assert.True((await ReadAsync(off)).GetProperty("autoPrice").GetBoolean());
+    }
+
+    [Fact]
     public async Task Holdings_follow_the_envelopes_access_and_closing()
     {
         await using var app = await NidApp.StartAsync(fixture);

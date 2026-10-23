@@ -21,6 +21,7 @@ import { CostReportDialog } from './CostReportDialog';
 import { HoldingDialog } from './HoldingDialog';
 import { formatUnits, holdingKindText, movementKindText, percent } from './holdingFormat';
 import { MovementDialog } from './MovementDialog';
+import { PriceCell } from './PriceCell';
 import '@/locales/investments';
 
 const TABS = ['overview', 'movements', 'costs'] as const;
@@ -57,6 +58,7 @@ export function HoldingPage() {
   const writable = detail.canWrite && !detail.closed;
   const absent = <span className="text-base font-normal text-muted-foreground">{t('investments.no_value')}</span>;
   const items = movements.data?.items ?? [];
+  const pricesOn = holdings.data.estimate?.missingReason !== 'disabled';
 
   const actions = writable && !holding.closedOn ? (
     <>
@@ -83,6 +85,8 @@ export function HoldingPage() {
                 {figures.gainPct != null ? <span className="tabular-nums">{t('investments.pct', { value: pct(figures.gainPct) })}</span> : null}
               </Direction>
             ) : absent },
+            ...(holding.price ? [{ label: t('holding_prices.price'), value: <PriceCell envelope={id} holding={holding} writable={writable} /> }] : []),
+            ...(holding.isin && pricesOn ? [{ label: t('holding_prices.auto_price'), value: t(holding.autoPrice ? 'holding_prices.auto_price_on' : 'holding_prices.auto_price_off') }] : []),
             ...(figures?.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...(figures ? [
               { label: t('holdings.explicit_fees'), value: <Money value={figures.explicitFees} tabular /> },
@@ -94,7 +98,7 @@ export function HoldingPage() {
       </PageHeader>
       <p role="status" aria-live="polite">{announcement}</p>
       {dialog?.kind === 'movement' ? <MovementDialog envelope={detail} holding={holding} onClose={() => setDialog(null)} onDone={done} /> : null}
-      {dialog?.kind === 'edit' ? <HoldingDialog envelope={detail} editing={holding} onClose={() => setDialog(null)} onDone={done} /> : null}
+      {dialog?.kind === 'edit' ? <HoldingDialog envelope={detail} editing={holding} pricesOn={pricesOn} onClose={() => setDialog(null)} onDone={done} /> : null}
       {dialog?.kind === 'cost' ? <CostReportDialog envelope={detail} holding={holding} editing={dialog.editing} onClose={() => setDialog(null)} onDone={done} /> : null}
 
       <DetailTabs value={tab} onChange={setTab} tabs={[

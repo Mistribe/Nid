@@ -23,6 +23,7 @@ public static class PriceCodes
     public const string RunInterrupted = "investments.price_run_interrupted";
     public const string RunAbandoned = "investments.price_run_abandoned";
     public const string JobsDisabled = "investments.price_jobs_disabled";
+    public const string NotRejected = "investments.price_not_rejected";
 }
 
 /// <summary>Where an ISIN is found at each source (holding prices spec §2.3); <see cref="NotFoundAt"/> is set when no source knows it.</summary>
@@ -32,6 +33,9 @@ public sealed record SecurityListing(string Isin, string? BoursoramaPath, string
 public sealed record SecurityPrice(
     string Isin, LocalDate OnDate, decimal Price, Currency Currency, string Source, PriceStatus Status, decimal? Previous, Instant FetchedAt,
     PersonId? AcceptedBy);
+
+/// <summary>An ISIN's latest accepted price and its latest rejected one, the latter only when more recent than the former.</summary>
+public sealed record LatestPrices(SecurityPrice? Accepted, SecurityPrice? Rejected);
 
 /// <summary>The unit price of a holding's latest snapshot line, with the envelope it is in (its currency is the caller's to resolve).</summary>
 public sealed record SnapshotPrice(string Isin, decimal UnitPrice, ItemId Envelope, LocalDate AsOf);
@@ -46,8 +50,17 @@ public interface ISecurityPriceStore
     /// <summary>Per ISIN, its latest <see cref="PriceStatus.Accepted"/> price; an ISIN without one is absent.</summary>
     Task<IReadOnlyDictionary<string, SecurityPrice>> LatestAcceptedAsync(IReadOnlyCollection<string> isins, CancellationToken ct);
 
-    /// <summary>Creates the price or replaces the one of that ISIN and date; false when it kept a row a person accepted.</summary>
+    /// <summary>Per ISIN, its latest accepted and latest rejected prices; an ISIN with neither is absent.</summary>
+    Task<IReadOnlyDictionary<string, LatestPrices>> LatestAsync(IReadOnlyCollection<string> isins, CancellationToken ct);
+
+    /// <summary>The accepted prices dated from <paramref name="from"/> to <paramref name="to"/>, both included.</summary>
+    Task<IReadOnlyList<SecurityPrice>> AcceptedOnOrBeforeAsync(IReadOnlyCollection<string> isins, LocalDate from, LocalDate to, CancellationToken ct);
+
+    /// <summary>Creates the price or replaces the one of that ISIN and date, atomically; false when it kept a row a person accepted.</summary>
     Task<bool> WriteAsync(SecurityPrice price, CancellationToken ct);
+
+    /// <summary>Turns a rejected price into an accepted one, by <paramref name="by"/> at <paramref name="at"/>; false when that day has no rejected price.</summary>
+    Task<bool> AcceptAsync(string isin, LocalDate onDate, PersonId by, Instant at, CancellationToken ct);
 
     /// <summary>Deletes the prices dated before <paramref name="before"/>.</summary>
     Task<int> PurgeBeforeAsync(LocalDate before, CancellationToken ct);

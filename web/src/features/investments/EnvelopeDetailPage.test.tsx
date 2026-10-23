@@ -37,6 +37,22 @@ describe('EnvelopeDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows the estimated value, converted or not, once the holdings carry one', async () => {
+    serve(detail());
+    server.use(http.get('*/api/v1/investments/envelopes/:id/holdings', () => HttpResponse.json({
+      envelopeId: PEA, currency: 'EUR', holdingsAsOf: '2025-09-30', snapshotId: 's1', complete: true, total: eur('4500.0000'),
+      unallocated: null, explicitFees: null, ucSharePct: null, ucShareFloorPct: null, holdings: [], warnings: [],
+      estimate: { value: eur('26100.00'), asOf: '2025-10-02', basedOn: '2025-09-30', converted: true, stale: [], missingReason: null },
+    })));
+    await renderApp(`/investments/${PEA}`);
+
+    await screen.findByRole('heading', { name: 'PEA', level: 1 });
+    const figuresBlock = screen.getByRole('region', { name: 'Valeur et gain' });
+    await waitFor(() => expect(figuresBlock).toHaveTextContent('Valeur estimée au 2 octobre 2025'));
+    expect(figuresBlock).toHaveTextContent('26 100,00 €');
+    expect(figuresBlock).toHaveTextContent('convertie');
+  });
+
   it('warns when the opening may be missing', async () => {
     serve(detail({ figures: figures({ missingOpening: true }), flows: [] }));
     await renderApp(`/investments/${PEA}`);

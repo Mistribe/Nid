@@ -179,7 +179,7 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
     };
 
     private static EnvelopeHolding ToHolding(HoldingRow r) => new(r.Id, new ItemId(r.EnvelopeItemId), r.Name, r.Isin, r.Kind, r.AssetClass,
-        r.Issuer, r.RiskIndicator, r.OpenedOn, r.MaturesOn, r.EntryCostPct, r.ClosedOn, r.Note);
+        r.Issuer, r.RiskIndicator, r.OpenedOn, r.MaturesOn, r.EntryCostPct, r.ClosedOn, r.Note, r.AutoPrice);
 
     private static HoldingMovement ToMovement(HoldingMovementRow r) => new(r.Id, new ItemId(r.EnvelopeItemId), r.HoldingId, r.OccurredOn, r.Kind,
         r.Units, r.UnitPrice, r.Amount, r.EnvelopeFlowId, r.SwitchRef, r.Label, r.ExternalRef);
@@ -230,5 +230,6 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
         to.EntryCostPct = from.EntryCostPct;
         to.ClosedOn = from.ClosedOn;
         to.Note = from.Note;
+        to.AutoPrice = from.AutoPrice;
     }
 }

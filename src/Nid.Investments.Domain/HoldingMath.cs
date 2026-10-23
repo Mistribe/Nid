@@ -186,22 +186,37 @@ public static class HoldingMath
             : EnvelopeMath.RoundPercent(snapshot.Lines.Where(l => kinds.TryGetValue(l.HoldingId, out var k) && HoldingWire.HasUnits(k)).Sum(l => l.Value) / total * 100m);
 
     /// <summary>
+    /// Spec §5.1 (D14, D15): the line's units (value ÷ unit price without them) plus the units of the holding's movements on
+    /// ]<paramref name="after"/>, <paramref name="on"/>]; a movement without units or price buys at <paramref name="priceOn"/> its date,
+    /// else at the line's unit price. Null when the line's units, or a movement's, cannot be known.
+    /// </summary>
+    public static decimal? UnitsAt(SnapshotLine line, IReadOnlyList<HoldingMovement> movements, LocalDate after, LocalDate on, Func<LocalDate, decimal?> priceOn)
+    {
+        var units = line.Units ?? (line.UnitPrice is { } p and > 0 ? line.Value / p : null);
+        foreach (var m in movements.Where(m => m.HoldingId == line.HoldingId && m.OccurredOn > after && m.OccurredOn <= on))
+            units += OwnUnits(m) ?? ((priceOn(m.OccurredOn) ?? line.UnitPrice) is { } price and > 0 ? Sign(m) * m.Amount / price : null);
+        return units;
+    }
+
+    /// <summary>
     /// A movement's units: as given, else its amount at its own price (exact), else at the mean of the two snapshots' prices, its
     /// <c>Spread</c> the units the amount buys between them. Without any price, no units (as before issue #46).
     /// </summary>
     private static (decimal Units, decimal Spread) MovedUnits(HoldingMovement m, decimal? before, decimal? after)
     {
-        if (m.Units is { } units)
+        if (OwnUnits(m) is { } units)
             return (units, 0m);
-        var sign = MovementKinds.IsIn(m.Kind) ? 1m : -1m;
-        if (m.UnitPrice is { } price and > 0)
-            return (sign * m.Amount / price, 0m);
         if (before is not ({ } a and > 0) || after is not ({ } b and > 0))
             return (0m, 0m);
-        return (sign * m.Amount / ((a + b) / 2m), Math.Abs(m.Amount / a - m.Amount / b));
+        return (Sign(m) * m.Amount / ((a + b) / 2m), Math.Abs(m.Amount / a - m.Amount / b));
     }
 
-    private static decimal NetIn(Guid holding, IReadOnlyList<HoldingMovement> movements, Func<HoldingMovement, bool> window)
+    /// <summary>A movement's units as given, else its amount at its own price; null without either.</summary>
+    private static decimal? OwnUnits(HoldingMovement m) => m.Units ?? (m.UnitPrice is { } price and > 0 ? Sign(m) * m.Amount / price : null);
+
+    private static decimal Sign(HoldingMovement m) => MovementKinds.IsIn(m.Kind) ? 1m : -1m;
+
+    internal static decimal NetIn(Guid holding, IReadOnlyList<HoldingMovement> movements, Func<HoldingMovement, bool> window)
         => movements.Where(m => m.HoldingId == holding && window(m))
             .Sum(m => MovementKinds.IsMoneyIn(m.Kind) ? m.Amount : MovementKinds.IsMoneyOut(m.Kind) ? -m.Amount : 0m);
 }

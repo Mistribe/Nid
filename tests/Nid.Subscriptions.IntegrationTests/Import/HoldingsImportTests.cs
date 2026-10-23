@@ -69,6 +69,48 @@ public class HoldingsImportTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_holding_without_auto_price_is_priced_automatically_and_one_with_false_is_not()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var holdings = Holdings.Replace("\"kind\":\"euro_fund\"", "\"kind\":\"euro_fund\",\"auto_price\":false");
+        var file = File(holdings: holdings, snapshots: "[]", movements: "[]");
+
+        await EnvelopesImportTests.CommitAsync(client, app, app.AdultA, file);
+        var url = $"/api/v1/investments/envelopes/{await EnvelopesImportTests.IdOf(app, "Assurance-vie")}";
+        var read = (await EnvelopesImportTests.JsonAsync(app, app.AdultA, $"{url}/holdings")).GetProperty("holdings").EnumerateArray()
+            .ToDictionary(h => h.GetProperty("name").GetString()!, h => h.GetProperty("autoPrice").GetBoolean());
+        Assert.Equal((false, true), (read["Fonds euros"], read["Fonds A"]));
+
+        var again = await EnvelopesImportTests.CommitAsync(client, app, app.AdultA, file);
+        Assert.Equal(new CountsResponse(0, 2, 0), again.Report!.Sections["holdings"]);
+    }
+
+    [Fact]
+    public async Task An_import_without_auto_price_sets_it_back_to_true_and_the_export_writes_it_only_when_false()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var off = Holdings.Replace("\"kind\":\"euro_fund\"", "\"kind\":\"euro_fund\",\"auto_price\":false");
+        await EnvelopesImportTests.CommitAsync(client, app, app.AdultA, File(holdings: off, snapshots: "[]", movements: "[]"));
+
+        var exported = (await new Export.ExportClient(app).ExportAllAsync(app.AdultA))["holdings"];
+        Assert.Equal([("Fonds A", false), ("Fonds euros", true)],
+            exported.Select(h => (h.GetProperty("name").GetString()!, h.TryGetProperty("auto_price", out _))).OrderBy(x => x.Item1).ToList());
+
+        // Today's format: the same holdings with the key gone is a change back to true, and an all-true export carries no key.
+        var renamed = Holdings.Replace("\"Fonds euros\"", "\"Fonds euros bis\"");
+        var file = File(holdings: renamed, snapshots: "[]", movements: "[]");
+        await EnvelopesImportTests.CommitAsync(client, app, app.AdultA, file, replace: true);
+        var url = $"/api/v1/investments/envelopes/{await EnvelopesImportTests.IdOf(app, "Assurance-vie")}";
+        Assert.All((await EnvelopesImportTests.JsonAsync(app, app.AdultA, $"{url}/holdings")).GetProperty("holdings").EnumerateArray(),
+            h => Assert.True(h.GetProperty("autoPrice").GetBoolean()));
+
+        var allTrue = (await new Export.ExportClient(app).ExportAllAsync(app.AdultA))["holdings"];
+        Assert.DoesNotContain(allTrue, h => h.TryGetProperty("auto_price", out _));
+    }
+
+    [Fact]
     public async Task Other_content_under_a_known_id_is_a_conflict_and_replaced_only_with_replace()
     {
         await using var app = await NidApp.StartAsync(fixture);

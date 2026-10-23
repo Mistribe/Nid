@@ -163,6 +163,7 @@ pour les parts et prix.
 | `risk_indicator` | int? | 1 à 7 |
 | `opened_on`, `matures_on`, `closed_on` | date? | |
 | `entry_cost_pct` | décimal? | 0 à 100 |
+| `auto_price` | bool? | Cours automatique, vrai par défaut, sans effet sans ISIN ; l'export ne l'écrit que s'il est faux (le hash d'un fichier antérieur reste le même) |
 
 **`holding_snapshots`** : `id`, `item`, `as_of` (date non future), `source_label` (string?), `complete` (bool, vrai par défaut),
 `lines` : `[{ holding, units?, unit_price?, value, cost_basis_per_unit? }]`, `value` un montant dans la devise de l'enveloppe. Un relevé

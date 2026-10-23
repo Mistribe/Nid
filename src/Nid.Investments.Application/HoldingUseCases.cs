@@ -12,7 +12,8 @@ namespace Nid.Investments.Application;
 /// <summary>A holding as a body sends it (holdings spec §2.1); checked by <see cref="HoldingRules"/>.</summary>
 public sealed record HoldingDraft(
     string? Name, string? Isin, string? Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
-    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note);
+    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note,
+    bool? AutoPrice = null);
 
 public sealed record SnapshotLineDraft(Guid HoldingId, decimal? Units, decimal? UnitPrice, Money Value, decimal? CostBasisPerUnit);
 
@@ -86,7 +87,9 @@ internal static class HoldingRules
         if (d.Note is { Length: > EnvelopeRules.NoteMax })
             return Invalid<EnvelopeHolding>(InvestmentsCodes.InvalidHolding, "note", $"A note has at most {EnvelopeRules.NoteMax} characters.");
         return Result.Success(new EnvelopeHolding(id, envelope, d.Name.Trim(), isin, d.Kind, d.AssetClass, d.Issuer, d.RiskIndicator,
-            d.OpenedOn, d.MaturesOn, d.EntryCostPct, d.ClosedOn, d.Note));
+            d.OpenedOn, d.MaturesOn, d.EntryCostPct, d.ClosedOn, d.Note,
+            // Absent: true on create, the stored value on edit.
+            d.AutoPrice ?? others.FirstOrDefault(o => o.Holding.Id == id)?.Holding.AutoPrice ?? true));
     }
 
     /// <summary>The snapshot once checked against the envelope's holdings, its currency and today.</summary>
@@ -292,7 +295,8 @@ public sealed class DeleteHoldingsSnapshotHandler(IEnvelopeStore envelopes, IIte
 
 [RequestHandler<GetHoldingsQuery, HoldingsView>]
 public sealed class GetHoldingsHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IValuations valuations, IHouseholdCalendar calendar)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IValuations valuations, IHouseholdCalendar calendar,
+    ISecurityPriceStore prices, Prices.EnvelopeEstimator estimator, IHouseholdSettings settings)
     : IRequestHandler<GetHoldingsQuery, HoldingsView>
 {
     public async ValueTask<Result<HoldingsView>> HandleAsync(GetHoldingsQuery query, CancellationToken ct = default)
@@ -300,7 +304,8 @@ public sealed class GetHoldingsHandler(
         var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, query.ItemId, write: false, null, ct);
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<HoldingsView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        var on = query.On ?? await calendar.TodayAsync(ct);
+        var today = await calendar.TodayAsync(ct);
+        var on = query.On ?? today;
         var snapshots = await holdings.SnapshotsAsync(query.ItemId, ct);
         var snapshot = snapshots.FirstOrDefault(s => s.AsOf <= on);
         var currency = facts!.Currency;
@@ -308,9 +313,15 @@ public sealed class GetHoldingsHandler(
             .Concat(HoldingMath.UnexplainedUnits(snapshots.Where(s => s.AsOf <= on).ToList(), facts.Movements, currency)).ToList();
         var floor = (await envelopes.FindAsync(query.ItemId, ct))!.UcShareFloorPct;
         HoldingFigures? Figures(Guid h) => HoldingMath.At(h, snapshots, facts.Movements, currency, on);
+        // D9: prices off, the view stays as it was, without the prices already stored.
+        var isins = (await settings.ReadAsync(ct)).PricesEnabled ? facts.Holdings.Select(h => h.Holding.Isin).OfType<string>().ToList() : [];
+        var latest = isins.Count == 0 ? new Dictionary<string, LatestPrices>() : await prices.LatestAsync(isins, ct);
+        PriceView? Price(StoredHolding h) => h.Holding.Isin is { } isin ? PriceView.Of(latest.GetValueOrDefault(isin)) : null;
+        // The estimate is a figure of today.
+        var estimate = on == today ? EnvelopeEstimateView.Of((await estimator.EstimateAsync([query.ItemId], ct))[query.ItemId]) : null;
         if (snapshot is null)
             return Result.Success(new HoldingsView(query.ItemId, currency.Code, null, null, null, null, null, null, null, floor,
-                facts.Holdings.Select(h => HoldingView.Of(h, null, null)).ToList(), movementWarnings.Select(HoldingWarningView.Of).ToList()));
+                facts.Holdings.Select(h => HoldingView.Of(h, null, null, Price(h))).ToList(), movementWarnings.Select(HoldingWarningView.Of).ToList(), estimate));
 
         var valuation = await HoldingCheck.ValuationOnAsync(valuations, query.ItemId, snapshot.AsOf, ct);
         var total = HoldingMath.Total(snapshot);
@@ -320,8 +331,8 @@ public sealed class GetHoldingsHandler(
             AmountView.From(Amounts.Of(total, currency)), valuation is { } v ? AmountView.From(Amounts.Of(v - total, currency)) : null,
             AmountView.From(Amounts.Of(HoldingMath.ExplicitFees(facts.Movements, snapshot.AsOf), currency)), ucShare, floor,
             facts.Holdings.Select(h => HoldingView.Of(h, snapshot.Lines.FirstOrDefault(l => l.HoldingId == h.Holding.Id) is { } line
-                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id))).ToList(),
-            HoldingMath.Warnings(snapshot, valuation).Concat(shareWarning).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList()));
+                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id), Price(h))).ToList(),
+            HoldingMath.Warnings(snapshot, valuation).Concat(shareWarning).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList(), estimate));
     }
 }
 

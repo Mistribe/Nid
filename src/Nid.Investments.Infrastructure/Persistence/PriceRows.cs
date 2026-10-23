@@ -24,6 +24,7 @@ public sealed class SecurityPriceRow
     public decimal? Previous { get; set; }
     public Instant FetchedAt { get; set; }
     public Guid? AcceptedBy { get; set; }
+    public Instant? AcceptedAt { get; set; }
 }
 
 /// <summary>investments.price_run (spec §2.5).</summary>

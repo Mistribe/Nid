@@ -267,6 +267,34 @@
     },
     "empty": "Aucune enveloppe n’a de valeur au début de cette période."
   },
+  "holding_prices": {
+    "price": "Cours",
+    "price_rejected": "Cours refusé",
+    "accept_price": "Accepter ce cours",
+    "accept_price_confirm": "Le cours trouvé ({{price}}) s’écarte de plus de 20 % du précédent ({{previous}}). L’appliquer quand même ?",
+    "estimate_at": "Valeur estimée au {{date}}",
+    "estimate_converted": "convertie",
+    "not_up_to_date": "Pas à jour",
+    "stale": {
+      "no_price": "Pas de cours récent",
+      "stale_price": "Cours de plus de 7 jours",
+      "rejected_price": "Cours refusé",
+      "not_found": "ISIN introuvable",
+      "auto_price_off": "Cours automatique désactivé",
+      "rate_missing": "Taux de change manquant",
+      "no_units": "Parts inconnues"
+    },
+    "missing": {
+      "no_snapshot": "Saisissez un relevé pour obtenir une estimation",
+      "incomplete_snapshot": "Le dernier relevé est partiel",
+      "newer_valuation": "Une valeur plus récente que le relevé a été saisie",
+      "no_newer_price": "Aucun cours plus récent que le relevé"
+    },
+    "auto_price": "Cours automatique",
+    "auto_price_hint": "Nid récupère son cours chaque soir de semaine",
+    "auto_price_on": "activé",
+    "auto_price_off": "désactivé"
+  },
   "investments_holdings": {
     "loading": "Chargement des supports",
     "detailed": "Détaillé par support",

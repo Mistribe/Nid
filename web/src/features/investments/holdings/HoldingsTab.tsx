@@ -23,6 +23,7 @@ import { directionOf } from '../format';
 import { CloseHoldingDialog, HoldingDialog } from './HoldingDialog';
 import { formatUnits, HOLDING_KINDS, holdingKindText, percent, warningText } from './holdingFormat';
 import { MovementDialog } from './MovementDialog';
+import { PriceCell } from './PriceCell';
 import { SnapshotDialog } from './SnapshotDialog';
 import { SwitchDialog } from './SwitchDialog';
 import '@/locales/investments';
@@ -60,9 +61,39 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
   const kinds = HOLDING_KINDS.filter((k) => holdings.some((h) => h.kind === k));
   const nameOf = (id: string) => holdings.find((h) => h.id === id)?.name;
   const dash = <span className="text-muted-foreground">{t('investments.dash')}</span>;
+  // D9: prices off, the tab shows nothing of them.
+  const priced = holdings.some((h) => h.price);
+  const pricesOn = view.estimate?.missingReason !== 'disabled';
+
+  const est = view.estimate;
+  const estimate = est ? (
+    <div className="space-y-1">
+      {est.value && est.asOf ? (
+        <p className="flex justify-between gap-4 border-t pt-2 text-sm font-medium">
+          <span>{t('holding_prices.estimate_at', { date: formatLocalDate(est.asOf) })}{est.converted ? <span className="ml-2 font-normal text-muted-foreground">{t('holding_prices.estimate_converted')}</span> : null}</span>
+          <Money value={est.value} tabular />
+        </p>
+      ) : est.missingReason && est.missingReason !== 'disabled' ? (
+        <p className="text-sm text-muted-foreground">{t(`holding_prices.missing.${est.missingReason}`, { defaultValue: '' })}</p>
+      ) : null}
+      {est.stale.length > 0 ? (
+        <div className="text-sm">
+          <h3 className="font-medium">{t('holding_prices.not_up_to_date')}</h3>
+          <ul aria-label={t('holding_prices.not_up_to_date')} className="space-y-1">
+            {est.stale.map((line) => (
+              <li key={`${line.holdingId}-${line.reason}`} className="flex items-start gap-2">
+                <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-warning" />
+                {nameOf(line.holdingId)} : {t(`holding_prices.stale.${line.reason}`, { defaultValue: line.reason })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
 
   const dialogs = dialog ? (
-    dialog.kind === 'holding' ? <HoldingDialog envelope={envelope} editing={dialog.editing} onClose={close} onDone={done} />
+    dialog.kind === 'holding' ? <HoldingDialog envelope={envelope} editing={dialog.editing} pricesOn={pricesOn} onClose={close} onDone={done} />
       : dialog.kind === 'close' ? <CloseHoldingDialog envelope={envelope} holding={dialog.holding} onClose={close} onDone={done} />
         : dialog.kind === 'movement' ? <MovementDialog envelope={envelope} holding={dialog.holding} onClose={close} onDone={done} />
           : dialog.kind === 'snapshot' ? <SnapshotDialog envelope={envelope} holdings={openHoldings} onClose={close} onDone={done} />
@@ -120,6 +151,8 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
                 { id: 'name', header: t('holdings.name'), sort: (h) => h.name, cell: (h) => <HoldingLink envelope={envelope.id} holding={h} /> },
                 { id: 'kind', header: t('holdings.kind_label'), sort: (h) => holdingKindText(t, h.kind), cell: (h) => holdingKindText(t, h.kind) },
                 { id: 'units', header: t('holdings.units'), align: 'end', cell: (h) => (h.line?.units ? formatUnits(h.line.units) : dash) },
+                ...(priced ? [{ id: 'latest', header: t('holding_prices.price'), align: 'end' as const,
+                  cell: (h: Holding) => (h.price ? <PriceCell envelope={envelope.id} holding={h} writable={writable} /> : dash) }] : []),
                 { id: 'price', header: t('holdings.unit_price'), align: 'end', cell: (h) => (h.line?.unitPrice ? formatUnits(h.line.unitPrice) : dash) },
                 { id: 'value', header: t('holdings.value'), align: 'end', sort: (h) => amountKey(h.line?.value.amount), cell: (h) => (h.line ? <Money value={h.line.value} tabular /> : dash) },
                 { id: 'weight', header: t('holdings.weight'), align: 'end', sort: (h) => h.line?.weightPct ?? -1,
@@ -147,6 +180,7 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
                   <div>
                     <HoldingLink envelope={envelope.id} holding={h} />
                     <p className="text-sm text-muted-foreground">{holdingKindText(t, h.kind)}</p>
+                    {h.price ? <div className="mt-1 text-sm"><PriceCell envelope={envelope.id} holding={h} writable={writable} /></div> : null}
                   </div>
                   <div className="text-right">
                     {h.line ? <Money value={h.line.value} tabular /> : dash}
@@ -160,6 +194,7 @@ export function HoldingsTab({ envelope, writable }: { envelope: EnvelopeDetail; 
               <span>{t('holdings.unallocated')}</span><Money value={view.unallocated} tabular />
             </p>
           ) : null}
+          {estimate}
           {view.warnings.length > 0 ? (
             // Folded: a long history can carry hundreds of unit differences, which would dwarf the table (#47).
             <Collapsible className="space-y-2">

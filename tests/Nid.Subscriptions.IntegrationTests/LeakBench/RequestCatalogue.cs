@@ -292,6 +292,7 @@ public static class RequestCatalogue
         new(typeof(AddHoldingCommand), true, (_, item) => new AddHoldingCommand(item, new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null))),
         new(typeof(EditHoldingCommand), true, (_, item) => new EditHoldingCommand(item, Guid.NewGuid(), new HoldingDraft("Fonds", null, "fund", null, null, null, null, null, null, null, null), 1)),
         new(typeof(DeleteHoldingCommand), true, (_, item) => new DeleteHoldingCommand(item, Guid.NewGuid(), 1)),
+        new(typeof(AcceptHoldingPriceCommand), true, (_, item) => new AcceptHoldingPriceCommand(item, Guid.NewGuid(), new LocalDate(2025, 1, 1))),
         new(typeof(RecordHoldingsSnapshotCommand), true, (_, item) => new RecordHoldingsSnapshotCommand(item, null,
             new SnapshotDraft(new LocalDate(2025, 1, 1), null, true, [new SnapshotLineDraft(Guid.NewGuid(), null, null, Money.Create(1m, Currency.Eur).Ok(), null)], false))),
         new(typeof(DeleteHoldingsSnapshotCommand), true, (_, item) => new DeleteHoldingsSnapshotCommand(item, Guid.NewGuid())),

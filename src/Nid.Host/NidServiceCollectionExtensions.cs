@@ -153,6 +153,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
         services.AddScoped<IPriceRunLog, PriceRunLog>();
         services.AddScoped<Nid.Investments.Application.Prices.PriceCollector>();
+        services.AddScoped<Nid.Investments.Application.Prices.EnvelopeEstimator>();
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();

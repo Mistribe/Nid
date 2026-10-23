@@ -14,7 +14,7 @@ const FUND = '0192f0aa-0000-7000-8000-0000000000f1';
 const EURO = '0192f0aa-0000-7000-8000-0000000000f2';
 
 const holding = (over: Partial<Holding> = {}): Holding => ({
-  id: FUND, name: 'Monde ESG', isin: 'LU0000000001', kind: 'fund', version: 1,
+  id: FUND, name: 'Monde ESG', isin: 'LU0000000001', kind: 'fund', version: 1, autoPrice: true,
   line: { units: '12.500000', unitPrice: '200.000000', value: eur('2500.0000'), weightPct: 55.6 },
   figures: {
     asOf: '2025-09-30', value: eur('2500.0000'), moneyIn: eur('2000.0000'), moneyOut: eur('0'), gain: eur('500.0000'), gainPct: 25,
@@ -91,6 +91,25 @@ describe('the « Supports » tab', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('offers « Cours automatique » once an ISIN is typed, and sends it off when unchecked', async () => {
+    const calls = serve(view({ holdings: [], warnings: [], ucSharePct: null, explicitFees: null, unallocated: null }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    await user.click(await screen.findByRole('button', { name: 'Détailler les supports' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau support' }));
+    await user.type(dialog.getByLabelText('Support'), 'Monde ESG');
+    expect(dialog.queryByRole('switch', { name: 'Cours automatique' })).not.toBeInTheDocument();
+    await user.type(dialog.getByLabelText('ISIN (facultatif)'), 'LU0000000001');
+    const auto = dialog.getByRole('switch', { name: 'Cours automatique' });
+    expect(auto).toBeChecked();
+    expect(dialog.getByText('Nid récupère son cours chaque soir de semaine')).toBeInTheDocument();
+    await user.click(auto);
+    await user.click(dialog.getByRole('button', { name: 'Ajouter le support' }));
+
+    await screen.findByText('Support ajouté.');
+    expect(calls[0]).toMatchObject({ path: 'holdings', body: { isin: 'LU0000000001', autoPrice: false } });
+  });
+
   it('lists the holdings with the server’s figures, the unallocated rest, the UC share and the warnings', async () => {
     serve(view());
     const { user, container } = await renderApp(`/investments/${PEA}?tab=holdings`);
@@ -112,6 +131,68 @@ describe('the « Supports » tab', () => {
     const warnings = screen.getByRole('list', { name: 'Avertissements des supports' });
     expect(warnings).toHaveTextContent('Monde ESG : 0,8 parts disparues sans mouvement au 30 septembre 2025, soit environ 60,00 € de frais à enregistrer ?');
     await expectNoAxeViolations(container);
+  });
+
+  it('shows each holding\u2019s latest price, accepts a refused one then refetches, and lists what is not up to date', async () => {
+    const calls = serve(view());
+    let current = view({
+      holdings: [holding({ price: { value: '210.500000', currency: 'EUR', onDate: '2025-10-01', source: 'auto', status: 'rejected', previous: '200.000000' } }), euroFund],
+      estimate: {
+        value: eur('4700.00'), asOf: '2025-10-02', basedOn: '2025-09-30', converted: true,
+        stale: [{ holdingId: FUND, reason: 'rejected_price' }, { holdingId: EURO, reason: 'no_units' }], missingReason: null,
+      },
+    });
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id/holdings', () => HttpResponse.json(current)),
+      http.post('*/api/v1/investments/envelopes/:id/holdings/:holdingId/price/accept', async ({ request }) => {
+        calls.push({ method: 'POST', path: 'accept', body: await request.json() });
+        current = view({ holdings: [holding({ price: { value: '210.500000', currency: 'EUR', onDate: '2025-10-01', source: 'auto', status: 'accepted', previous: '200.000000' } }), euroFund] });
+        return HttpResponse.json(true);
+      }),
+    );
+    const { user, container } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    const table = await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
+    const row = within(table).getAllByRole('row')[1]!;
+    expect(row).toHaveTextContent('210,5 EUR');
+    expect(row).toHaveTextContent('1 octobre 2025');
+    expect(row).toHaveTextContent('Cours refusé');
+    // Once in the page's figures, once as the tab's total line, below « Non réparti » it includes.
+    const total = screen.getAllByText('Valeur estimée au 2 octobre 2025').at(-1)!.closest('p')!;
+    expect(total).toHaveTextContent('4 700,00 €');
+    expect(screen.getByText('Non réparti').compareDocumentPosition(total) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const list = screen.getByRole('list', { name: 'Pas à jour' });
+    expect(list).toHaveTextContent('Monde ESG : Cours refusé');
+    expect(list).toHaveTextContent('Fonds euros : Parts inconnues');
+    await expectNoAxeViolations(container);
+
+    // The card layout (below md) offers the same badge and action.
+    const card = within(screen.getByRole('list', { name: 'Supports de l’enveloppe' }));
+    expect(card.getByText('Cours refusé')).toBeInTheDocument();
+    expect(card.getByRole('button', { name: 'Accepter ce cours' })).toBeInTheDocument();
+
+    await user.click(within(row).getByRole('button', { name: 'Accepter ce cours' }));
+    expect(await screen.findByText('Le cours trouvé (210,5) s’écarte de plus de 20 % du précédent (200). L’appliquer quand même ?')).toBeInTheDocument();
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(calls).toContainEqual({ method: 'POST', path: 'accept', body: { onDate: '2025-10-01' } }));
+    await waitFor(() => expect(within(table).queryByText('Cours refusé')).not.toBeInTheDocument());
+  });
+
+  it('says why there is no estimate, and nothing of the prices when the feature is off', async () => {
+    const calls = serve(view({ estimate: { value: null, asOf: null, basedOn: null, converted: false, stale: [], missingReason: 'incomplete_snapshot' } }));
+    const first = await renderApp(`/investments/${PEA}?tab=holdings`);
+    expect(await screen.findByText('Le dernier relevé est partiel')).toBeInTheDocument();
+    first.unmount();
+    serve(view({ estimate: { value: null, asOf: null, basedOn: null, converted: false, stale: [], missingReason: 'disabled' } }), calls);
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+    const table = await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
+    expect(screen.queryByText(/Saisissez un relevé|relevé est partiel|Valeur estimée/)).not.toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: 'Cours' })).not.toBeInTheDocument();
+    await user.click(within(table).getByRole('button', { name: 'Actions pour Monde ESG' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le support' }));
+    expect(dialog.getByLabelText('ISIN (facultatif)')).toHaveValue('LU0000000001');
+    expect(dialog.queryByRole('switch', { name: 'Cours automatique' })).not.toBeInTheDocument();
   });
 
   it('filters the holdings by name or ISIN and by type, the closed ones on demand', async () => {
@@ -248,6 +329,28 @@ describe('a holding’s page', () => {
       ],
     },
   ];
+
+  const servePage = (holdings: HoldingsView) => {
+    serve(holdings);
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/movements', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, items: [] })),
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/series', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, points: [] })),
+      http.get('*/api/v1/investments/envelopes/:id/holdings/:holdingId/cost-reports', () => HttpResponse.json({ envelopeId: PEA, holdingId: FUND, items: [] })),
+    );
+  };
+
+  it('shows a refused price with its date and badge, and « Cours automatique » only with the prices on', async () => {
+    servePage(view({ holdings: [holding({ price: { value: '210.500000', currency: 'EUR', onDate: '2025-10-01', source: 'auto', status: 'rejected', previous: '200.000000' } })] }));
+    const first = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+    const figures = await screen.findByRole('region', { name: 'Chiffres du support' });
+    expect(figures).toHaveTextContent('Cours210,5 EUR1 octobre 2025Cours refusé');
+    expect(figures).toHaveTextContent('Cours automatiqueactivé');
+    first.unmount();
+
+    servePage(view({ estimate: { value: null, asOf: null, basedOn: null, converted: false, stale: [], missingReason: 'disabled' } }));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+    expect(await screen.findByRole('region', { name: 'Chiffres du support' })).not.toHaveTextContent('Cours');
+  });
 
   it('shows the figures, the movements newest first and the cost reports with their estimate, and saves a report', async () => {
     serve(view());

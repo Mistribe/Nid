@@ -88,7 +88,7 @@ public sealed partial class HoldingsImportSection
         var ok = EnvelopeParsing.TryDate(r.OpenedOn, path + ".opened_on", null, issues, out var openedOn)
                  & EnvelopeParsing.TryDate(r.MaturesOn, path + ".matures_on", null, issues, out var maturesOn)
                  & EnvelopeParsing.TryDate(r.ClosedOn, path + ".closed_on", null, issues, out var closedOn);
-        draft = new HoldingDraft(r.Name, r.Isin, r.Kind, r.AssetClass, r.Issuer, r.RiskIndicator, openedOn, maturesOn, r.EntryCostPct, closedOn, r.Note);
+        draft = new HoldingDraft(r.Name, r.Isin, r.Kind, r.AssetClass, r.Issuer, r.RiskIndicator, openedOn, maturesOn, r.EntryCostPct, closedOn, r.Note, r.AutoPrice ?? true); // absent is true, as the export omits it exactly then
         return ok;
     }
 

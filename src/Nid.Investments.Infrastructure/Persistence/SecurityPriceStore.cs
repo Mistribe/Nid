@@ -29,23 +29,41 @@ public sealed class SecurityPriceStore(InvestmentsDbContext db) : ISecurityPrice
         return rows.GroupBy(p => p.Isin).ToDictionary(g => g.Key, g => ToPrice(g.MaxBy(p => p.OnDate)!));
     }
 
+    public async Task<IReadOnlyDictionary<string, LatestPrices>> LatestAsync(IReadOnlyCollection<string> isins, CancellationToken ct)
+    {
+        var rows = await db.SecurityPrices.AsNoTracking().Where(p => isins.Contains(p.Isin))
+            .GroupBy(p => new { p.Isin, p.Status }).Select(g => g.OrderByDescending(p => p.OnDate).First()).ToListAsync(ct);
+        return rows.GroupBy(r => r.Isin).ToDictionary(g => g.Key, g =>
+        {
+            var accepted = g.SingleOrDefault(r => r.Status == "accepted");
+            var rejected = g.SingleOrDefault(r => r.Status == "rejected");
+            return new LatestPrices(accepted is null ? null : ToPrice(accepted),
+                rejected is not null && (accepted is null || rejected.OnDate > accepted.OnDate) ? ToPrice(rejected) : null);
+        });
+    }
+
+    public async Task<IReadOnlyList<SecurityPrice>> AcceptedOnOrBeforeAsync(IReadOnlyCollection<string> isins, LocalDate from, LocalDate to, CancellationToken ct)
+        => (await db.SecurityPrices.AsNoTracking().Where(p => isins.Contains(p.Isin) && p.Status == "accepted" && p.OnDate >= from && p.OnDate <= to)
+            .ToListAsync(ct)).Select(ToPrice).ToList();
+
+    // One statement, so two writers of the same day cannot both pass a read and the second overwrite a person's acceptance.
     public async Task<bool> WriteAsync(SecurityPrice price, CancellationToken ct)
     {
-        var row = await db.SecurityPrices.SingleOrDefaultAsync(p => p.Isin == price.Isin && p.OnDate == price.OnDate, ct);
-        if (row is { AcceptedBy: not null })
-            return false;
-        if (row is null)
-            db.SecurityPrices.Add(row = new SecurityPriceRow { Isin = price.Isin, OnDate = price.OnDate });
-        row.Price = price.Price;
-        row.Currency = price.Currency.Code;
-        row.Source = price.Source;
-        row.Status = price.Status == PriceStatus.Accepted ? "accepted" : "rejected";
-        row.Previous = price.Previous;
-        row.FetchedAt = price.FetchedAt;
-        row.AcceptedBy = price.AcceptedBy?.Value;
-        await db.SaveChangesAsync(ct);
-        return true;
+        var status = price.Status == PriceStatus.Accepted ? "accepted" : "rejected";
+        var acceptedBy = price.AcceptedBy?.Value;
+        return await db.Database.ExecuteSqlInterpolatedAsync($"""
+            insert into investments.security_price (isin, on_date, price, currency, source, status, previous, fetched_at, accepted_by)
+            values ({price.Isin}, {price.OnDate}, {price.Price}, {price.Currency.Code}, {price.Source},
+                {status}, {price.Previous}, {price.FetchedAt}, {acceptedBy})
+            on conflict (isin, on_date) do update set price = excluded.price, currency = excluded.currency, source = excluded.source,
+                status = excluded.status, previous = excluded.previous, fetched_at = excluded.fetched_at, accepted_by = excluded.accepted_by
+            where security_price.accepted_by is null
+            """, ct) > 0;
     }
+
+    public async Task<bool> AcceptAsync(string isin, LocalDate onDate, PersonId by, Instant at, CancellationToken ct)
+        => await db.SecurityPrices.Where(p => p.Isin == isin && p.OnDate == onDate && p.Status == "rejected")
+            .ExecuteUpdateAsync(u => u.SetProperty(p => p.Status, "accepted").SetProperty(p => p.AcceptedBy, by.Value).SetProperty(p => p.AcceptedAt, at), ct) > 0;
 
     public async Task<int> PurgeBeforeAsync(LocalDate before, CancellationToken ct)
         => await db.SecurityPrices.Where(p => p.OnDate < before).ExecuteDeleteAsync(ct);

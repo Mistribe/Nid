@@ -4570,6 +4570,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/price/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    holdingId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AcceptPriceBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": boolean;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/movements": {
         parameters: {
             query?: never;
@@ -14093,6 +14189,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptPriceBody: {
+            onDate?: null | string;
+        };
         AdultView: {
             /** Format: uuid */
             id: string;
@@ -14667,6 +14766,16 @@ export interface components {
             valuations: components["schemas"]["ValuationView"][];
             flows: components["schemas"]["FlowView"][];
         };
+        EnvelopeEstimateView: {
+            value?: null | components["schemas"]["AmountView"];
+            /** Format: date */
+            asOf?: null | string;
+            /** Format: date */
+            basedOn?: null | string;
+            converted: boolean;
+            stale: components["schemas"]["EstimateLineView"][];
+            missingReason?: null | string;
+        };
         EnvelopeFeesView: {
             /** Format: uuid */
             envelopeId: string;
@@ -14740,6 +14849,11 @@ export interface components {
             holdingId?: null | string;
             /** Format: date */
             on?: null | string;
+        };
+        EstimateLineView: {
+            /** Format: uuid */
+            holdingId: string;
+            reason: string;
         };
         EstimateView: {
             /** Format: date */
@@ -14914,6 +15028,7 @@ export interface components {
             note?: null | string;
             /** Format: uint32 */
             version?: null | number;
+            autoPrice?: null | boolean;
         };
         HoldingFiguresView: {
             /** Format: date */
@@ -15000,6 +15115,7 @@ export interface components {
             ucShareFloorPct?: null | number;
             holdings: components["schemas"]["HoldingView"][];
             warnings: components["schemas"]["HoldingWarningView"][];
+            estimate?: null | components["schemas"]["EnvelopeEstimateView"];
         };
         HoldingView: {
             /** Format: uuid */
@@ -15024,6 +15140,8 @@ export interface components {
             version: number;
             line?: null | components["schemas"]["LineView"];
             figures?: null | components["schemas"]["HoldingFiguresView"];
+            autoPrice: boolean;
+            price?: null | components["schemas"]["PriceView"];
         };
         HoldingWarningView: {
             code: string;
@@ -16200,6 +16318,15 @@ export interface components {
         };
         PriceSyncRequested: {
             requested: boolean;
+        };
+        PriceView: {
+            value: string;
+            currency: string;
+            /** Format: date */
+            onDate: string;
+            source: string;
+            status: string;
+            previous?: null | string;
         };
         PrivateItemsView: {
             owns: boolean;

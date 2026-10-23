@@ -152,6 +152,16 @@ public static class InvestmentEndpoints
             })
             .ReturnsNoContent();
 
+        api.MapPost("/envelopes/{id:guid}/holdings/{holdingId:guid}/price/accept", async (Guid id, Guid holdingId, AcceptPriceBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var onDate = reader.Date(body.OnDate, "onDate");
+                return onDate is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new AcceptHoldingPriceCommand(new ItemId(id), holdingId, onDate.Value), ct)).ToHttp(x => x);
+            })
+            .Returns<bool>();
+
         api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/movements", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListHoldingMovementsQuery(new ItemId(id), holdingId), ct)).ToHttp(v => v))
             .Returns<HoldingMovementList>();
@@ -308,6 +318,8 @@ public static class InvestmentEndpoints
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member
     // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney is what turns
     // that null into a located 400 instead of a NullReferenceException.
+    public sealed record AcceptPriceBody(string? OnDate);
+
     public sealed record ValuationBody(string AsOf, MoneyBody? Amount, string? Note);
 
     public sealed record FlowBody(string OccurredOn, string Kind, MoneyBody? Amount, string? Category, string? ExternalRef, string? Note)
@@ -340,7 +352,7 @@ public static class InvestmentEndpoints
     /// </summary>
     public sealed record HoldingBody(
         string? Name, string? Isin, string? Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
-        string? OpenedOn, string? MaturesOn, string? EntryCostPct, string? ClosedOn, string? Note, uint? Version)
+        string? OpenedOn, string? MaturesOn, string? EntryCostPct, string? ClosedOn, string? Note, uint? Version, bool? AutoPrice = null)
     {
         internal HoldingDraft? Read(FieldReader reader)
         {
@@ -348,7 +360,7 @@ public static class InvestmentEndpoints
             var maturesOn = reader.Date(MaturesOn, "maturesOn", required: false);
             var closedOn = reader.Date(ClosedOn, "closedOn", required: false);
             var entryCost = reader.Decimal(EntryCostPct, "entryCostPct");
-            return reader.Ok ? new HoldingDraft(Name, Isin, Kind, AssetClass, Issuer, RiskIndicator, openedOn, maturesOn, entryCost, closedOn, Note) : null;
+            return reader.Ok ? new HoldingDraft(Name, Isin, Kind, AssetClass, Issuer, RiskIndicator, openedOn, maturesOn, entryCost, closedOn, Note, AutoPrice) : null;
         }
     }
 

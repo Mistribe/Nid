@@ -4797,6 +4797,115 @@
         }
       }
     },
+    "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/price/accept": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "holdingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptPriceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/investments/envelopes/{id}/holdings/{holdingId}/movements": {
       "get": {
         "tags": [
@@ -14997,6 +15106,17 @@
   },
   "components": {
     "schemas": {
+      "AcceptPriceBody": {
+        "type": "object",
+        "properties": {
+          "onDate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AdultView": {
         "required": [
           "id",
@@ -17492,6 +17612,54 @@
           }
         }
       },
+      "EnvelopeEstimateView": {
+        "required": [
+          "converted",
+          "stale"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "asOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "basedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "converted": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EstimateLineView"
+            }
+          },
+          "missingReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "EnvelopeFeesView": {
         "required": [
           "envelopeId",
@@ -17787,6 +17955,22 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "EstimateLineView": {
+        "required": [
+          "holdingId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "holdingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
@@ -18526,6 +18710,12 @@
               "integer"
             ],
             "format": "uint32"
+          },
+          "autoPrice": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -18875,6 +19065,16 @@
             "items": {
               "$ref": "#/components/schemas/HoldingWarningView"
             }
+          },
+          "estimate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EnvelopeEstimateView"
+              }
+            ]
           }
         }
       },
@@ -18883,7 +19083,8 @@
           "id",
           "name",
           "kind",
-          "version"
+          "version",
+          "autoPrice"
         ],
         "type": "object",
         "properties": {
@@ -18977,6 +19178,19 @@
               },
               {
                 "$ref": "#/components/schemas/HoldingFiguresView"
+              }
+            ]
+          },
+          "autoPrice": {
+            "type": "boolean"
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PriceView"
               }
             ]
           }
@@ -24100,6 +24314,40 @@
         "properties": {
           "requested": {
             "type": "boolean"
+          }
+        }
+      },
+      "PriceView": {
+        "required": [
+          "value",
+          "currency",
+          "onDate",
+          "source",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "onDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "previous": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
