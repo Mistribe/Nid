@@ -1,0 +1,114 @@
+{
+  "guides": {
+    "common": {
+      "step": "{{n}} sur {{total}}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "skip": "Passer",
+      "start": "Commencer",
+      "show": "Me montrer à l’écran",
+      "finish": "Terminer",
+      "close": "Fermer le guide",
+      "title": "{{module}} : premiers pas"
+    },
+    "settings": {
+      "title": "Guides",
+      "replay_all": "Revoir tous les guides",
+      "replayed": "Les guides se rejoueront à votre prochaine visite de chaque module."
+    },
+    "dashboard": {
+      "screens": {
+        "1": { "title": "Quatre questions, une minute", "body": "L’accueil répond à ce que vous possédez, aux engagements en cours, à la façon dont les choses ont évolué et à ce qui arrive bientôt. Tout se lit sans rien ouvrir." },
+        "2": { "title": "Une valeur inconnue le dit", "body": "Quand un chiffre ne peut pas être calculé, l’accueil écrit « Inconnu » ou « Inconnue » et en donne la raison : une valeur manquante, un taux de change absent. Il n’affiche jamais 0 à la place." },
+        "3": { "title": "Foyer ou Moi", "body": "« Foyer » compte ce qui est partagé. « Moi » compte le partagé et, en plus, les éléments visibles de vous seulement. L’autre adulte voit ses propres chiffres de la même façon." },
+        "4": { "title": "Garder les chiffres justes", "body": "Une valeur « À mettre à jour » est devenue trop ancienne : le patrimoine reste juste en la rafraîchissant. Commencez par ouvrir la ligne « à faire » en haut de l’accueil." }
+      },
+      "tour": {
+        "tiles": { "title": "Les quatre chiffres clés", "body": "Patrimoine net et son évolution depuis le 1er janvier, revenus, engagements et reste à vivre du mois. Cliquez sur un chiffre pour le détail." },
+        "month": { "title": "Où part le revenu du mois", "body": "Ce schéma relie chaque revenu du mois à ce qu’il finance : abonnements, crédits, charges des biens et ce qu’il reste. Chaque montant est écrit à côté ; sur téléphone, deux barres disent d’où il vient et où il part." },
+        "curve": { "title": "Évolution du patrimoine", "body": "La courbe compare la valeur de votre patrimoine à ce que vous y avez versé. Choisissez la période : 12 mois, 3 ans ou tout." },
+        "upcoming": { "title": "À venir", "body": "Renouvellements, fins de phase d’un crédit, estimations à refaire : tout ce qui change dans les 60 prochains jours." },
+        "scope": { "title": "Portée", "body": "Ce sélecteur change la portée de tous les chiffres de la page. « Foyer » ne compte que le partagé, « Moi » y ajoute vos éléments privés." }
+      }
+    },
+    "subscriptions": {
+      "screens": {
+        "1": { "title": "Un abonnement, quel que soit son type", "body": "Ajoutez-le selon son offre : récurrent, prépayé avec mois offerts, offre groupée, carte cadeau, essai ou offre de lancement. Nid sait ainsi quand il se renouvelle et quand il expire." },
+        "2": { "title": "Coût réel, coût amorti", "body": "Le coût réel du mois est ce qui est prélevé. Le coût amorti étale un paiement d’avance sur les mois couverts. Les deux diffèrent dès qu’une offre est prépayée ou offerte." },
+        "3": { "title": "La vue d’ensemble", "body": "Le premier onglet donne le coût par mois et par an, ce qu’il reste à prélever ce mois, la part de chacun, les prochains prélèvements et ce qui mérite votre attention : une fin sans renouvellement, un gros prélèvement annuel, deux abonnements chez un même fournisseur." },
+        "4": { "title": "La liste et le calendrier", "body": "« Liste » regroupe vos abonnements par fournisseur, libellé ou personne, avec le total de chaque groupe ; « Calendrier » place chaque prélèvement sur son jour. Commencez par « Ajouter un abonnement »." }
+      }
+    },
+    "investments": {
+      "screens": {
+        "1": { "title": "Une enveloppe est un compte", "body": "Un livret, un PEA, une assurance-vie : chacun est une enveloppe. Vous y donnez de temps en temps sa valeur, et les sommes que vous y mettez ou en retirez." },
+        "2": { "title": "Le gain se calcule seul", "body": "Nid compare la valeur aux versements nets pour en tirer le gain, toujours « avant fiscalité ». Le pourcentage rapporte ce gain au total versé ; sans versement, il reste vide." },
+        "3": { "title": "Une valeur vieillit", "body": "Une valeur devient trop ancienne selon la « Mise à jour de la valeur » choisie pour l’enveloppe : chaque mois, chaque trimestre, chaque année ou à la demande. La routine mensuelle est le moyen le plus rapide de tout garder à jour." },
+        "4": { "title": "Le détail par support", "body": "Une assurance-vie ou un PEA se détaille, si vous le souhaitez, dans l’onglet « Supports » : un relevé donne les parts et la valeur de chaque support, les mouvements et arbitrages expliquent ce qui bouge, le rapport de frais annuel dit ce qu’il coûte. Les chiffres de l’enveloppe restent ceux de ses valeurs." },
+        "5": { "title": "Par où commencer", "body": "La page s’ouvre sur la vue d’ensemble du foyer : la valeur, le gain, l’évolution par type d’enveloppe et ce qu’il faut mettre à jour ; « Liste » garde chaque enveloppe. Commencez par « Ajouter une enveloppe », puis donnez-lui sa première valeur." }
+      },
+      "hint": "Ouvrez une enveloppe puis touchez ? pour voir la visite de sa fiche.",
+      "tour": {
+        "figures": { "title": "Valeur et gain", "body": "Ici se lisent la dernière valeur, les versements nets, le gain et, après 12 mois, le rendement annuel, avant fiscalité. Les « Frais payés » et les « Revenus perçus » hors de l’enveloppe sont comptés à part." },
+        "evolution": { "title": "Évolution", "body": "La courbe place la valeur face aux versements nets. Elle apparaît à partir de deux valeurs, et un tableau est proposé en alternative." },
+        "enter": { "title": "Saisir une valeur", "body": "Ce bouton ouvre le formulaire d’une valeur ; « Ajouter un flux » enregistre un versement ou un retrait. Une valeur saisie à une date déjà connue remplace l’ancienne." },
+        "history": { "title": "Valeurs et flux", "body": "Les onglets séparent la vue d’ensemble, les valeurs données, les flux (versements, retraits, frais et revenus) et les réglages. Dans un tableau, le menu ⋯ d’une ligne permet de la corriger ou de la supprimer." },
+        "holdings": { "title": "Supports", "body": "Le détail facultatif de l’enveloppe : chaque support avec ses parts, sa valeur, son poids et son gain. « Saisir un relevé » reprend les parts du relevé précédent ; le menu ⋯ d’une ligne enregistre un mouvement ou clôture le support, et la fiche d’un support montre ses coûts." }
+      }
+    },
+    "income": {
+      "screens": {
+        "1": { "title": "Une source, des périodes", "body": "Une source de revenu, comme un salaire ou un loyer, se compose de composantes, chacune avec ses périodes et ses montants. Une augmentation devient une nouvelle période." },
+        "2": { "title": "Visible ou non de l’autre adulte", "body": "À la création, Nid demande si le revenu est visible de l’autre adulte. Un revenu privé reste hors du total du foyer que voit l’autre adulte." },
+        "3": { "title": "Mois par mois", "body": "Le revenu attendu est donné mois par mois, tel que les périodes le prévoient. La liste affiche en plus un équivalent mensuel lissé sur l’année. Quand une période se termine sans suivante, « Renseigner la suite » apparaît. Commencez par « Ajouter un revenu »." }
+      }
+    },
+    "properties": {
+      "screens": {
+        "1": { "title": "Un bien vaut ses estimations", "body": "La valeur d’un bien vient des estimations que vous saisissez. Une estimation trop ancienne s’affiche « À réestimer »." },
+        "2": { "title": "Valeur nette et coût réel", "body": "La valeur nette retire de l’estimation les crédits liés au bien. Le coût réel additionne l’achat et ses frais, les intérêts, l’assurance et les frais des crédits. Une ligne le donne aussi « loyers déduits »." },
+        "3": { "title": "La location", "body": "La page s’ouvre sur la vue d’ensemble du foyer : la valeur des biens, les crédits liés, la valeur nette et ce qu’il faut faire ; « Liste » garde chaque bien. Sur la fiche, la section « Location » suit les baux, les loyers, la vacance et les rendements. Commencez par « Ajouter un bien »." }
+      }
+    },
+    "loans": {
+      "screens": {
+        "1": { "title": "Un contrat produit l’échéancier", "body": "Le capital, le taux et la durée du contrat suffisent à Nid pour calculer chaque échéance et ses intérêts ; l’assurance s’ajoute à part, comme vous la saisissez. Le calcul est la référence tant que vous n’en choisissez pas une autre." },
+        "2": { "title": "Les phases", "body": "Une phase est une période à taux ou à mensualité propre : un différé, un palier, un taux variable. Quand une phase se termine, l’accueil vous prévient dans « À venir »." },
+        "3": { "title": "Rembourser par anticipation", "body": "La simulation compare deux effets d’un remboursement : « Réduire la durée » ou « Réduire la mensualité ». Rien n’est enregistré tant que vous ne le demandez pas." },
+        "4": { "title": "Le tableau de la banque", "body": "Collez le tableau d’amortissement de votre banque : Nid le compare à son calcul et vous laisse choisir la référence. La page s’ouvre sur la vue d’ensemble du foyer, le restant dû jusqu’à la fin et ce qui change ; « Liste » garde chaque crédit. Commencez par « Ajouter un crédit »." }
+      },
+      "hint": "Ouvrez un crédit puis touchez ? pour voir la visite de sa fiche.",
+      "tour": {
+        "figures": { "title": "Aujourd’hui", "body": "Capital restant dû, prochaine échéance, « Taux actuel » avec sa phase et fin du crédit. Dans « Vue d’ensemble », la barre montre la part du capital déjà remboursée et « Coût à ce jour » additionne intérêts, assurance et frais déjà payés ; « Coût à venir » ce qu’il reste à payer." },
+        "simulation": { "title": "Simuler un remboursement anticipé", "body": "Ce bouton ouvre l’onglet « Opérations » : saisissez une date, un montant et une pénalité éventuelle, et la simulation compare les deux effets possibles sans rien enregistrer." },
+        "schedule": { "title": "Échéancier", "body": "Une ligne par année : le capital restant dû au 31 décembre dit ce que vous devez encore en fin d’année, et sa baisse d’une année à l’autre montre le capital vraiment remboursé, échéances et remboursements anticipés compris, hors intérêts et assurance. Le tableau de votre banque s’importe aussi ici, pour le comparer au calcul et le choisir comme référence." }
+      }
+    },
+    "routine": {
+      "screens": {
+        "1": { "title": "Dix minutes par mois", "body": "La routine rassemble ce qui est à relever ce mois-ci : vos enveloppes, puis vos biens. Elle vous évite de fouiller chaque fiche." },
+        "2": { "title": "La dernière valeur est proposée", "body": "Pour chaque enveloppe à relever, la dernière valeur est déjà dans le champ. Si rien n’a bougé, gardez-la et enregistrez : l’enveloppe est alors à jour. Cochez « Passer » pour laisser une enveloppe de côté ; elle reste à relever. Entrée passe au champ suivant." },
+        "3": { "title": "Un enregistrement par section", "body": "« Enregistrer les placements » valide d’un coup les enveloppes, puis « Enregistrer les biens » les biens. « Annuler » reste proposé pendant 10 secondes. Commencez par la première enveloppe de « À relever »." }
+      },
+      "tour": {
+        "due": { "title": "À relever", "body": "Ces enveloppes ont une valeur trop ancienne. Les autres sont rangées plus bas, au cas où vous voudriez aussi les mettre à jour." },
+        "save": { "title": "Enregistrer les placements", "body": "Ce bouton enregistre d’un coup les lignes remplies et non passées. « Annuler » reste proposé pendant 10 secondes." },
+        "estate": { "title": "Biens", "body": "Cette section regroupe les estimations, les charges et les loyers du mois. Elle s’enregistre séparément, avec « Enregistrer les biens »." }
+      }
+    },
+    "import": {
+      "screens": {
+        "1": { "title": "Un fichier nid.data", "body": "L’import lit un fichier au format nid.data, par exemple celui produit par l’export. Vous le choisissez ou vous le déposez sur la page." },
+        "2": { "title": "Plusieurs étapes, une confirmation", "body": "Le fichier est lu, envoyé, validé par le serveur, puis vous confirmez, et un rapport final dit ce qui a été importé. Rien n’est enregistré avant votre confirmation." },
+        "3": { "title": "Le serveur décide", "body": "Le rapport du serveur fait foi, pas le navigateur. Un import interrompu reprend en choisissant de nouveau le même fichier. Commencez par « Choisir un fichier »." }
+      }
+    },
+    "export": {
+      "screens": {
+        "1": { "title": "Ce que vous pouvez voir", "body": "Vous exportez vos données, partagées ou privées, mais jamais ce que l’autre adulte garde pour lui : son privé le reste." },
+        "2": { "title": "Un seul fichier nid.data", "body": "L’export produit un fichier nid.data, que l’import sait relire. La page indique avant téléchargement ce qu’il contient." },
+        "3": { "title": "À garder en sécurité", "body": "Ce fichier contient vos données financières : rangez-le là où vous rangez vos documents importants. Commencez par vérifier le contenu affiché, puis téléchargez." }
+      }
+    }
+  }
+}

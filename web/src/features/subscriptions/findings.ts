@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
-import fr from '@/locales/fr.json';
+import forms from '@/locales/fr.forms.json';
+import '@/locales/forms';
 
 type Finding = { code: string; message: string };
 
@@ -8,8 +9,8 @@ const HIDDEN = new Set(['subscriptions.horizon_reached']);
 
 export const visibleFindings = <F extends Finding>(findings: F[]): F[] => findings.filter((f) => !HIDDEN.has(f.code));
 
-type FindingKey = keyof typeof fr.finding;
-const isKnown = (key: string): key is FindingKey => Object.hasOwn(fr.finding, key);
+type FindingKey = keyof typeof forms.finding;
+const isKnown = (key: string): key is FindingKey => Object.hasOwn(forms.finding, key);
 
 /** A known code reads in French; an unknown one keeps the server's sentence. Dots would read as nesting: `subscriptions.cycle_cap` → `subscriptions_cycle_cap`. */
 export function findingText(t: TFunction, finding: Finding): string {

@@ -14,6 +14,7 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
 import { PersonsSection } from './PersonsSection';
+import '@/locales/guides';
 
 type Change = Partial<Pick<Preferences, 'theme' | 'mode' | 'chartPatterns' | 'guidesSeen'>>;
 

@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { checkOwnership, ownershipPath, ownershipShape, ownershipToWire } from '@/components/ownership/ownership';
 import { AMOUNT, CURRENCY, ISO_DATE } from '../edits/amount';
 import { offerBody, offerFieldOf, thenMode } from './offers';
+import '@/locales/forms';
 
 const UNITS = ['day', 'week', 'month', 'year'] as const;
 export type Unit = (typeof UNITS)[number];

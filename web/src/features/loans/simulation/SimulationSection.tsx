@@ -22,6 +22,7 @@ import { LOAN_AMOUNT } from '../new/loanForm';
 import { presentRefusal } from '../refusal';
 import type { RepaymentPrefill } from '../repayments/repayment';
 import '@/locales/loans';
+import '@/locales/forms';
 
 const num = 'text-right tabular-nums';
 const PATHS = { on: 'on', amount: 'amount', penalty: 'penalty' } as const;

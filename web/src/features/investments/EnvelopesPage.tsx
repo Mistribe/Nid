@@ -21,6 +21,7 @@ import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeSummary } from './api';
 import { kindText } from './format';
 import { Gain } from './Figures';
 import '@/locales/investments';
+import '@/locales/forms';
 
 function useEnvelopes(scope: 'me' | 'household', closed: boolean) {
   const { $api } = useApi();

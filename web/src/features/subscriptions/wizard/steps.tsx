@@ -14,6 +14,7 @@ import { ISO_DATE } from '../edits/amount';
 import { addDuration } from './offers';
 import { AmountField, Choice, DateField, PersonSelect, UnitSelect } from './offers/fields';
 import type { Unit, WizardValues } from './schema';
+import '@/locales/forms';
 
 type Person = components['schemas']['PersonDto'];
 type Form = UseFormReturn<WizardValues>;

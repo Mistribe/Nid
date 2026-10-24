@@ -8,6 +8,7 @@ import { KINDS } from './format';
 import { checkPhase, overlappingLines, phaseFieldOf, phaseShape, toWirePhase } from './phases/phase';
 import '@/locales/income';
 import '@/locales/investments';
+import '@/locales/forms';
 
 export function newIncomeSchema(t: TFunction) {
   return z.object({

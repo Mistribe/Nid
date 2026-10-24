@@ -22,6 +22,7 @@ import { invalidateProperties, VALUATIONS, type PropertyDetail } from '../api';
 import '@/locales/investments';
 import '@/locales/loans';
 import '@/locales/properties';
+import '@/locales/forms';
 
 const PATHS = { asOf: 'asOf', amount: 'amount', note: 'note' } as const;
 

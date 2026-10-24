@@ -11,6 +11,7 @@ import { fieldErrorsOf } from '../subscriptions/fieldErrors';
 import { useSubmitErrors } from '../subscriptions/edits/useSubmitErrors';
 import { SCENARIO, SCENARIO_DEFAULTS, SCENARIOS, type Scenario } from './api';
 import { draftPath, firstStepOf, fromDocument, ScenarioFields, STEP_FIELDS, toDocument, type ScenarioDraft, type ScenarioStep } from './new/ScenarioFields';
+import '@/locales/scenarios';
 
 /**
  * Spec §7: the saved scenario in the creation form's steps, all of them (« Modifier le scénario ») or the assumptions alone

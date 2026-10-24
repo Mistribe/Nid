@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { toProblem, type FieldError } from '@/api/errors';
-import fr from '@/locales/fr.json';
+import forms from '@/locales/fr.forms.json';
+import '@/locales/forms';
 
 /** 1E2a design §2.1: the fields a 422 names; nothing for any other failure. */
 export function fieldErrorsOf(error: unknown): FieldError[] {
@@ -8,11 +9,11 @@ export function fieldErrorsOf(error: unknown): FieldError[] {
   return problem.status === 422 && Array.isArray(problem.errors) ? problem.errors : [];
 }
 
-type FieldErrorKey = keyof typeof fr.field_error;
+type FieldErrorKey = keyof typeof forms.field_error;
 
 /** A server code as a translation key: its dots would read as nesting (`request.amount` → `request_amount`). */
 const keyOf = (code: string) => code.replaceAll('.', '_');
-const isKnown = (key: string): key is FieldErrorKey => Object.hasOwn(fr.field_error, key);
+const isKnown = (key: string): key is FieldErrorKey => Object.hasOwn(forms.field_error, key);
 
 /** A known code reads in French; an unknown one keeps the server's sentence. */
 export function messageFor(t: TFunction, error: FieldError): string {

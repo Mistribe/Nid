@@ -12,6 +12,7 @@ import { PROPOSALS, type ProposalView } from './api';
 import { useAnnouncement } from './announce';
 import { kindOf, originText } from './kinds';
 import { isRouteKind, routeSummary } from './routeKind';
+import '@/locales/forms';
 
 const STATUSES = ['pending', 'approved', 'rejected'] as const;
 

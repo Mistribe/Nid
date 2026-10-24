@@ -23,6 +23,7 @@ import { fieldOf, toCreateBody, wizardSchema, type WizardValues } from './wizard
 import { CommonStep, fillFollowingStart, RecurringOffer, SummaryStep } from './wizard/steps';
 import { ThenStep } from './wizard/ThenStep';
 import { TypeStep } from './wizard/TypeStep';
+import '@/locales/forms';
 
 type Fields = Path<WizardValues>[];
 const PURCHASE: Fields = ['offerDate', 'offerLabel', 'offerAmount', 'currency', 'offerPayerType', 'offerPayerPerson'];

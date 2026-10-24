@@ -21,6 +21,7 @@ import { HOLDING, HOLDINGS, invalidateInvestments, type EnvelopeDetail, type Hol
 import { pastDate, placeFieldError, presentConflict } from '../entries/entries';
 import { HOLDING_KINDS, holdingKindText } from './holdingFormat';
 import '@/locales/investments';
+import '@/locales/forms';
 
 const ASSET_CLASSES = ['equity', 'bond', 'money_market', 'mixed', 'real_estate', 'capital_guaranteed', 'other'] as const;
 const PATHS = {

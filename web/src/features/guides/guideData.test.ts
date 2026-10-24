@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '@/app/i18n';
+import '@/locales/guides';
 import { NAV, section } from '@/app/nav';
 import { GUIDES, allGuidesSeen, guideFor, isUnseen } from './guideData';
 
@@ -9,9 +10,10 @@ describe('guides', () => {
     for (const g of GUIDES) expect(sections).toContain(g.section);
   });
 
-  it('every key a guide uses exists in fr.json', () => {
+  it('every key a guide uses exists, the guides’ own in their bundle (fr.guides.json)', () => {
     const keys = [
-      ...['step', 'previous', 'next', 'skip', 'start', 'show', 'finish', 'close', 'help', 'title'].map((k) => `guides.common.${k}`),
+      'shell.guide_help', // the « ? » button's label, at startup with the top bar
+      ...['step', 'previous', 'next', 'skip', 'start', 'show', 'finish', 'close', 'title'].map((k) => `guides.common.${k}`),
       ...['title', 'replay_all', 'replayed'].map((k) => `guides.settings.${k}`),
     ];
     for (const g of GUIDES) {

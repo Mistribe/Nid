@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { DateInput, Row, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 import '@/locales/investments';
 import '@/locales/proposals';
+import '@/locales/forms';
 
 type Pay = { net: Money; gross?: Money | null };
 type PayslipPayload = Pay & { paidOn: string; phaseLabel: string; effectiveOn?: string };

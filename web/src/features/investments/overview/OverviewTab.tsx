@@ -26,6 +26,7 @@ import { kindText } from '../format';
 import { kindColor } from './colors';
 import { missingCodes, ValueChart } from './ValueChart';
 import '@/locales/investments';
+import '@/locales/forms';
 
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';

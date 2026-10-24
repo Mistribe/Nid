@@ -6,6 +6,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { Button } from '@/components/ui/button';
 import { LIST } from '../../api';
 import { AmountField, DateField, DurationFields, LabelField, PayerFields, type Form, type Person } from './fields';
+import '@/locales/forms';
 
 function Other({ form, index, options, onRemove }: {
   form: Form; index: number; options: { id: string; displayName: string }[]; onRemove: () => void;

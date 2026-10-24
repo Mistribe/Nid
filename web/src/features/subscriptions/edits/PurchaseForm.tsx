@@ -14,6 +14,7 @@ import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from './amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
 import { useSubmitErrors } from './useSubmitErrors';
+import '@/locales/forms';
 
 const PURCHASES = '/api/v1/subscriptions/{id}/purchases' as const;
 const UNITS = ['day', 'week', 'month', 'year'] as const;

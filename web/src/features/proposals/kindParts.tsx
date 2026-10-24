@@ -12,6 +12,7 @@ import type { FieldError, Problem } from '@/api/errors';
 import { trimAmount } from '../investments/entries/entries';
 import type { ProposalView } from './api';
 import '@/locales/proposals';
+import '@/locales/forms';
 
 export type Money = { amount: string; currency: string };
 

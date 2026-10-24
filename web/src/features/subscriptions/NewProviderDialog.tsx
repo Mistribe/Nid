@@ -13,6 +13,7 @@ import { LABELS, PROVIDERS } from './api';
 import { Field } from '@/components/form/Field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import '@/locales/forms';
 
 /** The server's bounds (`CatalogLimits`, `ProviderRules`): the server checks them again. */
 const MAX_NAME = 100;

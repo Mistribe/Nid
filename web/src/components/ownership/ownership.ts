@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import { z } from 'zod';
+import '@/locales/forms';
 
 export type OwnerRow = { personId: string; share: string };
 export type OwnershipValues = { visibility: 'shared' | 'private'; owners: OwnerRow[] };

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { OFFERS, thenDefault, type Offer } from './offers';
 import type { WizardValues } from './schema';
+import '@/locales/forms';
 
 /** 1E2b1 design §4.1 step 0: the offer, each with its example; choosing one sets the "Et ensuite ?" default. */
 export function TypeStep({ form }: { form: UseFormReturn<WizardValues> }) {

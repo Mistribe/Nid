@@ -16,6 +16,7 @@ import { ISO_DATE } from './amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
 import { useSubmitErrors } from './useSubmitErrors';
+import '@/locales/forms';
 
 const PATHS = { autoRenew: 'autoRenew', cancelledAt: 'cancelledAt', note: 'note', providerKey: 'provider' } as const;
 

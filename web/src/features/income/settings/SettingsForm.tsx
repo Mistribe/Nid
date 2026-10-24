@@ -22,6 +22,7 @@ import { KINDS } from '../format';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/income';
 import '@/locales/investments';
+import '@/locales/forms';
 
 const PATHS = { displayName: 'displayName', kind: 'kind', payerLabel: 'payerLabel', note: 'note' } as const;
 

@@ -7,6 +7,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/features/investments/chart/plot';
 import type { ScenarioResult } from './api';
+import '@/locales/scenarios';
 
 type Point = ScenarioResult['points'][number];
 

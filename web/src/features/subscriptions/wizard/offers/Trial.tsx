@@ -3,6 +3,7 @@ import { Field } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
 import { addDuration } from '../offers';
 import { AmountField, Choice, DateField, DurationFields, type Form } from './fields';
+import '@/locales/forms';
 
 /**
  * Leaving the trial step: the free trial's purchase is labelled "Essai"; the launch price's normal price starts

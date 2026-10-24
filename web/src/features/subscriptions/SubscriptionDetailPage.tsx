@@ -23,6 +23,7 @@ import { PurchaseForm } from './edits/PurchaseForm';
 import { SettingsForm } from './edits/SettingsForm';
 import { findingText, visibleFindings } from './findings';
 import { accessOf, durationText, kindText, payerText } from './format';
+import '@/locales/forms';
 
 /**
  * 1E2a design §4, redesign §5.3: one page without tabs. Under the title the costs and the next charge; the findings in a

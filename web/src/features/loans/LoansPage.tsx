@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LOANS, OVERVIEW, type LoanSummary } from './api';
 import { money, percent } from './format';
 import '@/locales/loans';
+import '@/locales/forms';
 
 function useLoans(scope: 'me' | 'household', ended: boolean, enabled = true) {
   const { $api } = useApi();

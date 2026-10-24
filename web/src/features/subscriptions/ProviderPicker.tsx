@@ -9,6 +9,7 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { PROVIDERS } from './api';
 import { NewProviderDialog } from './NewProviderDialog';
+import '@/locales/forms';
 
 export type ChosenProvider = { key: string; name: string } | null;
 

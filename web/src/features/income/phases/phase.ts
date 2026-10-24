@@ -7,6 +7,7 @@ import { todayIso } from '../../subscriptions/today';
 import type { IncomeGap, IncomePhase } from '../api';
 import '@/locales/income';
 import '@/locales/investments';
+import '@/locales/forms';
 
 export const CADENCES = ['monthly', 'quarterly', 'yearly', 'months'] as const;
 export type Cadence = (typeof CADENCES)[number];

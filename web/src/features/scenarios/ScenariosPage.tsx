@@ -18,6 +18,8 @@ import { buttonVariants } from '@/components/ui/button';
 import { percent } from '@/features/dashboard/format';
 import { presentConflict } from '../investments/entries/entries';
 import { SCENARIO, SCENARIOS, type ScenarioListItem } from './api';
+import '@/locales/forms';
+import '@/locales/scenarios';
 
 /** Scenarios list (spec §7): a dense table, a row's `⋯` duplicates or deletes, creation is its own page. */
 export function ScenariosPage() {

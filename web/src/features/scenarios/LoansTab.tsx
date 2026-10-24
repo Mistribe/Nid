@@ -3,6 +3,7 @@ import { formatMoney } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { ScheduleTable } from '../loans/detail/ScheduleTable';
 import type { ScenarioResult } from './api';
+import '@/locales/scenarios';
 
 /** Spec §7 « Prêts »: each loan of the scenario, its cost then its schedule, with the loans screen's own table. */
 export default function LoansTab({ result }: { result: ScenarioResult }) {

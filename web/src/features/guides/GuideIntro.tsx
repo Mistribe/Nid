@@ -4,6 +4,7 @@ import { NAV } from '@/app/nav';
 import { ModalDialog } from '@/components/ModalDialog';
 import { Button } from '@/components/ui/button';
 import { findTarget, type Guide } from './guideData';
+import '@/locales/guides';
 
 /** Spec §4.3: A, the module's introduction in a few screens. Every way out (« Passer », « Commencer », Escape) is `onClose`. */
 export function GuideIntro({ guide, onClose, onShow }: { guide: Guide; onClose: () => void; onShow?: () => void }) {

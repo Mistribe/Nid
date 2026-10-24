@@ -8,6 +8,7 @@ import { FIRST_PERIODS, INSURANCE_MODES, PHASE_MODES, RATE_TYPES, ROUNDINGS } fr
 import { isPercentRate, percentToFraction } from '../rate';
 import '@/locales/investments';
 import '@/locales/loans';
+import '@/locales/forms';
 
 /** Spec 3B1 §4.2: the server refuses a 21st; the form stops offering one at 20. */
 export const MAX_INSURANCES = 20;

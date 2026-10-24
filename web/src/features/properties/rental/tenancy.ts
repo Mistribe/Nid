@@ -9,6 +9,7 @@ import { FEE_AMOUNT } from '../new/propertyForm';
 import '@/locales/investments';
 import '@/locales/loans';
 import '@/locales/properties';
+import '@/locales/forms';
 
 const optionalAmount = (v: string) => v.trim() === '' || LOAN_AMOUNT.test(v.trim());
 

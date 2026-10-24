@@ -13,6 +13,7 @@ import { AMOUNT, CURRENCY, ISO_DATE, toWireAmount } from './amount';
 import { Field } from '@/components/form/Field';
 import { Reload } from './Reload';
 import { useSubmitErrors } from './useSubmitErrors';
+import '@/locales/forms';
 
 const PRICE_CHANGES = '/api/v1/subscriptions/{id}/price-changes' as const;
 const PATHS = { startsOn: 'startsOn', 'price.amount': 'amount', 'price.currency': 'currency', price: 'amount' } as const;

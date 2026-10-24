@@ -7,6 +7,7 @@ import { percent } from '@/features/dashboard/format';
 import { useLiquidityName } from '@/features/dashboard/panels/allocationNames';
 import type { ScenarioResult } from './api';
 import { warningText } from './new/CapacitySummary';
+import '@/locales/scenarios';
 
 /** Spec §4.1, §7 « Capacité »: before and after side by side, the savings left by liquidity, then the warnings. */
 export function CapacityTab({ result }: { result: ScenarioResult }) {

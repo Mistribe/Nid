@@ -18,6 +18,7 @@ import { todayIso } from '../subscriptions/today';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { formatInstant } from './format';
 import '@/locales/admin';
+import '@/locales/forms';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 const IRL = '/api/v1/realestate/irl';

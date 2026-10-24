@@ -17,6 +17,7 @@ import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNam
 import { AssumptionsDialog } from './AssumptionsDialog';
 import { CapacityTab } from './CapacityTab';
 import { SCENARIO, type Scenario } from './api';
+import '@/locales/scenarios';
 
 // The chart (Recharts) and the loans' schedules (their strings) load with their tab.
 const ProjectionTab = lazy(() => import('./ProjectionTab'));

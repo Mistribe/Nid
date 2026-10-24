@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { components } from '@/api/schema';
 import { LABELS, LIST, PERSONS, type ListResponse, type Summary } from './api';
 import { labelParam, labelsOf } from './filter';
+import '@/locales/forms';
 
 type Group = components['schemas']['GroupView'];
 type GroupBy = NonNullable<SubscriptionsSearch['group']>;

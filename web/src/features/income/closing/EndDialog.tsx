@@ -17,6 +17,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { CLOSE_SOURCE, invalidateIncome, type IncomeSourceDetail } from '../api';
 import '@/locales/income';
+import '@/locales/forms';
 
 const PATHS = { endedOn: 'endedOn' } as const;
 

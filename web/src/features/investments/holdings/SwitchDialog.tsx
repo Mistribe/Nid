@@ -21,6 +21,7 @@ import { invalidateInvestments, SWITCHES, type EnvelopeDetail, type Holding } fr
 import { pastDate, placeFieldError, POSITIVE_AMOUNT, presentConflict } from '../entries/entries';
 import { hasUnits, signedUnits, UNITS } from './holdingFormat';
 import '@/locales/investments';
+import '@/locales/forms';
 
 type Side = 'from' | 'to';
 const SIDES = ['from', 'to'] as const;

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { AmountField, Choice, DateField, DurationFields, LabelField, PayerFields, type Form, type Person } from './fields';
+import '@/locales/forms';
 
 /** 1E2b1 design §4.1: a gift card, received (paid by someone outside the household) or bought. */
 export function Gift({ form, persons }: { form: Form; persons: Person[] }) {

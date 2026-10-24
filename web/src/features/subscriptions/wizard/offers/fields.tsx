@@ -9,6 +9,7 @@ import { Segmented } from '@/components/form/Segmented';
 import { SelectField, type Option } from '@/components/form/SelectField';
 import { Input } from '@/components/ui/input';
 import type { WizardValues } from '../schema';
+import '@/locales/forms';
 
 export type Person = components['schemas']['PersonDto'];
 export type Form = UseFormReturn<WizardValues>;

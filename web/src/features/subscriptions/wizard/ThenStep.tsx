@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Choice, DateField, type Form, type Person } from './offers/fields';
 import { thenMode } from './offers';
 import { RecurringOffer } from './steps';
+import '@/locales/forms';
 
 /**
  * 1E2b1 design §4.1 "Et ensuite ?": the phase that follows the offer; required after a launch price. The

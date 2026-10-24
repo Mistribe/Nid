@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { EXPIRIES, PRESETS, TOKENS, type Preset } from './tokens';
+import '@/locales/forms';
 
 /**
  * Spec 4A §8: name, rights (« Lecture + propositions » by default) and validity, then the secret shown once. The secret

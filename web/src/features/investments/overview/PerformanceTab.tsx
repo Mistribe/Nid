@@ -28,6 +28,7 @@ import { pct } from '../Figures';
 import { presetRange } from '../period/periods';
 import { kindColor } from './colors';
 import '@/locales/investments';
+import '@/locales/forms';
 
 type Scope = 'household' | 'me';
 const PRESETS = ['ytd', 'last12', 'last36', 'all'] as const;

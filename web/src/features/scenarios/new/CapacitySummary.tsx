@@ -6,6 +6,7 @@ import { formatMoney, Money } from '@/components/Money';
 import { percent } from '@/features/dashboard/format';
 import { monthLabel } from '../../income/expected/months';
 import type { ScenarioResult } from '../api';
+import '@/locales/scenarios';
 
 type Warning = components['schemas']['ScenarioWarningView'];
 

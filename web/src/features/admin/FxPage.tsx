@@ -14,6 +14,7 @@ import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { formatInstant } from './format';
 import '@/locales/admin';
+import '@/locales/forms';
 
 const RUNS = '/api/v1/core/fx-rates/runs';
 

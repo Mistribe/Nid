@@ -22,6 +22,7 @@ import { PropertySelect } from '../PropertySelect';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/investments';
 import '@/locales/loans';
+import '@/locales/forms';
 
 const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId' } as const;
 

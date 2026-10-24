@@ -9,6 +9,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { percent } from '@/features/dashboard/format';
 import type { IncomeOverview } from '../api';
+import '@/locales/forms';
 
 type Row = IncomeOverview['sources'][number];
 

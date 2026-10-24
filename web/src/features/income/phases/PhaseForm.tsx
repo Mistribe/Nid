@@ -12,6 +12,7 @@ import { invalidateIncome, PHASE, PHASES, type IncomePhase, type IncomeSourceDet
 import { phaseFieldOf, phaseSchema, toWirePhase, type PhaseValues } from './phase';
 import { PhaseFields } from './PhaseFields';
 import '@/locales/income';
+import '@/locales/forms';
 
 /**
  * Adding a phase (`editing` absent: POST) or correcting one (PUT with the `version` it read), spec §7, in a dialog.

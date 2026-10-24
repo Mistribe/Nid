@@ -15,6 +15,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { SCENARIO_DEFAULTS, SCENARIO_SIMULATE, SCENARIOS, type PropertyPurchaseDoc, type ScenarioDefaults } from '../api';
 import { CapacitySummary } from './CapacitySummary';
 import { draftPath, firstStepOf, newDraft, ScenarioFields, STEP_FIELDS, toDocument, type ScenarioDraft, type ScenarioStep } from './ScenarioFields';
+import '@/locales/scenarios';
 
 /** Spec §7: a scenario created in four steps, its capacity recalculated at the side while it is typed. */
 export function NewScenarioPage() {

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { invalidateSubscriptions } from '../api';
+import '@/locales/forms';
 
 /**
  * On a 409 the record changed meanwhile: read it again rather than overwrite (screens.md §10). Defaults to

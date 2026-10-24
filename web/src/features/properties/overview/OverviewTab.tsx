@@ -26,6 +26,7 @@ import { typeText } from '../format';
 import { typeColor } from './colors';
 import { missingCodes, NetValueChart } from './NetValueChart';
 import '@/locales/properties';
+import '@/locales/forms';
 
 type Scope = 'household' | 'me';
 type Span = '12m' | '3y' | 'all';

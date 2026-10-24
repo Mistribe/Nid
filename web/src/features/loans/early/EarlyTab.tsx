@@ -36,6 +36,7 @@ import { monthText, useLoanNames } from '../overview/BalanceChart';
 import { loanColor } from '../overview/colors';
 import { presentRefusal } from '../refusal';
 import '@/locales/loans';
+import '@/locales/forms';
 
 const SPLITS = ['highest_rate', 'smallest_balance', 'chosen'] as const;
 type Effect = (typeof EFFECTS)[number];

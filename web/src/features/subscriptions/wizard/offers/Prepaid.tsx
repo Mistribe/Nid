@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { AmountField, DateField, DurationFields, LabelField, PayerFields, type Form, type Person } from './fields';
+import '@/locales/forms';
 
 /** 1E2b1 design §4.1: a term paid upfront, with its free months. */
 export function Prepaid({ form, persons }: { form: Form; persons: Person[] }) {

@@ -6,6 +6,7 @@ import { todayIso } from '../subscriptions/today';
 import { POSITIVE_AMOUNT, SIGNED_AMOUNT } from './entries/entries';
 import { CADENCES, KINDS } from './format';
 import '@/locales/investments';
+import '@/locales/forms';
 
 export function newEnvelopeSchema(t: TFunction) {
   const required = t('edit.required');

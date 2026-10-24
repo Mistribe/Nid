@@ -8,6 +8,7 @@ import type { PropertyFlow } from '../api';
 import { FLOW_KINDS } from '../format';
 import '@/locales/investments';
 import '@/locales/loans';
+import '@/locales/forms';
 
 // The server's bounds (spec 3C1 §3): dated on or before today, positive, two decimals; the category is checked by it.
 export function flowSchema(t: TFunction) {

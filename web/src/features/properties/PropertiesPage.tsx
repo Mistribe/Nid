@@ -20,6 +20,7 @@ import { money, percent } from '../loans/format';
 import { PROPERTIES, PROPERTIES_RENTAL, type PropertySummary } from './api';
 import { typeText } from './format';
 import '@/locales/properties';
+import '@/locales/forms';
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 

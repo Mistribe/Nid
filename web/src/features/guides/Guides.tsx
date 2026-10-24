@@ -60,7 +60,7 @@ export function Guides() {
   return (
     <>
       {guide ? (
-        <Button ref={help} variant="ghost" size="icon" aria-label={t('guides.common.help')} onClick={() => setState({ open: 'intro', guide })}>
+        <Button ref={help} variant="ghost" size="icon" aria-label={t('shell.guide_help')} onClick={() => setState({ open: 'intro', guide })}>
           <CircleHelp aria-hidden="true" className="size-5" />
         </Button>
       ) : null}

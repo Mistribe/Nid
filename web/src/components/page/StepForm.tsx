@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FormActions } from './FormPage';
+import '@/locales/forms';
 
 /** A form in steps: « Continuer » validates the step's fields and stays, focusing the first invalid one, when they are not valid. */
 export function StepForm({ steps, trigger, onSubmit, submitLabel, pending, reveal, onAdvance }: {

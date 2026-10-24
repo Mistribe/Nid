@@ -25,6 +25,7 @@ import { groupBySource, kindOf, originText } from './kinds';
 import { RoutePayload, isRouteKind, routeLabel, routeLink } from './routeKind';
 import { announce, focusHeading, focusNextHeading, useAnnouncement } from './announce';
 import '@/locales/proposals';
+import '@/locales/forms';
 
 /** A decision that lost a race: reload (any other 409, such as a reference already recorded, is the payload's own refusal). */
 const RACES = ['core.proposal_conflict', 'core.proposal_decided', 'core.fact_conflict', 'income.phase_conflict'];

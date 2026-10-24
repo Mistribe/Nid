@@ -23,6 +23,7 @@ import { formatUnits, holdingKindText, movementKindText, percent } from './holdi
 import { MovementDialog } from './MovementDialog';
 import { PriceCell } from './PriceCell';
 import '@/locales/investments';
+import '@/locales/forms';
 
 const TABS = ['overview', 'movements', 'costs'] as const;
 type Dialog = { kind: 'movement' } | { kind: 'edit' } | { kind: 'cost'; editing?: CostReport };

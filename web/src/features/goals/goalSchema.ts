@@ -6,6 +6,7 @@ import { AMOUNT, ISO_DATE, toWireAmount } from '../subscriptions/edits/amount';
 import { todayIso } from '../subscriptions/today';
 import type { CreateGoalBody, EditGoalBody, GoalDetail } from './api';
 import '@/locales/goals';
+import '@/locales/forms';
 
 export const KINDS = ['savings', 'emergency_fund'] as const;
 export const DEFAULT_MONTHS = '6';

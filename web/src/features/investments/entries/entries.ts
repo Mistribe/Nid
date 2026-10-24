@@ -7,6 +7,7 @@ import { todayIso } from '../../subscriptions/today';
 import { fieldErrorsOf, knownConflictMessage, messageFor } from '../../subscriptions/fieldErrors';
 import { FLOW_KINDS } from '../format';
 import '@/locales/investments';
+import '@/locales/forms';
 
 /** A value may be negative (an overdrawn current account); a flow never is — its kind gives the direction. */
 export const SIGNED_AMOUNT = /^-?\d+([.,]\d{1,4})?$/;

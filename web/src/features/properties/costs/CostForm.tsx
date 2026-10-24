@@ -19,6 +19,7 @@ import { invalidateProperties, RECURRING_COST, RECURRING_COSTS, type PropertyDet
 import { EVERY_UNITS, RECURRING_CATEGORIES } from '../format';
 import { COST_PATHS, costSchema, costValuesOf, toCostBody, type CostValues } from './cost';
 import '@/locales/loans';
+import '@/locales/forms';
 
 /**
  * Spec 3D2 §4: a planned cost added (`editing` absent: POST) or corrected (PUT, with the version read) in a dialog. A save

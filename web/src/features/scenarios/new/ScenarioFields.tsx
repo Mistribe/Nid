@@ -15,6 +15,8 @@ import { CLASSES, useClassName } from '@/features/dashboard/panels/allocationNam
 import { Folded } from '../../loans/new/Folded';
 import { ISO_DATE, toWireAmount } from '../../subscriptions/edits/amount';
 import type { PropertyPurchaseDoc, Scenario, ScenarioDefaults } from '../api';
+import '@/locales/forms';
+import '@/locales/scenarios';
 
 type Holding = components['schemas']['FundingCandidateView'];
 

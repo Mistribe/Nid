@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/form/Field';
 import type { OwnershipValues } from './ownership';
+import '@/locales/forms';
 
 type Person = components['schemas']['PersonDto'];
 

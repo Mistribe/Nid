@@ -18,6 +18,7 @@ import { type GoalSummary, useCloseGoal, useGoals, useReopenGoal } from './api';
 import { Amounts, Dash, GoalProgress, GoalStatus } from './GoalStatus';
 import { presentGoalConflict, statusText } from './format';
 import '@/locales/goals';
+import '@/locales/forms';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
 

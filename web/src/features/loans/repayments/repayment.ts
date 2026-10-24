@@ -9,6 +9,7 @@ import type { EFFECTS } from '../format';
 import { LOAN_AMOUNT } from '../new/loanForm';
 import '@/locales/investments';
 import '@/locales/loans';
+import '@/locales/forms';
 
 export type Effect = (typeof EFFECTS)[number];
 
