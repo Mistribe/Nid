@@ -268,4 +268,51 @@ describe('the shell', () => {
     await renderApp('/subscriptions');
     expect(within(sidebar()).queryByRole('link', { name: 'Plus' })).not.toBeInTheDocument();
   });
+  describe('the rail', () => {
+    const toggle = (name: string) => screen.getByRole('button', { name });
+
+    it('folds the sidebar into a rail and remembers it on this device', async () => {
+      const { user } = await renderApp('/subscriptions');
+      await user.click(toggle('Replier le menu'));
+      expect(sidebar()).toHaveAttribute('data-rail');
+      expect(localStorage.getItem('nid.sidebar')).toBe('rail');
+      // The names stay for screen readers, and the groups keep their headings.
+      expect(within(sidebar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Routine', 'À valider', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Simulations', 'Revenus', 'Impôts', 'Abonnements']);
+      expect(within(sidebar()).getAllByRole('heading').map((h) => h.textContent)).toEqual(['Suivi', 'Patrimoine', 'Budget']);
+      await user.click(toggle('Déplier le menu'));
+      expect(sidebar()).not.toHaveAttribute('data-rail');
+      expect(localStorage.getItem('nid.sidebar')).toBe('full');
+    });
+
+    it('toggles with Ctrl B', async () => {
+      const { user } = await renderApp('/subscriptions');
+      await user.keyboard('{Control>}b{/Control}');
+      expect(sidebar()).toHaveAttribute('data-rail');
+      await user.keyboard('{Control>}b{/Control}');
+      expect(sidebar()).not.toHaveAttribute('data-rail');
+    });
+
+    it('opens as a rail when it was left so', async () => {
+      localStorage.setItem('nid.sidebar', 'rail');
+      await renderApp('/subscriptions');
+      expect(sidebar()).toHaveAttribute('data-rail');
+      expect(await screen.findByRole('button', { name: 'Alice Dev', expanded: false })).toHaveTextContent('AD');
+    });
+
+    it('names an entry beside its icon, with its count', async () => {
+      server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ todo: [todoItem(), todoItem()] }))));
+      localStorage.setItem('nid.sidebar', 'rail');
+      const { user } = await renderApp('/subscriptions');
+      const routine = within(sidebar()).getByRole('link', { name: /Routine/ });
+      await waitFor(() => expect(routine).toHaveTextContent('2 à faire'));
+      await user.hover(routine);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Routine2');
+    });
+
+    it('has no accessibility violation', async () => {
+      localStorage.setItem('nid.sidebar', 'rail');
+      const { container } = await renderApp('/subscriptions');
+      await expectNoAxeViolations(container);
+    });
+  });
 });

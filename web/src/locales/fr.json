@@ -67,7 +67,11 @@
     "group_follow": "Suivi",
     "group_estate": "Patrimoine",
     "group_budget": "Budget",
-    "routine_badge": "{{count}} à faire"
+    "routine_badge": "{{count}} à faire",
+    "collapse": "Replier le menu",
+    "expand": "Déplier le menu",
+    "toggle_shortcut_mac": "⌘ B",
+    "toggle_shortcut": "Ctrl B"
   },
   "command": {
     "open": "Rechercher ou aller à…",
