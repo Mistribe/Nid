@@ -31,15 +31,15 @@ export function ScheduleChart({ years, currency, summaryId }: { years: LoanSched
   return (
     <figure aria-label={t('loan_detail.chart.title')} aria-describedby={summaryId}>
       <ChartContainer config={config} className="h-64 w-full">
-        <ComposedChart data={rows} accessibilityLayer>
+        <ComposedChart data={rows} maxBarSize={24} accessibilityLayer>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="year" tickLine={false} tickMargin={8} />
           <YAxis yAxisId="booked" width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
           <YAxis yAxisId="balance" orientation="right" width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
           <ChartTooltip content={<YearTooltip />} />
           <ChartLegend content={<ChartLegendContent />} />
-          <Bar yAxisId="booked" dataKey="interest" stackId="booked" fill="var(--color-interest)" animationDuration={800} />
-          <Bar yAxisId="booked" dataKey="principal" stackId="booked" fill="var(--color-principal)" radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar yAxisId="booked" dataKey="interest" stackId="booked" fill="var(--color-interest)" stroke="var(--card)" strokeWidth={2} animationDuration={800} />
+          <Bar yAxisId="booked" dataKey="principal" stackId="booked" fill="var(--color-principal)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} />
           <Line yAxisId="balance" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} animationDuration={800} />
         </ComposedChart>
       </ChartContainer>
@@ -52,7 +52,7 @@ function YearTooltip({ active, payload }: { active?: boolean; payload?: Readonly
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{row.year}</div>
       <div className="tabular-nums">{t('loan_detail.chart.interest')} : {row.interestText}</div>
       <div className="tabular-nums">{t('loan_detail.chart.principal')} : {row.principalText}</div>

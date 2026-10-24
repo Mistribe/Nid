@@ -56,18 +56,18 @@ Un crédit demande **deux graphiques**, pas un axe double : les échelles (des c
 
 ## 3. Palette catégorielle
 
-Palette de référence du skill, huit teintes, **sélectionnées** séparément pour le clair et le sombre. Elle est **fixe et indépendante du thème** (`design-system.md` §7.3).
+Palette de référence du skill, huit teintes, **sélectionnées** séparément pour le clair et le sombre, puis **désaturée de 10 %** (chroma OKLCH × 0,9, refonte du 2026-10-23 : les teintes d’origine criaient en aplats). Elle est **fixe et indépendante du thème** (`design-system.md` §7.3).
 
 | Slot | Teinte | Clair | Sombre |
 |---|---|---|---|
-| 1 | bleu | `#2a78d6` | `#3987e5` |
-| 2 | orange | `#eb6834` | `#d95926` |
-| 3 | aqua | `#1baf7a` | `#199e70` |
-| 4 | jaune | `#eda100` | `#c98500` |
-| 5 | magenta | `#e87ba4` | `#d55181` |
-| 6 | vert | `#008300` | `#008300` |
-| 7 | violet | `#4a3aa7` | `#9085e9` |
-| 8 | rouge | `#e34948` | `#e66767` |
+| 1 | bleu | `#3679cd` | `#4488dc` |
+| 2 | orange | `#e46e42` | `#d26035` |
+| 3 | aqua | `#37ad7d` | `#329c72` |
+| 4 | jaune | `#e8a332` | `#c48729` |
+| 5 | magenta | `#e280a4` | `#ce5982` |
+| 6 | vert | `#1f811c` | `#1f811c` |
+| 7 | violet | `#4a3e9f` | `#9087e1` |
+| 8 | rouge | `#db534f` | `#df6d6c` |
 
 **Validation par script** (`validate_palette.js`, sur les surfaces `#fcfcfb` clair et `#1a1a19` sombre) :
 
@@ -75,9 +75,11 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 |---|---|---|
 | Bande de luminosité | Réussi | Réussi |
 | Chroma minimale | Réussi | Réussi |
-| Séparation daltonisme (paires adjacentes) | Réussi, pire cas ΔE 9,1 | Réussi, pire cas ΔE 8,4 |
-| Séparation vision normale | Réussi, pire cas ΔE 19,6 | Réussi, pire cas ΔE 19,3 |
+| Séparation daltonisme (paires adjacentes) | Réussi, pire cas ΔE 8,3 | Réussi, pire cas ΔE 8,0 |
+| Séparation vision normale | Réussi, pire cas ΔE 17,7 | Réussi, pire cas ΔE 17,4 |
 | Contraste contre la surface | **Avertissement** : aqua, jaune et magenta sous 3:1 | Réussi |
+
+À −15 % et −20 %, la séparation daltonienne passait sous 8 (7,5 à 7,8) : −10 % est le plus loin qu’on puisse aller sans codage secondaire obligatoire.
 
 - **Relief obligatoire en clair** : libellés visibles ou vue en tableau (déjà prévus, §6).
 - Un écart daltonien entre 6 et 8 n'est légal qu'avec un **codage secondaire** : libellés directs, séparations de 2 px entre remplissages, ou motifs.
@@ -133,6 +135,7 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 - **Animation** : les marques entrent (800 ms) ; Recharts les coupe de lui-même avec `prefers-reduced-motion` (`isAnimationActive` laissé à `'auto'`).
 - **Légende** dès 2 séries ; libellés directs jusqu'à 4 séries, sélectifs (jamais un nombre sur chaque point) ; pas de légende pour une série unique (le titre la nomme).
 - Marques fines, extrémités arrondies de 4 px ancrées sur la ligne de base, lignes de 2 px, marqueurs d'au moins 8 px, **séparation de 2 px** entre remplissages adjacents, anneau de 2 px de la couleur de surface entre marques qui se chevauchent.
+- **Thème commun** (refonte du 2026-10-23) : barres d’au plus 24 px (`maxBarSize`), extrémités arrondies de 4 px du côté de la valeur ; segments empilés et aires empilées séparés par 2 px de la couleur de la carte (`stroke="var(--card)"`, jamais `--background` : les graphiques sont dans des cartes) ; une aire seule est un voile (dégradé de 20 % à 0), des aires empilées à 60 % (sur Biens, où la valeur nette remplit seule le dessin : 45 %, et 25 % pour les crédits dessous), jamais un aplat ; un libellé posé dans une aire prend la couleur du texte (`fill-foreground`), pas du blanc ; grille et axes en `border`, graduations en `muted-foreground` ; légende en pastilles rondes, texte atténué ; infobulle sur `popover` translucide avec l’ombre `shadow-raised`, la même partout.
 - Quadrillage et axes discrets ; le texte utilise les jetons de texte, **jamais la couleur de la série** (une pastille colorée porte l'identité).
 - **Survol par défaut** : réticule et infobulle sur les courbes et aires, infobulle par marque sur les barres ; zones de survol plus grandes que les marques ; navigation clavier via `accessibilityLayer`.
 - **Vue en tableau** : chaque graphique propose « Afficher en tableau » ; le tableau contient exactement les données du graphique.

@@ -165,16 +165,16 @@ function MonthsChart({ months, currency }: { months: RentalMonth[]; currency: st
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, notation: 'compact' });
   return (
     <ChartContainer config={config} className="h-72 w-full">
-      <ComposedChart data={rows} title={t('properties_rental.chart_title')} accessibilityLayer stackOffset="sign" margin={{ top: 8, right: 8 }}>
+      <ComposedChart data={rows} maxBarSize={24} title={t('properties_rental.chart_title')} accessibilityLayer stackOffset="sign" margin={{ top: 8, right: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
         <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip content={<MonthTooltip />} />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="rent" stackId="month" fill="var(--color-rent)" animationDuration={800} />
-        <Bar dataKey="charges" stackId="month" fill="var(--color-charges)" animationDuration={800} />
-        <Bar dataKey="loans" stackId="month" fill="var(--color-loans)" animationDuration={800} />
+        <Bar dataKey="rent" stackId="month" fill="var(--color-rent)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} />
+        <Bar dataKey="charges" stackId="month" fill="var(--color-charges)" stroke="var(--card)" strokeWidth={2} animationDuration={800} />
+        <Bar dataKey="loans" stackId="month" fill="var(--color-loans)" stroke="var(--card)" strokeWidth={2} radius={[0, 0, 4, 4]} animationDuration={800} />
         <Line dataKey="cash" stroke="var(--color-cash)" strokeWidth={2} type="linear" dot={{ r: 3 }} connectNulls={false} animationDuration={800} />
       </ComposedChart>
     </ChartContainer>

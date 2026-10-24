@@ -46,14 +46,14 @@ export function MonthsChart({ months }: { months: MonthView[] }) {
   return (
     <figure aria-label={t('overview.months')}>
       <ChartContainer config={config} className="h-64 w-full">
-        <BarChart data={rows} accessibilityLayer margin={{ top: 24 }}>
+        <BarChart data={rows} maxBarSize={24} accessibilityLayer margin={{ top: 24 }}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="name" tickLine={false} tickMargin={8} interval={0} />
           <YAxis hide />
           <ChartTooltip content={<MonthTooltip />} />
           <ChartLegend content={<ChartLegendContent />} />
-          <Bar dataKey="recurring" stackId="m" fill="var(--color-recurring)" animationDuration={800} {...barClick} />
-          <Bar dataKey="longCycle" stackId="m" fill="var(--color-longCycle)" radius={[4, 4, 0, 0]} animationDuration={800} {...barClick}>
+          <Bar dataKey="recurring" stackId="m" fill="var(--color-recurring)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} {...barClick} />
+          <Bar dataKey="longCycle" stackId="m" fill="var(--color-longCycle)" stroke="var(--card)" strokeWidth={2} radius={[4, 4, 0, 0]} animationDuration={800} {...barClick}>
             <LabelList dataKey="label" position="top" className="fill-foreground text-[11px] font-medium" />
           </Bar>
         </BarChart>
@@ -86,7 +86,7 @@ function MonthTooltip({ active, payload }: { active?: boolean; payload?: Readonl
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{row.name}</div>
       <div className="tabular-nums">{t('overview.months_recurring')} : {row.recurringText}</div>
       <div className="tabular-nums">{t('overview.months_long')} : {row.longCycleText}</div>

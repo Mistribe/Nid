@@ -77,14 +77,14 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
     }>
         {asTable ? <SourceMonthsTable months={months} labels={labels} /> : (
           <ChartContainer config={config} className="h-64 w-full">
-            <BarChart data={rows} title={t('income_detail.evolution.chart')} accessibilityLayer>
+            <BarChart data={rows} maxBarSize={24} title={t('income_detail.evolution.chart')} accessibilityLayer>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} tickMargin={8} />
               <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(n: number) => axis.format(n)} />
               <ChartTooltip cursor={false} content={<MonthTooltip />} />
               <ChartLegend content={<ChartLegendContent />} />
               {series.map((key, i) => (
-                <Bar key={key} dataKey={key} stackId="month" fill={`var(--color-${key})`} animationDuration={800}
+                <Bar key={key} dataKey={key} stackId="month" fill={`var(--color-${key})`} stroke="var(--card)" strokeWidth={2} animationDuration={800}
                   radius={i === series.length - 1 ? [4, 4, 0, 0] : undefined}>
                   {rows.map((r) => <Cell key={r.key} fillOpacity={dim(r)} />)}
                 </Bar>
@@ -106,7 +106,7 @@ function MonthTooltip({ active, payload }: { active?: boolean; payload?: Readonl
   if (!active || !row) return null;
   const { month: m } = row;
   return (
-    <div className="grid min-w-44 gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid min-w-44 gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{monthLabel(m.year, m.month)}{m.upcoming ? ` · ${t('income_detail.evolution.upcoming')}` : ''}</div>
       {m.parts.map((p) => (
         <div key={p.label} className="flex justify-between gap-4"><span>{p.label}</span><span className="tabular-nums">{formatMoney(p.amount)}</span></div>

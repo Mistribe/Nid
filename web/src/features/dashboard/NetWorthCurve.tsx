@@ -130,7 +130,7 @@ function CurveChart({ data, label }: { data: NetWorthHistory; label: (p: NetWort
       <ComposedChart data={rows} title={t('dashboard.curve.chart_title')} accessibilityLayer>
         <defs>
           <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
+            <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.2} />
             <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0} />
           </linearGradient>
         </defs>

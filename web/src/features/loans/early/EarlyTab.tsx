@@ -387,7 +387,7 @@ function CurveTooltip({ active, payload }: { active?: boolean; payload?: Readonl
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{monthText(row.month)}</div>
       <div className="tabular-nums">{t('loans_early.without')} : {row.beforeText}</div>
       <div className="tabular-nums">{t('loans_early.with')} : {row.afterText}</div>

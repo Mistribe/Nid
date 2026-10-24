@@ -71,7 +71,7 @@ function PointTooltip({ active, payload }: { active?: boolean; payload?: Readonl
   const p = payload?.[0]?.payload?.point;
   if (!active || !p) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium"><LocalDate value={p.on} /></div>
       <div className="tabular-nums">{t('scenarios.detail.without')} : {formatMoney(p.without)}</div>
       <div className="tabular-nums">{t('scenarios.detail.with')} : {formatMoney(p.with)}</div>

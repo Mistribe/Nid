@@ -83,7 +83,7 @@ function MonthTooltip({ active, payload }: { active?: boolean; payload?: Readonl
   if (!active || !row) return null;
   const { month: m } = row;
   return (
-    <div className="grid min-w-44 gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid min-w-44 gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{monthLabel(m.year, m.month)}{m.upcoming ? ` · ${t('income.overview.upcoming')}` : ''}</div>
       {m.bySource.map((s) => (
         <div key={s.item} className="flex justify-between gap-4"><span>{s.name}</span><span className="tabular-nums">{formatMoney(s.amount)}</span></div>

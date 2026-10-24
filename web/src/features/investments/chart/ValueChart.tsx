@@ -84,7 +84,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
           <ComposedChart data={rows} title={title}>
             <defs>
               <linearGradient id={`fill-${id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.35} />
+                <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.02} />
               </linearGradient>
             </defs>
@@ -108,7 +108,7 @@ function ValueTooltip({ active, payload, netLabel }: { active?: boolean; payload
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{formatLocalDate(row.asOf)}</div>
       <div className="flex justify-between gap-4"><span>{t('envelope.value')}</span><span className="tabular-nums">{row.valueText}</span></div>
       <div className="flex justify-between gap-4"><span>{netLabel}</span><span className="tabular-nums">{row.netText}</span></div>

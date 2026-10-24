@@ -109,8 +109,8 @@ function Chart({ d }: { d: LoansOverview }) {
               : <ReferenceLine key={`${e.date}/${e.loanId}/${e.code}`} x={at} stroke="var(--muted-foreground)" strokeDasharray="4 4" />;
           })}
           {d.loans.map((l, k) => (
-            <Area key={l.id} dataKey={key(k)} name={l.name} stackId="balance" type="linear" fill={loanColor(k)} fillOpacity={0.85}
-              stroke="var(--background)" strokeWidth={2} connectNulls={false} dot={false} activeDot={false} animationDuration={800} />
+            <Area key={l.id} dataKey={key(k)} name={l.name} stackId="balance" type="linear" fill={loanColor(k)} fillOpacity={0.6}
+              stroke="var(--card)" strokeWidth={2} connectNulls={false} dot={false} activeDot={false} animationDuration={800} />
           ))}
           <DirectLabels rows={rows} names={d.loans.map((l) => l.name)} />
         </AreaChart>
@@ -154,7 +154,7 @@ function DirectLabels({ rows, names }: { rows: Row[]; names: string[] }) {
         const anchor = at < plot.x + plot.width * 0.15 ? 'start' : at > plot.x + plot.width * 0.85 ? 'end' : 'middle';
         return (
           <text key={name + k} x={anchor === 'start' ? at + 6 : anchor === 'end' ? at - 6 : at} y={(y(best.low) + y(best.high)) / 2}
-            textAnchor={anchor} dominantBaseline="middle" className="fill-white text-xs font-medium">
+            textAnchor={anchor} dominantBaseline="middle" className="fill-foreground text-xs font-medium">
             {name}
           </text>
         );
@@ -169,7 +169,7 @@ function MonthTooltip({ active, payload, names }: { active?: boolean; payload?: 
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{label(row.month)}</div>
       <div className="tabular-nums">{t('loans_overview.total')} : {row.total}</div>
       {row.values.map((v, k) => (v === null ? null : (

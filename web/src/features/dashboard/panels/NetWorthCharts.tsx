@@ -21,7 +21,7 @@ function EnvelopeChart({ rows }: { rows: DashboardEnvelope[] }) {
     <figure aria-label={t('dashboard.split.chart_envelopes')}>
       {/* The height follows the row count (not an amount), so many envelopes never squeeze their bars. */}
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height: `${data.length * ROW_PX + 16}px` }}>
-        <BarChart data={data} layout="vertical" accessibilityLayer margin={{ left: 8, right: 8 }}>
+        <BarChart data={data} layout="vertical" maxBarSize={24} accessibilityLayer margin={{ left: 8, right: 8 }}>
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
           <ChartTooltip cursor={false} content={<RowTooltip />} />
@@ -36,7 +36,7 @@ function RowTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyA
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       <div className="font-medium">{row.name}</div>
       <div className="tabular-nums">{row.text}</div>
     </div>
@@ -68,7 +68,7 @@ function PeopleChart({ people }: { people: DashboardPerson[] }) {
 
 function PeopleTooltip({ people }: { people: DashboardPerson[] }) {
   return (
-    <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
       {people.map((p) => <div key={p.id} className="tabular-nums">{`${p.name} · ${formatMoney(p.amount)}`}</div>)}
     </div>
   );
@@ -89,7 +89,7 @@ function AllocationChart({ lines, color, name }: { lines: AllocationLine[]; colo
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="key" hide />
           <ChartTooltip cursor={false} content={({ active }) => (active ? (
-            <div className="grid gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+            <div className="grid gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm">
               {shown.map((l) => <div key={l.key} className="tabular-nums">{`${name(l.key)} · ${formatMoney(l.amount)}`}</div>)}
             </div>
           ) : null)} />

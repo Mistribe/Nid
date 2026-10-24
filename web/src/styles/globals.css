@@ -11,8 +11,8 @@
 
 /* Fixed: no theme redefines chart or status colours (design-system.md §2 and §7.3, dataviz.md §3 and §4). */
 :root {
-  --chart-1: #2a78d6; --chart-2: #eb6834; --chart-3: #1baf7a; --chart-4: #eda100;
-  --chart-5: #e87ba4; --chart-6: #008300; --chart-7: #4a3aa7; --chart-8: #e34948;
+  --chart-1: #3679cd; --chart-2: #e46e42; --chart-3: #37ad7d; --chart-4: #e8a332;
+  --chart-5: #e280a4; --chart-6: #1f811c; --chart-7: #4a3e9f; --chart-8: #db534f;
   --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #d03b3b;
   /* As text, --status-warning reaches 1.75:1 and --status-good 3.20:1 on a light background (enough for an icon): text takes these (contrast.test.ts). */
   --status-warning-text: #b45309; --status-good-text: #008300;
@@ -26,8 +26,8 @@
   --elevation-raised: 0 2px 4px oklch(0 0 0 / 5%), 0 12px 24px -8px oklch(0 0 0 / 12%);
 }
 .dark {
-  --chart-1: #3987e5; --chart-2: #d95926; --chart-3: #199e70; --chart-4: #c98500;
-  --chart-5: #d55181; --chart-6: #008300; --chart-7: #9085e9; --chart-8: #e66767;
+  --chart-1: #4488dc; --chart-2: #d26035; --chart-3: #329c72; --chart-4: #c48729;
+  --chart-5: #ce5982; --chart-6: #1f811c; --chart-7: #9087e1; --chart-8: #df6d6c;
   --status-warning-text: #fab219; --status-good-text: #0ca30c;
   /* A shadow barely shows on a dark page: a light top edge gives the card its lift. */
   --elevation-card: inset 0 1px 0 oklch(1 0 0 / 5%), 0 1px 2px oklch(0 0 0 / 40%), 0 8px 24px -12px oklch(0 0 0 / 60%);

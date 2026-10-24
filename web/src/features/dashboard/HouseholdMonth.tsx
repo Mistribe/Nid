@@ -186,7 +186,7 @@ function Sankey({ from, to, total }: { from: Mark[]; to: Mark[]; total: string }
             ))}
           </svg>
           {hover ? (
-            <div role="tooltip" className="pointer-events-none absolute z-10 grid min-w-44 -translate-x-1/2 -translate-y-[calc(100%+8px)] gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl"
+            <div role="tooltip" className="pointer-events-none absolute z-10 grid min-w-44 -translate-x-1/2 -translate-y-[calc(100%+8px)] gap-1 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-raised backdrop-blur-sm"
               style={{ left: `${(hover.x / W) * 100}%`, top: hover.y }}>
               <div className="flex items-center gap-2 font-medium">
                 <span aria-hidden="true" className="size-2.5 rounded-sm" style={{ background: hover.mark.color }} />
