@@ -52,7 +52,8 @@ export function StepForm({ steps, trigger, onSubmit, submitLabel, pending, revea
                 i < index ? 'bg-primary text-primary-foreground' : i === index ? 'border-2 border-primary text-primary' : 'border text-muted-foreground')}>
                 {i < index ? <Check className="size-3.5" /> : i + 1}
               </span>
-              {s.title}
+              {/* On a phone the dots carry the other steps; their titles stay for a screen reader. */}
+              <span className={i === index ? undefined : 'max-sm:sr-only'}>{s.title}</span>
             </li>
           ))}
         </ol>

@@ -6,12 +6,12 @@ import { present, toProblem } from '@/api/errors';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { components } from '@/api/schema';
 import { SERIES } from '../api';
 import { toPlot } from './plot';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';
 
 // `at` places the point in time: an axis of dates evenly spaced would squeeze the sparse years and stretch the dense ones.
@@ -56,9 +56,7 @@ export function SeriesChart({ id, points, currency, netLabel, title, tableLabel 
   return (
     <div className="space-y-2">
       <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('common.show_chart') : t('common.show_table')}
-        </Button>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </div>
       {asTable ? (
         <Table aria-label={tableLabel}>

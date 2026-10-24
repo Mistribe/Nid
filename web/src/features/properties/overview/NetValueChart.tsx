@@ -7,12 +7,12 @@ import { formatMoney, Money } from '@/components/Money';
 import { Segmented } from '@/components/form/Segmented';
 import { SectionCard } from '@/components/page/SectionCard';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
-import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/features/investments/chart/plot';
 import { monthLabel } from '@/features/income/expected/months';
 import type { PropertiesOverview, PropertyPoint } from '../api';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/properties';
 
 const SPANS = ['12m', '3y', 'all'] as const;
@@ -47,9 +47,7 @@ export function NetValueChart({ d, span }: { d: PropertiesOverview; span: Span }
         <Segmented value={span} onValueChange={choose} aria-labelledby={spanId}
           options={SPANS.map((s) => ({ value: s, label: t(`properties_overview.span_${s}`) }))} />
         {drawn >= 2 ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? t('common.show_chart') : t('common.show_table')}
-          </Button>
+          <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
         ) : null}
       </>
     }>

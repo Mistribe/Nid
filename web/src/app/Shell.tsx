@@ -22,7 +22,7 @@ const LINK = 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 transition-c
 // The current page: a tinted pill in the accent colour, the text bold so the colour is never alone.
 const ACTIVE = 'bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary';
 // A phone shares its width among five tabs: icon above a short label, each tab an equal share (2E1 final review).
-const TAB = 'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-xs hover:bg-accent hover:text-accent-foreground';
+const TAB = 'relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-xs hover:bg-accent hover:text-accent-foreground';
 
 /** Sidebar on desktop; on mobile, four tabs and « Plus » (screens.md §1). */
 export function Shell() {
@@ -52,8 +52,11 @@ export function Shell() {
     <Link key={item.to} to={item.to} className={style} activeProps={{ 'aria-current': 'page', className: style === LINK ? ACTIVE : 'font-semibold text-primary' }}>
       <item.icon aria-hidden="true" className="size-5 shrink-0" />
       <span className="max-w-full truncate">{t(item.label)}</span>
-      {item.to === '/proposals' ? <PendingBadge /> : null}
-      {item.to === '/routine' ? <RoutineBadge /> : null}
+      {/* On a tab the count sits on the icon's corner, out of the label's way. */}
+      <span className={style === TAB ? 'absolute top-0.5 left-1/2 ml-1.5' : 'ml-auto'}>
+        {item.to === '/proposals' ? <PendingBadge /> : null}
+        {item.to === '/routine' ? <RoutineBadge /> : null}
+      </span>
     </Link>
   );
 
@@ -79,9 +82,9 @@ export function Shell() {
           </Suspense>
         </div>
       </nav>
-      <div className="flex min-h-dvh flex-col pb-16 md:pb-0">
+      <div className="flex min-h-dvh flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         {/* Sticky over the page it scrolls; the search opens the ⌘K palette, the scope and the guides sit at the end. */}
-        <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur print:hidden">
+        <header className="sticky top-0 z-30 border-b bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur print:hidden">
           <div className="mx-auto flex w-full max-w-7xl items-center gap-2 px-4 py-2.5 md:gap-4">
             <p className="font-semibold md:hidden">{t('app.name')}</p>
             <button type="button" onClick={() => setPalette(true)} aria-label={t('command.open')} aria-keyshortcuts={MAC ? 'Meta+K' : 'Control+K'}
@@ -100,12 +103,12 @@ export function Shell() {
           <div className="mx-auto w-full max-w-7xl"><Outlet /></div>
         </main>
       </div>
-      <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 flex border-t bg-background md:hidden print:hidden">
+      <nav aria-label={t('nav.tabs')} className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
         {items.filter((item) => item.mobile === 'tab').sort((a, b) => TAB_ORDER.indexOf(a.to) - TAB_ORDER.indexOf(b.to)).map((item) => link(item, TAB))}
         <Link to="/more" aria-current={inMore ? 'page' : undefined} className={inMore ? `${TAB} font-semibold text-primary` : TAB}>
           <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
           <span className="max-w-full truncate">{t('nav.more')}</span>
-          {more.some((item) => item.to === '/proposals') ? <PendingBadge /> : null}
+          {more.some((item) => item.to === '/proposals') ? <span className="absolute top-0.5 left-1/2 ml-1.5"><PendingBadge /></span> : null}
         </Link>
       </nav>
     </div>

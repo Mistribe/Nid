@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Area, AreaChart, CartesianGrid, DefaultZIndexes, ReferenceLine, usePlotArea, useYAxisDomain, XAxis, YAxis, ZIndexLayer } from 'recharts';
 import { formatMoney, type MoneyValue } from '@/components/Money';
-import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '../../income/expected/months';
 import { toPlot } from '../../investments/chart/plot';
 import type { LoansOverview } from '../api';
 import { loanColor } from './colors';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/loans';
 
 type Row = { i: number; month: string; total: string; values: (string | null)[] } & Record<string, number | null | string | (string | null)[]>;
@@ -49,9 +49,7 @@ export function BalanceChart({ d }: { d: LoansOverview }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('common.show_chart') : t('common.show_table')}
-        </Button>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </div>
       {asTable ? <MonthsTable d={d} /> : <Chart d={d} />}
       {events.length > 0 ? (

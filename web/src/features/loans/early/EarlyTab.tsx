@@ -35,6 +35,7 @@ import { LOAN_AMOUNT } from '../new/loanForm';
 import { monthText, useLoanNames } from '../overview/BalanceChart';
 import { loanColor } from '../overview/colors';
 import { presentRefusal } from '../refusal';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/loans';
 import '@/locales/forms';
 
@@ -340,9 +341,7 @@ function Curve({ view }: { view: LoansSimulation }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('common.show_chart') : t('common.show_table')}
-        </Button>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </div>
       {asTable ? (
         <Table aria-label={t('loans_early.curve_table')}>

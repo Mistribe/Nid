@@ -6,7 +6,6 @@ import { useSession } from '@/app/Providers';
 import { formatMoney } from '@/components/Money';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { SectionCard } from '@/components/page/SectionCard';
-import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { OVERVIEW } from '../income/api';
@@ -14,6 +13,7 @@ import { toPlot } from '../investments/chart/plot';
 import type { DashboardView } from './api';
 import { band, spread, stack, type Span } from './flow';
 import { percent } from './format';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/tax';
 
 const SOURCES = [
@@ -85,9 +85,7 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
     <SectionCard title={t('dashboard.month.title')} guide="dashboard.month" className="space-y-3"
       note={d.cashThisMonth.total ? t('dashboard.cash_this_month', { amount: formatMoney(d.cashThisMonth.total) }) : null}
       actions={known ? (
-        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('common.show_chart') : t('common.show_table')}
-        </Button>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       ) : null}>
       {!known ? <p className="text-sm text-muted-foreground">{reason}</p>
         : asTable ? <FlowTable from={from} to={to} />

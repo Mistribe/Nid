@@ -6,7 +6,6 @@ import type { InvestmentsSearch, RootSearch } from '@/app/router';
 import { formatMoney, Money } from '@/components/Money';
 import { Segmented } from '@/components/form/Segmented';
 import { SectionCard } from '@/components/page/SectionCard';
-import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '../../income/expected/months';
@@ -14,6 +13,7 @@ import { toPlot } from '../chart/plot';
 import type { InvestmentsOverview, OverviewPoint } from '../api';
 import { kindText } from '../format';
 import { KIND_ORDER, kindColor } from './colors';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';
 
 const SPANS = ['12m', '3y', 'all'] as const;
@@ -56,9 +56,7 @@ export function ValueChart({ d, span }: { d: InvestmentsOverview; span: Span }) 
         <Segmented value={span} onValueChange={choose} aria-labelledby={spanId}
           options={SPANS.map((s) => ({ value: s, label: t(`investments_overview.span_${s}`) }))} />
         {known >= 2 ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? t('common.show_chart') : t('common.show_table')}
-          </Button>
+          <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
         ) : null}
       </>
     }>

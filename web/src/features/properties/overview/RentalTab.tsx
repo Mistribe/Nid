@@ -17,7 +17,6 @@ import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
-import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -25,6 +24,7 @@ import { toPlot } from '@/features/investments/chart/plot';
 import { monthLabel } from '@/features/income/expected/months';
 import { money, percent, signedMoney } from '@/features/loans/format';
 import { PROPERTIES_RENTAL, type PropertiesRental, type RentalMonth, type RentalRow } from '../api';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/properties';
 
 type Scope = 'household' | 'me';
@@ -124,9 +124,7 @@ function MonthsCard({ d, scope, property }: { d: PropertiesRental; scope: Scope;
             <div className="w-56"><SelectField id={`${filterId}-select`} aria-label={t('properties_rental.filter')} value={property ?? ''} onValueChange={choose} options={options} /></div>
           )
         ) : null}
-        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('common.show_chart') : t('common.show_table')}
-        </Button>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </>
     }>
       {one.error ? <ProblemMessage problem={present(toProblem(one.error))} />

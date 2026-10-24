@@ -18,7 +18,7 @@ export function Direction({ amount, children }: { amount: { amount: string; curr
   const direction = directionOf(amount.amount);
   const Icon = ICON[direction];
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex flex-wrap items-center gap-x-1">
       <Icon aria-hidden="true" className={`size-4 ${TONE[direction]}`} />
       <span className="tabular-nums">{signed('fr-FR', amount.currency, amount.amount)}</span>
       {children}

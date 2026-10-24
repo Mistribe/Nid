@@ -8,7 +8,6 @@ import type { DashboardSearch, RootSearch } from '@/app/router';
 import { formatMoney, Money } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
-import { Button } from '@/components/ui/button';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +15,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { monthLabel } from '../income/expected/months';
 import { toPlot } from '../investments/chart/plot';
 import { NET_WORTH, type NetWorthHistory, type NetWorthPointView } from './api';
+import { TableToggle } from '@/components/page/TableToggle';
 
 const PERIODS = ['12m', '3y', 'all'] as const;
 type Period = (typeof PERIODS)[number];
@@ -46,9 +46,7 @@ export function NetWorthCurve() {
         <Segmented value={period} onValueChange={choose} aria-labelledby={periodId}
           options={PERIODS.map((p) => ({ value: p, label: t(`dashboard.curve.period_${p}`) }))} />
         {known >= 2 ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? t('common.show_chart') : t('common.show_table')}
-          </Button>
+          <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
         ) : null}
       </>
     }>

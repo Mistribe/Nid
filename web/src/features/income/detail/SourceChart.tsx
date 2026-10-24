@@ -5,7 +5,6 @@ import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, XAxis, YAxis } from 
 import type { IncomeDetailSearch, RootSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
 import { formatMoney, Money } from '@/components/Money';
-import { Button } from '@/components/ui/button';
 import { SectionCard } from '@/components/page/SectionCard';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,6 +12,7 @@ import { percent } from '@/features/dashboard/format';
 import { toPlot } from '../../investments/chart/plot';
 import type { IncomeChange, IncomeSourceOverview } from '../api';
 import { monthLabel } from '../expected/months';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/income';
 
 type Months = IncomeSourceOverview['months'];
@@ -70,9 +70,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
       <>
         <Segmented aria-label={t('income_detail.evolution.period')} value={period} onValueChange={choose}
           options={PERIODS.map((p) => ({ value: p, label: t(`income_detail.evolution.${p}`) }))} />
-        <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-          {asTable ? t('common.show_chart') : t('common.show_table')}
-        </Button>
+        <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
       </>
     }>
         {asTable ? <SourceMonthsTable months={months} labels={labels} /> : (

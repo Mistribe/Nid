@@ -7,7 +7,7 @@ export function SectionCard({ title, note, actions, guide, className, children }
 }) {
   const titleId = useId();
   return (
-    <Card role="region" aria-labelledby={titleId} data-guide={guide} className="gap-3 py-4">
+    <Card role="region" aria-labelledby={titleId} data-guide={guide} className="min-w-0 gap-3 py-4">
       <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <CardTitle id={titleId} className="mr-auto text-base">{title}</CardTitle>
         {note ? <span className="text-sm text-muted-foreground">{note}</span> : null}

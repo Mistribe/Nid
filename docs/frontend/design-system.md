@@ -99,6 +99,7 @@ Cible **WCAG 2.2 AA**.
 
 ### 6.1 Grammaire des pages
 
+- **Téléphone** (passe du 2026-10-24, vérifiée à 390 px, aucun débordement horizontal) : barre d’onglets et barre du haut tiennent compte des zones sûres (`viewport-fit=cover`, `env(safe-area-inset-*)`) ; un badge d’onglet se pose au coin de l’icône ; « Afficher en tableau » devient une icône (`TableToggle`, le texte reste son nom accessible) ; l’indicateur d’étapes ne garde que le titre de l’étape en cours ; `StatLine` passe en `text-lg` ; une carte dans une grille porte `min-w-0`, sinon un graphique impose sa largeur à la colonne.
 - **Coquille** : le contenu se centre au-delà de 1 280 px (`max-w-7xl`) ; la barre du haut reste collée en haut de page, avec la recherche (palette ⌘K / Ctrl K : chaque page et chaque création, `app/CommandMenu.tsx`, chargée à la première ouverture), le choix Foyer / Moi et les guides.
 - **Vue d’ensemble** : chaque bloc dans un `SectionCard` (Placements, Biens, Crédits, Abonnements) ; `Section`, sans carte, reste aux fiches. Les chiffres clés en tête dans `StatLine`, en colonnes égales qui remplissent la ligne.
 - **Liste** : `PageHeader`, puis un `SortableTable` dense avec la colonne des propriétaires ; création par un bouton `primary` unique vers une page de formulaire.

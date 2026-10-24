@@ -27,6 +27,7 @@ import { toPlot } from '../chart/plot';
 import { pct } from '../Figures';
 import { presetRange } from '../period/periods';
 import { kindColor } from './colors';
+import { TableToggle } from '@/components/page/TableToggle';
 import '@/locales/investments';
 import '@/locales/forms';
 
@@ -234,7 +235,7 @@ function Months({ d }: { d: HouseholdPerformance }) {
   const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: d.currency, notation: 'compact' });
   return (
     <SectionCard title={t('investments_performance.months_title')} actions={
-      <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>{asTable ? t('common.show_chart') : t('common.show_table')}</Button>
+      <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
     }>
       {asTable ? (
         <Table aria-label={t('investments_performance.months_table')}>

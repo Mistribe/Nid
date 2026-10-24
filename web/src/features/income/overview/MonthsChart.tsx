@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { formatMoney } from '@/components/Money';
-import { Button } from '@/components/ui/button';
 import { SectionCard } from '@/components/page/SectionCard';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { toPlot } from '../../investments/chart/plot';
 import type { IncomeOverview } from '../api';
 import { monthLabel } from '../expected/months';
 import { MonthsTable } from './MonthsTable';
+import { TableToggle } from '@/components/page/TableToggle';
 
 type Months = IncomeOverview['months'];
 type Month = Months[number];
@@ -45,9 +45,7 @@ export function MonthsChart({ months, missingRates, period, year }: {
 
   return (
     <SectionCard title={title} actions={
-      <Button type="button" variant="outline" size="sm" onClick={() => setAsTable((v) => !v)}>
-        {asTable ? t('common.show_chart') : t('common.show_table')}
-      </Button>
+      <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
     }>
         {asTable
           ? <MonthsTable months={months} missingRates={missingRates} />
