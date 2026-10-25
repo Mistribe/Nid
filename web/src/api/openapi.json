@@ -32182,6 +32182,7 @@
           "cashCost",
           "amortizedCost",
           "convertedIsEstimate",
+          "billedMonthly",
           "freeDays",
           "coverage",
           "charges",
@@ -32279,6 +32280,9 @@
             ]
           },
           "convertedIsEstimate": {
+            "type": "boolean"
+          },
+          "billedMonthly": {
             "type": "boolean"
           },
           "freeDays": {
@@ -32541,6 +32545,7 @@
           "cashCost",
           "amortizedCost",
           "convertedIsEstimate",
+          "billedMonthly",
           "freeDays",
           "findings",
           "owners"
@@ -32624,6 +32629,9 @@
             ]
           },
           "convertedIsEstimate": {
+            "type": "boolean"
+          },
+          "billedMonthly": {
             "type": "boolean"
           },
           "freeDays": {

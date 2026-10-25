@@ -108,14 +108,24 @@ describe('Abonnements › détail', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
     const costs = screen.getByRole('region', { name: 'Co\u00fbts du mois' });
-    expect(costs).toHaveTextContent('Co\u00fbt r\u00e9el');
-    expect(costs).toHaveTextContent('Co\u00fbt amorti');
+    expect(costs).toHaveTextContent('Pr\u00e9lev\u00e9 ce mois-ci');
+    expect(costs).toHaveTextContent('Co\u00fbt mensuel r\u00e9el');
     expect(costs).toHaveTextContent('Prochaine \u00e9ch\u00e9ance');
     expect(costs).toHaveTextContent('28 janvier 2026');
     const notice = screen.getByRole('list', { name: 'Points \u00e0 v\u00e9rifier' });
     expect(notice).toHaveTextContent(/plafond de renouvellements/);
     expect(screen.queryByText(/The walk stopped/)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('leaves out the monthly cost of one billed each month: it is the amount charged', async () => {
+    serveDetail(detail({ billedMonthly: true }));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    await screen.findByRole('heading', { level: 1, name: 'Spotify Premium Duo' });
+    const costs = screen.getByRole('region', { name: 'Co\u00fbts du mois' });
+    expect(costs).toHaveTextContent('Pr\u00e9lev\u00e9 ce mois-ci');
+    expect(costs).not.toHaveTextContent('Co\u00fbt mensuel r\u00e9el');
   });
 
   it('edits price and purchases in dialogs', async () => {

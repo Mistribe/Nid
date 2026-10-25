@@ -138,6 +138,37 @@ public class TimelineQueriesTests
     }
 
     [Fact]
+    public void A_monthly_phase_is_billed_monthly_even_across_a_short_month()
+    {
+        var timeline = Monthly(new LocalDate(2025, 1, 31), new LocalDate(2025, 6, 1));
+
+        Assert.True(timeline.IsBilledMonthly(Range(new LocalDate(2025, 2, 1), new LocalDate(2025, 3, 1))));
+    }
+
+    [Fact]
+    public void A_yearly_phase_is_not_billed_monthly()
+    {
+        var timeline = SubscriptionTimeline.Build(
+            Input([Phase(new LocalDate(2025, 1, 1), null, 120m, every: Nid.Core.Contracts.Duration.Create(1, DurationUnit.Year).Ok())], []),
+            new LocalDate(2025, 3, 1), new LocalDate(2026, 6, 1)).Ok();
+
+        // March has no charge of its own, but January's covers it.
+        Assert.False(timeline.IsBilledMonthly(Range(new LocalDate(2025, 3, 1), new LocalDate(2025, 4, 1))));
+    }
+
+    [Fact]
+    public void A_month_paid_with_a_bonus_month_is_not_billed_monthly()
+    {
+        var timeline = SubscriptionTimeline.Build(
+            Input([], [Purchase(new LocalDate(2025, 1, 1), 10m, PurchaseKind.PrepaidTerm,
+                                [Grant(Months(1), CoverageSource.Paid, new LocalDate(2025, 1, 1)),
+                                 Grant(Months(1), CoverageSource.Bonus)])]),
+            new LocalDate(2025, 6, 1), new LocalDate(2025, 6, 1)).Ok();
+
+        Assert.False(timeline.IsBilledMonthly(Range(new LocalDate(2025, 1, 1), new LocalDate(2025, 2, 1))));
+    }
+
+    [Fact]
     public void Free_days_count_everything_that_is_not_paid()
     {
         var timeline = SubscriptionTimeline.Build(

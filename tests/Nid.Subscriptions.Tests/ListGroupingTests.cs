@@ -15,7 +15,7 @@ public class ListGroupingTests
         string? monthly, ProviderSummaryView? provider = null, bool estimate = false, string? annual = null,
         params (Guid Person, int Bp)[] owners)
         => new(new ItemId(Guid.NewGuid()), "s", provider, true, null, null, null, [], [], null,
-            monthly is null ? null : new MoneyView(monthly, "EUR"), estimate, 0, [],
+            monthly is null ? null : new MoneyView(monthly, "EUR"), estimate, true, 0, [],
             (owners.Length == 0 ? [(Person(1), 10_000)] : owners).Select(o => new ItemOwnerView(o.Person, o.Bp)).ToList(),
             annual is null ? null : new MoneyView(annual, "EUR"));
 

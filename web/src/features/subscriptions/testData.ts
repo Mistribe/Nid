@@ -21,7 +21,7 @@ export function detail(over: Partial<Detail> = {}): Detail {
     id: SUB, displayName: 'Spotify Premium Duo', provider: null, autoRenew: true, cancelledAt: null,
     expiresOn: null, nextChargeOn: '2026-01-28', nextChargeAmount: eur('17.20'),
     cashCost: [eur('17.20')], amortizedCost: [eur('17.20')], cashCostConverted: null, amortizedCostConverted: null,
-    convertedIsEstimate: false, freeDays: 92,
+    convertedIsEstimate: false, billedMonthly: false, freeDays: 92,
     coverage: [
       { start: '2025-06-28', endBefore: '2025-10-28', source: 'paid', isProjected: false },
       { start: '2025-10-28', endBefore: '2026-01-28', source: 'gift', isProjected: false },
@@ -55,7 +55,7 @@ export const summary = (over: Partial<Summary>): Summary => ({
   id: '0192f0aa-0000-7000-8000-000000000001', displayName: 'Netflix', provider: null, autoRenew: true,
   expiresOn: null, nextChargeOn: '2025-11-01', nextChargeAmount: eur('13.49'),
   cashCost: [eur('13.49')], amortizedCost: [eur('13.49')], cashCostConverted: null, amortizedCostConverted: eur('13.49'),
-  annualCostConverted: eur('161.88'), convertedIsEstimate: false, freeDays: 0, findings: [], owners: [], ...over,
+  annualCostConverted: eur('161.88'), convertedIsEstimate: false, billedMonthly: true, freeDays: 0, findings: [], owners: [], ...over,
 });
 
 export const list = (items: Summary[], over: Partial<ListResponse> = {}): ListResponse => ({

@@ -58,6 +58,7 @@ public static class SubscriptionViews
             converted.CashView,
             converted.AmortizedView,
             converted.IsEstimate,
+            timeline.IsBilledMonthly(window),
             timeline.FreeDays(window),
             timeline.Warnings.Select(FindingView.From).Concat(FxFindings(converted, annual)).ToList(),
             owners,
@@ -80,6 +81,7 @@ public static class SubscriptionViews
             converted.CashView,
             converted.AmortizedView,
             converted.IsEstimate,
+            timeline.IsBilledMonthly(window),
             timeline.FreeDays(window),
             timeline.Coverage.Select(c => new CoverageView(
                 c.Start, c.EndBefore, c.Source.ToString().ToLowerInvariant(), c.IsProjected)).ToList(),

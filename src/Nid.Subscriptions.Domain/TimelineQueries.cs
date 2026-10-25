@@ -83,6 +83,27 @@ public static class TimelineQueries
         return pieces;
     }
 
+    /// <summary>
+    /// Whether every charge paying for days inside the window paid for about one month (28 to 31 days): its
+    /// amortized cost then tells nothing its cash cost does not. A yearly term, a prepaid run or a month with a
+    /// bonus month is not; a window no charge pays for is, since there is nothing to smooth.
+    /// </summary>
+    public static bool IsBilledMonthly(this Timeline timeline, DateRange window)
+    {
+        foreach (var charge in timeline.Charges)
+        {
+            if (charge.Allocation.Days == 0 || charge.Price.Amount == 0m)
+                continue;
+
+            var paysForWindow = charge.Coverage.Any(p =>
+                p.EndBefore > window.Start && (window.EndBefore is not { } stop || p.Start < stop));
+            if (paysForWindow && charge.Allocation.Days is < 28 or > 31)
+                return false;
+        }
+
+        return true;
+    }
+
     /// <summary>Days covered by something other than a paid period: the value of promotions.</summary>
     public static int FreeDays(this Timeline timeline, DateRange window)
     {

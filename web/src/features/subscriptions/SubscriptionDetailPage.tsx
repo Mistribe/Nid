@@ -83,7 +83,7 @@ export function SubscriptionDetailPage() {
         <section aria-label={t('subscription.costs')} className="space-y-2">
           <StatLine items={[
             { label: t('subscription.cash'), value: detail.cashCost.map((m) => <Money key={m.currency} value={m} tabular />) },
-            { label: t('subscription.amortized'), value: detail.amortizedCost.map((m) => <Money key={m.currency} value={m} tabular />) },
+            ...(detail.billedMonthly ? [] : [{ label: t('subscription.amortized'), value: detail.amortizedCost.map((m) => <Money key={m.currency} value={m} tabular />) }]),
             nextCharge,
           ]} />
           {detail.freeDays > 0 ? <p className="text-sm text-muted-foreground">{t('subscription.free_days', { count: detail.freeDays })}</p> : null}

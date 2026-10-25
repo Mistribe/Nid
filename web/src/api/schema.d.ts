@@ -19732,6 +19732,7 @@ export interface components {
             cashCostConverted?: null | components["schemas"]["MoneyView"];
             amortizedCostConverted?: null | components["schemas"]["MoneyView"];
             convertedIsEstimate: boolean;
+            billedMonthly: boolean;
             /** Format: int32 */
             freeDays: number;
             coverage: components["schemas"]["CoverageView"][];
@@ -19791,6 +19792,7 @@ export interface components {
             cashCostConverted?: null | components["schemas"]["MoneyView"];
             amortizedCostConverted?: null | components["schemas"]["MoneyView"];
             convertedIsEstimate: boolean;
+            billedMonthly: boolean;
             /** Format: int32 */
             freeDays: number;
             findings: components["schemas"]["FindingView"][];
