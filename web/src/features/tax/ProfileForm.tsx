@@ -13,7 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
 import { REGIMES, regimeText } from './format';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
-import { STATUSES, TAX, TAX_PROFILE, type PinelCommitment, type TaxEstimate } from './api';
+import { DASHBOARD } from '../dashboard/api';
+import { invalidateGoals } from '../goals/api';
+import { STATUSES, TAX, TAX_2044, TAX_PROFILE, type PinelCommitment, type TaxEstimate } from './api';
 import '@/locales/tax';
 
 /** A Pinel commitment as one choice: the initial years, then the total after the extensions. */
@@ -86,7 +88,9 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
       },
       {
         onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: ['get', TAX] });
+          // Every read the profile feeds: the estimate, the 2044 (regime, carried deficit), the dashboard's and the goals' tax commitment.
+          for (const path of [TAX, TAX_2044, DASHBOARD]) void queryClient.invalidateQueries({ queryKey: ['get', path] });
+          void invalidateGoals(queryClient);
           setAnnouncement(t('tax.profile.saved'));
         },
       },

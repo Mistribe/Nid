@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -94,6 +94,23 @@ describe('TaxPage', () => {
       homeEmployment: '9000', childrenUnder6: 2, dependents: null, statuses: { [ADULT]: 'non_executive' },
       contributionRates: { [ADULT]: '23.5' }, actualExpenses: {}, perUnusedCeilings: { [ADULT]: '4000' },
     } });
+  });
+
+  it('marks every read of the profile stale once saved: the estimate, the 2044, the dashboard and the goals', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json(estimate())),
+    );
+    const { user, queryClient } = await renderApp('/tax?tab=profile');
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le profil' }));
+
+    expect(await screen.findByText('Profil enregistré.')).toBeInTheDocument();
+    expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual(expect.arrayContaining([
+      ['get', '/api/v1/tax'], ['get', '/api/v1/tax/2044'], ['get', '/api/v1/dashboard'],
+      ['get', '/api/v1/goals'], ['get', '/api/v1/goals/{id}'],
+    ]));
   });
 });
 
