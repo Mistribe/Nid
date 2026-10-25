@@ -8,10 +8,11 @@ WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props Nid.slnx ./
 COPY src/ src/
 # Publishing for the platform's RID copies libSkiaSharp.so (1C2c); the OpenAPI document is the developer's, not the image's.
+# ReadyToRun: the assemblies ship precompiled for that RID, so the host starts with little left to JIT.
 RUN --mount=type=cache,target=/root/.nuget/packages \
     RID=$([ "$TARGETARCH" = "arm64" ] && echo linux-arm64 || echo linux-x64) \
  && dotnet publish src/Nid.Host/Nid.Host.csproj -c Release -r "$RID" --self-contained false -o /app \
-      -p:OpenApiGenerateDocumentsOnBuild=false -p:Version="$VERSION" \
+      -p:PublishReadyToRun=true -p:OpenApiGenerateDocumentsOnBuild=false -p:Version="$VERSION" \
  && test -f /app/libSkiaSharp.so
 # 1F4: `nid admin …` in the container; the chiseled image has no shell to make this link. Next to the app host: it
 # looks for Nid.Host.dll beside the path it was called by, not beside the file a link points to.
