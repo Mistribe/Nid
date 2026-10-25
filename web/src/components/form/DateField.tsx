@@ -1,9 +1,10 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, type ClipboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { parsePastedDate } from '@/lib/date-paste';
 import { useFieldLabel, type FieldControl } from './Field';
 
 const DatePanel = lazy(() => import('./DatePanel'));
@@ -38,10 +39,20 @@ export function DateField({ value, onChange, readOnly, max, ...control }: FieldC
     onChange(match && calendarDate(+y, +m, +d) ? `${y}-${m}-${d}` : text);
   }
 
+  // A pasted date may come in any shape (2026-10-18, 18.10.26, 18 octobre 2026); typing stays strict so a
+  // half-typed 18/10/20 is never read as 2020. Unreadable text is left to the browser.
+  function paste(e: ClipboardEvent<HTMLInputElement>) {
+    if (readOnly) return;
+    const pasted = parsePastedDate(e.clipboardData.getData('text/plain'));
+    if (!pasted) return;
+    e.preventDefault();
+    onChange(pasted);
+  }
+
   return (
     <div className="flex gap-2">
       <Input placeholder={t('form.date_placeholder')} value={shown}
-        onChange={(e) => type(e.target.value)} readOnly={readOnly} {...control} />
+        onChange={(e) => type(e.target.value)} onPaste={paste} readOnly={readOnly} {...control} />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" size="icon" disabled={readOnly} aria-label={t('form.pick_date', { label: fieldLabel })}><CalendarIcon /></Button>

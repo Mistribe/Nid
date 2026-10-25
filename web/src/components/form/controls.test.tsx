@@ -114,6 +114,26 @@ describe('form controls', () => {
     expect(screen.getByRole('button', { name: 'Choisir une date : Fin' })).toBeInTheDocument();
   });
 
+  it('DateField reads a pasted date in any common shape', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DateHarness onChange={onChange} />);
+    const input = screen.getByRole('textbox', { name: 'Date' });
+    await user.click(input);
+    await user.paste('18 octobre 2026');
+    expect(onChange).toHaveBeenLastCalledWith('2026-10-18');
+    expect(input).toHaveValue('18/10/2026');
+  });
+
+  it('DateField leaves an unreadable paste as typed text', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DateHarness onChange={onChange} />);
+    await user.click(screen.getByRole('textbox', { name: 'Date' }));
+    await user.paste('demain');
+    expect(onChange).toHaveBeenLastCalledWith('demain');
+  });
+
   it('DateField passes unparsable text through', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

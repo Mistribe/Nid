@@ -129,6 +129,7 @@ La sérialisation canonique suit la **RFC 8785** (JSON Canonicalization Scheme).
 - Les libellés du catalogue (`label.<key>`) sont traduits côté interface : la source est monolingue.
 - Montants et dates : composants `<Money>` et `<LocalDate>` (`design-system.md` §4).
 - **Dates** : les valeurs `AAAA-MM-JJ` s'affichent par un utilitaire en **UTC** ; `new Date("2026-09-19")` décalerait le jour selon le fuseau.
+- **Coller une date** : `DateField` lit une date collée sous les formes courantes (`2026-10-18`, `18.10.26`, `18 octobre 2026` ; toujours jour avant mois) par `lib/date-paste.ts` ; la saisie au clavier reste stricte (`JJ/MM/AAAA` ou `JJMMAAAA`). Un texte illisible est laissé tel quel ; un champ en lecture seule n'est jamais modifié.
 - **Montants** : `Intl.NumberFormat` formate une chaîne décimale sans perte : vérifié par `Money.test.tsx` (un montant de 19 chiffres les garde tous).
 
 ## 12. Build et livraison
