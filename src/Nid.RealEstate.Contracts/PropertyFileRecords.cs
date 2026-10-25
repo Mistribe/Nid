@@ -3,6 +3,9 @@ using Nid.Core.Contracts;
 
 namespace Nid.RealEstate.Contracts;
 
+// A member the file may omit is `set`, not `init`: the source-generated reader of .NET 10 and earlier (NativeAOT) gives an
+// omitted init-only property its type's default, not its initializer.
+
 // Spec 3F1 §2: the property sections of realestate/README.md §10. Dates stay strings (the section parses them); amounts are
 // { amount, currency } in the property's currency.
 
@@ -23,7 +26,7 @@ public sealed record PropertyRecord
     public decimal? SurfaceM2 { get; init; }
 
     public string? LocationLabel { get; init; }
-    public string ValuationCadence { get; init; } = "yearly";
+    public string ValuationCadence { get; set; } = "yearly";
     public int? StaleAfterDays { get; init; }
     public string? RentalStartsOn { get; init; }
     public string? Note { get; init; }
@@ -34,7 +37,7 @@ public sealed record PropertyRecord
     /// <summary>Optional, for receipts and letters.</summary>
     public string? PostalAddress { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
-    public string Visibility { get; init; } = "shared";
+    public string Visibility { get; set; } = "shared";
 }
 
 /// <summary>A planned cost's period: <c>{ count, unit }</c>, months or years.</summary>

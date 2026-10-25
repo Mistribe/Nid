@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using NodaTime;
@@ -8,13 +9,16 @@ using Duration = NodaTime.Duration;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
-public sealed class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
+public sealed partial class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
 {
     private const string UniqueViolation = "23505";
 
     private static readonly Duration AbandonedAfter = Duration.FromHours(1);
 
     private sealed record RejectionJson(string OnDate, string Quote, decimal Rate, decimal? Previous, string Reason);
+
+    [JsonSerializable(typeof(List<RejectionJson>))]
+    private sealed partial class FxRunJson : JsonSerializerContext;
 
     public async Task<FxSyncRun?> TryStartAsync(FxRunKind kind, CancellationToken ct)
     {
@@ -53,7 +57,7 @@ public sealed class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
     public async Task FinishAsync(FxSyncRun run, CancellationToken ct)
     {
         var rejected = JsonSerializer.Serialize(run.Rejected.Select(r =>
-            new RejectionJson(LocalDatePattern.Iso.Format(r.OnDate), r.Quote, r.Rate, r.Previous, r.Reason)).ToList());
+            new RejectionJson(LocalDatePattern.Iso.Format(r.OnDate), r.Quote, r.Rate, r.Previous, r.Reason)).ToList(), FxRunJson.Default.ListRejectionJson);
         await db.FxSyncRuns.Where(r => r.Id == run.Id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Status, Status(run.Status))
             .SetProperty(r => r.FinishedAt, run.FinishedAt)
@@ -102,7 +106,7 @@ public sealed class FxRunLog(CoreDbContext db, IClock clock) : IFxRunLog
             row.StartedAt, row.FinishedAt,
             row.Status switch { "running" => FxRunStatus.Running, "succeeded" => FxRunStatus.Succeeded, _ => FxRunStatus.Failed },
             row.FilesRead, row.RowsWritten, row.FailureCode, row.FailureMessage,
-            (JsonSerializer.Deserialize<List<RejectionJson>>(row.Rejected) ?? [])
+            (JsonSerializer.Deserialize(row.Rejected, FxRunJson.Default.ListRejectionJson) ?? [])
                 .Select(r => new FxRejection(LocalDatePattern.Iso.Parse(r.OnDate).Value, r.Quote, r.Rate, r.Previous, r.Reason))
                 .ToList());
 }

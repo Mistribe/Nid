@@ -159,7 +159,8 @@ public sealed record CatalogReport(
     public static CatalogReport Empty { get; } = new([], [], [], [], [], [], [], [], [], [], [], []);
 
     /// <summary>The icon pass (1C2c design §5). A report stored before 1C2c reads with <see cref="IconReport.Empty"/>.</summary>
-    public IconReport Icons { get; init; } = IconReport.Empty;
+    // `set`, not `init`: the source-generated reader of .NET 10 and earlier would give a report stored before 1C2c a null.
+    public IconReport Icons { get; set; } = IconReport.Empty;
 }
 
 public enum CatalogRunStatus

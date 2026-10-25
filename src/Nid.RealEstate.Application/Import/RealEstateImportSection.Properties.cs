@@ -31,7 +31,7 @@ public sealed partial class RealEstateImportSection
         tenancyPlans.Clear();
 
         // Properties: each resolved, and refused or planned, before any cost or tenancy is read.
-        var records = ImportSectionKit.ReadAll<PropertyRecord>(staged, PropertiesSection, r => r.Id, issues,
+        var records = ImportSectionKit.ReadAll(staged, PropertiesSection, RealEstateFileJson.Records.PropertyRecord, r => r.Id, issues,
             (r, path, found) => NoNullOwners(r.Ownership, path, found), unread: id => context.FailedItems.Add((PropertiesSection, id)));
         var known = await imports.FindAsync(EstateTable.Property, records.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in records)
@@ -58,7 +58,7 @@ public sealed partial class RealEstateImportSection
             plan.Stored = stored.Single(s => s.ItemId == plan.Id);
         var byFileId = propertyPlans.ToDictionary(p => p.FileId, StringComparer.Ordinal);
 
-        var costRecords = ImportSectionKit.ReadAll<PropertyRecurringCostRecord>(staged, CostsSection, r => r.Id, issues);
+        var costRecords = ImportSectionKit.ReadAll(staged, CostsSection, RealEstateFileJson.Records.PropertyRecurringCostRecord, r => r.Id, issues);
         var knownCosts = await imports.FindAsync(EstateTable.RecurringCost, costRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in costRecords)
         {
@@ -71,7 +71,7 @@ public sealed partial class RealEstateImportSection
                 costPlans.Add(new RowPlan<RecurringCost>(entity, record.Id, path, property, row.Mode, row.Id, row.ImportedBy, cost));
         }
 
-        var tenancyRecords = ImportSectionKit.ReadAll<TenancyRecord>(staged, TenanciesSection, r => r.Id, issues);
+        var tenancyRecords = ImportSectionKit.ReadAll(staged, TenanciesSection, RealEstateFileJson.Records.TenancyRecord, r => r.Id, issues);
         var knownTenancies = await imports.FindAsync(EstateTable.Tenancy, tenancyRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in tenancyRecords)
         {

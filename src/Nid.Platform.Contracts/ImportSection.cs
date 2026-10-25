@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using Nid.Core.Contracts;
 using NodaTime;
@@ -87,7 +88,11 @@ public interface IImportSection
 /// <summary>How every section reads its entities: <c>snake_case</c>, unknown members refused (§2 "strict").</summary>
 public static partial class NidDataJson
 {
-    public static JsonSerializerOptions Options { get; } = new()
+    /// <summary>
+    /// These rules, for a module's source-generated context of its records: <c>new(NidDataJson.NewOptions())</c>. Each context
+    /// takes a copy of its own (an options instance binds to one context).
+    /// </summary>
+    public static JsonSerializerOptions NewOptions() => new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -104,12 +109,17 @@ public static partial class NidDataJson
         => member is null ? $"{section}[{index}]" : $"{section}[{index}].{member}";
 
     /// <summary>Reads one entity; on failure adds an issue at <paramref name="path"/> plus the member that failed.</summary>
-    public static bool TryRead<T>(JsonElement element, string path, ICollection<ImportIssue> issues, [NotNullWhen(true)] out T? value)
+    /// <summary><typeparamref name="T"/>'s metadata in a module's context of its records, for a helper generic over them.</summary>
+    public static JsonTypeInfo<T> InfoOf<T>(JsonSerializerContext records)
+        => records.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>
+           ?? throw new InvalidOperationException($"{typeof(T).Name} is not one of {records.GetType().Name}'s records.");
+
+    public static bool TryRead<T>(JsonElement element, JsonTypeInfo<T> info, string path, ICollection<ImportIssue> issues, [NotNullWhen(true)] out T? value)
         where T : class
     {
         try
         {
-            value = element.Deserialize<T>(Options);
+            value = element.Deserialize(info);
         }
         catch (JsonException e)
         {

@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -50,8 +52,31 @@ public sealed record AmortizationRow(
 
 /// <summary>Spec 4D1 D1: one tool per document; a proposal by default, a direct write with `apply` and `write:direct` (D2).</summary>
 [McpServerToolType]
-public sealed class WriteTools
+public sealed partial class WriteTools
 {
+    private sealed record StatementArguments(string AsOf, MoneyArgument? Value, StatementMovement[]? Movements);
+
+    private sealed record HoldingsSnapshotArguments(
+        string AsOf, string? SourceLabel, HoldingsLine[] Lines, HoldingsMovement[]? Movements, bool RecordValuation);
+
+    private sealed record PayslipArguments(string PaidOn, MoneyArgument Net, MoneyArgument? Gross, string? PhaseLabel);
+
+    private sealed record InvoiceArguments(string ChargedOn, MoneyArgument Amount);
+
+    private sealed record AmortizationArguments(AmortizationRow[] Rows);
+
+    /// <summary>A tool's arguments as a proposal payload: camelCase, absent fields left out (the handler normalizes the rest).</summary>
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(StatementArguments))]
+    [JsonSerializable(typeof(HoldingsSnapshotArguments))]
+    [JsonSerializable(typeof(PayslipArguments))]
+    [JsonSerializable(typeof(InvoiceArguments))]
+    [JsonSerializable(typeof(AmortizationArguments))]
+    private sealed partial class ArgumentsJson : JsonSerializerContext;
+
+    /// <summary>The tools' own parameter types, for the SDK's options (McpSetup).</summary>
+    internal static JsonSerializerContext Arguments => ArgumentsJson.Default;
+
     /// <summary>What every write tool's description ends with (spec 4D1 §5): no « Untrusted » sentence, a rule on copying.</summary>
     public const string Rules = "Copy the document as written and invent nothing: leave out what it does not show. "
         + "By default this creates a proposal that an adult approves in Nid; apply=true writes directly and needs the 'write:direct' scope.";
@@ -67,7 +92,7 @@ public sealed class WriteTools
         [Description("The document's name, e.g. 'Relevé PEA septembre 2025', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, new { asOf, value, movements }, sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, JsonSerializer.SerializeToElement(new StatementArguments(asOf, value, movements), ArgumentsJson.Default.StatementArguments), sourceLabel, apply, ct);
 
     [McpServerTool(Name = "propose_holdings_snapshot", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A statement's holdings for one envelope: each holding's line on the statement's date and the movements it lists per "
@@ -83,7 +108,7 @@ public sealed class WriteTools
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "investments.record_holdings_snapshot", envelopeId,
-            new { asOf, sourceLabel, lines, movements, recordValuation }, sourceLabel, apply, ct);
+            JsonSerializer.SerializeToElement(new HoldingsSnapshotArguments(asOf, sourceLabel, lines, movements, recordValuation), ArgumentsJson.Default.HoldingsSnapshotArguments), sourceLabel, apply, ct);
 
     [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "
@@ -99,7 +124,7 @@ public sealed class WriteTools
         [Description("The document's name, e.g. 'Bulletin de paie septembre 2025', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, new { paidOn, net, gross, phaseLabel }, sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, ct);
 
     [McpServerTool(Name = "propose_invoice", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An invoice for one subscription, all taxes included. Nid compares it with the price on that date: the same, to the "
@@ -111,7 +136,7 @@ public sealed class WriteTools
         [Description("The document's name, e.g. 'Facture Netflix septembre 2025', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, new { chargedOn, amount }, sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, JsonSerializer.SerializeToElement(new InvoiceArguments(chargedOn, amount), ArgumentsJson.Default.InvoiceArguments), sourceLabel, apply, ct);
 
     [McpServerTool(Name = "propose_amortization", ReadOnly = false, Destructive = true, Idempotent = true)]
     [Description("A bank's amortisation table for one loan: every row as printed, in date order, 1200 rows at most, the whole table in "
@@ -125,5 +150,5 @@ public sealed class WriteTools
         [Description("The document's name, e.g. 'Tableau d’amortissement prêt maison', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "realestate.import_amortization", loanId, new { rows }, sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "realestate.import_amortization", loanId, JsonSerializer.SerializeToElement(new AmortizationArguments(rows), ArgumentsJson.Default.AmortizationArguments), sourceLabel, apply, ct);
 }

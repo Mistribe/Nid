@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Investments.Domain;
@@ -21,7 +22,7 @@ namespace Nid.Investments.Application;
 /// amount) is warned and left out. Checked by the rules the API uses (<see cref="HoldingRules"/>, <see cref="MovementRules"/>),
 /// applied through its commands, in the approval's transaction.
 /// </summary>
-public sealed class HoldingsSnapshotProposal(
+public sealed partial class HoldingsSnapshotProposal(
     IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IValuations valuations, IHouseholdCalendar calendar,
     IInvoker invoker)
     : IProposalHandler
@@ -33,8 +34,6 @@ public sealed class HoldingsSnapshotProposal(
     public const decimal LargeChangeShare = 0.30m;
 
     public const string LargeChange = "large_change";
-
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public string Module => "investments";
     public string Kind => "investments.record_holdings_snapshot";
@@ -59,6 +58,29 @@ public sealed class HoldingsSnapshotProposal(
     private sealed record Plan(
         Parsed P, MovementFacts Facts, LineHolding[] Lines, Guid?[] MovementHolding, bool[] Recorded,
         (LocalDate AsOf, decimal Value)?[] Previous, bool[] Large);
+
+    private sealed record PreviousValue(string AsOf, AmountView Value);
+
+    private sealed record LinePreview(
+        int Index, string Name, string? Isin, string Kind, bool IsNew, string? Units, string? UnitPrice, AmountView Value,
+        string? CostBasisPerUnit, PreviousValue? Previous, bool LargeChange);
+
+    private sealed record MovementPreview(
+        int Index, string Holding, string On, string Kind, string? Units, string? UnitPrice, AmountView Amount, string? Label, bool Recorded);
+
+    private sealed record Preview(
+        string Currency, AmountView Total, bool RecordValuation, ValuationComparison? Valuation,
+        IReadOnlyList<LinePreview> Lines, IReadOnlyList<MovementPreview> Movements);
+
+    /// <summary>What a payload that cannot be read or planned previews: no `recordValuation` nor `valuation`.</summary>
+    private sealed record EmptyPreview(string? Currency, AmountView? Total, IReadOnlyList<LinePreview> Lines, IReadOnlyList<MovementPreview> Movements);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(Body))]
+    [JsonSerializable(typeof(Preview))]
+    [JsonSerializable(typeof(EmptyPreview))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class HoldingsSnapshotJson : JsonSerializerContext;
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
@@ -118,31 +140,26 @@ public sealed class HoldingsSnapshotProposal(
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         if (!Parse(payload).TryGetValue(out var p) || !(await PlanAsync(target, p!, write: false, ct)).TryGetValue(out var plan))
-            return JsonSerializer.SerializeToElement(new { currency = (string?)null, total = (object?)null, lines = Array.Empty<object>(), movements = Array.Empty<object>() }, Json);
+            return JsonSerializer.SerializeToElement(new EmptyPreview(null, null, [], []), HoldingsSnapshotJson.Default.EmptyPreview);
         var currency = plan!.Facts.Currency;
         var names = plan.Facts.Holdings.ToDictionary(h => h.Holding.Id, h => h.Holding.Name);
         var total = Amounts.Of(p!.Lines.Sum(l => l.Value), currency);
-        return JsonSerializer.SerializeToElement(new
-        {
-            currency = currency.Code,
-            total = AmountView.From(total),
-            recordValuation = p.RecordValuation,
-            valuation = p.RecordValuation ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, total, ct) : null,
-            lines = p.Lines.Select((l, i) => new
-            {
-                index = i, name = l.Name, isin = l.Isin, kind = plan.Lines[i].Kind, isNew = plan.Lines[i].IsNew,
-                units = Text(l.Units), unitPrice = Text(l.UnitPrice), value = AmountView.From(Amounts.Of(l.Value, currency)),
-                costBasisPerUnit = Text(l.CostBasisPerUnit),
-                previous = plan.Previous[i] is { } prev ? new { asOf = Iso(prev.AsOf), value = AmountView.From(Amounts.Of(prev.Value, currency)) } : null,
-                largeChange = plan.Large[i],
-            }),
-            movements = p.Movements.Select((m, i) => new
-            {
-                index = i, holding = plan.MovementHolding[i] is { } id && names.TryGetValue(id, out var name) ? name : m.Holding,
-                on = Iso(m.On), kind = m.Kind, units = Text(m.Units), unitPrice = Text(m.UnitPrice),
-                amount = AmountView.From(Amounts.Of(m.Amount, currency)), label = m.Label, recorded = plan.Recorded[i],
-            }),
-        }, Json);
+        return JsonSerializer.SerializeToElement(new Preview(
+            currency.Code,
+            AmountView.From(total),
+            p.RecordValuation,
+            p.RecordValuation ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, total, ct) : null,
+            [.. p.Lines.Select((l, i) => new LinePreview(
+                i, l.Name, l.Isin, plan.Lines[i].Kind, plan.Lines[i].IsNew,
+                Text(l.Units), Text(l.UnitPrice), AmountView.From(Amounts.Of(l.Value, currency)),
+                Text(l.CostBasisPerUnit),
+                plan.Previous[i] is { } prev ? new PreviousValue(Iso(prev.AsOf), AmountView.From(Amounts.Of(prev.Value, currency))) : null,
+                plan.Large[i]))],
+            [.. p.Movements.Select((m, i) => new MovementPreview(
+                i, plan.MovementHolding[i] is { } id && names.TryGetValue(id, out var name) ? name : m.Holding,
+                Iso(m.On), m.Kind, Text(m.Units), Text(m.UnitPrice),
+                AmountView.From(Amounts.Of(m.Amount, currency)), m.Label, plan.Recorded[i]))]),
+            HoldingsSnapshotJson.Default.Preview);
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -323,7 +340,7 @@ public sealed class HoldingsSnapshotProposal(
         }).ToArray());
         if (p.RecordValuation)
             body["recordValuation"] = true;
-        return JsonSerializer.SerializeToElement(body);
+        return JsonSerializer.SerializeToElement(body, HoldingsSnapshotJson.Default.JsonObject);
     }
 
     private static Result<Parsed> Parse(JsonElement payload)
@@ -331,7 +348,7 @@ public sealed class HoldingsSnapshotProposal(
         Body? body;
         try
         {
-            body = payload.Deserialize<Body>(Json);
+            body = payload.Deserialize(HoldingsSnapshotJson.Default.Body);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) // InvalidOperationException: an undefined element
         {

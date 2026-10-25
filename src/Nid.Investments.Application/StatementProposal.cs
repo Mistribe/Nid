@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
@@ -18,12 +19,11 @@ namespace Nid.Investments.Application;
 /// and, unless an edit's `excluded` says otherwise, left out when applied. `excluded` is an approval's edit only (D5): a
 /// submitter's is dropped. Nothing left to write and the value already recorded on `asOf` (or none given): « conforme ».
 /// </summary>
-public sealed class StatementProposal(
+public sealed partial class StatementProposal(
     IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar, IValuations valuations, IFlows flows, IInvoker invoker)
     : IProposalHandler
 {
     public const int MaxMovements = 200;
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly string[] Kinds = ["contribution", "withdrawal", "income", "expense"]; // never `opening`
 
     public string Module => "investments";
@@ -39,6 +39,23 @@ public sealed class StatementProposal(
     private sealed record Movement(LocalDate On, string Kind, decimal Amount, string? Label, string? Ref);
 
     private sealed record Parsed(LocalDate AsOf, Money? Value, IReadOnlyList<Movement> Movements, string? Note, IReadOnlyList<int>? Excluded);
+
+    private sealed record ExpectedSide(AmountView? Value, int Recorded);
+
+    private sealed record GivenSide(AmountView? Value, int Movements);
+
+    private sealed record Conforme(ExpectedSide Expected, GivenSide Given);
+
+    private sealed record MovementPreview(int Index, string On, string Kind, AmountView Amount, string? Label, bool Recorded);
+
+    private sealed record Preview(ValuationComparison? Value, IReadOnlyList<MovementPreview> Movements);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(Body))]
+    [JsonSerializable(typeof(Conforme))]
+    [JsonSerializable(typeof(Preview))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class StatementJson : JsonSerializerContext;
 
     private enum Mark { None, Match, Reference }
 
@@ -87,11 +104,9 @@ public sealed class StatementProposal(
             if (recorded?.Value.Amount != value.Amount || (p.Note is { } note && note.Trim() != recorded.Note?.Trim()))
                 return null;
         }
-        return JsonSerializer.SerializeToElement(new
-        {
-            expected = new { value = recorded is null ? null : AmountView.From(recorded.Value), recorded = marks.Count(m => m != Mark.None) },
-            given = new { value = AmountView.From(p.Value), movements = p.Movements.Count },
-        }, Json);
+        return JsonSerializer.SerializeToElement(new Conforme(
+            new ExpectedSide(recorded is null ? null : AmountView.From(recorded.Value), marks.Count(m => m != Mark.None)),
+            new GivenSide(AmountView.From(p.Value), p.Movements.Count)), StatementJson.Default.Conforme);
     }
 
     /// <summary>Whether applying writes movement <paramref name="i"/>: the edit's choice, else whatever Nid does not hold yet.</summary>
@@ -100,17 +115,13 @@ public sealed class StatementProposal(
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         if (!Parse(payload).TryGetValue(out var p))
-            return JsonSerializer.SerializeToElement(new { value = (object?)null, movements = Array.Empty<object>() });
+            return JsonSerializer.SerializeToElement(new Preview(null, []), StatementJson.Default.Preview);
         var currency = (await items.FindAsync(target, ct))?.Currency ?? "";
         var marks = (await RecordedAsync(target, p!.Movements, p.Excluded, ct)).TryGetValue(out var m) ? m! : new Mark[p.Movements.Count];
-        return JsonSerializer.SerializeToElement(new
-        {
-            value = p.Value is { } v ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, v, ct) : null,
-            movements = p.Movements.Select((x, i) => new
-            {
-                index = i, on = Iso(x.On), kind = x.Kind, amount = new AmountView(Text(x.Amount), currency), label = x.Label, recorded = marks[i] != Mark.None,
-            }),
-        }, Json);
+        return JsonSerializer.SerializeToElement(new Preview(
+            p.Value is { } v ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, v, ct) : null,
+            [.. p.Movements.Select((x, i) => new MovementPreview(i, Iso(x.On), x.Kind, new AmountView(Text(x.Amount), currency), x.Label, marks[i] != Mark.None))]),
+            StatementJson.Default.Preview);
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -180,7 +191,7 @@ public sealed class StatementProposal(
     {
         var body = new JsonObject { ["asOf"] = Iso(p.AsOf) };
         if (p.Value is { } value)
-            body["value"] = JsonSerializer.SerializeToNode(AmountView.From(value), Json);
+            body["value"] = JsonSerializer.SerializeToNode(AmountView.From(value), StatementJson.Default.AmountView);
         body["movements"] = new JsonArray(p.Movements.Select(m =>
         {
             var line = new JsonObject { ["on"] = Iso(m.On), ["kind"] = m.Kind, ["amount"] = Text(m.Amount) };
@@ -192,7 +203,7 @@ public sealed class StatementProposal(
             body["note"] = p.Note;
         if (p.Excluded is { } excluded)
             body["excluded"] = new JsonArray(excluded.Select(i => (JsonNode?)i).ToArray());
-        return JsonSerializer.SerializeToElement(body);
+        return JsonSerializer.SerializeToElement(body, StatementJson.Default.JsonObject);
     }
 
     private static Result<Parsed> Parse(JsonElement payload, bool readExcluded = true)
@@ -200,7 +211,7 @@ public sealed class StatementProposal(
         Body? body;
         try
         {
-            body = payload.Deserialize<Body>(Json);
+            body = payload.Deserialize(StatementJson.Default.Body);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) // InvalidOperationException: an undefined element
         {

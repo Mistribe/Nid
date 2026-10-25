@@ -8,12 +8,18 @@ using NodaTime.Text;
 namespace Nid.Core.Infrastructure.Persistence;
 
 /// <summary>Property purchase scenario spec §5: the document as a camelCase JSON row keyed by its registry item.</summary>
-public sealed class ScenarioStore(CoreDbContext db) : IScenarioStore
+public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new ItemIdConverter(), new LocalDateConverter() },
-    };
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, Converters =
+    [
+        typeof(CamelCaseEnum<PurchaseUse>), typeof(CamelCaseEnum<DeferralKind>), typeof(CamelCaseEnum<ScenarioInsuranceKind>),
+        typeof(ItemIdConverter), typeof(LocalDateConverter),
+    ])]
+    [JsonSerializable(typeof(PropertyPurchase))]
+    private sealed partial class ScenarioJson : JsonSerializerContext;
+
+    /// <summary>An enum as its camelCase name; one per enum of the document.</summary>
+    private sealed class CamelCaseEnum<TEnum>() : JsonStringEnumConverter<TEnum>(JsonNamingPolicy.CamelCase) where TEnum : struct, Enum;
 
     private sealed class ItemIdConverter : JsonConverter<ItemId>
     {
@@ -49,11 +55,11 @@ public sealed class ScenarioStore(CoreDbContext db) : IScenarioStore
             db.Scenarios.Add(row = new ScenarioRow { ItemId = scenario.Item.Value });
         row.Kind = scenario.Kind;
         row.Scope = scenario.Scope == VisibilityScope.Me ? "me" : "household";
-        row.Data = JsonSerializer.Serialize(scenario.Document, Json);
+        row.Data = JsonSerializer.Serialize(scenario.Document, ScenarioJson.Default.PropertyPurchase);
         await db.SaveChangesAsync(ct);
     }
 
     private static StoredScenario ToStored(ScenarioRow row) => new(
         new ItemId(row.ItemId), row.Kind, row.Scope == "me" ? VisibilityScope.Me : VisibilityScope.Household,
-        JsonSerializer.Deserialize<PropertyPurchase>(row.Data, Json)!);
+        JsonSerializer.Deserialize(row.Data, ScenarioJson.Default.PropertyPurchase)!);
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Income.Contracts;
 using Nid.Income.Domain;
@@ -30,11 +31,9 @@ public sealed record PayslipTolerance(decimal Ratio)
 /// of `paidOn`. A payslip corrects the expected pay (D3): the phase running on `paidOn` changes from its payment date in that
 /// month; no « received » amount is recorded.
 /// </summary>
-public sealed class PayslipProposal(
+public sealed partial class PayslipProposal(
     ISourceStore sources, IItemRegistry items, IPhaseStore phases, PayslipTolerance tolerance, IInvoker invoker) : IProposalHandler
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public string Module => "income";
     public string Kind => "income.change_pay";
     public int PayloadVersion => 1;
@@ -44,6 +43,19 @@ public sealed class PayslipProposal(
     private sealed record AmountBody(string? Amount, string? Currency);
 
     private sealed record Parsed(LocalDate PaidOn, string? PhaseLabel, Money Net, Money? Gross, LocalDate? EffectiveOn);
+
+    private sealed record Pay(IncomeMoneyView Net, IncomeMoneyView? Gross);
+
+    private sealed record Comparison(Pay Expected, Pay Given);
+
+    private sealed record Preview(Pay? Expected, Pay? Proposed, string? EffectiveOn);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(Body))]
+    [JsonSerializable(typeof(Comparison))]
+    [JsonSerializable(typeof(Preview))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class PayslipJson : JsonSerializerContext;
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
@@ -61,7 +73,7 @@ public sealed class PayslipProposal(
         // Compare first: a matching payslip needs no effective date (so one in the phase's first month, or sent twice, is « conforme »).
         if (sameNet && sameGross)
             return Result.Success(new ProposalCheck(key, [], Normalized(p with { PhaseLabel = phase.Label }),
-                JsonSerializer.SerializeToElement(new { expected = Pay(phase.NetAmount, phase.GrossAmount), given = Pay(p.Net, p.Gross) }, Json)));
+                JsonSerializer.SerializeToElement(new Comparison(PayOf(phase.NetAmount, phase.GrossAmount), PayOf(p.Net, p.Gross)), PayslipJson.Default.Comparison)));
         var on = EffectiveOn(phase, p);
         if (!on.TryGetValue(out var effectiveOn))
             return Result.Failure<ProposalCheck>(FailureOf(on));
@@ -71,12 +83,10 @@ public sealed class PayslipProposal(
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         if (!Parse(payload).TryGetValue(out var p) || !(await FindPhaseAsync(target, p!, ct)).TryGetValue(out var phase))
-            return JsonSerializer.SerializeToElement(new { expected = (object?)null, proposed = (object?)null, effectiveOn = (string?)null });
-        return JsonSerializer.SerializeToElement(new
-        {
-            expected = Pay(phase!.NetAmount, phase.GrossAmount), proposed = Pay(p!.Net, p.Gross),
-            effectiveOn = EffectiveOn(phase, p).TryGetValue(out var on) ? Iso(on) : null,
-        }, Json);
+            return JsonSerializer.SerializeToElement(new Preview(null, null, null), PayslipJson.Default.Preview);
+        return JsonSerializer.SerializeToElement(new Preview(
+            PayOf(phase!.NetAmount, phase.GrossAmount), PayOf(p!.Net, p.Gross),
+            EffectiveOn(phase, p).TryGetValue(out var on) ? Iso(on) : null), PayslipJson.Default.Preview);
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -155,21 +165,21 @@ public sealed class PayslipProposal(
             _ => "payload",
         } : "payload");
 
-    private static object Pay(Money net, Money? gross)
-        => new { net = IncomeMoneyView.From(net), gross = gross is { } g ? IncomeMoneyView.From(g) : null };
+    private static Pay PayOf(Money net, Money? gross)
+        => new(IncomeMoneyView.From(net), gross is { } g ? IncomeMoneyView.From(g) : null);
 
     /// <summary>The known fields only, the label and the effective date resolved: what is fingerprinted and stored.</summary>
     private static JsonElement Normalized(Parsed p)
     {
         var body = new JsonObject
         {
-            ["paidOn"] = Iso(p.PaidOn), ["phaseLabel"] = p.PhaseLabel, ["net"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(p.Net), Json),
+            ["paidOn"] = Iso(p.PaidOn), ["phaseLabel"] = p.PhaseLabel, ["net"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(p.Net), PayslipJson.Default.IncomeMoneyView),
         };
         if (p.Gross is { } gross)
-            body["gross"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(gross), Json);
+            body["gross"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(gross), PayslipJson.Default.IncomeMoneyView);
         if (p.EffectiveOn is { } effectiveOn)
             body["effectiveOn"] = Iso(effectiveOn);
-        return JsonSerializer.SerializeToElement(body);
+        return JsonSerializer.SerializeToElement(body, PayslipJson.Default.JsonObject);
     }
 
     private static Result<Parsed> Parse(JsonElement payload)
@@ -177,7 +187,7 @@ public sealed class PayslipProposal(
         Body? body;
         try
         {
-            body = payload.Deserialize<Body>(Json);
+            body = payload.Deserialize(PayslipJson.Default.Body);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException)
         {

@@ -32,6 +32,7 @@ public static class McpSetup
         // This host's own copy of the SDK's options: the tools' descriptors are cached per options instance, and on the
         // SDK's static one each test host's tools, holding its container, stayed for the life of the process.
         var json = new System.Text.Json.JsonSerializerOptions(McpJsonUtilities.DefaultOptions);
+        json.TypeInfoResolverChain.Insert(0, WriteTools.Arguments);
         services.AddMcpServer(options =>
             {
                 options.ServerInfo = new Implementation { Name = "nid", Version = "1" };

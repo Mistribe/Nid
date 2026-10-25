@@ -1,6 +1,7 @@
 using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using Nid.Core.Contracts;
 using Nid.Platform.Canonical;
@@ -91,17 +92,20 @@ public sealed record ExportModel(IReadOnlyList<ExportSection> Sections, string R
 }
 
 /// <summary>The opaque page cursor of §3: base64url of <c>{"r": revision, "o": offset}</c>.</summary>
-public static class ExportCursor
+public static partial class ExportCursor
 {
+    [JsonSerializable(typeof(Payload))]
+    private sealed partial class CursorJson : JsonSerializerContext;
+
     public static string Encode(string revision, int offset)
-        => Base64Url.EncodeToString(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new Payload(revision, offset))));
+        => Base64Url.EncodeToString(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new Payload(revision, offset), CursorJson.Default.Payload)));
 
     public static bool TryDecode(string cursor, out string revision, out int offset)
     {
         (revision, offset) = ("", 0);
         try
         {
-            var payload = JsonSerializer.Deserialize<Payload>(Base64Url.DecodeFromChars(cursor));
+            var payload = JsonSerializer.Deserialize(Base64Url.DecodeFromChars(cursor), CursorJson.Default.Payload);
             if (payload is null || payload.R is null || payload.O < 0)
                 return false;
             (revision, offset) = (payload.R, payload.O);
@@ -114,6 +118,6 @@ public static class ExportCursor
     }
 
     private sealed record Payload(
-        [property: System.Text.Json.Serialization.JsonPropertyName("r")] string R,
-        [property: System.Text.Json.Serialization.JsonPropertyName("o")] int O);
+        [property: JsonPropertyName("r")] string R,
+        [property: JsonPropertyName("o")] int O);
 }

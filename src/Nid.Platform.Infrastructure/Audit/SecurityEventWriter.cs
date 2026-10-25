@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
@@ -14,6 +15,9 @@ public sealed partial class SecurityEventWriter(
     NpgsqlDataSource dataSource, IActorAccessor actors, AuditRequest request, IClock clock, ILogger<SecurityEventWriter> logger)
     : ISecurityEvents
 {
+    [JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
+    private sealed partial class EventDataJson : JsonSerializerContext;
+
     public Task<bool> RecordAsync(SecurityEvent securityEvent, CancellationToken ct)
         => RecordAsync(securityEvent, actors.Current ?? Actor.System, ct);
 
@@ -43,7 +47,7 @@ public sealed partial class SecurityEventWriter(
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)request.Name ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Text });
             command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Items.Select(i => i.Value).ToArray() });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)securityEvent.Subject?.Value ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
-            command.Parameters.Add(new NpgsqlParameter { Value = JsonSerializer.Serialize(securityEvent.Data), NpgsqlDbType = NpgsqlDbType.Jsonb });
+            command.Parameters.Add(new NpgsqlParameter { Value = JsonSerializer.Serialize(securityEvent.Data, EventDataJson.Default.IReadOnlyDictionaryStringString), NpgsqlDbType = NpgsqlDbType.Jsonb });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)actor.TokenId ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
             await command.ExecuteNonQueryAsync(bound.Token);
             return true;

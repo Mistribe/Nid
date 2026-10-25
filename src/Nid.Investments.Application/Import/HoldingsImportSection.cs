@@ -68,11 +68,11 @@ public sealed partial class HoldingsImportSection(
             var path = NidDataJson.Path(section, firstIndex + position++);
             switch (section)
             {
-                case HoldingsSection when Read<HoldingRecord>(entity, path, issues, r => r.Id, out var holding):
+                case HoldingsSection when Read(entity, InvestmentsFileJson.Records.HoldingRecord, path, issues, r => r.Id, out var holding):
                     if (TryHolding(holding, path, issues, out var draft))
                         Check(HoldingRules.Check(Guid.Empty, default, draft, []), path, issues, out _);
                     break;
-                case SnapshotsSection when Read<HoldingSnapshotRecord>(entity, path, issues, r => r.Id, out var snapshot):
+                case SnapshotsSection when Read(entity, InvestmentsFileJson.Records.HoldingSnapshotRecord, path, issues, r => r.Id, out var snapshot):
                     if (ImportSectionKit.NoNulls(snapshot.Lines, path + ".lines", issues))
                     {
                         EnvelopeParsing.TryDate(snapshot.AsOf, path + ".as_of", null, issues, out _);
@@ -80,7 +80,7 @@ public sealed partial class HoldingsImportSection(
                             TryMoney(snapshot.Lines[j].Value, $"{path}.lines[{j}].value", issues, out _);
                     }
                     break;
-                case MovementsSection when Read<HoldingMovementRecord>(entity, path, issues, r => r.Id, out var movement):
+                case MovementsSection when Read(entity, InvestmentsFileJson.Records.HoldingMovementRecord, path, issues, r => r.Id, out var movement):
                     EnvelopeParsing.TryDate(movement.OccurredOn, path + ".occurred_on", null, issues, out _);
                     TryMoney(movement.Amount, path + ".amount", issues, out _);
                     break;
@@ -127,7 +127,7 @@ public sealed partial class HoldingsImportSection(
 
         // Holdings: each one checked against its envelope's holdings as this file leaves them (an ISIN once per envelope).
         var failedHoldings = new HashSet<string>(StringComparer.Ordinal);
-        var holdingRecords = ImportSectionKit.ReadAll<HoldingRecord>(staged, HoldingsSection, r => r.Id, issues, unread: id => failedHoldings.Add(id));
+        var holdingRecords = ImportSectionKit.ReadAll(staged, HoldingsSection, InvestmentsFileJson.Records.HoldingRecord, r => r.Id, issues, unread: id => failedHoldings.Add(id));
         var knownHoldings = await store.FindImportedAsync(HoldingTable.Holding, holdingRecords.Select(r => r.Record.Id).ToList(), ct);
         var holdingsByFileId = new Dictionary<string, RowPlan<EnvelopeHolding>>(StringComparer.Ordinal);
         foreach (var (entity, record) in holdingRecords)
@@ -164,7 +164,7 @@ public sealed partial class HoldingsImportSection(
         var stagedFacts = StagedFacts(staged);
 
         // Snapshots: one per envelope and date (holdings spec D5); a stored one of that date the file does not name is replaced only with replace.
-        var snapshotRecords = ImportSectionKit.ReadAll<HoldingSnapshotRecord>(staged, SnapshotsSection, r => r.Id, issues,
+        var snapshotRecords = ImportSectionKit.ReadAll(staged, SnapshotsSection, InvestmentsFileJson.Records.HoldingSnapshotRecord, r => r.Id, issues,
             (r, path, found) => ImportSectionKit.NoNulls(r.Lines, path + ".lines", found));
         var knownSnapshots = await store.FindImportedAsync(HoldingTable.Snapshot, snapshotRecords.Select(r => r.Record.Id).ToList(), ct);
         var fileSnapshots = new HashSet<Guid>();
@@ -220,7 +220,7 @@ public sealed partial class HoldingsImportSection(
         }
 
         // Movements: the API's rules; a switch's legs come with their reference, written as one.
-        var movementRecords = ImportSectionKit.ReadAll<HoldingMovementRecord>(staged, MovementsSection, r => r.Id, issues);
+        var movementRecords = ImportSectionKit.ReadAll(staged, MovementsSection, InvestmentsFileJson.Records.HoldingMovementRecord, r => r.Id, issues);
         var knownMovements = await store.FindImportedAsync(HoldingTable.Movement, movementRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in movementRecords)
         {

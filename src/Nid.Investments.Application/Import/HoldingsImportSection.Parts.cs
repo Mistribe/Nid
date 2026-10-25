@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
@@ -79,8 +80,8 @@ public sealed partial class HoldingsImportSection
 
     private void Tally(string section, SectionCounts delta) => tally[section] = tally.GetValueOrDefault(section, SectionCounts.Zero) + delta;
 
-    private static bool Read<T>(JsonElement entity, string path, List<ImportIssue> issues, Func<T, string> id, out T record) where T : class
-        => NidDataJson.TryRead(entity, path, issues, out record!) && ImportSectionKit.TryId(id(record), path, issues);
+    private static bool Read<T>(JsonElement entity, JsonTypeInfo<T> info, string path, List<ImportIssue> issues, Func<T, string> id, out T record) where T : class
+        => NidDataJson.TryRead(entity, info, path, issues, out record!) && ImportSectionKit.TryId(id(record), path, issues);
 
     /// <summary>A holding record's dates parsed (none bounded by today: a maturity is ahead); <see cref="HoldingRules"/> checks the rest.</summary>
     private static bool TryHolding(HoldingRecord r, string path, List<ImportIssue> issues, out HoldingDraft draft)
@@ -133,7 +134,7 @@ public sealed partial class HoldingsImportSection
     private static string? Iso(LocalDate? date) => date is { } d ? LocalDatePattern.Iso.Format(d) : null;
 
     private static IReadOnlyList<JsonElement> Elements<T>(IEnumerable<T> records)
-        => records.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList();
+        => records.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.InfoOf<T>(InvestmentsFileJson.Records))).ToList();
 
     /// <summary>
     /// The Core's values and flows of this file, read as far as the warnings need them; anything malformed is the Core section's

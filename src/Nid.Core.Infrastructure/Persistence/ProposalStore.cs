@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
@@ -11,15 +12,19 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Core.Infrastructure.Persistence;
 
 /// <summary>core-data-model.md §7 on <c>core.proposal</c> (spec 4C1 §2–§4).</summary>
-public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalStore
+public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IProposalStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(IReadOnlyList<ProposalWarning>))]
+    [JsonSerializable(typeof(List<ProposalWarning>))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class ProposalJson : JsonSerializerContext;
 
     public static string Fingerprint(string kind, ItemId? target, JsonElement payload)
         => Rfc8785.Hash(JsonSerializer.SerializeToElement(new JsonObject
         {
             ["kind"] = kind, ["target"] = target?.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()),
-        }));
+        }, ProposalJson.Default.JsonObject));
 
     public async Task<SubmitOutcome> SubmitAsync(NewProposal p, CancellationToken ct)
     {
@@ -39,7 +44,7 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
         {
             Id = Guid.CreateVersion7(), Module = p.Module, Kind = p.Kind, TargetItemId = p.Target?.Value, ForPersonId = p.Person.Value,
             SubjectKey = p.SubjectKey, Payload = p.Payload.GetRawText(), PayloadVersion = p.PayloadVersion,
-            Warnings = JsonSerializer.Serialize(p.Warnings, Json), Status = "pending", Fingerprint = fingerprint,
+            Warnings = JsonSerializer.Serialize(p.Warnings, ProposalJson.Default.IReadOnlyListProposalWarning), Status = "pending", Fingerprint = fingerprint,
             CreatedVia = p.CreatedVia, TokenId = p.TokenId, CreatedByPersonId = p.Person.Value, SourceLabel = p.SourceLabel,
             CreatedAt = clock.GetCurrentInstant(),
         };
@@ -110,7 +115,7 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
 
     public Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct)
     {
-        var item = JsonSerializer.Serialize(new[] { warning }, Json);
+        var item = JsonSerializer.Serialize([warning], ProposalJson.Default.ListProposalWarning);
         return db.Database.ExecuteSqlAsync($"update core.proposal set warnings = warnings || {item}::jsonb where id = {id} and status = 'pending'", ct);
     }
 
@@ -120,7 +125,7 @@ public sealed class ProposalStore(CoreDbContext db, IClock clock) : IProposalSto
         r.Id, r.Module, r.Kind, r.TargetItemId is { } target ? new ItemId(target) : null, new PersonId(r.ForPersonId), r.SubjectKey,
         JsonDocument.Parse(r.Payload).RootElement.Clone(), r.PayloadVersion,
         r.EditedPayload is null ? null : JsonDocument.Parse(r.EditedPayload).RootElement.Clone(),
-        JsonSerializer.Deserialize<List<ProposalWarning>>(r.Warnings, Json) ?? [],
+        JsonSerializer.Deserialize(r.Warnings, ProposalJson.Default.ListProposalWarning) ?? [],
         Enum.Parse<ProposalStatus>(r.Status, ignoreCase: true), r.SupersededById, r.CreatedVia, r.TokenId,
         new PersonId(r.CreatedByPersonId), r.SourceLabel, r.CreatedAt,
         r.DecidedByPersonId is { } d ? new PersonId(d) : null, r.DecidedAt, r.DecisionNote, r.AppliedRefs, r.Version);

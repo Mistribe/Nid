@@ -53,7 +53,7 @@ public sealed partial class RealEstateImportSection
 
         // Loans: each with its property (one of this file's, validated before), resolved and refused or planned before any part.
         var propertyByFileId = propertyPlans.ToDictionary(p => p.FileId, StringComparer.Ordinal);
-        var records = ImportSectionKit.ReadAll<LoanRecord>(staged, LoansSection, r => r.Id, issues,
+        var records = ImportSectionKit.ReadAll(staged, LoansSection, RealEstateFileJson.Records.LoanRecord, r => r.Id, issues,
             (r, path, found) => NoNullOwners(r.Ownership, path, found), unread: id => context.FailedItems.Add((LoansSection, id)));
         var known = await imports.FindAsync(EstateTable.Loan, records.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in records)
@@ -80,7 +80,7 @@ public sealed partial class RealEstateImportSection
             plan.Stored = stored.Single(s => s.ItemId == plan.Id);
         var byFileId = loanPlans.ToDictionary(l => l.FileId, StringComparer.Ordinal);
 
-        var phaseRecords = ImportSectionKit.ReadAll<LoanPhaseRecord>(staged, PhasesSection, r => r.Id, issues);
+        var phaseRecords = ImportSectionKit.ReadAll(staged, PhasesSection, RealEstateFileJson.Records.LoanPhaseRecord, r => r.Id, issues);
         var knownPhases = await imports.FindAsync(EstateTable.Phase, phaseRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in phaseRecords)
         {
@@ -94,7 +94,7 @@ public sealed partial class RealEstateImportSection
                     phase with { Import = new ImportMark(record.Id, entity.Hash, row.ImportedBy), Id = row.Id }));
         }
 
-        var insuranceRecords = ImportSectionKit.ReadAll<LoanInsuranceRecord>(staged, InsurancesSection, r => r.Id, issues);
+        var insuranceRecords = ImportSectionKit.ReadAll(staged, InsurancesSection, RealEstateFileJson.Records.LoanInsuranceRecord, r => r.Id, issues);
         var knownInsurances = await imports.FindAsync(EstateTable.Insurance, insuranceRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in insuranceRecords)
         {
@@ -108,7 +108,7 @@ public sealed partial class RealEstateImportSection
                     insurance with { Import = new ImportMark(record.Id, entity.Hash, row.ImportedBy), Id = row.Id }));
         }
 
-        var feeRecords = ImportSectionKit.ReadAll<LoanFeeRecord>(staged, FeesSection, r => r.Id, issues);
+        var feeRecords = ImportSectionKit.ReadAll(staged, FeesSection, RealEstateFileJson.Records.LoanFeeRecord, r => r.Id, issues);
         var knownFees = await imports.FindAsync(EstateTable.Fee, feeRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in feeRecords)
         {
@@ -121,7 +121,7 @@ public sealed partial class RealEstateImportSection
                 feePlans.Add(new RowPlan<StoredFee>(entity, record.Id, path, loan, row.Mode, row.Id, row.ImportedBy, fee with { Id = row.Id }));
         }
 
-        var eventRecords = ImportSectionKit.ReadAll<LoanEventRecord>(staged, EventsSection, r => r.Id, issues);
+        var eventRecords = ImportSectionKit.ReadAll(staged, EventsSection, RealEstateFileJson.Records.LoanEventRecord, r => r.Id, issues);
         var knownEvents = await imports.FindAsync(EstateTable.Event, eventRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in eventRecords)
         {
@@ -139,7 +139,7 @@ public sealed partial class RealEstateImportSection
             }
         }
 
-        var bankRecords = ImportSectionKit.ReadAll<LoanBankScheduleRecord>(staged, BankScheduleSection, r => r.Id, issues);
+        var bankRecords = ImportSectionKit.ReadAll(staged, BankScheduleSection, RealEstateFileJson.Records.LoanBankScheduleRecord, r => r.Id, issues);
         var knownBank = await imports.FindAsync(EstateTable.BankRow, bankRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in bankRecords)
         {

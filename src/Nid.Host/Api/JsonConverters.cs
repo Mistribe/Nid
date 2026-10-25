@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Nid.Core.Contracts;
 using NodaTime;
 using NodaTime.Text;
@@ -29,11 +30,13 @@ public sealed class OneOrManyJsonConverter<T> : JsonConverter<IReadOnlyList<T>>
 {
     public override IReadOnlyList<T>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => reader.TokenType == JsonTokenType.StartObject
-            ? [JsonSerializer.Deserialize<T>(ref reader, options)!]
-            : JsonSerializer.Deserialize<List<T>>(ref reader, options);
+            ? [JsonSerializer.Deserialize(ref reader, Info<T>(options))!]
+            : JsonSerializer.Deserialize(ref reader, Info<List<T>>(options));
 
     public override void Write(Utf8JsonWriter writer, IReadOnlyList<T> value, JsonSerializerOptions options)
-        => JsonSerializer.Serialize(writer, value.ToList(), options);
+        => JsonSerializer.Serialize(writer, value.ToList(), Info<List<T>>(options));
+
+    private static JsonTypeInfo<TValue> Info<TValue>(JsonSerializerOptions options) => (JsonTypeInfo<TValue>)options.GetTypeInfo(typeof(TValue));
 }
 
 public sealed class LocalDateJsonConverter : JsonConverter<LocalDate>

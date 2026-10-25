@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
@@ -32,7 +33,7 @@ public sealed record ItemHistoryQuery(ItemId ItemId, long? Before, int? Limit) :
 
 public sealed record MySecurityEventsQuery(long? Before, int? Limit) : IQuery<SecurityEventPage>;
 
-public static class SecurityEventViews
+public static partial class SecurityEventViews
 {
     /// <summary>The details each event may show. Everything else in <c>data</c> stays in the table for the host.</summary>
     private static readonly Dictionary<string, string[]> Shown = new()
@@ -49,11 +50,14 @@ public static class SecurityEventViews
         [SecurityEventNames.McpToolCalled] = ["tool"],
     };
 
+    [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+    private sealed partial class AuditDataJson : JsonSerializerContext;
+
     public static SecurityEventView From(AuditRecord r)
     {
         // Minor #7: `data` is written with string values only today, but the view must not 500 the journal if
         // some future event's field is not a string — that value is simply left out, not surfaced garbled.
-        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(r.Data) ?? [];
+        var data = JsonSerializer.Deserialize(r.Data, AuditDataJson.Default.DictionaryStringJsonElement) ?? [];
         var details = Shown.GetValueOrDefault(r.Action, [])
             .Where(k => data.TryGetValue(k, out var v) && v.ValueKind == JsonValueKind.String)
             .ToDictionary(k => k, k => data[k].GetString()!);

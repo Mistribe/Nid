@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
@@ -19,10 +20,8 @@ namespace Nid.RealEstate.Application;
 /// table that diverges from the calculation is warned (`schedule_mismatch`), not refused. `makeReference` is an approval's edit only
 /// (D4): a submitter's is dropped, and absent it is true. The same rows already stored with the bank as the reference: « conforme ».
 /// </summary>
-public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, IInvoker invoker) : IProposalHandler
+public sealed partial class AmortizationProposal(ILoanStore loans, IItemRegistry items, IInvoker invoker) : IProposalHandler
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public string Module => "realestate";
     public string Kind => "realestate.import_amortization";
     public int PayloadVersion => 1;
@@ -31,6 +30,29 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
     private sealed record Body(List<JsonElement>? Rows, JsonElement? MakeReference);
 
     private sealed record Parsed(IReadOnlyList<BankRow> Rows, bool? MakeReference);
+
+    private sealed record RowSpan(int Count, string From, string To);
+
+    private sealed record Comparison(RowSpan Expected, RowSpan Given);
+
+    /// <summary>`ScheduleComparisonView`'s names, so the web reads it as the loan page's comparison.</summary>
+    private sealed record DiffSummary(string MaxGap, string? MaxGapOn, string? DivergesOn, string InterestGap, int RowsBeyondRounding);
+
+    private sealed record ReferenceChange(string Current, string Proposed);
+
+    private sealed record DateRange(string From, string To);
+
+    private sealed record Preview(
+        string? Currency, DiffSummary? Summary, ReferenceChange? Reference, IReadOnlyList<JsonObject> First, IReadOnlyList<JsonObject> Last, int Count,
+        DateRange? Range);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(Body))]
+    [JsonSerializable(typeof(Comparison))]
+    [JsonSerializable(typeof(DiffSummary))]
+    [JsonSerializable(typeof(Preview))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class AmortizationJson : JsonSerializerContext;
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
@@ -49,13 +71,13 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
         var stored = LoanReading.BankRows(found.Loan);
         if (found.Loan.Source == ScheduleSource.Bank && stored.SequenceEqual(p.Rows))
             return Result.Success(new ProposalCheck(Key(target), [], Normalized(p),
-                JsonSerializer.SerializeToElement(new { expected = Span(stored), given = Span(p.Rows) }, Json)));
+                JsonSerializer.SerializeToElement(new Comparison(Span(stored), Span(p.Rows)), AmortizationJson.Default.Comparison)));
 
         var summary = BankSchedule.Diff(computed, p.Rows).Summary;
         List<ProposalWarning> warnings = summary.DivergesOn is { } on
             ? [new ProposalWarning(LoanWarnings.ScheduleMismatch, "warning", Mismatch(summary, on), $"payload.rows[{RankOf(p.Rows, on)}]")]
             : [];
-        return Result.Success(new ProposalCheck(Key(target), warnings, Normalized(p), null, JsonSerializer.SerializeToElement(SummaryOf(summary), Json)));
+        return Result.Success(new ProposalCheck(Key(target), warnings, Normalized(p), null, JsonSerializer.SerializeToElement(SummaryOf(summary), AmortizationJson.Default.DiffSummary)));
     }
 
     /// <summary>D5: the rows are not edited, only `makeReference`; an edit that changes them is refused at `payload.rows`.</summary>
@@ -69,24 +91,18 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
     {
         var loaded = await LoanCheck.LoadAsync(loans, items, target, ct);
         if (!Parse(payload, readMakeReference: true).TryGetValue(out var p) || !loaded.TryGetValue(out var found))
-            return JsonSerializer.SerializeToElement(new
-            {
-                currency = (string?)null, summary = (object?)null, reference = (object?)null,
-                first = Array.Empty<object>(), last = Array.Empty<object>(), count = 0, range = (object?)null,
-            }, Json);
+            return JsonSerializer.SerializeToElement(new Preview(null, null, null, [], [], 0, null), AmortizationJson.Default.Preview);
         var (terms, computed) = Computed(found);
         var rows = p!.Rows;
         var current = found.Loan.Source;
-        return JsonSerializer.SerializeToElement(new
-        {
-            currency = terms.Currency.Code,
-            summary = SummaryOf(BankSchedule.Diff(computed, rows).Summary),
-            reference = new { current = LoanWire.Of(current), proposed = LoanWire.Of((p.MakeReference ?? true) ? ScheduleSource.Bank : current) },
-            first = rows.Take(3).Select(RowNode),
-            last = rows.Skip(Math.Max(3, rows.Count - 3)).Select(RowNode),
-            count = rows.Count,
-            range = new { from = Iso(rows[0].DueDate), to = Iso(rows[^1].DueDate) },
-        }, Json);
+        return JsonSerializer.SerializeToElement(new Preview(
+            terms.Currency.Code,
+            SummaryOf(BankSchedule.Diff(computed, rows).Summary),
+            new ReferenceChange(LoanWire.Of(current), LoanWire.Of((p.MakeReference ?? true) ? ScheduleSource.Bank : current)),
+            [.. rows.Take(3).Select(RowNode)],
+            [.. rows.Skip(Math.Max(3, rows.Count - 3)).Select(RowNode)],
+            rows.Count,
+            new DateRange(Iso(rows[0].DueDate), Iso(rows[^1].DueDate))), AmortizationJson.Default.Preview);
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -115,14 +131,10 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
 
     private static string Key(ItemId loan) => loan.Value.ToString();
 
-    private static object Span(IReadOnlyList<BankRow> rows) => new { count = rows.Count, from = Iso(rows[0].DueDate), to = Iso(rows[^1].DueDate) };
+    private static RowSpan Span(IReadOnlyList<BankRow> rows) => new(rows.Count, Iso(rows[0].DueDate), Iso(rows[^1].DueDate));
 
-    /// <summary>`ScheduleComparisonView`'s names, so the web reads it as the loan page's comparison.</summary>
-    private static object SummaryOf(ScheduleDiffSummary s) => new
-    {
-        maxGap = LoanReading.Amount(s.MaxGap), maxGapOn = Iso(s.MaxGapOn), divergesOn = Iso(s.DivergesOn),
-        interestGap = LoanReading.Amount(s.InterestGap), rowsBeyondRounding = s.RowsBeyondRounding,
-    };
+    private static DiffSummary SummaryOf(ScheduleDiffSummary s) => new(
+        LoanReading.Amount(s.MaxGap), Iso(s.MaxGapOn), Iso(s.DivergesOn), LoanReading.Amount(s.InterestGap), s.RowsBeyondRounding);
 
     private static string Mismatch(ScheduleDiffSummary s, LocalDate on)
         => $"The bank's table diverges from the calculation from {Iso(on)} (a remaining balance gap above {LoanReading.Amount(BankSchedule.Divergence)}); "
@@ -151,7 +163,7 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
         var body = new JsonObject { ["rows"] = new JsonArray(p.Rows.Select(r => (JsonNode?)RowNode(r)).ToArray()) };
         if (p.MakeReference is { } make)
             body["makeReference"] = make;
-        return JsonSerializer.SerializeToElement(body);
+        return JsonSerializer.SerializeToElement(body, AmortizationJson.Default.JsonObject);
     }
 
     private static Result<Parsed> Parse(JsonElement payload, bool readMakeReference)
@@ -159,7 +171,7 @@ public sealed class AmortizationProposal(ILoanStore loans, IItemRegistry items, 
         Body? body;
         try
         {
-            body = payload.Deserialize<Body>(Json);
+            body = payload.Deserialize(AmortizationJson.Default.Body);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) // rows not a list
         {

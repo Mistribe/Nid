@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
@@ -12,13 +13,17 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Investments.Application;
 
+/// <summary>A value and its date, as a proposal shows it.</summary>
+internal sealed record DatedAmount(string AsOf, AmountView Amount);
+
+/// <summary>The value recorded at a date, the one before it, and the proposed one (<see cref="ValuationProposal.CompareAsync"/>).</summary>
+internal sealed record ValuationComparison(DatedAmount? Current, DatedAmount? Previous, DatedAmount? Proposed);
+
 /// <summary>Spec 4C1 §6: `{ asOf, amount { amount, currency }, note? }` on an envelope; subject key: the date.</summary>
-public sealed class ValuationProposal(
+public sealed partial class ValuationProposal(
     IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar, IValuations valuations, IInvoker invoker)
     : IProposalHandler
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public string Module => "investments";
     public string Kind => "investments.record_valuation";
     public int PayloadVersion => 1;
@@ -28,6 +33,12 @@ public sealed class ValuationProposal(
     private sealed record AmountBody(string? Amount, string? Currency);
 
     private sealed record Parsed(LocalDate AsOf, Money Amount, string? Note);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(Body))]
+    [JsonSerializable(typeof(ValuationComparison))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class ValuationJson : JsonSerializerContext;
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
@@ -48,17 +59,17 @@ public sealed class ValuationProposal(
 
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
         => Parse(payload).TryGetValue(out var p)
-            ? JsonSerializer.SerializeToElement(await CompareAsync(valuations, target, p!.AsOf, p.Amount, ct), Json)
-            : JsonSerializer.SerializeToElement(new { current = (object?)null, previous = (object?)null, proposed = (object?)null });
+            ? JsonSerializer.SerializeToElement(await CompareAsync(valuations, target, p!.AsOf, p.Amount, ct), ValuationJson.Default.ValuationComparison)
+            : JsonSerializer.SerializeToElement(new ValuationComparison(null, null, null), ValuationJson.Default.ValuationComparison);
 
     /// <summary>The value already recorded at that date, the one before it, and the proposed one (shared with the statement).</summary>
-    internal static async Task<object> CompareAsync(IValuations valuations, ItemId target, LocalDate asOf, Money proposed, CancellationToken ct)
+    internal static async Task<ValuationComparison> CompareAsync(IValuations valuations, ItemId target, LocalDate asOf, Money proposed, CancellationToken ct)
     {
         async Task<Valuation?> LatestAsync(LocalDate on) => (await valuations.LatestAsync(target, on, ct)).TryGetValue(out var latest) ? latest!.Value : null;
         var atDate = await LatestAsync(asOf);
         var current = atDate?.AsOf == asOf ? atDate : null;
         var previous = current is null ? atDate : await LatestAsync(asOf.PlusDays(-1));
-        return new { current = View(current), previous = View(previous), proposed = new { asOf = Iso(asOf), amount = AmountView.From(proposed) } };
+        return new(View(current), View(previous), new DatedAmount(Iso(asOf), AmountView.From(proposed)));
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -70,14 +81,14 @@ public sealed class ValuationProposal(
         return recorded.Map(id => (IReadOnlyList<Guid>)[id]);
     }
 
-    private static object? View(Valuation? v) => v is null ? null : new { asOf = Iso(v.AsOf), amount = AmountView.From(v.Value) };
+    private static DatedAmount? View(Valuation? v) => v is null ? null : new(Iso(v.AsOf), AmountView.From(v.Value));
 
     /// <summary>The known fields only: what is fingerprinted and stored.</summary>
     private static JsonElement Normalized(Parsed p)
     {
-        var body = new JsonObject { ["asOf"] = Iso(p.AsOf), ["amount"] = JsonSerializer.SerializeToNode(AmountView.From(p.Amount), Json) };
+        var body = new JsonObject { ["asOf"] = Iso(p.AsOf), ["amount"] = JsonSerializer.SerializeToNode(AmountView.From(p.Amount), ValuationJson.Default.AmountView) };
         if (p.Note is not null) body["note"] = p.Note;
-        return JsonSerializer.SerializeToElement(body);
+        return JsonSerializer.SerializeToElement(body, ValuationJson.Default.JsonObject);
     }
 
     private static Result<Parsed> Parse(JsonElement payload)
@@ -85,7 +96,7 @@ public sealed class ValuationProposal(
         Body? body;
         try
         {
-            body = payload.Deserialize<Body>(Json);
+            body = payload.Deserialize(ValuationJson.Default.Body);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) // InvalidOperationException: an undefined element
         {

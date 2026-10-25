@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Contracts;
@@ -17,10 +18,8 @@ namespace Nid.Subscriptions.Application;
 /// open that day, to the cent, is « conforme »; another amount changes the price from that day (every, covers, cycles and
 /// payer stay the replaced phase's).
 /// </summary>
-public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) : IProposalHandler
+public sealed partial class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) : IProposalHandler
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public string Module => "subscriptions";
     public string Kind => "subscriptions.change_price";
     public int PayloadVersion => 1;
@@ -30,6 +29,21 @@ public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) 
     private sealed record AmountBody(string? Amount, string? Currency);
 
     private sealed record Parsed(LocalDate ChargedOn, Money Amount);
+
+    private sealed record PriceOnly(MoneyView Price);
+
+    private sealed record Comparison(PriceOnly Expected, PriceOnly Given);
+
+    private sealed record CurrentPrice(MoneyView Price, DurationView Every);
+
+    private sealed record Preview(CurrentPrice? Current, PriceOnly? Proposed, string? StartsOn);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(Body))]
+    [JsonSerializable(typeof(Comparison))]
+    [JsonSerializable(typeof(Preview))]
+    [JsonSerializable(typeof(JsonObject))]
+    private sealed partial class InvoiceJson : JsonSerializerContext;
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
@@ -46,7 +60,7 @@ public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) 
         // Compare first: a matching invoice is « conforme » whatever the date (the phase's first day, or one just applied, sent again).
         if (open.Price.Amount == p.Amount.Amount)
             return Result.Success(new ProposalCheck(Iso(p.ChargedOn), [], Normalized(p), JsonSerializer.SerializeToElement(
-                new { expected = new { price = MoneyView.From(open.Price) }, given = new { price = MoneyView.From(p.Amount) } }, Json)));
+                new Comparison(new PriceOnly(MoneyView.From(open.Price)), new PriceOnly(MoneyView.From(p.Amount))), InvoiceJson.Default.Comparison)));
         // The rule of ChangePriceHandler, at the payload's path.
         if (p.ChargedOn <= open.StartsOn)
             return Field("subscriptions.phase_range", "A price change starts after the phase it replaces.", "payload.chargedOn");
@@ -56,14 +70,12 @@ public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) 
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
         if (!Parse(payload).TryGetValue(out var p))
-            return JsonSerializer.SerializeToElement(new { current = (object?)null, proposed = (object?)null, startsOn = (string?)null });
+            return JsonSerializer.SerializeToElement(new Preview(null, null, null), InvoiceJson.Default.Preview);
         var open = await store.LoadAsync(target, ct) is { } input ? OpenOn(input, p!.ChargedOn) : null;
-        return JsonSerializer.SerializeToElement(new
-        {
-            current = open is null ? null : new { price = MoneyView.From(open.Price), every = DurationView.From(open.Every) },
-            proposed = new { price = MoneyView.From(p!.Amount) },
-            startsOn = Iso(p.ChargedOn),
-        }, Json);
+        return JsonSerializer.SerializeToElement(new Preview(
+            open is null ? null : new CurrentPrice(MoneyView.From(open.Price), DurationView.From(open.Every)),
+            new PriceOnly(MoneyView.From(p!.Amount)),
+            Iso(p.ChargedOn)), InvoiceJson.Default.Preview);
     }
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
@@ -97,15 +109,15 @@ public sealed class InvoiceProposal(ISubscriptionStore store, IInvoker invoker) 
     private static JsonElement Normalized(Parsed p)
         => JsonSerializer.SerializeToElement(new JsonObject
         {
-            ["chargedOn"] = Iso(p.ChargedOn), ["amount"] = JsonSerializer.SerializeToNode(MoneyView.From(p.Amount), Json),
-        });
+            ["chargedOn"] = Iso(p.ChargedOn), ["amount"] = JsonSerializer.SerializeToNode(MoneyView.From(p.Amount), InvoiceJson.Default.MoneyView),
+        }, InvoiceJson.Default.JsonObject);
 
     private static Result<Parsed> Parse(JsonElement payload)
     {
         Body? body;
         try
         {
-            body = payload.Deserialize<Body>(Json);
+            body = payload.Deserialize(InvoiceJson.Default.Body);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException)
         {

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Platform.Import;
@@ -8,8 +9,11 @@ using NodaTime;
 
 namespace Nid.Platform.Infrastructure.Persistence;
 
-public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
+public sealed partial class ImportStagingStore(PlatformDbContext db) : IImportStaging
 {
+    [JsonSerializable(typeof(Dictionary<string, Guid>))]
+    private sealed partial class AdultsJson : JsonSerializerContext;
+
     private const string UniqueViolation = "23505";
 
     private static readonly NodaTime.Duration OneMicrosecond = NodaTime.Duration.FromTicks(10);
@@ -41,7 +45,7 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
             CreatedAt = now,
             UpdatedAt = now,
             ExpiresAt = expiresAt,
-            Adults = JsonSerializer.Serialize(adults.ToDictionary(a => a.Key, a => a.Value.Value)),
+            Adults = JsonSerializer.Serialize(adults.ToDictionary(a => a.Key, a => a.Value.Value), AdultsJson.Default.DictionaryStringGuid),
         };
         db.Sessions.Add(row);
         try
@@ -145,7 +149,7 @@ public sealed class ImportStagingStore(PlatformDbContext db) : IImportStaging
         ImportStates.Parse(row.State),
         row.CreatedAt,
         row.ExpiresAt,
-        JsonSerializer.Deserialize<Dictionary<string, Guid>>(row.Adults)!.ToDictionary(a => a.Key, a => new PersonId(a.Value)),
+        JsonSerializer.Deserialize(row.Adults, AdultsJson.Default.DictionaryStringGuid)!.ToDictionary(a => a.Key, a => new PersonId(a.Value)),
         row.Report,
         row.UpdatedAt);
 

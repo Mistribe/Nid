@@ -117,7 +117,7 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
         return (keys, listed);
     }
 
-    private static JsonElement Element<T>(T record) => JsonSerializer.SerializeToElement(record, NidDataJson.Options);
+    private static JsonElement Element<T>(T record) => JsonSerializer.SerializeToElement(record, NidDataJson.InfoOf<T>(SubscriptionsFileJson.Records));
     private static string Date(LocalDate date) => LocalDatePattern.Iso.Format(date);
     private static MoneyRecord MoneyOf(Money money) => new() { Amount = money.Amount, Currency = money.Currency.Code };
     private static DurationRecord DurationOf(Duration d) => new() { Count = d.Count, Unit = d.Unit.ToString().ToLowerInvariant() };

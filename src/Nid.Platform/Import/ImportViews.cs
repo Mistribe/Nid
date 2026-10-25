@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Nid.Platform.Contracts;
 
 namespace Nid.Platform.Import;
@@ -16,11 +17,13 @@ public sealed record ImportSessionView(
         audit);
 }
 
-public static class ImportReportJson
+public static partial class ImportReportJson
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(ImportReport))]
+    private sealed partial class ReportJson : JsonSerializerContext;
 
-    public static string Serialize(ImportReport report) => JsonSerializer.Serialize(report, Options);
+    public static string Serialize(ImportReport report) => JsonSerializer.Serialize(report, ReportJson.Default.ImportReport);
 
-    public static ImportReport Deserialize(string json) => JsonSerializer.Deserialize<ImportReport>(json, Options)!;
+    public static ImportReport Deserialize(string json) => JsonSerializer.Deserialize(json, ReportJson.Default.ImportReport)!;
 }

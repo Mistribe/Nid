@@ -2,6 +2,9 @@ using Nid.Core.Contracts;
 
 namespace Nid.Income.Contracts;
 
+// A member the file may omit is `set`, not `init`: the source-generated reader of .NET 10 and earlier (NativeAOT) gives an
+// omitted init-only property its type's default, not its initializer.
+
 /// <summary>The source of income-data-model.md §9, plus <c>ended_on</c> (2C1 spec §5); dates stay strings (the section parses them).</summary>
 public sealed record IncomeSourceRecord
 {
@@ -12,7 +15,7 @@ public sealed record IncomeSourceRecord
     public string? Note { get; init; }
     public required string Currency { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
-    public string Visibility { get; init; } = "shared";
+    public string Visibility { get; set; } = "shared";
     public string? EndedOn { get; init; }
 }
 

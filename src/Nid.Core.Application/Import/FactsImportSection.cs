@@ -47,10 +47,10 @@ public sealed class FactsImportSection(
             var entity = new StagedEntity(index, value, "");
             if (section == ValuationsSection)
             {
-                if (NidDataJson.TryRead<ValuationRecord>(value, path, issues, out var record) && ImportSectionKit.TryId(record.Id, path, issues))
+                if (NidDataJson.TryRead(value, CoreFileJson.Records.ValuationRecord, path, issues, out var record) && ImportSectionKit.TryId(record.Id, path, issues))
                     FactParsing.TryValuation(entity, record, path, currency: null, today: null, issues, out _);
             }
-            else if (NidDataJson.TryRead<FlowRecord>(value, path, issues, out var record) && ImportSectionKit.TryId(record.Id, path, issues))
+            else if (NidDataJson.TryRead(value, CoreFileJson.Records.FlowRecord, path, issues, out var record) && ImportSectionKit.TryId(record.Id, path, issues))
                 FactParsing.TryFlow(entity, record, path, currency: null, today: null, issues, out _);
         }
         return issues;
@@ -144,8 +144,8 @@ public sealed class FactsImportSection(
 
         return new Dictionary<string, IReadOnlyList<JsonElement>>
         {
-            [ValuationsSection] = values.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList(),
-            [FlowsSection] = flowRecords.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList(),
+            [ValuationsSection] = values.Select(r => JsonSerializer.SerializeToElement(r, CoreFileJson.Records.ValuationRecord)).ToList(),
+            [FlowsSection] = flowRecords.Select(r => JsonSerializer.SerializeToElement(r, CoreFileJson.Records.FlowRecord)).ToList(),
         };
     }
 
@@ -155,9 +155,9 @@ public sealed class FactsImportSection(
     {
         var section = table == FactTable.Valuation ? ValuationsSection : FlowsSection;
         var records = table == FactTable.Valuation
-            ? ImportSectionKit.ReadAll<ValuationRecord>(staged, section, r => r.Id, issues)
+            ? ImportSectionKit.ReadAll(staged, section, CoreFileJson.Records.ValuationRecord, r => r.Id, issues)
                 .Select(r => (r.Entity, r.Record.Id, r.Record.Item, Record: (object)r.Record)).ToList()
-            : ImportSectionKit.ReadAll<FlowRecord>(staged, section, r => r.Id, issues)
+            : ImportSectionKit.ReadAll(staged, section, CoreFileJson.Records.FlowRecord, r => r.Id, issues)
                 .Select(r => (r.Entity, r.Record.Id, r.Record.Item, Record: (object)r.Record)).ToList();
         // Every importer's rows under these ids, across items: only ImportResolver's answer may reach an issue.
         var known = await facts.FindImportedAsync(table, records.Select(r => r.Id).ToList(), ct);

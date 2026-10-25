@@ -30,7 +30,7 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
         foreach (var entity in entities.EnumerateArray())
         {
             var path = NidDataJson.Path(Section, firstIndex + position++);
-            if (NidDataJson.TryRead<ProviderRecord>(entity, path, issues, out var record))
+            if (NidDataJson.TryRead(entity, SubscriptionsFileJson.Records.ProviderRecord, path, issues, out var record))
                 Check(record, path, issues);
         }
 
@@ -50,7 +50,7 @@ internal sealed class ProvidersImport(IProviderStore providers, ProviderAccess a
         foreach (var entity in staged.Section(Section))
         {
             var path = NidDataJson.Path(Section, entity.Index);
-            if (!NidDataJson.TryRead<ProviderRecord>(entity.Value, path, issues, out var record))
+            if (!NidDataJson.TryRead(entity.Value, SubscriptionsFileJson.Records.ProviderRecord, path, issues, out var record))
                 continue;
             if (!Check(record, path, issues))
             {

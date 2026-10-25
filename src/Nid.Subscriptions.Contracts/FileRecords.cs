@@ -3,6 +3,9 @@ using Nid.Core.Contracts;
 
 namespace Nid.Subscriptions.Contracts;
 
+// A member the file may omit is `set`, not `init`: the source-generated reader of .NET 10 and earlier (NativeAOT) gives an
+// omitted init-only property its type's default, not its initializer.
+
 // The entities of import-format.md §5.3 to §5.5, exactly as the file spells them. Dates, units and kinds stay
 // strings here: the section parses them, so each refusal names the member it concerns.
 
@@ -24,8 +27,8 @@ public sealed record SubscriptionRecord
     public string? ProviderKey { get; init; }
     public required string Name { get; init; }
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
-    public string Visibility { get; init; } = "shared";
-    public IReadOnlyList<string> ServiceUsers { get; init; } = [];
+    public string Visibility { get; set; } = "shared";
+    public IReadOnlyList<string> ServiceUsers { get; set; } = [];
     public required bool AutoRenew { get; init; }
     public string? CancelledAt { get; init; }
     public string? Note { get; init; }

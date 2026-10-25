@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Contracts;
@@ -9,10 +10,14 @@ using Duration = NodaTime.Duration;
 namespace Nid.Subscriptions.Infrastructure.Persistence;
 
 /// <summary><c>subscriptions.catalog_sync_run</c>, with <c>core.fx_sync_run</c>'s rules (design §3.6).</summary>
-public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICatalogRunLog
+public sealed partial class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICatalogRunLog
 {
     private static readonly Duration AbandonedAfter = Duration.FromHours(1);
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(StoredReport))]
+    [JsonSerializable(typeof(CatalogReport))]
+    private sealed partial class CatalogRunJson : JsonSerializerContext;
 
     public async Task<CatalogSyncRun?> TryStartAsync(string commit, CancellationToken ct)
     {
@@ -37,7 +42,7 @@ public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICa
 
     public async Task FinishAsync(CatalogSyncRun run, CancellationToken ct)
     {
-        var report = run.Report is null ? null : JsonSerializer.Serialize(StoredReport.From(run), Json);
+        var report = run.Report is null ? null : JsonSerializer.Serialize(StoredReport.From(run), CatalogRunJson.Default.StoredReport);
         await db.CatalogSyncRuns.Where(r => r.Id == run.Id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Status, Status(run.Status))
             .SetProperty(r => r.FinishedAt, run.FinishedAt)
@@ -119,8 +124,8 @@ public sealed class CatalogRunLog(SubscriptionsDbContext db, IClock clock) : ICa
         {
             using var document = JsonDocument.Parse(json);
             return document.RootElement.TryGetProperty("report", out _)
-                ? JsonSerializer.Deserialize<StoredReport>(json, Json)!
-                : new StoredReport(JsonSerializer.Deserialize<CatalogReport>(json, Json)!, null);
+                ? JsonSerializer.Deserialize(json, CatalogRunJson.Default.StoredReport)!
+                : new StoredReport(JsonSerializer.Deserialize(json, CatalogRunJson.Default.CatalogReport)!, null);
         }
     }
 }

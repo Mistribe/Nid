@@ -3,6 +3,9 @@ using Nid.Core.Contracts;
 
 namespace Nid.RealEstate.Contracts;
 
+// A member the file may omit is `set`, not `init`: the source-generated reader of .NET 10 and earlier (NativeAOT) gives an
+// omitted init-only property its type's default, not its initializer.
+
 // Spec 3F1 §2: the loan sections of realestate/loans.md §10. Dates stay strings (the section parses them); amounts are
 // { amount, currency } in the loan's currency; rates are decimal strings (a JSON number is read too, as a decimal).
 
@@ -18,10 +21,10 @@ public sealed record LoanRecord
     public required int TotalPayments { get; init; }
     public string? Property { get; init; }
     public string? ScheduleSource { get; init; }
-    public string RoundingMode { get; init; } = "half_up";
-    public string FirstPeriodMode { get; init; } = "full";
+    public string RoundingMode { get; set; } = "half_up";
+    public string FirstPeriodMode { get; set; } = "full";
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
-    public string Visibility { get; init; } = "shared";
+    public string Visibility { get; set; } = "shared";
     public string? Note { get; init; }
 }
 

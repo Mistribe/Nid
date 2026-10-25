@@ -58,19 +58,19 @@ public sealed class SubscriptionsImportSection(
             switch (section)
             {
                 case Subscriptions:
-                    if (NidDataJson.TryRead<SubscriptionRecord>(entity, path, issues, out var subscription)
+                    if (NidDataJson.TryRead(entity, SubscriptionsFileJson.Records.SubscriptionRecord, path, issues, out var subscription)
                         && ImportSectionKit.TryId(subscription.Id, path, issues)
                         && RecordParsing.TryElements(subscription, path, issues))
                         RecordParsing.TrySubscription(subscription, path, standIn, issues, out _);
                     break;
                 case Phases:
-                    if (NidDataJson.TryRead<BillingPhaseRecord>(entity, path, issues, out var phaseRecord)
+                    if (NidDataJson.TryRead(entity, SubscriptionsFileJson.Records.BillingPhaseRecord, path, issues, out var phaseRecord)
                         && ImportSectionKit.TryId(phaseRecord.Id, path, issues)
                         && RecordParsing.TryPhase(phaseRecord, path, anyone, issues, out var phase))
                         EngineRules(new SubscriptionInput(Header(Placeholder), [phase], []), phase.StartsOn, path, issues);
                     break;
                 case Purchases:
-                    if (NidDataJson.TryRead<PurchaseRecord>(entity, path, issues, out var purchaseRecord)
+                    if (NidDataJson.TryRead(entity, SubscriptionsFileJson.Records.PurchaseRecord, path, issues, out var purchaseRecord)
                         && ImportSectionKit.TryId(purchaseRecord.Id, path, issues)
                         && RecordParsing.TryElements(purchaseRecord, path, issues)
                         && RecordParsing.TryPurchase(purchaseRecord, path, anyone, _ => Placeholder, issues, out var purchase))
@@ -96,9 +96,9 @@ public sealed class SubscriptionsImportSection(
         // Before subscriptions: their provider_key may name an entry of this section (design §5 "Import").
         var providerCounts = await providerImport.ValidateAllAsync(context, staged, issues, ct);
 
-        var subscriptionRecords = ImportSectionKit.ReadAll<SubscriptionRecord>(staged, Subscriptions, r => r.Id, issues, RecordParsing.TryElements);
-        var phaseRecords = ImportSectionKit.ReadAll<BillingPhaseRecord>(staged, Phases, r => r.Id, issues, RecordParsing.TryElements);
-        var purchaseRecords = ImportSectionKit.ReadAll<PurchaseRecord>(staged, Purchases, r => r.Id, issues, RecordParsing.TryElements);
+        var subscriptionRecords = ImportSectionKit.ReadAll(staged, Subscriptions, SubscriptionsFileJson.Records.SubscriptionRecord, r => r.Id, issues, RecordParsing.TryElements);
+        var phaseRecords = ImportSectionKit.ReadAll(staged, Phases, SubscriptionsFileJson.Records.BillingPhaseRecord, r => r.Id, issues, RecordParsing.TryElements);
+        var purchaseRecords = ImportSectionKit.ReadAll(staged, Purchases, SubscriptionsFileJson.Records.PurchaseRecord, r => r.Id, issues, RecordParsing.TryElements);
 
         var knownSubscriptions = await store.FindImportedAsync(ImportedTable.Subscription, subscriptionRecords.Select(s => s.Record.Id).ToList(), ct);
         var knownPhases = await store.FindImportedAsync(ImportedTable.BillingPhase, phaseRecords.Select(p => p.Record.Id).ToList(), ct);

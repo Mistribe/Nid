@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
@@ -80,33 +81,33 @@ public sealed partial class RealEstateImportSection(
             switch (section)
             {
                 case PropertiesSection:
-                    Read<PropertyRecord>(entity, path, issues, r => r.Id, r => NoNullOwners(r.Ownership, path, issues)
+                    Read(entity, RealEstateFileJson.Records.PropertyRecord, path, issues, r => r.Id, r => NoNullOwners(r.Ownership, path, issues)
                         && EstateParsing.TryProperty(r, path, f => standIn(f), today: null, issues, out _));
                     break;
                 case CostsSection:
-                    Read<PropertyRecurringCostRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryCost(r, path, null, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.PropertyRecurringCostRecord, path, issues, r => r.Id, r => EstateParsing.TryCost(r, path, null, issues, out _));
                     break;
                 case TenanciesSection:
-                    Read<TenancyRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryTenancy(r, path, null, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.TenancyRecord, path, issues, r => r.Id, r => EstateParsing.TryTenancy(r, path, null, issues, out _));
                     break;
                 case LoansSection:
-                    Read<LoanRecord>(entity, path, issues, r => r.Id, r => NoNullOwners(r.Ownership, path, issues)
+                    Read(entity, RealEstateFileJson.Records.LoanRecord, path, issues, r => r.Id, r => NoNullOwners(r.Ownership, path, issues)
                         && EstateParsing.TryLoan(r, path, f => standIn(f), issues, out _));
                     break;
                 case PhasesSection:
-                    Read<LoanPhaseRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryPhase(r, path, null, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.LoanPhaseRecord, path, issues, r => r.Id, r => EstateParsing.TryPhase(r, path, null, issues, out _));
                     break;
                 case InsurancesSection:
-                    Read<LoanInsuranceRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryInsurance(r, path, null, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.LoanInsuranceRecord, path, issues, r => r.Id, r => EstateParsing.TryInsurance(r, path, null, issues, out _));
                     break;
                 case FeesSection:
-                    Read<LoanFeeRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryFee(r, path, null, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.LoanFeeRecord, path, issues, r => r.Id, r => EstateParsing.TryFee(r, path, null, issues, out _));
                     break;
                 case EventsSection:
-                    Read<LoanEventRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryEvent(r, path, null, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.LoanEventRecord, path, issues, r => r.Id, r => EstateParsing.TryEvent(r, path, null, issues, out _));
                     break;
                 case BankScheduleSection:
-                    Read<LoanBankScheduleRecord>(entity, path, issues, r => r.Id, r => EstateParsing.TryBankRow(r, path, issues, out _));
+                    Read(entity, RealEstateFileJson.Records.LoanBankScheduleRecord, path, issues, r => r.Id, r => EstateParsing.TryBankRow(r, path, issues, out _));
                     break;
             }
         }
@@ -318,9 +319,9 @@ public sealed partial class RealEstateImportSection(
 
     private static string A(string noun) => (noun[0] is 'a' or 'e' or 'i' or 'o' or 'u' ? "an " : "a ") + noun;
 
-    private static void Read<T>(JsonElement entity, string path, List<ImportIssue> issues, Func<T, string> id, Func<T, bool> check) where T : class
+    private static void Read<T>(JsonElement entity, JsonTypeInfo<T> info, string path, List<ImportIssue> issues, Func<T, string> id, Func<T, bool> check) where T : class
     {
-        if (NidDataJson.TryRead<T>(entity, path, issues, out var record) && ImportSectionKit.TryId(id(record), path, issues))
+        if (NidDataJson.TryRead(entity, info, path, issues, out var record) && ImportSectionKit.TryId(id(record), path, issues))
             check(record);
     }
 
@@ -342,5 +343,5 @@ public sealed partial class RealEstateImportSection(
             .OrderBy(o => o.Person, StringComparer.Ordinal).ToList();
 
     private static IReadOnlyList<JsonElement> Elements<T>(IEnumerable<T> records)
-        => records.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList();
+        => records.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.InfoOf<T>(RealEstateFileJson.Records))).ToList();
 }

@@ -1,0 +1,54 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Nid.RealEstate.Application;
+using Nid.RealEstate.Contracts;
+
+namespace Nid.Host.Api.Json;
+
+/// <summary>The RealEstate module's request and response bodies, for NidJsonContexts.</summary>
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
+    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+[JsonSerializable(typeof(RealEstateEndpoints.BankScheduleBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.BankSchedulePreviewBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.CreateLoanBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.CreatePropertyBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.EditLoanBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.EditPropertyBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.IrlValueBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.LoanContractBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.LoanFeeBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.LoanRepaymentBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.LoanSimulationBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.LoansSimulationBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.PropertyFlowBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.PropertyRecurringCostBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.PropertyRoutineBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.PropertyRoutineUndoBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.PropertyTenancyBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.PropertyValuationBody))]
+[JsonSerializable(typeof(RealEstateEndpoints.RentRevisionBody))]
+[JsonSerializable(typeof(BankSchedulePreview))]
+[JsonSerializable(typeof(LoanDetail))]
+[JsonSerializable(typeof(LoanList))]
+[JsonSerializable(typeof(LoanScheduleView))]
+[JsonSerializable(typeof(LoanSimulationView))]
+[JsonSerializable(typeof(LoansOverview))]
+[JsonSerializable(typeof(LoansSimulation))]
+[JsonSerializable(typeof(PropertiesCosts))]
+[JsonSerializable(typeof(PropertiesOverview))]
+[JsonSerializable(typeof(PropertiesRental))]
+[JsonSerializable(typeof(PropertiesValuation))]
+[JsonSerializable(typeof(PropertyArrearsView))]
+[JsonSerializable(typeof(PropertyDetail))]
+[JsonSerializable(typeof(PropertyList))]
+[JsonSerializable(typeof(PropertyRoutineRecap))]
+[JsonSerializable(typeof(PropertyRoutineUndone))]
+[JsonSerializable(typeof(PropertyRoutineView))]
+[JsonSerializable(typeof(RentArrearsList))]
+[JsonSerializable(typeof(RentReceiptView))]
+[JsonSerializable(typeof(RentRevisionList))]
+[JsonSerializable(typeof(TenancyRevisionView))]
+[JsonSerializable(typeof(IrlAdminView))]
+[JsonSerializable(typeof(IrlSyncRequested))]
+[JsonSerializable(typeof(IrlValueView))]
+internal sealed partial class RealEstateJsonContext : JsonSerializerContext;

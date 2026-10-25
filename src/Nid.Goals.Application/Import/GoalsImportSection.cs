@@ -57,7 +57,7 @@ public sealed class GoalsImportSection(
         foreach (var entity in entities.EnumerateArray())
         {
             var path = NidDataJson.Path(Section, firstIndex + position++);
-            if (NidDataJson.TryRead<GoalRecord>(entity, path, issues, out var record)
+            if (NidDataJson.TryRead(entity, GoalsFileJson.Records.GoalRecord, path, issues, out var record)
                 && ImportSectionKit.TryId(record.Id, path, issues)
                 && NoNulls(record, path, issues))
                 TryParse(record, path, standIn, today: null, issues, out _);
@@ -75,7 +75,7 @@ public sealed class GoalsImportSection(
         var canRead = ImportSectionKit.Readable(policy, context.Actor, readable, ct);
         IReadOnlyList<PersonId>? adults = null;        // read once, by the first replaced goal
 
-        var records = ImportSectionKit.ReadAll<GoalRecord>(staged, Section, r => r.Id, issues, NoNulls);
+        var records = ImportSectionKit.ReadAll(staged, Section, GoalsFileJson.Records.GoalRecord, r => r.Id, issues, NoNulls);
         var known = await goals.FindImportedAsync(records.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in records)
         {
@@ -257,7 +257,7 @@ public sealed class GoalsImportSection(
         }
         return new Dictionary<string, IReadOnlyList<JsonElement>>
         {
-            [Section] = records.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList(),
+            [Section] = records.Select(r => JsonSerializer.SerializeToElement(r, GoalsFileJson.Records.GoalRecord)).ToList(),
         };
     }
 

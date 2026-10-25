@@ -92,12 +92,12 @@ public sealed class IncomeImportSection(
             var path = NidDataJson.Path(section, firstIndex + position++);
             if (section == SourcesSection)
             {
-                if (NidDataJson.TryRead<IncomeSourceRecord>(entity, path, issues, out var source)
+                if (NidDataJson.TryRead(entity, IncomeFileJson.Records.IncomeSourceRecord, path, issues, out var source)
                     && ImportSectionKit.TryId(source.Id, path, issues)
                     && NoNullOwners(source, path, issues))
                     IncomeParsing.TrySource(source, path, standIn, today: null, issues, out _);
             }
-            else if (NidDataJson.TryRead<IncomePhaseRecord>(entity, path, issues, out var phase) && ImportSectionKit.TryId(phase.Id, path, issues))
+            else if (NidDataJson.TryRead(entity, IncomeFileJson.Records.IncomePhaseRecord, path, issues, out var phase) && ImportSectionKit.TryId(phase.Id, path, issues))
                 IncomeParsing.TryPhase(phase, path, currency: null, issues, out _);
         }
         return issues;
@@ -116,7 +116,7 @@ public sealed class IncomeImportSection(
         IReadOnlyList<PersonId>? adults = null;        // read once, by the first replaced source
 
         // Sources: each resolved, and refused or planned, before any phase is read.
-        var sourceRecords = ImportSectionKit.ReadAll<IncomeSourceRecord>(staged, SourcesSection, r => r.Id, issues, NoNullOwners,
+        var sourceRecords = ImportSectionKit.ReadAll(staged, SourcesSection, IncomeFileJson.Records.IncomeSourceRecord, r => r.Id, issues, NoNullOwners,
             unread: id => context.FailedItems.Add((SourcesSection, id))); // its phases and one-offs are not reported again
         var knownSources = await sources.FindImportedAsync(sourceRecords.Select(r => r.Record.Id).ToList(), ct);
         var byFileId = new Dictionary<string, SourcePlan>(StringComparer.Ordinal);
@@ -194,7 +194,7 @@ public sealed class IncomeImportSection(
         }
 
         // Phases: each on a source of this file, resolved among that source's rows.
-        var phaseRecords = ImportSectionKit.ReadAll<IncomePhaseRecord>(staged, PhasesSection, r => r.Id, issues);
+        var phaseRecords = ImportSectionKit.ReadAll(staged, PhasesSection, IncomeFileJson.Records.IncomePhaseRecord, r => r.Id, issues);
         var knownPhases = await phases.FindImportedAsync(phaseRecords.Select(r => r.Record.Id).ToList(), ct);
         foreach (var (entity, record) in phaseRecords)
         {
@@ -444,8 +444,8 @@ public sealed class IncomeImportSection(
 
         return new Dictionary<string, IReadOnlyList<JsonElement>>
         {
-            [SourcesSection] = sourceRecords.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList(),
-            [PhasesSection] = phaseRecords.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList(),
+            [SourcesSection] = sourceRecords.Select(r => JsonSerializer.SerializeToElement(r, IncomeFileJson.Records.IncomeSourceRecord)).ToList(),
+            [PhasesSection] = phaseRecords.Select(r => JsonSerializer.SerializeToElement(r, IncomeFileJson.Records.IncomePhaseRecord)).ToList(),
         };
     }
 

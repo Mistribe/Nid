@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using UnambitiousFx.Functional;
@@ -6,8 +7,12 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
-public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
+public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
 {
+    [JsonSerializable(typeof(Dictionary<string, decimal>))]
+    [JsonSerializable(typeof(IReadOnlyDictionary<string, decimal>))]
+    private sealed partial class HouseholdJson : JsonSerializerContext;
+
     public async Task<Currency> ReferenceCurrencyAsync(CancellationToken ct)
     {
         var code = await db.HouseholdSettings.AsNoTracking().Select(s => s.ReferenceCurrency).FirstOrDefaultAsync(ct);
@@ -68,7 +73,7 @@ public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
     public async Task<IReadOnlyDictionary<string, decimal>> AllocationTargetAsync(CancellationToken ct)
     {
         var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.AllocationTarget).FirstOrDefaultAsync(ct);
-        return json is null ? new Dictionary<string, decimal>() : JsonSerializer.Deserialize<Dictionary<string, decimal>>(json) ?? [];
+        return json is null ? new Dictionary<string, decimal>() : JsonSerializer.Deserialize(json, HouseholdJson.Default.DictionaryStringDecimal) ?? [];
     }
 
     public async Task SaveAllocationTargetAsync(IReadOnlyDictionary<string, decimal> target, CancellationToken ct)
@@ -76,7 +81,7 @@ public sealed class HouseholdSettings(CoreDbContext db) : IHouseholdSettings
         var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
         if (row is null)
             db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
-        row.AllocationTarget = target.Count == 0 ? null : JsonSerializer.Serialize(target);
+        row.AllocationTarget = target.Count == 0 ? null : JsonSerializer.Serialize(target, HouseholdJson.Default.IReadOnlyDictionaryStringDecimal);
         await db.SaveChangesAsync(ct);
     }
 

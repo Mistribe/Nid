@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Protocol;
 using Nid.Core.Application;
+using Nid.Host.Api;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional.Failures;
@@ -15,13 +16,34 @@ namespace Nid.Host.Mcp;
 /// (the host's HTTP JSON options), a refusal as a short tool error, a result above the limit refused whole. Spec 4D1 §5:
 /// and the one way a write tool proposes or writes a document.
 /// </summary>
-public static class McpCalls
+public static partial class McpCalls
 {
     public const string TooLarge = "Result too large: narrow the request.";
     public const string NotFound = "Not found.";
 
-    /// <summary>A tool's arguments as a proposal payload: camelCase, absent fields left out (the handler normalizes the rest).</summary>
-    private static readonly JsonSerializerOptions Arguments = new(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+    private sealed record ConformeAnswer(string Outcome, JsonElement Expected, JsonElement Given);
+
+    private sealed record AppliedAnswer(
+        string Outcome, IReadOnlyList<Guid> AppliedRefs, IReadOnlyList<ProposalWarning> Skipped,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? Summary);
+
+    private sealed record ProposedAnswer(
+        string Outcome, bool Created, ProposalView? Proposal, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? Summary);
+
+    /// <summary>The write tools' answers, with the HTTP options (NidJsonContexts).</summary>
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
+        Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+    [JsonSerializable(typeof(object))]
+    [JsonSerializable(typeof(ConformeAnswer))]
+    [JsonSerializable(typeof(AppliedAnswer))]
+    [JsonSerializable(typeof(ProposedAnswer))]
+    [JsonSerializable(typeof(System.Text.Json.Nodes.JsonObject))]
+    private sealed partial class AnswersJson : JsonSerializerContext;
+
+    internal static JsonSerializerContext Answers => AnswersJson.Default;
+
+    /// <summary>A JSON object built by hand (a payload, a schema), as an element.</summary>
+    internal static JsonElement Element(System.Text.Json.Nodes.JsonObject node) => JsonSerializer.SerializeToElement(node, AnswersJson.Default.JsonObject);
 
     public static Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IQuery<T>> build, CancellationToken ct)
         where T : notnull
@@ -54,14 +76,13 @@ public static class McpCalls
     /// missing one is named rather than answered « Not found. »; a refusal names its code and each refused field.
     /// </summary>
     public static async Task<CallToolResult> ProposeAsync(
-        IServiceProvider services, string kind, Guid? target, object payload, string? sourceLabel, bool apply, CancellationToken ct)
+        IServiceProvider services, string kind, Guid? target, JsonElement body, string? sourceLabel, bool apply, CancellationToken ct)
     {
         if (services.GetRequiredService<IActorAccessor>().Current?.Has(apply ? ScopeNames.WriteDirect : ScopeNames.Write) != true)
             return Error(apply
                 ? $"Refused: applying directly needs the '{ScopeNames.WriteDirect}' scope; call again without apply to propose."
                 : $"Refused: proposing needs the '{ScopeNames.Write}' scope.");
 
-        var body = JsonSerializer.SerializeToElement(payload, Arguments);
         var invoker = services.GetRequiredService<IInvoker>();
         if (apply)
         {
@@ -80,16 +101,12 @@ public static class McpCalls
     private static ItemId? Item(Guid? target) => target is { } id ? new ItemId(id) : null;
 
     private static object Conforme(JsonElement same)
-        => new { outcome = "conforme", expected = same.GetProperty("expected"), given = same.GetProperty("given") };
+        => new ConformeAnswer("conforme", same.GetProperty("expected"), same.GetProperty("given"));
 
     /// <summary>4D1's shapes; `summary` (spec 4D2 §2, the bank table's comparison) only for a kind that gives one.</summary>
-    private static object Applied(DirectWrite w) => w.Summary is { } summary
-        ? new { outcome = "applied", appliedRefs = w.AppliedRefs, skipped = w.Skipped, summary }
-        : new { outcome = "applied", appliedRefs = w.AppliedRefs, skipped = w.Skipped };
+    private static object Applied(DirectWrite w) => new AppliedAnswer("applied", w.AppliedRefs, w.Skipped, w.Summary);
 
-    private static object Proposed(SubmittedProposal s) => s.Summary is { } summary
-        ? new { outcome = "proposed", created = s.Created, proposal = s.Proposal, summary }
-        : new { outcome = "proposed", created = s.Created, proposal = s.Proposal };
+    private static object Proposed(SubmittedProposal s) => new ProposedAnswer("proposed", s.Created, s.Proposal, s.Summary);
 
     /// <summary>Not found and unauthorized stay « Not found. »; any other refusal names its code, then each field (`payload.movements[3].amount: …`) or its message.</summary>
     private static CallToolResult Refusal(Failure failure)

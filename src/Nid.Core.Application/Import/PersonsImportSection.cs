@@ -134,7 +134,7 @@ public sealed class PersonsImportSection(IPersonRegistry persons) : IImportSecti
     private static PersonRecord? Read(JsonElement entity, int index, List<ImportIssue> issues)
     {
         var path = NidDataJson.Path(Section, index);
-        if (!NidDataJson.TryRead<PersonRecord>(entity, path, issues, out var record))
+        if (!NidDataJson.TryRead(entity, CoreFileJson.Records.PersonRecord, path, issues, out var record))
             return null;
 
         var valid = true;
@@ -170,7 +170,7 @@ public sealed class PersonsImportSection(IPersonRegistry persons) : IImportSecti
                 Kind = p.Info.Kind == PersonKind.Adult ? "adult" : "dependent",
                 DisplayName = p.Info.DisplayName,
                 Email = p.Info.Kind == PersonKind.Adult ? p.Info.Email : null,
-            }, NidDataJson.Options))
+            }, CoreFileJson.Records.PersonRecord))
             .ToList();
         return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<JsonElement>>>(
             new Dictionary<string, IReadOnlyList<JsonElement>> { [Section] = records });

@@ -35,7 +35,7 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
 
     /// <summary>The generic screen shows the payload itself: no current state to compare.</summary>
     public Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
-        => Task.FromResult(JsonSerializer.SerializeToElement(new { }));
+        => Task.FromResult(McpCalls.Element([]));
 
     public async Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
@@ -107,6 +107,6 @@ public sealed class RouteProposal(RouteAction action, RouteReplay replay, IServi
             json[name] = long.TryParse(value, out var number) ? number : value;
         if (call.Body is { } body)
             json["body"] = JsonNode.Parse(body.GetRawText());
-        return JsonSerializer.SerializeToElement(json);
+        return McpCalls.Element(json);
     }
 }

@@ -5,6 +5,7 @@ using Nid.Core.Infrastructure.Persistence;
 using Nid.Host;
 using Nid.Host.Admin;
 using Nid.Host.Api;
+using Nid.Host.Api.Json;
 using Nid.Host.Auth;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
@@ -81,6 +82,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     // The web defaults accept "5" for an integer, and the document then types every integer as
     // integer | string. A number sent as a string is a 400 like any other unreadable body.
     o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    NidJsonContexts.AddTo(o.SerializerOptions);
 });
 
 var app = builder.Build();

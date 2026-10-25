@@ -50,7 +50,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
                 return McpCalls.Error("Refused: request.invalid. payload.id: A UUID is required.");
             target = item;
         }
-        return await McpCalls.ProposeAsync(services, action.Kind, target, payload, sourceLabel, apply, cancellationToken);
+        return await McpCalls.ProposeAsync(services, action.Kind, target, McpCalls.Element(payload), sourceLabel, apply, cancellationToken);
     }
 
     private static JsonElement Schema(RouteAction action)
@@ -75,7 +75,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
         };
         properties["apply"] = new JsonObject { ["type"] = "boolean", ["description"] = "true: write directly instead of proposing." };
         JsonArray required = [.. action.RouteParameters.Concat(action.Query ?? []).Concat(action.Body is null ? [] : ["body"]).Select(r => (JsonNode)r)];
-        return JsonSerializer.SerializeToElement(new JsonObject
+        return McpCalls.Element(new JsonObject
         {
             ["type"] = "object", ["properties"] = properties, ["required"] = required, ["additionalProperties"] = false,
         });

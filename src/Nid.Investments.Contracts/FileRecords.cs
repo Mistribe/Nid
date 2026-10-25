@@ -3,6 +3,9 @@ using Nid.Core.Contracts;
 
 namespace Nid.Investments.Contracts;
 
+// A member the file may omit is `set`, not `init`: the source-generated reader of .NET 10 and earlier (NativeAOT) gives an
+// omitted init-only property its type's default, not its initializer.
+
 /// <summary>The entity of investments-data-model.md §9, as the file spells it; dates stay strings (the section parses them).</summary>
 public sealed record EnvelopeRecord
 {
@@ -15,7 +18,7 @@ public sealed record EnvelopeRecord
     public string? OpenedOn { get; init; }
     public string? ClosedOn { get; init; }
     public required string Currency { get; init; }
-    public string ValuationCadence { get; init; } = "monthly";
+    public string ValuationCadence { get; set; } = "monthly";
     public int? StaleAfterDays { get; init; }
 
     /// <summary>Written only when set, so a file of before the field imports with the same hash.</summary>
@@ -25,7 +28,7 @@ public sealed record EnvelopeRecord
     public decimal? PremiumsBefore2017 { get; init; }
 
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
-    public string Visibility { get; init; } = "shared";
+    public string Visibility { get; set; } = "shared";
 }
 
 /// <summary>
@@ -63,7 +66,7 @@ public sealed record HoldingSnapshotRecord
     public required string Item { get; init; }
     public required string AsOf { get; init; }
     public string? SourceLabel { get; init; }
-    public bool Complete { get; init; } = true;
+    public bool Complete { get; set; } = true;
     public required IReadOnlyList<SnapshotLineRecord> Lines { get; init; }
 }
 

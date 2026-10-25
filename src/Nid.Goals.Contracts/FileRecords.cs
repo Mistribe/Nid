@@ -3,6 +3,9 @@ using Nid.Core.Contracts;
 
 namespace Nid.Goals.Contracts;
 
+// A member the file may omit is `set`, not `init`: the source-generated reader of .NET 10 and earlier (NativeAOT) gives an
+// omitted init-only property its type's default, not its initializer.
+
 /// <summary>The goal of <c>nid.data</c> (savings goals spec D16); dates stay strings, the section parses them. Amounts read as decimals, never doubles.</summary>
 public sealed record GoalRecord
 {
@@ -16,11 +19,11 @@ public sealed record GoalRecord
     public int? Months { get; init; }
     public string? TargetDate { get; init; }
     public string? Note { get; init; }
-    public string Visibility { get; init; } = "shared";
+    public string Visibility { get; set; } = "shared";
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public bool Closed { get; init; }
-    public IReadOnlyList<GoalFundingRecord> Funding { get; init; } = [];
-    public IReadOnlyList<GoalEntryRecord> Entries { get; init; } = [];
+    public IReadOnlyList<GoalFundingRecord> Funding { get; set; } = [];
+    public IReadOnlyList<GoalEntryRecord> Entries { get; set; } = [];
 }
 
 /// <summary>A link to an envelope: <c>envelope</c> is the file id of an <c>envelopes</c> entity.</summary>

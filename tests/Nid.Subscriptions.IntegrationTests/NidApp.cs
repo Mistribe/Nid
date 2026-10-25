@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,12 +140,22 @@ public sealed class NidApp : IAsyncDisposable
                     services.AddSingleton<ICatalogIconSource>(icons);
                     // No test reaches the identity provider (https://auth.test.localhost does not exist).
                     services.AddSingleton<Nid.Host.Admin.IIdentityProviderProbe>(new ReachableIdentityProvider());
+                    // Production keeps reflection behind the source-generated contexts (Api/Json), so a type missing from
+                    // them still answers there; here it fails the test that reaches it, as it would in a NativeAOT build.
+                    services.PostConfigure<JsonOptions>(o => RemoveReflection(o.SerializerOptions.TypeInfoResolverChain));
                     overrides?.Invoke(services);
                 });
             });
 
             return new NidApp(factory, connectionString, a, b, d, sources, prices, irl, catalog, icons, assetsRoot);
         }
+    }
+
+    private static void RemoveReflection(IList<IJsonTypeInfoResolver> chain)
+    {
+        for (var i = chain.Count - 1; i >= 0; i--)
+            if (chain[i] is DefaultJsonTypeInfoResolver)
+                chain.RemoveAt(i);
     }
 
     private static PersonRow NewPerson(out PersonId id, string kind, string? subject, bool isAdmin = false)

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization.Metadata;
 using Nid.Core.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -41,7 +42,7 @@ public static class ImportSectionKit
     /// <paramref name="unread"/> gets the raw <c>id</c> of an entity that did not read, when it has a string one.
     /// </summary>
     public static List<(StagedEntity Entity, T Record)> ReadAll<T>(
-        IStagedBatches staged, string section, Func<T, string> id, List<ImportIssue> issues,
+        IStagedBatches staged, string section, JsonTypeInfo<T> info, Func<T, string> id, List<ImportIssue> issues,
         Func<T, string, List<ImportIssue>, bool>? elements = null, Action<string>? unread = null)
         where T : class
     {
@@ -50,7 +51,7 @@ public static class ImportSectionKit
         foreach (var entity in staged.Section(section))
         {
             var path = NidDataJson.Path(section, entity.Index);
-            if (!NidDataJson.TryRead<T>(entity.Value, path, issues, out var record) || !TryId(id(record), path, issues)
+            if (!NidDataJson.TryRead(entity.Value, info, path, issues, out var record) || !TryId(id(record), path, issues)
                 || (elements is not null && !elements(record, path, issues)))
             {
                 if (unread is not null && entity.Value.ValueKind == System.Text.Json.JsonValueKind.Object

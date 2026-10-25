@@ -176,16 +176,19 @@ public static class ResultHttp
 
         var extensions = new Dictionary<string, object?> { ["code"] = failure.Code };
         if (FieldErrors.Of(failure) is { } errors)
-            extensions["errors"] = errors.Select(e => new { path = e.Path, code = e.Code, message = e.Message }).ToList();
+            extensions["errors"] = errors.Select(e => new ProblemFieldError(e.Path, e.Code, e.Message)).ToList();
         // 2C2a spec §6: a rule that names its field in metadata (Investments', Income's) reaches the client the same way.
         else if (failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) && field is string path)
-            extensions["errors"] = new[] { new { path, code = failure.Code, message = failure.Message } };
+            extensions["errors"] = new List<ProblemFieldError> { new(path, failure.Code, failure.Message) };
         // Savings goals D10: the share still free on the envelope, among the goals the actor sees.
         if (failure.Metadata is { } more && more.TryGetValue("freeBp", out var freeBp))
             extensions["freeBp"] = freeBp;
         return Results.Problem(statusCode: status, title: failure.Message, extensions: extensions);
     }
 }
+
+/// <summary>One refused field in a Problem Details' <c>errors</c> extension.</summary>
+public sealed record ProblemFieldError(string Path, string Code, string Message);
 
 public sealed record RevokeSessionsBody(bool RevokeTokens);
 

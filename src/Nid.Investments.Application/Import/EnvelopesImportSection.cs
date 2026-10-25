@@ -39,7 +39,7 @@ public sealed class EnvelopesImportSection(
         foreach (var entity in entities.EnumerateArray())
         {
             var path = NidDataJson.Path(Section, firstIndex + position++);
-            if (NidDataJson.TryRead<EnvelopeRecord>(entity, path, issues, out var record)
+            if (NidDataJson.TryRead(entity, InvestmentsFileJson.Records.EnvelopeRecord, path, issues, out var record)
                 && ImportSectionKit.TryId(record.Id, path, issues)
                 && NoNullOwners(record, path, issues))
                 EnvelopeParsing.TryEnvelope(record, path, standIn, today: null, issues, out _);
@@ -54,7 +54,7 @@ public sealed class EnvelopesImportSection(
         var issues = new List<ImportIssue>();
         var tally = SectionCounts.Zero;
         var today = await calendar.TodayAsync(ct); // the household's, as the fact sections and the API decide it
-        var records = ImportSectionKit.ReadAll<EnvelopeRecord>(staged, Section, r => r.Id, issues, NoNullOwners,
+        var records = ImportSectionKit.ReadAll(staged, Section, InvestmentsFileJson.Records.EnvelopeRecord, r => r.Id, issues, NoNullOwners,
             unread: id => context.FailedItems.Add((Section, id))); // its facts are not reported again
         var known = await envelopes.FindImportedAsync(records.Select(r => r.Record.Id).ToList(), ct);
         var latestFacts = LatestFactDates(staged);
@@ -246,7 +246,7 @@ public sealed class EnvelopesImportSection(
 
         return new Dictionary<string, IReadOnlyList<JsonElement>>
         {
-            [Section] = records.Select(r => JsonSerializer.SerializeToElement(r, NidDataJson.Options)).ToList(),
+            [Section] = records.Select(r => JsonSerializer.SerializeToElement(r, InvestmentsFileJson.Records.EnvelopeRecord)).ToList(),
         };
     }
 
