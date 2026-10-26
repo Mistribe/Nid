@@ -167,10 +167,10 @@ Colonnes communes à `valuation` et `flow` :
 | `source` | `manual`, `bank_api`, `document`, `import` |
 | `created_via` | `ui`, `api`, `mcp`, `job`, `import` |
 | `created_by_person_id` | La personne au nom de qui la donnée est saisie. Pour la validation d'une proposition : celui qui valide |
-| `document_id?`, `proposal_id?` | Traçabilité jusqu'à la source. `document_id` arrive avec la tranche 3 de la #161 (`documents-data-model.md` §10), pointant vers `documents.document` |
+| `document_id?`, `proposal_id?` | Traçabilité jusqu'à la source. `document_id` (tranche 3 de la #161, `documents-data-model.md` §11) désigne un `documents.document`, sans clé étrangère entre schémas : la validation (ou l'application directe) d'une proposition qui cite un document l'écrit sur les valeurs et flux créés, et une correction le garde |
 | `created_at` | timestamptz UTC |
 
-**Livré en 2A** (2026-09-29, `superpowers/specs/2026-09-29-core-dated-facts-design.md`) : tables `core.valuation` et `core.flow`, contrats `IValuations` et `IFlows`, codes `core.item_without_currency`, `core.currency_mismatch`, `core.date_in_future`, `core.amount_not_positive`, `core.invalid_fact`, `core.fact_not_found`, `core.fact_retired`, `core.opening_exists`, `core.external_ref_taken`, `core.fact_conflict`. `proposal_id` arrive à l'étape 4 avec sa table, `document_id` avec la tranche 3 de la #161 (`documents-data-model.md` §10) ; `source` vaut `manual` ou `import`. Une valeur ou un flux est écrit et lu par une personne.
+**Livré en 2A** (2026-09-29, `superpowers/specs/2026-09-29-core-dated-facts-design.md`) : tables `core.valuation` et `core.flow`, contrats `IValuations` et `IFlows`, codes `core.item_without_currency`, `core.currency_mismatch`, `core.date_in_future`, `core.amount_not_positive`, `core.invalid_fact`, `core.fact_not_found`, `core.fact_retired`, `core.opening_exists`, `core.external_ref_taken`, `core.fact_conflict`. `proposal_id` arrive à l'étape 4 avec sa table, `document_id` avec la tranche 3 de la #161 (`documents-data-model.md` §11, livré le 2026-10-26) ; `source` vaut `manual` ou `import`. Une valeur ou un flux est écrit et lu par une personne.
 
 ### 5.2 `valuation` : « cet élément vaut X à telle date »
 
@@ -220,9 +220,9 @@ Interprétation par les modules (exemples) :
 
 ### 5.4 Historique : chaîne `supersedes_id`
 
-Aucune ligne de `valuation` ni de `flow` n'est modifiée ni supprimée physiquement.
+Aucune ligne de `valuation` ni de `flow` n'est supprimée physiquement ; une ligne n'est modifiée que pour recevoir `retired_at`, ou `document_id` quand la proposition qui l'a créée est appliquée (même transaction).
 
-- **Correction** : une nouvelle ligne est créée avec `supersedes_id` vers l'ancienne, et l'ancienne reçoit `retired_at`, **dans la même transaction**.
+- **Correction** : une nouvelle ligne est créée avec `supersedes_id` vers l'ancienne, et l'ancienne reçoit `retired_at`, **dans la même transaction**. Une valeur ressaisie à sa date est une correction. La nouvelle ligne garde le `document_id` de l'ancienne ; une proposition validée y écrit ensuite le sien.
 - **Annulation** : `retired_at` est renseigné sans ligne de remplacement.
 - Les lectures ne voient que `retired_at IS NULL`.
 - « Qu'affichait-on le 3 mars ? » reste reconstructible avec `created_at` et `retired_at` (pour l'audit ; aucun écran prévu).
@@ -291,7 +291,7 @@ Le payload d'origine est **toujours conservé** ; le payload appliqué est `edit
 
 Table `core.proposal`, handlers de module et routes `/api/v1/core/proposals` (`architecture.md` §9.5). Deux écarts assumés par rapport au §7.1 :
 
-- **D6** : pas de document ni de job : `document_id` et `job_id` ne sont pas créés (l’extraction viendra plus tard) ; la provenance est `created_via`, `token_id?`, `created_by_person_id` et un `source_label` facultatif.
+- **D6** : pas de document ni de job : `document_id` et `job_id` ne sont pas créés (l’extraction viendra plus tard) ; la provenance est `created_via`, `token_id?`, `created_by_person_id` et un `source_label` facultatif. `document_id` est arrivé depuis avec la tranche 3 de la #161 (§5.1) ; `job_id` reste à venir.
 - **D7** : pas de `proposal_id` sur la valorisation créée par une approbation : `applied_refs` de la proposition porte son identifiant, ce qui suffit à la retrouver.
 
 ## 8. Taux de change

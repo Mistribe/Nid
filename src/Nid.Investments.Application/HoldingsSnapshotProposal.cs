@@ -192,6 +192,8 @@ public sealed partial class HoldingsSnapshotProposal(
         if (!recorded.TryGetValue(out var snapshot))
             return Result.Failure<IReadOnlyList<Guid>>(At(FailureOf(recorded), "payload", line: true));
         applied.Add(snapshot!.Id);
+        if (snapshot.ValuationId is { } valuation)
+            applied.Add(valuation); // so an approval stamps its source on the value (tranche 3 §4.1)
 
         for (var i = 0; i < p.Movements.Count; i++)
         {

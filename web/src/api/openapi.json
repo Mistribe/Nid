@@ -32948,6 +32948,13 @@
               "null",
               "string"
             ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -35136,6 +35143,13 @@
             "items": {
               "$ref": "#/components/schemas/HoldingWarningView"
             }
+          },
+          "valuationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

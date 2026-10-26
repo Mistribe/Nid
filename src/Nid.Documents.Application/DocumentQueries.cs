@@ -22,6 +22,9 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
 /// </summary>
 public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null) : IQuery<DocumentList>;
 
+/// <summary>Tranche 3 design §4.1: the ids among <paramref name="Ids"/> the actor reads; one missing and one unreadable are both left out.</summary>
+public sealed record FilterReadableDocumentsQuery(IReadOnlyCollection<Guid> Ids) : IQuery<IReadOnlySet<Guid>>;
+
 /// <summary>Tranche 2 design §2.1: the Core targets the actor may pick from the page; module rows are linked from their own screen.</summary>
 public sealed record ListDocumentTargetsQuery() : IQuery<DocumentTargetList>;
 
@@ -96,6 +99,25 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
 
         var labels = await access.LabelsAsync(kept.SelectMany(r => r.Links).Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), facts)), ct);
         return Result.Success(new DocumentList(kept.Select(r => DocumentSummary.Of(r, labels)).ToList()));
+    }
+}
+
+[RequestHandler<FilterReadableDocumentsQuery, IReadOnlySet<Guid>>]
+public sealed class FilterReadableDocumentsHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor)
+    : IRequestHandler<FilterReadableDocumentsQuery, IReadOnlySet<Guid>>
+{
+    public async ValueTask<Result<IReadOnlySet<Guid>>> HandleAsync(FilterReadableDocumentsQuery query, CancellationToken ct = default)
+    {
+        if (query.Ids.Count == 0)
+            return Result.Success<IReadOnlySet<Guid>>(new HashSet<Guid>());
+
+        // As the list: the documents, their links and one rights check for every anchor, whatever the number of ids.
+        var wanted = query.Ids.ToHashSet();
+        var documents = (await store.ListAsync(includeArchived: true, ct)).Where(d => wanted.Contains(d.Id)).ToList();
+        var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
+        var facts = await access.FactsAsync(actor.Current!.PersonId!.Value, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
+        return Result.Success<IReadOnlySet<Guid>>(documents
+            .Where(d => DocumentRules.CanRead(d.UploadedBy, links[d.Id].Select(DocumentAccess.Facts), facts)).Select(d => d.Id).ToHashSet());
     }
 }
 

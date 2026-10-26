@@ -20,13 +20,13 @@ public sealed record ProposalView(
     Guid Id, string Kind, Guid? TargetItemId, string Status, JsonElement Payload, JsonElement? EditedPayload, int PayloadVersion,
     IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, DateTimeOffset CreatedAt,
     Guid CreatedByPersonId, Guid? SupersededById, DateTimeOffset? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
-    IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName)
+    IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName, Guid? DocumentId)
 {
     public static ProposalView From(StoredProposal p, string? targetName, IReadOnlyList<ProposalWarning>? extra = null) => new(
         p.Id, p.Kind, p.Target?.Value, p.Status.ToString().ToLowerInvariant(), p.Payload, p.EditedPayload, p.PayloadVersion,
         extra is null ? p.Warnings : [.. p.Warnings, .. extra], p.SubjectKey, p.SourceLabel, p.CreatedVia,
         p.CreatedAt.ToDateTimeOffset(), p.CreatedBy.Value, p.SupersededById, p.DecidedAt?.ToDateTimeOffset(), p.DecidedBy?.Value,
-        p.DecisionNote, p.AppliedRefs, p.Version, targetName);
+        p.DecisionNote, p.AppliedRefs, p.Version, targetName, p.DocumentId);
 }
 
 /// <summary>
@@ -48,8 +48,11 @@ public sealed record ProposalDetail(ProposalView Proposal, JsonElement? Preview,
     public IEnumerable<ItemId> ExposedItems() => Proposal.TargetItemId is { } target ? [new ItemId(target)] : [];
 }
 
-/// <summary><paramref name="ItemId"/> is null for a kind that does not need a target (<see cref="IProposalHandler.NeedsTarget"/>).</summary>
-public sealed record SubmitProposalCommand(string Kind, ItemId? ItemId, JsonElement Payload, string? SourceLabel)
+/// <summary>
+/// <paramref name="ItemId"/> is null for a kind that does not need a target (<see cref="IProposalHandler.NeedsTarget"/>).
+/// <paramref name="DocumentId"/>: the source document, which the caller has checked the actor can read.
+/// </summary>
+public sealed record SubmitProposalCommand(string Kind, ItemId? ItemId, JsonElement Payload, string? SourceLabel, Guid? DocumentId = null)
     : ICommand<SubmittedProposal>, IOptionalItemScoped, IRequiresScope
 {
     public AccessKind Access => AccessKind.Write;
@@ -66,9 +69,9 @@ public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) 
 
 /// <summary>
 /// Spec 4D1 §5: a document written directly — the kind's validation then its application in one unit of work, as the
-/// token's actor; no proposal row (the write log records the module's rows).
+/// token's actor; no proposal row (the write log records the module's rows). <paramref name="DocumentId"/> as <see cref="SubmitProposalCommand"/>'s.
 /// </summary>
-public sealed record ApplyDirectCommand(string Kind, ItemId? ItemId, JsonElement Payload) : ICommand<DirectWrite>, IOptionalItemScoped, IDirectWrite
+public sealed record ApplyDirectCommand(string Kind, ItemId? ItemId, JsonElement Payload, Guid? DocumentId = null) : ICommand<DirectWrite>, IOptionalItemScoped, IDirectWrite
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -178,7 +181,7 @@ public sealed class SubmitProposalHandler(
         // into a proposal whose notice was never published.
         var deciders = await ProposalAccess.DecidersAsync(persons, policy, command.ItemId, me, ct);
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
-            check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
+            check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim(), command.DocumentId), ct);
         if (outcome.Created)
         {
             foreach (var older in outcome.Superseded ?? [])
@@ -273,6 +276,8 @@ public sealed class ApproveProposalHandler(
                     : await handler.ApplyAsync(proposal.Target ?? default, valid.Payload, ct);
                 if (applied.TryGetValue(out var refs))
                 {
+                    if (proposal.DocumentId is { } document)
+                        await store.StampAsync(document, refs!, ct);
                     var decided = await store.DecideAsync(proposal.Id, command.Version, ProposalStatus.Approved, me,
                         command.EditedPayload is null ? null : valid.Payload, null, refs!, ct);
                     if (!decided.TryGetValue(out var stored))
@@ -336,7 +341,7 @@ public sealed class RejectProposalHandler(
 }
 
 [RequestHandler<ApplyDirectCommand, DirectWrite>]
-public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork unitOfWork) : IRequestHandler<ApplyDirectCommand, DirectWrite>
+public sealed class ApplyDirectHandler(ProposalHandlers handlers, IProposalStore store, IUnitOfWork unitOfWork) : IRequestHandler<ApplyDirectCommand, DirectWrite>
 {
     public async ValueTask<Result<DirectWrite>> HandleAsync(ApplyDirectCommand command, CancellationToken ct = default)
     {
@@ -357,6 +362,8 @@ public sealed class ApplyDirectHandler(ProposalHandlers handlers, IUnitOfWork un
         var applied = await handler.ApplyAsync(command.ItemId ?? default, valid.Payload, ct);
         if (!applied.TryGetValue(out var refs))
             return Result.Failure<DirectWrite>(applied.TryGetFailure(out var failed) ? failed! : throw new InvalidOperationException());
+        if (command.DocumentId is { } document)
+            await store.StampAsync(document, refs!, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(new DirectWrite("applied", refs!,
             valid.Warnings.Where(w => w.Code == ProposalCodes.AlreadyRecorded).ToList(), null, valid.Summary));

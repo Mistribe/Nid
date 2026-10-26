@@ -74,7 +74,7 @@ public class HoldingsSnapshotProposalTests(PostgresFixture fixture) : IClassFixt
 
         var approved = await JsonOf(await ApproveAsync(app, proposal));
         Assert.Equal("approved", approved.GetProperty("status").GetString());
-        Assert.Equal(5, approved.GetProperty("appliedRefs").GetArrayLength()); // the new holding, the snapshot, three movements
+        Assert.Equal(6, approved.GetProperty("appliedRefs").GetArrayLength()); // the new holding, the snapshot, its value, three movements
 
         var holdings = await HoldingsAsync(app, id);
         Assert.Equal("2025-09-30", holdings.GetProperty("holdingsAsOf").GetString());

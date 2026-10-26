@@ -442,6 +442,8 @@ public static class RequestCatalogue
         // As the link below, writing nothing: an allowed writer meets documents.already_linked, never an access refusal.
         new(typeof(PreviewDocumentLinkQuery), true, (d, item) => new PreviewDocumentLinkQuery(d.Documents[item],
             new DocumentTarget(TargetKinds.CoreItem, item.Value))),
+        // Every seeded document at once, each adult's private ones too: the read scan checks it answers exactly those the actor reads.
+        new(typeof(FilterReadableDocumentsQuery), false, (d, _) => new FilterReadableDocumentsQuery([.. d.Documents.Values, .. d.UnlinkDocuments.Values])),
         new(typeof(GetDocumentQuery), false, (d, item) => new GetDocumentQuery(d.Documents[item])) { OnEveryRow = true },
         new(typeof(GetDocumentContentQuery), false, (d, item) => new GetDocumentContentQuery(d.Documents[item])) { OnEveryRow = true },
         new(typeof(EditDocumentCommand), false, (d, item) => new EditDocumentCommand(d.Documents[item], "bench", null, null)) { OnEveryRow = true },

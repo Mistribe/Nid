@@ -555,6 +555,12 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                             + "which the rules hide");
                 }
 
+                // Document ids carry no label for the textual scan: each must be one the actor reads, by its uploader or its row.
+                if (entry.RequestType == typeof(Nid.Documents.Application.FilterReadableDocumentsQuery))
+                    foreach (var (row, document) in data.Documents.Concat(data.UnlinkDocuments))
+                        Assert.True(((IReadOnlySet<Guid>)response).Contains(document) == (data.ExpectedReadable(actor).Contains(row) || data.UploaderOf(row) == actor),
+                            $"FilterReadableDocumentsQuery as {data.NameOf(actor)} on {data.NameOf(row)}'s document");
+
                 // A download holds a stream, which does not serialise: its bytes are checked, and what it names is scanned.
                 if (response is Nid.Documents.Application.DocumentContent content)
                     await using (content.Content)

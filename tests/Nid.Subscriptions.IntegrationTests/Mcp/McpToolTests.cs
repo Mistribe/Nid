@@ -15,7 +15,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     [
         "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
         "get_net_worth_history", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "list_envelopes",
-        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "simulate_early_repayment", "simulate_household_early_repayment",
+        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_subscriptions", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)
@@ -238,10 +238,10 @@ internal static class McpSeed
             firstValuation = new { asOf = "2025-01-31", amount = new { amount = "21000.00", currency = "EUR" } },
         }));
 
-    public static async Task<Guid> IncomeSourceAsync(NidApp app, PersonId owner)
+    public static async Task<Guid> IncomeSourceAsync(NidApp app, PersonId owner, string visibility = "shared")
         => await IdOf(await app.RawAsync(owner, HttpMethod.Post, "/api/v1/income/sources", new Dictionary<string, object?>
         {
-            ["displayName"] = "Salaire", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = "shared",
+            ["displayName"] = "Salaire", ["kind"] = "salary", ["currency"] = "EUR", ["visibility"] = visibility,
             ["owners"] = new[] { new { personId = owner.Value, shareBp = 10_000 } },
             ["phases"] = new object[]
             {

@@ -136,6 +136,7 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
             ImportRef = flow.Import?.Ref,
             ImportHash = flow.Import?.Hash,
             ImportedBy = flow.Import?.ImportedBy.Value,
+            DocumentId = old?.DocumentId, // a correction keeps its source
         };
         db.Flows.Add(row);
         await db.SaveChangesAsync(ct);

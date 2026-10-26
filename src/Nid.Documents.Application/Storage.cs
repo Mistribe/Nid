@@ -26,9 +26,13 @@ public sealed class DocumentStorageOptions
     public bool ForcePathStyle { get; set; } = true;
 }
 
-/// <summary>Bound from <c>Documents</c>: <c>MaxSizeBytes</c> and the <c>Storage</c> section.</summary>
+/// <summary>Bound from <c>Documents</c>: <c>MaxSizeBytes</c>, <c>McpMaxBytes</c> and the <c>Storage</c> section.</summary>
 public sealed class DocumentsOptions
 {
     public long MaxSizeBytes { get; set; } = 26214400;
+
+    /// <summary>Design §4.2: the largest document `read_document` sends whole; above it, the metadata and a message.</summary>
+    public long McpMaxBytes { get; set; } = 10485760;
+
     public DocumentStorageOptions Storage { get; set; } = new();
 }

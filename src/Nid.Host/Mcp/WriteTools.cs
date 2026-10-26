@@ -81,6 +81,10 @@ public sealed partial class WriteTools
     public const string Rules = "Copy the document as written and invent nothing: leave out what it does not show. "
         + "By default this creates a proposal that an adult approves in Nid; apply=true writes directly and needs the 'write:direct' scope.";
 
+    /// <summary>Tranche 3 design §4.2: the source document, which the hand-written tools alone take.</summary>
+    private const string DocumentArgument = "The id of the document this was read from, if it is in Nid (list_documents): it is linked to the element, "
+        + "so whoever decides can open it. One you cannot read is refused as not found.";
+
     [McpServerTool(Name = "propose_statement", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An account statement for one envelope: its value on the statement's date and the movements it lists. One call per "
         + "envelope; the envelopes of one statement share a sourceLabel. Movements already in Nid are flagged and left out. " + Rules)]
@@ -90,9 +94,10 @@ public sealed partial class WriteTools
         [Description("The envelope's value on asOf, in its currency.")] MoneyArgument? value = null,
         [Description("The statement's movements for this envelope, at most 200.")] StatementMovement[]? movements = null,
         [Description("The document's name, e.g. 'Relevé PEA septembre 2025', 200 characters at most.")] string? sourceLabel = null,
+        [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, JsonSerializer.SerializeToElement(new StatementArguments(asOf, value, movements), ArgumentsJson.Default.StatementArguments), sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, JsonSerializer.SerializeToElement(new StatementArguments(asOf, value, movements), ArgumentsJson.Default.StatementArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_holdings_snapshot", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A statement's holdings for one envelope: each holding's line on the statement's date and the movements it lists per "
@@ -105,10 +110,11 @@ public sealed partial class WriteTools
         [Description("The statement's movements per holding, at most 200.")] HoldingsMovement[]? movements = null,
         [Description("true: also record the lines' sum as the envelope's value on asOf.")] bool recordValuation = false,
         [Description("The document's name, e.g. 'Information trimestrielle 30/06/2026', 200 characters at most.")] string? sourceLabel = null,
+        [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "investments.record_holdings_snapshot", envelopeId,
-            JsonSerializer.SerializeToElement(new HoldingsSnapshotArguments(asOf, sourceLabel, lines, movements, recordValuation), ArgumentsJson.Default.HoldingsSnapshotArguments), sourceLabel, apply, ct);
+            JsonSerializer.SerializeToElement(new HoldingsSnapshotArguments(asOf, sourceLabel, lines, movements, recordValuation), ArgumentsJson.Default.HoldingsSnapshotArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "
@@ -123,9 +129,10 @@ public sealed partial class WriteTools
         [Description("The net taxable income (« net imposable »), if printed.")] MoneyArgument? taxable = null,
         [Description("The period's label (get_income_source), needed when several run at once.")] string? phaseLabel = null,
         [Description("The document's name, e.g. 'Bulletin de paie septembre 2025', 200 characters at most.")] string? sourceLabel = null,
+        [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, taxable, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, taxable, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_invoice", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An invoice for one subscription, all taxes included. Nid compares it with the price on that date: the same, to the "
@@ -135,9 +142,10 @@ public sealed partial class WriteTools
         [Description("The date charged, ISO (yyyy-mm-dd).")] string chargedOn,
         [Description("The amount charged, all taxes included.")] MoneyArgument amount,
         [Description("The document's name, e.g. 'Facture Netflix septembre 2025', 200 characters at most.")] string? sourceLabel = null,
+        [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, JsonSerializer.SerializeToElement(new InvoiceArguments(chargedOn, amount), ArgumentsJson.Default.InvoiceArguments), sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "subscriptions.change_price", subscriptionId, JsonSerializer.SerializeToElement(new InvoiceArguments(chargedOn, amount), ArgumentsJson.Default.InvoiceArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_amortization", ReadOnly = false, Destructive = true, Idempotent = true)]
     [Description("A bank's amortisation table for one loan: every row as printed, in date order, 1200 rows at most, the whole table in "
@@ -149,7 +157,8 @@ public sealed partial class WriteTools
         [Description("The loan's id (list_loans).")] Guid loanId,
         [Description("Every row of the table, as printed: payment excludes insurance; crd is the balance after the payment.")] AmortizationRow[] rows,
         [Description("The document's name, e.g. 'Tableau d’amortissement prêt maison', 200 characters at most.")] string? sourceLabel = null,
+        [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "realestate.import_amortization", loanId, JsonSerializer.SerializeToElement(new AmortizationArguments(rows), ArgumentsJson.Default.AmortizationArguments), sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "realestate.import_amortization", loanId, JsonSerializer.SerializeToElement(new AmortizationArguments(rows), ArgumentsJson.Default.AmortizationArguments), sourceLabel, apply, documentId, ct);
 }

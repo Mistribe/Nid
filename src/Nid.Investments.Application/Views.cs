@@ -204,4 +204,5 @@ public sealed record HoldingSnapshotList(ItemId EnvelopeId, IReadOnlyList<Snapsh
     public IEnumerable<ItemId> ExposedItems() => [EnvelopeId];
 }
 
-public sealed record SnapshotRecorded(Guid Id, IReadOnlyList<HoldingWarningView> Warnings);
+/// <param name="ValuationId">The value the snapshot recorded, when asked to (<c>recordValuation</c>).</param>
+public sealed record SnapshotRecorded(Guid Id, IReadOnlyList<HoldingWarningView> Warnings, Guid? ValuationId);

@@ -20,15 +20,18 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
     [JsonSerializable(typeof(JsonObject))]
     private sealed partial class ProposalJson : JsonSerializerContext;
 
-    public static string Fingerprint(string kind, ItemId? target, JsonElement payload)
-        => Rfc8785.Hash(JsonSerializer.SerializeToElement(new JsonObject
-        {
-            ["kind"] = kind, ["target"] = target?.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()),
-        }, ProposalJson.Default.JsonObject));
+    /// <summary>The document enters only when set: a proposal without one keeps the fingerprint it had before documents.</summary>
+    public static string Fingerprint(string kind, ItemId? target, JsonElement payload, Guid? document)
+    {
+        var fields = new JsonObject { ["kind"] = kind, ["target"] = target?.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()) };
+        if (document is { } id)
+            fields["document"] = id.ToString();
+        return Rfc8785.Hash(JsonSerializer.SerializeToElement(fields, ProposalJson.Default.JsonObject));
+    }
 
     public async Task<SubmitOutcome> SubmitAsync(NewProposal p, CancellationToken ct)
     {
-        var fingerprint = Fingerprint(p.Kind, p.Target, p.Payload);
+        var fingerprint = Fingerprint(p.Kind, p.Target, p.Payload, p.DocumentId);
         await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         // One submission at a time per target (per submitter without one): deduplication and supersession read then write.
         if (p.Target is { } target)
@@ -46,7 +49,7 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
             SubjectKey = p.SubjectKey, Payload = p.Payload.GetRawText(), PayloadVersion = p.PayloadVersion,
             Warnings = JsonSerializer.Serialize(p.Warnings, ProposalJson.Default.IReadOnlyListProposalWarning), Status = "pending", Fingerprint = fingerprint,
             CreatedVia = p.CreatedVia, TokenId = p.TokenId, CreatedByPersonId = p.Person.Value, SourceLabel = p.SourceLabel,
-            CreatedAt = clock.GetCurrentInstant(),
+            CreatedAt = clock.GetCurrentInstant(), DocumentId = p.DocumentId,
         };
         var superseded = new List<Guid>();
         if (p.SubjectKey is not null)
@@ -121,6 +124,19 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
         return db.Database.ExecuteSqlAsync($"update core.proposal set warnings = warnings || {item}::jsonb where id = {id} and status = 'pending'", ct);
     }
 
+    public async Task StampAsync(Guid documentId, IReadOnlyList<Guid> appliedRefs, CancellationToken ct)
+    {
+        if (appliedRefs.Count == 0)
+            return; // a « conforme » approval wrote nothing
+        // Through the change tracker, not raw SQL: the audit interceptor then records the stamp under each fact's item.
+        var ids = appliedRefs.ToList();
+        foreach (var row in await db.Valuations.Where(r => ids.Contains(r.Id)).ToListAsync(ct))
+            row.DocumentId = documentId;
+        foreach (var row in await db.Flows.Where(r => ids.Contains(r.Id)).ToListAsync(ct))
+            row.DocumentId = documentId;
+        await db.SaveChangesAsync(ct);
+    }
+
     private static string Wire(ProposalStatus status) => status.ToString().ToLowerInvariant();
 
     private static StoredProposal ToStored(ProposalRow r) => new(
@@ -130,5 +146,5 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
         JsonSerializer.Deserialize(r.Warnings, ProposalJson.Default.ListProposalWarning) ?? [],
         Enum.Parse<ProposalStatus>(r.Status, ignoreCase: true), r.SupersededById, r.CreatedVia, r.TokenId,
         new PersonId(r.CreatedByPersonId), r.SourceLabel, r.CreatedAt,
-        r.DecidedByPersonId is { } d ? new PersonId(d) : null, r.DecidedAt, r.DecisionNote, r.AppliedRefs, r.Version);
+        r.DecidedByPersonId is { } d ? new PersonId(d) : null, r.DecidedAt, r.DecisionNote, r.AppliedRefs, r.Version, r.DocumentId);
 }

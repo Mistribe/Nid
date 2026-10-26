@@ -89,7 +89,7 @@ public sealed class FxSyncRunRow
     public string Rejected { get; set; } = "[]";
 }
 
-/// <summary>2A spec §3.1. Never deleted; only <see cref="RetiredAt"/> is ever updated.</summary>
+/// <summary>2A spec §3.1. Never deleted; only <see cref="RetiredAt"/> and, once its proposal is applied, <see cref="DocumentId"/> are ever updated.</summary>
 public sealed class ValuationRow
 {
     public Guid Id { get; set; }
@@ -107,10 +107,12 @@ public sealed class ValuationRow
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
     public Instant? RetiredAt { get; set; }
+    /// <summary>The source document (Documents module), no foreign key across schemas.</summary>
+    public Guid? DocumentId { get; set; }
     public uint Version { get; set; }
 }
 
-/// <summary>2A spec §3.2. Never deleted; only <see cref="RetiredAt"/> is ever updated.</summary>
+/// <summary>2A spec §3.2. Never deleted; only <see cref="RetiredAt"/> and, once its proposal is applied, <see cref="DocumentId"/> are ever updated.</summary>
 public sealed class FlowRow
 {
     public Guid Id { get; set; }
@@ -131,6 +133,8 @@ public sealed class FlowRow
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
     public Instant? RetiredAt { get; set; }
+    /// <summary>The source document (Documents module), no foreign key across schemas.</summary>
+    public Guid? DocumentId { get; set; }
     public uint Version { get; set; }
 }
 
@@ -172,5 +176,7 @@ public sealed class ProposalRow
     public Instant? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public Guid[] AppliedRefs { get; set; } = [];
+    /// <summary>The source document (Documents module), no foreign key across schemas.</summary>
+    public Guid? DocumentId { get; set; }
     public uint Version { get; set; }
 }

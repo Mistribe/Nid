@@ -107,6 +107,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.Converters.Add(new ItemIdJsonConverter());
     o.SerializerOptions.Converters.Add(new LocalDateJsonConverter());
+    o.SerializerOptions.Converters.Add(new InstantJsonConverter());
     o.SerializerOptions.Converters.Add(new OneOrManyJsonConverter<InvestmentEndpoints.SwitchLegBody>());
     // The web defaults accept "5" for an integer, and the document then types every integer as
     // integer | string. A number sent as a string is a 400 like any other unreadable body.

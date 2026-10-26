@@ -21699,6 +21699,8 @@ export interface components {
             /** Format: uint32 */
             version: number;
             targetName?: null | string;
+            /** Format: uuid */
+            documentId?: null | string;
         };
         ProposalWarning: {
             code: string;
@@ -22219,6 +22221,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             warnings: components["schemas"]["HoldingWarningView"][];
+            /** Format: uuid */
+            valuationId?: null | string;
         };
         SnapshotView: {
             /** Format: uuid */

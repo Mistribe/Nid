@@ -125,12 +125,19 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, DocumentAcc
     }
 }
 
-/// <summary>Design §7: needs the right to edit the document and to write the target; answers the adults the link opens it to.</summary>
-public sealed record LinkDocumentCommand(Guid Id, DocumentTarget Target, string Role) : ICommand<LinkAdded>, IOptionalItemScoped
+/// <summary>
+/// Design §7: needs the right to edit the document and to write the target; answers the adults the link opens it to.
+/// <paramref name="ProposalSource"/>: the link a proposal's source makes (tranche 3 design §4.1), set by the MCP host only; it asks the
+/// proposal's own `write` scope instead of `write:direct`, with the same rights.
+/// </summary>
+public sealed record LinkDocumentCommand(Guid Id, DocumentTarget Target, string Role, bool ProposalSource = false)
+    : ICommand<LinkAdded>, IOptionalItemScoped, IRequiresScope
 {
     public ItemId? ItemId => Target.Kind == TargetKinds.CoreItem ? new ItemId(Target.Id) : null;
 
     public AccessKind Access => AccessKind.Write;
+
+    public string RequiredScope => ProposalSource ? ScopeNames.Write : ScopeNames.WriteDirect;
 }
 
 /// <summary>The adults who could not read the document before the link and can after; never by which link the others read it.</summary>

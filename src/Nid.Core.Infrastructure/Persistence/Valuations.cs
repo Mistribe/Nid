@@ -31,6 +31,7 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
         }
 
         var row = NewRow(valuation, w!, now, current?.Id);
+        row.DocumentId = current?.DocumentId; // a value re-recorded on its date is a correction: it keeps its source (a proposal's approval then stamps its own)
         db.Valuations.Add(row);
         await db.SaveChangesAsync(ct);
         return Result.Success(ToValuation(row));
@@ -57,6 +58,7 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
         old.RetiredAt = now;
         await db.SaveChangesAsync(ct); // retired first: the replacement may keep its date or its import ref
         var row = NewRow(replacement, w!, now, old.Id);
+        row.DocumentId = old.DocumentId; // a correction keeps its source
         db.Valuations.Add(row);
         await db.SaveChangesAsync(ct); // another current value on the new date breaks ux_valuation_current: FactConflict
         return Result.Success(ToValuation(row));

@@ -56,6 +56,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(3)")
                         .HasColumnName("currency");
 
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
                     b.Property<string>("ExternalRef")
                         .HasColumnType("text")
                         .HasColumnName("external_ref");
@@ -565,6 +569,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("decision_note");
 
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
                     b.Property<string>("EditedPayload")
                         .HasColumnType("jsonb")
                         .HasColumnName("edited_payload");
@@ -742,6 +750,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("char(3)")
                         .HasColumnName("currency");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
 
                     b.Property<string>("ImportHash")
                         .HasColumnType("char(64)")

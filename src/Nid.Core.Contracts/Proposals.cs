@@ -20,16 +20,19 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 public sealed record ProposalCheck(
     string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null, JsonElement? Summary = null);
 
-/// <summary><paramref name="Target"/> is null for a proposal that creates its item: only its submitter reads and decides it.</summary>
+/// <summary>
+/// <paramref name="Target"/> is null for a proposal that creates its item: only its submitter reads and decides it.
+/// <paramref name="DocumentId"/> is its source document, checked readable by the host before it is submitted (Core never reads Documents).
+/// </summary>
 public sealed record NewProposal(
     string Module, string Kind, ItemId? Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
-    IReadOnlyList<ProposalWarning> Warnings, string CreatedVia, Guid? TokenId, string? SourceLabel);
+    IReadOnlyList<ProposalWarning> Warnings, string CreatedVia, Guid? TokenId, string? SourceLabel, Guid? DocumentId = null);
 
 public sealed record StoredProposal(
     Guid Id, string Module, string Kind, ItemId? Target, PersonId ForPerson, string? SubjectKey, JsonElement Payload,
     int PayloadVersion, JsonElement? EditedPayload, IReadOnlyList<ProposalWarning> Warnings, ProposalStatus Status,
     Guid? SupersededById, string CreatedVia, Guid? TokenId, PersonId CreatedBy, string? SourceLabel, Instant CreatedAt,
-    PersonId? DecidedBy, Instant? DecidedAt, string? DecisionNote, IReadOnlyList<Guid> AppliedRefs, uint Version);
+    PersonId? DecidedBy, Instant? DecidedAt, string? DecisionNote, IReadOnlyList<Guid> AppliedRefs, uint Version, Guid? DocumentId = null);
 
 public sealed record SubmitOutcome(StoredProposal Proposal, bool Created, IReadOnlyList<Guid>? Superseded = null);
 
@@ -65,6 +68,12 @@ public interface IProposalStore
 
     /// <summary>Appends one warning in its own write (after a rolled-back approval), to a row still pending only.</summary>
     Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct);
+
+    /// <summary>
+    /// Core's own, inside the application's transaction: sets <paramref name="documentId"/> on the <c>core.valuation</c> and
+    /// <c>core.flow</c> rows among <paramref name="appliedRefs"/>; the other ids (phases, loan rows…) are not Core's facts and are left alone.
+    /// </summary>
+    Task StampAsync(Guid documentId, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
 }
 
 /// <summary>

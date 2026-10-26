@@ -59,6 +59,21 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
 
     private static string Pad(int size) => "%PDF-" + new string('x', size - 5);
 
+    internal const string UploadInstant = "2025-10-15T00:00:00Z";
+
+    [Fact]
+    public async Task Sends_the_upload_instant_as_an_iso_string_in_the_detail_and_the_list()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, Pdf);
+
+        var detail = (await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document").GetProperty("uploadedAt");
+        var listed = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Documents + "?scope=me")).RootElement.GetProperty("items")[0].GetProperty("uploadedAt");
+
+        Assert.Equal((JsonValueKind.String, UploadInstant), (detail.ValueKind, detail.GetString()));
+        Assert.Equal((JsonValueKind.String, UploadInstant), (listed.ValueKind, listed.GetString()));
+    }
+
     [Fact]
     public async Task Uploads_a_document_its_uploader_alone_reads()
     {

@@ -260,18 +260,20 @@ public sealed class RecordHoldingsSnapshotHandler(
             return Result.Failure<SnapshotRecorded>(checkedSnapshot.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         await holdings.SaveSnapshotAsync(snapshot, ct);
+        Guid? valuationId = null;
         if (command.Snapshot.RecordValuation)
         {
             var total = Money.Create(HoldingMath.Total(snapshot), envelope.Currency).TryGetValue(out var m) ? m
                 : throw new InvalidOperationException("A sum of four-decimal amounts has four decimals.");
             var recorded = await valuations.RecordAsync(new NewValuation(command.ItemId, snapshot.AsOf, total, snapshot.SourceLabel), ct);
-            if (recorded.TryGetFailure(out var failure))
-                return Result.Failure<SnapshotRecorded>(failure!);
+            if (!recorded.TryGetValue(out var valuation))
+                return Result.Failure<SnapshotRecorded>(recorded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+            valuationId = valuation!.Id;
         }
 
         var warnings = HoldingMath.Warnings(snapshot, await HoldingCheck.ValuationOnAsync(valuations, command.ItemId, snapshot.AsOf, ct));
         await transaction.CommitAsync(ct);
-        return Result.Success(new SnapshotRecorded(id, warnings.Select(HoldingWarningView.Of).ToList()));
+        return Result.Success(new SnapshotRecorded(id, warnings.Select(HoldingWarningView.Of).ToList(), valuationId));
     }
 }
 

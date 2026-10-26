@@ -315,7 +315,8 @@ Les fichiers téléversés dans Nid sont rangés selon `Documents__Storage__Kind
   `Documents__Storage__ForcePathStyle` (`true` pour MinIO et la plupart des stockages auto-hébergés). **Les fichiers ne sont
   pas dans l'instantané restic** : activez le versionnement ou la réplication du bucket, c'est lui qui les protège.
 
-`Documents__MaxSizeBytes` fixe la taille maximale d'un fichier.
+`Documents__MaxSizeBytes` fixe la taille maximale d'un fichier. `Documents__McpMaxBytes` (10 Mo par défaut) fixe la taille
+maximale d'un fichier que l'outil MCP `read_document` envoie ; au-delà, il n'envoie que les métadonnées.
 
 ## 7. Secrets et rotation
 
