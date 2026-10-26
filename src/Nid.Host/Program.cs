@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
@@ -10,6 +11,9 @@ using Nid.Host.Auth;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
 using Nid.Host.Notifications;
+using Nid.Documents.Application;
+using Nid.Documents.Infrastructure.Persistence;
+using Nid.Documents.Infrastructure.Storage;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Contracts;
@@ -39,6 +43,8 @@ var adminMode = args is ["admin", ..];
 var builder = WebApplication.CreateBuilder(args);
 // The CLI's output is for the person at the terminal, not EF's SQL.
 if (adminMode) builder.Logging.SetMinimumLevel(LogLevel.Warning);
+// The upload's fileName, title and note travel in the query string: no request-start line (path + query) at Information.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Configuration.AddSecretFiles();
 builder.AddServiceDefaults();
 // Build-time OpenAPI generation (Microsoft.Extensions.ApiDescription.Server) runs this entry point up to
@@ -59,6 +65,23 @@ builder.Services.AddSingleton(builder.Configuration.GetSection("Nid:Backup").Get
 // Parsed here so a bad setting stops the host at startup (spec 4D1 D6).
 builder.Services.AddSingleton(Nid.Income.Application.PayslipTolerance.Parse(builder.Configuration["Income:PayslipTolerance"]));
 builder.Services.AddSingleton(builder.Configuration.GetSection("Assets").Get<AssetOptions>() ?? new AssetOptions());
+var documentsOptions = builder.Configuration.GetSection("Documents").Get<DocumentsOptions>() ?? new DocumentsOptions();
+builder.Services.TryAddSingleton(documentsOptions);
+switch (documentsOptions.Storage.Kind)
+{
+    case "filesystem":
+        builder.Services.TryAddSingleton<IDocumentStorage>(new FileDocumentStorage(documentsOptions.Storage));
+        break;
+    case "s3":
+        var s3 = documentsOptions.Storage;
+        if (string.IsNullOrWhiteSpace(s3.ServiceUrl) || string.IsNullOrWhiteSpace(s3.Bucket)
+            || string.IsNullOrWhiteSpace(s3.AccessKey) || string.IsNullOrWhiteSpace(s3.SecretKey))
+            throw new InvalidOperationException("Documents:Storage:Kind is 's3': ServiceUrl, Bucket, AccessKey and SecretKey are all required.");
+        builder.Services.TryAddSingleton<IDocumentStorage>(new S3DocumentStorage(s3));
+        break;
+    default:
+        throw new InvalidOperationException($"Documents:Storage:Kind '{documentsOptions.Storage.Kind}' is unknown: use 'filesystem' or 's3'.");
+}
 var connectionString = builder.Configuration.GetConnectionString("nid")
     ?? (generatingOpenApi ? "Host=openapi-generation" : throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
 // Parsed here so an incomplete SMTP configuration stops the host at startup (notifications design §5.3).
@@ -92,6 +115,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 });
 
 var app = builder.Build();
+if (documentsOptions.Storage.Kind == "s3")
+    app.Logger.LogInformation("Documents are stored in S3: they are outside the restic snapshot and rely on the bucket's versioning or replication.");
 
 // 1F4: `nid admin …` runs one use case and stops; it never migrates and never serves.
 if (adminMode)
@@ -113,6 +138,7 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IncomeDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<GoalsDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<DocumentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<RealEstateDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
@@ -132,6 +158,7 @@ app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
 app.MapGoalEndpoints();
+app.MapDocumentEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
 app.MapTaxEndpoints();

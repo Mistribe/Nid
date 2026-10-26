@@ -1,11 +1,14 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Documents.Application;
+using Nid.Documents.Contracts;
 using Nid.Investments.Application;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.IntegrationTests.Documents;
 using Nid.TestSupport;
 using NodaTime;
 
@@ -46,10 +49,10 @@ public sealed class MixedDataset
         NidApp app, IReadOnlyDictionary<string, ItemId> items, IReadOnlyDictionary<string, ItemId> envelopes,
         IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
         IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, ItemId> scenarios, IReadOnlyDictionary<string, ItemId> goals,
-        IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals)
+        IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals, IReadOnlyDictionary<ItemId, Guid> documents, IReadOnlyDictionary<ItemId, Guid> unlinkDocuments)
     {
-        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, Goals, Proposals) =
-            (app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, Goals, Proposals, Documents, UnlinkDocuments) =
+            (app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -103,6 +106,17 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<Guid>> Proposals { get; }
 
+    /// <summary>
+    /// The document of each row, keyed by the row's subscription: uploaded by its first adult owner (<see cref="UploaderOf"/>), its title
+    /// and file name carrying the row's label, linked (<c>core.item</c>, <c>statement</c>) to that subscription. P-A's and P-B's are each
+    /// adult's private document. S-A's and S-B's are also linked to their uploader's private subscription (spec §7): the other adult reads
+    /// them through the shared link, and the scans find the private link's label if it is ever shown. The Documents requests run against these.
+    /// </summary>
+    public IReadOnlyDictionary<ItemId, Guid> Documents { get; }
+
+    /// <summary>A second document of each row, as <see cref="Documents"/> but linked to its row only, for the unlink entry alone to remove.</summary>
+    public IReadOnlyDictionary<ItemId, Guid> UnlinkDocuments { get; }
+
     public ItemId this[string name] => Items[name];
 
     /// <summary>The sale tax estimate's items: each row's property twin under its §2 name, and its envelope twin (« S-A (envelope) »…).</summary>
@@ -137,6 +151,8 @@ public sealed class MixedDataset
         var properties = new Dictionary<string, ItemId>();
         var scenarios = new Dictionary<string, ItemId>();
         var goals = new Dictionary<string, ItemId>();
+        var documents = new Dictionary<ItemId, Guid>();
+        var unlinkDocuments = new Dictionary<ItemId, Guid>();
         foreach (var row in Rows)
         {
             var owners = row.Owners
@@ -186,6 +202,21 @@ public sealed class MixedDataset
                 properties[row.Name], new Nid.RealEstate.Contracts.Tenancy(row.Label, new LocalDate(2020, 2, 1), new LocalDate(2025, 11, 30), 500m, 0m, null, null)));
             if (costRefused is not null || tenancyRefused is not null)
                 throw new InvalidOperationException($"Seeding {row.Name}'s rental failed: {(costRefused ?? tenancyRefused)!.Code}");
+
+            foreach (var seeded in new[] { documents, unlinkDocuments })
+            {
+                var (document, documentRefused) = await app.InvokeAsync(writer, new UploadDocumentCommand(DocumentEndpointTests.Pdf,
+                    $"{row.Label}.pdf", row.Label, null, null, new DocumentTarget(TargetKinds.CoreItem, items[row.Name].Value), DocumentRoles.Statement));
+                seeded[items[row.Name]] = (Guid?)document ?? throw new InvalidOperationException($"Seeding {row.Name}'s document failed: {documentRefused!.Code}");
+            }
+        }
+
+        foreach (var (shared, hidden, owner) in new[] { ("S-A", "P-A", app.AdultA), ("S-B", "P-B", app.AdultB) })
+        {
+            var (_, refused) = await app.InvokeAsync(owner, new LinkDocumentCommand(
+                documents[items[shared]], new DocumentTarget(TargetKinds.CoreItem, items[hidden].Value), DocumentRoles.Statement));
+            if (refused is not null)
+                throw new InvalidOperationException($"Linking {shared}'s document to {hidden} failed: {refused.Code}");
         }
 
         // Each private item gets a custom provider named after its label, through the real requests: a provider list
@@ -231,7 +262,7 @@ public sealed class MixedDataset
         foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
             proposals[name] = await SeedProposalsAsync(app, owner, label, envelopes[name], incomeSources[name], items[name], loans[name]);
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals);
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments);
     }
 
     private static async Task<IReadOnlyList<Guid>> SeedProposalsAsync(
@@ -269,6 +300,10 @@ public sealed class MixedDataset
     /// <summary>The envelope twin of a scenario or goal twin's row; any other id as it is (an unknown id stays unknown).</summary>
     public ItemId EnvelopeTwinOf(ItemId twin)
         => Scenarios.Concat(Goals).Where(kv => kv.Value == twin).Select(kv => (ItemId?)Envelopes[kv.Key]).FirstOrDefault() ?? twin;
+
+    /// <summary>Who uploaded a row's documents, by the row's subscription: its first adult owner, A for D's row.</summary>
+    public PersonId UploaderOf(ItemId item)
+        => Rows.Single(r => Items[r.Name] == item).Owners.Select(o => PersonOf(App, o)).FirstOrDefault(p => p == App.AdultA || p == App.AdultB, App.AdultA);
 
     /// <summary>The §2 visibility of a twin's row.</summary>
     public Visibility VisibilityOf(ItemId twin)

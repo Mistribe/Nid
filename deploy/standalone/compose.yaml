@@ -34,6 +34,7 @@ services:
     volumes:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
+      - documents:/var/lib/nid/documents
     tmpfs: [/tmp]
     # egress: catalog, rates, icons, Pocket ID's public URL, and a Postgres that runs elsewhere. data: the one of this file.
     networks: [app, egress, data]
@@ -122,5 +123,6 @@ networks:
 volumes:
   dataprotection-keys: {}
   assets: {}
+  documents: {}
   pgdata: {}
   pocket-id: {}

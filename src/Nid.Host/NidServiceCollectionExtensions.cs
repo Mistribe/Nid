@@ -8,6 +8,8 @@ using Nid.Core.Infrastructure.Fx;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Admin;
 using Nid.Host.Jobs;
+using Nid.Documents.Application;
+using Nid.Documents.Infrastructure.Persistence;
 using Nid.Goals.Application;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Application.Import;
@@ -72,6 +74,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, DocumentsAuditMap>();
         services.AddSingleton<IAuditMap, RealEstateAuditMap>();
         services.AddSingleton<IAuditMap, PlatformAuditMap>();
 
@@ -211,6 +214,17 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<GoalReader>();
 
+        services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", DocumentsDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<DocumentsDbContext>>();
+        services.AddScoped<IDocumentStore, DocumentStore>();
+        services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
+        services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();
+        services.AddScoped<DocumentAccess>();
+
         services.AddDbContext<RealEstateDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
             npgsql.UseNodaTime();
@@ -305,6 +319,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
         });
         return services;

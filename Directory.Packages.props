@@ -10,6 +10,8 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL.NodaTime" Version="10.0.3" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
+    <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.104.6" />
     <PackageVersion Include="UnambitiousFx.Synapse" Version="2.0.1" />
     <PackageVersion Include="UnambitiousFx.Synapse.Abstractions" Version="2.0.1" />
     <PackageVersion Include="UnambitiousFx.Synapse.Generator" Version="2.0.1" />

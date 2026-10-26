@@ -201,6 +201,7 @@ restic chiffré** qui contient tout ce qu'il faut pour repartir :
 
 - la base (`pg_dump`), la base de Pocket ID (copie à chaud de sa base SQLite, et ses images ; pas avec un Pocket ID
   extérieur, §11), les clés Data Protection et les icônes des fournisseurs ;
+- les documents téléversés (volume `documents`), avec le stockage fichier seulement (§ « Les documents » ci-dessous) ;
 - `deploy/secrets/` (dont la clé de chiffrement de Pocket ID, sans laquelle sa base est illisible) et `deploy/.env` ;
 - un manifeste : nombre de lignes par table, migrations de la base, nombre de clés.
 
@@ -301,6 +302,20 @@ Sur une machine neuve, avec les prérequis du §1 :
 Le script refuse une installation qui contient déjà des données. `--force` la remplace entièrement, après que vous
 avez tapé `RESTAURER` ; rien n'est supprimé tant que la sauvegarde n'a pas été ouverte et reconnue. Si la sauvegarde vient d'une version de Nid plus récente que le code, il s'arrête : faites
 d'abord `git pull`.
+
+### Les documents
+
+Les fichiers téléversés dans Nid sont rangés selon `Documents__Storage__Kind`, à régler dans `environment` de `nid-api`
+(un `compose.override.yaml` suffit) :
+
+- `filesystem` (par défaut) : dans `Documents__Storage__Path` (`/var/lib/nid/documents`, le volume `documents`). Ce volume
+  est dans l'instantané restic et revient avec `restore.sh`.
+- `s3` : dans un bucket compatible S3, avec `Documents__Storage__ServiceUrl`, `Documents__Storage__Bucket`,
+  `Documents__Storage__AccessKey`, `Documents__Storage__SecretKey`, `Documents__Storage__Region` et
+  `Documents__Storage__ForcePathStyle` (`true` pour MinIO et la plupart des stockages auto-hébergés). **Les fichiers ne sont
+  pas dans l'instantané restic** : activez le versionnement ou la réplication du bucket, c'est lui qui les protège.
+
+`Documents__MaxSizeBytes` fixe la taille maximale d'un fichier.
 
 ## 7. Secrets et rotation
 

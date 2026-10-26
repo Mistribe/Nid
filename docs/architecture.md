@@ -136,15 +136,16 @@ Un module est composé de ses projets .NET (`Contracts`, `Domain`, `Application`
 
 ### 5.2 Modules
 
-Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits), celui de Revenus dans `income-data-model.md`, celui d'Objectifs dans `goals-data-model.md`.
+Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d'Investments dans `investments-data-model.md`, celui de RealEstate dans `realestate/` (`README.md` : bien, location, coûts ; `loans.md` : crédits), celui de Revenus dans `income-data-model.md`, celui d'Objectifs dans `goals-data-model.md`, celui de Documents dans `documents-data-model.md`.
 
 | Module | Possède | Expose (Contracts) | Dépend de |
 |---|---|---|---|
-| **Core** | `Person` (`adult` lié au `sub` OIDC, ou `dependent` sans connexion), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Document`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposalStore` ; points d'extension agrégés (tableau de bord, `ITaxContribution`, `IFactConventions`) | rien |
+| **Core** | `Person` (`adult` lié au `sub` OIDC, ou `dependent` sans connexion), `Item` (registre), `Ownership` (part par personne), visibilité, `Valuation`, `Flow`, `Proposal` (file de validation), provenance, `fx_rate` | `IAccessPolicy`, `IVisibleItems`, types `Money`/`Duration`/`DateRange`, `IValuations`, `IFlows`, `IProposalStore` ; points d'extension agrégés (tableau de bord, `ITaxContribution`, `IFactConventions`) | rien |
 | **Subscriptions** | `Subscription`, `BillingPhase`, `Purchase`, `Grant`, `Label`, catalogue des fournisseurs (`Provider`) ; `CoveragePeriod` et `Charge` dérivés, calculés à la lecture (`Timeline`), sans cache stocké | Contributions au tableau de bord (coût mensuel réel/amorti, échéances), charges attendues | Core |
 | **Investments** | `Envelope` (PEA, assurance-vie, PER, livret…) ; valorisations et flux via Core | Gain €/%, TRI plus tard, contribution au patrimoine | Core |
 | **Income** | `IncomeSource`, `IncomePhase` ; revenus exceptionnels via les flux du Core | Revenus mensuels lissés, part engagée, marge (`IIncomeContribution`, `IIncomeSummary`) | Core, `RealEstate.Contracts` (loyers) |
 | **RealEstate** | `Property`, `Loan`, `LoanPhase`, `LoanEvent`, `Insurance` | Tableau d'amortissement, capital restant dû, valeur nette, engagements ; loyers pour Income (`IRentIncome`) | Core |
+| **Documents** | `Document` (fichier adressé par son sha256, métadonnées) et ses liens génériques vers des cibles (`target_kind`, `target_id`, rôle) ; stockage fichiers ou S3 | `IDocumentTargets` (cibles que chaque module résout), `IDocumentLinks` | Core |
 | **Goals** | `Goal` (objectif d'épargne ou de précaution), ses liens aux enveloppes (`share_bp`) et ses relevés | Rien (lit `IEnvelopeFunding` d'Investments et `ICommitmentsContribution`) | Core, `Investments.Contracts` |
 | **Ingestion** | Pipeline de documents, table `job`, contrats de jobs, résultats d'extraction | Entrée des propositions vers Core, API interne pour les workers | Core |
 | **Dashboard** (hébergé dans Core : `Core.Application/Dashboard`) | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + contributions des modules |
@@ -211,7 +212,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 | Audit | Table `platform.audit_log`, append-only par déclencheur (trigger) base de données. Écrite par un `SaveChangesInterceptor` dans la transaction propre de l'écriture (même *change tracker*, même commit) : aucune écriture sans acteur (1F3a). Les instructions en masse (`ExecuteSql`, `ExecuteUpdate`, `ExecuteDelete`) contournent l'interceptor, donc ne sont permises que là où c'est décidé (U17, `superpowers/specs/2026-09-26-audit-log-design.md`). Les événements de sécurité s'écrivent sur leur propre connexion, hors de la transaction de la requête. Enregistre aussi « agissant pour » quand l'acteur est le MCP (étape 4). |
 | Suppression | Suppression logique (`deleted_at`) sur les agrégats utilisateur ; purge réelle par action explicite. |
 | Concurrence | Verrou optimiste via la colonne système `xmin`. Conflit → HTTP 409. |
-| Documents | Stockés par contenu : `/data/documents/{sha[0:2]}/{sha256}`, dédupliqués. Métadonnées en base. Chiffrement au repos = disque de l'hôte ; sauvegarde chiffrée. |
+| Documents | Module Documents (`documents-data-model.md`). Stockés par contenu : `{sha[0:2]}/{sha256}` dans le volume `documents` (`/var/lib/nid/documents`) ou un bucket S3, dédupliqués. Métadonnées en base. Chiffrement au repos = disque de l'hôte ou chiffrement du bucket ; sauvegarde chiffrée du volume (pas du bucket S3). |
 | Secrets | Jetons et consentements bancaires chiffrés avec ASP.NET Data Protection ; clés sur volume sauvegardé. |
 
 ## 7. API
@@ -239,7 +240,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 
 ```
 Source (dépôt UI / mail / banque)
-  → Document (Core, SHA-256)
+  → Document (module Documents, SHA-256)
   → Job (Ingestion) ──claim──> Worker (conteneur, techno libre)
   → JSON structuré (schéma versionné) ──> API interne
   → validation du schéma + contrôles métier .NET

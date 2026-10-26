@@ -30,7 +30,7 @@ household_settings (1 ligne)
 
 person ──< ownership >── item ──< valuation
                           │  ├──< flow
-                          │  └──< document_item >── document
+                          │  └── (documents : module Documents, `documents-data-model.md`)
                           │
 proposal ── target_item_id ┘   (document_id, job_id : références de provenance)
 
@@ -167,10 +167,10 @@ Colonnes communes à `valuation` et `flow` :
 | `source` | `manual`, `bank_api`, `document`, `import` |
 | `created_via` | `ui`, `api`, `mcp`, `job`, `import` |
 | `created_by_person_id` | La personne au nom de qui la donnée est saisie. Pour la validation d'une proposition : celui qui valide |
-| `document_id?`, `proposal_id?` | Traçabilité jusqu'à la source |
+| `document_id?`, `proposal_id?` | Traçabilité jusqu'à la source. `document_id` arrive avec la tranche 3 de la #161 (`documents-data-model.md` §10), pointant vers `documents.document` |
 | `created_at` | timestamptz UTC |
 
-**Livré en 2A** (2026-09-29, `superpowers/specs/2026-09-29-core-dated-facts-design.md`) : tables `core.valuation` et `core.flow`, contrats `IValuations` et `IFlows`, codes `core.item_without_currency`, `core.currency_mismatch`, `core.date_in_future`, `core.amount_not_positive`, `core.invalid_fact`, `core.fact_not_found`, `core.fact_retired`, `core.opening_exists`, `core.external_ref_taken`, `core.fact_conflict`. `document_id` et `proposal_id` arriveront à l'étape 4 avec leurs tables ; `source` vaut `manual` ou `import`. Une valeur ou un flux est écrit et lu par une personne.
+**Livré en 2A** (2026-09-29, `superpowers/specs/2026-09-29-core-dated-facts-design.md`) : tables `core.valuation` et `core.flow`, contrats `IValuations` et `IFlows`, codes `core.item_without_currency`, `core.currency_mismatch`, `core.date_in_future`, `core.amount_not_positive`, `core.invalid_fact`, `core.fact_not_found`, `core.fact_retired`, `core.opening_exists`, `core.external_ref_taken`, `core.fact_conflict`. `proposal_id` arrive à l'étape 4 avec sa table, `document_id` avec la tranche 3 de la #161 (`documents-data-model.md` §10) ; `source` vaut `manual` ou `import`. Une valeur ou un flux est écrit et lu par une personne.
 
 ### 5.2 `valuation` : « cet élément vaut X à telle date »
 
@@ -240,25 +240,7 @@ La valeur du mois précédent est **proposée** dans le formulaire (principe 2 d
 
 ## 6. Documents
 
-### 6.1 Tables
-
-**`document`**
-
-| Champ | Type | Remarques |
-|---|---|---|
-| `id` | uuid | |
-| `sha256` | char(64) | Adresse du contenu |
-| `size_bytes`, `media_type`, `original_filename` | | Types acceptés : liste blanche (PDF, images, `.eml`), taille maximale configurable |
-| `uploaded_by_person_id`, `uploaded_at` | | |
-| `archived_at?` | timestamptz | Pas de suppression physique |
-
-**`document_item(document_id, item_id)`** : un document peut concerner plusieurs éléments (un relevé, plusieurs enveloppes).
-
-### 6.2 Règles
-
-- **Une ligne par dépôt, un fichier par contenu** : si les deux utilisateurs déposent le même PDF, il y a deux lignes `document` mais un seul fichier `/data/documents/{sha[0:2]}/{sha256}`. Le fichier n'est purgé que par action explicite, et seulement s'il n'est plus référencé.
-- **Visibilité** : lisible par celui qui l'a déposé **et** par quiconque peut lire un élément lié. Non lié : déposant seul. Un document rattaché à un élément privé ne fuit donc jamais.
-- **Accès au contenu** : par l'API via `IAccessPolicy` ; par les workers via le flux à jeton court (`architecture.md` §9.3).
+Les documents ne sont plus dans Core : le module `Nid.Documents` possède le fichier, ses métadonnées et ses liens (`documents-data-model.md`, livré en tranche 1 de la #161, 2026-10-26). Les tables `document` et `document_item` décrites ici auparavant sont remplacées par `documents.document` et `documents.document_link`.
 
 ## 7. Propositions (file de validation)
 
@@ -381,7 +363,7 @@ Toutes les opérations passent par `IAccessPolicy`. Côté application, les écr
 | `IItems` | `Create`, `Rename` (met à jour `display_name`), `SetOwners`, `SetVisibility`, `Archive` |
 | `IValuations` | `Record` (crée ou remplace la valeur d'une date), `Void`, `Latest(item, on)`, `Series(item, range)` |
 | `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `Sum(item, kinds, range)` (somme déterministe pour les modules) |
-| `IDocuments` | `Register`, `Link(item)`, `Open` (flux du contenu), `Archive` |
+| `IDocuments` | Retiré de Core : `IDocumentTargets` et `IDocumentLinks` sont dans `Documents.Contracts` (`documents-data-model.md` §5) |
 | `IProposalStore` | Livré en 4C1 : `Submit`, `Find`, `List`, `Decide`, `AddWarning`. Pas d’`Edit` séparé avant 4C2 : la modification se fait à l’approbation (`editedPayload`) |
 | `IProposalHandler` | Non générique, implémenté par chaque module : `Validate`, `Preview`, `Apply` |
 | `IFx` | `Convert(money, to, on)` |

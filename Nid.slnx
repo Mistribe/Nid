@@ -5,6 +5,10 @@
     <Project Path="src/Nid.Core.Contracts/Nid.Core.Contracts.csproj" />
     <Project Path="src/Nid.Core.Domain/Nid.Core.Domain.csproj" />
     <Project Path="src/Nid.Core.Infrastructure/Nid.Core.Infrastructure.csproj" />
+    <Project Path="src/Nid.Documents.Application/Nid.Documents.Application.csproj" />
+    <Project Path="src/Nid.Documents.Contracts/Nid.Documents.Contracts.csproj" />
+    <Project Path="src/Nid.Documents.Domain/Nid.Documents.Domain.csproj" />
+    <Project Path="src/Nid.Documents.Infrastructure/Nid.Documents.Infrastructure.csproj" />
     <Project Path="src/Nid.Goals.Application/Nid.Goals.Application.csproj" />
     <Project Path="src/Nid.Goals.Contracts/Nid.Goals.Contracts.csproj" />
     <Project Path="src/Nid.Goals.Domain/Nid.Goals.Domain.csproj" />
@@ -34,6 +38,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Core.IntegrationTests/Nid.Core.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Core.Tests/Nid.Core.Tests.csproj" />
+    <Project Path="tests/Nid.Documents.Tests/Nid.Documents.Tests.csproj" />
     <Project Path="tests/Nid.Goals.Tests/Nid.Goals.Tests.csproj" />
     <Project Path="tests/Nid.Income.Tests/Nid.Income.Tests.csproj" />
     <Project Path="tests/Nid.Investments.Tests/Nid.Investments.Tests.csproj" />

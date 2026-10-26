@@ -20,8 +20,8 @@ RUN ln -s Nid.Host /app/nid
 
 # The folders the named volumes start from: a fresh volume copies their owner and mode (1F1 design §2.1). They are
 # copied whole, as /volumes/var/lib/nid, so each folder keeps its own mode (a COPY of a folder's contents would not).
-RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets \
- && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys
+RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/lib/nid/documents \
+ && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys && chmod 0750 /volumes/var/lib/nid/documents
 
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.

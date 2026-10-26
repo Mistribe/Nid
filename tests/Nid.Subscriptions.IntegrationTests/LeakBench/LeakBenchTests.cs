@@ -241,6 +241,9 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                      "/api/v1/core/persons",
                      "/api/v1/goals?scope=household",
                      "/api/v1/goals?scope=me",
+                     "/api/v1/documents?scope=household",
+                     "/api/v1/documents?scope=me&archived=true",
+                     "/api/v1/documents?inbox=true",
                  }.Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
                      .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" })))
         {
@@ -498,6 +501,11 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             [app.AdultA] = [],
             [app.AdultB] = [],
         };
+        var documentBodies = new Dictionary<PersonId, List<string>>
+        {
+            [app.AdultA] = [],
+            [app.AdultB] = [],
+        };
 
         foreach (var entry in RequestCatalogue.Entries)
         {
@@ -510,12 +518,19 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             if (typeof(ICommandMarker).IsAssignableFrom(entry.RequestType))
                 continue;
 
-            List<ItemId> targets = entry.IsItemScoped ? [.. rows.Values] : [rows["S-A"]];
+            List<ItemId> targets = entry.IsItemScoped || entry.OnEveryRow ? [.. rows.Values] : [rows["S-A"]];
 
             foreach (var actor in new[] { app.AdultA, app.AdultB })
             foreach (var target in targets)
             {
-                var (response, _) = await app.InvokeAsync(actor, entry.Build(data, target));
+                var (response, failure) = await app.InvokeAsync(actor, entry.Build(data, target));
+
+                // A row's document is read by its uploader and by whoever reads the row; anyone else meets « not found ».
+                if (entry.OnEveryRow)
+                    Assert.True(
+                        data.ExpectedReadable(actor).Contains(target) || data.UploaderOf(target) == actor ? failure is null : failure is NotFoundFailure,
+                        $"{entry.RequestType.Name} on {data.NameOf(target)}'s document as {data.NameOf(actor)}: got {Describe(failure)}");
+
                 if (response is null)
                     continue;
 
@@ -529,10 +544,23 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                             + "which the rules hide");
                 }
 
+                // A download holds a stream, which does not serialise: its bytes are checked, and what it names is scanned.
+                if (response is Nid.Documents.Application.DocumentContent content)
+                    await using (content.Content)
+                    {
+                        using var bytes = new MemoryStream();
+                        await content.Content.CopyToAsync(bytes);
+                        Assert.Equal("application/pdf", content.MediaType);
+                        Assert.Equal(Documents.DocumentEndpointTests.Pdf.Length, bytes.Length);
+                        response = new { content.MediaType, content.FileName, bytes.Length };
+                    }
+
                 // Text: not just the ids. A finding message or a catalogue join naming another item would
                 // carry a label the identifier check cannot see. Every read gets this for free.
                 var serialised = JsonSerializer.Serialize(response, ResponseJson);
                 bodies[actor].Add(serialised);
+                if (entry.RequestType.Assembly == typeof(Nid.Documents.Application.ListDocumentsQuery).Assembly)
+                    documentBodies[actor].Add(serialised);
                 if (rows == data.Envelopes)
                     envelopeBodies[actor].Add(serialised);
                 if (rows == data.IncomeSources)
@@ -556,9 +584,81 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             Assert.Contains(incomeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(loanBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             Assert.Contains(propertyBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+            Assert.Contains(documentBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
             // 3C2: a tenancy labelled and a recurring cost noted with the row's label reach the property reads, so the scan above looks through them.
             Assert.Contains(propertyBodies[actor], body => body.Contains("\"label\":\"shared-a\"", StringComparison.Ordinal)
                 && body.Contains("\"note\":\"shared-a\",\"monthlyEquivalent\"", StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>
+    /// Spec §7: a row's document is edited and archived by its uploader and by whoever writes the row; one who only reads the row is
+    /// forbidden, and anyone else meets « not found ». Every <see cref="CatalogueEntry.OnEveryRow"/> command, on every row, as A and as B.
+    /// </summary>
+    [Fact]
+    public async Task Every_document_write_is_refused_exactly_as_the_rules_say()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+        var commands = RequestCatalogue.Entries.Where(e => e.OnEveryRow && typeof(ICommandMarker).IsAssignableFrom(e.RequestType)).ToList();
+        Assert.Equal(2, commands.Count);
+
+        foreach (var entry in commands)
+        foreach (var (name, item) in data.Items)
+        foreach (var actor in new[] { app.AdultA, app.AdultB })
+        {
+            var (_, failure) = await app.InvokeAsync(actor, entry.Build(data, item));
+            var uploader = data.UploaderOf(item) == actor;
+            var where = $"{entry.RequestType.Name} on {name}'s document by {data.NameOf(actor)}";
+
+            if (!uploader && !data.ExpectedReadable(actor).Contains(item))
+                Assert.True(failure is NotFoundFailure, $"{where}: expected not found, got {Describe(failure)}");
+            else if (!uploader && !data.ExpectedWritable(name, actor))
+                Assert.True(failure is UnauthorizedFailure, $"{where}: expected forbidden, got {Describe(failure)}");
+            else
+                Assert.True(failure is null, $"{where}: expected success, got {Describe(failure)}");
+        }
+    }
+
+    /// <summary>
+    /// Spec §7: S-A's document is linked to S-A and to A's private P-A, S-B's to S-B and P-B. The other adult reads it through the shared
+    /// link and sees neither the private link's label nor its id; and, editing neither the document nor the shared item, cannot link it to
+    /// an item of their own.
+    /// </summary>
+    [Fact]
+    public async Task A_shared_document_shows_no_private_link_and_its_reader_cannot_link_it()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+
+        foreach (var (shared, hidden, owner, reader, own) in new[]
+                 {
+                     ("S-A", "P-A", app.AdultA, app.AdultB, new[] { "S-B", "P-B" }),
+                     ("S-B", "P-B", app.AdultB, app.AdultA, new[] { "S-A", "P-A" }),
+                 })
+        {
+            var document = data.Documents[data[shared]];
+            var label = data.ForbiddenLabel(reader);
+            var url = $"/api/v1/documents/{document}";
+
+            Assert.Contains(label, await app.GetRawAsync(owner, url), StringComparison.Ordinal); // positive control
+            foreach (var body in new[] { await app.GetRawAsync(reader, url), await app.GetRawAsync(reader, "/api/v1/documents?scope=me") })
+            {
+                Assert.DoesNotContain(label, body, StringComparison.Ordinal);
+                Assert.DoesNotContain(data[hidden].Value.ToString(), body, StringComparison.Ordinal);
+            }
+
+            foreach (var target in own)
+            {
+                var (_, failure) = await app.InvokeAsync(reader, new Nid.Documents.Application.LinkDocumentCommand(document,
+                    new Nid.Documents.Contracts.DocumentTarget(Nid.Documents.Contracts.TargetKinds.CoreItem, data[target].Value), "statement"));
+                Assert.True(failure is UnauthorizedFailure, $"{data.NameOf(reader)} linking {shared}'s document to {target}: got {Describe(failure)}");
+            }
+
+            // Nothing linked: read from the store, as no adult sees every link.
+            await using var scope = app.Services.CreateAsyncScope();
+            var links = await scope.ServiceProvider.GetRequiredService<Nid.Documents.Application.IDocumentStore>().LinksOfAsync([document], default);
+            Assert.Equal(new[] { data[shared].Value, data[hidden].Value }.Order(), links.Select(l => l.TargetId).Order());
         }
     }
 

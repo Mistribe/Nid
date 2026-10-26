@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
 using Nid.Goals.Contracts;
 using Nid.Host.Auth;
 using Nid.Income.Contracts;
@@ -171,6 +172,11 @@ public static class ResultHttp
             _ when failure.Code is LoanCodes.LoanConflict or LoanCodes.FeeConflict or LoanCodes.RepaymentConflict
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
             _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
+            _ when failure.Code == DocumentsCodes.TooLarge => StatusCodes.Status413PayloadTooLarge,
+            _ when failure.Code == DocumentsCodes.UnsupportedType => StatusCodes.Status415UnsupportedMediaType,
+            _ when failure.Code is DocumentsCodes.InvalidField or DocumentsCodes.InvalidRole or DocumentsCodes.UnknownTargetKind => StatusCodes.Status400BadRequest,
+            _ when failure.Code is DocumentsCodes.TargetNotFound or DocumentsCodes.ContentMissing => StatusCodes.Status404NotFound,
+            _ when failure.Code == DocumentsCodes.AlreadyLinked => StatusCodes.Status409Conflict,
             _ when failure.Code == NotificationCodes.PreferencesConflict => StatusCodes.Status409Conflict,
             _ when failure.Code == NotificationCodes.TestThrottled => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status422UnprocessableEntity,

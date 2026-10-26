@@ -28,6 +28,8 @@ public static class OpenApiSetup
                     AsString(schema, "uuid", nullable: underlying is not null);
                 else if (type == typeof(LocalDate))
                     AsString(schema, "date", nullable: underlying is not null);
+                else if (type == typeof(Instant))
+                    AsString(schema, "date-time", nullable: underlying is not null);
                 return Task.CompletedTask;
             });
             options.AddSchemaTransformer(async (schema, context, ct) =>
@@ -50,7 +52,7 @@ public static class OpenApiSetup
     private static bool IsWireString(Type type)
     {
         var underlying = Nullable.GetUnderlyingType(type) ?? type;
-        return underlying == typeof(ItemId) || underlying == typeof(LocalDate);
+        return underlying == typeof(ItemId) || underlying == typeof(LocalDate) || underlying == typeof(Instant);
     }
 
     private static void AsString(OpenApiSchema schema, string format, bool nullable)

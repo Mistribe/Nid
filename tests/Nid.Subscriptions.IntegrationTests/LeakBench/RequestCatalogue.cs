@@ -10,6 +10,8 @@ using Nid.Core.Application.Fx;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
+using Nid.Documents.Application;
+using Nid.Documents.Contracts;
 using Nid.Goals.Application;
 using Nid.Goals.Contracts;
 using Nid.Income.Application;
@@ -31,6 +33,7 @@ using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.IntegrationTests.Documents;
 using NodaTime;
 using UnambitiousFx.Synapse.Abstractions;
 using Duration = Nid.Core.Contracts.Duration;
@@ -66,6 +69,12 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
     /// to an item the actor only has to read (spec 3C1 §3: a loan's property).
     /// </summary>
     public AccessKind SecondItemAccess { get; init; } = AccessKind.Write;
+
+    /// <summary>
+    /// A request that is not item-scoped but is built on a row's own resource (a document): the read scan runs it on every row rather
+    /// than on S-A alone, and the bench checks each refusal against the row.
+    /// </summary>
+    public bool OnEveryRow { get; init; }
 }
 
 /// <summary>
@@ -424,6 +433,25 @@ public static class RequestCatalogue
         new(typeof(ReopenGoalCommand), true, (_, item) => new ReopenGoalCommand(item)),
         new(typeof(PutGoalProgressCommand), true, (_, item) => new PutGoalProgressCommand(item, new LocalDate(2025, 1, 1), 100m)),
         new(typeof(DeleteGoalProgressCommand), true, (_, item) => new DeleteGoalProgressCommand(item, new LocalDate(2025, 1, 1))),
+
+        // A document id is not an item: get, content, edit and archive take the row's seeded document, on every row, and are checked
+        // against the document's own rules (LeakBenchTests). A core.item target makes upload, link, role and unlink item-scoped.
+        new(typeof(ListDocumentsQuery), false, (_, _) => new ListDocumentsQuery(VisibilityScope.Me, true, false)),
+        new(typeof(GetDocumentQuery), false, (d, item) => new GetDocumentQuery(d.Documents[item])) { OnEveryRow = true },
+        new(typeof(GetDocumentContentQuery), false, (d, item) => new GetDocumentContentQuery(d.Documents[item])) { OnEveryRow = true },
+        new(typeof(EditDocumentCommand), false, (d, item) => new EditDocumentCommand(d.Documents[item], "bench", null, null)) { OnEveryRow = true },
+        new(typeof(SetDocumentArchivedCommand), false, (d, item) => new SetDocumentArchivedCommand(d.Documents[item], true)) { OnEveryRow = true },
+        new(typeof(UploadDocumentCommand), true, (_, item) => new UploadDocumentCommand(DocumentEndpointTests.Pdf, "bench.pdf", "bench", null, null,
+            new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Statement)),
+        // The row's document is already linked to the row: an allowed writer meets documents.already_linked, never an access refusal.
+        new(typeof(LinkDocumentCommand), true, (d, item) => new LinkDocumentCommand(d.Documents[item],
+            new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Statement)),
+        new(typeof(SetLinkRoleCommand), true, (d, item) => new SetLinkRoleCommand(d.Documents[item],
+            new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Other)),
+        // A document of its own: the first allowed unlink removes the row's only link, and the second allowed actor meets a document it
+        // no longer reads (« document » not found, not « item »); no other entry meets an unlinked document.
+        new(typeof(UnlinkDocumentCommand), true, (d, item) => new UnlinkDocumentCommand(d.UnlinkDocuments[item],
+            new DocumentTarget(TargetKinds.CoreItem, item.Value))),
 
         new(typeof(ListLoansQuery), false, (_, _) => new ListLoansQuery(VisibilityScope.Me, true)),
         new(typeof(GetLoansOverviewQuery), false, (_, _) => new GetLoansOverviewQuery(VisibilityScope.Me)),

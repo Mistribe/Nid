@@ -23,6 +23,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/subscriptions/catalog/sync", "/api/v1/investments/prices/sync", "/price/accept", "/api/v1/realestate/irl/sync", "PUT /api/v1/realestate/irl/{year:int}/{quarter:int}", "/api/v1/realestate/loans/{id:guid}/simulations", "/api/v1/realestate/loans/overview/simulations",
         "/api/v1/realestate/loans/{id:guid}/bank-schedule/preview", "PUT /api/v1/realestate/loans/{id:guid}/bank-schedule",
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
+        // Documents reach the assistant in their tranche 3, read-only: no tool uploads, edits or links one.
+        "/api/v1/documents",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)

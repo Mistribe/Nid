@@ -43,7 +43,7 @@ public sealed class NidApp : IAsyncDisposable
 
     private NidApp(
         WebApplicationFactory<Program> factory, string connectionString, PersonId a, PersonId b, PersonId d,
-        FakeFxSources sources, FakePriceSources prices, FakeIrlSource irl, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot)
+        FakeFxSources sources, FakePriceSources prices, FakeIrlSource irl, FakeCatalogSource catalog, FakeIconSource icons, string assetsRoot, string documentsRoot)
     {
         this.factory = factory;
         ConnectionString = connectionString;
@@ -56,6 +56,7 @@ public sealed class NidApp : IAsyncDisposable
         Catalog = catalog;
         Icons = icons;
         AssetsRoot = assetsRoot;
+        DocumentsRoot = documentsRoot;
     }
 
     /// <summary>The database this harness runs against, for tests that read rows back directly.</summary>
@@ -89,6 +90,9 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>This host's asset store (1C2c): a temporary folder of its own, deleted when the host is disposed.</summary>
     public string AssetsRoot { get; }
 
+    /// <summary>This host's document storage folder (<c>Documents:Storage:Path</c>), deleted when the host is disposed.</summary>
+    public string DocumentsRoot { get; }
+
     /// <param name="overrides">
     /// Applied last, so a test can replace a registered service. The leak bench uses it to install a
     /// deliberately broken <c>IVisibleItems</c> and watch the output guard catch it (access-tests.md §5).
@@ -104,6 +108,7 @@ public sealed class NidApp : IAsyncDisposable
         var catalog = FakeCatalogSource.Offline();
         var icons = FakeIconSource.Offline();
         var assetsRoot = Path.Combine(Path.GetTempPath(), "nid-assets-" + Guid.NewGuid().ToString("N"));
+        var documentsRoot = Path.Combine(Path.GetTempPath(), "nid-documents-" + Guid.NewGuid().ToString("N"));
 
         await using (var db = PostgresFixture.NewCoreContext(connectionString))
         {
@@ -124,6 +129,7 @@ public sealed class NidApp : IAsyncDisposable
                 // No test host runs Quartz unless a test asks for it (Task 7), and none reaches the network.
                 builder.UseSetting("Jobs:Enabled", "false");
                 builder.UseSetting("Assets:Root", assetsRoot);
+                builder.UseSetting("Documents:Storage:Path", documentsRoot);
                 foreach (var (key, value) in settings ?? new Dictionary<string, string>())
                     builder.UseSetting(key, value);
                 // The golden-case fixtures (NewSpotifyGoldenCaseAsync) are dated around October 2025, matching
@@ -147,7 +153,7 @@ public sealed class NidApp : IAsyncDisposable
                 });
             });
 
-            return new NidApp(factory, connectionString, a, b, d, sources, prices, irl, catalog, icons, assetsRoot);
+            return new NidApp(factory, connectionString, a, b, d, sources, prices, irl, catalog, icons, assetsRoot, documentsRoot);
         }
     }
 
@@ -193,6 +199,16 @@ public sealed class NidApp : IAsyncDisposable
         using var request = new HttpRequestMessage(method, url);
         if (body is not null)
             request.Content = JsonContent.Create(body, options: Json);
+        if (!SafeMethods.Contains(method.Method))
+            request.Headers.Add(CsrfMiddleware.HeaderName, await CsrfTokenForAsync(actor));
+        return await client.SendAsync(request);
+    }
+
+    /// <summary>Like <see cref="RawAsync"/>, with <paramref name="content"/> sent as it is (raw bytes, a body with no length).</summary>
+    public async Task<HttpResponseMessage> RawContentAsync(PersonId actor, HttpMethod method, string url, HttpContent content)
+    {
+        using var client = ClientFor(actor);
+        using var request = new HttpRequestMessage(method, url) { Content = content };
         if (!SafeMethods.Contains(method.Method))
             request.Headers.Add(CsrfMiddleware.HeaderName, await CsrfTokenForAsync(actor));
         return await client.SendAsync(request);
@@ -623,8 +639,9 @@ public sealed class NidApp : IAsyncDisposable
         factory.Dispose();
         try
         {
-            if (Directory.Exists(AssetsRoot))
-                Directory.Delete(AssetsRoot, recursive: true);
+            foreach (var root in new[] { AssetsRoot, DocumentsRoot })
+                if (Directory.Exists(root))
+                    Directory.Delete(root, recursive: true);
         }
         catch (IOException)
         {

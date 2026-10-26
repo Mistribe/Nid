@@ -173,6 +173,12 @@ restore_files() {
   jq -e '.format == 1' "$out/tmp/stage/manifest.json" >/dev/null || die "l'instantané $1 n'a pas de manifeste lisible"
   replace_folder "$out/source/volumes/dataprotection-keys" /target/volumes/dataprotection-keys 1654:1654 700
   replace_folder "$out/source/volumes/assets" /target/volumes/assets 1654:1654 755
+  # A snapshot from before the documents existed has no such folder: it held none, so the target is emptied.
+  if [ -d "$out/source/volumes/documents" ]; then
+    replace_folder "$out/source/volumes/documents" /target/volumes/documents 1654:1654 750
+  else
+    find /target/volumes/documents -mindepth 1 -delete
+  fi
   # The snapshot decides, not the environment: one taken with an external Pocket ID has nothing of it to put back.
   if jq -e '(.parts // ["pocket-id"]) | index("pocket-id")' "$out/tmp/stage/manifest.json" >/dev/null; then
     find /target/volumes/pocket-id -mindepth 1 -delete

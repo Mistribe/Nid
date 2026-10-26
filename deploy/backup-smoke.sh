@@ -35,6 +35,11 @@ client=$(in_backup 'pg_dump --version' | sed -E 's/.* ([0-9]+)\..*/\1/')
 [ "$client" -ge "$server" ] || fail "pg_dump $client is older than the server $server"
 echo "ok: pg_dump $client is not older than the server $server"
 
+# A document the way Nid.Documents stores it (ab/<sha>), written by a throwaway container into the live volume.
+doc_sha=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+doc_hash=$(docker run --rm -v nid_documents:/d busybox:1.37 sh -c \
+  "mkdir -p /d/ab && echo '$doc_sha' > /d/ab/$doc_sha && sha256sum < /d/ab/$doc_sha" | cut -d' ' -f1)
+
 backup backup-now
 backup status >/dev/null || fail "unhealthy after a good run: $(backup status)"
 # On Linux the folder is the host user's and the service root without DAC_OVERRIDE could not write it (CI, 1F2).
@@ -50,7 +55,8 @@ grep -qx '/source/deploy/secrets/csrf_key' <<<"$listing" || fail "deploy/secrets
 if grep -q 'restic_password' <<<"$listing"; then fail "the restic password is in the snapshot"; fi
 if grep -q '^/pocket-id' <<<"$listing"; then fail "Pocket ID's live base is in the snapshot"; fi
 grep -q 'pocket-id.sqlite3' <<<"$listing" || fail "Pocket ID's hot copy is not in the snapshot"
-echo "ok: a backup holds the database, Pocket ID, the keys, the assets and deploy/, not the restic password"
+grep -qx "/source/volumes/documents/ab/$doc_sha" <<<"$listing" || fail "the document is not in the snapshot"
+echo "ok: a backup holds the database, Pocket ID, the keys, the assets, the documents and deploy/, not the restic password"
 
 # Review Focus 1: a failed run is named, touches no repository, and the next good run clears it.
 before=$(snapshots)
@@ -127,11 +133,16 @@ echo "ok: a failed --verify says why and leaves nothing behind"
 scratch() {
   docker run --rm --network none -v "$PWD/backups":/repo -v "$PWD/backup-secrets":/run/backup-secrets:ro \
     -v nid-scratch-keys:/target/volumes/dataprotection-keys -v nid-scratch-assets:/target/volumes/assets \
+    -v nid-scratch-documents:/target/volumes/documents \
     -v nid-scratch-pocket-id:/target/volumes/pocket-id -v nid-scratch-deploy:/target/deploy \
     -e NID_HOST_UID=4242 -e NID_HOST_GID=4242 "$@"
 }
 id=$(scratch nid-backup:local snapshot-id)
 scratch nid-backup:local restore-files "$id"
+[ "$(scratch --entrypoint sh nid-backup:local -c "sha256sum < /target/volumes/documents/ab/$doc_sha" | cut -d' ' -f1)" = "$doc_hash" ] \
+  || fail "the restored document differs"
+[ "$(scratch --entrypoint stat nid-backup:local -c '%u %a' /target/volumes/documents)" = "1654 750" ] || fail "documents folder owner or mode"
+echo "ok: restore-files puts the documents back, byte for byte, owned by nid-api"
 owners=$(scratch --entrypoint stat nid-backup:local -c '%u' /target/deploy/secrets /target/deploy/.env | sort -u)
 [ "$owners" = 4242 ] || fail "deploy/ files not given to the host user: $owners"
 scratch --entrypoint touch nid-backup:local /target/volumes/dataprotection-keys/key-00000000-0000-0000-0000-000000000000.xml
@@ -139,7 +150,7 @@ scratch nid-backup:local check-keys "$id" >/dev/null || fail "a key added after 
 scratch --entrypoint sh nid-backup:local -c \
   'rm "$(ls /target/volumes/dataprotection-keys/key-*.xml | grep -v key-00000000 | head -1)"'
 if scratch nid-backup:local check-keys "$id" >/dev/null 2>&1; then fail "a key of the backup went missing unnoticed"; fi
-docker volume rm nid-scratch-keys nid-scratch-assets nid-scratch-pocket-id nid-scratch-deploy >/dev/null
+docker volume rm nid-scratch-keys nid-scratch-assets nid-scratch-documents nid-scratch-pocket-id nid-scratch-deploy >/dev/null
 echo "ok: restored deploy/ folders belong to the host user; the key check wants the backup's keys, not an exact count"
 
 # The guard: the running installation holds data.

@@ -71,8 +71,8 @@ compare_counts() {
 # fails, so that a typo never drops Pocket ID from the backup unnoticed.
 backup_parts() {
   case $1 in
-    embedded) jq -cn '["database", "pocket-id", "dataprotection-keys", "assets", "deploy"]' ;;
-    external) jq -cn '["database", "dataprotection-keys", "assets", "deploy"]' ;;
+    embedded) jq -cn '["database", "pocket-id", "dataprotection-keys", "assets", "documents", "deploy"]' ;;
+    external) jq -cn '["database", "dataprotection-keys", "assets", "documents", "deploy"]' ;;
     *) return 1 ;;
   esac
 }

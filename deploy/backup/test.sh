@@ -89,8 +89,8 @@ check "unhealthy after a restart while the remote still fails" no "$(succeeds he
 state '{"last_result":"none","remote_result":"none","last_snapshot":"a1","last_success_at":1790390000}'
 check "healthy after a restart with a remote not yet tried" yes "$(succeeds health_check /tmp/status.json $now 26 yes 0)"
 
-check "parts with Pocket ID embedded" '["database","pocket-id","dataprotection-keys","assets","deploy"]' "$(backup_parts embedded)"
-check "parts with Pocket ID external" '["database","dataprotection-keys","assets","deploy"]' "$(backup_parts external)"
+check "parts with Pocket ID embedded" '["database","pocket-id","dataprotection-keys","assets","documents","deploy"]' "$(backup_parts embedded)"
+check "parts with Pocket ID external" '["database","dataprotection-keys","assets","documents","deploy"]' "$(backup_parts external)"
 check "parts refuse a mode they do not know" no "$(succeeds backup_parts extern)"
 check "pgpass line of the bundled database" "postgres:5432:nid:nid:s3cret" "$(pgpass_line postgres s3cret)"
 check "pgpass line of an external database" "postgres-server:5432:nid:nid:s3cret" "$(pgpass_line postgres-server s3cret)"

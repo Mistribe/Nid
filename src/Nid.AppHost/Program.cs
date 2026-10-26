@@ -49,6 +49,7 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
     .WithEnvironment("Auth__TrustAnyIdentityProviderCertificate", "true")
     // 1C2c: the asset store of development, git-ignored; production mounts a volume at /var/lib/nid/assets (1F).
     .WithEnvironment("Assets__Root", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "assets")))
+    .WithEnvironment("Documents__Storage__Path", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "documents")))
     // Notifications: a count requests a refresh at most every 5 s here (900 s in production), so the end-to-end journey sees its data evaluated.
     .WithEnvironment("Notifications__RefreshThrottleSeconds", "5")
     // Email through the mail catcher (nid-api runs on the host: the container's published port is on localhost).

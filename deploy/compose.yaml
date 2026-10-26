@@ -88,6 +88,7 @@ services:
     volumes:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
+      - documents:/var/lib/nid/documents
       - backup-state:/run/backup-state:ro
     tmpfs: [/tmp]
     # The only service with a way out (egress): catalog, rates, icons, and the identity provider's public URL.
@@ -104,7 +105,7 @@ services:
     depends_on: { nid-api: { condition: service_started } }
     deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
 
-  # Nightly restic backup (1F2 design §3). Root with three capabilities: it reads files of four owners (keys and assets
+  # Nightly restic backup (1F2 design §3). Root with three capabilities: it reads files of four owners (keys, assets and documents
   # 1654, Pocket ID 65532, deploy/secrets/ the host user), all mounted read-only; it writes the local repository, a folder
   # of the host user, and hands what it wrote back to that user. Every other mount is read-only, the root file system
   # too, so DAC_OVERRIDE and CHOWN reach only /repo and /tmp. No way out without compose.backup-remote.yaml.
@@ -131,6 +132,7 @@ services:
     volumes:
       - dataprotection-keys:/source/volumes/dataprotection-keys:ro
       - assets:/source/volumes/assets:ro
+      - documents:/source/volumes/documents:ro
       # Outside /source: only its hot copy enters the snapshot.
       - pocket-id:/pocket-id:ro
       - ./secrets:/source/deploy/secrets:ro
@@ -170,6 +172,7 @@ services:
     volumes:
       - dataprotection-keys:/target/volumes/dataprotection-keys
       - assets:/target/volumes/assets
+      - documents:/target/volumes/documents
       - pocket-id:/target/volumes/pocket-id
       - ./:/target/deploy
       - { type: bind, source: ./backup-secrets, target: /run/backup-secrets, read_only: true, bind: { create_host_path: false } }
@@ -192,6 +195,7 @@ volumes:
   pocket-id: {}
   dataprotection-keys: {}
   assets: {}
+  documents: {}
   backup-state: {}
 
 # Plain files (compose outside Swarm bind-mounts them): deploy/secrets/ is 0700, so only its owner and the daemon read them.

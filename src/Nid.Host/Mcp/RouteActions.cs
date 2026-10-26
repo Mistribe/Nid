@@ -37,7 +37,7 @@ public sealed record RouteAction(
 /// area, tokens and sessions, preferences, the import, the FX and catalog syncs (admin or browser-only), the reads sent as
 /// POST (simulations, the bank table's preview), the bank table (<c>propose_amortization</c>), and the tax profile and the
 /// target allocation (issue #104): household settings replaced whole, which no tool reads yet; the purchase scenarios (#122),
-/// hypothetical and read by no tool either.
+/// hypothetical and read by no tool either; the stored documents, which reach the assistant later and read-only.
 /// </summary>
 public static class RouteActions
 {
