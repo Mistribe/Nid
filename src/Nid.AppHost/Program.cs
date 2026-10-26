@@ -43,6 +43,8 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
     .WithEnvironment("Auth__TrustAnyIdentityProviderCertificate", "true")
     // 1C2c: the asset store of development, git-ignored; production mounts a volume at /var/lib/nid/assets (1F).
     .WithEnvironment("Assets__Root", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "assets")))
+    // Notifications: a count requests a refresh at most every 5 s here (900 s in production), so the end-to-end journey sees its data evaluated.
+    .WithEnvironment("Notifications__RefreshThrottleSeconds", "5")
     // Aspire derives ASPNETCORE_URLS=http://localhost:5080 from the endpoint above, which binds loopback
     // only and refuses Caddy's host.docker.internal connection. Bind every interface instead.
     .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:5080")

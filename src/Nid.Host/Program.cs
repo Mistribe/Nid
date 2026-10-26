@@ -133,6 +133,7 @@ app.MapScenarioEndpoints();
 app.MapImportEndpoints();
 app.MapExportEndpoints();
 app.MapPlatformEndpoints();
+app.MapNotificationEndpoints();
 app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();

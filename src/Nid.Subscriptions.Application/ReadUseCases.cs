@@ -80,23 +80,28 @@ public sealed class ListSubscriptionsHandler(
 
 public sealed record GetSubscriptionsOverviewQuery(VisibilityScope Scope) : IQuery<SubscriptionsOverview>;
 
-[RequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>]
-public sealed class GetSubscriptionsOverviewHandler(
-    SubscriptionSet set, IActorAccessor actor, IClock clock, IFxRates fx, IHouseholdSettings household, IPersonRegistry persons)
-    : IRequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>
+/// <summary>The overview of what a reader sees, shared by its endpoint and the notification source.</summary>
+public sealed class SubscriptionsOverviewReader(SubscriptionSet set, IFxRates fx, IHouseholdSettings household, IPersonRegistry persons)
 {
-    public async ValueTask<Result<SubscriptionsOverview>> HandleAsync(GetSubscriptionsOverviewQuery query, CancellationToken ct = default)
+    public async Task<SubscriptionsOverview> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
-        var person = actor.Current!.PersonId!.Value;
-        var today = clock.GetCurrentInstant().InUtc().Date;
         // `months` runs over the 12 months after this one: the walk must reach the end of the last (today + 12 months would stop mid-month).
         var horizon = new LocalDate(today.Year, today.Month, 1).PlusMonths(13);
 
-        var built = await set.LoadAsync(person, query.Scope, today, horizon, ct);
+        var built = await set.LoadAsync(reader, scope, today, horizon, ct);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var rates = await Conversion.LoadAsync(fx, OverviewMath.RatePieces(built, today), reference, today, ct);
-        return Result.Success(OverviewMath.Build(built, await persons.ListAsync(ct), reference, rates, today));
+        return OverviewMath.Build(built, await persons.ListAsync(ct), reference, rates, today);
     }
+}
+
+[RequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>]
+public sealed class GetSubscriptionsOverviewHandler(SubscriptionsOverviewReader reader, IActorAccessor actor, IClock clock)
+    : IRequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>
+{
+    public async ValueTask<Result<SubscriptionsOverview>> HandleAsync(GetSubscriptionsOverviewQuery query, CancellationToken ct = default)
+        => Result.Success(await reader.ReadAsync(
+            actor.Current!.PersonId!.Value, query.Scope, clock.GetCurrentInstant().InUtc().Date, ct));
 }
 
 public sealed record GetSubscriptionChargesQuery(VisibilityScope Scope, YearMonth? Month) : IQuery<SubscriptionCharges>;

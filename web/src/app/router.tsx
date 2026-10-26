@@ -244,6 +244,14 @@ const scenarioDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/scenarios/ScenarioDetailPage'), 'ScenarioDetailPage'),
 });
 
+// Notifications exist for any adult: no module guard. `todo` is the first tab and stays out of the URL.
+const notificationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/notifications',
+  validateSearch: (search: Record<string, unknown>): DetailSearch => (search.tab === 'snoozed' || search.tab === 'history' ? { tab: search.tab } : {}),
+  component: lazyRouteComponent(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage'),
+});
+
 const routineRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/routine',
@@ -459,7 +467,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminSecurityRoute,

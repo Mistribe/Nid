@@ -6,6 +6,8 @@ import { ScopeSwitch } from '@/components/ScopeSwitch';
 import { Guides } from '@/features/guides/Guides';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { TokenBanner } from '@/features/security/TokenBanner';
+import { CriticalBanner } from './CriticalBanner';
+import { NotificationBell } from './NotificationBell';
 import { RoutineBadge } from './RoutineBadge';
 import { section, TAB_ORDER, visibleNav, type NavItem } from './nav';
 import { useSession } from './Providers';
@@ -138,11 +140,12 @@ export function Shell() {
               <span aria-hidden="true" className="hidden flex-1 text-left md:inline">{t('command.open')}</span>
               <kbd aria-hidden="true" className="hidden rounded border bg-muted px-1.5 font-sans text-xs md:inline">{t(MAC ? 'command.shortcut_mac' : 'command.shortcut')}</kbd>
             </button>
-            <div className="ml-auto flex items-center gap-2"><ScopeSwitch /><Guides /></div>
+            <div className="ml-auto flex items-center gap-2"><NotificationBell /><ScopeSwitch /><Guides /></div>
           </div>
         </header>
         {palette !== null ? <Suspense fallback={null}><CommandMenu open={palette} onOpenChange={setPalette} /></Suspense> : null}
         <TokenBanner />
+        <CriticalBanner />
         <main className="flex-1 p-4">
           {/* A line of reading and charts that stay legible on a wide screen: past 1 280 px the page centres. */}
           <div className="mx-auto w-full max-w-7xl"><Outlet /></div>

@@ -12,10 +12,12 @@ public sealed class HouseholdCalendar(CoreDbContext db, IClock clock) : IHouseho
 {
     private static readonly DateTimeZone Fallback = DateTimeZoneProviders.Tzdb["Europe/Paris"];
 
-    public async Task<LocalDate> TodayAsync(CancellationToken ct)
+    public async Task<LocalDate> TodayAsync(CancellationToken ct) => (await NowAsync(ct)).Date;
+
+    public async Task<LocalDateTime> NowAsync(CancellationToken ct)
     {
         var id = await db.HouseholdSettings.AsNoTracking().Select(s => s.Timezone).FirstOrDefaultAsync(ct);
         var zone = id is null ? Fallback : DateTimeZoneProviders.Tzdb.GetZoneOrNull(id) ?? Fallback;
-        return clock.GetCurrentInstant().InZone(zone).Date;
+        return clock.GetCurrentInstant().InZone(zone).LocalDateTime;
     }
 }

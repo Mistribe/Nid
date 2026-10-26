@@ -104,6 +104,9 @@ public interface IFlows
 public interface IHouseholdCalendar
 {
     Task<LocalDate> TodayAsync(CancellationToken ct);
+
+    /// <summary>The household's wall clock, in the same zone as <see cref="TodayAsync"/>.</summary>
+    Task<LocalDateTime> NowAsync(CancellationToken ct);
 }
 
 /// <summary>2A spec §5.</summary>

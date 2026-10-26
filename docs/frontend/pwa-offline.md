@@ -64,6 +64,8 @@ Le cache est supprimé dans tous ces cas :
 
 Les notifications push ne font **pas partie de la v1**. Elles passeront par l'interface de canal de notification existante (`INotificationChannel`, `../architecture.md` §15) sans toucher au métier.
 
+Le **centre de notifications** (cloche, bandeau critique, page `/notifications`) est livré par la PR 1 de `../superpowers/specs/2026-10-24-notifications-design.md` : il se lit en ligne, comme le reste, et n’envoie **rien** hors de l’application (email, Discord et push viennent ensuite, par les canaux de `../architecture.md` §15). Ses réponses `/api` ne sont pas stockées sur l’appareil (§2) : hors ligne, la cloche et la page ne montrent rien de nouveau.
+
 ## 9. Limite assumée
 
 L'instantané est stocké **en clair** dans IndexedDB : la protection repose sur le verrouillage de l'appareil et sur la purge à la déconnexion. À reprendre dans le modèle de menaces.

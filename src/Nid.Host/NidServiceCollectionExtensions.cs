@@ -25,6 +25,7 @@ using Nid.Platform.Import;
 using Nid.Platform.Infrastructure.Assets;
 using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.Platform.Notifications;
 using Nid.Platform.Outbound;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
@@ -149,7 +150,10 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
-        services.AddScoped<IUpcomingEvents, Nid.Subscriptions.Application.SubscriptionsUpcoming>();
+        services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
+        services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
+        services.AddScoped<Nid.Subscriptions.Application.SubscriptionsOverviewReader>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Subscriptions.Application.SubscriptionsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
 
         services.AddDbContext<InvestmentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -215,7 +219,10 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.PropertyCostCommitments>();
-        services.AddScoped<IUpcomingEvents, Nid.RealEstate.Application.RealEstateUpcoming>();
+        services.AddScoped<Nid.RealEstate.Application.RealEstateUpcoming>();
+        services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateUpcoming>());
+        services.AddScoped<Nid.RealEstate.Application.PropertiesOverviewReader>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.RealEstate.Application.RealEstateNotificationSource>();
         services.AddScoped<ITaxContribution, Nid.RealEstate.Application.RentalTax>();
         services.AddScoped<ISaleContribution, Nid.RealEstate.Application.PropertiesSale>();
         services.AddScoped<Nid.RealEstate.Application.RealEstateRents>();
@@ -250,6 +257,10 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<PlatformDbContext>>();
         services.AddScoped<IImportStaging, ImportStagingStore>();
+        services.AddScoped<Nid.Platform.Notifications.INotificationStore, Nid.Platform.Infrastructure.Notifications.NotificationStore>();
+        // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
+        services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
+        services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();
         services.AddSingleton(new ImportOptions());
         services.AddScoped<ImportRunner>();
         services.AddScoped<ExportBuilder>();

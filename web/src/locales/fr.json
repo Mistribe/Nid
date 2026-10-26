@@ -73,6 +73,13 @@
     "toggle_shortcut_mac": "⌘ B",
     "toggle_shortcut": "Ctrl B"
   },
+  "notifications": {
+    "bell": "Notifications",
+    "bell_count_one": "Notifications, {{count}} non lue",
+    "bell_count_other": "Notifications, {{count}} non lues",
+    "critical_banner": "Une notification importante attend votre lecture.",
+    "see": "Voir"
+  },
   "command": {
     "open": "Rechercher ou aller à…",
     "shortcut_mac": "⌘ K",

@@ -220,6 +220,134 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Instant?>("DigestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("digested_at");
+
+                    b.Property<Instant?>("DismissedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dismissed_at");
+
+                    b.Property<LocalDate?>("DueOn")
+                        .HasColumnType("date")
+                        .HasColumnName("due_on");
+
+                    b.PrimitiveCollection<Guid[]>("ItemIds")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("item_ids")
+                        .HasDefaultValueSql("'{}'");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("level");
+
+                    b.Property<LocalDate>("NotifyOn")
+                        .HasColumnType("date")
+                        .HasColumnName("notify_on");
+
+                    b.Property<Instant?>("OpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at");
+
+                    b.Property<string>("Params")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("params");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<Instant?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<Instant?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<LocalDate?>("SnoozedUntil")
+                        .HasColumnType("date")
+                        .HasColumnName("snoozed_until");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification");
+
+                    b.HasIndex("PersonId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_person_id_key");
+
+                    b.HasIndex("PersonId", "State")
+                        .HasDatabaseName("ix_notification_person_id_state");
+
+                    b.ToTable("notification", "platform", t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_level", "level in ('critical','action','info')");
+
+                            t.HasCheckConstraint("ck_notification_state", "state in ('pending','open','snoozed','dismissed','resolved')");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationRunRow", b =>
+                {
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<string>("Source")
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.Property<LocalDate?>("LastOkOn")
+                        .HasColumnType("date")
+                        .HasColumnName("last_ok_on");
+
+                    b.Property<bool>("Ok")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ok");
+
+                    b.Property<Instant>("RanAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ran_at");
+
+                    b.Property<LocalDate>("RanOn")
+                        .HasColumnType("date")
+                        .HasColumnName("ran_on");
+
+                    b.HasKey("PersonId", "Source")
+                        .HasName("pk_notification_run");
+
+                    b.ToTable("notification_run", "platform");
+                });
+
             modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.ImportBatchRow", b =>
                 {
                     b.HasOne("Nid.Platform.Infrastructure.Persistence.ImportSessionRow", null)

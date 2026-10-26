@@ -21,8 +21,8 @@ function calendarDate(y: number, m: number, d: number): Date | null {
   return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d ? date : null;
 }
 
-/** `max` (AAAA-MM-JJ) greys out the later days of the calendar; typed text is passed through as is and left to the form's own validation. */
-export function DateField({ value, onChange, readOnly, max, ...control }: FieldControl & { value: string; onChange: (v: string) => void; readOnly?: boolean; max?: string }) {
+/** `min` and `max` (AAAA-MM-JJ) grey out the earlier and the later days of the calendar; typed text is passed through as is and left to the form's own validation. */
+export function DateField({ value, onChange, readOnly, min, max, ...control }: FieldControl & { value: string; onChange: (v: string) => void; readOnly?: boolean; min?: string; max?: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const fieldLabel = useFieldLabel();
@@ -30,6 +30,8 @@ export function DateField({ value, onChange, readOnly, max, ...control }: FieldC
   const [, iy = '', im = '', id = ''] = iso ?? [];
   const shown = iso ? `${id}/${im}/${iy}` : value;
   const maxIso = max ? ISO.exec(max) : null;
+  const minIso = min ? ISO.exec(min) : null;
+  const minDate = minIso ? calendarDate(+minIso[1]!, +minIso[2]!, +minIso[3]!) ?? undefined : undefined;
   const maxDate = maxIso ? calendarDate(+maxIso[1]!, +maxIso[2]!, +maxIso[3]!) ?? undefined : undefined;
   const selected = iso ? calendarDate(+iy, +im, +id) ?? undefined : undefined;
 
@@ -59,7 +61,7 @@ export function DateField({ value, onChange, readOnly, max, ...control }: FieldC
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="end">
           <Suspense fallback={null}>
-            <DatePanel selected={selected} max={maxDate}
+            <DatePanel selected={selected} min={minDate} max={maxDate}
               onSelect={(d) => { onChange(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`); setOpen(false); }} />
           </Suspense>
         </PopoverContent>

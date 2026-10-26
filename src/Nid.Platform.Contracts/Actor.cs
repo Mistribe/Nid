@@ -64,6 +64,9 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     public static Actor Browser(PersonId person, bool isAdmin = false)
         => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes) { IsAdmin = isAdmin };
 
+    /// <summary>The notification evaluation reading as that adult: read only, via the job.</summary>
+    public static Actor Notifier(PersonId person) => new(ActorKind.Person, person, ActorOrigin.Job, new HashSet<string> { ScopeNames.Read });
+
     public static Actor System { get; } = new(ActorKind.System, null, ActorOrigin.Job, AllScopes) { IsAdmin = true };
 
     /// <summary>`nid admin` (1F4 design §2.2): the system, run by the hoster from the container.</summary>

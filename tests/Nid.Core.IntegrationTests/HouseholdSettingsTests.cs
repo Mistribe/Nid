@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -43,5 +44,22 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, IrlEnabled: true), default)).TryGetValue(out var irl));
         Assert.True(irl.IrlEnabled);
         Assert.Equal(Currency.Usd, await settings.ReferenceCurrencyAsync(default));
+    }
+
+    private sealed class FixedClock(Instant now) : IClock
+    {
+        public Instant GetCurrentInstant() => now;
+    }
+
+    [Fact]
+    public async Task NowAsync_is_in_the_household_zone()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        db.HouseholdSettings.Add(new HouseholdSettingsRow { Timezone = "America/New_York" });
+        await db.SaveChangesAsync();
+
+        var now = await new HouseholdCalendar(db, new FixedClock(Instant.FromUtc(2025, 10, 15, 3, 0))).NowAsync(default);
+
+        Assert.Equal(new LocalDateTime(2025, 10, 14, 23, 0), now);
     }
 }

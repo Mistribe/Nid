@@ -1,0 +1,62 @@
+{
+  "notification_popover": {
+    "title": "Notifications",
+    "empty": "Rien de nouveau.",
+    "read_all": "Tout marquer comme lu",
+    "see_all": "Tout voir",
+    "arrived": "Arrivée le"
+  },
+  "notifications_page": {
+    "title": "Notifications",
+    "read_all": "Tout marquer comme lu",
+    "tab": {
+      "todo": "À traiter",
+      "snoozed": "Reportées",
+      "history": "Historique"
+    },
+    "level": {
+      "critical": "Important",
+      "action": "À traiter",
+      "info": "Pour information"
+    },
+    "column": {
+      "level": "Niveau",
+      "title": "Titre",
+      "element": "Élément",
+      "due": "Échéance",
+      "arrived": "Arrivée",
+      "until": "Jusqu’au",
+      "actions": "Actions"
+    },
+    "menu": "Actions",
+    "read": "Marquer comme lue",
+    "snooze": "Reporter",
+    "week": "1 semaine",
+    "month": "1 mois",
+    "until": "Jusqu’au…",
+    "dismiss": "Ignorer",
+    "dismiss_confirmation": "Cette notification ne reviendra pas.",
+    "empty": {
+      "todo": "Rien à traiter.",
+      "snoozed": "Rien de reporté.",
+      "history": "Aucune notification ces 90 derniers jours."
+    },
+    "table": {
+      "todo": "Notifications à traiter",
+      "snoozed": "Notifications reportées",
+      "history": "Historique des notifications"
+    },
+    "loading": "Chargement des notifications",
+    "snooze_dialog": {
+      "title": "Reporter la notification",
+      "date": "Reporter jusqu’au",
+      "hint": "Au plus tard dans un an.",
+      "submit": "Reporter",
+      "cancel": "Annuler",
+      "required": "Choisissez une date.",
+      "invalid_snooze": "Choisissez une date dans l’année qui vient."
+    },
+    "snoozed_done": "Notification reportée.",
+    "more": "Voir plus"
+  }
+}

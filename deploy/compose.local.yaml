@@ -23,6 +23,8 @@ services:
     environment:
       # The proxy's certificate comes from its own local authority; only this overlay accepts it.
       Auth__TrustAnyIdentityProviderCertificate: "true"
+      # A count requests a notification refresh at most every 5 s here (900 s by default), so the end-to-end journeys see their data evaluated.
+      Notifications__RefreshThrottleSeconds: "5"
 
 networks:
   outside: {}

@@ -6,6 +6,7 @@ using Nid.Platform.Admin;
 using Nid.Platform.Audit;
 using Nid.Platform.Export;
 using Nid.Platform.Import;
+using Nid.Platform.Notifications;
 
 namespace Nid.Host.Api.Json;
 
@@ -27,6 +28,9 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ExportPageView))]
 [JsonSerializable(typeof(BatchView))]
 [JsonSerializable(typeof(ImportSessionView))]
+[JsonSerializable(typeof(NotificationPage))]
+[JsonSerializable(typeof(NotificationCount))]
+[JsonSerializable(typeof(NotificationEndpoints.SnoozeBody))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(JsonElement))]
 internal sealed partial class PlatformJsonContext : JsonSerializerContext;

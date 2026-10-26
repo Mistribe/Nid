@@ -65,17 +65,21 @@ internal sealed record OverviewProperty(
     IReadOnlyList<(StoredLoan Loan, ItemAccess Item)> Loans, IReadOnlyList<ItemId> LeftOut);
 
 [RequestHandler<GetPropertiesOverviewQuery, PropertiesOverview>]
-public sealed class GetPropertiesOverviewHandler(
-    IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations, IFlows flows,
-    IAccessPolicy policy, IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons,
-    IIrlStore irl)
+public sealed class GetPropertiesOverviewHandler(PropertiesOverviewReader overview, IHouseholdCalendar calendar, IActorAccessor actor)
     : IRequestHandler<GetPropertiesOverviewQuery, PropertiesOverview>
 {
     public async ValueTask<Result<PropertiesOverview>> HandleAsync(GetPropertiesOverviewQuery query, CancellationToken ct = default)
+        => await overview.ReadAsync(actor.Current!.PersonId!.Value, query.Scope, query.Span, await calendar.TodayAsync(ct), ct);
+}
+
+/// <summary>The overview of what a reader sees, shared by its endpoint and the notification source.</summary>
+public sealed class PropertiesOverviewReader(
+    IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations, IFlows flows,
+    IAccessPolicy policy, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, IIrlStore irl)
+{
+    public async Task<Result<PropertiesOverview>> ReadAsync(PersonId reader, VisibilityScope scope, PropertiesSpan span, LocalDate today, CancellationToken ct)
     {
-        var reader = actor.Current!.PersonId!.Value;
-        var ids = await visible.ForAsync(reader, query.Scope, ct);
-        var today = await calendar.TodayAsync(ct);
+        var ids = await visible.ForAsync(reader, scope, ct);
 
         var read = await OverviewProperties.ReadAsync(ids, reader, properties, items, loans, valuations, flows, policy, ct);
         if (read.TryGetFailure(out var failure))
@@ -83,12 +87,12 @@ public sealed class GetPropertiesOverviewHandler(
         read.TryGetValue(out var found);
         var set = found!;
 
-        var grid = PropertiesOverviewMath.Grid(query.Span, today);
+        var grid = PropertiesOverviewMath.Grid(span, today);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], grid[0], today, ct);
-        return Result.Success(PropertiesOverviewMath.Build(set, reference, rates, today, grid, query.Span, await persons.ListAsync(ct),
+        return Result.Success(PropertiesOverviewMath.Build(set, reference, rates, today, grid, span, await persons.ListAsync(ct),
             await irl.ListAsync(ct)));
     }
 }

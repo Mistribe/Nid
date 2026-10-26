@@ -12,6 +12,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<ImportSessionRow> Sessions => Set<ImportSessionRow>();
     public DbSet<ImportBatchRow> Batches => Set<ImportBatchRow>();
     public DbSet<AuditEntryRow> AuditLog => Set<AuditEntryRow>();
+    public DbSet<NotificationRow> Notifications => Set<NotificationRow>();
+    public DbSet<NotificationRunRow> NotificationRuns => Set<NotificationRunRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +42,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.HasKey(x => new { x.SessionId, x.Section, x.BatchIndex });
             e.Property(x => x.ContentHash).HasColumnType("char(64)");
             e.Property(x => x.Payload).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<NotificationRow>(e =>
+        {
+            e.ToTable("notification", t =>
+            {
+                t.HasCheckConstraint("ck_notification_state", "state in ('pending','open','snoozed','dismissed','resolved')");
+                t.HasCheckConstraint("ck_notification_level", "level in ('critical','action','info')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.ItemIds).HasColumnType("uuid[]").HasDefaultValueSql("'{}'");
+            e.Property(x => x.Params).HasColumnType("jsonb");
+            e.HasIndex(x => new { x.PersonId, x.Key }).IsUnique();
+            e.HasIndex(x => new { x.PersonId, x.State });
+        });
+
+        modelBuilder.Entity<NotificationRunRow>(e =>
+        {
+            e.ToTable("notification_run");
+            e.HasKey(x => new { x.PersonId, x.Source });
         });
 
         modelBuilder.MapAuditLog(ownedHere: true);

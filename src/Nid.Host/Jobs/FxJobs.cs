@@ -5,6 +5,7 @@ using Nid.Investments.Contracts;
 using Nid.Host.Admin;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
+using Nid.Platform.Notifications;
 using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Contracts;
 using Npgsql;
@@ -139,6 +140,13 @@ public static class JobsSetup
                 .WithIdentity("irl-weekly")
                 .WithCronSchedule(irl.WeeklyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc)));
 
+            // Hourly: each adult is evaluated once a day, from 06:00 on the household's clock (notifications design §3.3).
+            q.AddJob<NotificationsEvaluateJob>(job => job.WithIdentity(NotificationJobs.EvaluateKey));
+            q.AddTrigger(t => t
+                .ForJob(NotificationJobs.EvaluateKey)
+                .WithIdentity("notifications-evaluate")
+                .WithCronSchedule("0 0 * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
             // Durable: it has no trigger of its own, it is fired on demand and at startup.
             q.AddJob<FxBackfillJob>(job => job.WithIdentity(FxJobs.BackfillKey).StoreDurably());
 
@@ -162,6 +170,11 @@ public static class JobsSetup
             new QuartzCatalogJobTrigger(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
         services.Replace(ServiceDescriptor.Singleton<IJobStatusReader>(sp =>
             new QuartzJobStatusReader(sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName))));
+        // Only here, where jobs run: elsewhere INotificationRefresh stays the no-op, so nothing evaluates in the background.
+        var refresh = new NotificationRefreshQueue();
+        services.Replace(ServiceDescriptor.Singleton<INotificationRefresh>(refresh));
+        services.AddSingleton(refresh);
+        services.AddHostedService<NotificationRefreshWorker>();
         services.AddHostedService<FxStartupBackfill>();
         services.AddHostedService<CatalogStartupSync>();
         return services;

@@ -20,6 +20,8 @@ export const handlers = [
   http.get('*/api/v1/core/me/private-items', () => HttpResponse.json({ owns: true })),
   // The shell's badge reads the pending proposals (4C2).
   http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [] })),
+  // The shell's bell and banner read the notification counts.
+  http.get('*/api/v1/platform/notifications/count', () => HttpResponse.json({ unread: 0, criticalUnread: 0 })),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
   // The home page's goals card reads the open goals (none: it stays absent).
