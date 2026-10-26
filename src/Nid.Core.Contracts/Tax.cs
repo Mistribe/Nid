@@ -20,6 +20,16 @@ public static class TaxLineCodes
     /// <summary>A phase without its gross: the net paid stands in, with a warning.</summary>
     public const string SalaryNet = "salary_net";
     public const string SalaryOneOff = "salary_one_off";
+    /// <summary>Tax-per spec §3.3: a payment's net taxable income (« net imposable »), entered on the phase or the one-off.</summary>
+    public const string SalaryTaxable = "salary_taxable";
+    /// <summary>One line per payment (<c>On</c>, <c>Note</c>, <c>Category</c>: <see cref="DetailEntered"/>, <see cref="DetailGross"/> or <see cref="DetailNet"/>): shown, never summed.</summary>
+    public const string SalaryDetail = "salary_detail";
+    public const string DetailEntered = "entered";
+    public const string DetailGross = "gross";
+    public const string DetailNet = "net";
+    /// <summary>The gross and the net taxable of the phase payments that hold both: the observed rate between them, never summed into the estimate.</summary>
+    public const string SalaryRateGross = "salary_rate_gross";
+    public const string SalaryRateTaxable = "salary_rate_taxable";
     public const string OtherTaxable = "other_taxable";
     public const string NonTaxable = "non_taxable";
     /// <summary>An income the estimate does not compute (pension, self-employment, alimony): shown, never counted.</summary>
@@ -43,6 +53,8 @@ public static class TaxLineCodes
     public const string RentalProperty = "rental_property";
     public const string CapitalIncome = "capital_income";
     public const string PerContribution = "per_contribution";
+    /// <summary>Tax-per spec §4.5: a PER open in the year with a value and neither a payment nor an opening in it (amount 0, one line per owner).</summary>
+    public const string PerNoContribution = "per_no_contribution";
     /// <summary>A withdrawal from a PEA, a life insurance or a PER: its tax is not estimated.</summary>
     public const string Withdrawal = "withdrawal";
     /// <summary>An item outside the euro: left out.</summary>
@@ -129,13 +141,16 @@ public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalY
 /// <c>RentalRegime</c> is <c>micro</c>, <c>real</c> or null (micro when allowed). <c>ContributionRates</c> (fractions) and
 /// <c>ActualExpenses</c> map an adult to the payslip's rate and to frais réels; absent, the status's rate and the 10 % allowance.
 /// <c>PerUnusedCeilings</c> maps an adult to the unused PER ceilings of the three previous years (the avis d'imposition's);
-/// <c>RentalDeficitCarried</c> is the household's earlier rental deficits not yet imputed.
+/// <c>RentalDeficitCarried</c> is the household's earlier rental deficits not yet imputed. Tax-per spec §4.1: <c>PerCeilings</c> maps an
+/// adult to the PER ceiling of the avis d'imposition (already total, the unused ceilings included), <c>PerCeilingsExpiring</c> to the
+/// part of it lost on 31 December; <c>PerPooling</c>: the spouses pool their ceilings.
 /// </summary>
 public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime,
     IReadOnlyList<PinelCommitment> Pinel, decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid,
     IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null,
-    IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m)
+    IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m,
+    IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

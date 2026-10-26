@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
-import { REGIMES, regimeText } from './format';
+import { percentText, REGIMES, regimeText } from './format';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { DASHBOARD } from '../dashboard/api';
 import { invalidateGoals } from '../goals/api';
@@ -44,6 +44,9 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   const [rates, setRates] = useState<Record<string, string>>(p.contributionRates);
   const [expenses, setExpenses] = useState<Record<string, string>>(p.actualExpenses);
   const [unused, setUnused] = useState<Record<string, string>>(p.perUnusedCeilings);
+  const [ceilings, setCeilings] = useState<Record<string, string>>(p.perCeilings);
+  const [expiring, setExpiring] = useState<Record<string, string>>(p.perCeilingsExpiring);
+  const [pooling, setPooling] = useState(p.perPooling);
   // Only the adults' typed values go back: an empty one keeps the default.
   const filled = (values: Record<string, string>) =>
     Object.fromEntries(Object.entries(values).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, toWireAmount(v)]));
@@ -53,7 +56,8 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   const amountOk = Object.values(amounts).every((a) => AMOUNT.test(a.trim()));
   const countsOk = (dependents === '' || COUNT.test(dependents)) && COUNT.test(under6)
     && Object.values(rates).every((v) => optional(RATE, v)) && Object.values(expenses).every((v) => optional(AMOUNT, v))
-    && Object.values(unused).every((v) => optional(AMOUNT, v));
+    && Object.values(unused).every((v) => optional(AMOUNT, v)) && Object.values(ceilings).every((v) => optional(AMOUNT, v))
+    && Object.values(expiring).every((v) => optional(AMOUNT, v));
   const amountField = (key: keyof typeof amounts, hint?: string) => (
     <Field label={t(`tax.profile.${key}`)} hint={hint} error={AMOUNT.test(amounts[key].trim()) ? undefined : t('tax.amount_format')}>
       {(c) => <Input inputMode="decimal" {...c} value={amounts[key]} onChange={(e) => setAmounts({ ...amounts, [key]: e.target.value })} />}
@@ -81,7 +85,9 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
         body: {
           statuses, dependents: dependents === '' ? null : Number(dependents), childrenUnder6: Number(under6),
           rentalRegime: regime === 'auto' ? null : regime, pinel, contributionRates: filled(rates), actualExpenses: filled(expenses),
-          perUnusedCeilings: filled(unused), rentalDeficitCarried: toWireAmount(amounts.rentalDeficitCarried),
+          perUnusedCeilings: filled(unused),
+          perCeilings: filled(ceilings), perCeilingsExpiring: filled(expiring), perPooling: pooling,
+          rentalDeficitCarried: toWireAmount(amounts.rentalDeficitCarried),
           childcareOutsideHome: toWireAmount(amounts.childcareOutsideHome), homeEmployment: toWireAmount(amounts.homeEmployment),
           donations: toWireAmount(amounts.donations), donationsAid: toWireAmount(amounts.donationsAid),
         },
@@ -112,7 +118,7 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
                 {(c) => <SelectField {...c} value={statuses[a.id] ?? 'non_executive'} onValueChange={(v) => setStatuses({ ...statuses, [a.id]: v })}
                   options={STATUSES.map((s) => ({ value: s, label: t(`tax.status.${s}`) }))} />}
               </Field>
-              <Field label={t('tax.profile.rate', { name: a.displayName })} hint={t('tax.profile.rate_hint')}
+              <Field label={t('tax.profile.rate', { name: a.displayName })} hint={estimate.observedRates[a.id] ? `${t('tax.profile.rate_hint')} ${t('tax.profile.observed_rate', { rate: percentText(t, estimate.observedRates[a.id]!) })}` : t('tax.profile.rate_hint')}
                 error={optional(RATE, rates[a.id] ?? '') ? undefined : t('tax.rate_format')}>
                 {(c) => <Input inputMode="decimal" {...c} value={rates[a.id] ?? ''} onChange={(e) => setRates({ ...rates, [a.id]: e.target.value })} />}
               </Field>
@@ -126,6 +132,23 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
               </Field>
             </div>
           ))}
+          {estimate.adults.map((a) => (
+            <fieldset key={a.id} className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+              <legend className="mb-2 text-sm text-muted-foreground">{t('tax.profile.per_legend', { name: a.displayName })}</legend>
+              <Field label={t('tax.profile.per_ceiling')} hint={t('tax.profile.per_ceiling_hint')}
+                error={optional(AMOUNT, ceilings[a.id] ?? '') ? undefined : t('tax.amount_format')}>
+                {(c) => <Input inputMode="decimal" {...c} value={ceilings[a.id] ?? ''} onChange={(e) => setCeilings({ ...ceilings, [a.id]: e.target.value })} />}
+              </Field>
+              <Field label={t('tax.profile.per_expiring')} error={optional(AMOUNT, expiring[a.id] ?? '') ? undefined : t('tax.amount_format')}>
+                {(c) => <Input inputMode="decimal" {...c} value={expiring[a.id] ?? ''} onChange={(e) => setExpiring({ ...expiring, [a.id]: e.target.value })} />}
+              </Field>
+            </fieldset>
+          ))}
+          {estimate.adults.length > 1 ? (
+            <Field inline label={t('tax.profile.per_pooling')}>
+              {(c) => <Checkbox {...c} checked={pooling} onCheckedChange={(v) => setPooling(v === true)} />}
+            </Field>
+          ) : null}
           <Field label={t('tax.profile.dependents')} hint={t('tax.profile.dependents_hint', { count: estimate.dependents })}
             error={dependents === '' || COUNT.test(dependents) ? undefined : t('tax.count_format')}>
             {(c) => <Input inputMode="numeric" {...c} value={dependents} onChange={(e) => setDependents(e.target.value)} />}

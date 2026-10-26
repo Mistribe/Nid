@@ -71,7 +71,7 @@ public sealed class IncomeImportSection(
         public IncomePhase Value => Mode == Mode.Unchanged
             ? Stored!
             : new IncomePhase(id, Source.Id, parsed.Label, parsed.StartsOn, parsed.EndsOn, parsed.NetAmount, parsed.Every,
-                parsed.GrossAmount, parsed.MaxCycles, parsed.Note, Stored?.Version ?? 0);
+                parsed.GrossAmount, parsed.MaxCycles, parsed.Note, Stored?.Version ?? 0, parsed.TaxableAmount);
     }
 
     private readonly List<SourcePlan> sourcePlans = [];
@@ -436,6 +436,7 @@ public sealed class IncomeImportSection(
                 NetAmount = new MoneyRecord { Amount = p.NetAmount.Amount, Currency = p.NetAmount.Currency.Code },
                 Every = new IncomeDurationRecord { Count = p.Every.Count, Unit = p.Every.Unit == DurationUnit.Year ? "year" : "month" },
                 GrossAmount = p.GrossAmount is { } g ? new MoneyRecord { Amount = g.Amount, Currency = g.Currency.Code } : null,
+                TaxableAmount = p.TaxableAmount is { } t ? new MoneyRecord { Amount = t.Amount, Currency = t.Currency.Code } : null,
                 MaxCycles = p.MaxCycles,
                 Note = p.Note,
             })

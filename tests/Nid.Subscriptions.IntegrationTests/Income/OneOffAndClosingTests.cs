@@ -95,6 +95,77 @@ public class OneOffAndClosingTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(("income", "one_off"), (row.Kind, row.Category));
     }
 
+    private static object TaxedOneOff(string? taxable)
+        => new
+        {
+            occurredOn = "2025-06-10", amount = new { amount = "4812.50", currency = "EUR" }, note = "Prime",
+            taxableAmount = taxable is null ? null : new { amount = taxable, currency = "EUR" },
+        };
+
+    private static async Task<int> TaxableRowsAsync(NidApp app)
+    {
+        await using var income = PostgresFixture.NewIncomeContext(app.ConnectionString);
+        return await income.Database.SqlQuery<int>($"select count(*)::int as \"Value\" from income.one_off_taxable").SingleAsync();
+    }
+
+    [Fact]
+    public async Task A_one_off_keeps_its_taxable_amount_and_loses_it_when_corrected_without()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase());
+
+        var fid = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", TaxedOneOff("5150.00")));
+
+        var oneOff = (await DetailAsync(app, id)).GetProperty("oneOffs")[0];
+        Assert.Equal(5150.00m, Amount(oneOff.GetProperty("taxableAmount")));
+        Assert.Equal("EUR", oneOff.GetProperty("taxableAmount").GetProperty("currency").GetString());
+
+        // Corrected with another taxable amount: the new one-off carries it, and the retired id keeps no row.
+        var next = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{id}/one-offs/{fid}", TaxedOneOff("5000")))).GetProperty("id").GetGuid();
+        Assert.Equal(5000m, Amount((await DetailAsync(app, id)).GetProperty("oneOffs")[0].GetProperty("taxableAmount")));
+        Assert.Equal(1, await TaxableRowsAsync(app));
+
+        // Corrected without: no taxable amount is left.
+        var last = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{id}/one-offs/{next}", TaxedOneOff(null)))).GetProperty("id").GetGuid();
+        var corrected = Assert.Single((await DetailAsync(app, id)).GetProperty("oneOffs").EnumerateArray());
+        Assert.Equal(last, corrected.GetProperty("id").GetGuid());
+        Assert.Equal(JsonValueKind.Null, corrected.GetProperty("taxableAmount").ValueKind);
+        Assert.Equal(0, await TaxableRowsAsync(app));
+    }
+
+    [Fact]
+    public async Task A_one_off_taxable_amount_is_positive_and_in_the_source_currency()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase());
+
+        var zero = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", TaxedOneOff("0"));
+        var dollars = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", new
+        {
+            occurredOn = "2025-06-10", amount = new { amount = "500", currency = "EUR" }, taxableAmount = new { amount = "400", currency = "USD" },
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, zero.StatusCode);
+        Assert.Equal("income.invalid_taxable", await CodeAsync(zero));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, dollars.StatusCode);
+        Assert.Equal(CoreFactCodes.CurrencyMismatch, await CodeAsync(dollars));
+        Assert.Empty(OneOffIds(await DetailAsync(app, id)));
+        Assert.Equal(0, await TaxableRowsAsync(app));
+    }
+
+    [Fact]
+    public async Task Deleting_a_one_off_removes_its_taxable_amount()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, Phase());
+        var fid = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/one-offs", TaxedOneOff("5150.00")));
+        Assert.Equal(1, await TaxableRowsAsync(app));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{id}/one-offs/{fid}")).StatusCode);
+
+        Assert.Equal(0, await TaxableRowsAsync(app));
+    }
+
     [Fact]
     public async Task A_one_off_is_corrected_and_deleted()
     {

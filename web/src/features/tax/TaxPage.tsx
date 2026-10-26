@@ -14,7 +14,8 @@ import { toPlot } from '../investments/chart/plot';
 import { Section } from '@/components/page/Section';
 import { todayIso } from '../subscriptions/today';
 import { TAX, type TaxEstimate } from './api';
-import { noticeText, percentText, warningText, ZERO } from './format';
+import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
+import { PerSection, perWarningsInBlock, perWarningTexts } from './PerSection';
 import { ProfileForm } from './ProfileForm';
 import { DeclarantTable, eur, ResultTable } from './ResultTable';
 import { SaleTotalSection } from './SaleTotalSection';
@@ -56,10 +57,10 @@ export function TaxPage() {
       </PageHeader>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
-      {estimate ? <Notes estimate={estimate} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
+      {estimate ? <Notes estimate={estimate} inBlock={tab === 'detail'} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
-          { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} /> },
+          { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: <ProfileForm key={`${estimate.year}-${scope}`} estimate={estimate} scope={scope} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
@@ -139,29 +140,34 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
 
 /** The server's warnings and notices, above the tabs: they matter whichever tab is open. */
 /** On the sale tab the estimate is always today's: the income tax's carried-forward scale is not its business (the sale section says its own). */
-function Notes({ estimate, printed, sale }: { estimate: TaxEstimate; printed: boolean; sale: boolean }) {
+function Notes({ estimate, printed, sale, inBlock }: { estimate: TaxEstimate; printed: boolean; sale: boolean; /** The Détail tab, whose PER block tells the PER warnings it can. */ inBlock: boolean }) {
   const { t } = useTranslation();
   const notes = [
-    ...estimate.result.warnings.filter((w) => !(sale && w === 'rules_carried_forward')).map((w) => warningText(t, w, estimate.result.rulesYear)),
-    ...estimate.notices.map((n) => noticeText(t, n.code, n.name, eur(n.amount))),
+    ...estimate.result.warnings.filter((w) => !PER_WARNINGS.includes(w) && !(sale && w === 'rules_carried_forward')).map((w) => warningText(t, w, estimate.result.rulesYear)),
+    // The server names a PER warning once per declarant it concerns; perWarningTexts already tells one sentence per declarant.
+    ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !(inBlock && perWarningsInBlock(estimate.result).has(w)))
+      .flatMap((w) => perWarningTexts(t, estimate.result, w, estimate.year)),
+    ...estimate.notices.map((n) => noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur))),
   ];
   if (!notes.length) return null;
   return (
     <div className={`flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4${printed ? '' : ' print:hidden'}`}>
       <AlertTriangle aria-hidden="true" className="mt-1 size-4 shrink-0 text-status-warning" />
       <Section title={t('tax.notes')}>
-        <ul className="list-disc space-y-1 pl-5 text-sm">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
+        <ul className="list-disc space-y-1 pl-5 text-sm">{notes.map((n, i) => <li key={`${i}-${n}`}>{n}</li>)}</ul>
       </Section>
     </div>
   );
 }
 
-function Detail({ estimate }: { estimate: TaxEstimate }) {
+function Detail({ estimate, onProfile }: { estimate: TaxEstimate; onProfile: () => void }) {
   const { t } = useTranslation();
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('tax.disclaimer', { year: estimate.result.rulesYear })}</p>
-      <DeclarantTable result={estimate.result} />
+      <DeclarantTable result={estimate.result} detail={estimate.salaryDetail} adults={estimate.adults} />
+      <PerSection result={estimate.result} year={estimate.year} rulesYear={estimate.result.rulesYear} onProfile={onProfile}
+        names={estimate.result.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
       <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
       <p className="text-sm text-muted-foreground">{t('tax.out_of_scope')}</p>
     </>

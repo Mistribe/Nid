@@ -7,6 +7,7 @@ import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
 import { REGIMES, regimeText } from './format';
@@ -18,7 +19,7 @@ import '@/locales/tax';
 
 const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'nonTaxableIncome', 'pinelReduction',
   'childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'rentalDeficitCarried'] as const;
-const DECLARANT_AMOUNTS = ['salaryGross', 'otherTaxable', 'perContributions', 'perUnusedCeiling'] as const;
+const DECLARANT_AMOUNTS = ['salaryGross', 'salaryTaxable', 'otherTaxable', 'perContributions', 'perUnusedCeiling', 'previousYearIncome', 'perExpiring'] as const;
 const COUNT = /^\d{1,2}$/;
 
 /**
@@ -35,7 +36,7 @@ export function SimulationForm({ estimate }: { estimate: TaxEstimate }) {
   const change = (next: TaxInputs) => { setInputs(next); setResult(null); };
   const valid = AMOUNTS.every((k) => AMOUNT.test(inputs[k].trim()))
     && inputs.declarants.every((d) => DECLARANT_AMOUNTS.every((k) => AMOUNT.test(d[k].trim()))
-      && (!d.contributionRate?.trim() || RATE.test(d.contributionRate.trim())) && (!d.actualExpenses?.trim() || AMOUNT.test(d.actualExpenses.trim())))
+      && (!d.contributionRate?.trim() || RATE.test(d.contributionRate.trim())) && (!d.actualExpenses?.trim() || AMOUNT.test(d.actualExpenses.trim())) && (!d.perCeiling?.trim() || AMOUNT.test(d.perCeiling.trim())))
     && COUNT.test(counts.dependents) && COUNT.test(counts.childrenUnder6);
   const error = (text: string) => (AMOUNT.test(text.trim()) ? undefined : t('tax.amount_format'));
 
@@ -53,6 +54,7 @@ export function SimulationForm({ estimate }: { estimate: TaxEstimate }) {
             ...d, ...Object.fromEntries(DECLARANT_AMOUNTS.map((k) => [k, wire(d[k])])),
             contributionRate: d.contributionRate?.trim() ? wire(d.contributionRate) : null,
             actualExpenses: d.actualExpenses?.trim() ? wire(d.actualExpenses) : null,
+            perCeiling: d.perCeiling?.trim() ? wire(d.perCeiling) : null,
           })),
         },
       },
@@ -74,7 +76,7 @@ export function SimulationForm({ estimate }: { estimate: TaxEstimate }) {
                   onChange={(e) => change({ ...inputs, declarants: inputs.declarants.map((x, j) => (j === i ? { ...x, [k]: e.target.value } : x)) })} />}
               </Field>
             ))}
-            {(['contributionRate', 'actualExpenses'] as const).map((k) => (
+            {(['contributionRate', 'actualExpenses', 'perCeiling'] as const).map((k) => (
               <Field key={k} label={t(`tax.input.${k}`)} hint={t(`tax.input.${k}_hint`)}
                 error={!d[k]?.trim() || (k === 'contributionRate' ? RATE : AMOUNT).test(d[k].trim()) ? undefined : t(k === 'contributionRate' ? 'tax.rate_format' : 'tax.amount_format')}>
                 {(c) => <Input inputMode="decimal" {...c} value={d[k] ?? ''}
@@ -100,6 +102,11 @@ export function SimulationForm({ estimate }: { estimate: TaxEstimate }) {
               {(c) => <Input inputMode="decimal" {...c} value={inputs[k]} onChange={(e) => change({ ...inputs, [k]: e.target.value })} />}
             </Field>
           ))}
+          {inputs.declarants.length > 1 ? (
+            <Field inline label={t('tax.input.perPooling')}>
+              {(c) => <Checkbox {...c} checked={inputs.perPooling} onCheckedChange={(v) => change({ ...inputs, perPooling: v === true })} />}
+            </Field>
+          ) : null}
           <div className="space-y-1">
             <span className="block text-sm">{t('tax.profile.regime')}</span>
             <Segmented aria-label={t('tax.profile.regime')} value={inputs.rentalRegime ?? 'auto'}

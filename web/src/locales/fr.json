@@ -299,6 +299,7 @@
       "loan_bank_schedule": "Tableaux de la banque",
       "valuations": "Valeurs",
       "flows": "Flux",
+      "income_one_off_taxable": "Net imposable des revenus ponctuels",
       "holdings": "Supports",
       "holding_snapshots": "Relevés par support",
       "holding_movements": "Mouvements par support"

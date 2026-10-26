@@ -24,6 +24,32 @@ namespace Nid.Income.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Income.Infrastructure.Persistence.OneOffTaxableRow", b =>
+                {
+                    b.Property<Guid>("FlowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("flow_id");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<decimal>("TaxableAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("taxable_amount");
+
+                    b.HasKey("FlowId")
+                        .HasName("pk_one_off_taxable");
+
+                    b.HasIndex("SourceId")
+                        .HasDatabaseName("ix_one_off_taxable_source_id");
+
+                    b.ToTable("one_off_taxable", "income", t =>
+                        {
+                            t.HasCheckConstraint("ck_one_off_taxable_amount", "taxable_amount > 0");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Income.Infrastructure.Persistence.PhaseRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -89,6 +115,10 @@ namespace Nid.Income.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("starts_on");
 
+                    b.Property<decimal?>("TaxableAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("taxable_amount");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -119,6 +149,8 @@ namespace Nid.Income.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_income_phase_label", "char_length(label) between 1 and 60");
 
                             t.HasCheckConstraint("ck_income_phase_max_cycles", "max_cycles is null or max_cycles >= 1");
+
+                            t.HasCheckConstraint("ck_income_phase_taxable", "taxable_amount is null or taxable_amount > 0");
                         });
                 });
 
@@ -282,6 +314,16 @@ namespace Nid.Income.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Income.Infrastructure.Persistence.OneOffTaxableRow", b =>
+                {
+                    b.HasOne("Nid.Income.Infrastructure.Persistence.SourceRow", null)
+                        .WithMany()
+                        .HasForeignKey("SourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_one_off_taxable_income_source_source_id");
                 });
 #pragma warning restore 612, 618
         }

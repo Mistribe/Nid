@@ -19991,6 +19991,7 @@ export interface components {
             occurredOn?: null | string;
             amount?: null | components["schemas"]["MoneyBody"];
             note?: null | string;
+            taxableAmount?: null | components["schemas"]["MoneyBody"];
         };
         IncomeOneOffView: {
             /** Format: uuid */
@@ -19999,6 +20000,7 @@ export interface components {
             occurredOn: string;
             amount: components["schemas"]["IncomeMoneyView"];
             note?: null | string;
+            taxableAmount?: null | components["schemas"]["IncomeMoneyView"];
         };
         IncomeOverview: {
             period: string;
@@ -20095,6 +20097,7 @@ export interface components {
             /** Format: int32 */
             maxCycles?: null | number;
             note?: null | string;
+            taxableAmount?: null | components["schemas"]["MoneyBody"];
         };
         IncomePhaseChangeBody: {
             label?: null | string;
@@ -20103,6 +20106,7 @@ export interface components {
             every?: null | components["schemas"]["DurationBody"];
             grossAmount?: null | components["schemas"]["MoneyBody"];
             note?: null | string;
+            taxableAmount?: null | components["schemas"]["MoneyBody"];
         };
         IncomePhaseCorrectionBody: {
             label: string;
@@ -20116,6 +20120,7 @@ export interface components {
             note?: null | string;
             /** Format: uint32 */
             version?: null | number;
+            taxableAmount?: null | components["schemas"]["MoneyBody"];
         };
         IncomePhaseView: {
             /** Format: uuid */
@@ -20135,6 +20140,7 @@ export interface components {
             monthlyEquivalent: components["schemas"]["IncomeAmountView"];
             /** Format: uint32 */
             version: number;
+            taxableAmount?: null | components["schemas"]["IncomeMoneyView"];
         };
         IncomeSourceDetail: {
             /** Format: uuid */
@@ -22383,6 +22389,15 @@ export interface components {
             id: string;
             displayName: string;
         };
+        TaxDeclarantPerView: {
+            ceiling: string;
+            source: string;
+            expiring: string;
+            contributions: string;
+            deducted: string;
+            excess: string;
+            remaining: string;
+        };
         TaxDeclarantResultView: {
             name: string;
             netSalary: string;
@@ -22390,6 +22405,10 @@ export interface components {
             allowance: string;
             taxable: string;
             perDeducted: string;
+            method?: null | string;
+            /** Format: uuid */
+            person?: null | string;
+            per?: null | components["schemas"]["TaxDeclarantPerView"];
         };
         TaxDeclarantView: {
             name: string;
@@ -22400,6 +22419,14 @@ export interface components {
             perUnusedCeiling: string;
             contributionRate?: null | string;
             actualExpenses?: null | string;
+            /** @default 0.00 */
+            salaryTaxable: string;
+            perCeiling?: null | string;
+            /** @default 0.00 */
+            previousYearIncome: string;
+            /** @default 0.00 */
+            perExpiring: string;
+            perEnvelopes?: null | string[];
         };
         TaxEstimateView: {
             /** Format: int32 */
@@ -22414,6 +22441,10 @@ export interface components {
             /** Format: int32 */
             dependents: number;
             rentalProperties: components["schemas"]["TaxPropertyView"][];
+            salaryDetail: components["schemas"]["TaxSalaryDetailView"][];
+            observedRates: {
+                [key: string]: string;
+            };
         };
         TaxInputsView: {
             /** Format: int32 */
@@ -22435,6 +22466,8 @@ export interface components {
             donations: string;
             donationsAid: string;
             rentalDeficitCarried: string;
+            /** @default false */
+            perPooling: boolean;
         };
         TaxNoticeView: {
             code: string;
@@ -22442,6 +22475,12 @@ export interface components {
             item: string;
             name: string;
             amount: string;
+        };
+        TaxPerView: {
+            pooled: boolean;
+            remaining: string;
+            taxSaved: string;
+            roomInBracket: string;
         };
         TaxProfileBody: {
             statuses?: null | {
@@ -22467,6 +22506,14 @@ export interface components {
                 [key: string]: string;
             };
             rentalDeficitCarried?: null | string;
+            perCeilings?: null | {
+                [key: string]: string;
+            };
+            perCeilingsExpiring?: null | {
+                [key: string]: string;
+            };
+            /** @default false */
+            perPooling: boolean;
         };
         TaxProfileView: {
             statuses: {
@@ -22492,6 +22539,13 @@ export interface components {
                 [key: string]: string;
             };
             rentalDeficitCarried: string;
+            perCeilings: {
+                [key: string]: string;
+            };
+            perCeilingsExpiring: {
+                [key: string]: string;
+            };
+            perPooling: boolean;
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -22531,6 +22585,19 @@ export interface components {
             netAfterTaxMonthly: string;
             warnings: string[];
             withholding: components["schemas"]["WithholdingView"];
+            per?: null | components["schemas"]["TaxPerView"];
+        };
+        TaxSalaryDetailView: {
+            /** Format: uuid */
+            person: string;
+            /** Format: uuid */
+            item: string;
+            name: string;
+            /** Format: date */
+            on: string;
+            note?: null | string;
+            category: string;
+            amount: string;
         };
         TenancyRevisionView: {
             state: string;

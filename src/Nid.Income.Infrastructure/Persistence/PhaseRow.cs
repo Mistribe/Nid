@@ -11,6 +11,7 @@ public sealed class PhaseRow
     public LocalDate? EndsOn { get; set; }
     public decimal NetAmount { get; set; }
     public decimal? GrossAmount { get; set; }
+    public decimal? TaxableAmount { get; set; }
     public string Currency { get; set; } = "";
     public int EveryCount { get; set; }
     public string EveryUnit { get; set; } = "";

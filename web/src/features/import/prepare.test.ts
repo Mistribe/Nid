@@ -100,6 +100,12 @@ describe('prepareFile against the batches the server computes (tests/vectors/imp
     expect(prepared.sections).toEqual([{ name: 'persons', count: 1 }, { name: 'providers', count: 0 }]);
     expect(prepared.batches.map((b) => b.section)).toEqual(['persons']);
   });
+
+  it('accepts the one-off taxable section of the income module, after the flows it names', async () => {
+    const prepared = ready(await prepareFile(bytesOf(
+      '{"format":"nid.data","version":1,"income_one_off_taxable":[{"flow_id":"f","taxable_amount":{"amount":"1","currency":"EUR"}}],"flows":[{"id":"f"}]}')));
+    expect(prepared.batches.map((b) => b.section)).toEqual(['flows', 'income_one_off_taxable']);
+  });
 });
 
 describe('the local check', () => {

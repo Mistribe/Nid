@@ -1,10 +1,12 @@
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { TaxResult } from './api';
-import { percentText, regimeText, ZERO } from './format';
+import type { TaxEstimate, TaxResult } from './api';
+import { METHODS, ORIGINS, percentText, regimeText, ZERO } from './format';
 import '@/locales/tax';
 
 export const eur = (amount: string) => formatMoney({ amount, currency: 'EUR' });
@@ -97,29 +99,83 @@ export function ResultTable({ columns, label, declarants = true }: {
   );
 }
 
-/** Each declarant's salary steps side by side, one column per person; a line at 0 € for everyone is left out. */
-export function DeclarantTable({ result }: { result: TaxResult }) {
+type SalaryDetail = TaxEstimate['salaryDetail'];
+
+/** « saisi », « estimé » or « mixte »: where a person's taxable salary comes from; a method the server added later reads as itself. */
+function MethodPill({ method }: { method: string }) {
   const { t } = useTranslation();
-  const rows: [string, (d: TaxResult['declarants'][number]) => string, boolean?][] = [
-    [t('tax.declarant.salary_net'), (d) => d.netTaxableIncome],
-    [t('tax.declarant.allowance'), (d) => d.allowance],
-    [t('tax.declarant.per'), (d) => d.perDeducted],
-    [t('tax.declarant.taxable'), (d) => d.taxable, true],
+  const known = METHODS.find((m) => m === method);
+  return <span className="ml-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">{known ? t(`tax.declarant.method.${known}`) : method}</span>;
+}
+
+/** The payments counted for one person, by source, each with its date, note, amount and whether it was typed or estimated. */
+function Payments({ name, payments }: { name: string; payments: SalaryDetail }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const sources = [...new Set(payments.map((p) => p.item))];
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="text-left font-normal">
+      <CollapsibleTrigger asChild>
+        <Button variant="link" className="h-auto p-0 text-xs">{open ? t('tax.declarant.hide_payments') : t('tax.declarant.show_payments', { count: payments.length })}</Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div role="group" aria-label={t('tax.declarant.payments', { name })} className="mt-1 space-y-2 text-xs">
+          {sources.map((item) => (
+            <div key={item}>
+              <p className="font-medium">{payments.find((p) => p.item === item)!.name}</p>
+              <ul className="space-y-0.5">
+                {payments.filter((p) => p.item === item).map((p, n) => {
+                  const origin = ORIGINS.find((o) => o === p.category);
+                  return (
+                    <li key={`${n}-${p.on}`}>
+                      <LocalDate value={p.on} />{p.note ? <> · {p.note}</> : null} · {eur(p.amount)} · {origin ? t(`tax.declarant.origin.${origin}`) : p.category}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** Each declarant's salary steps side by side, one column per person; a line at 0 € for everyone is left out. */
+export function DeclarantTable({ result, detail = [], adults = [] }: { result: TaxResult; detail?: SalaryDetail; adults?: TaxEstimate['adults'] }) {
+  const { t } = useTranslation();
+  // `origin`: the line that says where the salaries come from (the method, the payments behind it).
+  const rows: { title: string; amount: (d: TaxResult['declarants'][number]) => string; strong?: boolean; origin?: boolean }[] = [
+    { title: t('tax.declarant.salary_net'), amount: (d) => d.netTaxableIncome, origin: true },
+    { title: t('tax.declarant.allowance'), amount: (d) => d.allowance },
+    { title: t('tax.declarant.per'), amount: (d) => d.perDeducted },
+    { title: t('tax.declarant.taxable'), amount: (d) => d.taxable, strong: true },
   ];
+  // A column is a person by id: two adults may share a display name.
+  const columnKey = (d: TaxResult['declarants'][number], i: number) => d.person ?? `${i}`;
+  const paymentsOf = (d: TaxResult['declarants'][number]) => (d.person && adults.some((a) => a.id === d.person) ? detail.filter((p) => p.person === d.person) : []);
   return (
     <div className="max-w-3xl">
       <Table aria-label={t('tax.declarant.title')}>
         <TableHeader>
           <TableRow>
             <TableHead>{t('tax.declarant.info')}</TableHead>
-            {result.declarants.map((d) => <TableHead key={d.name} className="text-right">{d.name}</TableHead>)}
+            {result.declarants.map((d, i) => <TableHead key={columnKey(d, i)} className="text-right">{d.name}</TableHead>)}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.filter(([, amount, strong]) => strong || !result.declarants.every((d) => ZERO.test(amount(d)))).map(([title, amount, strong]) => (
+          {rows.filter(({ amount, strong }) => strong || !result.declarants.every((d) => ZERO.test(amount(d)))).map(({ title, amount, strong, origin }) => (
             <TableRow key={title} className={strong ? 'font-semibold' : undefined}>
               <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>{title}</TableHead>
-              {result.declarants.map((d) => <TableCell key={d.name} className="text-right tabular-nums">{eur(amount(d))}</TableCell>)}
+              {result.declarants.map((d, i) => {
+                const payments = origin ? paymentsOf(d) : [];
+                return (
+                  <TableCell key={columnKey(d, i)} className="text-right tabular-nums">
+                    {eur(amount(d))}{origin && d.method ? <MethodPill method={d.method} /> : null}
+                    {payments.length ? <Payments name={d.name} payments={payments} /> : null}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>

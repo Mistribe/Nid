@@ -97,6 +97,19 @@ describe('one-off income', () => {
     await waitFor(async () => expect((await rows())[0]).toHaveTextContent('250,50 €'));
   });
 
+  it('asks for the net taxable income of a salary’s one-off only', async () => {
+    serve();
+    const first = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+    await first.user.click(await within(await region()).findByRole('button', { name: 'Ajouter un revenu exceptionnel' }));
+    expect(within(screen.getByRole('form', { name: 'Nouveau revenu exceptionnel' })).getByLabelText(/Net imposable/)).toBeInTheDocument();
+    first.unmount();
+
+    serve(detail({ kind: 'rent', oneOffs: [] }));
+    const other = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+    await other.user.click(await within(await region()).findByRole('button', { name: 'Ajouter un revenu exceptionnel' }));
+    expect(within(screen.getByRole('form', { name: 'Nouveau revenu exceptionnel' })).queryByLabelText(/Net imposable/)).not.toBeInTheDocument();
+  });
+
   it('refuses a date after today before sending', async () => {
     const { sent } = serve();
     const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);

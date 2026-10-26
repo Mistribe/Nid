@@ -24,6 +24,8 @@
     "net_hint": "Net versé sur le compte, après prélèvement à la source.",
     "gross_amount": "Montant brut",
     "gross_hint": "Facultatif. Brut de la fiche de paie, avant cotisations.",
+    "taxable_amount": "Net imposable (par versement)",
+    "taxable_hint": "Ligne Net imposable du bulletin, à ne pas confondre avec le net à payer.",
     "cadence": "Fréquence",
     "cadence_option": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "months": "Tous les N mois" },
     "months": "Nombre de mois",
@@ -37,6 +39,7 @@
     "label_too_long": "60 caractères au plus.",
     "ends_after_start": "La fin vient après le début.",
     "months_range": "Entre 2 et 12 mois.",
+    "taxable_above_gross": "Le net imposable ne peut pas dépasser le brut.",
     "max_cycles_range": "Un nombre entier entre 1 et 1200."
   },
   "income_detail": {
@@ -100,6 +103,7 @@
       "added": "nouvelle composante",
       "ended": "fin",
       "to": "puis",
+      "taxable": "net imposable",
       "upcoming": "à venir"
     },
     "history": {

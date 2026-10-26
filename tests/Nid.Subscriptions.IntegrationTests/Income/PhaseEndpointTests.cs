@@ -60,6 +60,71 @@ public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             .Select(p => (p.Id, p.Label, p.StartsOn, p.EndsOn, p.NetAmount)).OrderBy(p => p.Id).ToList();
     }
 
+    private static object TaxablePhase(string taxable, string currency = "EUR")
+        => new
+        {
+            label = "Salaire", startsOn = "2025-01-01", netAmount = new { amount = "3950.00", currency = "EUR" },
+            every = new { count = 1, unit = "month" }, grossAmount = new { amount = "5500.00", currency = "EUR" },
+            taxableAmount = new { amount = taxable, currency },
+        };
+
+    [Fact]
+    public async Task A_phase_keeps_its_taxable_amount()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app);
+
+        var pid = await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", TaxablePhase("4400.00")));
+
+        var phase = PhaseOf(await DetailAsync(app, id), pid);
+        Assert.Equal(4400.00m, Amount(phase.GetProperty("taxableAmount")));
+    }
+
+    [Fact]
+    public async Task A_taxable_amount_above_the_gross_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", TaxablePhase("6000"));
+
+        var body = await JsonAsync(refused);
+        Assert.Equal("income.invalid_taxable", body.GetProperty("code").GetString());
+        Assert.Contains("taxableAmount", body.ToString());
+        Assert.Empty(await StoredAsync(app, id));
+    }
+
+    [Fact]
+    public async Task A_taxable_amount_of_zero_or_in_another_currency_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app);
+
+        var zero = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", TaxablePhase("0")));
+        var usd = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phases", TaxablePhase("4000", "USD")));
+
+        Assert.Equal("income.invalid_taxable", zero.GetProperty("code").GetString());
+        Assert.Contains("taxableAmount", zero.ToString());
+        Assert.Equal(CoreFactCodes.CurrencyMismatch, usd.GetProperty("code").GetString());
+        Assert.Contains("taxableAmount", usd.ToString());
+        Assert.Empty(await StoredAsync(app, id));
+    }
+
+    [Fact]
+    public async Task A_pay_change_does_not_copy_the_taxable_amount()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewSourceAsync(app, TaxablePhase("4400.00"));
+
+        var changed = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Sources}/{id}/phase-changes",
+            new { label = "Salaire", effectiveOn = "2025-09-01", netAmount = new { amount = "4100", currency = "EUR" } });
+
+        var next = await CreatedAsync(changed);
+        var phases = (await DetailAsync(app, id)).GetProperty("phases").EnumerateArray().ToList();
+        Assert.Equal(4400.00m, Amount(phases.Single(p => p.GetProperty("id").GetGuid() != next).GetProperty("taxableAmount")));
+        Assert.Equal(JsonValueKind.Null, PhaseOf(await DetailAsync(app, id), next).GetProperty("taxableAmount").ValueKind);
+    }
+
     [Fact]
     public async Task A_phase_is_added_corrected_and_deleted()
     {

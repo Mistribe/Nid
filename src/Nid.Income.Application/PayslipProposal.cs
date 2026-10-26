@@ -27,7 +27,7 @@ public sealed record PayslipTolerance(decimal Ratio)
 }
 
 /// <summary>
-/// Spec 4D1 §3: `{ paidOn, phaseLabel, net, gross?, effectiveOn }` on an income source; subject key: the label and the month
+/// Spec 4D1 §3: `{ paidOn, phaseLabel, net, gross?, taxable?, effectiveOn }` on an income source; subject key: the label and the month
 /// of `paidOn`. A payslip corrects the expected pay (D3): the phase running on `paidOn` changes from its payment date in that
 /// month; no « received » amount is recorded.
 /// </summary>
@@ -38,13 +38,13 @@ public sealed partial class PayslipProposal(
     public string Kind => "income.change_pay";
     public int PayloadVersion => 1;
 
-    private sealed record Body(string? PaidOn, string? PhaseLabel, AmountBody? Net, AmountBody? Gross, string? EffectiveOn);
+    private sealed record Body(string? PaidOn, string? PhaseLabel, AmountBody? Net, AmountBody? Gross, AmountBody? Taxable, string? EffectiveOn);
 
     private sealed record AmountBody(string? Amount, string? Currency);
 
-    private sealed record Parsed(LocalDate PaidOn, string? PhaseLabel, Money Net, Money? Gross, LocalDate? EffectiveOn);
+    private sealed record Parsed(LocalDate PaidOn, string? PhaseLabel, Money Net, Money? Gross, Money? Taxable, LocalDate? EffectiveOn);
 
-    private sealed record Pay(IncomeMoneyView Net, IncomeMoneyView? Gross);
+    private sealed record Pay(IncomeMoneyView Net, IncomeMoneyView? Gross, IncomeMoneyView? Taxable);
 
     private sealed record Comparison(Pay Expected, Pay Given);
 
@@ -69,11 +69,13 @@ public sealed partial class PayslipProposal(
         var expected = phase.NetAmount.Amount;
         var sameNet = Math.Abs(p!.Net.Amount - expected) <= tolerance.Ratio * expected;
         var sameGross = p.Gross is not { } gross || phase.GrossAmount is not { } expectedGross || gross.Amount == expectedGross.Amount;
+        // A net taxable income the payslip prints and the phase lacks or has otherwise is a pay change too (no tolerance, like the gross).
+        var sameTaxable = p.Taxable is not { } taxable || phase.TaxableAmount is { } expectedTaxable && taxable.Amount == expectedTaxable.Amount;
         var key = $"{phase!.Label}:{p.PaidOn.ToString("yyyy-MM", CultureInfo.InvariantCulture)}";
         // Compare first: a matching payslip needs no effective date (so one in the phase's first month, or sent twice, is « conforme »).
-        if (sameNet && sameGross)
+        if (sameNet && sameGross && sameTaxable)
             return Result.Success(new ProposalCheck(key, [], Normalized(p with { PhaseLabel = phase.Label }),
-                JsonSerializer.SerializeToElement(new Comparison(PayOf(phase.NetAmount, phase.GrossAmount), PayOf(p.Net, p.Gross)), PayslipJson.Default.Comparison)));
+                JsonSerializer.SerializeToElement(new Comparison(PayOf(phase.NetAmount, phase.GrossAmount, phase.TaxableAmount), PayOf(p.Net, p.Gross, p.Taxable)), PayslipJson.Default.Comparison)));
         var on = EffectiveOn(phase, p);
         if (!on.TryGetValue(out var effectiveOn))
             return Result.Failure<ProposalCheck>(FailureOf(on));
@@ -85,7 +87,7 @@ public sealed partial class PayslipProposal(
         if (!Parse(payload).TryGetValue(out var p) || !(await FindPhaseAsync(target, p!, ct)).TryGetValue(out var phase))
             return JsonSerializer.SerializeToElement(new Preview(null, null, null), PayslipJson.Default.Preview);
         return JsonSerializer.SerializeToElement(new Preview(
-            PayOf(phase!.NetAmount, phase.GrossAmount), PayOf(p!.Net, p.Gross),
+            PayOf(phase!.NetAmount, phase.GrossAmount, phase.TaxableAmount), PayOf(p!.Net, p.Gross, p.Taxable),
             EffectiveOn(phase, p).TryGetValue(out var on) ? Iso(on) : null), PayslipJson.Default.Preview);
     }
 
@@ -100,9 +102,9 @@ public sealed partial class PayslipProposal(
         var on = EffectiveOn(phase!, p!);
         if (!on.TryGetValue(out var effectiveOn))
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(on));
-        // The cadence, the note and (when the payslip prints none) the gross stay the replaced phase's.
+        // The cadence, the note and (when the payslip prints none) the gross stay the replaced phase's; the taxable is the payslip's alone.
         var changed = await invoker.InvokeAsync(
-            new ChangeIncomePhaseCommand(target, phase!.Label, effectiveOn, p!.Net, null, p.Gross ?? phase.GrossAmount, phase.Note), ct);
+            new ChangeIncomePhaseCommand(target, phase!.Label, effectiveOn, p!.Net, null, p.Gross ?? phase.GrossAmount, phase.Note, p.Taxable), ct);
         return changed.TryGetValue(out var id)
             ? Result.Success<IReadOnlyList<Guid>>([id])
             : Result.Failure<IReadOnlyList<Guid>>(AtPayload(FailureOf(changed)));
@@ -121,6 +123,8 @@ public sealed partial class PayslipProposal(
             return Field<IncomePhase>(CoreFactCodes.CurrencyMismatch, "The net is not in the source's currency.", "payload.net.currency");
         if (p.Gross is { } gross && gross.Currency != source.Currency)
             return Field<IncomePhase>(CoreFactCodes.CurrencyMismatch, "The gross is not in the source's currency.", "payload.gross.currency");
+        if (p.Taxable is { } taxable && taxable.Currency != source.Currency)
+            return Field<IncomePhase>(CoreFactCodes.CurrencyMismatch, "The taxable amount is not in the source's currency.", "payload.taxable.currency");
 
         var running = source.Phases.Where(x => IncomeMath.IsActive(x, p.PaidOn) && (p.PhaseLabel is null || x.Label == p.PhaseLabel)).ToList();
         if (running.Count == 0)
@@ -165,8 +169,8 @@ public sealed partial class PayslipProposal(
             _ => "payload",
         } : "payload");
 
-    private static Pay PayOf(Money net, Money? gross)
-        => new(IncomeMoneyView.From(net), gross is { } g ? IncomeMoneyView.From(g) : null);
+    private static Pay PayOf(Money net, Money? gross, Money? taxable)
+        => new(IncomeMoneyView.From(net), gross is { } g ? IncomeMoneyView.From(g) : null, taxable is { } t ? IncomeMoneyView.From(t) : null);
 
     /// <summary>The known fields only, the label and the effective date resolved: what is fingerprinted and stored.</summary>
     private static JsonElement Normalized(Parsed p)
@@ -177,6 +181,8 @@ public sealed partial class PayslipProposal(
         };
         if (p.Gross is { } gross)
             body["gross"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(gross), PayslipJson.Default.IncomeMoneyView);
+        if (p.Taxable is { } taxable)
+            body["taxable"] = JsonSerializer.SerializeToNode(IncomeMoneyView.From(taxable), PayslipJson.Default.IncomeMoneyView);
         if (p.EffectiveOn is { } effectiveOn)
             body["effectiveOn"] = Iso(effectiveOn);
         return JsonSerializer.SerializeToElement(body, PayslipJson.Default.JsonObject);
@@ -198,12 +204,13 @@ public sealed partial class PayslipProposal(
         var effectiveOn = Date(body?.EffectiveOn, "payload.effectiveOn", errors, required: false);
         var net = Amount(body?.Net, "payload.net", errors);
         var gross = body?.Gross is null ? null : Amount(body.Gross, "payload.gross", errors);
+        var taxable = body?.Taxable is null ? null : Amount(body.Taxable, "payload.taxable", errors);
         var label = body?.PhaseLabel?.Trim();
         if (body?.PhaseLabel is not null && label is not { Length: >= 1 and <= 100 })
             errors.Add(new FieldError("payload.phaseLabel", FieldErrors.ShapeCode, "1 to 100 characters."));
         return errors.Count > 0
             ? Result.Failure<Parsed>(FieldErrors.Shape(errors))
-            : Result.Success(new Parsed(paidOn!.Value, label, net!.Value, gross, effectiveOn));
+            : Result.Success(new Parsed(paidOn!.Value, label, net!.Value, gross, taxable, effectiveOn));
     }
 
     private static LocalDate? Date(string? text, string path, List<FieldError> errors, bool required)

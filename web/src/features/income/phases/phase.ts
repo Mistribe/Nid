@@ -26,6 +26,7 @@ export function phaseShape(t: TFunction) {
     cadence: z.enum(CADENCES),
     months: z.string(),
     grossAmount: z.string().refine(optionalAmount, t('investments_form.positive_amount_format')),
+    taxableAmount: z.string().refine(optionalAmount, t('investments_form.positive_amount_format')),
     maxCycles: z.string().refine(cycles, t('income_form.max_cycles_range')),
     note: z.string().max(2000, t('investments_form.note_too_long')),
   });
@@ -39,6 +40,14 @@ export function checkPhase(v: PhaseValues, ctx: z.RefinementCtx, t: TFunction, a
   if (ISO_DATE.test(v.startsOn) && ISO_DATE.test(v.endsOn) && v.endsOn <= v.startsOn)
     ctx.addIssue({ code: 'custom', path: [...at, 'endsOn'], message: t('income_form.ends_after_start') });
   checkMonths(v, ctx, t, at);
+  checkTaxable(v, ctx, t, at);
+}
+
+/** The net taxable income cannot exceed the gross, when both are given (the server's rule). */
+export function checkTaxable(v: Pick<PhaseValues, 'grossAmount' | 'taxableAmount'>, ctx: z.RefinementCtx, t: TFunction, at: (string | number)[] = []): void {
+  const number = (text: string) => Number(text.trim().replace(',', '.'));
+  if (v.grossAmount.trim() !== '' && v.taxableAmount.trim() !== '' && number(v.taxableAmount) > number(v.grossAmount))
+    ctx.addIssue({ code: 'custom', path: [...at, 'taxableAmount'], message: t('income_form.taxable_above_gross') });
 }
 
 /** « Tous les N mois » needs N between 2 and 12; `at` is the line's path in a larger form. */
@@ -92,19 +101,20 @@ export function toWirePhase(v: PhaseValues, currency: string): components['schem
     label: v.label.trim(), startsOn: v.startsOn, netAmount: money(v.netAmount), every: cadenceToWire(v.cadence, v.months),
     ...(v.endsOn ? { endsOn: v.endsOn } : {}),
     ...(v.grossAmount.trim() ? { grossAmount: money(v.grossAmount) } : {}),
+    ...(v.taxableAmount.trim() ? { taxableAmount: money(v.taxableAmount) } : {}),
     ...(v.maxCycles.trim() ? { maxCycles: Number(v.maxCycles.trim()) } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
   };
 }
 
 export function newPhase(label = '', startsOn = todayIso()): PhaseValues {
-  return { label, startsOn, endsOn: '', netAmount: '', cadence: 'monthly', months: '', grossAmount: '', maxCycles: '', note: '' };
+  return { label, startsOn, endsOn: '', netAmount: '', cadence: 'monthly', months: '', grossAmount: '', taxableAmount: '', maxCycles: '', note: '' };
 }
 
 export function phaseValuesOf(p: IncomePhase): PhaseValues {
   return {
     label: p.label, startsOn: p.startsOn, endsOn: p.endsOn ?? '', netAmount: trimAmount(p.netAmount.amount), ...cadenceFromWire(p.every),
-    grossAmount: p.grossAmount ? trimAmount(p.grossAmount.amount) : '', maxCycles: p.maxCycles == null ? '' : String(p.maxCycles),
+    grossAmount: p.grossAmount ? trimAmount(p.grossAmount.amount) : '', taxableAmount: p.taxableAmount ? trimAmount(p.taxableAmount.amount) : '', maxCycles: p.maxCycles == null ? '' : String(p.maxCycles),
     note: p.note ?? '',
   };
 }
@@ -118,7 +128,7 @@ export function followingPhase(gap: IncomeGap, phases: IncomePhase[]): PhaseValu
   };
 }
 
-const PHASE_FIELDS = ['label', 'startsOn', 'endsOn', 'netAmount', 'grossAmount', 'maxCycles', 'note'] as const;
+const PHASE_FIELDS = ['label', 'startsOn', 'endsOn', 'netAmount', 'grossAmount', 'taxableAmount', 'maxCycles', 'note'] as const;
 
 /** A server path inside one phase (`netAmount.amount`, `every.count`, `startsOn`) to the form field that owns it. */
 export function phaseFieldOf(path: string): keyof PhaseValues | undefined {
@@ -129,17 +139,17 @@ export function phaseFieldOf(path: string): keyof PhaseValues | undefined {
 
 /** Spec §3: the change of amount's fields — the phase's amounts and cadence, and the effective date chosen from a list. */
 export function phaseChangeSchema(t: TFunction) {
-  return phaseShape(t).pick({ netAmount: true, cadence: true, months: true, grossAmount: true, note: true })
+  return phaseShape(t).pick({ netAmount: true, cadence: true, months: true, grossAmount: true, taxableAmount: true, note: true })
     .extend({ effectiveOn: z.string().regex(ISO_DATE, t('edit.required')) })
-    .superRefine((v, ctx) => checkMonths(v, ctx, t));
+    .superRefine((v, ctx) => { checkMonths(v, ctx, t); checkTaxable(v, ctx, t); });
 }
 
 export type PhaseChangeValues = z.infer<ReturnType<typeof phaseChangeSchema>>;
 
-/** The phase's current amounts and cadence; the note starts empty (the old one may not apply to the next phase). */
+/** The phase's current amounts and cadence; the note and the net taxable income start empty (they belong to the old phase: the next payslip gives the new one). */
 export function phaseChangeValuesOf(p: IncomePhase, effectiveOn: string): PhaseChangeValues {
   const v = phaseValuesOf(p);
-  return { effectiveOn, netAmount: v.netAmount, cadence: v.cadence, months: v.months, grossAmount: v.grossAmount, note: '' };
+  return { effectiveOn, netAmount: v.netAmount, cadence: v.cadence, months: v.months, grossAmount: v.grossAmount, taxableAmount: '', note: '' };
 }
 
 export function toWirePhaseChange(label: string, v: PhaseChangeValues, currency: string): components['schemas']['IncomePhaseChangeBody'] {
@@ -147,11 +157,12 @@ export function toWirePhaseChange(label: string, v: PhaseChangeValues, currency:
   return {
     label, effectiveOn: v.effectiveOn, netAmount: money(v.netAmount), every: cadenceToWire(v.cadence, v.months),
     ...(v.grossAmount.trim() ? { grossAmount: money(v.grossAmount) } : {}),
+    ...(v.taxableAmount.trim() ? { taxableAmount: money(v.taxableAmount) } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
   };
 }
 
-const CHANGE_FIELDS = ['netAmount', 'cadence', 'grossAmount', 'note'] as const;
+const CHANGE_FIELDS = ['netAmount', 'cadence', 'grossAmount', 'taxableAmount', 'note'] as const;
 
 /** A server path of a change to the field that owns it; `label` belongs to no field (the refusal shows above the form). */
 export function phaseChangeFieldOf(path: string): keyof PhaseChangeValues | undefined {

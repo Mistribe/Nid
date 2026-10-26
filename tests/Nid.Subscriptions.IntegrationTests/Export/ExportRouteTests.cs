@@ -16,7 +16,7 @@ public class ExportRouteTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(("nid.data", 1), (manifest.Format, manifest.Version));
         Assert.Equal(
             ["persons", "providers", "subscriptions", "billing_phases", "purchases", "envelopes", "income_sources", "income_phases",
-             "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "valuations", "flows",
+             "properties", "property_recurring_costs", "tenancies", "loans", "loan_phases", "loan_insurances", "loan_fees", "loan_events", "loan_bank_schedule", "valuations", "flows", "income_one_off_taxable",
              "holdings", "holding_snapshots", "holding_movements", "goals"],
             manifest.Sections.Select(s => s.Name));
         Assert.Matches("^[0-9a-f]{64}$", manifest.Revision);

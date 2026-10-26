@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { phase } from '../testData';
 import {
   cadenceFromWire, cadenceToWire, checkPhase, followingPhase, groupPhases, newPhase, overlappingLines, phaseFieldOf,
-  phaseChangeFieldOf, phaseChangeSchema, phaseSchema, phaseShape, phaseValuesOf, toWirePhase, toWirePhaseChange, type PhaseValues,
+  phaseChangeFieldOf, phaseChangeSchema, phaseChangeValuesOf, phaseSchema, phaseShape, phaseValuesOf, toWirePhase, toWirePhaseChange, type PhaseValues,
 } from './phase';
 
 const t = ((key: string) => key) as unknown as TFunction;
@@ -41,6 +41,21 @@ describe('a phase alone', () => {
     expect(issues(line({ maxCycles: '0' }))).toEqual(['maxCycles: income_form.max_cycles_range']);
     expect(issues(line({ maxCycles: '1201' }))).toEqual(['maxCycles: income_form.max_cycles_range']);
     expect(issues(line({ grossAmount: '-1' }))).toEqual(['grossAmount: investments_form.positive_amount_format']);
+  });
+
+  it('refuses a taxable amount above the gross, or not positive; accepts it equal or without a gross', () => {
+    expect(issues(line({ grossAmount: '5000', taxableAmount: '6000' }))).toEqual(['taxableAmount: income_form.taxable_above_gross']);
+    expect(issues(line({ grossAmount: '5000', taxableAmount: '5000' }))).toEqual([]);
+    expect(issues(line({ grossAmount: '', taxableAmount: '4400,00' }))).toEqual([]);
+    expect(issues(line({ taxableAmount: '0' }))).toEqual(['taxableAmount: investments_form.positive_amount_format']);
+  });
+
+  it('sends the taxable amount when given, and keeps it through the form', () => {
+    expect(toWirePhase(line({ grossAmount: '5500.00', taxableAmount: '4400,00' }), 'EUR'))
+      .toMatchObject({ taxableAmount: { amount: '4400.00', currency: 'EUR' } });
+    expect(toWirePhase(line(), 'EUR')).not.toHaveProperty('taxableAmount');
+    expect(phaseValuesOf(phase({ taxableAmount: { amount: '4400.00', currency: 'EUR' } })).taxableAmount).toBe('4400.0');
+    expect(phaseValuesOf(phase()).taxableAmount).toBe('');
   });
 
   it("places its issues under the line's path when it is a line of a larger form", () => {
@@ -90,8 +105,13 @@ describe('prefills', () => {
   it('reads a phase back into the form, its amounts trimmed', () => {
     expect(phaseValuesOf(phase({ grossAmount: { amount: '2900.00', currency: 'EUR' }, maxCycles: 12 }))).toEqual({
       label: 'Salaire de base', startsOn: '2025-01-01', endsOn: '', netAmount: '2300', cadence: 'monthly', months: '',
-      grossAmount: '2900', maxCycles: '12', note: '',
+      grossAmount: '2900', taxableAmount: '', maxCycles: '12', note: '',
     });
+  });
+
+  it('starts a pay change without the phase’s taxable amount, which is the next payslip’s to give', () => {
+    const p = phase({ grossAmount: { amount: '2900.00', currency: 'EUR' }, taxableAmount: { amount: '2750.00', currency: 'EUR' } });
+    expect(phaseChangeValuesOf(p, '2026-11-01')).toMatchObject({ netAmount: '2300', grossAmount: '2900', taxableAmount: '' });
   });
 
   it('follows an ending phase: same label, starting on its end, same cadence and net amount', () => {
@@ -119,7 +139,7 @@ describe('the table order', () => {
 });
 
 describe('the change of amount', () => {
-  const change = { effectiveOn: '2026-11-01', netAmount: '2500', cadence: 'monthly' as const, months: '', grossAmount: '', note: '' };
+  const change = { effectiveOn: '2026-11-01', netAmount: '2500', cadence: 'monthly' as const, months: '', grossAmount: '', taxableAmount: '', note: '' };
 
   it('sends the phase’s label, the date chosen and the new amounts', () => {
     expect(toWirePhaseChange('Salaire de base', { ...change, netAmount: '2500,50', grossAmount: '3200' }, 'EUR')).toEqual({

@@ -39,6 +39,7 @@ export function ChangesTimeline({ changes, phases, actions }: {
               {c.before ? <Money value={c.before} tabular /> : null}{every(previous, cadences)}
               {c.before && c.after ? <><span aria-hidden="true">→</span><span className="sr-only">{t('income_detail.timeline.to')}</span></> : null}
               {c.after ? <Money value={c.after} tabular /> : null}{every(phase, own)}
+              {own && phase?.taxableAmount ? <span className="text-sm text-muted-foreground">({t('income_detail.timeline.taxable')} <Money value={phase.taxableAmount} tabular />)</span> : null}
               {c.percent != null ? <Change value={c.percent} /> : null}
               {c.upcoming ? <span className="text-sm text-muted-foreground">({t('income_detail.timeline.upcoming')})</span> : null}
             </span>

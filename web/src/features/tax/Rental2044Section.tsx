@@ -11,7 +11,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '../export/download';
 import { TAX_2044, type Rental2044 } from './api';
-import { deficitLines, lineNote, lineText, noticeText } from './format';
+import { deficitLines, lineNote, lineText, noticeAmount, noticeText } from './format';
 import { rental2044Csv } from './rental2044Csv';
 import { eur } from './ResultTable';
 import '@/locales/tax';
@@ -116,7 +116,7 @@ function Notices({ view }: { view: Rental2044 }) {
       <AlertTriangle aria-hidden="true" className="mt-1 size-4 shrink-0 text-status-warning" />
       <Section title={t('tax.d2044.notes')}>
         <ul className="list-disc space-y-1 pl-5 text-sm">
-          {view.notices.map((n, i) => <li key={`${n.code}-${n.item}-${i}`}>{noticeText(t, n.code, n.name, eur(n.amount))}</li>)}
+          {view.notices.map((n, i) => <li key={`${n.code}-${n.item}-${i}`}>{noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur))}</li>)}
         </ul>
       </Section>
     </div>

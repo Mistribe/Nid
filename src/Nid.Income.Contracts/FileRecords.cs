@@ -36,6 +36,14 @@ public sealed record IncomePhaseRecord
     public required MoneyRecord NetAmount { get; init; }
     public required IncomeDurationRecord Every { get; init; }
     public MoneyRecord? GrossAmount { get; init; }
+    public MoneyRecord? TaxableAmount { get; init; }
     public int? MaxCycles { get; init; }
     public string? Note { get; init; }
+}
+
+/// <summary>The net taxable income of a one-off; <c>flow_id</c> is the file id of an entity of the Core's <c>flows</c>.</summary>
+public sealed record IncomeOneOffTaxableRecord
+{
+    public required string FlowId { get; init; }
+    public required MoneyRecord TaxableAmount { get; init; }
 }

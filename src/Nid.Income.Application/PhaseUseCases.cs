@@ -29,7 +29,7 @@ public sealed record DeleteIncomePhaseCommand(ItemId ItemId, Guid Phase, uint Ve
 
 /// <summary>A change of phase (a raise): the phase of that label running on <paramref name="EffectiveOn"/> ends there, the next starts there.</summary>
 public sealed record ChangeIncomePhaseCommand(
-    ItemId ItemId, string Label, LocalDate EffectiveOn, Money NetAmount, Duration? Every, Money? GrossAmount, string? Note)
+    ItemId ItemId, string Label, LocalDate EffectiveOn, Money NetAmount, Duration? Every, Money? GrossAmount, string? Note, Money? TaxableAmount = null)
     : ICommand<Guid>, IItemScoped
 {
     public AccessKind Access => AccessKind.Write;
@@ -57,7 +57,7 @@ internal static class OpenSource
 
     /// <summary>A phase alone, then against the source's other phases of its label.</summary>
     public static Result Check(PhaseDraft d, Currency currency, IEnumerable<IncomePhase> others)
-        => PhaseRules.Check(d.Label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, currency)
+        => PhaseRules.Check(d.Label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every, d.GrossAmount, d.TaxableAmount, d.MaxCycles, d.Note, currency)
             .TryGetFailure(out var failure)
             ? Result.Failure(failure!)
             : PhaseRules.NoOverlap(d.Label.Trim(), d.StartsOn, d.EndsOn, d.Every, d.MaxCycles, others);
@@ -84,7 +84,7 @@ public sealed class AddIncomePhaseHandler(IItemRegistry items, ISourceStore sour
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var added = await phases.AddAsync(new IncomePhase(Guid.CreateVersion7(), command.ItemId, d.Label.Trim(), d.StartsOn, d.EndsOn,
-            d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note), null, ct);
+            d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, TaxableAmount: d.TaxableAmount), null, ct);
         await transaction.CommitAsync(ct);
         return Result.Success(added.Id);
     }
@@ -111,7 +111,7 @@ public sealed class EditIncomePhaseHandler(IItemRegistry items, ISourceStore sou
         {
             // The client's version, not the one just read: a change made since the client read it is a conflict.
             await phases.UpdateAsync(new IncomePhase(command.Phase, command.ItemId, d.Label.Trim(), d.StartsOn, d.EndsOn,
-                d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, command.Version), ct);
+                d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, command.Version, d.TaxableAmount), ct);
         }
         catch (PhaseConflictException)
         {
@@ -179,8 +179,8 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
         // The next phase keeps the old one's effective end (a fixed-term contract keeps its end; a capped phase ends where
         // its last occurrence did), never its max_cycles: it is never open-ended when the old one was bounded.
         var next = new IncomePhase(Guid.CreateVersion7(), command.ItemId, current.Label, command.EffectiveOn, IncomeMath.EffectiveEnd(current),
-            command.NetAmount, command.Every ?? current.Every, command.GrossAmount, null, command.Note);
-        if (PhaseRules.Check(next.Label, next.StartsOn, next.EndsOn, next.NetAmount, next.Every, next.GrossAmount, next.MaxCycles,
+            command.NetAmount, command.Every ?? current.Every, command.GrossAmount, null, command.Note, TaxableAmount: command.TaxableAmount);
+        if (PhaseRules.Check(next.Label, next.StartsOn, next.EndsOn, next.NetAmount, next.Every, next.GrossAmount, next.TaxableAmount, next.MaxCycles,
                 next.Note, source.Currency).TryGetFailure(out failure)
             || PhaseRules.NoOverlap(next.Label, next.StartsOn, next.EndsOn, next.Every, next.MaxCycles, source.Phases.Where(p => p.Id != current.Id)).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
@@ -220,7 +220,7 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
 }
 
 [RequestHandler<GetIncomeExpectedQuery, IncomeExpected>]
-public sealed class GetIncomeExpectedHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows)
+public sealed class GetIncomeExpectedHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables)
     : IRequestHandler<GetIncomeExpectedQuery, IncomeExpected>
 {
     /// <summary>Spec §4: at most two years, <c>to</c> before <c>from</c> plus two years.</summary>
@@ -244,11 +244,12 @@ public sealed class GetIncomeExpectedHandler(IItemRegistry items, ISourceStore s
             return Result.Failure<IncomeExpected>(failure!);
         oneOffs.TryGetValue(out var listed);
         var months = IncomeMath.Expected(await phases.ForSourceAsync(query.ItemId, ct), listed!, query.From, query.To, currency);
+        var taxable = await taxables.ForFlowsAsync(months.SelectMany(m => m.OneOffs).Select(f => f.Id).ToList(), ct);
 
         return Result.Success(new IncomeExpected(query.ItemId, query.From, query.To, months.Select(m => new IncomeExpectedMonth(
             m.Year, m.Month,
             m.Occurrences.Select(o => new IncomeOccurrenceView(o.PhaseId, o.Label, o.On, IncomeMoneyView.From(o.Amount))).ToList(),
-            m.OneOffs.Select(IncomeOneOffView.Of).ToList(),
+            m.OneOffs.Select(f => IncomeOneOffView.Of(f, taxable)).ToList(),
             IncomeMoneyView.From(m.Total))).ToList()));
     }
 }

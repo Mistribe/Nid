@@ -225,6 +225,25 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task Propose_payslip_with_a_taxable_amount_records_it_on_the_new_phase()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await McpSeed.IncomeSourceAsync(app, app.AdultA);
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+
+        var applied = await AnswerAsync(direct, "propose_payslip", new
+        {
+            incomeSourceId = source, paidOn = "2025-09-28", net = new { amount = "2450.00", currency = "EUR" },
+            taxable = new { amount = "4400.00", currency = "EUR" }, apply = true,
+        });
+
+        Assert.Equal("applied", applied.GetProperty("outcome").GetString());
+        var phases = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source}")).RootElement.GetProperty("phases");
+        var created = phases.EnumerateArray().Single(p => p.GetProperty("startsOn").GetString() == "2025-09-01");
+        Assert.Equal(4400m, Amount(created.GetProperty("taxableAmount")));
+    }
+
+    [Fact]
     public async Task A_payslip_is_conforme_proposed_or_applied()
     {
         await using var app = await NidApp.StartAsync(fixture);

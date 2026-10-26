@@ -69,6 +69,11 @@ export function OneOffForm({ source, editing, titleId, onDone }: {
           {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
         </Field>
       </div>
+      {source.kind === 'salary' ? (
+        <Field label={t('income_form.taxable_amount')} hint={t('income_form.taxable_hint')} error={e.taxableAmount?.message}>
+          {(c) => <Input inputMode="decimal" {...c} {...form.register('taxableAmount')} />}
+        </Field>
+      ) : null}
       <Field label={t('income_detail.one_offs.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>

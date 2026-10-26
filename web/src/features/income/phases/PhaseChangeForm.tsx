@@ -96,7 +96,7 @@ function ChangeForm({ source, phase, dates, labelledBy, onDone }: {
           {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange} options={dates.map((d) => ({ value: d, label: formatLocalDate(d) }))} />}
         </Field>
       )} />
-      <PhaseFields form={form} prefix="" errors={e} fields={['netAmount', 'cadence', 'grossAmount', 'note']} />
+      <PhaseFields form={form} prefix="" errors={e} fields={['netAmount', 'cadence', 'grossAmount', 'taxableAmount', 'note']} />
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => onDone()}>{t('income_detail.cancel')}</Button>
         <Button type="submit" disabled={change.isPending}>{t('income_detail.change.submit')}</Button>

@@ -38,6 +38,11 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
       {(c) => <Input inputMode="decimal" {...c} {...form.register(name('grossAmount'))} />}
     </Field>
   ) : null;
+  const taxable = shown('taxableAmount') ? (
+    <Field label={t('income_form.taxable_amount')} hint={t('income_form.taxable_hint')} error={errors?.taxableAmount?.message}>
+      {(c) => <Input inputMode="decimal" {...c} {...form.register(name('taxableAmount'))} />}
+    </Field>
+  ) : null;
   const maxCycles = shown('maxCycles') ? (
     <Field label={t('income_form.max_cycles')} hint={t('income_form.optional')} error={errors?.maxCycles?.message}>
       {(c) => <Input inputMode="numeric" {...c} {...form.register(name('maxCycles'))} />}
@@ -81,11 +86,12 @@ export function PhaseFields<T extends FieldValues>({ form, prefix, errors, field
         {shown('startsOn') ? date('startsOn', t('income_form.starts_on')) : null}
         {shown('endsOn') ? date('endsOn', t('income_form.ends_on'), t('income_form.optional')) : null}
         {fold ? null : gross}
+        {fold ? null : taxable}
         {fold ? null : maxCycles}
       </div>
       {fold ? (
-        <Folded label={t('loan_form.more_options')} hasError={Boolean(errors?.grossAmount || errors?.maxCycles || errors?.note)}>
-          <div className="grid gap-3 sm:grid-cols-2">{gross}{maxCycles}</div>
+        <Folded label={t('loan_form.more_options')} hasError={Boolean(errors?.grossAmount || errors?.taxableAmount || errors?.maxCycles || errors?.note)}>
+          <div className="grid gap-3 sm:grid-cols-2">{gross}{taxable}{maxCycles}</div>
           {note}
         </Folded>
       ) : note}

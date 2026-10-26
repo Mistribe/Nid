@@ -17,8 +17,8 @@ internal static class PhaseRules
     /// <summary>100 years of monthly occurrences: far beyond any real contract, and a bound the dates cannot overflow.</summary>
     public const int MaxCyclesMax = 1200;
 
-    /// <summary>Spec §2: one phase alone. Fields are the API's (label, startsOn, endsOn, every, grossAmount, maxCycles, note).</summary>
-    public static Result Check(string? label, LocalDate startsOn, LocalDate? endsOn, Money net, Duration every, Money? gross, int? maxCycles, string? note, Currency currency)
+    /// <summary>Spec §2: one phase alone. Fields are the API's (label, startsOn, endsOn, every, grossAmount, taxableAmount, maxCycles, note).</summary>
+    public static Result Check(string? label, LocalDate startsOn, LocalDate? endsOn, Money net, Duration every, Money? gross, Money? taxable, int? maxCycles, string? note, Currency currency)
     {
         if (label is null || label.Trim().Length is < 1 or > LabelMax)
             return Invalid(IncomeCodes.InvalidPhase, "label", $"A label is 1 to {LabelMax} characters, and not only whitespace.");
@@ -32,6 +32,13 @@ internal static class PhaseRules
             return Invalid(CoreFactCodes.AmountNotPositive, "grossAmount", "A gross amount is more than zero.");
         if (net.Currency != currency || gross is { } g && g.Currency != currency)
             return Invalid(CoreFactCodes.CurrencyMismatch, net.Currency != currency ? "netAmount" : "grossAmount", $"This source's amounts are in {currency.Code}.");
+        // Tax-per spec §3.1: the net taxable income is positive, in the source's currency, and no more than the gross when known.
+        if (taxable is { Amount: <= 0 })
+            return Invalid(IncomeCodes.InvalidTaxable, "taxableAmount", "A net taxable amount is more than zero.");
+        if (taxable is { } t && t.Currency != currency)
+            return Invalid(CoreFactCodes.CurrencyMismatch, "taxableAmount", $"This source's amounts are in {currency.Code}.");
+        if (taxable is { } tx && gross is { } gr && tx.Amount > gr.Amount)
+            return Invalid(IncomeCodes.InvalidTaxable, "taxableAmount", "A net taxable amount is at most the gross.");
         if (maxCycles is < 1 or > MaxCyclesMax)
             return Invalid(IncomeCodes.InvalidPhase, "maxCycles", $"A phase has 1 to {MaxCyclesMax} occurrences.");
         if (note is { Length: > NoteMax })

@@ -13,7 +13,7 @@ namespace Nid.Income.Application;
 
 /// <summary>A phase as a body sends it: no id and no version yet. The label is trimmed when stored.</summary>
 public sealed record PhaseDraft(
-    string Label, LocalDate StartsOn, LocalDate? EndsOn, Money NetAmount, Duration Every, Money? GrossAmount, int? MaxCycles, string? Note);
+    string Label, LocalDate StartsOn, LocalDate? EndsOn, Money NetAmount, Duration Every, Money? GrossAmount, int? MaxCycles, string? Note, Money? TaxableAmount = null);
 
 public sealed record CreateIncomeSourceCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
@@ -55,13 +55,13 @@ public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore 
         for (var i = 0; i < drafts.Count; i++)
         {
             var d = drafts[i];
-            if (PhaseRules.Check(d.Label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, command.Currency).TryGetFailure(out failure))
+            if (PhaseRules.Check(d.Label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every, d.GrossAmount, d.TaxableAmount, d.MaxCycles, d.Note, command.Currency).TryGetFailure(out failure))
                 return Result.Failure<ItemId>(PhaseRules.Under(failure!, $"phases[{i}]"));
             var label = d.Label.Trim();
             if (PhaseRules.NoOverlap(label, d.StartsOn, d.EndsOn, d.Every, d.MaxCycles, accepted).TryGetFailure(out failure))
                 return Result.Failure<ItemId>(PhaseRules.Under(failure!, $"phases[{i}]"));
             accepted.Add(new IncomePhase(Guid.CreateVersion7(), default, label, d.StartsOn, d.EndsOn, d.NetAmount, d.Every,
-                d.GrossAmount, d.MaxCycles, d.Note));
+                d.GrossAmount, d.MaxCycles, d.Note, TaxableAmount: d.TaxableAmount));
         }
 
         await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -122,8 +122,8 @@ public sealed class EditIncomeSourceHandler(IItemRegistry items, ISourceStore so
 
 [RequestHandler<GetIncomeSourceQuery, IncomeSourceDetail>]
 public sealed class GetIncomeSourceHandler(
-    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IHouseholdCalendar calendar, IAccessPolicy policy,
-    IActorAccessor actor)
+    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables, IHouseholdCalendar calendar,
+    IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<GetIncomeSourceQuery, IncomeSourceDetail>
 {
     public async ValueTask<Result<IncomeSourceDetail>> HandleAsync(GetIncomeSourceQuery query, CancellationToken ct = default)
@@ -148,13 +148,14 @@ public sealed class GetIncomeSourceHandler(
         if (oneOffs.TryGetFailure(out failure))
             return Result.Failure<IncomeSourceDetail>(failure!);
         oneOffs.TryGetValue(out var recent);
+        var taxable = await taxables.ForFlowsAsync(recent!.Select(f => f.Id).ToList(), ct);
 
         return Result.Success(new IncomeSourceDetail(
             query.ItemId, item.DisplayName, IncomeWire.Of(s.Kind), s.PayerLabel, s.Note, currency.Code, Wire(item.Visibility),
             canWrite, item.ArchivedAt is not null, s.EndedOn, IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(list, today), currency),
             list.Select(p => IncomePhaseView.Of(p, today, currency)).ToList(),
             IncomeMath.Gaps(list, today).Select(g => new IncomeGapView(g.Label, g.EndsOn)).ToList(),
-            recent!.Select(IncomeOneOffView.Of).ToList()));
+            recent!.Select(f => IncomeOneOffView.Of(f, taxable)).ToList()));
     }
 
     /// <summary>The source's one-off income in <paramref name="range"/>: its Core flows <c>income</c> of category <c>one_off</c>.</summary>

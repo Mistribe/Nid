@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { Rental2044 } from './api';
+import type { Rental2044, TaxEstimate } from './api';
 import { ADULT, estimate, result } from './taxTestData';
 
 describe('TaxPage', () => {
@@ -69,6 +69,88 @@ describe('TaxPage', () => {
     const table = await screen.findByRole('table', { name: 'Estimation et simulation' });
     expect(within(table).getByRole('row', { name: /^Impôt sur le revenu/ })).toHaveTextContent('247,00 €1 500,00 €');
     expect(sent[0]).toMatchObject({ declarants: [{ salaryGross: '60000.50', status: 'non_executive' }], childcareOutsideHome: '6000.00' });
+  });
+
+  it('says where each person’s taxable salary comes from, and lists the payments behind it', async () => {
+    const detail = (over: Partial<TaxEstimate['salaryDetail'][number]>): TaxEstimate['salaryDetail'][number] => ({
+      person: ADULT, item: 'i1', name: 'Salaire Alice', on: '2026-01-31', note: 'Janvier', category: 'entered', amount: '4400.00', ...over,
+    });
+    const loaded = estimate();
+    loaded.result.declarants[0]!.method = 'mixed';
+    loaded.result.declarants[0]!.person = ADULT;
+    loaded.salaryDetail = [
+      detail({}),
+      detail({ on: '2026-02-28', note: null, category: 'gross', amount: '4400.00' }),
+      detail({ on: '2026-03-31', note: 'Mars', category: 'net', amount: '3900.00' }),
+    ];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { user, container } = await renderApp('/tax');
+
+    const people = await screen.findByRole('table', { name: 'Revenus par déclarant' });
+    const row = within(people).getByRole('row', { name: /Salaires nets imposables/ });
+    expect(row).toHaveTextContent('mixte');
+    await user.click(within(row).getByRole('button', { name: /Voir les versements/ }));
+    const payments = within(row).getAllByRole('listitem').map((li) => li.textContent?.replace(/\s/g, ' '));
+    expect(payments).toEqual([
+      expect.stringContaining('31 janvier 2026'), expect.stringContaining('28 février 2026'), expect.stringContaining('31 mars 2026'),
+    ]);
+    expect(payments[0]).toContain('Janvier');
+    expect(payments[0]).toContain('4 400,00 €');
+    expect(payments[0]).toContain('saisi');
+    expect(payments[1]).toContain('estimé');
+    expect(payments[2]).toContain('estimé');
+    await expectNoAxeViolations(container);
+  });
+
+  it('lists each person’s own payments by id when two adults share a display name', async () => {
+    const OTHER = '0192f0aa-0000-7000-8000-0000000000a2';
+    const loaded = estimate();
+    loaded.adults = [{ id: ADULT, displayName: 'Alice' }, { id: OTHER, displayName: 'Alice' }];
+    const base = loaded.result.declarants[0]!;
+    loaded.result.declarants = [{ ...base, person: ADULT, method: 'entered' }, { ...base, person: OTHER, method: 'entered' }];
+    const pay = (person: string, item: string, name: string, amount: string): TaxEstimate['salaryDetail'][number] =>
+      ({ person, item, name, on: '2026-01-31', note: null, category: 'entered', amount });
+    loaded.salaryDetail = [pay(ADULT, 'i1', 'Salaire premier', '1111.00'), pay(OTHER, 'i2', 'Salaire second', '2222.00')];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { user } = await renderApp('/tax');
+
+    const people = await screen.findByRole('table', { name: 'Revenus par déclarant' });
+    const row = within(people).getByRole('row', { name: /Salaires nets imposables/ });
+    const [first, second] = within(row).getAllByRole('cell');
+    await user.click(within(first!).getByRole('button', { name: /Voir les versements/ }));
+    await user.click(within(second!).getByRole('button', { name: /Voir les versements/ }));
+    expect(first).toHaveTextContent('1 111,00 €');
+    expect(first).not.toHaveTextContent('2 222,00 €');
+    expect(second).toHaveTextContent('2 222,00 €');
+    expect(second).not.toHaveTextContent('1 111,00 €');
+  });
+
+  it.each([['entered', 'saisi'], ['estimated', 'estimé']] as const)('marks a salary that is %s', async (method, pill) => {
+    const loaded = estimate();
+    loaded.result.declarants[0]!.method = method;
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax');
+
+    const people = await screen.findByRole('table', { name: 'Revenus par déclarant' });
+    expect(within(people).getByRole('row', { name: /Salaires nets imposables/ })).toHaveTextContent(pill);
+  });
+
+  it('shows a rate differing from the payslips as a percent, never as euros', async () => {
+    const loaded = estimate();
+    loaded.notices = [{ code: 'contribution_rate_differs', item: 'i1', name: 'Alice', amount: '22.85' }];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax');
+
+    expect(await screen.findByText('Alice : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins (22,85 %).')).toBeInTheDocument();
+  });
+
+  it('shows the rate seen on the payslips in the profile', async () => {
+    const loaded = estimate();
+    loaded.observedRates = { [ADULT]: '22.85' };
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax?tab=profile');
+
+    expect(await screen.findByText(/Taux constaté sur vos bulletins : 22,85 %/)).toBeInTheDocument();
   });
 
   it('saves the profile for the year', async () => {

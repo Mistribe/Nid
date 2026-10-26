@@ -7,6 +7,7 @@ public static class IncomeCodes
     public const string UnknownCadence = "income.unknown_cadence";
     public const string InvalidSource = "income.invalid_source";
     public const string InvalidPhase = "income.invalid_phase";
+    public const string InvalidTaxable = "income.invalid_taxable";
     public const string PhaseOverlap = "income.phase_overlap";
     public const string SourceEnded = "income.source_ended";
     public const string SourceOpen = "income.source_open";

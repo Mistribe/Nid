@@ -18,11 +18,12 @@ public class PayslipProposalTests(PostgresFixture fixture) : IClassFixture<Postg
     private const string Kind = "income.change_pay";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private static object Phase(string label = "Salaire", string startsOn = "2025-01-01", string net = "2300", string? gross = null, int months = 1)
+    private static object Phase(string label = "Salaire", string startsOn = "2025-01-01", string net = "2300", string? gross = null, int months = 1, string? taxable = null)
         => new Dictionary<string, object?>
         {
             ["label"] = label, ["startsOn"] = startsOn, ["endsOn"] = null, ["netAmount"] = new { amount = net, currency = "EUR" },
             ["grossAmount"] = gross is null ? null : new { amount = gross, currency = "EUR" }, ["every"] = new { count = months, unit = "month" },
+            ["taxableAmount"] = taxable is null ? null : new { amount = taxable, currency = "EUR" },
         };
 
     private static async Task<Guid> SourceAsync(NidApp app, params object[] phases)
@@ -36,7 +37,7 @@ public class PayslipProposalTests(PostgresFixture fixture) : IClassFixture<Postg
         return (await JsonOf(response)).GetProperty("id").GetGuid();
     }
 
-    private static object Payslip(Guid source, string net, string paidOn = "2025-09-28", string? gross = null, string? phaseLabel = null)
+    private static object Payslip(Guid source, string net, string paidOn = "2025-09-28", string? gross = null, string? phaseLabel = null, string? taxable = null)
         => new
         {
             kind = Kind, targetItemId = source, sourceLabel = "Bulletin septembre",
@@ -44,6 +45,7 @@ public class PayslipProposalTests(PostgresFixture fixture) : IClassFixture<Postg
             {
                 ["paidOn"] = paidOn, ["net"] = new { amount = net, currency = "EUR" },
                 ["gross"] = gross is null ? null : new { amount = gross, currency = "EUR" }, ["phaseLabel"] = phaseLabel,
+                ["taxable"] = taxable is null ? null : new { amount = taxable, currency = "EUR" },
             },
         };
 
@@ -101,6 +103,32 @@ public class PayslipProposalTests(PostgresFixture fixture) : IClassFixture<Postg
         var phases = await PhasesAsync(app, source);
         Assert.Equal(("2025-09-01", 2300m), (phases[0].GetProperty("endsOn").GetString(), Amount(phases[0].GetProperty("netAmount"))));
         Assert.Equal(("2025-09-01", 2400m), (phases[1].GetProperty("startsOn").GetString(), Amount(phases[1].GetProperty("netAmount"))));
+    }
+
+    [Fact]
+    public async Task A_net_taxable_income_the_phase_does_not_have_changes_the_pay_even_with_the_expected_net_and_gross()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(gross: "3000"));
+
+        var proposal = await SubmitAsync(app, Payslip(source, "2300.00", gross: "3000.00", taxable: "2750.00"));
+        Assert.Equal("2025-09-01", proposal.GetProperty("payload").GetProperty("effectiveOn").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, proposal)).StatusCode);
+        var phases = await PhasesAsync(app, source);
+        Assert.Equal(2, phases.Count);
+        Assert.Equal(("2025-09-01", 2750m), (phases[1].GetProperty("startsOn").GetString(), Amount(phases[1].GetProperty("taxableAmount"))));
+    }
+
+    [Fact]
+    public async Task The_same_net_taxable_income_is_conforme_and_a_different_one_is_not()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await SourceAsync(app, Phase(gross: "3000", taxable: "2750"));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, Payslip(source, "2300.00", gross: "3000.00", taxable: "2750.00"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(app, Payslip(source, "2300.00", gross: "3000.00"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await PostAsync(app, Payslip(source, "2300.00", gross: "3000.00", taxable: "2760.00"))).StatusCode);
+        Assert.Single(await PhasesAsync(app, source));
     }
 
     [Fact]

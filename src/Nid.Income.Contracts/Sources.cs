@@ -30,10 +30,13 @@ public static class IncomeWire
 /// <summary>The module's attributes of a source (spec §2); name, owners, visibility, currency and archive are the item's.</summary>
 public sealed record IncomeSource(ItemId ItemId, IncomeKind Kind, string? PayerLabel, string? Note, LocalDate? EndedOn = null);
 
-/// <summary>A phase (spec §2): half-open [StartsOn, EndsOn), every month(s) or one year, amounts in the source's currency.</summary>
+/// <summary>
+/// A phase (spec §2): half-open [StartsOn, EndsOn), every month(s) or one year, amounts in the source's currency.
+/// <paramref name="TaxableAmount"/> is the payslip's net taxable income (« net imposable », tax-per spec §3.1), when known.
+/// </summary>
 public sealed record IncomePhase(
     Guid Id, ItemId Source, string Label, LocalDate StartsOn, LocalDate? EndsOn, Money NetAmount, Duration Every,
-    Money? GrossAmount, int? MaxCycles, string? Note, uint Version = 0);
+    Money? GrossAmount, int? MaxCycles, string? Note, uint Version = 0, Money? TaxableAmount = null);
 
 /// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
 public sealed record IncomeSourceChange(
@@ -103,6 +106,22 @@ public interface IPhaseStore
 
     /// <summary>The phases of <paramref name="sources"/>, with their import marks (the export).</summary>
     Task<IReadOnlyList<StoredIncomePhase>> ReadAllAsync(IReadOnlyCollection<ItemId> sources, CancellationToken ct);
+}
+
+/// <summary>
+/// The net taxable income of one-offs (tax-per spec §3.2). A one-off is a Core flow, which has no such column: it is kept
+/// here by the flow's id. Writes join the caller's transaction, like the other stores'.
+/// </summary>
+public interface IOneOffTaxableStore
+{
+    /// <summary>The taxable amount of each of these flows that has one; the others are absent.</summary>
+    Task<IReadOnlyDictionary<Guid, decimal>> ForFlowsAsync(IReadOnlyCollection<Guid> flowIds, CancellationToken ct);
+
+    /// <summary>Keeps <paramref name="taxable"/> for the flow of <paramref name="source"/>; null removes it.</summary>
+    Task SetAsync(Guid flowId, ItemId source, decimal? taxable, CancellationToken ct);
+
+    /// <summary>Removes the rows of these sources whose flow is not among <paramref name="currentFlows"/>: the flows a correction retired.</summary>
+    Task RemoveStaleAsync(IReadOnlyCollection<ItemId> sources, IReadOnlyCollection<Guid> currentFlows, CancellationToken ct);
 }
 
 /// <summary>

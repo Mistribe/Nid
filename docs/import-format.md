@@ -53,6 +53,7 @@ Un **seul format** sert à trois usages :
 | `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
 | `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` livrée en 3F2 (§12bis) |
 | `income_sources`, `income_phases` | tableaux | Module Revenus (`income-data-model.md` §9) |
+| `income_one_off_taxable` | tableau | Module Revenus : le net imposable d'un revenu ponctuel, `{ flow_id, taxable_amount }`, où `flow_id` est l'`id` d'une entité de `flows` (catégorie `one_off`) ; appliqué après `flows` |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
 | `goals` | tableau | Module Objectifs (`superpowers/specs/2026-10-23-savings-goals-design.md` D16 et §2) : l'objectif, ses liens vers les enveloppes du fichier et ses relevés |
 
@@ -283,7 +284,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → les objectifs (`goals`, après les enveloppes qu'ils lient), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

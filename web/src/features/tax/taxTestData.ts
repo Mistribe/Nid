@@ -18,13 +18,14 @@ export const result = (over: Partial<TaxResult> = {}): TaxResult => ({
 
 export const estimate = (): TaxEstimate => ({
   year: 2026, profileFrom: null, dependents: 2, rentalProperties: [],
-  profile: { statuses: {}, dependents: null, childrenUnder6: 2, rentalRegime: null, pinel: [], childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00', donationsAid: '0.00', contributionRates: {}, actualExpenses: {}, perUnusedCeilings: {}, rentalDeficitCarried: '0.00' },
+  profile: { statuses: {}, dependents: null, childrenUnder6: 2, rentalRegime: null, pinel: [], childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00', donationsAid: '0.00', contributionRates: {}, actualExpenses: {}, perUnusedCeilings: {}, rentalDeficitCarried: '0.00', perCeilings: {}, perCeilingsExpiring: {}, perPooling: false },
   inputs: {
     year: 2026, dependents: 2, childrenUnder6: 2, rentalGross: '0.00', rentalInterest: '0.00', rentalCharges: '0.00', rentalRegime: null,
-    capitalIncome: '0.00', nonTaxableIncome: '0.00', pinelReduction: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00', donationsAid: '0.00', rentalDeficitCarried: '0.00',
-    declarants: [{ name: 'Alice', salaryGross: '50000.00', status: 'non_executive', otherTaxable: '0.00', perContributions: '0.00', perUnusedCeiling: '0.00' }],
+    capitalIncome: '0.00', nonTaxableIncome: '0.00', pinelReduction: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00', donationsAid: '0.00', rentalDeficitCarried: '0.00', perPooling: false,
+    declarants: [{ name: 'Alice', salaryGross: '50000.00', status: 'non_executive', otherTaxable: '0.00', perContributions: '0.00', perUnusedCeiling: '0.00', salaryTaxable: '0.00', previousYearIncome: '0.00', perExpiring: '0.00' }],
   },
   result: result(),
   notices: [{ code: 'missing_gross', item: 'b', name: 'Prime', amount: '1000.00' }],
   adults: [{ id: ADULT, displayName: 'Alice' }],
+  salaryDetail: [], observedRates: {},
 });

@@ -111,6 +111,17 @@ describe('IncomeSourceDetailPage', () => {
     expect(within(timeline()[3]!).getByRole('button', { name: 'Actions de la période Salaire de base du 1 janvier 2024' })).toBeInTheDocument();
   });
 
+  it('shows the net taxable income of a phase on the row that starts it', async () => {
+    const base = detail();
+    serve({ ...base, phases: base.phases.map((p) => (p.id === 'p2' ? { ...p, taxableAmount: eur('1500.00') } : p)) }, sourceOverview());
+    await renderApp(`/income/${SALARY}`);
+
+    await screen.findByRole('list', { name: 'Changements, du plus récent au plus ancien' });
+    const row = timeline().find((li) => li.textContent?.includes('Prime annuelle'))!;
+    expect(row).toHaveTextContent('net imposable 1 500,00 €');
+    expect(timeline().find((li) => li.textContent?.includes('Salaire de base'))).not.toHaveTextContent('net imposable');
+  });
+
   it('changing the amount with two running components asks which one', async () => {
     serve(detail());
     serveDates();

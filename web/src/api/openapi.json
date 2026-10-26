@@ -25440,6 +25440,16 @@
               "null",
               "string"
             ]
+          },
+          "taxableAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
+            ]
           }
         }
       },
@@ -25466,6 +25476,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "taxableAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeMoneyView"
+              }
             ]
           }
         }
@@ -25915,6 +25935,16 @@
               "null",
               "string"
             ]
+          },
+          "taxableAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
+            ]
           }
         }
       },
@@ -25967,6 +25997,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "taxableAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
             ]
           }
         }
@@ -26039,6 +26079,16 @@
               "integer"
             ],
             "format": "uint32"
+          },
+          "taxableAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyBody"
+              }
+            ]
           }
         }
       },
@@ -26111,6 +26161,16 @@
           "version": {
             "type": "integer",
             "format": "uint32"
+          },
+          "taxableAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncomeMoneyView"
+              }
+            ]
           }
         }
       },
@@ -35922,6 +35982,41 @@
           }
         }
       },
+      "TaxDeclarantPerView": {
+        "required": [
+          "ceiling",
+          "source",
+          "expiring",
+          "contributions",
+          "deducted",
+          "excess",
+          "remaining"
+        ],
+        "type": "object",
+        "properties": {
+          "ceiling": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "expiring": {
+            "type": "string"
+          },
+          "contributions": {
+            "type": "string"
+          },
+          "deducted": {
+            "type": "string"
+          },
+          "excess": {
+            "type": "string"
+          },
+          "remaining": {
+            "type": "string"
+          }
+        }
+      },
       "TaxDeclarantResultView": {
         "required": [
           "name",
@@ -35950,6 +36045,29 @@
           },
           "perDeducted": {
             "type": "string"
+          },
+          "method": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "person": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "per": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxDeclarantPerView"
+              }
+            ]
           }
         }
       },
@@ -35960,7 +36078,10 @@
           "status",
           "otherTaxable",
           "perContributions",
-          "perUnusedCeiling"
+          "perUnusedCeiling",
+          "salaryTaxable",
+          "previousYearIncome",
+          "perExpiring"
         ],
         "type": "object",
         "properties": {
@@ -35993,6 +36114,33 @@
               "null",
               "string"
             ]
+          },
+          "salaryTaxable": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "perCeiling": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "previousYearIncome": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "perExpiring": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "perEnvelopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -36005,7 +36153,9 @@
           "notices",
           "adults",
           "dependents",
-          "rentalProperties"
+          "rentalProperties",
+          "salaryDetail",
+          "observedRates"
         ],
         "type": "object",
         "properties": {
@@ -36050,6 +36200,18 @@
             "items": {
               "$ref": "#/components/schemas/TaxPropertyView"
             }
+          },
+          "salaryDetail": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxSalaryDetailView"
+            }
+          },
+          "observedRates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -36062,6 +36224,7 @@
           "rentalGross",
           "rentalInterest",
           "rentalCharges",
+          "perPooling",
           "capitalIncome",
           "nonTaxableIncome",
           "pinelReduction",
@@ -36129,6 +36292,10 @@
           },
           "rentalDeficitCarried": {
             "type": "string"
+          },
+          "perPooling": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -36156,9 +36323,33 @@
           }
         }
       },
+      "TaxPerView": {
+        "required": [
+          "pooled",
+          "remaining",
+          "taxSaved",
+          "roomInBracket"
+        ],
+        "type": "object",
+        "properties": {
+          "pooled": {
+            "type": "boolean"
+          },
+          "remaining": {
+            "type": "string"
+          },
+          "taxSaved": {
+            "type": "string"
+          },
+          "roomInBracket": {
+            "type": "string"
+          }
+        }
+      },
       "TaxProfileBody": {
         "required": [
-          "childrenUnder6"
+          "childrenUnder6",
+          "perPooling"
         ],
         "type": "object",
         "properties": {
@@ -36253,6 +36444,28 @@
               "null",
               "string"
             ]
+          },
+          "perCeilings": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "perCeilingsExpiring": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "perPooling": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -36268,7 +36481,10 @@
           "contributionRates",
           "actualExpenses",
           "perUnusedCeilings",
-          "rentalDeficitCarried"
+          "rentalDeficitCarried",
+          "perCeilings",
+          "perCeilingsExpiring",
+          "perPooling"
         ],
         "type": "object",
         "properties": {
@@ -36333,6 +36549,21 @@
           },
           "rentalDeficitCarried": {
             "type": "string"
+          },
+          "perCeilings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "perCeilingsExpiring": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "perPooling": {
+            "type": "boolean"
           }
         }
       },
@@ -36483,6 +36714,56 @@
           },
           "withholding": {
             "$ref": "#/components/schemas/WithholdingView"
+          },
+          "per": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxPerView"
+              }
+            ]
+          }
+        }
+      },
+      "TaxSalaryDetailView": {
+        "required": [
+          "person",
+          "item",
+          "name",
+          "on",
+          "category",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
           }
         }
       },

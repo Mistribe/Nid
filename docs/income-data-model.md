@@ -49,6 +49,7 @@ Une période de revenu, sur le modèle d'une phase de facturation d'abonnement.
 | `net_amount` | numeric(19,4) | > 0. **Net versé** (voir ci-dessous), dans la devise de l'élément |
 | `every` | durée | **Mois ou année seulement** : `{1, month}`, `{3, month}`, `{1, year}` |
 | `gross_amount` | numeric(19,4)? | Indicatif, sans effet sur les calculs |
+| `taxable_amount` | numeric(19,4)? | Amendement 2026-10-25 (#159) : **net imposable par versement** (ligne *Net imposable* du bulletin, à ne pas confondre avec le net versé). > 0, au plus `gross_amount` quand celui-ci est renseigné (`income.invalid_taxable`, HTTP 422). L'estimation de l'impôt le lit à la place de brut × taux. Un changement de paie ne reprend jamais celui de la période précédente |
 | `max_cycles` | int? | Nombre maximal d'occurrences |
 | `note` | text? | |
 
@@ -61,6 +62,8 @@ Une période de revenu, sur le modèle d'une phase de facturation d'abonnement.
 > Documents : une phase (`income.phase`) et un revenu exceptionnel (`income.one_off`) sont des cibles de lien de document, ancrées sur leur source (`documents-data-model.md` §5). Supprimer l'un retire ses liens, corriger un revenu exceptionnel les déplace sur le nouveau flux, dans la même transaction.
 
 Prime ponctuelle, remboursement, indemnité : un `flow` du Core avec `kind = income` et `category = one_off`, posé sur la source (`core-data-model.md` §5.3). Il compte dans les revenus du mois où il tombe (§6) et prépare l'évolution vers « attendu + réel » (§14).
+
+Amendement 2026-10-25 (#159) : un revenu exceptionnel peut porter son **net imposable**, dans la table `income.one_off_taxable (flow_id pk, source_id → income_source on delete cascade, taxable_amount numeric(19,4) check > 0)`, propre au module (la table des flux du Core n'est pas modifiée). Elle suit le flux : écrite à l'ajout et à la correction, supprimée avec lui ou avec la source. Voir `superpowers/specs/2026-10-25-tax-taxable-income-and-per-design.md` §3.
 
 Le détail d'une source liste ceux des 12 derniers mois, ou ceux d'une plage `from` / `to` (incluse, un côté absent restant ouvert) ; la fiche propose « 12 derniers mois » ou « Tout ». Une source terminée accepte encore l'ajout, la correction et la suppression d'un revenu exceptionnel daté au plus tard de sa fin (`income.source_ended` au-delà), sans la rouvrir.
 
@@ -120,12 +123,12 @@ Le module implémente `IProposalHandler` pour :
 
 | `kind` | Payload | Application |
 |---|---|---|
-| `income.change_phase` | `{ label, effective_on, net_amount: { amount, currency }, every?, gross_amount? }` sur une source cible | **Ferme** la période courante de ce `label` à `effective_on` et **ouvre** la suivante |
+| `income.change_phase` | `{ label, effective_on, net_amount: { amount, currency }, every?, gross_amount?, taxable_amount? }` sur une source cible | **Ferme** la période courante de ce `label` à `effective_on` et **ouvre** la suivante |
 | `income.record_one_off` | `{ occurred_on, amount: { amount, currency }, note? }` sur une source cible | `IFlows.Record` (`income`, `one_off`) |
 
 Clé de dédoublonnage (`subject_key`) : `label` et `effective_on`, ou la date du flux.
 
-**Livré en 4D1** : un bulletin de paie corrige le revenu attendu (`income.change_pay`, `{ paidOn, phaseLabel, net, gross?, effectiveOn }`, clé `<phaseLabel>:<yyyy-MM de paidOn>`). La comparaison vient en premier : un net à 2 % près du net attendu (réglage `Income:PayslipTolerance`, validé au démarrage : 0 ≤ x < 1) et un brut égal au centime, quand les deux sont connus, sont « conformes » et ne créent rien. Sinon la période change à la date de paiement attendue du mois (calculée comme `GetIncomeExpectedQuery`), avec la cadence et la note de la période remplacée ; un montant différent dans le premier mois de la période ou dans un mois sans paiement est refusé à `paidOn`. Un bulletin sans brut garde le brut de la période (absent signifie non imprimé, pas zéro). Aucun montant « reçu » n’est enregistré.
+**Livré en 4D1** : un bulletin de paie corrige le revenu attendu (`income.change_pay`, `{ paidOn, phaseLabel, net, gross?, taxable?, effectiveOn }`, clé `<phaseLabel>:<yyyy-MM de paidOn>`). La comparaison vient en premier : un net à 2 % près du net attendu (réglage `Income:PayslipTolerance`, validé au démarrage : 0 ≤ x < 1) et un brut égal au centime, quand les deux sont connus, sont « conformes » et ne créent rien ; un net imposable (`taxable`) que le bulletin imprime et que la période n’a pas, ou a autrement, rend le bulletin non conforme (égalité au centime, sans tolérance) : il change le revenu comme un brut différent, et la nouvelle période reçoit le net imposable du bulletin. Un bulletin sans net imposable ne compare rien de ce côté-là. Sinon la période change à la date de paiement attendue du mois (calculée comme `GetIncomeExpectedQuery`), avec la cadence et la note de la période remplacée ; un montant différent dans le premier mois de la période ou dans un mois sans paiement est refusé à `paidOn`. Un bulletin sans brut garde le brut de la période (absent signifie non imprimé, pas zéro) ; le net imposable, lui, n’est jamais repris de la période remplacée. Aucun montant « reçu » n’est enregistré.
 
 ## 9. Sections d'import
 
@@ -154,7 +157,17 @@ Sections de `import-format.md` (les `flows` sont celles du Core, `import-format.
 | `net_amount` | montant | > 0 |
 | `every` | durée | Mois ou année |
 | `gross_amount?` | montant | |
+| `taxable_amount?` | montant | Net imposable par versement (2026-10-25, #159) ; > 0, au plus le brut |
 | `max_cycles?`, `note?` | | |
+
+**`income_one_off_taxable`** (2026-10-25, #159)
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `flow_id` | string | `id` d'une entité de `flows` (Core, catégorie `one_off`), résolu comme le fait le Core |
+| `taxable_amount` | montant | > 0 |
+
+Appliquée après les `flows` du Core (ordre 92). Les lignes obsolètes des sources du fichier sont balayées. Un `flow_id` inconnu donne `import.unresolved_reference`, un flux qui n'est pas un revenu `import.invalid_value`, une source en lecture seule `import.not_permitted`. Un fichier sans cette section se lit comme avant.
 
 ## 10. Contrats (`Income.Contracts`)
 
@@ -164,7 +177,7 @@ Sections de `import-format.md` (les `flows` sont celles du Core, `import-format.
 | `IUpcomingEvents` | Fins de période, `income_gap_soon` |
 | `IIncomeSummary` | `Get(scope, asOf?)` → revenus, engagements, part engagée, marge |
 | `IProposalHandler<…>` | Voir §8 |
-| `IImportSection` | Sections `income_sources` et `income_phases` |
+| `IImportSection` | Sections `income_sources`, `income_phases` et `income_one_off_taxable` |
 
 ## 11. Validation
 

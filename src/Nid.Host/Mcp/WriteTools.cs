@@ -59,7 +59,7 @@ public sealed partial class WriteTools
     private sealed record HoldingsSnapshotArguments(
         string AsOf, string? SourceLabel, HoldingsLine[] Lines, HoldingsMovement[]? Movements, bool RecordValuation);
 
-    private sealed record PayslipArguments(string PaidOn, MoneyArgument Net, MoneyArgument? Gross, string? PhaseLabel);
+    private sealed record PayslipArguments(string PaidOn, MoneyArgument Net, MoneyArgument? Gross, MoneyArgument? Taxable, string? PhaseLabel);
 
     private sealed record InvoiceArguments(string ChargedOn, MoneyArgument Amount);
 
@@ -112,7 +112,7 @@ public sealed partial class WriteTools
 
     [McpServerTool(Name = "propose_payslip", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A payslip for one income source. Nid compares its net with the expected pay: within the tolerance (2 % by default), "
-        + "and with the same gross when both are known, it answers 'conforme' and records nothing; otherwise the expected pay "
+        + "with the same gross when both are known, and with the same net taxable income when the payslip gives one, it answers 'conforme' and records nothing; otherwise the expected pay "
         + "changes from that month's payment date. A payslip paid when no period of the source runs (before its first period, or "
         + "after it ended) is refused at paidOn: Nid never creates a period, propose_add_income_phase adds one first. " + Rules)]
     public static Task<CallToolResult> ProposePayslip(IServiceProvider services,
@@ -120,11 +120,12 @@ public sealed partial class WriteTools
         [Description("The payment date printed on the payslip, ISO (yyyy-mm-dd).")] string paidOn,
         [Description("The net paid.")] MoneyArgument net,
         [Description("The gross, if printed.")] MoneyArgument? gross = null,
+        [Description("The net taxable income (« net imposable »), if printed.")] MoneyArgument? taxable = null,
         [Description("The period's label (get_income_source), needed when several run at once.")] string? phaseLabel = null,
         [Description("The document's name, e.g. 'Bulletin de paie septembre 2025', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, ct);
+        => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, taxable, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, ct);
 
     [McpServerTool(Name = "propose_invoice", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An invoice for one subscription, all taxes included. Nid compares it with the price on that date: the same, to the "

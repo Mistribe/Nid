@@ -117,6 +117,7 @@ public sealed class PhaseStore(IncomeDbContext db) : IPhaseStore
         row.EndsOn = phase.EndsOn;
         row.NetAmount = phase.NetAmount.Amount;
         row.GrossAmount = phase.GrossAmount?.Amount;
+        row.TaxableAmount = phase.TaxableAmount?.Amount;
         row.Currency = phase.NetAmount.Currency.Code;
         row.EveryCount = phase.Every.Count;
         row.EveryUnit = phase.Every.Unit switch
@@ -144,7 +145,10 @@ public sealed class PhaseStore(IncomeDbContext db) : IPhaseStore
         Money? gross = null;
         if (row.GrossAmount is { } g)
             gross = Money.Create(g, currency).TryGetValue(out var m) ? m : throw new InvalidOperationException($"Phase {row.Id} has an unreadable gross amount.");
+        Money? taxable = null;
+        if (row.TaxableAmount is { } x)
+            taxable = Money.Create(x, currency).TryGetValue(out var t) ? t : throw new InvalidOperationException($"Phase {row.Id} has an unreadable taxable amount.");
         return new IncomePhase(row.Id, new ItemId(row.SourceItemId), row.Label, row.StartsOn, row.EndsOn, net, every,
-            gross, row.MaxCycles, row.Note, row.Version);
+            gross, row.MaxCycles, row.Note, row.Version, taxable);
     }
 }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Income.Contracts;
+using Nid.Income.Infrastructure.Persistence;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
@@ -114,6 +115,173 @@ public class IncomeImportTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(["ip-1", "ip-3", "ip-2"], refs);
         // The co-owner reads the shared, ended one.
         Assert.Contains(await SourcesAsync(app, app.AdultB, archived: true), s => s.GetProperty("displayName").GetString() == "CDD");
+    }
+
+    [Fact]
+    public async Task Phase_taxable_amount_round_trips()
+    {
+        const string Taxed = """
+            {"id":"ip-t","source":"inc-salary-1","label":"Salaire de base","starts_on":"2025-01-01",
+             "net_amount":{"amount":"3950.00","currency":"EUR"},"every":{"count":1,"unit":"month"},
+             "gross_amount":{"amount":"5500.00","currency":"EUR"},"taxable_amount":{"amount":"4400.00","currency":"EUR"}}
+            """;
+        await using var source = await NidApp.StartAsync(fixture);
+        await CommitAsync(new ImportClient(source), source, source.AdultA, IncomeFile(sources: List(Salary), phases: List(Taxed), flows: false));
+        var first = await new Export.ExportClient(source).ExportAllAsync(source.AdultA);
+
+        await using var target = await NidApp.StartAsync(fixture);
+        await Export.RoundTripTests.CommitAsync(target, target.AdultA, Export.RoundTripTests.AsFile(first));
+        var second = await new Export.ExportClient(target).ExportAllAsync(target.AdultA);
+
+        Assert.Equal(4400.00m, Amount(Assert.Single(first["income_phases"]).GetProperty("taxable_amount")));
+        Assert.Equal(Export.RoundTripTests.Canonical(first), Export.RoundTripTests.Canonical(second));
+        var phase = Assert.Single((await DetailAsync(target, "Salaire")).GetProperty("phases").EnumerateArray());
+        Assert.Equal(4400.00m, Amount(phase.GetProperty("taxableAmount")));
+    }
+
+    [Fact]
+    public async Task One_off_taxable_survives_an_export_import_round_trip()
+    {
+        const string Taxed = """
+            [{"id":"f-bonus","item":"inc-salary-1","occurred_on":"2025-03-10","kind":"income","amount":{"amount":"4812.50","currency":"EUR"},"category":"one_off"}]
+            """;
+        await using var source = await NidApp.StartAsync(fixture);
+        var file = IncomeFile(sources: List(Salary), phases: List(Ip1), flows: false);
+        file["flows"] = Taxed;
+        file["income_one_off_taxable"] = """[{"flow_id":"f-bonus","taxable_amount":{"amount":"5150.00","currency":"EUR"}}]""";
+        var committed = await CommitAsync(new ImportClient(source), source, source.AdultA, file);
+        Assert.Equal(new CountsResponse(1, 0, 0), committed.Report!.Sections["income_one_off_taxable"]);
+        Assert.Equal(5150.00m, Amount(Assert.Single((await DetailAsync(source, "Salaire")).GetProperty("oneOffs").EnumerateArray()).GetProperty("taxableAmount")));
+        var first = await new Export.ExportClient(source).ExportAllAsync(source.AdultA);
+        Assert.Equal(5150.00m, Amount(Assert.Single(first["income_one_off_taxable"]).GetProperty("taxable_amount")));
+
+        await using var target = await NidApp.StartAsync(fixture);
+        await Export.RoundTripTests.CommitAsync(target, target.AdultA, Export.RoundTripTests.AsFile(first));
+        var second = await new Export.ExportClient(target).ExportAllAsync(target.AdultA);
+
+        Assert.Equal(Export.RoundTripTests.Canonical(first), Export.RoundTripTests.Canonical(second));
+        Assert.Equal(5150.00m, Amount(Assert.Single((await DetailAsync(target, "Salaire")).GetProperty("oneOffs").EnumerateArray()).GetProperty("taxableAmount")));
+        await using var income = PostgresFixture.NewIncomeContext(target.ConnectionString);
+        Assert.Equal(1, await income.Database.SqlQuery<int>($"select count(*)::int as \"Value\" from income.one_off_taxable").SingleAsync());
+    }
+
+    private static Dictionary<string, string> TaxedFile(string source, string phase, string item, string amount, string? taxable)
+    {
+        var file = IncomeFile(sources: List(source), phases: List(phase), flows: false);
+        file["flows"] = List($$$"""{"id":"f-t","item":"{{{item}}}","occurred_on":"2025-03-10","kind":"income","amount":{"amount":"{{{amount}}}","currency":"EUR"},"category":"one_off"}""");
+        if (taxable is not null)
+            file["income_one_off_taxable"] = List($$$"""{"flow_id":"f-t","taxable_amount":{"amount":"{{{taxable}}}","currency":"EUR"}}""");
+        return file;
+    }
+
+    private static async Task<List<OneOffTaxableRow>> TaxableRowsAsync(NidApp app)
+    {
+        await using var income = PostgresFixture.NewIncomeContext(app.ConnectionString);
+        return await income.OneOffTaxables.AsNoTracking().ToListAsync();
+    }
+
+    private static async Task<JsonElement> OneOffOfAsync(NidApp app, string source)
+        => Assert.Single((await DetailAsync(app, source)).GetProperty("oneOffs").EnumerateArray());
+
+    [Fact]
+    public async Task A_corrected_one_off_takes_the_taxable_amount_of_the_file_and_leaves_none_on_the_retired_flow()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, TaxedFile(Cdd, IpCdd, "inc-cdd", "500", "600"));
+        var before = Assert.Single(await TaxableRowsAsync(app));
+
+        var replaced = await CommitAsync(client, app, app.AdultA, TaxedFile(Cdd, IpCdd, "inc-cdd", "700", "650"), replace: true);
+
+        Assert.Equal(new CountsResponse(0, 0, 0, 1), replaced.Report!.Sections["flows"]);
+        Assert.Equal(new CountsResponse(1, 0, 0), replaced.Report.Sections["income_one_off_taxable"]);
+        var oneOff = await OneOffOfAsync(app, "CDD");
+        var row = Assert.Single(await TaxableRowsAsync(app));
+        Assert.NotEqual(before.FlowId, row.FlowId);
+        Assert.Equal(oneOff.GetProperty("id").GetGuid(), row.FlowId);
+        Assert.Equal(650m, Amount(oneOff.GetProperty("taxableAmount")));
+    }
+
+    [Fact]
+    public async Task A_corrected_one_off_without_an_entry_loses_its_taxable_amount()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, TaxedFile(Cdd, IpCdd, "inc-cdd", "500", "600"));
+
+        await CommitAsync(client, app, app.AdultA, TaxedFile(Cdd, IpCdd, "inc-cdd", "700", null), replace: true);
+
+        Assert.Empty(await TaxableRowsAsync(app));
+        Assert.Equal(JsonValueKind.Null, (await OneOffOfAsync(app, "CDD")).GetProperty("taxableAmount").ValueKind);
+    }
+
+    [Fact]
+    public async Task Another_adult_importing_the_same_file_again_finds_the_flow_as_the_Core_does()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var file = TaxedFile(Cdd, IpCdd, "inc-cdd", "500", "600");
+        await CommitAsync(client, app, app.AdultA, file);
+
+        var again = await CommitAsync(client, app, app.AdultB, file);
+
+        Assert.Equal(new CountsResponse(0, 1, 0), again.Report!.Sections["flows"]);
+        Assert.Equal(new CountsResponse(0, 1, 0), again.Report.Sections["income_one_off_taxable"]);
+        Assert.Equal(600m, Amount((await OneOffOfAsync(app, "CDD")).GetProperty("taxableAmount")));
+        Assert.Single(await TaxableRowsAsync(app));
+    }
+
+    [Fact]
+    public async Task Another_adult_correcting_the_one_off_leaves_no_orphan_row()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, TaxedFile(Cdd, IpCdd, "inc-cdd", "500", "600"));
+
+        await CommitAsync(client, app, app.AdultB, TaxedFile(Cdd, IpCdd, "inc-cdd", "700", "650"), replace: true);
+
+        var oneOff = await OneOffOfAsync(app, "CDD");
+        var row = Assert.Single(await TaxableRowsAsync(app));
+        Assert.Equal(oneOff.GetProperty("id").GetGuid(), row.FlowId);
+        Assert.Equal(650m, row.TaxableAmount);
+    }
+
+    [Fact]
+    public async Task A_taxable_amount_on_a_source_the_importer_cannot_change_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        await CommitAsync(client, app, app.AdultA, TaxedFile(Salary, Ip1, "inc-salary-1", "500", "600"));
+
+        // Adult-2 reads the salary only: the source and the flow are as stored, the taxable amount is not.
+        var refused = await ValidateAsync(client, app, app.AdultB, TaxedFile(Salary, Ip1, "inc-salary-1", "500", "650"), replace: true);
+
+        Assert.Equal([(ImportCodes.NotPermitted, "income_one_off_taxable[0]")], ErrorsOf(refused));
+        await client.CancelRawAsync(app.AdultB, refused.Id);
+    }
+
+    [Fact]
+    public async Task A_taxable_amount_on_a_flow_of_another_module_is_an_import_issue()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var file = TaxedFile(Salary, Ip1, "inc-salary-1", "500", "600");
+        file["flows"] = List("""{"id":"f-t","item":"ghost","occurred_on":"2025-03-10","kind":"income","amount":{"amount":"500","currency":"EUR"},"category":"one_off"}""");
+
+        var validated = await ValidateAsync(new ImportClient(app), app, app.AdultA, file);
+
+        Assert.Contains((ImportCodes.InvalidValue, "income_one_off_taxable[0].flow_id"), ErrorsOf(validated));
+    }
+
+    [Fact]
+    public async Task A_taxable_amount_on_an_unknown_flow_is_an_import_issue()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var file = IncomeFile(sources: List(Salary), phases: List(Ip1));
+        file["income_one_off_taxable"] = """[{"flow_id":"f-nobody","taxable_amount":{"amount":"10","currency":"EUR"}}]""";
+
+        var validated = await ValidateAsync(new ImportClient(app), app, app.AdultA, file);
+
+        Assert.Equal([(ImportCodes.UnresolvedReference, "income_one_off_taxable[0].flow_id")], ErrorsOf(validated));
     }
 
     [Fact]

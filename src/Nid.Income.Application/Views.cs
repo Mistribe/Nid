@@ -41,21 +41,30 @@ public sealed record IncomeDurationView(int Count, string Unit)
 /// <summary>A phase with its <c>status</c> today (<c>past</c>, <c>running</c>, <c>upcoming</c>) and the <c>version</c> a correction sends back.</summary>
 public sealed record IncomePhaseView(
     Guid Id, string Label, LocalDate StartsOn, LocalDate? EndsOn, IncomeMoneyView NetAmount, IncomeDurationView Every,
-    IncomeMoneyView? GrossAmount, int? MaxCycles, string? Note, string Status, IncomeAmountView MonthlyEquivalent, uint Version)
+    IncomeMoneyView? GrossAmount, int? MaxCycles, string? Note, string Status, IncomeAmountView MonthlyEquivalent, uint Version,
+    IncomeMoneyView? TaxableAmount = null)
 {
     internal static IncomePhaseView Of(IncomePhase phase, LocalDate today, Currency currency)
         => new(phase.Id, phase.Label, phase.StartsOn, phase.EndsOn, IncomeMoneyView.From(phase.NetAmount), IncomeDurationView.From(phase.Every),
             phase.GrossAmount is { } gross ? IncomeMoneyView.From(gross) : null, phase.MaxCycles, phase.Note,
             IncomeMath.EffectiveEnd(phase) is { } end && end <= today ? "past" : phase.StartsOn > today ? "upcoming" : "running",
-            IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(phase), currency), phase.Version);
+            IncomeAmountView.Of(IncomeMath.MonthlyEquivalent(phase), currency), phase.Version,
+            phase.TaxableAmount is { } taxable ? IncomeMoneyView.From(taxable) : null);
 }
 
 public sealed record IncomeGapView(string Label, LocalDate EndsOn);
 
-/// <summary>A one-off income: a Core flow <c>income</c> of category <c>one_off</c> on the source's item.</summary>
-public sealed record IncomeOneOffView(Guid Id, LocalDate OccurredOn, IncomeMoneyView Amount, string? Note)
+/// <summary>
+/// A one-off income: a Core flow <c>income</c> of category <c>one_off</c> on the source's item, with the net taxable
+/// income kept for it by <see cref="IOneOffTaxableStore"/> when it has one.
+/// </summary>
+public sealed record IncomeOneOffView(Guid Id, LocalDate OccurredOn, IncomeMoneyView Amount, string? Note, IncomeMoneyView? TaxableAmount = null)
 {
-    internal static IncomeOneOffView Of(Flow flow) => new(flow.Id, flow.OccurredOn, IncomeMoneyView.From(flow.Amount), flow.Note);
+    internal static IncomeOneOffView Of(Flow flow, IReadOnlyDictionary<Guid, decimal> taxables)
+        => new(flow.Id, flow.OccurredOn, IncomeMoneyView.From(flow.Amount), flow.Note,
+            taxables.TryGetValue(flow.Id, out var taxable) && Money.Create(taxable, flow.Amount.Currency).TryGetValue(out var money)
+                ? IncomeMoneyView.From(money)
+                : null);
 }
 
 /// <summary>A source in full: its phases, its gap warnings and the one-offs of the last 12 months.</summary>

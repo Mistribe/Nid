@@ -43,7 +43,7 @@ public sealed record IncomeChangeView(
 
 [RequestHandler<GetIncomeSourceOverviewQuery, IncomeSourceOverview>]
 public sealed class GetIncomeSourceOverviewHandler(
-    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IHouseholdCalendar calendar)
+    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables, IHouseholdCalendar calendar)
     : IRequestHandler<GetIncomeSourceOverviewQuery, IncomeSourceOverview>
 {
     public const int UpcomingMonths = 3;
@@ -81,6 +81,8 @@ public sealed class GetIncomeSourceOverviewHandler(
         IncomeMoneyView Sum(IEnumerable<decimal> amounts)
             => IncomeMoneyView.From(Money.Create(amounts.Sum(), currency).TryGetValue(out var m) ? m : throw new InvalidOperationException());
 
+        var lastOneOffs = oneOffs!.Where(f => f.OccurredOn <= today).OrderByDescending(f => f.OccurredOn).ThenByDescending(f => f.Id).Take(Last).ToList();
+        var taxable = await taxables.ForFlowsAsync(lastOneOffs.Select(f => f.Id).ToList(), ct);
         var monthlyNow = IncomeMath.MonthlyEquivalent(list, today);
         var next = IncomeMath.Next(list, today);
         var yearStart = new LocalDate(today.Year, 1, 1);
@@ -110,7 +112,6 @@ public sealed class GetIncomeSourceOverviewHandler(
                 c.Percent, c.Upcoming)).ToList(),
             paid.OrderByDescending(o => o.On).ThenBy(o => o.Label, StringComparer.Ordinal).Take(Last)
                 .Select(o => new IncomeOccurrenceView(o.PhaseId, o.Label, o.On, IncomeMoneyView.From(o.Amount))).ToList(),
-            oneOffs!.Where(f => f.OccurredOn <= today).OrderByDescending(f => f.OccurredOn).ThenByDescending(f => f.Id).Take(Last)
-                .Select(IncomeOneOffView.Of).ToList()));
+            lastOneOffs.Select(f => IncomeOneOffView.Of(f, taxable)).ToList()));
     }
 }

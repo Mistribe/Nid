@@ -12,6 +12,8 @@ public sealed class IncomeDbContext(DbContextOptions<IncomeDbContext> options) :
 
     public DbSet<PhaseRow> Phases => Set<PhaseRow>();
 
+    public DbSet<OneOffTaxableRow> OneOffTaxables => Set<OneOffTaxableRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -41,6 +43,7 @@ public sealed class IncomeDbContext(DbContextOptions<IncomeDbContext> options) :
                     "(every_unit = 'month' and every_count between 1 and 12) or (every_unit = 'year' and every_count = 1)");
                 t.HasCheckConstraint("ck_income_phase_dates", "ends_on is null or ends_on > starts_on");
                 t.HasCheckConstraint("ck_income_phase_max_cycles", "max_cycles is null or max_cycles >= 1");
+                t.HasCheckConstraint("ck_income_phase_taxable", "taxable_amount is null or taxable_amount > 0");
                 t.HasCheckConstraint("ck_income_phase_label", "char_length(label) between 1 and 60");
                 t.HasCheckConstraint("ck_income_phase_import", ImportCheck);
             });
@@ -48,6 +51,7 @@ public sealed class IncomeDbContext(DbContextOptions<IncomeDbContext> options) :
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.NetAmount).HasColumnType("numeric(19,4)");
             e.Property(x => x.GrossAmount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.TaxableAmount).HasColumnType("numeric(19,4)");
             e.Property(x => x.Currency).HasColumnType("char(3)");
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
             // A source's phases are read by label and start (the overlap rule, spec §2). Overlap itself is checked in code:
@@ -55,6 +59,16 @@ public sealed class IncomeDbContext(DbContextOptions<IncomeDbContext> options) :
             e.HasIndex(x => new { x.SourceItemId, x.Label, x.StartsOn });
             e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
             MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<OneOffTaxableRow>(e =>
+        {
+            e.ToTable("one_off_taxable", t => t.HasCheckConstraint("ck_one_off_taxable_amount", "taxable_amount > 0"));
+            e.HasKey(x => x.FlowId);
+            e.Property(x => x.FlowId).ValueGeneratedNever();
+            e.Property(x => x.TaxableAmount).HasColumnType("numeric(19,4)");
+            // No foreign key to core.flow across contexts (2B1a §3.2): a source's removal takes its rows with it.
+            e.HasOne<SourceRow>().WithMany().HasForeignKey(x => x.SourceId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

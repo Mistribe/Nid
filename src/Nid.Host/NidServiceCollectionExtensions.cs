@@ -198,6 +198,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<IncomeDbContext>>();
         services.AddScoped<ISourceStore, SourceStore>();
         services.AddScoped<IPhaseStore, PhaseStore>();
+        services.AddScoped<IOneOffTaxableStore, OneOffTaxableStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
@@ -306,6 +307,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, EnvelopesImportSection>();
         services.AddScoped<IImportSection, HoldingsImportSection>();
         services.AddScoped<IImportSection, IncomeImportSection>();
+        services.AddScoped<IImportSection, IncomeOneOffTaxableImportSection>();
         services.AddScoped<IImportSection, Nid.Goals.Application.Import.GoalsImportSection>();
         services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();

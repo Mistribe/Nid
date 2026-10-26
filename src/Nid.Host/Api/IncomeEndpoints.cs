@@ -151,19 +151,20 @@ public static class IncomeEndpoints
     }
 
     /// <summary>A one-off income: every member is read through <see cref="FieldReader"/> (a missing one binds to null).</summary>
-    public sealed record IncomeOneOffBody(string? OccurredOn, MoneyBody? Amount, string? Note)
+    public sealed record IncomeOneOffBody(string? OccurredOn, MoneyBody? Amount, string? Note, MoneyBody? TaxableAmount = null)
     {
         internal RecordIncomeOneOffCommand? ToRecord(ItemId source, FieldReader reader)
-            => Read(reader) is var (on, amount) ? new RecordIncomeOneOffCommand(source, on, amount, Note) : null;
+            => Read(reader) is var (on, amount, taxable) ? new RecordIncomeOneOffCommand(source, on, amount, Note, taxable) : null;
 
         internal CorrectIncomeOneOffCommand? ToCorrection(ItemId source, Guid flow, FieldReader reader)
-            => Read(reader) is var (on, amount) ? new CorrectIncomeOneOffCommand(source, flow, on, amount, Note) : null;
+            => Read(reader) is var (on, amount, taxable) ? new CorrectIncomeOneOffCommand(source, flow, on, amount, Note, taxable) : null;
 
-        private (LocalDate On, Money Amount)? Read(FieldReader reader)
+        private (LocalDate On, Money Amount, Money? Taxable)? Read(FieldReader reader)
         {
             var on = reader.Date(OccurredOn, "occurredOn");
             var amount = reader.Money(Amount, "amount");
-            return on is { } o && amount is { } a ? (o, a) : null;
+            var taxable = TaxableAmount is null ? null : reader.Money(TaxableAmount, "taxableAmount");
+            return on is { } o && amount is { } a && (TaxableAmount is null || taxable is not null) ? (o, a, taxable) : null;
         }
     }
 
@@ -201,7 +202,7 @@ public static class IncomeEndpoints
     /// <summary>A phase as a body sends it; <c>netAmount</c> and <c>every</c> are guarded as <c>RequireMoney</c> does.</summary>
     public sealed record IncomePhaseBody(
         string Label, string StartsOn, string? EndsOn, MoneyBody? NetAmount, DurationBody? Every, MoneyBody? GrossAmount,
-        int? MaxCycles, string? Note)
+        int? MaxCycles, string? Note, MoneyBody? TaxableAmount = null)
     {
         internal PhaseDraft? Read(FieldReader reader, string path)
         {
@@ -210,8 +211,10 @@ public static class IncomeEndpoints
             var net = reader.Money(NetAmount, At(path, "netAmount"));
             var every = reader.Duration(Every, At(path, "every"));
             var gross = GrossAmount is null ? null : reader.Money(GrossAmount, At(path, "grossAmount"));
+            var taxable = TaxableAmount is null ? null : reader.Money(TaxableAmount, At(path, "taxableAmount"));
             return startsOn is { } s && net is { } n && every is { } e && (GrossAmount is null || gross is not null)
-                ? new PhaseDraft(Label, s, endsOn, n, e, gross, MaxCycles, Note)
+                   && (TaxableAmount is null || taxable is not null)
+                ? new PhaseDraft(Label, s, endsOn, n, e, gross, MaxCycles, Note, taxable)
                 : null;
         }
 
@@ -225,11 +228,11 @@ public static class IncomeEndpoints
     /// </summary>
     public sealed record IncomePhaseCorrectionBody(
         string Label, string StartsOn, string? EndsOn, MoneyBody? NetAmount, DurationBody? Every, MoneyBody? GrossAmount,
-        int? MaxCycles, string? Note, uint? Version)
+        int? MaxCycles, string? Note, uint? Version, MoneyBody? TaxableAmount = null)
     {
         internal EditIncomePhaseCommand? ToCommand(ItemId source, Guid phase, FieldReader reader)
         {
-            var draft = new IncomePhaseBody(Label, StartsOn, EndsOn, NetAmount, Every, GrossAmount, MaxCycles, Note).Read(reader, "");
+            var draft = new IncomePhaseBody(Label, StartsOn, EndsOn, NetAmount, Every, GrossAmount, MaxCycles, Note, TaxableAmount).Read(reader, "");
             if (Version is null)
                 reader.Add("version", "request.required", "The version read with the phase is required.");
             return reader.Ok ? new EditIncomePhaseCommand(source, phase, draft!, Version!.Value) : null;
@@ -238,7 +241,7 @@ public static class IncomeEndpoints
 
     /// <summary>A change of phase (spec §4): <c>every</c> is the old phase's when omitted.</summary>
     public sealed record IncomePhaseChangeBody(
-        string? Label, string? EffectiveOn, MoneyBody? NetAmount, DurationBody? Every, MoneyBody? GrossAmount, string? Note)
+        string? Label, string? EffectiveOn, MoneyBody? NetAmount, DurationBody? Every, MoneyBody? GrossAmount, string? Note, MoneyBody? TaxableAmount = null)
     {
         internal ChangeIncomePhaseCommand? ToCommand(ItemId source, FieldReader reader)
         {
@@ -247,8 +250,9 @@ public static class IncomeEndpoints
             var net = reader.Money(NetAmount, "netAmount");
             var every = reader.Duration(Every, "every", required: false);
             var gross = GrossAmount is null ? null : reader.Money(GrossAmount, "grossAmount");
+            var taxable = TaxableAmount is null ? null : reader.Money(TaxableAmount, "taxableAmount");
             return reader.Ok
-                ? new ChangeIncomePhaseCommand(source, label!, effectiveOn!.Value, net!.Value, every, gross, Note)
+                ? new ChangeIncomePhaseCommand(source, label!, effectiveOn!.Value, net!.Value, every, gross, Note, taxable)
                 : null;
         }
     }

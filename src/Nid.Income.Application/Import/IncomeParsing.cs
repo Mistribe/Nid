@@ -13,7 +13,7 @@ internal sealed record ParsedSource(IncomeKind Kind, Currency Currency, Visibili
 
 /// <summary>A phase record, parsed; the label is trimmed, as the API stores it.</summary>
 internal sealed record ParsedPhase(
-    string Label, LocalDate StartsOn, LocalDate? EndsOn, Money NetAmount, Duration Every, Money? GrossAmount, int? MaxCycles, string? Note);
+    string Label, LocalDate StartsOn, LocalDate? EndsOn, Money NetAmount, Duration Every, Money? GrossAmount, int? MaxCycles, string? Note, Money? TaxableAmount = null);
 
 /// <summary>
 /// File records to income inputs. Every refusal names the member it concerns; an entity's issues are all collected
@@ -26,11 +26,11 @@ internal static class IncomeParsing
     {
         ["displayName"] = "name", ["payerLabel"] = "payer_label", ["note"] = "note",
         ["label"] = "label", ["startsOn"] = "starts_on", ["endsOn"] = "ends_on", ["every"] = "every", ["maxCycles"] = "max_cycles",
-        ["netAmount"] = "net_amount", ["grossAmount"] = "gross_amount",
+        ["netAmount"] = "net_amount", ["grossAmount"] = "gross_amount", ["taxableAmount"] = "taxable_amount",
     };
 
     /// <summary>The members that hold an amount: a refusal names its <c>.amount</c>, or its <c>.currency</c> for a mismatch.</summary>
-    private static readonly HashSet<string> Amounts = new(StringComparer.Ordinal) { "netAmount", "grossAmount" };
+    private static readonly HashSet<string> Amounts = new(StringComparer.Ordinal) { "netAmount", "grossAmount", "taxableAmount" };
 
     private static readonly Dictionary<string, DurationUnit> Units = new(StringComparer.Ordinal)
     {
@@ -89,15 +89,16 @@ internal static class IncomeParsing
         parsed = null!;
         var ok = TryMoney(r.NetAmount, path + ".net_amount", issues, out var net)
                  & TryOptionalMoney(r.GrossAmount, path + ".gross_amount", issues, out var gross)
+                 & TryOptionalMoney(r.TaxableAmount, path + ".taxable_amount", issues, out var taxable)
                  & TryEvery(r.Every, path + ".every", issues, out var every)
                  & TryDate(r.StartsOn, path + ".starts_on", issues, out var startsOn)
                  & TryDate(r.EndsOn, path + ".ends_on", issues, out var endsOn);
         if (!ok)
             return false;
 
-        if (!Check(PhaseRules.Check(r.Label, startsOn!.Value, endsOn, net, every, gross, r.MaxCycles, r.Note, currency ?? net.Currency), path, issues))
+        if (!Check(PhaseRules.Check(r.Label, startsOn!.Value, endsOn, net, every, gross, taxable, r.MaxCycles, r.Note, currency ?? net.Currency), path, issues))
             return false;
-        parsed = new ParsedPhase(r.Label.Trim(), startsOn.Value, endsOn, net, every, gross, r.MaxCycles, r.Note);
+        parsed = new ParsedPhase(r.Label.Trim(), startsOn.Value, endsOn, net, every, gross, r.MaxCycles, r.Note, taxable);
         return true;
     }
 
