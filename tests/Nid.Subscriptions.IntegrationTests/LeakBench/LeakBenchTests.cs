@@ -244,12 +244,21 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                      "/api/v1/documents?scope=household",
                      "/api/v1/documents?scope=me&archived=true",
                      "/api/v1/documents?inbox=true",
-                 }.Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
+                 }.Concat(data.PrivatePhases.Values.Select(p => $"/api/v1/documents?targetKind=income.phase&targetId={p}"))
+                     .Concat(data.PrivateOneOffs.Values.Select(o => $"/api/v1/documents?targetKind=income.one_off&targetId={o}")).Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
                      .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" })))
         {
             var body = await app.GetRawAsync(actor, url);
             Assert.DoesNotContain(data.ForbiddenLabel(actor), body, StringComparison.Ordinal);
         }
+
+        // Positive control: each owner's by-target read finds her phase's document, so the scan above reads a filled list.
+        foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
+            Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.phase&targetId={data.PrivatePhases[hidden]}"),
+                StringComparison.Ordinal);
+        foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
+            Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.one_off&targetId={data.PrivateOneOffs[hidden]}"),
+                StringComparison.Ordinal);
     }
 
     [Fact]
@@ -445,8 +454,10 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             Assert.DoesNotContain(other, properties.Keys);
             foreach (var section in new[] { "valuations", "flows" })
             {
-                Assert.Equal(12, all[section].Count);
-                Assert.Equal(ids.Values.Concat(properties.Values).Order(StringComparer.Ordinal),
+                // The reader's own private income source adds its one-off income to the flows (the other adult's stays hidden).
+                var oneOff = section == "flows" ? [all["income_sources"].Single(e => e.GetProperty("name").GetString() == own).GetProperty("id").GetString()!] : Array.Empty<string>();
+                Assert.Equal(12 + oneOff.Length, all[section].Count);
+                Assert.Equal(ids.Values.Concat(properties.Values).Concat(oneOff).Order(StringComparer.Ordinal),
                     all[section].Select(f => f.GetProperty("item").GetString()!).Order(StringComparer.Ordinal));
                 Assert.DoesNotContain(other, JsonSerializer.Serialize(all[section]));
             }

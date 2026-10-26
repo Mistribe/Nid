@@ -159,7 +159,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         => await db.Persons.AsNoTracking().Where(p => p.Kind == "adult").Select(p => new PersonId(p.Id)).ToListAsync(ct);
 
     public async Task<IReadOnlyList<PersonInfo>> ListAsync(CancellationToken ct)
-        => (await db.Persons.AsNoTracking().OrderBy(p => p.CreatedAt).ToListAsync(ct)).Select(ToInfo).ToList();
+        => (await db.Persons.AsNoTracking().OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).ToListAsync(ct)).Select(ToInfo).ToList();
 
     public async Task<Preferences?> PreferencesAsync(PersonId id, CancellationToken ct)
     {

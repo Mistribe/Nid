@@ -1,8 +1,12 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Documents.Application;
 using Nid.Documents.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 using static Nid.Subscriptions.IntegrationTests.Documents.DocumentEndpointTests;
 
 namespace Nid.Subscriptions.IntegrationTests.Documents;
@@ -96,6 +100,41 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
             $"{Root}/{id}/links/{TargetKinds.CorePerson}/{app.AdultB.Value}", new { role = "deed" })));
         Assert.Equal(2, (await LinksAsync(app, app.AdultB, id)).Length);
         Assert.Single(await LinksAsync(app, app.AdultA, id));
+    }
+
+    [Fact]
+    public async Task The_list_by_target_keeps_the_documents_linked_to_it_and_hides_a_target_the_reader_cannot_see()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);
+        var secret = await app.NewSubscriptionAsync("CoffreB", app.AdultB, Visibility.Private);
+        var linked = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=a.pdf&targetKind=core.item&targetId={shared.Value}&role=invoice");
+        var elsewhere = await UploadedAsync(app, app.AdultA, Pdf);
+        var hidden = await UploadedAsync(app, app.AdultB, Pdf, $"fileName=b.pdf&targetKind=core.item&targetId={secret.Value}&role=invoice");
+
+        Assert.Equal([linked], await ListedAsync(app, app.AdultA, $"scope=me&targetKind=core.item&targetId={shared.Value}"));
+        Assert.Empty(await ListedAsync(app, app.AdultA, $"scope=me&targetKind=core.item&targetId={secret.Value}"));
+        Assert.Empty(await ListedAsync(app, app.AdultA, $"scope=me&targetKind=core.item&targetId={Guid.NewGuid()}"));
+        Assert.Equal([hidden], await ListedAsync(app, app.AdultB, $"scope=me&targetKind=core.item&targetId={secret.Value}"));
+        Assert.DoesNotContain(elsewhere, await ListedAsync(app, app.AdultA, $"targetKind=core.item&targetId={shared.Value}"));
+    }
+
+    [Fact]
+    public async Task A_link_to_a_target_nobody_resolves_any_more_is_labelled_deleted_and_still_counts()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);
+        var id = await UploadedAsync(app, app.AdultA, Pdf);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<IDocumentStore>().AddLinkAsync(
+                new LinkRecord(id, "income.phase", Guid.NewGuid(), shared.Value, "other", app.AdultA.Value, SystemClock.Instance.GetCurrentInstant()), default);
+        }
+
+        var link = Assert.Single(await LinksAsync(app, app.AdultA, id));
+        Assert.Equal("Élément supprimé", link.GetProperty("label").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await GetAsync(app, app.AdultB, id)).StatusCode); // the shared anchor still lets B read it
     }
 
     private static async Task<(HttpStatusCode Status, string? Code)> RefusalAsync(Task<HttpResponseMessage> request)

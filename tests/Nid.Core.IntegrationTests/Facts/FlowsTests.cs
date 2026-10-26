@@ -32,6 +32,24 @@ public class FlowsTests(PostgresFixture postgres)
     private static readonly IReadOnlySet<FlowKind> Net = new HashSet<FlowKind> { FlowKind.Opening, FlowKind.Contribution };
 
     [Fact]
+    public async Task Find_many_reads_active_flows_by_id_and_skips_voided_and_superseded_ones()
+    {
+        await using var w = await FactWorld.NewAsync(postgres);
+        var item = await w.ItemAsync(w.Alice);
+        var active = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 10m), default)).Ok();
+        var voided = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 20m), default)).Ok();
+        var typo = (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 30m), default)).Ok();
+        Assert.True((await w.Flows.VoidAsync(item, voided.Id, default)).IsSuccess);
+        var fixedFlow = (await w.Flows.SupersedeAsync(item, typo.Id, Flow(item, FlowKind.Income, 31m), default)).Ok();
+
+        var found = await w.Flows.FindManyAsync([active.Id, voided.Id, typo.Id, fixedFlow.Id, Guid.NewGuid()], default);
+
+        Assert.Equal(new[] { active.Id, fixedFlow.Id }.Order(), found.Select(f => f.Id).Order());
+        Assert.All(found, f => { Assert.Equal(item, f.Item); Assert.Equal(FlowKind.Income, f.Kind); });
+        Assert.Empty(await w.Flows.FindManyAsync([], default));
+    }
+
+    [Fact]
     public async Task Sum_counts_a_flow_on_v_up_to_v_and_not_up_to_the_day_before()
     {
         await using var w = await FactWorld.NewAsync(postgres);

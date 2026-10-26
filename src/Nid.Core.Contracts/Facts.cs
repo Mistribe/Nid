@@ -96,6 +96,12 @@ public interface IFlows
     Task<Result<IReadOnlyDictionary<ItemId, IReadOnlyList<Flow>>>> ListManyAsync(
         IReadOnlyCollection<ItemId> items, DateRange range, IReadOnlySet<FlowKind>? kinds, CancellationToken ct);
 
+    /// <summary>
+    /// The active flows of these ids, on any item (retired ones, voided or superseded, are absent, as are unknown ids). A registry-level
+    /// read with no access check, as <see cref="IItemRegistry.FindManyAsync"/>: callers decide who may see an item.
+    /// </summary>
+    Task<IReadOnlyList<Flow>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
     /// <summary>Exact sum in the item's currency; zero in that currency when nothing matches.</summary>
     Task<Result<Money>> SumAsync(ItemId item, IReadOnlySet<FlowKind> kinds, DateRange range, CancellationToken ct);
 }

@@ -89,6 +89,26 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         return rows.Count;
     }
 
+    // The target is part of the key: each row is replaced, not updated, so the audit sees a delete and an insert.
+    public async Task MoveLinksAsync(DocumentTarget from, DocumentTarget to, CancellationToken ct)
+    {
+        if (from == to)
+            return;
+        var rows = await db.Links.Where(l => l.TargetKind == from.Kind && l.TargetId == from.Id).ToListAsync(ct);
+        var taken = (await db.Links.Where(l => l.TargetKind == to.Kind && l.TargetId == to.Id).Select(l => l.DocumentId).ToListAsync(ct)).ToHashSet();
+        db.Links.RemoveRange(rows);
+        foreach (var r in rows.Where(r => !taken.Contains(r.DocumentId)))
+            db.Links.Add(new DocumentLinkRow
+            {
+                DocumentId = r.DocumentId, TargetKind = to.Kind, TargetId = to.Id, AnchorItemId = r.AnchorItemId,
+                Role = r.Role, LinkedByPersonId = r.LinkedByPersonId, LinkedAt = r.LinkedAt,
+            });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlySet<Guid>> DocumentsLinkedToAsync(DocumentTarget target, CancellationToken ct)
+        => (await db.Links.AsNoTracking().Where(l => l.TargetKind == target.Kind && l.TargetId == target.Id).Select(l => l.DocumentId).ToListAsync(ct)).ToHashSet();
+
     private Task<DocumentLinkRow?> FindLinkAsync(Guid document, DocumentTarget target, CancellationToken ct)
         => db.Links.SingleOrDefaultAsync(l => l.DocumentId == document && l.TargetKind == target.Kind && l.TargetId == target.Id, ct);
 

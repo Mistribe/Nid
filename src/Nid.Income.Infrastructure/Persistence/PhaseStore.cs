@@ -19,6 +19,12 @@ public sealed class PhaseStore(IncomeDbContext db) : IPhaseStore
             .ToList();
     }
 
+    public async Task<IReadOnlyList<IncomePhase>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.Distinct().ToList();
+        return (await db.Phases.AsNoTracking().Where(p => wanted.Contains(p.Id)).ToListAsync(ct)).Select(ToPhase).ToList();
+    }
+
     public async Task<IncomePhase?> FindAsync(ItemId source, Guid id, CancellationToken ct)
         => await db.Phases.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id && p.SourceItemId == source.Value, ct) is { } row
             ? ToPhase(row)

@@ -136,6 +136,8 @@ public sealed class DocumentAccess(
         return labels;
     }
 
+    public bool IsKnownKind(string kind) => TargetsFor(kind) is not null;
+
     private IDocumentTargets? TargetsFor(string kind) => targets.FirstOrDefault(t => t.Kinds.Contains(kind));
 
     private static List<Guid> Anchors(IEnumerable<LinkRecord> links) => links.Select(l => l.AnchorItemId).OfType<Guid>().ToList();

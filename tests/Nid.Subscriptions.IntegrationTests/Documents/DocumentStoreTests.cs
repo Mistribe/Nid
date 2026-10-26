@@ -56,6 +56,22 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task Moving_links_onto_the_same_target_keeps_them()
+    {
+        var (app, scope, store) = await StartAsync();
+        await using var _ = app;
+        await using var __ = scope;
+        var doc = Doc();
+        await store.CreateAsync(doc, default);
+        var target = new DocumentTarget(TargetKinds.CoreItem, Guid.NewGuid());
+        await store.AddLinkAsync(Link(doc.Id, target), default);
+
+        await store.MoveLinksAsync(target, target, default);
+
+        Assert.Single(await store.LinksOfAsync([doc.Id], default));
+    }
+
+    [Fact]
     public async Task Set_role_and_remove_link_on_a_missing_link_return_false()
     {
         var (app, scope, store) = await StartAsync();
@@ -95,6 +111,35 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(other.Kind, Assert.Single(await store.LinksOfAsync([one.Id, two.Id], default)).TargetKind);
         Assert.NotNull(await store.FindAsync(one.Id, default));
         Assert.NotNull(await store.FindAsync(two.Id, default));
+    }
+
+    [Fact]
+    public async Task Move_targets_rewrites_only_the_links_to_the_source_and_keeps_one_link_per_document()
+    {
+        var (app, scope, store) = await StartAsync();
+        await using var _ = app;
+        await using var __ = scope;
+        var (one, two, three) = (Doc(), Doc(), Doc());
+        foreach (var d in new[] { one, two, three })
+            await store.CreateAsync(d, default);
+        var from = new DocumentTarget("income.one_off", Guid.NewGuid());
+        var to = new DocumentTarget("income.one_off", Guid.NewGuid());
+        var unrelated = new DocumentTarget("income.one_off", Guid.NewGuid());
+        var anchor = Guid.NewGuid();
+        await store.AddLinkAsync(Link(one.Id, from) with { AnchorItemId = anchor, Role = "deed" }, default);
+        await store.AddLinkAsync(Link(two.Id, from), default);
+        await store.AddLinkAsync(Link(two.Id, to, "invoice"), default); // already linked to the destination
+        await store.AddLinkAsync(Link(three.Id, unrelated), default);
+
+        await scope.ServiceProvider.GetRequiredService<IDocumentLinks>().MoveTargetAsync(from, to, default);
+
+        var links = await store.LinksOfAsync([one.Id, two.Id, three.Id], default);
+        var moved = Assert.Single(links, l => l.DocumentId == one.Id);
+        Assert.Equal((to.Kind, to.Id, anchor, "deed"), (moved.TargetKind, moved.TargetId, moved.AnchorItemId, moved.Role));
+        var kept = Assert.Single(links, l => l.DocumentId == two.Id);
+        Assert.Equal((to.Id, "invoice"), (kept.TargetId, kept.Role));
+        Assert.Equal(unrelated.Id, Assert.Single(links, l => l.DocumentId == three.Id).TargetId);
+        Assert.DoesNotContain(links, l => l.TargetId == from.Id);
     }
 
     [Fact]

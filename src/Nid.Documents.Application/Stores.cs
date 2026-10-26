@@ -34,9 +34,17 @@ public interface IDocumentStore
     Task<bool> RemoveLinkAsync(Guid document, DocumentTarget target, CancellationToken ct);
 
     Task<int> RemoveLinksToAsync(DocumentTarget target, CancellationToken ct);
+
+    /// <summary>Re-points the links to <paramref name="from"/> at <paramref name="to"/>; a document already linked to <paramref name="to"/> loses its <paramref name="from"/> link.</summary>
+    Task MoveLinksAsync(DocumentTarget from, DocumentTarget to, CancellationToken ct);
+
+    /// <summary>The ids of the documents holding a link to the target, whoever may read it.</summary>
+    Task<IReadOnlySet<Guid>> DocumentsLinkedToAsync(DocumentTarget target, CancellationToken ct);
 }
 
 public sealed class DocumentLinks(IDocumentStore store) : IDocumentLinks
 {
     public Task UnlinkTargetAsync(DocumentTarget target, CancellationToken ct) => store.RemoveLinksToAsync(target, ct);
+
+    public Task MoveTargetAsync(DocumentTarget from, DocumentTarget to, CancellationToken ct) => store.MoveLinksAsync(from, to, ct);
 }

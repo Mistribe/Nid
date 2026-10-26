@@ -12,13 +12,16 @@ public sealed record DocumentSummary(
     Guid Id, string Title, string MediaType, long SizeBytes, LocalDate? DocumentDate, Instant UploadedAt, bool Archived, bool CanEdit,
     IReadOnlyList<DocumentLinkView> Links)
 {
+    /// <summary>The label of a link whose target the resolvers no longer return; the link still counts through its anchor.</summary>
+    public const string DeletedTargetLabel = "Élément supprimé";
+
     /// <summary><paramref name="labels"/>: from <see cref="DocumentAccess.LabelsAsync"/>.</summary>
     public static DocumentSummary Of(ReadableDocument read, IReadOnlyDictionary<(string Kind, Guid Id), string> labels)
     {
         var d = read.Document;
         var links = read.Links.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), read.Actor))
             .OrderBy(l => l.LinkedAt)
-            .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), ""),
+            .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DeletedTargetLabel),
                 DocumentRules.CanWriteLink(DocumentAccess.Facts(l), read.Actor)))
             .ToList();
         return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.ArchivedAt is not null, read.CanEdit, links);

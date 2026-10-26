@@ -114,6 +114,15 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<ItemId, Guid> Documents { get; }
 
+    /// <summary>
+    /// The phase of P-A's and P-B's income twins, keyed by row. Each owner's document is linked (<c>income.phase</c>, <c>payslip</c>)
+    /// to that phase alone, and its title carries the private label, so the scans catch it if it is ever shown to the other adult.
+    /// </summary>
+    public IReadOnlyDictionary<string, Guid> PrivatePhases { get; private init; } = new Dictionary<string, Guid>();
+
+    /// <summary>As <see cref="PrivatePhases"/> for each private source's one-off income, by the source's row name.</summary>
+    public IReadOnlyDictionary<string, Guid> PrivateOneOffs { get; private init; } = new Dictionary<string, Guid>();
+
     /// <summary>A second document of each row, as <see cref="Documents"/> but linked to its row only, for the unlink entry alone to remove.</summary>
     public IReadOnlyDictionary<ItemId, Guid> UnlinkDocuments { get; }
 
@@ -219,6 +228,31 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {shared}'s document to {hidden} failed: {refused.Code}");
         }
 
+        var privatePhases = new Dictionary<string, Guid>();
+        var privateOneOffs = new Dictionary<string, Guid>();
+        foreach (var (hidden, owner) in new[] { ("P-A", app.AdultA), ("P-B", app.AdultB) })
+        {
+            var detail = JsonDocument.Parse(await app.GetRawAsync(owner, $"/api/v1/income/sources/{incomeSources[hidden].Value}")).RootElement;
+            var phase = detail.GetProperty("phases")[0].GetProperty("id").GetGuid();
+            var label = Rows.Single(r => r.Name == hidden).Label;
+            var (_, refused) = await app.InvokeAsync(owner, new UploadDocumentCommand(DocumentEndpointTests.Pdf,
+                $"{label}-payslip.pdf", label, null, null, new DocumentTarget("income.phase", phase), DocumentRoles.Payslip));
+            if (refused is not null)
+                throw new InvalidOperationException($"Seeding {hidden}'s phase document failed: {refused.Code}");
+            privatePhases[hidden] = phase;
+
+            var created = await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/income/sources/{incomeSources[hidden].Value}/one-offs",
+                new { occurredOn = "2025-06-10", amount = new { amount = "500", currency = "EUR" }, note = "Prime" });
+            if (created.StatusCode != System.Net.HttpStatusCode.Created)
+                throw new InvalidOperationException($"Seeding {hidden}'s one-off failed: {created.StatusCode}");
+            var oneOff = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+            var (_, oneOffRefused) = await app.InvokeAsync(owner, new UploadDocumentCommand(DocumentEndpointTests.Pdf,
+                $"{label}-bonus.pdf", label, null, null, new DocumentTarget("income.one_off", oneOff), DocumentRoles.Statement));
+            if (oneOffRefused is not null)
+                throw new InvalidOperationException($"Seeding {hidden}'s one-off document failed: {oneOffRefused.Code}");
+            privateOneOffs[hidden] = oneOff;
+        }
+
         // Each private item gets a custom provider named after its label, through the real requests: a provider list
         // that carried it to the other adult would put the forbidden label in the textual leak scan.
         foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
@@ -262,7 +296,11 @@ public sealed class MixedDataset
         foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
             proposals[name] = await SeedProposalsAsync(app, owner, label, envelopes[name], incomeSources[name], items[name], loans[name]);
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments);
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments)
+        {
+            PrivatePhases = privatePhases,
+            PrivateOneOffs = privateOneOffs,
+        };
     }
 
     private static async Task<IReadOnlyList<Guid>> SeedProposalsAsync(

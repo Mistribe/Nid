@@ -319,6 +319,18 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         await AssertRefusedAsync(await GetAsync(app, app.AdultA, id, "/content"), HttpStatusCode.NotFound, DocumentsCodes.ContentMissing);
     }
 
+    [Fact]
+    public async Task Listing_by_target_needs_both_halves_and_a_known_kind()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Documents}?targetKind=core.item")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Documents}?targetId={Guid.NewGuid()}")).StatusCode);
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Documents}?targetKind=bank.account&targetId={Guid.NewGuid()}"),
+            HttpStatusCode.BadRequest, DocumentsCodes.UnknownTargetKind);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Documents}?targetKind=core.household")).StatusCode);
+    }
+
     /// <summary>A body with no <c>Content-Length</c>: the server only learns its size by reading it.</summary>
     private sealed class ChunkedContent(byte[] bytes) : HttpContent
     {

@@ -78,6 +78,9 @@ public interface IPhaseStore
 
     Task<IReadOnlyList<IncomePhase>> ForSourcesAsync(IReadOnlyCollection<ItemId> sources, CancellationToken ct);
 
+    /// <summary>The phases of these ids, on any source; an unknown id is absent.</summary>
+    Task<IReadOnlyList<IncomePhase>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
     /// <summary>Null when no phase of that id is on that source.</summary>
     Task<IncomePhase?> FindAsync(ItemId source, Guid id, CancellationToken ct);
 

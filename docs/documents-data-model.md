@@ -1,6 +1,6 @@
 # Modèle de données du module Documents
 
-> Statut : tranche 1 de la #161 livrée (2026-10-26). Décrit les tables, le stockage, le dépôt et la lecture, les liens et cibles, la visibilité, les routes, les codes d'erreur et la sauvegarde du module `Nid.Documents`. Les tranches 2 (cibles des modules, écrans) et 3 (provenance, MCP) sont à venir.
+> Statut : tranche 1 de la #161 livrée (2026-10-26). Décrit les tables, le stockage, le dépôt et la lecture, les liens et cibles, la visibilité, les routes, les codes d'erreur et la sauvegarde du module `Nid.Documents`. La tranche 2a (écrans) est livrée, ainsi que la 2b pour Income (phases et revenus exceptionnels, 2026-10-26) ; les autres cibles de modules et la tranche 3 (provenance, MCP) sont à venir.
 > Références : `superpowers/specs/2026-10-26-documents-module-design.md`, `core-data-model.md` (§6 renvoie ici), `goals-data-model.md` (même structure), `architecture.md` §5 et §9, `deploy/README.md` (« Les documents »).
 
 ---
@@ -11,7 +11,7 @@
 Documents (schéma documents)                         Stockage (IDocumentStorage)
 document ──────────────────────────────────────────  fichier {sha256[0:2]}/{sha256}  (filesystem ou s3)
   └──< document_link (target_kind, target_id, role)
-        └─ cible : core.item | core.person | core.household   (IDocumentTargets)
+        └─ cible : core.item | core.person | core.household | income.phase | income.one_off   (IDocumentTargets)
 ```
 
 Un document est un fichier (contenu adressé par son sha256), ses métadonnées et ses liens vers des cibles. Documents possède tout cela ; Core ne connaît pas les documents (il n'y a plus de `Document` ni de `document_item` dans Core). Documents dépend de `Core.Contracts` (`IAccessPolicy`, `IItemRegistry`, `IPersonRegistry`, `IVisibleItems`).
@@ -67,9 +67,14 @@ Contrat `IDocumentTargets` (`Documents.Contracts`) : pour un `target_kind` qu'il
 | `core.item` | l'élément existe (`IItemRegistry`) | l'élément | son nom |
 | `core.person` | la personne existe (`IPersonRegistry`) | aucune | son nom |
 | `core.household` | l'id est la valeur fixe du foyer | aucune | « Foyer » |
+| `income.phase` | la phase existe (`IPhaseStore.FindManyAsync`) et sa source aussi | la source de la phase | la note de la phase si elle en a une, sinon « {source} · {début jj/mm/aaaa} » |
+| `income.one_off` | le flux actif est un revenu (`kind = income`) de catégorie `one_off` (`IFlows.FindManyAsync`, flux actifs seulement, sans contrôle d'accès) et sa source existe | la source du flux | « {source} · {date jj/mm/aaaa} · revenu exceptionnel » |
+
+Les deux cibles d'Income sont résolues par `IncomeDocumentTargets` (`Nid.Income.Application`), déclarées dans le module qui possède la ligne ; un autre flux (contribution d'enveloppe, revenu d'une autre catégorie) n'est pas une cible. Comme tout lien avec ancre, leurs droits se jugent sur la source (§6).
 
 - Un `target_kind` inconnu répond `documents.unknown_target_kind`, une cible introuvable **ou que l'acteur ne lit pas** `documents.target_not_found` (404) : l'existence d'une cible illisible n'est pas révélée. Lier à l'autre adulte (`core.person`) répond donc 404, pas 403.
-- `IDocumentLinks.UnlinkTarget(kind, id)` est posé dans le contrat pour la tranche 2, qui l'appellera à la suppression d'une cible. Les éléments du Core ne sont qu'archivés : aucun appel en tranche 1.
+- **Cycle de vie** : `IDocumentLinks.UnlinkTargetAsync(cible)` retire les liens d'une cible supprimée ; `MoveTargetAsync(de, vers)` réécrit les liens vers une autre cible en gardant rôle, ancre, auteur et date (sans effet si `de` = `vers` ; un document déjà lié à la destination garde ce lien et perd l'ancien). Income les appelle **dans la même transaction** que la ligne : supprimer une phase ou un revenu exceptionnel retire ses liens, corriger un revenu exceptionnel (qui remplace le flux par un nouveau) déplace ses liens vers le nouveau flux. Le document n'est jamais supprimé. Les éléments du Core ne sont qu'archivés : aucun appel pour eux.
+- **Cible disparue** : un lien dont la cible ne se résout plus (ligne supprimée sans passer par le cycle de vie) compte encore par son ancre, pour les droits et « À classer ». Son libellé est « Élément supprimé ».
 - Retirer un lien ne supprime jamais le document. Un document dont l'acteur ne voit aucun lien est dans « À classer ».
 
 ## 6. Visibilité
@@ -101,6 +106,7 @@ Corps et réponses en camelCase. Toutes sous `/api/v1/documents`, authentifiées
 | `POST /` | Dépôt multipart (§4) |
 | `GET /targets` | Cibles qu'un acteur peut choisir : `{ items: [{ kind, id, label, module, itemKind, canWrite }] }` (éléments actifs qu'il lit, personnes, foyer ; jamais l'élément privé de l'autre adulte ; pas de lignes de module) |
 | `GET /?scope=household\|me&archived=false\|true&inbox=false\|true` | Liste des documents lisibles : `{ items: [{ id, title, mediaType, sizeBytes, documentDate, uploadedAt, archived, canEdit, links }] }` |
+| `GET /?targetKind=&targetId=` | Les documents lisibles qui ont un lien **visible** vers cette cible, quelle que soit la portée Foyer / Moi (comme « À classer »). Une cible que l'acteur ne voit pas répond une liste vide, sans révéler qu'elle existe |
 | `GET /{id}` | Fiche : le résumé, `originalFilename`, `note`, `uploadedBy` |
 | `GET /{id}/content` | Téléchargement (§4) |
 | `PUT /{id}` | Remplacement du titre, de `documentDate` et de la note |
@@ -136,6 +142,6 @@ Un document illisible ou inexistant, ou un acteur sans droit : `404` et `403` g�
 - **Détail** `/documents/$id` : figures en ligne, « Télécharger », « Modifier », « Archiver », puis la section « Liés à » (rôle modifiable, « Retirer » confirmé). « Ajouter un lien » n'offre que les cibles `canWrite` de `GET /targets` ; avant l'ajout, l'aperçu dit qui gagnerait la lecture (« Bob pourra lire ce document ») et rien n'est écrit sans confirmation.
 - Pas d'aperçu dans l'application : téléchargement seulement.
 
-## 11. Hors de la tranche 2a
+## 11. Hors des tranches 2a et 2b (Income)
 
-Tranche 2b : `IDocumentTargets` implémenté par Income, RealEstate, Subscriptions et Investments, `UnlinkTarget` appelé à la suppression d'une cible. Tranche 3 : `document_id` sur `core.valuation`, `core.flow`, `core.proposal` (`core-data-model.md` §5.1), outils MCP de liste et de lecture, `document_id` accepté par les `propose_*`. Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.
+Reportés jusqu'à leur consommateur : les achats d'abonnements et les événements de crédit comme cibles (`IDocumentTargets` des modules concernés) ; Income est livré (§5). Aucun écran de phase ne lie encore : ils viennent avec #160. Tranche 3 : `document_id` sur `core.valuation`, `core.flow`, `core.proposal` (`core-data-model.md` §5.1), outils MCP de liste et de lecture, `document_id` accepté par les `propose_*`. Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.

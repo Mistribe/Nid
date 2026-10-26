@@ -69,6 +69,12 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
             ids.ToDictionary(id => new ItemId(id), id => (IReadOnlyList<Flow>)rows[id].Select(ToFlow).ToList()));
     }
 
+    public async Task<IReadOnlyList<Flow>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.Distinct().ToList();
+        return (await db.Flows.AsNoTracking().Where(r => r.RetiredAt == null && wanted.Contains(r.Id)).ToListAsync(ct)).Select(ToFlow).ToList();
+    }
+
     public async Task<Result<Money>> SumAsync(ItemId item, IReadOnlySet<FlowKind> kinds, DateRange range, CancellationToken ct)
     {
         var read = await gate.ForReadAsync(item, ct);

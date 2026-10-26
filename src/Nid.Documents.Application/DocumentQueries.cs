@@ -17,8 +17,10 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
 /// <summary>
 /// Design §7: the documents the actor reads. <c>Household</c> keeps those with a visible link to a shared item, a dependent or the
 /// household; <c>Me</c> keeps them all. <c>Inbox</c> keeps those with no visible link, whatever the scope.
+/// <c>Target</c> keeps those with a visible link to exactly that target, whatever the scope (design §3.3: every readable document of a
+/// row's screen, a private row's too); one the actor cannot see answers an empty list.
 /// </summary>
-public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox) : IQuery<DocumentList>;
+public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null) : IQuery<DocumentList>;
 
 /// <summary>Tranche 2 design §2.1: the Core targets the actor may pick from the page; module rows are linked from their own screen.</summary>
 public sealed record ListDocumentTargetsQuery() : IQuery<DocumentTargetList>;
@@ -53,11 +55,20 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
     public async ValueTask<Result<DocumentList>> HandleAsync(ListDocumentsQuery query, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
+        if (query.Target is { } asked && !access.IsKnownKind(asked.Kind))
+            return Result.Failure<DocumentList>(new Failure(DocumentsCodes.UnknownTargetKind, $"The target kind '{asked.Kind}' is unknown.",
+                new Dictionary<string, object?> { ["field"] = "targetKind" }));
         var documents = await store.ListAsync(query.Archived, ct);
+        if (query.Target is { } target)
+        {
+            var linked = await store.DocumentsLinkedToAsync(target, ct);
+            documents = documents.Where(d => linked.Contains(d.Id)).ToList();
+        }
+
         var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
         // One rights check for every anchor of every document: a constant number of queries.
         var facts = await access.FactsAsync(person, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
-        var household = query is { Scope: VisibilityScope.Household, Inbox: false }
+        var household = query is { Scope: VisibilityScope.Household, Inbox: false, Target: null }
             ? await visible.ForAsync(person, VisibilityScope.Household, includeArchived: true, ct)
             : null;
 
@@ -76,6 +87,8 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
             if (!DocumentRules.CanRead(d.UploadedBy, all.Select(DocumentAccess.Facts), facts))
                 continue;
             var seen = all.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), facts)).ToList();
+            if (query.Target is { } t && !seen.Any(l => l.TargetKind == t.Kind && l.TargetId == t.Id))
+                continue;
             if (query.Inbox ? seen.Count > 0 : household is not null && !seen.Any(Shared))
                 continue;
             kept.Add(new ReadableDocument(d, all, facts));

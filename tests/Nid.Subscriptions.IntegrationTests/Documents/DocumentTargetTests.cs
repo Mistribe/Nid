@@ -55,17 +55,25 @@ public class DocumentTargetTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         var targets = await TargetsAsync(app, app.AdultA);
         var names = await PersonNamesAsync(app);
+        var rows = targets.Select(Row).ToArray();
+        // Items sorted by label, then the persons, then the household; the persons' order is not guaranteed (same CreatedAt, v7 ids).
         Assert.Equal(
             [
                 (TargetKinds.CoreItem, theirsShared.Value, "Assurance", false),
                 (TargetKinds.CoreItem, mine.Value, "Banque A", true),
                 (TargetKinds.CoreItem, ours.Value, "Box", true),
+            ],
+            rows[..3]);
+        Assert.Equivalent(
+            new[]
+            {
                 (TargetKinds.CorePerson, app.AdultA.Value, names[app.AdultA.Value], true),
                 (TargetKinds.CorePerson, app.AdultB.Value, names[app.AdultB.Value], false),
                 (TargetKinds.CorePerson, app.Dependent.Value, names[app.Dependent.Value], true),
-                (TargetKinds.CoreHousehold, TargetKinds.Household, "Foyer", true),
-            ],
-            targets.Select(Row).ToArray());
+            },
+            rows[3..6]);
+        Assert.Equal((TargetKinds.CoreHousehold, TargetKinds.Household, "Foyer", true), rows[6]);
+        Assert.Equal(7, rows.Length);
         var item = targets[0];
         Assert.Equal(("subscriptions", "subscription"), (item.GetProperty("module").GetString(), item.GetProperty("itemKind").GetString()));
         Assert.Equal(JsonValueKind.Null, targets[^1].GetProperty("module").ValueKind);

@@ -7870,6 +7870,8 @@ export interface paths {
                     scope?: string;
                     archived?: boolean;
                     inbox?: boolean;
+                    targetKind?: string;
+                    targetId?: string;
                 };
                 header?: never;
                 path?: never;

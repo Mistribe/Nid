@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
 using Nid.Income.Contracts;
 using Nid.Income.Domain;
 using Nid.Platform.Contracts;
@@ -122,7 +123,8 @@ public sealed class EditIncomePhaseHandler(IItemRegistry items, ISourceStore sou
 }
 
 [RequestHandler<DeleteIncomePhaseCommand, bool>]
-public sealed class DeleteIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IUnitOfWork unitOfWork)
+public sealed class DeleteIncomePhaseHandler(
+    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IDocumentLinks documents, IUnitOfWork unitOfWork)
     : IRequestHandler<DeleteIncomePhaseCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteIncomePhaseCommand command, CancellationToken ct = default)
@@ -143,6 +145,7 @@ public sealed class DeleteIncomePhaseHandler(IItemRegistry items, ISourceStore s
         {
             return Result.Failure<bool>(OpenSource.Conflict());
         }
+        await documents.UnlinkTargetAsync(new DocumentTarget(IncomeDocumentTargets.PhaseKind, command.Phase), ct);
         await transaction.CommitAsync(ct);
         return Result.Success(true);
     }

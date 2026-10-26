@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
 using Nid.Income.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
@@ -57,6 +58,8 @@ internal static class OneOffCheck
             : Result.Failure(new NotFoundFailure("one-off", id.ToString()));
     }
 
+    public static DocumentTarget Target(Guid flow) => new(IncomeDocumentTargets.OneOffKind, flow);
+
     public static NewFlow Flow(ItemId source, LocalDate on, Money amount, string? note)
         => new(source, on, FlowKind.Income, amount, IncomeWire.OneOffCategory, null, note);
 }
@@ -76,7 +79,7 @@ public sealed class RecordIncomeOneOffHandler(ISourceStore sources, IItemRegistr
 }
 
 [RequestHandler<CorrectIncomeOneOffCommand, Guid>]
-public sealed class CorrectIncomeOneOffHandler(ISourceStore sources, IItemRegistry items, IFlows flows)
+public sealed class CorrectIncomeOneOffHandler(ISourceStore sources, IItemRegistry items, IFlows flows, IDocumentLinks documents, IUnitOfWork unitOfWork)
     : IRequestHandler<CorrectIncomeOneOffCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(CorrectIncomeOneOffCommand command, CancellationToken ct = default)
@@ -84,15 +87,20 @@ public sealed class CorrectIncomeOneOffHandler(ISourceStore sources, IItemRegist
         if ((await OneOffCheck.WithinAsync(sources, items, command.ItemId, command.OccurredOn, ct)).TryGetFailure(out var failure)
             || (await OneOffCheck.ExistsAsync(flows, command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
+        // The correction and its documents' links move together, or neither does.
+        await using var transaction = await unitOfWork.BeginAsync(ct);
         var corrected = await flows.SupersedeAsync(command.ItemId, command.Flow,
             OneOffCheck.Flow(command.ItemId, command.OccurredOn, command.Amount, command.Note), ct);
-        return corrected.TryGetValue(out var saved) ? Result.Success(saved!.Id)
-            : Result.Failure<Guid>(corrected.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
+        if (!corrected.TryGetValue(out var saved))
+            return Result.Failure<Guid>(corrected.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
+        await documents.MoveTargetAsync(OneOffCheck.Target(command.Flow), OneOffCheck.Target(saved!.Id), ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(saved.Id);
     }
 }
 
 [RequestHandler<DeleteIncomeOneOffCommand, bool>]
-public sealed class DeleteIncomeOneOffHandler(ISourceStore sources, IItemRegistry items, IFlows flows)
+public sealed class DeleteIncomeOneOffHandler(ISourceStore sources, IItemRegistry items, IFlows flows, IDocumentLinks documents, IUnitOfWork unitOfWork)
     : IRequestHandler<DeleteIncomeOneOffCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteIncomeOneOffCommand command, CancellationToken ct = default)
@@ -100,7 +108,11 @@ public sealed class DeleteIncomeOneOffHandler(ISourceStore sources, IItemRegistr
         if ((await OneOffCheck.WithinAsync(sources, items, command.ItemId, null, ct)).TryGetFailure(out var failure)
             || (await OneOffCheck.ExistsAsync(flows, command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
             return Result.Failure<bool>(failure!);
-        var voided = await flows.VoidAsync(command.ItemId, command.Flow, ct);
-        return voided.TryGetFailure(out failure) ? Result.Failure<bool>(failure!) : Result.Success(true);
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        if ((await flows.VoidAsync(command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
+            return Result.Failure<bool>(failure!);
+        await documents.UnlinkTargetAsync(OneOffCheck.Target(command.Flow), ct);
+        await transaction.CommitAsync(ct);
+        return Result.Success(true);
     }
 }
