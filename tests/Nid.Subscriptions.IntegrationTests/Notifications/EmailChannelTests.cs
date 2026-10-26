@@ -44,6 +44,15 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
         ["Nid:Smtp:From"] = "Nid <nid@test.localhost>",
     };
 
+    private sealed class SettableClock(Instant now) : IClock
+    {
+        public Instant Now { get; set; } = now;
+
+        public Instant GetCurrentInstant() => Now;
+    }
+
+    private readonly SettableClock clock = new(Instant.FromUtc(2025, 10, 15, 8, 0));
+
     private static readonly RenderedMessage Message = new("Nid : Un bail arrive à échéance", "texte", "<p>html</p>");
 
     private static ChannelTarget Target() => new(new PersonId(Guid.NewGuid()), "a@example.test");
@@ -66,6 +75,7 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
             {
                 services.RemoveAll<ISmtpTransport>();
                 services.AddSingleton<ISmtpTransport>(transport);
+                services.AddSingleton<IClock>(clock);
             },
             configured ? Smtp : null);
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
@@ -139,6 +149,7 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
         transport.Throws = new MailKit.Security.AuthenticationException("535 bad credentials");
 
         var personal = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, TestRoute, new { channel = "email" }));
+        clock.Now += NodaTime.Duration.FromSeconds(30); // one test per person and channel every 30 s
         var admin = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "email" }));
 
         foreach (var body in new[] { personal, admin })
@@ -227,6 +238,28 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
         await AssertFieldAsync(await app.RawAsync(app.AdultB, HttpMethod.Post, TestRoute, new { channel = "email" }),
             "channel", "notifications.email_unavailable");
         Assert.Single(transport.Sent);
+    }
+
+    [Fact]
+    public async Task A_second_test_within_30_seconds_is_throttled()
+    {
+        var (app, transport) = await StartAsync();
+        await using var _ = app;
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, TestRoute, new { channel = "email" })).StatusCode);
+
+        clock.Now += NodaTime.Duration.FromSeconds(29);
+        foreach (var route in new[] { TestRoute, AdminRoute + "/test" })
+        {
+            var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, route, new { channel = "email" });
+            Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+            Assert.Equal("notifications.test_throttled", (await JsonOf(refused)).GetProperty("code").GetString());
+        }
+        Assert.Single(transport.Sent); // a refused test never reaches the channel
+
+        clock.Now += NodaTime.Duration.FromSeconds(1);
+        var again = await app.RawAsync(app.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "email" });
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(2, transport.Sent.Count);
     }
 
     [Fact]

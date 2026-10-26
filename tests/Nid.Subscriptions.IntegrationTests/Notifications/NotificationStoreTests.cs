@@ -108,7 +108,7 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal([recent], await ListAsync(app, app.AdultA, NotificationList.History, item));
 
         await using var purge = app.Services.CreateAsyncScope();
-        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), default);
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], default);
         Assert.Equal(1, purged);
         var db = purge.ServiceProvider.GetRequiredService<PlatformDbContext>();
         Assert.Equal([recent], await db.Notifications.AsNoTracking().Select(n => n.Id).ToListAsync());
@@ -133,11 +133,48 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
         }
 
         await using var purge = app.Services.CreateAsyncScope();
-        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), default);
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], default);
 
         Assert.Equal(1, purged);
         await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
         Assert.Empty(await db.Deliveries.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task Purge_takes_a_dismissed_row_whose_kind_is_no_longer_declared()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
+            foreach (var key in new[] { "retired_old", "retired_recent", "declared_old" })
+                await InsertAsync(store, app.AdultA, SignalOf(key, new ItemId(Guid.NewGuid())));
+        }
+        // Dismissed, never settled (ResolvedAt null): no source signals a retired kind, so the lifecycle never ends them.
+        var retiredOld = await IdOfAsync(app, app.AdultA, "retired_old");
+        await SetAsync(app, retiredOld, n => { n.Kind = "retired_kind"; n.State = NotificationStates.Dismissed; n.DismissedAt = Now - NodaTime.Duration.FromDays(91); });
+        await SetAsync(app, await IdOfAsync(app, app.AdultA, "retired_recent"),
+            n => { n.Kind = "retired_kind"; n.State = NotificationStates.Dismissed; n.DismissedAt = Now - NodaTime.Duration.FromDays(89); });
+        await SetAsync(app, await IdOfAsync(app, app.AdultA, "declared_old"),
+            n => { n.State = NotificationStates.Dismissed; n.DismissedAt = Now - NodaTime.Duration.FromDays(91); });
+        await using (var seed = PostgresFixture.NewPlatformContext(app.ConnectionString))
+        {
+            seed.Deliveries.Add(new NotificationDeliveryRow { Id = Guid.NewGuid(), NotificationId = retiredOld, PersonId = app.AdultA.Value, Channel = "email", State = "sent", CreatedAt = Now });
+            seed.Deliveries.Add(new NotificationDeliveryRow
+            {
+                Id = Guid.NewGuid(), NotificationId = retiredOld, PersonId = app.AdultA.Value, Channel = "discord_household", State = "sent", CreatedAt = Now,
+                HouseholdKey = "retired_old",
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var purge = app.Services.CreateAsyncScope();
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), [Kind.Kind], default);
+
+        Assert.Equal(1, purged);
+        await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        Assert.Equal(["declared_old", "retired_recent"], await db.Notifications.AsNoTracking().OrderBy(n => n.Key).Select(n => n.Key).ToListAsync());
+        Assert.Equal("discord_household", Assert.Single(await db.Deliveries.AsNoTracking().ToListAsync()).Channel); // the household's key stays spent
     }
 
     [Fact]

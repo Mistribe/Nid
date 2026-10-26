@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
-import { channelErrorText, discordFieldText } from '@/features/notifications/channelErrors';
+import { channelErrorText, discordFieldText, throttledText } from '@/features/notifications/channelErrors';
 import { DiscordWebhookControl } from '@/features/notifications/DiscordWebhookControl';
 import { DISCORD_HOUSEHOLD, useWebhook } from '@/features/notifications/preferences';
 import { fieldErrorsOf } from '@/features/subscriptions/fieldErrors';
@@ -16,7 +16,7 @@ import { formatInstant } from './format';
 import '@/locales/admin';
 import '@/locales/notifications';
 
-type TestOutcome = { kind: 'sent' } | { kind: 'refused'; error: string } | { kind: 'problem'; problem: Presentation };
+type TestOutcome = { kind: 'sent' } | { kind: 'throttled'; text: string } | { kind: 'refused'; error: string } | { kind: 'problem'; problem: Presentation };
 
 /** Administration › Notifications (spec §6.4): the email channel's state, a test send, the deliveries that failed. */
 export function NotificationsAdminPage() {
@@ -27,7 +27,10 @@ export function NotificationsAdminPage() {
   const [outcome, setOutcome] = useState<TestOutcome | null>(null);
   const test = $api.useMutation('post', '/api/v1/admin/notifications/test', {
     onSuccess: (result) => setOutcome(result.sent ? { kind: 'sent' } : { kind: 'refused', error: result.error ?? '' }),
-    onError: (error) => setOutcome({ kind: 'problem', problem: present(toProblem(error)) }),
+    onError: (error) => {
+      const throttled = throttledText(t, error);
+      setOutcome(throttled ? { kind: 'throttled', text: throttled } : { kind: 'problem', problem: present(toProblem(error)) });
+    },
   });
 
   const webhook = useWebhook(DISCORD_HOUSEHOLD, ['get', '/api/v1/admin/notifications']);
@@ -42,7 +45,9 @@ export function NotificationsAdminPage() {
     },
     onError: (error) => {
       const f = fieldErrorsOf(error)[0];
+      const throttled = throttledText(t, error);
       if (f) setDiscordOutcome(discordFieldText(t, f));
+      else if (throttled) setDiscordOutcome(throttled);
       else setDiscordProblem(present(toProblem(error)));
     },
   });
@@ -66,7 +71,7 @@ export function NotificationsAdminPage() {
           onClick={() => { setOutcome(null); test.mutate({ body: { channel: 'email' } }); }}>
           {t('admin.notifications.test')}
         </Button>
-        <p role="status">{outcome?.kind === 'sent' ? t('admin.notifications.test_sent') : null}</p>
+        <p role="status">{outcome?.kind === 'sent' ? t('admin.notifications.test_sent') : outcome?.kind === 'throttled' ? outcome.text : null}</p>
         {outcome?.kind === 'refused' ? (
           <div role="alert" className="space-y-1 rounded-md border border-destructive p-3">
             <p>{t('admin.notifications.test_failed')}</p>

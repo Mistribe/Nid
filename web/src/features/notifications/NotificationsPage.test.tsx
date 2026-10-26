@@ -137,6 +137,17 @@ describe('the notifications page', () => {
     await waitFor(() => expect(posted).toEqual([notification(1).id]));
   });
 
+  it('posts nothing when the link of a resolved unread row is followed', async () => {
+    serve({ history: [notification(6, { state: 'resolved', read: false, body: 'Résolu', link: `/properties/${PROPERTY}` })] });
+    const posted: string[] = [];
+    server.use(http.post('*/api/v1/platform/notifications/:id/read', ({ params }) => { posted.push(String(params.id)); return new HttpResponse(null, { status: 204 }); }));
+    const { user, router } = await renderApp('/notifications?tab=history');
+
+    await user.click((await screen.findAllByRole('link', { name: 'Résolu' }))[0]!);
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/properties/${PROPERTY}`));
+    expect(posted).toEqual([]);
+  });
+
   it('a critical row offers only Marquer comme lue', async () => {
     serve({ todo: [notification(2, { level: 'critical', critical: true, title: 'Échéance', body: 'Prêt' })] });
     const { user } = await renderApp('/notifications');

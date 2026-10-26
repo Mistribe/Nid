@@ -107,6 +107,9 @@ public interface IHouseholdCalendar
 
     /// <summary>The household's wall clock, in the same zone as <see cref="TodayAsync"/>.</summary>
     Task<LocalDateTime> NowAsync(CancellationToken ct);
+
+    /// <summary>The household's zone, to read an instant (an expiry, a run) as the household's day.</summary>
+    Task<DateTimeZone> ZoneAsync(CancellationToken ct);
 }
 
 /// <summary>2A spec §5.</summary>

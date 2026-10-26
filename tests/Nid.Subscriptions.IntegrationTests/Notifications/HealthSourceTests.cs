@@ -82,7 +82,7 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EvaluateAsync(h.App);
 
         var row = Assert.Single(await RowsAsync(h.App, "backup_failed"));
-        Assert.Equal((h.App.AdultA.Value, "critical", "backup_failed:2025-10-14T03:00", NotificationStates.Open), (row.PersonId, row.Level, row.Key, row.State));
+        Assert.Equal((h.App.AdultA.Value, "critical", "backup_failed:2025-10-14T05:00", NotificationStates.Open), (row.PersonId, row.Level, row.Key, row.State));
         Assert.Empty(row.ItemIds);
 
         await h.WriteAsync($$"""{"last_result":"ok","remote_result":"none","last_snapshot":"x","last_success_at":{{Now.ToUnixTimeSeconds()}}}""");
@@ -95,14 +95,14 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
     public async Task A_failed_sync_after_a_success_is_an_info_row_for_the_admin()
     {
         await using var h = await StartAsync(configured: false);
-        await FxRunAsync(h.App, "succeeded", Instant.FromUtc(2025, 10, 10, 6, 0));
+        await FxRunAsync(h.App, "succeeded", Instant.FromUtc(2025, 10, 10, 23, 30)); // 01:30 on the 11th in Paris, the household's zone
         await FxRunAsync(h.App, "failed", Instant.FromUtc(2025, 10, 14, 6, 0));
 
         await EvaluateAsync(h.App);
 
         var row = Assert.Single(await RowsAsync(h.App, "sync_failed"));
         Assert.Equal((h.App.AdultA.Value, "info"), (row.PersonId, row.Level));
-        Assert.Equal("sync_failed:fx:2025-10-10", row.Key);
+        Assert.Equal("sync_failed:fx:2025-10-11", row.Key);
     }
 
     [Fact]

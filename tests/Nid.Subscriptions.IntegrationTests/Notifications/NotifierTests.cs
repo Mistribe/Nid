@@ -246,7 +246,7 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         // After the 90-day purge the household keys stay spent, yet a new crash of the same job posts again.
         await notifier.ResolveAsync("job_failed:x", default);
         await using (var scope = app.Services.CreateAsyncScope())
-            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(200), default) > 0);
+            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(200), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), default) > 0);
         Assert.Empty(await RowsAsync(app, "job_failed:x"));
         clock.Now = Instant.FromUtc(2026, 5, 1, 8, 0);
         await notifier.PublishAsync(NoticeOf("job_failed", new Recipients.Admins(), "job_failed:x"), default);
@@ -304,7 +304,7 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         }
 
         await using (var scope = app.Services.CreateAsyncScope())
-            Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(91), default));
+            Assert.Equal(3, await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(clock.Now + NodaTime.Duration.FromDays(91), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), default));
         Assert.Empty(await RowsAsync(app, "access_violation:GetX:2025-10-15"));
     }
 

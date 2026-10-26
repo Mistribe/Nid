@@ -113,13 +113,29 @@ public class WebhookTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         {
             // The Replace path has no request actor here; a write is audited as the notifier (the job itself runs as Actor.System, see DiscordChannelTests).
             scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(app.AdultA);
-            await scope.ServiceProvider.GetRequiredService<IWebhookStore>().MarkBrokenAsync(app.AdultA, default);
+            await scope.ServiceProvider.GetRequiredService<IWebhookStore>().MarkBrokenAsync(app.AdultA, Url, default);
         }
         Assert.Equal("broken", (await app.GetAsync<JsonElement>(app.AdultA, Prefs)).GetProperty("discord").GetProperty("status").GetString());
 
         var put = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Put, Personal, new { url = Url }));
 
         Assert.Equal("ok", put.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task A_late_failure_of_the_old_webhook_leaves_the_new_one_ok()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await app.RawAsync(app.AdultA, HttpMethod.Put, Personal, new { url = Url });
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(app.AdultA);
+        var store = scope.ServiceProvider.GetRequiredService<IWebhookStore>();
+        var used = (await store.FindAsync(app.AdultA, default))!.Url; // a send reads it...
+
+        await app.RawAsync(app.AdultA, HttpMethod.Put, Personal, new { url = "https://discord.com/api/webhooks/654321/otherTokenabcd" });
+        await store.MarkBrokenAsync(app.AdultA, used, default); // ...and its 404 comes back after the replacement
+
+        Assert.Equal("ok", (await app.GetAsync<JsonElement>(app.AdultA, Prefs)).GetProperty("discord").GetProperty("status").GetString());
     }
 
     [Fact]

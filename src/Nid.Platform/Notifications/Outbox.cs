@@ -95,6 +95,9 @@ public interface IDeliveryStore
     /// </summary>
     Task SettleAsync(Guid id, string state, int attempts, Instant? nextAttemptAt, string? lastError, Instant? sentAt, CancellationToken ct);
 
+    /// <summary>Moves a pending message's next try, nothing else: a deferral is not an attempt.</summary>
+    Task DeferAsync(Guid id, Instant nextAttemptAt, CancellationToken ct);
+
     /// <summary>The messages that ended failed since <paramref name="since"/>, the latest first, at most <paramref name="limit"/>. For the admin status.</summary>
     Task<IReadOnlyList<FailedDelivery>> FailedSinceAsync(Instant since, int limit, CancellationToken ct);
 }

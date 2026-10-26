@@ -13,7 +13,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import '@/locales/notifications';
 import { useDismiss, useNotifications, useRead, useReadAll, useSnooze, type NotificationList, type NotificationView } from './api';
-import { localDateOf, parseNotificationLink } from './link';
+import { localDateOf, parseNotificationLink, readsOnFollow } from './link';
 
 const ConfirmDialog = lazy(() => import('@/components/ConfirmDialog'));
 const SnoozeDialog = lazy(() => import('./SnoozeDialog').then((m) => ({ default: m.SnoozeDialog })));
@@ -34,11 +34,11 @@ function Level({ level }: { level: string }) {
   return <span className="inline-flex items-center gap-1.5"><Icon aria-hidden="true" className={`size-4 ${LEVEL_COLOR[key]}`} />{t(`notifications_page.level.${key}`)}</span>;
 }
 
-/** Following the link of an unread notification reads it. */
+/** Following the link of an unread, live notification reads it. */
 function Element({ n, onFollow }: { n: NotificationView; onFollow: (n: NotificationView) => void }) {
   if (!n.link) return <>{n.body}</>;
   const target = parseNotificationLink(n.link);
-  return <Link to={target.to as never} search={target.search as never} onClick={() => { if (!n.read) onFollow(n); }} className="underline">{n.body}</Link>;
+  return <Link to={target.to as never} search={target.search as never} onClick={() => { if (readsOnFollow(n)) onFollow(n); }} className="underline">{n.body}</Link>;
 }
 
 function Panel({ list, actions }: { list: NotificationList; actions: Actions }) {

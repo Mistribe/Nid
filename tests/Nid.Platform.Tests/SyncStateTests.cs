@@ -16,12 +16,12 @@ public class SyncStateTests
 
     [Fact]
     public void Latest_succeeded_is_no_failure()
-        => Assert.Equal(new SyncState("fx", false, new LocalDate(2026, 10, 2)),
+        => Assert.Equal(new SyncState("fx", false, Day2),
             SyncState.FromRuns("fx", [(true, false, Day3), (false, true, Day2), (false, false, Day1)]));
 
     [Fact]
-    public void Failure_after_a_success_names_the_success_day()
-        => Assert.Equal(new SyncState("fx", true, new LocalDate(2026, 10, 1)),
+    public void Failure_after_a_success_names_the_success()
+        => Assert.Equal(new SyncState("fx", true, Day1),
             SyncState.FromRuns("fx", [(false, false, Day3), (false, false, Day2), (false, true, Day1)]));
 
     [Fact]

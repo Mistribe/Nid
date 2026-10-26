@@ -84,6 +84,10 @@ check "unhealthy when the configured remote failed" no "$(succeeds health_check 
 check "the remote result is named" "dépôt distant : unreachable" "$(health_check /tmp/status.json $now 26 yes 0)"
 state '{"last_result":"ok","remote_result":"none","last_snapshot":"a1","last_success_at":1790390000}'
 check "healthy without a remote" yes "$(succeeds health_check /tmp/status.json $now 26 no 0)"
+state '{"last_result":"none","remote_result":"failed","last_snapshot":"a1","last_success_at":1790390000}'
+check "unhealthy after a restart while the remote still fails" no "$(succeeds health_check /tmp/status.json $now 26 yes 0)"
+state '{"last_result":"none","remote_result":"none","last_snapshot":"a1","last_success_at":1790390000}'
+check "healthy after a restart with a remote not yet tried" yes "$(succeeds health_check /tmp/status.json $now 26 yes 0)"
 
 check "parts with Pocket ID embedded" '["database","pocket-id","dataprotection-keys","assets","deploy"]' "$(backup_parts embedded)"
 check "parts with Pocket ID external" '["database","dataprotection-keys","assets","deploy"]' "$(backup_parts external)"
@@ -96,6 +100,12 @@ check "a restart clears a success" none "$(kept_result ok)"
 check "a restart keeps none" none "$(kept_result none)"
 check "a restart clears a configuration error" none "$(kept_result configuration)"
 check "a first start has no result" none "$(kept_result '')"
+
+check "a restart keeps a failed remote" failed "$(kept_remote failed yes)"
+check "a restart keeps an unreachable remote" unreachable "$(kept_remote unreachable yes)"
+check "a restart clears a remote success" none "$(kept_remote ok yes)"
+check "a first start has no remote result" none "$(kept_remote '' yes)"
+check "a removed remote leaves no stale failure" none "$(kept_remote failed no)"
 
 STATE_DIR=/tmp/nid-state
 STATE=$STATE_DIR/status.json

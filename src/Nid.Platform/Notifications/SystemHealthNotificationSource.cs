@@ -11,7 +11,8 @@ namespace Nid.Platform.Notifications;
 /// A run log that cannot be read is logged and skipped, so it never hides the backup or another sync.
 /// </summary>
 public sealed partial class SystemHealthNotificationSource(
-    IPersonRegistry persons, IEnumerable<ISyncHealth> syncs, BackupOptions backup, IClock clock, ILogger<SystemHealthNotificationSource> logger) : INotificationSource
+    IPersonRegistry persons, IEnumerable<ISyncHealth> syncs, BackupOptions backup, IHouseholdCalendar calendar, IClock clock,
+    ILogger<SystemHealthNotificationSource> logger) : INotificationSource
 {
     public const string BackupFailed = "backup_failed";
     public const string SyncFailed = "sync_failed";
@@ -30,14 +31,16 @@ public sealed partial class SystemHealthNotificationSource(
         if (await persons.FindAsync(reader, ct) is not { IsAdmin: true })
             return Result.Success<IReadOnlyList<Signal>>(signals);
 
-        if (BackupSignal() is { } bad)
+        // The days and times in the keys are the household's, like the evaluation's today.
+        var zone = await calendar.ZoneAsync(ct);
+        if (BackupSignal(zone) is { } bad)
             signals.Add(bad);
         foreach (var sync in syncs)
         {
             try
             {
                 if (await sync.ReadAsync(ct) is { LastFinishedFailed: true } state)
-                    signals.Add(new Signal(SignalKeys.Household(SyncFailed, $"{state.Source}:{(state.LastSucceededOn is { } on ? $"{on:yyyy-MM-dd}" : "never")}"),
+                    signals.Add(new Signal(SignalKeys.Household(SyncFailed, $"{state.Source}:{(state.LastSucceededAt is { } at ? $"{at.InZone(zone).Date:yyyy-MM-dd}" : "never")}"),
                         SyncFailed, [], null, new Dictionary<string, string> { ["source"] = state.Source }));
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -52,7 +55,7 @@ public sealed partial class SystemHealthNotificationSource(
         return Result.Success<IReadOnlyList<Signal>>(signals);
     }
 
-    private Signal? BackupSignal()
+    private Signal? BackupSignal(DateTimeZone zone)
     {
         if (string.IsNullOrWhiteSpace(backup.StatusPath) || !File.Exists(backup.StatusPath))
             return null;
@@ -70,7 +73,7 @@ public sealed partial class SystemHealthNotificationSource(
         }
         if (BackupStatus.Evaluate(json, clock.GetCurrentInstant(), written, backup.MaxAgeHours) is not { Healthy: false } state)
             return null;
-        var since = state.LastSuccessAt is { } at ? at.InUtc().ToString("yyyy-MM-ddTHH:mm", null) : "never";
+        var since = state.LastSuccessAt is { } at ? at.InZone(zone).ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture) : "never";
         var parameters = new Dictionary<string, string> { ["reason"] = state.Reason! };
         if (state.Reason == "too_old")
             parameters["hours"] = backup.MaxAgeHours.ToString(System.Globalization.CultureInfo.InvariantCulture);

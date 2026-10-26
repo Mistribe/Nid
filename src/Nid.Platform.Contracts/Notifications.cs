@@ -59,6 +59,9 @@ public static class NotificationCodes
     public const string UnknownChannel = "notifications.unknown_channel";
     public const string InvalidWebhook = "notifications.invalid_webhook";
     public const string DiscordUnavailable = "notifications.discord_unavailable";
+
+    /// <summary>A test message on the same channel less than 30 seconds ago: answered 429, the channel is not called.</summary>
+    public const string TestThrottled = "notifications.test_throttled";
 }
 
 /// <summary>

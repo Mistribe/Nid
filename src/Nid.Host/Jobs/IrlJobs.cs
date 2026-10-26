@@ -32,7 +32,7 @@ public sealed partial class IrlWeeklyJob(IServiceScopeFactory scopes, ILogger<Ir
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
         }

@@ -172,6 +172,7 @@ public static class ResultHttp
                 or PropertyCodes.PropertyConflict or PropertyCodes.RecurringCostConflict or PropertyCodes.TenancyConflict => StatusCodes.Status409Conflict,
             _ when failure.Code is ProposalCodes.Conflict or ProposalCodes.Decided => StatusCodes.Status409Conflict,
             _ when failure.Code == NotificationCodes.PreferencesConflict => StatusCodes.Status409Conflict,
+            _ when failure.Code == NotificationCodes.TestThrottled => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
 

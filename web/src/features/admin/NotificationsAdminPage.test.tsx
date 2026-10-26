@@ -75,6 +75,17 @@ describe('Administration › Notifications', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('notifications.channel_unreachable 421');
   });
 
+  it('asks to wait when a test comes too soon after the last one', async () => {
+    serve(configured);
+    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    await renderApp('/admin/notifications', { capabilities: adminCapabilities });
+
+    await userEvent.click(await screen.findByRole('button', { name: "M'envoyer un email de test" }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Patientez quelques secondes avant un nouveau test.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('lists the failed deliveries: channel, kind, queued time and error', async () => {
     serve({ ...configured, failures: [failure, digest] });
     const { container } = await renderApp('/admin/notifications', { capabilities: adminCapabilities });
@@ -139,6 +150,15 @@ describe('Administration › Notifications', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Envoyer un test' }));
     expect(await screen.findByText(/Discord ne répond plus à ce webhook/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Envoyer un test' })).toBeDisabled();
+  });
+  it('asks to wait when a household Discord test comes too soon after the last one', async () => {
+    serve({ ...configured, discord: { hint: 'wxyz', status: 'ok' } });
+    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    await renderApp('/admin/notifications', { capabilities: adminCapabilities });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Envoyer un test' }));
+    expect(await screen.findByText('Patientez quelques secondes avant un nouveau test.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
   it('shows a household Discord test that fails with a server error, without a dangling colon', async () => {
     serve({ ...configured, discord: { hint: 'wxyz', status: 'ok' } });

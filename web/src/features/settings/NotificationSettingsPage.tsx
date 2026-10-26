@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DiscordWebhookControl } from '../notifications/DiscordWebhookControl';
-import { channelErrorText, discordFieldText } from '../notifications/channelErrors';
+import { channelErrorText, discordFieldText, throttledText } from '../notifications/channelErrors';
 import { fieldErrorsOf } from '../subscriptions/fieldErrors';
 import {
   DISCORD_PERSON, NOTIFICATION_PREFERENCES, usePreferences, useReloadPreferences, useWebhook, useSavePreferences, useTestChannel,
@@ -100,13 +100,14 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
   };
 
   const testFields = fieldErrorsOf(test.error);
-  const testProblem = test.error && testFields.length === 0 ? present(toProblem(test.error)) : null;
+  const testThrottled = throttledText(t, test.error);
+  const testProblem = test.error && testFields.length === 0 && !testThrottled ? present(toProblem(test.error)) : null;
 
   const discordFields = fieldErrorsOf(discordTest.error);
   const discordText = discordTest.data
     ? (discordTest.data.sent ? t('discord.test_sent') : t('discord.test_failed', { error: channelErrorText(t, discordTest.data.error ?? '') }))
-    : discordFields[0] ? discordFieldText(t, discordFields[0]) : null;
-  const discordProblem = discordTest.error && discordFields.length === 0 ? present(toProblem(discordTest.error)) : null;
+    : discordFields[0] ? discordFieldText(t, discordFields[0]) : throttledText(t, discordTest.error);
+  const discordProblem = discordTest.error && discordFields.length === 0 && !throttledText(t, discordTest.error) ? present(toProblem(discordTest.error)) : null;
 
   return (
     <form noValidate className="space-y-8" onSubmit={(e) => { e.preventDefault(); submit(); }}>
@@ -127,6 +128,7 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
           <p role="status" aria-live="polite" className="text-sm">
             {test.data ? (test.data.sent ? t('notification_settings.test_sent') : t('notification_settings.test_failed', { error: channelErrorText(t, test.data.error ?? '') })) : null}
             {testFields[0] ? messageOf(testFields[0].code, testFields[0].message) : null}
+            {testThrottled}
           </p>
         </div>
         {testProblem ? <ProblemMessage problem={testProblem} /> : null}

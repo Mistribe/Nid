@@ -47,16 +47,21 @@ public class DigestTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             => Task.FromResult(Result.Success<IReadOnlyList<Signal>>(Signals.ToList()));
     }
 
-    private sealed class FakeChannel : INotificationChannel
+    private sealed class FakeChannel(string name = "email") : INotificationChannel
     {
-        public string Name => "email";
+        public string Name => name;
 
         public bool IsAvailable => true;
 
         public List<(RenderedMessage Message, ChannelTarget Target)> Sent { get; } = [];
 
+        /// <summary>A failure code every send gets; null sends.</summary>
+        public string? Failing { get; set; }
+
         public Task<Result> SendAsync(RenderedMessage message, ChannelTarget target, CancellationToken ct)
         {
+            if (Failing is { } code)
+                return Task.FromResult(Result.Failure(new UnambitiousFx.Functional.Failures.Failure(code, "failed", null)));
             Sent.Add((message, target));
             return Task.FromResult(Result.Success());
         }
@@ -69,7 +74,7 @@ public class DigestTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
 
     private async Task<Harness> StartAsync(
         DigestFrequency frequency = DigestFrequency.Daily, int weekday = 1, InfoMode info = InfoMode.Digest, Instant? at = null,
-        string action = "digest")
+        string action = "digest", Action<IServiceCollection>? more = null)
     {
         var source = new FakeSource();
         var channel = new FakeChannel();
@@ -82,6 +87,7 @@ public class DigestTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             services.AddSingleton<INotificationChannel>(channel);
             services.RemoveAll<IEmailAvailability>();
             services.AddSingleton<IEmailAvailability, SmtpConfigured>();
+            more?.Invoke(services);
         });
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
         {
@@ -336,6 +342,87 @@ public class DigestTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         Assert.Equal(1, await DigestAsync(h));
         await DispatchAsync(h);
         Assert.Equal(2, h.Channel.Sent.Count);
+    }
+
+    [Fact]
+    public async Task A_digest_that_failed_everywhere_gives_its_rows_to_the_next_one()
+    {
+        await using var h = await StartAsync();
+        AddThree(h, await ItemAsync(h));
+        await EvaluateAsync(h);
+        Assert.Equal(1, await DigestAsync(h));
+        h.Channel.Failing = NotificationChannelCodes.Rejected; // its only channel fails for good
+
+        Assert.Equal(1, (await DispatchAsync(h)).Failed);
+        Assert.All(await RowsAsync(h), r => Assert.Equal((null, null), (r.DigestedAt, r.DigestId)));
+
+        h.Channel.Failing = null;
+        h.Clock.Now += NodaTime.Duration.FromDays(1);
+        await EvaluateAsync(h);
+        Assert.Equal(1, await DigestAsync(h));
+        await DispatchAsync(h);
+
+        Assert.Equal("Nid : 3 notifications", Assert.Single(h.Channel.Sent).Message.Subject);
+        var second = (await OutboxAsync(h)).Digests.Single(d => d.PeriodKey == "2025-10-16");
+        Assert.All(await RowsAsync(h), r => Assert.Equal(second.Id, r.DigestId));
+    }
+
+    [Fact]
+    public async Task A_digest_sent_on_another_channel_keeps_its_rows()
+    {
+        await using var h = await StartAsync();
+        AddThree(h, await ItemAsync(h));
+        await EvaluateAsync(h);
+        Assert.Equal(1, await DigestAsync(h));
+        var digest = Assert.Single((await OutboxAsync(h)).Digests);
+        await using (var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString))
+        {
+            db.Deliveries.Add(new NotificationDeliveryRow
+            {
+                Id = Guid.CreateVersion7(), DigestId = digest.Id, PersonId = h.App.AdultA.Value, Channel = "discord_person",
+                State = DeliveryStates.Sent, Attempts = 1, CreatedAt = h.Clock.Now, SentAt = h.Clock.Now,
+            });
+            await db.SaveChangesAsync();
+        }
+        h.Channel.Failing = NotificationChannelCodes.Rejected;
+
+        Assert.Equal(1, (await DispatchAsync(h)).Failed);
+
+        Assert.All(await RowsAsync(h), r => Assert.Equal(digest.Id, r.DigestId));
+        h.Clock.Now += NodaTime.Duration.FromDays(1);
+        await EvaluateAsync(h);
+        Assert.Equal(0, await DigestAsync(h));
+    }
+
+    [Fact]
+    public async Task A_digest_waits_for_a_channel_still_retrying_before_giving_its_rows_back()
+    {
+        var discord = new FakeChannel("discord_person");
+        await using var h = await StartAsync(more: services =>
+        {
+            foreach (var real in services.Where(d => d.ServiceType == typeof(INotificationChannel) && d.ImplementationFactory is not null).ToList())
+                services.Remove(real);
+            services.AddSingleton<INotificationChannel>(discord);
+        });
+        Assert.True((await h.App.RawAsync(h.App.AdultA, HttpMethod.Put, "/api/v1/platform/notifications/discord",
+            new { url = "https://discord.com/api/webhooks/1/hookA" })).IsSuccessStatusCode);
+        AddThree(h, await ItemAsync(h));
+        await EvaluateAsync(h);
+        Assert.Equal(1, await DigestAsync(h));
+        var digest = Assert.Single((await OutboxAsync(h)).Digests);
+        h.Channel.Failing = NotificationChannelCodes.Rejected; // email fails for good
+        discord.Failing = NotificationChannelCodes.Unreachable; // Discord will be retried
+
+        var first = await DispatchAsync(h);
+
+        Assert.Equal((1, 1), (first.Failed, first.Retried));
+        Assert.All(await RowsAsync(h), r => Assert.Equal(digest.Id, r.DigestId)); // Discord may still send them
+
+        discord.Failing = NotificationChannelCodes.Rejected;
+        h.Clock.Now += NodaTime.Duration.FromMinutes(1);
+        Assert.Equal(1, (await DispatchAsync(h)).Failed);
+
+        Assert.All(await RowsAsync(h), r => Assert.Equal((null, null), (r.DigestedAt, r.DigestId)));
     }
 
     private static async Task SwitchActionAsync(Harness h, string action)

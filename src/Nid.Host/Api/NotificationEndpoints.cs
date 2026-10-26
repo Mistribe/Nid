@@ -110,7 +110,8 @@ public static class NotificationEndpoints
 
         api.MapPost("/test", async (TestChannelBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new TestChannelCommand(body.Channel ?? ""), ct)).ToHttp(r => r))
-            .Returns<TestChannelResult>();
+            .Returns<TestChannelResult>()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         api.MapPut("/discord", async (DiscordWebhookBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SetDiscordWebhookCommand(body.Url ?? ""), ct)).ToHttp(v => v))

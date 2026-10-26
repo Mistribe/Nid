@@ -325,9 +325,12 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         return ToPreferences(row);
     }
 
-    public async Task<int> PurgeAsync(Instant olderThan, CancellationToken ct)
+    public async Task<int> PurgeAsync(Instant olderThan, IReadOnlyCollection<string> declaredKinds, CancellationToken ct)
     {
-        var purged = db.Notifications.Where(n => (n.State == NotificationStates.Resolved || n.State == NotificationStates.Dismissed) && n.ResolvedAt < olderThan);
+        var declared = declaredKinds.ToArray();
+        var purged = db.Notifications.Where(n => ((n.State == NotificationStates.Resolved || n.State == NotificationStates.Dismissed) && n.ResolvedAt < olderThan)
+            // No source settles a dismissed row of a retired kind: it goes 90 days after its dismissal.
+            || (n.State == NotificationStates.Dismissed && !declared.Contains(n.Kind) && n.DismissedAt < olderThan));
         // The deliveries go with their notification, except the household's: it outlives the row (FK set null), so its key stays spent.
         await db.Deliveries.Where(d => d.HouseholdKey == null && purged.Any(n => n.Id == d.NotificationId)).ExecuteDeleteAsync(ct);
         return await purged.ExecuteDeleteAsync(ct);

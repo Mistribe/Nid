@@ -27,7 +27,7 @@ internal static class ChannelTests
 
     public static async Task<Result<TestChannelResult>> SendAsync(
         string channelName, IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons,
-        IWebhookStore webhooks, IActorAccessor accessor, string[] allowed, CancellationToken ct)
+        IWebhookStore webhooks, IActorAccessor accessor, TestSendThrottle throttle, string[] allowed, CancellationToken ct)
     {
         if (accessor.Current?.PersonId is not { } me)
             return Result.Failure<TestChannelResult>(NotificationAccess.Unauthorized());
@@ -54,13 +54,16 @@ internal static class ChannelTests
                     : "Discord needs a working webhook on your profile.");
         }
 
+        if (!throttle.TryTake(me, name))
+            return Result.Failure<TestChannelResult>(new Failure(NotificationCodes.TestThrottled, "Wait a few seconds before another test.", null));
+
         try
         {
             var result = await channel.SendAsync(TestMessage(name == ChannelAccess.Email ? "par email" : "Discord"), new ChannelTarget(me, address), ct);
             if (!result.TryGetFailure(out var failure))
                 return Result.Success(new TestChannelResult(true, null));
             if (failure!.Code == NotificationChannelCodes.Broken)
-                await webhooks.MarkBrokenAsync(name == ChannelAccess.DiscordHousehold ? null : me, ct);
+                await webhooks.MarkBrokenAsync(name == ChannelAccess.DiscordHousehold ? null : me, address, ct);
             return Result.Success(new TestChannelResult(false, failure.Code));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -79,9 +82,9 @@ internal static class ChannelTests
 
 [RequestHandler<TestChannelCommand, TestChannelResult>]
 public sealed class TestChannelHandler(
-    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor)
-    : IRequestHandler<TestChannelCommand, TestChannelResult>
+    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor,
+    TestSendThrottle throttle) : IRequestHandler<TestChannelCommand, TestChannelResult>
 {
     public async ValueTask<Result<TestChannelResult>> HandleAsync(TestChannelCommand command, CancellationToken ct = default)
-        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, webhooks, accessor, ChannelTests.Personal, ct);
+        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, webhooks, accessor, throttle, ChannelTests.Personal, ct);
 }

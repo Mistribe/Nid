@@ -32,7 +32,7 @@ public sealed partial class PriceDailyJob(IServiceScopeFactory scopes, ILogger<P
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
         }

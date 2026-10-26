@@ -48,7 +48,7 @@ public sealed partial class EvaluateNotificationsHandler(
             await WakePublishedIsolatedAsync(adult.Id, prefs, today, ct);
         }
 
-        await store.PurgeAsync(clock.GetCurrentInstant() - NodaTime.Duration.FromDays(HistoryDays), ct);
+        await store.PurgeAsync(clock.GetCurrentInstant() - NodaTime.Duration.FromDays(HistoryDays), catalog.Kinds.Keys.ToList(), ct);
         return Result.Success(new EvaluationSummary(evaluated));
     }
 

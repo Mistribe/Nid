@@ -38,9 +38,9 @@ public sealed class GetAdminNotificationsHandler(IEmailAvailability email, IDeli
 
 [RequestHandler<AdminTestChannelCommand, TestChannelResult>]
 public sealed class AdminTestChannelHandler(
-    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor)
-    : IRequestHandler<AdminTestChannelCommand, TestChannelResult>
+    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor,
+    TestSendThrottle throttle) : IRequestHandler<AdminTestChannelCommand, TestChannelResult>
 {
     public async ValueTask<Result<TestChannelResult>> HandleAsync(AdminTestChannelCommand command, CancellationToken ct = default)
-        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, webhooks, accessor, ChannelTests.Household, ct);
+        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, webhooks, accessor, throttle, ChannelTests.Household, ct);
 }

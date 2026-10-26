@@ -29,8 +29,11 @@ public interface IWebhookStore
 
     Task RemoveAsync(PersonId? owner, CancellationToken ct);
 
-    /// <summary>No-op without a row.</summary>
-    Task MarkBrokenAsync(PersonId? owner, CancellationToken ct);
+    /// <summary>
+    /// Marks the webhook broken if it is still <paramref name="url"/>, the one the failed send used: a late failure of a replaced
+    /// webhook leaves the new one alone. No-op without a row.
+    /// </summary>
+    Task MarkBrokenAsync(PersonId? owner, string url, CancellationToken ct);
 }
 
 public static partial class WebhookUrls

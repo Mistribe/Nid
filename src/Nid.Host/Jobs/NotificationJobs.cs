@@ -35,7 +35,7 @@ public sealed partial class NotificationsDispatchJob(IServiceScopeFactory scopes
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
         }
@@ -75,7 +75,7 @@ public sealed partial class NotificationsEvaluateJob(IServiceScopeFactory scopes
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
         }
@@ -180,7 +180,7 @@ public sealed partial class NotificationsDigestJob(IServiceScopeFactory scopes, 
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
         }

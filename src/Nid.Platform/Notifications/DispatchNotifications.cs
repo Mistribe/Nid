@@ -32,13 +32,19 @@ public sealed partial class DispatchNotificationsHandler(
 {
     public const int BatchSize = 50;
 
+    /// <summary>How far a message is put back when its target answered unreachable earlier in the run: the first retry's delay.</summary>
+    public static readonly NodaTime.Duration DeferredBy = NodaTime.Duration.FromMinutes(1);
+
     private const string RenderFailed = "notifications.render_failed";
     private const string DispatchCrashed = "notifications.dispatch_crashed";
 
     private enum Outcome { None, Sent, Skipped, Failed, Retried }
 
-    /// <summary>The failure code, and the text kept as <c>last_error</c>: the code and the status the channel gave, never content.</summary>
-    private sealed record SendFailure(string Code, string Error)
+    /// <summary>
+    /// The failure code, and the text kept as <c>last_error</c>: the code and the status the channel gave, never content.
+    /// <paramref name="Threw"/>: the channel crashed rather than answered.
+    /// </summary>
+    private sealed record SendFailure(string Code, string Error, bool Threw = false)
     {
         public static SendFailure Of(UnambitiousFx.Functional.Failures.Failure failure)
             => new(failure.Code, NotificationChannelCodes.StatusOf(failure) is { } status ? $"{failure.Code} {status}" : failure.Code);
@@ -47,12 +53,13 @@ public sealed partial class DispatchNotificationsHandler(
     public async ValueTask<Result<DispatchSummary>> HandleAsync(DispatchNotificationsCommand command, CancellationToken ct = default)
     {
         var counts = new Dictionary<Outcome, int>();
+        var unreachable = new HashSet<string>(); // the targets that answered unreachable in this run
         foreach (var due in await deliveries.DueAsync(clock.GetCurrentInstant(), BatchSize, ct))
         {
             Outcome outcome;
             try
             {
-                outcome = await DispatchOneAsync(due, ct);
+                outcome = await DispatchOneAsync(due, unreachable, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -81,8 +88,7 @@ public sealed partial class DispatchNotificationsHandler(
         {
             var now = clock.GetCurrentInstant();
             var next = OutboxRules.NextAttempt(due.Attempts, now);
-            await deliveries.SettleAsync(
-                due.Id, next is null ? DeliveryStates.Failed : DeliveryStates.Pending, due.Attempts + 1, next, DispatchCrashed, null, ct);
+            await SettleAsync(due, next is null ? DeliveryStates.Failed : DeliveryStates.Pending, due.Attempts + 1, next, DispatchCrashed, null, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -94,7 +100,7 @@ public sealed partial class DispatchNotificationsHandler(
         }
     }
 
-    private async Task<Outcome> DispatchOneAsync(DeliveryRecord due, CancellationToken ct)
+    private async Task<Outcome> DispatchOneAsync(DeliveryRecord due, HashSet<string> unreachable, CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
         // A re-read, not a lock: safe with one API instance, since the job is [DisallowConcurrentExecution].
@@ -139,6 +145,15 @@ public sealed partial class DispatchNotificationsHandler(
                 await webhooks.FindAsync(delivery.Person, ct));
         if (channel is null || address is null)
             return await SkipAsync(delivery, ct);
+        // The target the send reaches: the email channel's SMTP server is one for every address, a webhook is its own.
+        var target = channel.Name == ChannelAccess.Email ? channel.Name : $"{channel.Name} {address}";
+        if (unreachable.Contains(target))
+        {
+            // Deferred, not an attempt: only the next try moves, so a long outage does not keep these at the head of the batch
+            // ahead of the other channels' messages.
+            await deliveries.DeferAsync(delivery.Id, clock.GetCurrentInstant() + DeferredBy, ct);
+            return Outcome.None;
+        }
 
         RenderedMessage message;
         try
@@ -160,7 +175,7 @@ public sealed partial class DispatchNotificationsHandler(
         catch (Exception e)
         {
             LogRenderFailed(e, delivery.Id);
-            await deliveries.SettleAsync(delivery.Id, DeliveryStates.Failed, delivery.Attempts + 1, null, RenderFailed, null, ct);
+            await SettleAsync(delivery, DeliveryStates.Failed, delivery.Attempts + 1, null, RenderFailed, null, ct);
             return Outcome.Failed;
         }
 
@@ -168,21 +183,23 @@ public sealed partial class DispatchNotificationsHandler(
         var attempts = delivery.Attempts + 1;
         if (failed is null)
         {
-            await deliveries.SettleAsync(delivery.Id, DeliveryStates.Sent, attempts, null, null, clock.GetCurrentInstant(), ct);
+            await SettleAsync(delivery, DeliveryStates.Sent, attempts, null, null, clock.GetCurrentInstant(), ct);
             return Outcome.Sent;
         }
 
+        if (failed is { Code: NotificationChannelCodes.Unreachable, Threw: false })
+            unreachable.Add(target);
         if (failed.Code == NotificationChannelCodes.Broken)
-            await webhooks.MarkBrokenAsync(household ? null : delivery.Person, ct); // the next pending messages for it are skipped
+            await webhooks.MarkBrokenAsync(household ? null : delivery.Person, address, ct); // the next pending messages for it are skipped
 
         var next = failed.Code is NotificationChannelCodes.Rejected or NotificationChannelCodes.Broken ? null : OutboxRules.NextAttempt(delivery.Attempts, clock.GetCurrentInstant());
         if (next is null)
         {
-            await deliveries.SettleAsync(delivery.Id, DeliveryStates.Failed, attempts, null, failed.Error, null, ct);
+            await SettleAsync(delivery, DeliveryStates.Failed, attempts, null, failed.Error, null, ct);
             return Outcome.Failed;
         }
 
-        await deliveries.SettleAsync(delivery.Id, DeliveryStates.Pending, attempts, next, failed.Error, null, ct);
+        await SettleAsync(delivery, DeliveryStates.Pending, attempts, next, failed.Error, null, ct);
         return Outcome.Retried;
     }
 
@@ -201,14 +218,22 @@ public sealed partial class DispatchNotificationsHandler(
         catch (Exception e)
         {
             LogSendCrashed(e, channel.Name);
-            return new SendFailure(NotificationChannelCodes.Unreachable, NotificationChannelCodes.Unreachable);
+            return new SendFailure(NotificationChannelCodes.Unreachable, NotificationChannelCodes.Unreachable, Threw: true);
         }
     }
 
     private async Task<Outcome> SkipAsync(DeliveryRecord delivery, CancellationToken ct)
     {
-        await deliveries.SettleAsync(delivery.Id, DeliveryStates.Skipped, delivery.Attempts, null, null, null, ct);
+        await SettleAsync(delivery, DeliveryStates.Skipped, delivery.Attempts, null, null, null, ct);
         return Outcome.Skipped;
+    }
+
+    private async Task SettleAsync(DeliveryRecord delivery, string state, int attempts, Instant? next, string? error, Instant? sentAt, CancellationToken ct)
+    {
+        await deliveries.SettleAsync(delivery.Id, state, attempts, next, error, sentAt, ct);
+        // A digest that reached nobody on any channel gives its rows to the next one.
+        if (delivery.DigestId is { } digestId && state is DeliveryStates.Failed or DeliveryStates.Skipped)
+            await digests.ReleaseAsync(digestId, ct);
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Delivery {Delivery} could not be dispatched")]

@@ -171,6 +171,16 @@ describe('the notification settings page', () => {
     expect(await screen.findByText('L’email n’est pas parti : Le service a refusé le message.')).toBeInTheDocument();
     expect(screen.queryByText(/notifications.channel_rejected/)).not.toBeInTheDocument();
   });
+  it('asks to wait when a test comes too soon after the last one', async () => {
+    serve();
+    server.use(http.post('*/api/v1/platform/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    const { user } = await renderApp('/settings/notifications');
+
+    await user.click(await screen.findByRole('button', { name: 'Envoyer un test' }));
+    expect(await screen.findByText('Patientez quelques secondes avant un nouveau test.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('saves the Discord webhook on its own and keeps the form’s version', async () => {
     const sent = serve();
     const calls: { method: string; body?: Body }[] = [];

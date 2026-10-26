@@ -85,6 +85,10 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
         }
     }
 
+    public async Task DeferAsync(Guid id, Instant nextAttemptAt, CancellationToken ct)
+        => await db.Deliveries.Where(d => d.Id == id && d.State == DeliveryStates.Pending)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.NextAttemptAt, nextAttemptAt), ct);
+
     public async Task<bool> TryCreateAsync(Guid id, PersonId person, string periodKey, Instant now, CancellationToken ct)
         // In SQL: the unique (person, period) makes the second insert a no-op; only the run that inserted goes on.
         => await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -130,4 +134,10 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
                 .OrderBy(n => n.OpenedAt).ThenBy(n => n.Id)
                 .ToListAsync(ct))
             .Select(NotificationStore.ToRecord).ToList();
+
+    public async Task ReleaseAsync(Guid digestId, CancellationToken ct)
+        => await db.Notifications
+            .Where(n => n.DigestId == digestId && n.State == NotificationStates.Open
+                        && !db.Deliveries.Any(d => d.DigestId == digestId && (d.State == DeliveryStates.Sent || d.State == DeliveryStates.Pending)))
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.DigestedAt, (Instant?)null).SetProperty(n => n.DigestId, (Guid?)null), ct);
 }

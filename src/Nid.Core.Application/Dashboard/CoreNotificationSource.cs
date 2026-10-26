@@ -10,7 +10,7 @@ namespace Nid.Core.Application.Dashboard;
 /// Notifications design §2.3: what the dashboard says about the household as a whole, as signals: a currency without a rate, and
 /// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount.
 /// </summary>
-public sealed class CoreNotificationSource(DashboardReader dashboard, IPersonalAccessTokens tokens, IClock clock) : INotificationSource
+public sealed class CoreNotificationSource(DashboardReader dashboard, IPersonalAccessTokens tokens, IHouseholdCalendar calendar, IClock clock) : INotificationSource
 {
     public const string FxRateMissing = "fx_rate_missing";
     public const string RoutineDue = "routine_due";
@@ -40,11 +40,12 @@ public sealed class CoreNotificationSource(DashboardReader dashboard, IPersonalA
         if (view.Todo.Any(t => t.Kind is "stale_value" or "no_value"))
             signals.Add(new Signal(SignalKeys.Household(RoutineDue, $"{today:yyyy-MM}"), RoutineDue, [], null, NoParams));
 
-        // The expiry day is read in UTC (ponytail: up to a day off the household's clock, the same day in the key and the title).
+        // The expiry day is the household's, like today and the horizon: the same day in the key and the title.
         var now = clock.GetCurrentInstant();
+        var zone = await calendar.ZoneAsync(ct);
         foreach (var t in await tokens.ListAsync(reader, ct))
         {
-            var on = t.ExpiresAt.InUtc().Date;
+            var on = t.ExpiresAt.InZone(zone).Date;
             if (t.RevokedAt is null && t.ExpiresAt > now && on <= horizon)
                 signals.Add(new Signal($"{TokenExpiring}:{t.Id:D}:{on:yyyy-MM-dd}", TokenExpiring, [], on, NoParams));
         }

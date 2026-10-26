@@ -65,7 +65,8 @@
   "channel_errors": {
     "unreachable": "Le serveur d’envoi ne répond pas.",
     "rejected": "Le service a refusé le message.",
-    "broken": "Discord ne reconnaît plus ce webhook"
+    "broken": "Discord ne reconnaît plus ce webhook",
+    "throttled": "Patientez quelques secondes avant un nouveau test."
   },
   "discord": {
     "label": "Webhook Discord",

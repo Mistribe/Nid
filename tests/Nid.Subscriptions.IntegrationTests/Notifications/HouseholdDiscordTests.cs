@@ -176,7 +176,7 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
 
         h.Clock.Now = Instant.FromUtc(2026, 2, 1, 8, 0);
         await using (var scope = h.App.Services.CreateAsyncScope())
-            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(h.Clock.Now - NodaTime.Duration.FromDays(90), default) > 0);
+            Assert.True(await scope.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(h.Clock.Now - NodaTime.Duration.FromDays(90), scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Kinds.Keys.ToList(), default) > 0);
         await EvaluateAllAsync(h);
         await DispatchAsync(h);
 

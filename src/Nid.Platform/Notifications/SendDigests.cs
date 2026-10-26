@@ -38,6 +38,12 @@ public interface IDigestStore
 
     /// <summary>The rows the digest carries that are still open, the oldest opened first.</summary>
     Task<IReadOnlyList<NotificationRecord>> OpenRowsAsync(Guid digestId, CancellationToken ct);
+
+    /// <summary>
+    /// Gives the digest's still-open rows back (<c>digested_at</c>, <c>digest_id</c> cleared) so the next digest takes them, when
+    /// none of its messages was sent or still waits.
+    /// </summary>
+    Task ReleaseAsync(Guid digestId, CancellationToken ct);
 }
 
 [RequestHandler<SendDigestsCommand, DigestSummary>]

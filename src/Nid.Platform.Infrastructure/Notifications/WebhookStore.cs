@@ -68,14 +68,27 @@ public sealed class WebhookStore(PlatformDbContext db, IDataProtectionProvider p
         }
     }
 
-    public async Task MarkBrokenAsync(PersonId? owner, CancellationToken ct)
+    public async Task MarkBrokenAsync(PersonId? owner, string url, CancellationToken ct)
     {
         var id = owner?.Value;
-        if (await db.Webhooks.FirstOrDefaultAsync(w => w.PersonId == id, ct) is { } row && row.Status != WebhookStates.Broken)
+        if (await db.Webhooks.FirstOrDefaultAsync(w => w.PersonId == id, ct) is { } row && row.Status != WebhookStates.Broken && Holds(row, url))
         {
             row.Status = WebhookStates.Broken;
             row.UpdatedAt = clock.GetCurrentInstant();
             await db.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>True when the row still decrypts to <paramref name="url"/>; one that cannot be read already shows as broken.</summary>
+    private bool Holds(NotificationWebhookRow row, string url)
+    {
+        try
+        {
+            return Encoding.UTF8.GetString(_protector.Unprotect(row.Url)) == url;
+        }
+        catch (CryptographicException)
+        {
+            return false;
         }
     }
 }

@@ -51,15 +51,17 @@ pgpass() { # password file: PGPASSFILE for nid@$NID_DB_HOST/nid
 }
 
 # At start: the last success comes from the repository, so a restart does not reset the age; a failed step is kept
-# (kept_result), so a restart does not clear the alert either.
+# (kept_result), so a restart does not clear the alert either; so is a failed remote while one is configured (kept_remote).
 rebuild_status() {
   kept=$(kept_result "$(previous .last_result)")
+  configured=no; if remote_configured; then configured=yes; fi
+  remote=$(kept_remote "$(previous .remote_result)" "$configured")
   latest=$(local_restic snapshots --host nid --tag nid --latest 1 --json 2>/dev/null || echo '[]')
   time=$(echo "$latest" | jq -r 'sort_by(.time) | last | .time // empty')
   if [ -n "$time" ]; then
-    write_status "$kept" none "$(echo "$latest" | jq -r 'sort_by(.time) | last | .short_id')" "$(iso_to_epoch "$time")"
+    write_status "$kept" "$remote" "$(echo "$latest" | jq -r 'sort_by(.time) | last | .short_id')" "$(iso_to_epoch "$time")"
   else
-    write_status "$kept" none "" ""
+    write_status "$kept" "$remote" "" ""
   fi
 }
 

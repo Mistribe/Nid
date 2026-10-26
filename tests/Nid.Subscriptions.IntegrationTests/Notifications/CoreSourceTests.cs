@@ -113,6 +113,24 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Empty(await SignalsAsync(app, app.AdultA)); // Alice sees nothing of Bob's tokens
     }
 
+    private sealed class FixedClock(Instant now) : IClock
+    {
+        public Instant GetCurrentInstant() => now;
+    }
+
+    [Fact]
+    public async Task A_token_expiry_is_dated_on_the_households_clock()
+    {
+        // 23:30 UTC is 01:30 the next day in Paris (UTC+2 until 2025-10-26), the household's zone.
+        await using var app = await NidApp.StartAsync(fixture, s => s.AddSingleton<IClock>(new FixedClock(Instant.FromUtc(2025, 10, 14, 23, 30))));
+        var token = await TokenAsync(app, app.AdultB, 5); // expires 2025-10-19 23:30 UTC
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultB, days: 7));
+
+        Assert.Equal($"token_expiring:{token}:2025-10-20", signal.Key);
+        Assert.Equal(new LocalDate(2025, 10, 20), signal.DueOn);
+    }
+
     [Fact]
     public async Task A_revoked_token_is_no_signal()
     {

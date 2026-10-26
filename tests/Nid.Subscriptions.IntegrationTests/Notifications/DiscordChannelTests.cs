@@ -47,8 +47,12 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
 
     private sealed class SettableClock(Instant now) : IClock
     {
-        public Instant GetCurrentInstant() => now;
+        public Instant Now { get; set; } = now;
+
+        public Instant GetCurrentInstant() => Now;
     }
+
+    private readonly SettableClock clock = new(Start);
 
     private sealed class FakeSource : INotificationSource
     {
@@ -83,7 +87,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
             fixture,
             services =>
             {
-                services.AddSingleton<IClock>(new SettableClock(Start));
+                services.AddSingleton<IClock>(clock);
                 services.RemoveAll<INotificationSource>();
                 services.AddSingleton<INotificationSource>(source);
                 services.RemoveAll<SafeHttpClient>();
@@ -306,6 +310,7 @@ public class DiscordChannelTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(("channel", "notifications.discord_unavailable"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
 
         h.Discord.Answer = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
+        clock.Now += NodaTime.Duration.FromSeconds(30); // one test per person and channel every 30 s
         var gone = await (await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, TestRoute, new { channel = "discord_person" })).Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(gone.GetProperty("sent").GetBoolean());
         Assert.Equal(NotificationChannelCodes.Broken, gone.GetProperty("error").GetString());

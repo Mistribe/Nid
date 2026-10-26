@@ -43,7 +43,7 @@ public abstract partial class FxJob(IServiceScopeFactory scopes, ILogger logger)
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted(GetType().Name);
         }

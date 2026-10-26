@@ -75,6 +75,9 @@ public interface INotificationStore
     /// </summary>
     Task<NotificationPreferences?> SavePreferencesAsync(PersonId person, NotificationPreferences next, CancellationToken ct);
 
-    /// <summary>Deletes the resolved and dismissed rows that ended before <paramref name="olderThan"/>.</summary>
-    Task<int> PurgeAsync(Instant olderThan, CancellationToken ct);
+    /// <summary>
+    /// Deletes the resolved and dismissed rows that ended before <paramref name="olderThan"/>, and the dismissed rows of a kind not in
+    /// <paramref name="declaredKinds"/> dismissed before it (no source settles them any more).
+    /// </summary>
+    Task<int> PurgeAsync(Instant olderThan, IReadOnlyCollection<string> declaredKinds, CancellationToken ct);
 }

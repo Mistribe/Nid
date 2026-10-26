@@ -49,9 +49,9 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             => Task.FromResult(Result.Success<IReadOnlyList<Signal>>(Signals.ToList()));
     }
 
-    private sealed class FakeChannel : INotificationChannel
+    private sealed class FakeChannel(string name = "email") : INotificationChannel
     {
-        public string Name => "email";
+        public string Name => name;
 
         public bool IsAvailable { get; set; } = true;
 
@@ -60,19 +60,33 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         /// <summary>The next results, one per call: "" succeeds, null throws, anything else fails with that code. Empty succeeds.</summary>
         public Queue<string?> Script { get; } = [];
 
-        public Task<Result> SendAsync(RenderedMessage message, ChannelTarget target, CancellationToken ct)
+        /// <summary>The addresses that answer unreachable, whatever the script says.</summary>
+        public HashSet<string> Down { get; } = [];
+
+        /// <summary>Every address a send was tried to, in order.</summary>
+        public List<string> Tried { get; } = [];
+
+        /// <summary>Runs while the send is in flight, before its answer (something changing meanwhile).</summary>
+        public Func<Task>? During { get; set; }
+
+        public async Task<Result> SendAsync(RenderedMessage message, ChannelTarget target, CancellationToken ct)
         {
+            Tried.Add(target.Address);
+            if (During is { } during)
+                await during();
+            if (Down.Contains(target.Address))
+                return Result.Failure(new Failure(NotificationChannelCodes.Unreachable, "failed", null));
             if (Script.Count > 0)
             {
                 var next = Script.Dequeue();
                 if (next is null)
                     throw new InvalidOperationException("The channel exploded.");
                 if (next != "")
-                    return Task.FromResult(Result.Failure(new Failure(next, "failed", null)));
+                    return Result.Failure(new Failure(next, "failed", null));
             }
 
             Sent.Add((message, target));
-            return Task.FromResult(Result.Success());
+            return Result.Success();
         }
     }
 
@@ -444,6 +458,130 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     }
 
     [Fact]
+    public async Task An_unreachable_channel_defers_the_rest_of_its_batch()
+    {
+        await using var h = await StartAsync();
+        var item = await ItemAsync(h);
+        for (var i = 0; i < 3; i++)
+            h.Source.Signals.Add(SignalOf(Action, $"a:{i}", item));
+        h.Channel.Script.Enqueue(NotificationChannelCodes.Unreachable); // the SMTP server is down for the first send only
+        await EvaluateAsync(h);
+
+        var summary = await DispatchAsync(h);
+
+        Assert.Single(h.Channel.Tried); // one call only: the failed one
+        Assert.Equal((0, 1), (summary.Sent, summary.Retried));
+        var deliveries = await DeliveriesAsync(h);
+        Assert.All(deliveries, d => Assert.Equal("pending", d.State));
+        Assert.Equal([0, 0, 1], deliveries.Select(d => d.Attempts).Order().ToList());
+        // Deferred, not attempted: no attempt, no error, only the next try moved by a minute.
+        Assert.Equal(2, deliveries.Count(d => d is { Attempts: 0, LastError: null } && d.NextAttemptAt == h.Clock.Now + DispatchNotificationsHandler.DeferredBy));
+
+        Assert.Equal(0, (await DispatchAsync(h)).Sent); // not due again within the minute
+        h.Clock.Now += DispatchNotificationsHandler.DeferredBy;
+        Assert.Equal(3, (await DispatchAsync(h)).Sent); // the retried one and the two deferred
+    }
+
+    private const string HookA = "https://discord.com/api/webhooks/1/hookA";
+    private const string HookB = "https://discord.com/api/webhooks/2/hookB";
+
+    /// <summary>The harness with a fake <c>discord_person</c> in place of the real Discord channels.</summary>
+    private async Task<(Harness H, FakeChannel Discord)> StartWithDiscordAsync(bool emailOn = true)
+    {
+        var discord = new FakeChannel("discord_person");
+        var h = await StartAsync(emailOn, more: services =>
+        {
+            foreach (var real in services.Where(d => d.ServiceType == typeof(INotificationChannel) && d.ImplementationFactory is not null).ToList())
+                services.Remove(real);
+            services.AddSingleton<INotificationChannel>(discord);
+        });
+        return (h, discord);
+    }
+
+    private static async Task PutWebhookAsync(Harness h, PersonId person, string url)
+        => Assert.True((await h.App.RawAsync(person, HttpMethod.Put, "/api/v1/platform/notifications/discord", new { url })).IsSuccessStatusCode);
+
+    [Fact]
+    public async Task Deferred_emails_do_not_starve_a_discord_message_queued_behind_them()
+    {
+        var (h, discord) = await StartWithDiscordAsync();
+        await using var _ = h;
+        var item = await ItemAsync(h);
+        for (var i = 0; i < DispatchNotificationsHandler.BatchSize + 1; i++)
+            h.Source.Signals.Add(SignalOf(Action, $"a:{i}", item));
+        for (var i = 0; i < 10; i++)
+            h.Channel.Script.Enqueue(NotificationChannelCodes.Unreachable); // the SMTP server stays down
+        await EvaluateAsync(h); // 51 emails, no webhook yet
+        await PutWebhookAsync(h, h.App.AdultA, HookA);
+        h.Source.Signals.Add(SignalOf(Action, "late", item));
+        await EvaluateAsync(h); // one more email and the Discord message, behind the 51
+
+        await DispatchAsync(h); // a full batch of emails: one tried, 49 deferred
+        Assert.Empty(discord.Tried);
+        await DispatchAsync(h); // same minute: the deferred ones are no longer at the head
+
+        Assert.Equal([HookA], discord.Sent.Select(s => s.Target.Address).ToList());
+    }
+
+    [Fact]
+    public async Task An_unreachable_email_server_does_not_defer_discord()
+    {
+        var (h, discord) = await StartWithDiscordAsync();
+        await using var _ = h;
+        await PutWebhookAsync(h, h.App.AdultA, HookA);
+        var item = await ItemAsync(h);
+        h.Source.Signals.Add(SignalOf(Action, "a:1", item));
+        h.Source.Signals.Add(SignalOf(Action, "a:2", item));
+        for (var i = 0; i < 5; i++)
+            h.Channel.Script.Enqueue(NotificationChannelCodes.Unreachable);
+        await EvaluateAsync(h);
+
+        await DispatchAsync(h);
+
+        Assert.Single(h.Channel.Tried); // the second email is deferred
+        Assert.Equal(2, discord.Sent.Count); // both Discord messages went out in the same run
+    }
+
+    [Fact]
+    public async Task A_webhook_deferral_is_scoped_to_its_url()
+    {
+        var (h, discord) = await StartWithDiscordAsync(emailOn: false);
+        await using var _ = h;
+        await PutWebhookAsync(h, h.App.AdultA, HookA);
+        await PutWebhookAsync(h, h.App.AdultB, HookB);
+        discord.Down.Add(HookA);
+        var item = await ItemAsync(h);
+        h.Source.Signals.Add(SignalOf(Action, "a:1", item));
+        h.Source.Signals.Add(SignalOf(Action, "a:2", item));
+        await EvaluateAsync(h);
+        var (_, failure) = await h.App.InvokeAsync(h.App.AdultA, new EvaluateNotificationsCommand(h.App.AdultB, true));
+        Assert.Null(failure);
+
+        await DispatchAsync(h);
+
+        Assert.Equal(1, discord.Tried.Count(a => a == HookA)); // A's second message is deferred
+        Assert.Equal([HookB, HookB], discord.Sent.Select(s => s.Target.Address).ToList()); // B's webhook still sends
+    }
+
+    [Fact]
+    public async Task A_404_for_a_webhook_replaced_during_the_send_leaves_the_new_one_ok()
+    {
+        var (h, discord) = await StartWithDiscordAsync(emailOn: false);
+        await using var _ = h;
+        await PutWebhookAsync(h, h.App.AdultA, HookA);
+        h.Source.Signals.Add(SignalOf(Action, "a:1", await ItemAsync(h)));
+        await EvaluateAsync(h);
+        discord.Script.Enqueue(NotificationChannelCodes.Broken); // the old webhook answers 404...
+        discord.During = () => PutWebhookAsync(h, h.App.AdultA, HookB); // ...after the person replaced it
+
+        Assert.Equal(1, (await DispatchAsync(h)).Failed);
+
+        var prefs = await h.App.GetAsync<JsonElement>(h.App.AdultA, PreferencesRoute);
+        Assert.Equal("ok", prefs.GetProperty("discord").GetProperty("status").GetString());
+        Assert.Equal(HookB[^4..], prefs.GetProperty("discord").GetProperty("hint").GetString());
+    }
+
+    [Fact]
     public async Task The_batch_is_bounded()
     {
         await using var h = await StartAsync();
@@ -516,6 +654,8 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
                 : inner.SettleAsync(id, state, attempts, nextAttemptAt, lastError, sentAt, ct);
 
         public Task<IReadOnlyList<FailedDelivery>> FailedSinceAsync(Instant since, int limit, CancellationToken ct) => inner.FailedSinceAsync(since, limit, ct);
+
+        public Task DeferAsync(Guid id, Instant nextAttemptAt, CancellationToken ct) => inner.DeferAsync(id, nextAttemptAt, ct);
     }
 
     [Fact]

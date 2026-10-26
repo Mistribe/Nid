@@ -92,7 +92,8 @@ health_check() {
   if [ $(( $2 - ${since:-$5} )) -gt $(( $3 * 3600 )) ]; then
     echo "aucune sauvegarde réussie depuis plus de $3 h"; return 1
   fi
-  if [ "$4" = yes ] && [ "$result" = ok ] && [ "$remote" != ok ]; then
+  # After a restart (result none) the remote is none, or a failure kept by kept_remote.
+  if [ "$4" = yes ] && { [ "$result" = ok ] || [ "$remote" != none ]; } && [ "$remote" != ok ]; then
     echo "dépôt distant : $remote"; return 1
   fi
   echo ok
@@ -104,6 +105,15 @@ kept_result() {
   case ${1:-none} in
     ok | none | configuration) echo none ;;
     *) echo "$1" ;;
+  esac
+}
+
+# kept_remote PREVIOUS CONFIGURED: the remote_result a start keeps. A failed or unreachable remote stays so while a remote
+# is configured (yes), so a restart does not hide it until the next run; without a remote, none, so a removed one leaves no stale failure.
+kept_remote() {
+  case $2:${1:-none} in
+    yes:failed | yes:unreachable) echo "$1" ;;
+    *) echo none ;;
   esac
 }
 

@@ -4,6 +4,9 @@ export function parseNotificationLink(link: string): { to: string; search: Recor
   return { to: url.pathname, search: Object.fromEntries(url.searchParams) };
 }
 
+/** Following its link reads a row only while it is unread and live (open or snoozed): a resolved or dismissed one answers 404. */
+export const readsOnFollow = (n: { read: boolean; state: string }): boolean => !n.read && (n.state === 'open' || n.state === 'snoozed');
+
 /** The calendar date, on the reader's clock, of an instant (`2026-10-20T23:30:00Z` is the 21st in Paris). */
 export function localDateOf(instant: string): string {
   const at = new Date(instant);

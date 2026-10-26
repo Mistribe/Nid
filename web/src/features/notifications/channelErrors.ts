@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { FieldError } from '@/api/errors';
+import { toProblem, type FieldError } from '@/api/errors';
 import '@/locales/notifications';
 
 /** A sentence for the code of a failed send (« notifications.channel_unreachable 421 »); the raw text for a code it does not know. */
@@ -10,6 +10,10 @@ export function channelErrorText(t: TFunction, error: string): string {
   if (code === 'notifications.channel_broken') return t('channel_errors.broken');
   return error;
 }
+
+/** « Patientez… » when the server refused a test as too soon after the last one (429); null for any other error. */
+export const throttledText = (t: TFunction, error: unknown): string | null =>
+  error && toProblem(error).code === 'notifications.test_throttled' ? t('channel_errors.throttled') : null;
 
 /** The sentence for a Discord field error (`notifications.invalid_webhook`…); the server's text for a code it does not know. */
 export const discordFieldText = (t: TFunction, f: FieldError): string =>

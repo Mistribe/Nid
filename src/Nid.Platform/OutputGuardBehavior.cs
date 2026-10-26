@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -30,18 +31,44 @@ public sealed partial class LoggingAccessViolations(ILogger<LoggingAccessViolati
 
 /// <summary>
 /// 1F3a: the violation is logged (Critical, whatever happens), recorded as a security event and told to every adult (no item id: a
-/// hidden row would hide the alert). One notice per request and UTC day: a looping client floods the journal, not the adults.
+/// hidden row would hide the alert). One notice per request and household day: a looping client floods the journal, not the adults.
 /// </summary>
-public sealed class AuditedAccessViolations(LoggingAccessViolations log, ISecurityEvents events, INotifier notifier, IClock clock) : IAccessViolations
+public sealed partial class AuditedAccessViolations(
+    LoggingAccessViolations log, ISecurityEvents events, INotifier notifier, IServiceScopeFactory scopes, IClock clock,
+    ILogger<AuditedAccessViolations> logger) : IAccessViolations
 {
+    private static readonly TimeSpan CalendarBound = TimeSpan.FromSeconds(5);
+
     public async ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
     {
         await log.RecordAsync(request, actor, leaked, ct);
         var data = new Dictionary<string, string> { ["request"] = request };
         await events.RecordAsync(new SecurityEvent(SecurityEventNames.AccessViolation, actor == default ? null : actor, leaked.ToList(), data, Guid.CreateVersion7()), ct);
-        var day = clock.GetCurrentInstant().InUtc().Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        var day = (await HouseholdDayAsync()).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         await notifier.PublishAsync(new Notice("access_violation", new Recipients.AllAdults(), $"access_violation:{request}:{day}", [], data), ct);
     }
+
+    /// <summary>
+    /// The household's day, read in a scope of its own and without the caller's token: the request's context or token may be what
+    /// failed, and the notice must still go out. If the read fails, the UTC day.
+    /// </summary>
+    private async Task<LocalDate> HouseholdDayAsync()
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            using var bound = new CancellationTokenSource(CalendarBound);
+            return await scope.ServiceProvider.GetRequiredService<IHouseholdCalendar>().TodayAsync(bound.Token);
+        }
+        catch (Exception e)
+        {
+            LogNoCalendar(e);
+            return clock.GetCurrentInstant().InUtc().Date;
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The household's day could not be read for an access violation; the UTC day keys it.")]
+    private partial void LogNoCalendar(Exception exception);
 }
 
 /// <summary>

@@ -44,7 +44,7 @@ public sealed class ThrowingNotificationStore(INotificationStore inner, PersonId
 
     public Task DismissAsync(Guid id, Instant at, CancellationToken ct) => inner.DismissAsync(id, at, ct);
 
-    public Task<int> PurgeAsync(Instant olderThan, CancellationToken ct) => inner.PurgeAsync(olderThan, ct);
+    public Task<int> PurgeAsync(Instant olderThan, IReadOnlyCollection<string> declaredKinds, CancellationToken ct) => inner.PurgeAsync(olderThan, declaredKinds, ct);
 
     public Task<NotificationPreferences> PreferencesAsync(PersonId person, CancellationToken ct) => inner.PreferencesAsync(person, ct);
 

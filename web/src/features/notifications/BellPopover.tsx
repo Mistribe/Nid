@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import '@/locales/notifications';
 import { useLatestNotifications, useRead, useReadAll } from './api';
-import { localDateOf, parseNotificationLink } from './link';
+import { localDateOf, parseNotificationLink, readsOnFollow } from './link';
 
 const LATEST = 8;
 
@@ -33,7 +33,7 @@ function Entries({ onNavigate }: { onNavigate: () => void }) {
             return (
               <li key={entry.id}>
                 <Link to={(target?.to ?? '/notifications') as never} search={(target?.search ?? {}) as never}
-                  onClick={() => { if (!entry.read) read.mutate({ params: { path: { id: entry.id } } }); onNavigate(); }}
+                  onClick={() => { if (readsOnFollow(entry)) read.mutate({ params: { path: { id: entry.id } } }); onNavigate(); }}
                   className="block px-3 py-2 text-sm outline-none hover:bg-accent focus-visible:bg-accent">
                   <span className={entry.read ? 'block' : 'block font-semibold'}>{entry.title}</span>
                   <span className="block text-muted-foreground">{entry.body}</span>

@@ -33,7 +33,7 @@ public sealed partial class CatalogSyncJob(IServiceScopeFactory scopes, ILogger<
             else
                 await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogInterrupted();
         }

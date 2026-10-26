@@ -69,7 +69,8 @@ public static class AdminEndpoints
 
         api.MapPost("/notifications/test", async (NotificationEndpoints.TestChannelBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new AdminTestChannelCommand(body.Channel ?? ""), ct)).ToHttp(result => result))
-            .Returns<TestChannelResult>();
+            .Returns<TestChannelResult>()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         api.MapPut("/notifications/discord", async (NotificationEndpoints.DiscordWebhookBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SetHouseholdWebhookCommand(body.Url ?? ""), ct)).ToHttp(v => v))

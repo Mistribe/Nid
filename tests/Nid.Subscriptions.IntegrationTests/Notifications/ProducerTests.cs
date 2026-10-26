@@ -72,8 +72,69 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         });
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         Assert.Single(await platform.AuditLog.Where(a => a.Category == "security" && a.Action == "access_violation").ToListAsync());
-        // One notice per request and UTC day (the audit keeps each occurrence).
+        // One notice per request and household day (the audit keeps each occurrence).
         Assert.All(rows, r => Assert.Matches(@"^access_violation:ListSubscriptionsQuery:\d{4}-\d{2}-\d{2}$", r.Key));
+    }
+
+    private sealed class FixedClock(Instant now) : IClock
+    {
+        public Instant GetCurrentInstant() => now;
+    }
+
+    [Fact]
+    public async Task Access_violation_key_takes_the_households_day()
+    {
+        // 23:30 UTC is 01:30 the next day in Paris (UTC+2 until 2025-10-26), the household's zone.
+        await using var app = await NidApp.StartAsync(fixture, services =>
+        {
+            services.AddSingleton<IClock>(new FixedClock(Instant.FromUtc(2025, 10, 14, 23, 30)));
+            services.AddScoped<IVisibleItems>(sp => new EmptyForMeVisibleItems(sp.GetRequiredService<CoreDbContext>()));
+        });
+        await app.NewSubscriptionAsync("leaky", app.AdultA, Visibility.Shared);
+
+        await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions?scope=household");
+
+        Assert.All(await RowsAsync(app, "access_violation"), r => Assert.Equal("access_violation:ListSubscriptionsQuery:2025-10-15", r.Key));
+    }
+
+    private sealed class BrokenCalendar : IHouseholdCalendar
+    {
+        public Task<LocalDate> TodayAsync(CancellationToken ct) => throw new InvalidOperationException("the context broke");
+
+        public Task<LocalDateTime> NowAsync(CancellationToken ct) => throw new InvalidOperationException("the context broke");
+
+        public Task<DateTimeZone> ZoneAsync(CancellationToken ct) => throw new InvalidOperationException("the context broke");
+    }
+
+    [Fact]
+    public async Task Access_violation_is_published_even_when_the_request_is_cancelled()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], cancelled.Token);
+
+        Assert.All(await RowsAsync(app, "access_violation"), r => Assert.Equal("access_violation:GetX:2025-10-15", r.Key));
+        Assert.Equal(2, (await RowsAsync(app, "access_violation")).Count);
+    }
+
+    [Fact]
+    public async Task Access_violation_falls_back_to_the_utc_day_when_the_calendar_fails()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services =>
+        {
+            services.AddSingleton<IClock>(new FixedClock(Instant.FromUtc(2025, 10, 14, 23, 30)));
+            services.AddScoped<IHouseholdCalendar, BrokenCalendar>();
+        });
+
+        await using (var scope = app.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], default);
+
+        var rows = await RowsAsync(app, "access_violation");
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, r => Assert.Equal("access_violation:GetX:2025-10-14", r.Key)); // the UTC day
     }
 
     private static async Task<Guid> SubmitAsync(NidApp app, PersonId who, Guid? target, string subject)
@@ -183,10 +244,14 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
     }
 
-    /// <summary>Makes <see cref="IIrlRunLog.TryStartAsync"/> throw while <see cref="Crash"/> is set: a crash of the irl-weekly job.</summary>
+    /// <summary>
+    /// Makes <see cref="IIrlRunLog.TryStartAsync"/> throw while <see cref="Crash"/> is set: a crash of the irl-weekly job;
+    /// <see cref="TimeOut"/> throws the <see cref="TaskCanceledException"/> of an HttpClient timeout instead.
+    /// </summary>
     private sealed class Gate
     {
         public volatile bool Crash;
+        public volatile bool TimeOut;
         public int Calls;
     }
 
@@ -195,7 +260,8 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         public Task<IrlRunView?> TryStartAsync(CancellationToken ct)
         {
             Interlocked.Increment(ref gate.Calls);
-            return gate.Crash ? throw new InvalidOperationException("boom") : inner.TryStartAsync(ct);
+            return gate.TimeOut ? throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout.")
+                : gate.Crash ? throw new InvalidOperationException("boom") : inner.TryStartAsync(ct);
         }
 
         public Task FinishAsync(IrlRunView run, CancellationToken ct) => inner.FinishAsync(run, ct);
@@ -259,6 +325,27 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var again = Assert.Single(await RowsAsync(app, "job_failed"));
         Assert.Equal((NotificationStates.Open, 2), (again.State, again.Round));
         Assert.Equal([1, 2], (await EmailsAsync(app, again.Id)).Select(d => d.Round).Order());
+    }
+
+    [Fact]
+    public async Task A_timeout_inside_a_job_is_a_crash_not_an_interruption()
+    {
+        var name = "nid-test-" + Guid.NewGuid().ToString("N");
+        var gate = new Gate { TimeOut = true };
+        await using var app = await NidApp.StartAsync(fixture,
+            services =>
+            {
+                var real = services.Single(d => d.ServiceType == typeof(IIrlRunLog)).ImplementationType!;
+                services.AddScoped<IIrlRunLog>(sp => new FlakyRunLog((IIrlRunLog)ActivatorUtilities.CreateInstance(sp, real), gate));
+            },
+            new Dictionary<string, string> { ["Jobs:Enabled"] = "true", ["Jobs:SchedulerName"] = name });
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { irlEnabled = true })).EnsureSuccessStatusCode();
+        var scheduler = await app.Services.GetRequiredKeyedService<ISchedulerFactory>(name).GetScheduler();
+
+        await RunIrlAsync(app, scheduler, gate, crash: false); // the job's own token is not cancelled
+
+        var row = Assert.Single(await RowsAsync(app, "job_failed"));
+        Assert.Equal((app.AdultA.Value, "job_failed:irl-weekly", NotificationStates.Open), (row.PersonId, row.Key, row.State));
     }
 
     private static async Task<List<NotificationDeliveryRow>> EmailsAsync(NidApp app, Guid notification)
