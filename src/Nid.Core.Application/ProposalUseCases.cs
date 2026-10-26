@@ -86,6 +86,20 @@ internal static class ProposalAccess
         return id => id is { } target && found.TryGetValue(target, out var item) ? item.DisplayName : null;
     }
 
+    public static string NoticeKey(Guid proposal) => $"proposal_pending:{proposal}";
+
+    /// <summary>Who can decide it: the person it is for without a target, else every active adult with Write on the target (as <see cref="LoadAsync"/> and <c>canDecide</c>).</summary>
+    public static async Task<IReadOnlyList<PersonId>> DecidersAsync(IPersonRegistry persons, IAccessPolicy policy, ItemId? target, PersonId forPerson, CancellationToken ct)
+    {
+        if (target is null)
+            return [forPerson];
+        var deciders = new List<PersonId>();
+        foreach (var adult in (await persons.ListAsync(ct)).Where(p => p is { Kind: PersonKind.Adult, IsPending: false }))
+            if ((await policy.CheckAsync(adult.Id, target.Value, AccessKind.Write, ct)).IsSuccess)
+                deciders.Add(adult.Id);
+        return deciders;
+    }
+
     /// <summary>A kind that needs a target refuses a proposal without one, at <c>targetItemId</c>.</summary>
     public static Result Target(IProposalHandler handler, ItemId? target)
         => handler.NeedsTarget && target is null
@@ -135,7 +149,8 @@ internal static class ProposalAccess
 }
 
 [RequestHandler<SubmitProposalCommand, SubmittedProposal>]
-public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalStore store, IActorAccessor accessor, IItemRegistry items)
+public sealed class SubmitProposalHandler(
+    ProposalHandlers handlers, IProposalStore store, IActorAccessor accessor, IItemRegistry items, IPersonRegistry persons, IAccessPolicy policy, INotifier notifier)
     : IRequestHandler<SubmitProposalCommand, SubmittedProposal>
 {
     public async ValueTask<Result<SubmittedProposal>> HandleAsync(SubmitProposalCommand command, CancellationToken ct = default)
@@ -159,8 +174,18 @@ public sealed class SubmitProposalHandler(ProposalHandlers handlers, IProposalSt
         if (check!.Conforme is { } conforme)
             return Result.Success(new SubmittedProposal(null, false, conforme));
 
+        // Before the submit commits: a lookup that fails then fails the request with nothing stored, so a retry is not deduplicated
+        // into a proposal whose notice was never published.
+        var deciders = await ProposalAccess.DecidersAsync(persons, policy, command.ItemId, me, ct);
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim()), ct);
+        if (outcome.Created)
+        {
+            foreach (var older in outcome.Superseded ?? [])
+                await notifier.ResolveAsync(ProposalAccess.NoticeKey(older), ct);
+            await notifier.PublishAsync(new Notice("proposal_pending", new Recipients.People(deciders),
+                ProposalAccess.NoticeKey(outcome.Proposal.Id), outcome.Proposal.Target is { } t ? [t] : [], new Dictionary<string, string>()), ct);
+        }
         var names = await ProposalAccess.NamesAsync(items, [outcome.Proposal.Target], ct);
         return Result.Success(new SubmittedProposal(ProposalView.From(outcome.Proposal, names(outcome.Proposal.Target)), outcome.Created, null, check.Summary));
     }
@@ -211,7 +236,7 @@ public sealed class GetProposalHandler(
 [RequestHandler<ApproveProposalCommand, ProposalView>]
 public sealed class ApproveProposalHandler(
     IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IUnitOfWork unitOfWork,
-    IItemRegistry items, ILogger<ApproveProposalHandler> logger)
+    IItemRegistry items, INotifier notifier, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
@@ -253,6 +278,7 @@ public sealed class ApproveProposalHandler(
                     if (!decided.TryGetValue(out var stored))
                         return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
                     await transaction.CommitAsync(ct);
+                    await notifier.ResolveAsync(ProposalAccess.NoticeKey(proposal.Id), ct);
                     return Result.Success(ProposalView.From(stored!, names(stored!.Target)));
                 }
                 applied.TryGetFailure(out refused);
@@ -287,7 +313,8 @@ public sealed class ApproveProposalHandler(
 }
 
 [RequestHandler<RejectProposalCommand, ProposalView>]
-public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, IItemRegistry items)
+public sealed class RejectProposalHandler(
+    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, IItemRegistry items, INotifier notifier)
     : IRequestHandler<RejectProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(RejectProposalCommand command, CancellationToken ct = default)
@@ -303,6 +330,7 @@ public sealed class RejectProposalHandler(IProposalStore store, IAccessPolicy po
         var decided = await store.DecideAsync(found.Proposal.Id, command.Version, ProposalStatus.Rejected, found.Me, null, note, [], ct);
         if (!decided.TryGetValue(out var stored))
             return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
+        await notifier.ResolveAsync(ProposalAccess.NoticeKey(stored.Id), ct);
         return Result.Success(ProposalView.From(stored, names(stored.Target)));
     }
 }

@@ -6,7 +6,7 @@ set -eu
 REPO=/repo
 SECRETS=/run/backup-secrets
 STAGE=/tmp/stage
-STATE_DIR=/tmp/state
+STATE_DIR=${NID_BACKUP_STATE_DIR:-/tmp/state}
 STATE=$STATE_DIR/status.json
 SELF=/usr/local/bin/nid-backup
 export RESTIC_CACHE_DIR=/tmp/restic-cache
@@ -50,22 +50,16 @@ pgpass() { # password file: PGPASSFILE for nid@$NID_DB_HOST/nid
   export PGPASSFILE=/tmp/pgpass
 }
 
-write_status() { # result, remote result, snapshot, success epoch or empty
-  mkdir -p "$STATE_DIR"
-  jq -n --arg result "$1" --arg remote "$2" --arg snapshot "$3" --argjson success "${4:-null}" \
-    '{last_result: $result, remote_result: $remote, last_snapshot: $snapshot, last_success_at: $success}' > "$STATE.new"
-  mv "$STATE.new" "$STATE"
-}
-previous() { jq -r "$1 // empty" "$STATE" 2>/dev/null || true; }
-
-# At start: the last success comes from the repository, so a restart does not reset the age.
+# At start: the last success comes from the repository, so a restart does not reset the age; a failed step is kept
+# (kept_result), so a restart does not clear the alert either.
 rebuild_status() {
+  kept=$(kept_result "$(previous .last_result)")
   latest=$(local_restic snapshots --host nid --tag nid --latest 1 --json 2>/dev/null || echo '[]')
   time=$(echo "$latest" | jq -r 'sort_by(.time) | last | .time // empty')
   if [ -n "$time" ]; then
-    write_status none none "$(echo "$latest" | jq -r 'sort_by(.time) | last | .short_id')" "$(iso_to_epoch "$time")"
+    write_status "$kept" none "$(echo "$latest" | jq -r 'sort_by(.time) | last | .short_id')" "$(iso_to_epoch "$time")"
   else
-    write_status none none "" ""
+    write_status "$kept" none "" ""
   fi
 }
 
@@ -247,8 +241,7 @@ backup_now() {
     give_back_repository || log "le dépôt local n'a pas pu être rendu à son propriétaire"
     if [ "$rc" -ne 0 ]; then
       failed=$(cat "$STATE_DIR/step" 2>/dev/null || echo inconnue)
-      remote=$(previous .remote_result)
-      write_status "$failed" "${remote:-none}" "$(previous .last_snapshot)" "$(previous .last_success_at)"
+      mark_failed "$failed"
       rm -rf "$STAGE" /tmp/pgpass
       log "échec de la sauvegarde à l'étape : $failed"
     fi
@@ -257,10 +250,12 @@ backup_now() {
 }
 
 # A configuration the scheduler cannot run with: said once, then the service stays up and unhealthy with the reason.
-# Exiting would only make restart: unless-stopped start it again, forever.
+# Exiting would only make restart: unless-stopped start it again, forever. The status says so too (the API reads it from
+# the volume): removing it would resolve the alert, keeping it would leave an earlier healthy one.
 config_error() {
   mkdir -p "$STATE_DIR"
   echo "$*" > "$STATE_DIR/configuration"
+  mark_failed configuration
   log "$*"
   while :; do sleep 3600; done
 }
@@ -273,6 +268,8 @@ status() {
 }
 
 schedule() {
+  # The state folder is a volume now: a "configuration" message of an earlier start must not outlive its fix.
+  mkdir -p "$STATE_DIR"; rm -f "$STATE_DIR/configuration"
   valid_time "$NID_BACKUP_AT" || config_error "NID_BACKUP_AT invalide : $NID_BACKUP_AT (attendu HH:MM, de 00:00 à 23:59)"
   backup_parts "$NID_BACKUP_POCKET_ID" >/dev/null ||
     config_error "NID_BACKUP_POCKET_ID invalide : $NID_BACKUP_POCKET_ID (attendu embedded ou external)"

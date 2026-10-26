@@ -32,6 +32,8 @@ public sealed partial class NotificationsDispatchJob(IServiceScopeFactory scopes
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new DispatchNotificationsCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
                 LogRefused(failure!.Code);
+            else
+                await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -40,6 +42,7 @@ public sealed partial class NotificationsDispatchJob(IServiceScopeFactory scopes
         catch (Exception e)
         {
             LogCrashed(e);
+            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
         }
     }
 
@@ -69,6 +72,8 @@ public sealed partial class NotificationsEvaluateJob(IServiceScopeFactory scopes
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new EvaluateNotificationsCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
                 LogRefused(failure!.Code);
+            else
+                await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -77,6 +82,7 @@ public sealed partial class NotificationsEvaluateJob(IServiceScopeFactory scopes
         catch (Exception e)
         {
             LogCrashed(e);
+            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
         }
     }
 
@@ -171,6 +177,8 @@ public sealed partial class NotificationsDigestJob(IServiceScopeFactory scopes, 
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SendDigestsCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
                 LogRefused(failure!.Code);
+            else
+                await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -179,6 +187,7 @@ public sealed partial class NotificationsDigestJob(IServiceScopeFactory scopes, 
         catch (Exception e)
         {
             LogCrashed(e);
+            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
         }
     }
 

@@ -36,6 +36,12 @@ public static class NotificationTemplates
         ["income_gap_soon"] = "Un trou de revenus approche",
         ["fx_rate_missing"] = "Un taux de change manque",
         ["routine_due"] = "La routine du mois est à faire",
+        ["access_violation"] = "Une réponse a été bloquée par la garde d'accès",
+        ["token_expiring"] = "Un jeton d'accès expire bientôt",
+        ["proposal_pending"] = "Une proposition attend votre décision",
+        ["backup_failed"] = "La sauvegarde a échoué",
+        ["job_failed"] = "Une tâche planifiée a échoué",
+        ["sync_failed"] = "Une synchronisation a échoué",
     };
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
@@ -63,12 +69,55 @@ public static class NotificationTemplates
     public static RenderedNotification Render(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names)
     {
         var title = Titles.GetValueOrDefault(n.Kind, kind.Kind);
+        if (Notices.Contains(n.Kind))
+            return new RenderedNotification(title, NoticeBody(n), NoticeLink(n)); // never an item name: they say what happened, not about what
         if (n.ItemIds.Count == 0)
             return new RenderedNotification(title, HouseholdBody(n), LinkOf(n, kind));
 
         var name = n.ItemIds.Count > 0 && names.TryGetValue(n.ItemIds[0], out var known) && !string.IsNullOrWhiteSpace(known) ? known : UnknownName;
         return new RenderedNotification(title, name + Suffix(n), LinkOf(n, kind));
     }
+
+    /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
+    private static readonly HashSet<string> Notices = ["access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed"];
+
+    private static string NoticeBody(NotificationRecord n) => n.Kind switch
+    {
+        "access_violation" => n.Params.TryGetValue("request", out var request) && request.Length > 0 ? $"Requête : {request}" : "",
+        "token_expiring" => KeyDate(n.Key, "yyyy-MM-dd") is { } on ? $"Expire le {Day(on)}" : "",
+        "proposal_pending" => "Une décision est attendue",
+        "backup_failed" => BackupReason(n.Params),
+        "job_failed" => n.Params.TryGetValue("job", out var job) && job.Length > 0 ? $"Tâche : {job}" : "",
+        "sync_failed" => n.Params.TryGetValue("source", out var source) && source.Length > 0 ? $"Source : {source}" : "",
+        _ => "",
+    };
+
+    /// <summary>Why the backup is unhealthy (<see cref="BackupState.Reason"/>): a failed step is named as the script names it.</summary>
+    private static string BackupReason(IReadOnlyDictionary<string, string> p) => p.GetValueOrDefault("reason") switch
+    {
+        null or "" => "Consultez l'état du système",
+        "too_old" => p.TryGetValue("hours", out var hours) && hours.Length > 0
+            ? $"Aucune sauvegarde réussie depuis plus de {hours} h" : "Aucune sauvegarde réussie depuis trop longtemps",
+        "remote" => "La copie distante a échoué",
+        "unreadable" => "L'état de la sauvegarde est illisible",
+        "configuration" => "La configuration de la sauvegarde est invalide",
+        var step => $"Étape en échec : {step}",
+    };
+
+    /// <summary>
+    /// The notice's own screen. <c>access_violation</c> opens the security journal for an admin, which the notifier tells in
+    /// <c>Params["admin"]</c> because only admins may see it; anyone else lands on the home page.
+    /// </summary>
+    private static string NoticeLink(NotificationRecord n) => n.Kind switch
+    {
+        "access_violation" => n.Params.GetValueOrDefault("admin") == "1" ? "/admin/security" : "/",
+        "token_expiring" => "/security",
+        "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
+        "backup_failed" => "/admin/system",
+        "job_failed" => "/admin/jobs",
+        "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" ? $"/admin/{n.Params["source"]}" : "/admin/system",
+        _ => "/",
+    };
 
     /// <summary>What a row about no item says: a currency code is not an amount, and there is no name to give.</summary>
     private static string HouseholdBody(NotificationRecord n) => n.Kind switch

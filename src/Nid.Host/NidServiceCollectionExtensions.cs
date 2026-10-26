@@ -127,6 +127,7 @@ public static class NidServiceCollectionExtensions
         services.TryAddSingleton<IPriceJobTrigger, JobsDisabledPriceTrigger>();
         services.AddScoped<IFxRateStore, FxRateStore>();
         services.AddScoped<IFxRunLog, FxRunLog>();
+        services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.FxSyncHealth>();
         services.AddScoped<IFxRates, FxRates>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
@@ -168,6 +169,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
         services.AddScoped<IPriceRunLog, PriceRunLog>();
+        services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Investments.Infrastructure.Persistence.PriceSyncHealth>();
         services.AddScoped<Nid.Investments.Application.Prices.PriceCollector>();
         services.AddScoped<Nid.Investments.Application.Prices.EnvelopeEstimator>();
         services.AddScoped<Nid.Investments.Application.EnvelopePerformance>();
@@ -218,6 +220,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
         services.AddScoped<IIrlRunLog, IrlRunLog>();
+        services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.RealEstate.Infrastructure.Persistence.IrlSyncHealth>();
         services.AddScoped<Nid.RealEstate.Application.Irl.IrlCollector>();
         services.AddScoped<IRealEstateImports, RealEstateImports>();
         services.AddScoped<ILoanSimulator, Nid.RealEstate.Application.ScenarioLoans>();
@@ -252,6 +255,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<CatalogIconPass>();
         services.AddScoped<IProviderStore, ProviderStore>();
         services.AddScoped<ICatalogRunLog, CatalogRunLog>();
+        services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Subscriptions.Infrastructure.Persistence.CatalogSyncHealth>();
         services.AddScoped<CatalogSync>();
         services.TryAddSingleton<IProviderKeySuffix, RandomProviderKeySuffix>();
         services.AddScoped<ProviderAccess>();
@@ -268,11 +272,13 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Platform.Notifications.IWebhookStore, Nid.Platform.Infrastructure.Notifications.WebhookStore>();
         // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Platform.Notifications.SystemHealthNotificationSource>();
         services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();
         services.TryAddSingleton<IEmailAvailability, NoEmailAvailability>();
         services.AddScoped<IDeliveryStore, Nid.Platform.Infrastructure.Notifications.DeliveryStore>();
         services.AddScoped<IDigestStore, Nid.Platform.Infrastructure.Notifications.DeliveryStore>();
         services.AddScoped<IDeliveryOutbox, DeliveryOutbox>();
+        services.AddSingleton<INotifier, Nid.Platform.Infrastructure.Notifications.Notifier>();
         // The wording of the outside; the link base and the email availability come from AddNidEmail (Program).
         services.TryAddSingleton(new NotificationLinkBase(""));
         services.TryAddSingleton<INotificationRenderer, ExternalNotificationRenderer>();

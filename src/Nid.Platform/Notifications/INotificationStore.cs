@@ -26,6 +26,16 @@ public interface INotificationStore
     /// </summary>
     Task<IReadOnlyList<OpenedNotification>> ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct);
 
+    /// <summary>
+    /// Publishes <paramref name="notice"/> for one person in one statement: a new key opens a row, a resolved one reopens (unread, next round),
+    /// any other state is left as it is. <paramref name="now"/> is the publication instant, shared by every recipient of the notice.
+    /// Returns the row that opened, null when none did.
+    /// </summary>
+    Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, CancellationToken ct);
+
+    /// <summary>Resolves every person's row of this key, in any state but resolved (a dismissed one too).</summary>
+    Task ResolveKeyAsync(string key, CancellationToken ct);
+
     /// <summary>The oldest "last successful day" over the person's sources, null when one never succeeded or none ran.</summary>
     Task<LocalDate?> LastEvaluatedAsync(PersonId person, CancellationToken ct);
 
@@ -49,6 +59,7 @@ public interface INotificationStore
     /// <summary>An open row with this key, whoever it belongs to (the household channel speaks for every adult); null when none is open.</summary>
     Task<NotificationRecord?> FindOpenByKeyAsync(string key, CancellationToken ct);
 
+    /// <summary>Marks the unread rows read; a published critical one (<c>access_violation</c>) is resolved too, at <paramref name="at"/>.</summary>
     Task MarkReadAsync(PersonId person, IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
     Task SnoozeAsync(Guid id, LocalDate until, CancellationToken ct);

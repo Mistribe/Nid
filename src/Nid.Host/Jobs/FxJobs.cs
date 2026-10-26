@@ -40,6 +40,8 @@ public abstract partial class FxJob(IServiceScopeFactory scopes, ILogger logger)
             var result = await invoker.InvokeAsync(Command, cancellationToken);
             if (result.TryGetFailure(out var failure))
                 LogRefused(GetType().Name, failure!.Code);
+            else
+                await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -48,6 +50,7 @@ public abstract partial class FxJob(IServiceScopeFactory scopes, ILogger logger)
         catch (Exception e)
         {
             LogCrashed(GetType().Name, e);
+            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
         }
     }
 

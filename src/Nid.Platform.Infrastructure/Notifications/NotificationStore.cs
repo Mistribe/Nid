@@ -14,6 +14,10 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
 {
     private const int HistoryDays = 90;
 
+    /// <summary>The published critical kinds: no source signals them again, so reading one is what ends it (and starts its 90 days).</summary>
+    private static readonly string[] EndsWhenRead =
+        PlatformNotificationKinds.All.Where(k => k.Level == NotificationLevel.Critical).Select(k => k.Kind).ToArray();
+
     [JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
     [JsonSerializable(typeof(Dictionary<string, string>))]
     [JsonSerializable(typeof(IReadOnlyDictionary<string, int>))]
@@ -43,7 +47,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         {
             var id = Guid.CreateVersion7();
             if (await InsertAsync(person, id, insert, now, ct) == 1 && insert.Open)
-                opened.Add(new OpenedNotification(id, insert.Kind.Level, 1, insert.Signal.Key, insert.Signal.ItemIds));
+                opened.Add(new OpenedNotification(id, insert.Kind.Level, 1, insert.Signal.Key, insert.Signal.ItemIds, insert.Kind.Kind, null));
         }
 
         var openedRows = new List<NotificationRow>();
@@ -61,7 +65,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         }
 
         await db.SaveChangesAsync(ct);
-        opened.AddRange(openedRows.Select(r => new OpenedNotification(r.Id, Enum.Parse<NotificationLevel>(r.Level, ignoreCase: true), r.Round, r.Key, r.ItemIds.Select(i => new ItemId(i)).ToList())));
+        opened.AddRange(openedRows.Select(r => new OpenedNotification(r.Id, Enum.Parse<NotificationLevel>(r.Level, ignoreCase: true), r.Round, r.Key, r.ItemIds.Select(i => new ItemId(i)).ToList(), r.Kind, null)));
         return opened;
     }
 
@@ -158,6 +162,39 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
             """, ct);
     }
 
+    private sealed record PublishedRow(Guid Id, int Round);
+
+    public async Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, CancellationToken ct)
+    {
+        var id = Guid.CreateVersion7();
+        var level = LevelText(kind.Level);
+        var items = notice.ItemIds.Select(i => i.Value).ToArray();
+        var json = JsonSerializer.Serialize(notice.Params, StoreJson.Default.IReadOnlyDictionaryStringString);
+        var today = now.InUtc().Date;
+        // One statement: a new key inserts, a resolved one reopens in its next round, any other state is left as it is (no row returned).
+        var rows = await db.Database.SqlQuery<PublishedRow>($"""
+            INSERT INTO platform.notification
+                (id, person_id, kind, key, level, item_ids, notify_on, params, state, created_at, opened_at)
+            VALUES
+                ({id}, {person.Value}, {kind.Kind}, {notice.Key}, {level}, {items}, {today}, CAST({json} AS jsonb), 'open', {now}, {now})
+            ON CONFLICT (person_id, key) DO UPDATE SET
+                state = 'open', round = notification.round + 1, opened_at = EXCLUDED.opened_at, notify_on = EXCLUDED.notify_on,
+                params = EXCLUDED.params, item_ids = EXCLUDED.item_ids, read_at = NULL, resolved_at = NULL, dismissed_at = NULL,
+                snoozed_until = NULL, digested_at = NULL, digest_id = NULL
+            WHERE notification.state = 'resolved'
+            RETURNING id AS "Id", round AS "Round"
+            """).ToListAsync(ct);
+        return rows.Count == 0 ? null : new OpenedNotification(rows[0].Id, kind.Level, rows[0].Round, notice.Key, notice.ItemIds, kind.Kind, now);
+    }
+
+    public async Task ResolveKeyAsync(string key, CancellationToken ct)
+    {
+        var now = clock.GetCurrentInstant();
+        // A dismissal lasts one incident: it is settled too.
+        await db.Notifications.Where(n => n.Key == key && n.State != NotificationStates.Resolved)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.State, NotificationStates.Resolved).SetProperty(n => n.ResolvedAt, now), ct);
+    }
+
     public async Task<LocalDate?> LastEvaluatedAsync(PersonId person, CancellationToken ct)
     {
         var days = await db.NotificationRuns.AsNoTracking().Where(r => r.PersonId == person.Value).Select(r => r.LastOkOn).ToListAsync(ct);
@@ -240,7 +277,9 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
     {
         var wanted = ids.ToArray();
         await db.Notifications.Where(n => n.PersonId == person.Value && wanted.Contains(n.Id) && n.ReadAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(n => n.ReadAt, at), ct);
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.ReadAt, at)
+                .SetProperty(n => n.State, n => EndsWhenRead.Contains(n.Kind) ? NotificationStates.Resolved : n.State)
+                .SetProperty(n => n.ResolvedAt, n => EndsWhenRead.Contains(n.Kind) ? at : n.ResolvedAt), ct);
     }
 
     public async Task SnoozeAsync(Guid id, LocalDate until, CancellationToken ct)

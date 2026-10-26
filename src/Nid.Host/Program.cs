@@ -55,6 +55,7 @@ var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? ne
 builder.Services.AddSingleton(irlOptions);
 builder.Services.AddSingleton(builder.Configuration.GetSection("Outbound").Get<OutboundOptions>() ?? new OutboundOptions());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Catalog").Get<CatalogOptions>() ?? new CatalogOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection("Nid:Backup").Get<Nid.Platform.Notifications.BackupOptions>() ?? new Nid.Platform.Notifications.BackupOptions());
 // Parsed here so a bad setting stops the host at startup (spec 4D1 D6).
 builder.Services.AddSingleton(Nid.Income.Application.PayslipTolerance.Parse(builder.Configuration["Income:PayslipTolerance"]));
 builder.Services.AddSingleton(builder.Configuration.GetSection("Assets").Get<AssetOptions>() ?? new AssetOptions());

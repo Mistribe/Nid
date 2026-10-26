@@ -33,8 +33,8 @@ public static class SecurityEventNames
     };
 }
 
-/// <summary>One event. <paramref name="Data"/> holds identifiers only: never a name, an email or a label.</summary>
-public sealed record SecurityEvent(string Name, PersonId? Subject, IReadOnlyList<ItemId> Items, IReadOnlyDictionary<string, string> Data)
+/// <summary>One event. <paramref name="Data"/> holds identifiers only: never a name, an email or a label. <paramref name="Id"/> is the audit row's id when the caller needs it beforehand.</summary>
+public sealed record SecurityEvent(string Name, PersonId? Subject, IReadOnlyList<ItemId> Items, IReadOnlyDictionary<string, string> Data, Guid? Id = null)
 {
     public static SecurityEvent Of(string name, PersonId? subject) => new(name, subject, [], new Dictionary<string, string>());
 }

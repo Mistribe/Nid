@@ -1,13 +1,14 @@
 using Microsoft.Extensions.Logging;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform;
 
-/// <summary>Where an access violation is recorded: the log and the audit (1F3a); the email waits for the notification channel (spec U14).</summary>
+/// <summary>Where an access violation is recorded: the log and the audit (1F3a); every adult is notified (spec U14, lifted).</summary>
 public interface IAccessViolations
 {
     ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct);
@@ -27,15 +28,19 @@ public sealed partial class LoggingAccessViolations(ILogger<LoggingAccessViolati
     private partial void LogViolation(string request, int count);
 }
 
-/// <summary>1F3a: the violation is logged (Critical, whatever happens) and recorded as a security event.</summary>
-public sealed class AuditedAccessViolations(LoggingAccessViolations log, ISecurityEvents events) : IAccessViolations
+/// <summary>
+/// 1F3a: the violation is logged (Critical, whatever happens), recorded as a security event and told to every adult (no item id: a
+/// hidden row would hide the alert). One notice per request and UTC day: a looping client floods the journal, not the adults.
+/// </summary>
+public sealed class AuditedAccessViolations(LoggingAccessViolations log, ISecurityEvents events, INotifier notifier, IClock clock) : IAccessViolations
 {
     public async ValueTask RecordAsync(string request, PersonId actor, IReadOnlyCollection<ItemId> leaked, CancellationToken ct)
     {
         await log.RecordAsync(request, actor, leaked, ct);
-        await events.RecordAsync(new SecurityEvent(
-            SecurityEventNames.AccessViolation, actor == default ? null : actor, leaked.ToList(),
-            new Dictionary<string, string> { ["request"] = request }), ct);
+        var data = new Dictionary<string, string> { ["request"] = request };
+        await events.RecordAsync(new SecurityEvent(SecurityEventNames.AccessViolation, actor == default ? null : actor, leaked.ToList(), data, Guid.CreateVersion7()), ct);
+        var day = clock.GetCurrentInstant().InUtc().Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        await notifier.PublishAsync(new Notice("access_violation", new Recipients.AllAdults(), $"access_violation:{request}:{day}", [], data), ct);
     }
 }
 

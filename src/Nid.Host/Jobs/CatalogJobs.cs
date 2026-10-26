@@ -30,6 +30,8 @@ public sealed partial class CatalogSyncJob(IServiceScopeFactory scopes, ILogger<
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncCatalogCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
                 LogRefused(failure!.Code);
+            else
+                await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -38,6 +40,7 @@ public sealed partial class CatalogSyncJob(IServiceScopeFactory scopes, ILogger<
         catch (Exception e)
         {
             LogCrashed(e);
+            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
         }
     }
 

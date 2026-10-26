@@ -100,4 +100,50 @@ public class NotificationTemplatesTests
         Assert.Equal(("Une phase de revenu se termine", "Assurance-vie — le 31 mars 2027", $"/income/{Item.Value:D}"), (phase.Title, phase.Body, phase.Link));
         Assert.Equal(("Un trou de revenus approche", "Assurance-vie — le 31 mars 2027", $"/income/{Item.Value:D}"), (gap.Title, gap.Body, gap.Link));
     }
+
+    [Fact]
+    public void Published_kinds_have_a_title_a_body_without_name_or_amount_and_their_link()
+    {
+        NotificationRecord Published(string kind, string key, Dictionary<string, string>? parameters = null, bool withItem = false)
+            => Record(kind, key: key) with { ItemIds = withItem ? [Item] : [], Params = parameters ?? [] };
+        var names = new Dictionary<ItemId, string> { [Item] = "Maison" };
+        var proposal = Guid.NewGuid();
+
+        var cases = new[]
+        {
+            (Published("access_violation", "access_violation:1", new() { ["request"] = "GetEnvelope", ["admin"] = "1" }), "Une réponse a été bloquée par la garde d'accès", "/admin/security"),
+            (Published("access_violation", "access_violation:1", new() { ["request"] = "GetEnvelope" }), "Une réponse a été bloquée par la garde d'accès", "/"),
+            (Published("token_expiring", "token_expiring:abc:2027-03-31"), "Un jeton d'accès expire bientôt", "/security"),
+            (Published("proposal_pending", $"proposal_pending:{proposal}", withItem: true), "Une proposition attend votre décision", $"/proposals/{proposal}"),
+            (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
+            (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs"),
+            (Published("sync_failed", "sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),
+        };
+        foreach (var (record, title, link) in cases)
+        {
+            var rendered = NotificationTemplates.Render(record, KindOf(record.Kind, "platform"), names);
+            Assert.Equal((title, link), (rendered.Title, rendered.Link));
+            Assert.DoesNotContain("Maison", rendered.Body);
+            Assert.DoesNotMatch(@"\d+\s?(€|EUR)", rendered.Body);
+        }
+
+        Assert.Equal("Requête : GetEnvelope", NotificationTemplates.Render(cases[0].Item1, KindOf("access_violation", "platform"), names).Body);
+    }
+
+    [Theory]
+    [InlineData("database", null, "Étape en échec : database")]
+    [InlineData("too_old", "26", "Aucune sauvegarde réussie depuis plus de 26 h")]
+    [InlineData("too_old", null, "Aucune sauvegarde réussie depuis trop longtemps")]
+    [InlineData("remote", null, "La copie distante a échoué")]
+    [InlineData("unreadable", null, "L'état de la sauvegarde est illisible")]
+    [InlineData("configuration", null, "La configuration de la sauvegarde est invalide")]
+    public void Backup_failed_names_its_reason(string reason, string? hours, string body)
+    {
+        var parameters = new Dictionary<string, string> { ["reason"] = reason };
+        if (hours is not null)
+            parameters["hours"] = hours;
+        var record = Record("backup_failed", key: "backup_failed:never") with { ItemIds = [], Params = parameters };
+
+        Assert.Equal(body, NotificationTemplates.Render(record, KindOf("backup_failed", "platform"), new Dictionary<ItemId, string>()).Body);
+    }
 }

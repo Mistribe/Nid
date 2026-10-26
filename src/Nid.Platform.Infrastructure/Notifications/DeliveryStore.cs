@@ -33,7 +33,7 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
                 INSERT INTO platform.notification_delivery
                     (id, notification_id, person_id, channel, round, state, attempts, next_attempt_at, created_at, household_key)
                 VALUES
-                    ({Guid.CreateVersion7()}, {d.NotificationId}, {d.Person.Value}, {d.Channel}, 1, {DeliveryStates.Pending}, 0, {now}, {now}, {d.Key})
+                    ({Guid.CreateVersion7()}, {d.NotificationId}, {d.Person.Value}, {d.Channel}, {d.Round}, {DeliveryStates.Pending}, 0, {now}, {now}, {d.Key})
                 ON CONFLICT (household_key) WHERE household_key IS NOT NULL DO NOTHING
                 """, ct);
         }

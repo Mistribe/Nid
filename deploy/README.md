@@ -235,8 +235,13 @@ Une sauvegarde lancée pendant celle de la nuit attend qu'elle se termine.
 docker compose -f deploy/compose.yaml exec backup nid-backup status
 ```
 
-Nid n'envoie pas encore d'alerte par email. Surveillez cet état depuis l'hôte, par exemple dans un cron ou dans votre
-outil de supervision :
+`backup` écrit aussi son état (`status.json`) dans le volume `backup-state`, que `nid-api` lit en lecture seule
+(`Nid__Backup__StatusPath=/run/backup-state/status.json`, `Nid__Backup__MaxAgeHours`, repris de `NID_BACKUP_MAX_AGE`, 26 par
+défaut). Quand la règle ci-dessus est violée, ou que le fichier est illisible, les admins reçoivent la notification
+`backup_failed` (centre, email et Discord selon leurs réglages ; Discord du foyer s'il est configuré). Sans fichier,
+aucune alerte : sur une installation existante, il n'apparaît qu'au prochain démarrage de `backup`. Le compose autonome n'a
+pas de service `backup` et ne change pas. Vous pouvez aussi surveiller l'état depuis l'hôte, par exemple dans un cron ou
+dans votre outil de supervision :
 
 ```bash
 [ "$(docker inspect --format '{{.State.Health.Status}}' nid-backup-1)" = healthy ] || echo "Sauvegarde de Nid en échec"
@@ -350,7 +355,6 @@ responsabilité.
 
 ## 10. Ce qui arrive
 
-- **Alerte par email** si la sauvegarde échoue ou vieillit.
 - **Jetons d'accès et workers** (étape 4), avec leurs commandes `revoke-tokens`, `create-worker`, `rotate-worker`,
   `revoke-worker`.
 

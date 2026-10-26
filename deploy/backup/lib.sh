@@ -1,5 +1,6 @@
-# Pure helpers of nid-backup (1F2 design §4 to §6): no I/O but their arguments, stdin and stdout. Sourced by
-# nid-backup, tested by nid-backup-test (test.sh). POSIX shell on busybox, jq for JSON.
+# Helpers of nid-backup (1F2 design §4 to §6): no I/O but their arguments, stdin and stdout, except the status
+# helpers at the end, which read and write $STATE in $STATE_DIR. Sourced by nid-backup, tested by nid-backup-test
+# (test.sh). POSIX shell on busybox, jq for JSON.
 
 # valid_time HH:MM: a time of day, 00:00 to 23:59.
 valid_time() {
@@ -95,4 +96,30 @@ health_check() {
     echo "dépôt distant : $remote"; return 1
   fi
   echo ok
+}
+
+# kept_result PREVIOUS: the last_result a start keeps from the status it finds. A failed step stays failed until a backup
+# succeeds, so a restart does not clear the alert; ok, none, nothing, and configuration (the start has just checked it) give none.
+kept_result() {
+  case ${1:-none} in
+    ok | none | configuration) echo none ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# --- the status file: $STATE in $STATE_DIR, set by the caller ---
+
+write_status() { # result, remote result, snapshot, success epoch or empty
+  mkdir -p "$STATE_DIR"
+  jq -n --arg result "$1" --arg remote "$2" --arg snapshot "$3" --argjson success "${4:-null}" \
+    '{last_result: $result, remote_result: $remote, last_snapshot: $snapshot, last_success_at: $success}' > "$STATE.new"
+  mv "$STATE.new" "$STATE"
+}
+previous() { jq -r "$1 // empty" "$STATE" 2>/dev/null || true; }
+
+# mark_failed RESULT: a run failed at step RESULT, or the configuration is invalid (RESULT=configuration). The previous
+# remote result, snapshot and last success are kept: the age still counts from that success.
+mark_failed() {
+  remote=$(previous .remote_result)
+  write_status "$1" "${remote:-none}" "$(previous .last_snapshot)" "$(previous .last_success_at)"
 }

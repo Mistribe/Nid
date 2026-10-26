@@ -45,6 +45,7 @@ public sealed partial class EvaluateNotificationsHandler(
             evaluated++;
             foreach (var source in sources)
                 await EvaluateIsolatedAsync(source, adult.Id, prefs, today, ct);
+            await WakePublishedIsolatedAsync(adult.Id, prefs, today, ct);
         }
 
         await store.PurgeAsync(clock.GetCurrentInstant() - NodaTime.Duration.FromDays(HistoryDays), ct);
@@ -103,6 +104,35 @@ public sealed partial class EvaluateNotificationsHandler(
             {
                 LogStoreFailed(recording, source.Name, person.Value);
             }
+        }
+    }
+
+    /// <summary>
+    /// The published kinds have no source to wake them: their snoozed rows whose day has come open again here, as <see cref="LifecycleChange.Wake"/>
+    /// does for a source's, with their deliveries in the same transaction. A failure is logged; the next run tries again.
+    /// </summary>
+    private async Task WakePublishedIsolatedAsync(PersonId person, NotificationPreferences prefs, LocalDate today, CancellationToken ct)
+    {
+        try
+        {
+            var due = (await store.ForSourceAsync(person, PlatformNotificationKinds.All.Select(k => k.Kind).ToList(), ct))
+                .Where(r => r.State == NotificationStates.Snoozed && r.SnoozedUntil <= today)
+                .Select(r => (LifecycleChange)new LifecycleChange.Wake(r.Id, today)).ToList();
+            if (due.Count == 0)
+                return;
+            await using var scope = await unitOfWork.BeginAsync(ct);
+            var opened = await store.ApplyAsync(person, due, ct);
+            if (opened.Count > 0)
+                await outbox.EnqueueAsync(person, opened, prefs, ct);
+            await scope.CommitAsync(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            LogStoreFailed(e, "published", person.Value);
         }
     }
 

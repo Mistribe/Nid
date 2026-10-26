@@ -78,6 +78,9 @@ services:
       Auth__ClientId: ${NID_OIDC_CLIENT_ID:-nid}
       # Forwarded headers are trusted from nid-web's network only (1F1 design §2.3).
       Auth__TrustedNetworks__0: 172.30.10.0/24
+      # The backup's status.json, for the health notification: same age rule as the backup's own healthcheck.
+      Nid__Backup__StatusPath: /run/backup-state/status.json
+      Nid__Backup__MaxAgeHours: ${NID_BACKUP_MAX_AGE:-26}
     secrets:
       - { source: nid_connection_string, target: ConnectionStrings__nid }
       - { source: oidc_client_secret, target: Auth__ClientSecret }
@@ -85,6 +88,7 @@ services:
     volumes:
       - dataprotection-keys:/var/lib/nid/keys
       - assets:/var/lib/nid/assets
+      - backup-state:/run/backup-state:ro
     tmpfs: [/tmp]
     # The only service with a way out (egress): catalog, rates, icons, and the identity provider's public URL.
     networks: [app, data, egress]
@@ -118,6 +122,7 @@ services:
       NID_BACKUP_AT: ${NID_BACKUP_AT:-}
       NID_BACKUP_KEEP: ${NID_BACKUP_KEEP:-}
       NID_BACKUP_MAX_AGE: ${NID_BACKUP_MAX_AGE:-}
+      NID_BACKUP_STATE_DIR: /state
       NID_BACKUP_REMOTE_FORGET: ${NID_BACKUP_REMOTE_FORGET:-}
       # embedded (default) or external: README §11. NID_DB_HOST is the Postgres server the backup reads.
       NID_BACKUP_POCKET_ID: ${NID_BACKUP_POCKET_ID:-}
@@ -130,6 +135,8 @@ services:
       - pocket-id:/pocket-id:ro
       - ./secrets:/source/deploy/secrets:ro
       - ./.env:/source/deploy/.env:ro
+      # status.json for nid-api (read-only there). The volume is root's, 0755, and the backup is root: files it writes are 0644.
+      - backup-state:/state
       # Never under /source: what opens the backup stays out of it. Neither folder is created by compose: it would
       # make them root's, and a missing backups folder would silently become a new, empty repository.
       - { type: bind, source: ./backup-secrets, target: /run/backup-secrets, read_only: true, bind: { create_host_path: false } }
@@ -185,6 +192,7 @@ volumes:
   pocket-id: {}
   dataprotection-keys: {}
   assets: {}
+  backup-state: {}
 
 # Plain files (compose outside Swarm bind-mounts them): deploy/secrets/ is 0700, so only its owner and the daemon read them.
 secrets:

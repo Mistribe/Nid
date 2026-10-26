@@ -36,7 +36,7 @@ public sealed partial class SecurityEventWriter(
                   (id, at, category, action, actor_kind, person_id, via, scopes, request_id, request, item_ids, subject_person_id, data, token_id)
                 values ($1, $2, 'security', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 """);
-            command.Parameters.Add(new NpgsqlParameter { Value = Guid.CreateVersion7() });
+            command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Id ?? Guid.CreateVersion7() });
             command.Parameters.Add(new NpgsqlParameter { Value = clock.GetCurrentInstant() });
             command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Name });
             command.Parameters.Add(new NpgsqlParameter { Value = actor.Kind == ActorKind.Person ? "person" : "system" });

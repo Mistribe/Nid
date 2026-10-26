@@ -29,6 +29,8 @@ public sealed partial class IrlWeeklyJob(IServiceScopeFactory scopes, ILogger<Ir
             var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new CollectIrlCommand(), cancellationToken);
             if (result.TryGetFailure(out var failure))
                 LogRefused(failure!.Code);
+            else
+                await JobIncidents.SucceededAsync(scopes, context, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -37,6 +39,7 @@ public sealed partial class IrlWeeklyJob(IServiceScopeFactory scopes, ILogger<Ir
         catch (Exception e)
         {
             LogCrashed(e);
+            await JobIncidents.CrashedAsync(scopes, context, cancellationToken);
         }
     }
 

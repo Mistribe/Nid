@@ -19,6 +19,9 @@ public sealed class NotificationCatalog(IEnumerable<INotificationSource> sources
         foreach (var kind in source.Kinds)
             if (!kinds.TryAdd(kind.Kind, kind))
                 throw new InvalidOperationException($"The notification kind '{kind.Kind}' is declared twice (source '{source.Name}').");
+        foreach (var kind in PlatformNotificationKinds.All)
+            if (!kinds.TryAdd(kind.Kind, kind))
+                throw new InvalidOperationException($"The notification kind '{kind.Kind}' is declared twice (published).");
         return kinds;
     }
 }

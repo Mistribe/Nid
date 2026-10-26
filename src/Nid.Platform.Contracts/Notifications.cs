@@ -80,3 +80,33 @@ public static class SignalKeys
     public static string Undated(string kind, ItemId item)
         => $"{kind}:{item.Value:D}";
 }
+
+/// <summary>The families of the notices published through <see cref="INotifier"/> (notifications design §2.1).</summary>
+public static class NotificationFamilies
+{
+    public const string Security = "security";
+    public const string Action = "action";
+    public const string Health = "health";
+}
+
+/// <summary>Who a published notice is for. Dependents and pending adults never receive one.</summary>
+public abstract record Recipients
+{
+    /// <summary>These people, when they are active adults: several deciders, or one id for a holder.</summary>
+    public sealed record People(IReadOnlyList<PersonId> Ids) : Recipients;
+
+    public sealed record AllAdults : Recipients;
+
+    public sealed record Admins : Recipients;
+}
+
+/// <summary>One occurrence of a kind published by code, not by an evaluation: <paramref name="Key"/> identifies the occurrence.</summary>
+public sealed record Notice(string Kind, Recipients Recipients, string Key, IReadOnlyList<ItemId> ItemIds, IReadOnlyDictionary<string, string> Params);
+
+/// <summary>Publishes and resolves one-off notices (notifications design §2.1). Neither call ever throws: a failure is logged.</summary>
+public interface INotifier
+{
+    Task PublishAsync(Notice notice, CancellationToken ct);
+
+    Task ResolveAsync(string key, CancellationToken ct);
+}

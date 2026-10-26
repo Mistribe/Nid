@@ -114,10 +114,9 @@ public sealed partial class DispatchNotificationsHandler(
         else if (household)
         {
             // Any adult's open row for the key will do: the first opener's may be gone, snoozed or purged.
-            var found = delivery.HouseholdKey is { } key ? await store.FindOpenByKeyAsync(key, ct) : null;
+            var found = delivery.HouseholdKey is { } key ? await store.FindOpenByKeyAsync(HouseholdAccess.RowKeyOf(key), ct) : null;
             var foundKind = found is null ? null : catalog.Find(found.Kind);
-            if (found is not null && foundKind is not null && found.ItemIds.Count > 0
-                && await HouseholdAccess.EveryAdultReadsAsync(persons, visible, found.ItemIds, ct))
+            if (found is not null && foundKind is not null && await HouseholdAccess.MayTellAsync(persons, visible, found, foundKind, ct))
                 rows.Add((found, foundKind));
         }
         else if (delivery.NotificationId is { } notificationId)
@@ -145,7 +144,8 @@ public sealed partial class DispatchNotificationsHandler(
         try
         {
             if (household)
-                message = renderer.Household(rows[0].Row, rows[0].Kind);
+                // The household's link is the same for everyone: the first opener's admin flag is not theirs.
+                message = renderer.Household(rows[0].Row with { Params = rows[0].Row.Params.Where(p => p.Key != "admin").ToDictionary() }, rows[0].Kind);
             else
             {
                 var found = await items.FindManyAsync(rows.SelectMany(r => r.Row.ItemIds).Distinct().ToList(), ct);

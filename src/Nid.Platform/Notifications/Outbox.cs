@@ -5,7 +5,8 @@ using NodaTime;
 namespace Nid.Platform.Notifications;
 
 /// <summary>A row that just opened: what the outbox needs to decide whether to send it (notifications design §5.1).</summary>
-public sealed record OpenedNotification(Guid Id, NotificationLevel Level, int Round, string Key, IReadOnlyList<ItemId> ItemIds);
+/// <paramref name="PublishedAt"/> is the instant of a published notice (<see cref="INotifier"/>), null for a row an evaluation opened.
+public sealed record OpenedNotification(Guid Id, NotificationLevel Level, int Round, string Key, IReadOnlyList<ItemId> ItemIds, string Kind, Instant? PublishedAt);
 
 /// <summary>The states of a delivery.</summary>
 public static class DeliveryStates
@@ -61,8 +62,8 @@ public interface IDeliveryOutbox
 /// <summary>One message to queue.</summary>
 public sealed record NewDelivery(Guid NotificationId, PersonId Person, string Channel, int Round);
 
-/// <summary>The household's message, queued once per <paramref name="Key"/> whoever opens it first: channel <c>discord_household</c>, round 1.</summary>
-public sealed record NewHouseholdDelivery(Guid NotificationId, PersonId Person, string Channel, string Key);
+/// <summary>The household's message, queued once per <paramref name="Key"/> whoever opens it first: channel <c>discord_household</c>, the row's round (1, but a health incident that opens again posts again).</summary>
+public sealed record NewHouseholdDelivery(Guid NotificationId, PersonId Person, string Channel, string Key, int Round);
 
 /// <summary>A digest message to queue: one per (digest, channel).</summary>
 public sealed record NewDigestDelivery(Guid DigestId, PersonId Person, string Channel);
@@ -125,7 +126,8 @@ internal static class ChannelAccess
 }
 
 public sealed class DeliveryOutbox(
-    IDeliveryStore store, IEnumerable<INotificationChannel> channels, IPersonRegistry persons, IWebhookStore webhooks, IVisibleItems visible, IClock clock) : IDeliveryOutbox
+    IDeliveryStore store, IEnumerable<INotificationChannel> channels, IPersonRegistry persons, IWebhookStore webhooks, IVisibleItems visible, IClock clock,
+    NotificationCatalog catalog) : IDeliveryOutbox
 {
     public async Task EnqueueAsync(PersonId person, IReadOnlyList<OpenedNotification> opened, NotificationPreferences prefs, CancellationToken ct)
     {
@@ -144,11 +146,12 @@ public sealed class DeliveryOutbox(
 
     /// <summary>
     /// The household channel: the first opening of a critical or action row about items every active adult can read, when its webhook
-    /// works. The store keeps one message per key, so the second adult to open the same key queues nothing.
+    /// works; a row of no item too when it is a security or health notice (<see cref="HouseholdAccess.Eligible"/>). The store keeps one
+    /// message per key, so the second adult to open the same key queues nothing.
     /// </summary>
     private async Task EnqueueHouseholdAsync(PersonId person, IReadOnlyList<OpenedNotification> opened, CancellationToken ct)
     {
-        var candidates = opened.Where(o => o is { Round: 1, ItemIds.Count: > 0, Level: NotificationLevel.Critical or NotificationLevel.Action }).ToList();
+        var candidates = opened.Where(o => o.Level is NotificationLevel.Critical or NotificationLevel.Action && HouseholdAccess.Eligible(o, catalog.Find(o.Kind))).ToList();
         if (candidates.Count == 0 || ChannelAccess.WebhookAddress(await webhooks.FindAsync(null, ct)) is null
             || !channels.Any(c => c.Name == ChannelAccess.DiscordHousehold && c.IsAvailable))
             return;
@@ -156,7 +159,7 @@ public sealed class DeliveryOutbox(
         var deliveries = new List<NewHouseholdDelivery>();
         foreach (var row in candidates)
             if (await HouseholdAccess.EveryAdultReadsAsync(persons, visible, row.ItemIds, ct))
-                deliveries.Add(new NewHouseholdDelivery(row.Id, person, ChannelAccess.DiscordHousehold, row.Key));
+                deliveries.Add(new NewHouseholdDelivery(row.Id, person, ChannelAccess.DiscordHousehold, HouseholdAccess.KeyOf(row, catalog.Find(row.Kind)), row.Round));
         if (deliveries.Count > 0)
             await store.EnqueueHouseholdAsync(deliveries, clock.GetCurrentInstant(), ct);
     }
@@ -164,6 +167,39 @@ public sealed class DeliveryOutbox(
 
 internal static class HouseholdAccess
 {
+    /// <summary>The kinds that tell one person's business (a token, a decision of theirs): never for the household, with or without an item.</summary>
+    private static readonly HashSet<string> Personal = ["token_expiring", "proposal_pending"];
+
+    private static bool IsPersonal(NotificationKind? kind) => kind is not null && Personal.Contains(kind.Kind);
+
+    private static bool IsOneOff(NotificationKind? kind)
+        => kind is { Family: NotificationFamilies.Security or NotificationFamilies.Health } && !IsPersonal(kind);
+
+    /// <summary>
+    /// A row about items, in its first round; or a security / health notice, which has no item and nothing private to leak. A published
+    /// health notice (a job that fails again) is a new occurrence at each publication, so any round.
+    /// </summary>
+    public static bool Eligible(OpenedNotification row, NotificationKind? kind)
+        => !IsPersonal(kind) && (row.ItemIds.Count > 0 ? row.Round == 1 : IsOneOff(kind) && (row.Round == 1 || row.PublishedAt is not null));
+
+    /// <summary>
+    /// Once per key, ever. A published health notice keeps one fixed key per incident source (one per job), and the purge never frees
+    /// a household key, so each publication gets its own: <c>{key}@{publication ticks}</c>.
+    /// </summary>
+    public static string KeyOf(OpenedNotification row, NotificationKind? kind)
+        => kind?.Family == NotificationFamilies.Health && row.PublishedAt is { } at ? $"{row.Key}@{at.ToUnixTimeTicks()}" : row.Key;
+
+    /// <summary>The key of the notification rows a household key stands for.</summary>
+    public static string RowKeyOf(string householdKey)
+    {
+        var at = householdKey.LastIndexOf('@');
+        return at > 0 && at < householdKey.Length - 1 && householdKey[(at + 1)..].All(char.IsAsciiDigit) ? householdKey[..at] : householdKey;
+    }
+
+    /// <summary>What the household may be told: rows about items every adult reads, or a one-off security / health notice.</summary>
+    public static async Task<bool> MayTellAsync(IPersonRegistry persons, IVisibleItems visible, NotificationRecord row, NotificationKind kind, CancellationToken ct)
+        => !IsPersonal(kind) && (row.ItemIds.Count > 0 ? await EveryAdultReadsAsync(persons, visible, row.ItemIds, ct) : IsOneOff(kind));
+
     /// <summary>True when every active adult (not pending) can read every item: what the household may be told about.</summary>
     public static async Task<bool> EveryAdultReadsAsync(IPersonRegistry persons, IVisibleItems visible, IReadOnlyList<ItemId> items, CancellationToken ct)
     {

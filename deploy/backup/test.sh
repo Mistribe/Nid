@@ -91,5 +91,23 @@ check "parts refuse a mode they do not know" no "$(succeeds backup_parts extern)
 check "pgpass line of the bundled database" "postgres:5432:nid:nid:s3cret" "$(pgpass_line postgres s3cret)"
 check "pgpass line of an external database" "postgres-server:5432:nid:nid:s3cret" "$(pgpass_line postgres-server s3cret)"
 
+check "a restart keeps a failed step" database "$(kept_result database)"
+check "a restart clears a success" none "$(kept_result ok)"
+check "a restart keeps none" none "$(kept_result none)"
+check "a restart clears a configuration error" none "$(kept_result configuration)"
+check "a first start has no result" none "$(kept_result '')"
+
+STATE_DIR=/tmp/nid-state
+STATE=$STATE_DIR/status.json
+rm -rf "$STATE_DIR"
+mark_failed configuration
+check "a configuration error with no status yet" \
+  '{"last_result":"configuration","remote_result":"none","last_snapshot":"","last_success_at":null}' "$(jq -c . "$STATE")"
+write_status ok ok a1 1790390000
+mark_failed configuration
+check "a configuration error keeps the last success" \
+  '{"last_result":"configuration","remote_result":"ok","last_snapshot":"a1","last_success_at":1790390000}' "$(jq -c . "$STATE")"
+check "a configuration error is unhealthy" no "$(succeeds health_check "$STATE" $now 26 no 0)"
+
 if [ "$failures" -gt 0 ]; then echo "$failures failure(s)"; exit 1; fi
 echo "all lib.sh tests passed"

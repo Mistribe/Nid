@@ -31,7 +31,7 @@ public sealed record StoredProposal(
     Guid? SupersededById, string CreatedVia, Guid? TokenId, PersonId CreatedBy, string? SourceLabel, Instant CreatedAt,
     PersonId? DecidedBy, Instant? DecidedAt, string? DecisionNote, IReadOnlyList<Guid> AppliedRefs, uint Version);
 
-public sealed record SubmitOutcome(StoredProposal Proposal, bool Created);
+public sealed record SubmitOutcome(StoredProposal Proposal, bool Created, IReadOnlyList<Guid>? Superseded = null);
 
 public static class ProposalCodes
 {

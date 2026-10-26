@@ -48,12 +48,14 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
             CreatedVia = p.CreatedVia, TokenId = p.TokenId, CreatedByPersonId = p.Person.Value, SourceLabel = p.SourceLabel,
             CreatedAt = clock.GetCurrentInstant(),
         };
+        var superseded = new List<Guid>();
         if (p.SubjectKey is not null)
             foreach (var older in await db.Proposals.Where(r => r.Kind == p.Kind && r.TargetItemId == row.TargetItemId
                          && r.SubjectKey == p.SubjectKey && r.Status == "pending").ToListAsync(ct))
             {
                 older.Status = "superseded";
                 older.SupersededById = row.Id;
+                superseded.Add(older.Id);
             }
 
         db.Proposals.Add(row);
@@ -69,7 +71,7 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock) : IPro
             return new SubmitOutcome(ToStored(winner), false);
         }
         if (transaction is not null) await transaction.CommitAsync(ct);
-        return new SubmitOutcome(ToStored(row), true);
+        return new SubmitOutcome(ToStored(row), true, superseded);
     }
 
     public async Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct)

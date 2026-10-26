@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Subscriptions.IntegrationTests.Notifications;
 
@@ -15,13 +16,13 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             $"/api/v1/investments/envelopes/{envelope.Value}/valuations",
             new { asOf, amount = new { amount, currency }, note = (string?)null })).StatusCode);
 
-    private static async Task<IReadOnlyList<Signal>> SignalsAsync(NidApp app, PersonId reader)
+    private static async Task<IReadOnlyList<Signal>> SignalsAsync(NidApp app, PersonId reader, int days = 90)
     {
         await using var scope = app.Services.CreateAsyncScope();
         var source = scope.ServiceProvider.GetServices<INotificationSource>().Single(s => s.Name == "core");
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(reader); // as the evaluation does
         var today = NidApp.GoldenCaseToday;
-        var result = await source.SignalsAsync(reader, today, today.PlusDays(90), CancellationToken.None);
+        var result = await source.SignalsAsync(reader, today, today.PlusDays(days), CancellationToken.None);
         Assert.True(result.TryGetValue(out var signals), result.TryGetFailure(out var f) ? f!.Message : "");
         return signals!;
     }
@@ -89,6 +90,39 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultB)).Key);
     }
 
+    private static async Task<Guid> TokenAsync(NidApp app, PersonId owner, int days)
+    {
+        var response = await app.RawAsync(owner, HttpMethod.Post, "/api/v1/core/me/tokens", new { name = "ci", preset = "read", expiresInDays = days });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("token").GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task A_token_expiring_soon_is_the_holders_action_signal()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var soon = await TokenAsync(app, app.AdultB, 5);
+        await TokenAsync(app, app.AdultB, 30); // beyond the lead
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultB, days: 7)); // the lead the evaluation applies
+
+        Assert.Equal("token_expiring", signal.Kind);
+        Assert.Equal($"token_expiring:{soon}:2025-10-20", signal.Key);
+        Assert.Equal(new LocalDate(2025, 10, 20), signal.DueOn);
+        Assert.Empty(signal.ItemIds);
+        Assert.Empty(await SignalsAsync(app, app.AdultA)); // Alice sees nothing of Bob's tokens
+    }
+
+    [Fact]
+    public async Task A_revoked_token_is_no_signal()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var token = await TokenAsync(app, app.AdultB, 5);
+        Assert.True((await app.RawAsync(app.AdultB, HttpMethod.Delete, $"/api/v1/core/me/tokens/{token}")).IsSuccessStatusCode);
+
+        Assert.Empty(await SignalsAsync(app, app.AdultB));
+    }
+
     [Fact]
     public async Task The_kinds_are_declared()
     {
@@ -100,6 +134,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         [
             new NotificationKind("fx_rate_missing", "finding", NotificationLevel.Info, "core", null),
             new NotificationKind("routine_due", "finding", NotificationLevel.Action, "core", null),
+            new NotificationKind("token_expiring", "security", NotificationLevel.Action, "core", 7),
         ], source.Kinds);
     }
 }
