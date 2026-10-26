@@ -118,6 +118,10 @@ public static class UpcomingKinds
 
     // Issue #34 §2.7.
     public const string HoldingMaturity = "holding_maturity";
+
+    // Tax-per spec §4.6: on 31 December, the PER ceiling left to pay in (a person's, or the household's under pooling) and the part lost.
+    public const string PerDeadline = "per_deadline";
+    public const string PerCeilingExpiring = "per_ceiling_expiring";
 }
 
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>

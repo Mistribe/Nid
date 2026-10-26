@@ -147,15 +147,22 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
         return Result.Success(Assemble(year, r.Lines, r.Stored?.Profile ?? TaxProfile.Empty, r.People, r.PreviousYearIncome).Inputs);
     }
 
-    /// <summary>The year's result alone, as <see cref="EstimateAsync"/> computes it.</summary>
+    /// <summary>
+    /// The year's result alone, as <see cref="EstimateAsync"/> computes it. Kept for the rest of the scope (a request): the dashboard asks
+    /// twice, for « Impôts » and the PER deadline. Keyed by the reader too, as a job's scope may read for several.
+    /// </summary>
     public async Task<Result<TaxResult>> ComputeAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
     {
+        var key = (actor.Current!.PersonId!.Value, year, scope, today);
+        if (computed.TryGetValue(key, out var kept)) return Result.Success(kept);
         var read = await ReadAsync(year, scope, today, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxResult>(failure!);
         read.TryGetValue(out var r);
         var (inputs, _, _) = Assemble(year, r.Lines, r.Stored?.Profile ?? TaxProfile.Empty, r.People, r.PreviousYearIncome);
-        return Result.Success(TaxCalculator.Compute(inputs));
+        return Result.Success(computed[key] = TaxCalculator.Compute(inputs));
     }
+
+    private readonly Dictionary<(PersonId Reader, int Year, VisibilityScope Scope, NodaTime.LocalDate Today), TaxResult> computed = [];
 
     /// <summary>
     /// Rental 2044 spec §4–§5: the form from the estimate's own lines and calculation, so the two never differ; the regime is the
@@ -416,5 +423,42 @@ public sealed class TaxCommitments(TaxEstimates estimates) : ICommitmentsContrib
         // Nothing to pay puts no euro entry, which would ask for a rate in a household of another currency.
         var amortized = monthly > 0m ? new Dictionary<Currency, decimal> { [Currency.Eur] = monthly } : new Dictionary<Currency, decimal>();
         return Result.Success(new CommitmentsPart(CommitmentSources.Tax, amortized.Count, amortized, new Dictionary<Currency, decimal>()));
+    }
+}
+
+/// <summary>
+/// Tax-per spec §4.6: « À venir » on 31 December, once it falls in the window. For each declarant the reader sees (all in Foyer, the
+/// reader alone in Moi), the PER ceiling left to pay in and the part of it lost that day; under pooling the ceiling left is the
+/// household's, one event in Foyer only. In euros, about no item; nothing when nothing is left.
+/// </summary>
+public sealed class PerDeadline(TaxEstimates estimates, IPersonRegistry persons)
+{
+    /// <summary>The pooled event's label, as it has no person's name.</summary>
+    public const string Household = "household";
+
+    public async Task<Result<IReadOnlyList<DashboardEventView>>> EventsAsync(
+        PersonId reader, VisibilityScope scope, NodaTime.LocalDate today, NodaTime.LocalDate until, CancellationToken ct)
+    {
+        var on = new NodaTime.LocalDate(today.Year, 12, 31);
+        if (on > until) return Result.Success<IReadOnlyList<DashboardEventView>>([]);
+        var computed = await estimates.ComputeAsync(today.Year, scope, today, ct);
+        if (computed.TryGetFailure(out var failure)) return Result.Failure<IReadOnlyList<DashboardEventView>>(failure!);
+        computed.TryGetValue(out var r);
+        var pooled = r!.Per?.Pooled == true;
+        DashboardEventView Event(string kind, string name, string? label, decimal amount)
+            => new(on, kind, null, "tax", name, label, DashboardMath.Money(amount, Currency.Eur));
+
+        var events = new List<DashboardEventView>();
+        foreach (var (adult, d) in TaxEstimates.Adults(await persons.ListAsync(ct)).Zip(r.Declarants))
+        {
+            if (d.Per is not { } per || scope == VisibilityScope.Me && adult.Id != reader) continue;
+            if (!pooled && per.Remaining > 0m) events.Add(Event(UpcomingKinds.PerDeadline, adult.DisplayName, null, per.Remaining));
+            // No more is lost than the ceiling still free.
+            var lost = Math.Min(per.Expiring, per.Remaining);
+            if (lost > 0m) events.Add(Event(UpcomingKinds.PerCeilingExpiring, adult.DisplayName, null, lost));
+        }
+        if (pooled && scope == VisibilityScope.Household && r.Per!.Remaining > 0m)
+            events.Add(Event(UpcomingKinds.PerDeadline, "", Household, r.Per.Remaining));
+        return Result.Success<IReadOnlyList<DashboardEventView>>(events);
     }
 }

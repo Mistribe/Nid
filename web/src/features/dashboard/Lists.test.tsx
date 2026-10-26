@@ -76,6 +76,25 @@ describe('dashboard lists', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows the PER deadline of 31 December, linked to the tax page', async () => {
+    const per = { on: '2025-12-31', module: 'tax', id: null, amount: { amount: '2920.00', currency: 'EUR' } };
+    serve(dashboard({
+      upcoming: [
+        event({ ...per, kind: 'per_deadline', name: '', label: 'household' }),
+        event({ ...per, kind: 'per_ceiling_expiring', name: 'Alice', amount: { amount: '1000.00', currency: 'EUR' } }),
+      ],
+    }));
+    const { container } = await renderApp('/dashboard');
+
+    const items = within(await section('À venir')).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('reste à verser avant le 31 décembre');
+    expect(items[0]).toHaveTextContent('2 920,00 €');
+    expect(within(items[0] as HTMLElement).getByRole('link', { name: 'Foyer (plafonds mutualisés)' })).toHaveAttribute('href', '/tax');
+    expect(items[1]).toHaveTextContent('part du plafond perdue le 31 décembre');
+    expect(within(items[1] as HTMLElement).getByRole('link', { name: 'Alice' })).toHaveAttribute('href', '/tax');
+    await expectNoAxeViolations(container);
+  });
+
   it('names today and tomorrow rather than their dates', async () => {
     const today = todayIso();
     const [y, m, d] = today.split('-').map(Number) as [number, number, number];

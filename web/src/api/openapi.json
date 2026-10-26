@@ -21763,7 +21763,6 @@
         "required": [
           "on",
           "kind",
-          "id",
           "module",
           "name"
         ],
@@ -21777,7 +21776,10 @@
             "type": "string"
           },
           "id": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "module": {

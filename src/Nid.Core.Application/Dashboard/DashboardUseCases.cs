@@ -1,3 +1,4 @@
+using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
@@ -25,7 +26,7 @@ public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccesso
 /// <summary>The dashboard's composition for a reader on a day: the handler serves it, the notification source reads the same figures.</summary>
 public sealed class DashboardReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
-    IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming,
+    IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
     IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
 {
     public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
@@ -39,10 +40,13 @@ public sealed class DashboardReader(
         var until = today.PlusDays(DashboardMath.UpcomingDays);
         var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));
         if (dated.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
+        var per = await perDeadline.EventsAsync(reader, scope, today, until, ct);
+        if (per.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         worth.TryGetValue(out var w);
         committed.TryGetValue(out var c);
         earned.TryGetValue(out var e);
         dated.TryGetValue(out var d);
+        per.TryGetValue(out var p);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = DashboardMath.Currencies(w!, c!, e!).Where(x => x != reference).ToList();
@@ -52,7 +56,7 @@ public sealed class DashboardReader(
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
         var target = await household.AllocationTargetAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target));
+        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, p));
     }
 }
 

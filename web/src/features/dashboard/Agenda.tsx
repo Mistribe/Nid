@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { CalendarClock, CalendarX, Flag, Hourglass, KeyRound, Landmark, RefreshCw, Receipt, Scale, Wallet, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CalendarX, Flag, Hourglass, KeyRound, Landmark, PiggyBank, RefreshCw, Receipt, Scale, TimerOff, Wallet, type LucideIcon } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
@@ -26,6 +26,8 @@ function EventText({ e }: { e: DashboardEvent }) {
     case 'property_cost_due': return <>{categoryText(t, e.label)}</>;
     case 'tenancy_end': return <>{t('dashboard.upcoming.tenancy_end', { label: e.label ?? '' })}</>;
     case 'holding_maturity': return <>{t('dashboard.upcoming.holding_maturity', { label: e.label ?? '' })}</>;
+    case 'per_deadline': return <>{t('dashboard.upcoming.per_deadline')}</>;
+    case 'per_ceiling_expiring': return <>{t('dashboard.upcoming.per_ceiling_expiring')}</>;
     default: return null;
   }
 }
@@ -33,12 +35,15 @@ function EventText({ e }: { e: DashboardEvent }) {
 const ICON: Record<string, LucideIcon> = {
   subscription_renewal: RefreshCw, subscription_expiry: CalendarX, income_phase_end: Wallet, loan_phase_end: Landmark,
   loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass,
+  per_deadline: PiggyBank, per_ceiling_expiring: TimerOff,
 };
 // The module's colour, as in « Où part le revenu du mois »: subscriptions, loans and property costs take their chart
-// colour, the income the accent; an icon carries it, the text says what it is.
+// colour, the income the accent, the PER deadline the tax's; an icon carries it, the text says what it is.
 const TINT: Record<string, string> = {
-  subscriptions: 'var(--chart-1)', loans: 'var(--chart-2)', properties: 'var(--chart-3)', income: 'var(--primary)',
+  subscriptions: 'var(--chart-1)', loans: 'var(--chart-2)', properties: 'var(--chart-3)', income: 'var(--primary)', tax: 'var(--chart-4)',
 };
+
+const NAME = 'block truncate text-xs text-muted-foreground hover:text-foreground hover:underline';
 
 /** « Aujourd’hui », « Demain », else the weekday and date, the year only when it is not this one. */
 function dayLabel(t: TFunction, on: string, today: string): string {
@@ -76,14 +81,17 @@ export function Upcoming({ d }: { d: DashboardView }) {
                   const Icon = ICON[e.kind] ?? CalendarClock;
                   const tint = TINT[e.module] ?? 'var(--muted-foreground)';
                   return (
-                    <li key={`${e.kind}-${e.id}-${e.on}-${e.label ?? ''}`} className="flex items-center gap-3 py-2">
+                    <li key={`${e.kind}-${e.id ?? e.name}-${e.on}-${e.label ?? ''}`} className="flex items-center gap-3 py-2">
                       <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg"
                         style={{ color: tint, background: `color-mix(in oklab, ${tint} 14%, transparent)` }}>
                         <Icon className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate"><EventText e={e} /></span>
-                        <ItemLink module={e.module} id={e.id} className="block truncate text-xs text-muted-foreground hover:text-foreground hover:underline">{e.name}</ItemLink>
+                        {e.id ? <ItemLink module={e.module} id={e.id} className={NAME}>{e.name}</ItemLink> : (
+                          // The PER deadline is about a person (or the household), not an item: it leads to the tax page's PER block.
+                          <Link to="/tax" className={NAME}>{e.label === 'household' ? t('dashboard.upcoming.per_household') : e.name}</Link>
+                        )}
                       </span>
                       {e.amount ? <span className="shrink-0 font-medium tabular-nums">{formatMoney(e.amount)}</span> : null}
                     </li>

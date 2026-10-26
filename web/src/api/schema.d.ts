@@ -19109,7 +19109,7 @@ export interface components {
             on: string;
             kind: string;
             /** Format: uuid */
-            id: string;
+            id?: null | string;
             module: string;
             name: string;
             label?: null | string;

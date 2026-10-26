@@ -261,7 +261,10 @@
       "loan_end": "Dernière échéance",
       "valuation_due": "Estimation à refaire",
       "tenancy_end": "Fin du bail « {{label}} »",
-      "holding_maturity": "Échéance de « {{label}} » : vérifier où ira le capital"
+      "holding_maturity": "Échéance de « {{label}} » : vérifier où ira le capital",
+      "per_deadline": "PER : reste à verser avant le 31 décembre pour utiliser le plafond",
+      "per_ceiling_expiring": "PER : part du plafond perdue le 31 décembre",
+      "per_household": "Foyer (plafonds mutualisés)"
     }
   },
   "export": {

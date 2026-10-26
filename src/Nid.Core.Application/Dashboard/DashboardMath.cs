@@ -18,8 +18,8 @@ public sealed record DashboardEnvelopeView(
     ItemId Id, string Module, string Name, DashboardMoneyView? Value, DashboardMoneyView? Converted, string? MissingCurrency,
     LocalDate? AsOf, bool Stale, bool Estimated, LocalDate? ValuedOn);
 
-/// <summary>2D2a spec §4: an event of « À venir »; the amount in its own currency.</summary>
-public sealed record DashboardEventView(LocalDate On, string Kind, ItemId Id, string Module, string Name, string? Label, DashboardMoneyView? Amount);
+/// <summary>2D2a spec §4: an event of « À venir »; the amount in its own currency. <c>Id</c> null for an event about no item (the PER deadline).</summary>
+public sealed record DashboardEventView(LocalDate On, string Kind, ItemId? Id, string Module, string Name, string? Label, DashboardMoneyView? Amount);
 
 /// <summary>2D2a spec §4: a line of « À faire »: <c>stale_value</c> (dated by the latest valuation, not the estimate), <c>no_value</c>, <c>income_gap_soon</c> (dated by the end).</summary>
 public sealed record DashboardTodoView(string Kind, ItemId Id, string Module, string Name, LocalDate? On, string? Label);
@@ -60,7 +60,7 @@ public sealed record DashboardView(
     AllocationView? Allocation)
     : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id)).Concat(Todo.Select(t => t.Id));
+    public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id).OfType<ItemId>()).Concat(Todo.Select(t => t.Id));
 }
 
 /// <summary>
@@ -85,7 +85,7 @@ public static class DashboardMath
     public static DashboardView Compose(
         IReadOnlyList<NetWorthPart> worth, IReadOnlyList<CommitmentsPart> commitments, IReadOnlyList<IncomePart> income,
         IReadOnlyList<UpcomingEvent> events, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today,
-        IReadOnlyDictionary<string, decimal>? target = null)
+        IReadOnlyDictionary<string, decimal>? target = null, IReadOnlyList<DashboardEventView>? itemless = null)
     {
         Sum Of(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts) => Sum.Of(Merge(parts), reference, rates, today);
 
@@ -134,9 +134,10 @@ public static class DashboardMath
         var people = peopleMissing is null ? People(holdings.Select(h => (h.Holding.Owners, h.Converted.Amount)), persons, reference) : null;
 
         var upcoming = events.Where(e => e.Kind != UpcomingKinds.IncomeGapSoon)
-            .OrderBy(e => e.On).ThenBy(e => e.Name, French).ThenBy(e => e.Kind, StringComparer.Ordinal)
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? Money(a.Amount, a.Currency) : null))
+            .Concat(itemless ?? [])
+            .OrderBy(e => e.On).ThenBy(e => e.Name, French).ThenBy(e => e.Kind, StringComparer.Ordinal)
             .ToList();
         var todo = holdings.Where(h => h.Holding is { Value: not null, Stale: true })
             .OrderBy(h => h.Holding.ValuedOn ?? h.Holding.AsOf).ThenBy(h => h.Holding.Name, French)
