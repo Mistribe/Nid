@@ -68,13 +68,17 @@ public static class Extensions
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
-                    .AddHttpClientInstrumentation();
+                    // url.full keeps the path: a Discord webhook token lives there, so never trace those calls.
+                    .AddHttpClientInstrumentation(http => http.FilterHttpRequestMessage = IsTraceable);
             });
 
         builder.AddOpenTelemetryExporters();
 
         return builder;
     }
+
+    public static bool IsTraceable(System.Net.Http.HttpRequestMessage request) =>
+        request.RequestUri?.AbsolutePath.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase) != true;
 
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {

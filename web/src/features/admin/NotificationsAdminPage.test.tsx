@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities, allCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
@@ -88,7 +88,7 @@ describe('Administration › Notifications', () => {
     expect(rent.closest('tr')).toHaveTextContent(formatInstant(failure.at));
     expect(rent.closest('tr')).toHaveTextContent('notifications.channel_unreachable 421');
     expect(rent.closest('tr')).toHaveTextContent('Le serveur d’envoi ne répond pas.');
-    expect(within(table).getByText('Résumé').closest('tr')).toHaveTextContent('Le serveur d’envoi a refusé l’email.');
+    expect(within(table).getByText('Résumé').closest('tr')).toHaveTextContent('Le service a refusé le message.');
     expect(within(table).getByText('Résumé').closest('tr')).toHaveTextContent('notifications.channel_rejected 550');
     expect(screen.queryByText('Aucun envoi en échec ces 30 derniers jours.')).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
@@ -102,5 +102,51 @@ describe('Administration › Notifications', () => {
     await screen.findByText('Configuré : smtp.example.org');
     const table = screen.getByRole('table', { name: 'Envois en échec' });
     expect(within(table).getAllByText('rent.due')).toHaveLength(2);
+  });
+  it('sets, tests and removes the household Discord webhook', async () => {
+    serve({ ...configured, discord: { hint: 'wxyz', status: 'ok' } });
+    const calls: string[] = [];
+    server.use(
+      http.put('*/api/v1/admin/notifications/discord', async ({ request }) => { calls.push(`PUT ${JSON.stringify(await request.json())}`); return HttpResponse.json({ hint: 'abcd', status: 'ok' }); }),
+      http.delete('*/api/v1/admin/notifications/discord', () => { calls.push('DELETE'); return new HttpResponse(null, { status: 204 }); }),
+      http.post('*/api/v1/admin/notifications/test', async ({ request }) => { calls.push(`POST ${JSON.stringify(await request.json())}`); return HttpResponse.json({ sent: true, error: null }); }),
+    );
+    const user = userEvent.setup();
+    await renderApp('/admin/notifications', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('heading', { name: 'Discord du foyer' })).toBeInTheDocument();
+    expect(screen.getByText('Ne reçoit que ce que tous les adultes peuvent lire, sans nom ni montant.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Envoyer un test' }));
+    await user.click(screen.getByRole('button', { name: 'Remplacer' }));
+    await user.type(screen.getByLabelText('Webhook Discord'), 'https://discord.com/api/webhooks/1/abcd');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le webhook' }));
+    await user.click(await screen.findByRole('button', { name: 'Retirer' }));
+    expect(await screen.findByText('Le foyer ne recevra plus rien sur Discord.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await vi.waitFor(() => expect(calls).toEqual([
+      'POST {"channel":"discord_household"}', 'PUT {"url":"https://discord.com/api/webhooks/1/abcd"}', 'DELETE',
+    ]));
+  });
+  it('shows a household webhook the test found broken, and disables the test', async () => {
+    let discord = { hint: 'wxyz', status: 'ok' };
+    serve({ ...configured, discord });
+    server.use(
+      http.get('*/api/v1/admin/notifications', () => HttpResponse.json({ ...configured, discord })),
+      http.post('*/api/v1/admin/notifications/test', () => { discord = { hint: 'wxyz', status: 'broken' }; return HttpResponse.json({ sent: false, error: 'notifications.channel_broken' }); }),
+    );
+    await renderApp('/admin/notifications', { capabilities: adminCapabilities });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Envoyer un test' }));
+    expect(await screen.findByText(/Discord ne répond plus à ce webhook/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Envoyer un test' })).toBeDisabled();
+  });
+  it('shows a household Discord test that fails with a server error, without a dangling colon', async () => {
+    serve({ ...configured, discord: { hint: 'wxyz', status: 'ok' } });
+    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 500 }, { status: 500 })));
+    await renderApp('/admin/notifications', { capabilities: adminCapabilities });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Envoyer un test' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/n’est pas parti/)).not.toBeInTheDocument();
   });
 });

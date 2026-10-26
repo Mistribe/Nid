@@ -107,10 +107,38 @@ public class SafeHttpClientTests
     }
 
     [Fact]
-    public void The_default_hosts_are_the_catalog_the_ecb_the_icon_hosts_the_price_sources_and_insee()
+    public void The_default_hosts_are_the_catalog_the_ecb_the_icon_hosts_the_price_sources_insee_and_discord()
         => Assert.Equal(
-            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr"],
+            ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr", "discord.com", "discordapp.com"],
             new OutboundOptions().AllowedHosts);
+
+    [Fact]
+    public async Task Post_sends_the_body_and_refuses_a_redirect()
+    {
+        var hook = new Uri("https://discord.com/api/webhooks/1/abc");
+        string? method = null, contentType = null;
+        byte[]? body = null;
+        var ok = new StubHandler(r =>
+        {
+            (method, contentType, body) = (r.Method.Method, r.Content!.Headers.ContentType!.MediaType, r.Content.ReadAsByteArrayAsync().Result);
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+
+        var response = await Client(ok).PostJsonAsync(hook, [1, 2, 3], 1024, default);
+
+        Assert.Equal((HttpStatusCode.NoContent, "POST", "application/json"), (response.Status, method, contentType));
+        Assert.Equal(new byte[] { 1, 2, 3 }, body);
+        Assert.Equal("redirect_on_post", await RefusalOf(Client(new StubHandler(_ => Redirect("https://discord.com/elsewhere"))).PostJsonAsync(hook, [1], 1024, default)));
+    }
+
+    [Fact]
+    public async Task Post_refuses_a_host_not_allowed()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+
+        Assert.Equal("host_not_allowed", await RefusalOf(Client(handler).PostJsonAsync(new Uri("https://evil.example/api/webhooks/1/abc"), [1], 1024, default)));
+        Assert.Empty(handler.Requested);
+    }
 
     /// <summary>upload.wikimedia.org answers 403 to a request without one (checked 2026-09-25, 1C2c plan).</summary>
     [Fact]

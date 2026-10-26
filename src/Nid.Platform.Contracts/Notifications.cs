@@ -57,6 +57,8 @@ public static class NotificationCodes
     public const string EmailUnavailable = "notifications.email_unavailable";
     public const string PreferencesConflict = "notifications.preferences_conflict";
     public const string UnknownChannel = "notifications.unknown_channel";
+    public const string InvalidWebhook = "notifications.invalid_webhook";
+    public const string DiscordUnavailable = "notifications.discord_unavailable";
 }
 
 /// <summary>

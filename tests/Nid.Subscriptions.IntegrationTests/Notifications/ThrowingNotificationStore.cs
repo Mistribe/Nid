@@ -29,6 +29,8 @@ public sealed class ThrowingNotificationStore(INotificationStore inner, PersonId
 
     public Task<NotificationRecord?> FindAsync(PersonId person, Guid id, CancellationToken ct) => inner.FindAsync(person, id, ct);
 
+    public Task<NotificationRecord?> FindOpenByKeyAsync(string key, CancellationToken ct) => inner.FindOpenByKeyAsync(key, ct);
+
     public Task MarkReadAsync(PersonId person, IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
         => inner.MarkReadAsync(person, ids, at, ct);
 

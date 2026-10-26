@@ -71,6 +71,14 @@ public static class AdminEndpoints
                 => (await invoker.InvokeAsync(new AdminTestChannelCommand(body.Channel ?? ""), ct)).ToHttp(result => result))
             .Returns<TestChannelResult>();
 
+        api.MapPut("/notifications/discord", async (NotificationEndpoints.DiscordWebhookBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SetHouseholdWebhookCommand(body.Url ?? ""), ct)).ToHttp(v => v))
+            .Returns<WebhookView>();
+
+        api.MapDelete("/notifications/discord", async (IInvoker invoker, CancellationToken ct)
+                => NotificationEndpoints.NoContent(await invoker.InvokeAsync(new RemoveHouseholdWebhookCommand(), ct)))
+            .ReturnsNoContent();
+
         return routes;
     }
 }

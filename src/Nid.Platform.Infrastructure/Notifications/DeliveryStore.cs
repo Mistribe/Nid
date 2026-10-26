@@ -25,18 +25,32 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
         }
     }
 
+    public async Task EnqueueHouseholdAsync(IReadOnlyList<NewHouseholdDelivery> deliveries, Instant now, CancellationToken ct)
+    {
+        foreach (var d in deliveries)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO platform.notification_delivery
+                    (id, notification_id, person_id, channel, round, state, attempts, next_attempt_at, created_at, household_key)
+                VALUES
+                    ({Guid.CreateVersion7()}, {d.NotificationId}, {d.Person.Value}, {d.Channel}, 1, {DeliveryStates.Pending}, 0, {now}, {now}, {d.Key})
+                ON CONFLICT (household_key) WHERE household_key IS NOT NULL DO NOTHING
+                """, ct);
+        }
+    }
+
     public async Task<IReadOnlyList<DeliveryRecord>> DueAsync(Instant now, int limit, CancellationToken ct)
         => await db.Deliveries.AsNoTracking()
             .Where(d => d.State == DeliveryStates.Pending && d.NextAttemptAt <= now)
             .OrderBy(d => d.NextAttemptAt).ThenBy(d => d.Id)
             .Take(limit)
-            .Select(d => new DeliveryRecord(d.Id, d.NotificationId, new PersonId(d.PersonId), d.Channel, d.Round, d.Attempts, d.DigestId))
+            .Select(d => new DeliveryRecord(d.Id, d.NotificationId, new PersonId(d.PersonId), d.Channel, d.Round, d.Attempts, d.DigestId, d.HouseholdKey))
             .ToListAsync(ct);
 
     public async Task<DeliveryRecord?> ClaimAsync(Guid id, Instant now, CancellationToken ct)
         => await db.Deliveries.AsNoTracking()
             .Where(d => d.Id == id && d.State == DeliveryStates.Pending && d.NextAttemptAt <= now)
-            .Select(d => new DeliveryRecord(d.Id, d.NotificationId, new PersonId(d.PersonId), d.Channel, d.Round, d.Attempts, d.DigestId))
+            .Select(d => new DeliveryRecord(d.Id, d.NotificationId, new PersonId(d.PersonId), d.Channel, d.Round, d.Attempts, d.DigestId, d.HouseholdKey))
             .FirstOrDefaultAsync(ct);
 
     public async Task<IReadOnlyList<FailedDelivery>> FailedSinceAsync(Instant since, int limit, CancellationToken ct)

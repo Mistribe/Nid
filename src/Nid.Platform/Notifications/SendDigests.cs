@@ -43,7 +43,7 @@ public interface IDigestStore
 [RequestHandler<SendDigestsCommand, DigestSummary>]
 public sealed partial class SendDigestsHandler(
     IPersonRegistry persons, INotificationStore store, IDigestStore digests, NotificationCatalog catalog,
-    IEnumerable<INotificationChannel> channels, IVisibleItems visible, IHouseholdCalendar calendar, IClock clock, IUnitOfWork unitOfWork,
+    IEnumerable<INotificationChannel> channels, IWebhookStore webhooks, IVisibleItems visible, IHouseholdCalendar calendar, IClock clock, IUnitOfWork unitOfWork,
     ILogger<SendDigestsHandler> logger) : IRequestHandler<SendDigestsCommand, DigestSummary>
 {
     private const int FirstHour = 8;
@@ -89,7 +89,8 @@ public sealed partial class SendDigestsHandler(
         if (prefs.Frequency == DigestFrequency.Weekly && prefs.Weekday != today.DayOfWeek)
             return false;
 
-        var reaching = channels.Where(c => ChannelAccess.AddressFor(c, adult, prefs) is not null).ToList();
+        var webhook = await webhooks.FindAsync(adult.Id, ct);
+        var reaching = channels.Where(c => ChannelAccess.AddressFor(c, adult, prefs, webhook) is not null).ToList();
         if (reaching.Count == 0)
             return false; // nothing to send it on: the rows stay for the day a channel works
 

@@ -49,6 +49,19 @@ public class ExternalRenderingTests
     }
 
     [Fact]
+    public void Household_has_no_name()
+    {
+        var message = renderer.Household(Record("tenancy_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("tenancy_end", "properties"));
+
+        Assert.Equal("Nid : Un bail arrive à échéance", message.Subject);
+        Assert.Contains("Un bail arrive à échéance", message.Text);
+        Assert.Contains("Échéance : le 31 mars 2027", message.Text);
+        Assert.Contains($"Ouvrir dans Nid : https://nid.example/properties/{Item.Value:D}?tab=rental", message.Text);
+        Assert.DoesNotContain("Appartement", message.Text);
+        Assert.Contains("le 31 mars 2027", message.Html);
+    }
+
+    [Fact]
     public void The_html_encodes_the_name()
     {
         var message = renderer.One(Record("loan_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("loan_end", "loans"), Names("<b>Prêt & co</b>"));

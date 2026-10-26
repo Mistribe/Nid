@@ -168,7 +168,59 @@ describe('the notification settings page', () => {
     const { user } = await renderApp('/settings/notifications');
 
     await user.click(await screen.findByRole('button', { name: 'Envoyer un test' }));
-    expect(await screen.findByText('L’email n’est pas parti : Le serveur d’envoi a refusé l’email.')).toBeInTheDocument();
+    expect(await screen.findByText('L’email n’est pas parti : Le service a refusé le message.')).toBeInTheDocument();
     expect(screen.queryByText(/notifications.channel_rejected/)).not.toBeInTheDocument();
+  });
+  it('saves the Discord webhook on its own and keeps the form’s version', async () => {
+    const sent = serve();
+    const calls: { method: string; body?: Body }[] = [];
+    let discord: Body | null = null;
+    server.use(
+      http.get('*/api/v1/platform/notifications/preferences', () => HttpResponse.json(view({ discord }))),
+      http.put('*/api/v1/platform/notifications/discord', async ({ request }) => {
+        const body = (await request.json()) as Body;
+        calls.push({ method: 'PUT', body });
+        discord = { hint: 'wxyz', status: 'ok' };
+        return HttpResponse.json(discord);
+      }),
+      http.post('*/api/v1/platform/notifications/test', async ({ request }) => {
+        calls.push({ method: 'POST', body: (await request.json()) as Body });
+        return HttpResponse.json({ sent: true, error: null });
+      }),
+    );
+    const { user } = await renderApp('/settings/notifications');
+
+    await user.type(await screen.findByLabelText('Webhook Discord'), 'https://discord.com/api/webhooks/1/wxyz{Enter}');
+    expect(await screen.findByText(/Webhook enregistré : …wxyz/)).toBeInTheDocument();
+    expect(sent).toEqual([]);
+    expect(calls).toEqual([{ method: 'PUT', body: { url: 'https://discord.com/api/webhooks/1/wxyz' } }]);
+
+    await user.click(screen.getAllByRole('button', { name: 'Envoyer un test' }).at(-1) as HTMLElement);
+    await waitFor(() => expect(calls[1]).toEqual({ method: 'POST', body: { channel: 'discord_person' } }));
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.version).toBe(3);
+  });
+  it('shows a personal webhook the test found broken, at once', async () => {
+    let discord = { hint: 'wxyz', status: 'ok' };
+    serve(view({ discord }));
+    server.use(
+      http.get('*/api/v1/platform/notifications/preferences', () => HttpResponse.json(view({ discord }))),
+      http.post('*/api/v1/platform/notifications/test', () => { discord = { hint: 'wxyz', status: 'broken' }; return HttpResponse.json({ sent: false, error: 'notifications.channel_broken' }); }),
+    );
+    const { user } = await renderApp('/settings/notifications');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Envoyer un test' })).at(-1) as HTMLElement);
+    expect(await screen.findByText(/Discord ne répond plus à ce webhook/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Envoyer un test' }).at(-1)).toBeDisabled();
+  });
+  it('shows a Discord test that fails with a server error', async () => {
+    serve(view({ discord: { hint: 'wxyz', status: 'ok' } }));
+    server.use(http.post('*/api/v1/platform/notifications/test', () => HttpResponse.json({ status: 500 }, { status: 500 })));
+    const { user } = await renderApp('/settings/notifications');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Envoyer un test' })).at(-1) as HTMLElement);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 });

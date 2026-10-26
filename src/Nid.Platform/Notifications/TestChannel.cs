@@ -17,30 +17,51 @@ public sealed record TestChannelCommand(string Channel) : ICommand<TestChannelRe
 
 internal static class ChannelTests
 {
-    public static readonly RenderedMessage TestMessage = new(
+    public static RenderedMessage TestMessage(string what) => new(
         "Nid : message de test",
-        "Ceci est un message de test envoyé depuis Nid. Si vous le lisez, les notifications par email fonctionnent.",
-        "<p><strong>Message de test</strong></p><p>Ceci est un message de test envoyé depuis Nid. Si vous le lisez, les notifications par email fonctionnent.</p>");
+        $"Ceci est un message de test envoyé depuis Nid. Si vous le lisez, les notifications {what} fonctionnent.",
+        $"<p><strong>Message de test</strong></p><p>Ceci est un message de test envoyé depuis Nid. Si vous le lisez, les notifications {what} fonctionnent.</p>");
+
+    public static readonly string[] Personal = [ChannelAccess.Email, ChannelAccess.DiscordPerson];
+    public static readonly string[] Household = [ChannelAccess.Email, ChannelAccess.DiscordHousehold];
 
     public static async Task<Result<TestChannelResult>> SendAsync(
         string channelName, IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons,
-        IActorAccessor accessor, CancellationToken ct)
+        IWebhookStore webhooks, IActorAccessor accessor, string[] allowed, CancellationToken ct)
     {
         if (accessor.Current?.PersonId is not { } me)
             return Result.Failure<TestChannelResult>(NotificationAccess.Unauthorized());
 
-        if (!string.Equals(channelName, ChannelAccess.Email, StringComparison.OrdinalIgnoreCase))
+        var name = allowed.FirstOrDefault(a => string.Equals(a, channelName, StringComparison.OrdinalIgnoreCase));
+        if (name is null)
             return Refused(NotificationCodes.UnknownChannel, "This notification channel does not exist.");
 
-        var channel = channels.FirstOrDefault(c => c.Name == ChannelAccess.Email);
-        var address = (await persons.FindAsync(me, ct))?.Email;
-        if (!email.IsConfigured || channel is not { IsAvailable: true } || string.IsNullOrWhiteSpace(address))
-            return Refused(NotificationCodes.EmailUnavailable, "Email needs a configured server and an address on your profile.");
+        var channel = channels.FirstOrDefault(c => c.Name == name);
+        string? address;
+        if (name == ChannelAccess.Email)
+        {
+            address = (await persons.FindAsync(me, ct))?.Email;
+            if (!email.IsConfigured || channel is not { IsAvailable: true } || string.IsNullOrWhiteSpace(address))
+                return Refused(NotificationCodes.EmailUnavailable, "Email needs a configured server and an address on your profile.");
+        }
+        else
+        {
+            var owner = name == ChannelAccess.DiscordHousehold ? null : (PersonId?)me;
+            address = ChannelAccess.WebhookAddress(await webhooks.FindAsync(owner, ct));
+            if (channel is not { IsAvailable: true } || address is null)
+                return Refused(NotificationCodes.DiscordUnavailable, name == ChannelAccess.DiscordHousehold
+                    ? "Discord needs a working household webhook."
+                    : "Discord needs a working webhook on your profile.");
+        }
 
         try
         {
-            var result = await channel.SendAsync(TestMessage, new ChannelTarget(me, address), ct);
-            return Result.Success(result.TryGetFailure(out var failure) ? new TestChannelResult(false, failure!.Code) : new TestChannelResult(true, null));
+            var result = await channel.SendAsync(TestMessage(name == ChannelAccess.Email ? "par email" : "Discord"), new ChannelTarget(me, address), ct);
+            if (!result.TryGetFailure(out var failure))
+                return Result.Success(new TestChannelResult(true, null));
+            if (failure!.Code == NotificationChannelCodes.Broken)
+                await webhooks.MarkBrokenAsync(name == ChannelAccess.DiscordHousehold ? null : me, ct);
+            return Result.Success(new TestChannelResult(false, failure.Code));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -58,9 +79,9 @@ internal static class ChannelTests
 
 [RequestHandler<TestChannelCommand, TestChannelResult>]
 public sealed class TestChannelHandler(
-    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IActorAccessor accessor)
+    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor)
     : IRequestHandler<TestChannelCommand, TestChannelResult>
 {
     public async ValueTask<Result<TestChannelResult>> HandleAsync(TestChannelCommand command, CancellationToken ct = default)
-        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, accessor, ct);
+        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, webhooks, accessor, ChannelTests.Personal, ct);
 }

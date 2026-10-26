@@ -265,6 +265,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<PlatformDbContext>>();
         services.AddScoped<IImportStaging, ImportStagingStore>();
         services.AddScoped<Nid.Platform.Notifications.INotificationStore, Nid.Platform.Infrastructure.Notifications.NotificationStore>();
+        services.AddScoped<Nid.Platform.Notifications.IWebhookStore, Nid.Platform.Infrastructure.Notifications.WebhookStore>();
         // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
         services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();

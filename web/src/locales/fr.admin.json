@@ -218,7 +218,9 @@
       "kind": "Type",
       "queued": "Mise en file",
       "error": "Erreur",
-      "digest": "Résumé"
+      "digest": "Résumé",
+      "discord_title": "Discord du foyer",
+      "discord_hint": "Ne reçoit que ce que tous les adultes peuvent lire, sans nom ni montant."
     },
     "security": {
       "title": "Journal de sécurité",

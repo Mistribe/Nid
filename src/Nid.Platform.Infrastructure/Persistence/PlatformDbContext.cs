@@ -17,6 +17,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<NotificationPreferencesRow> PreferenceRows => Set<NotificationPreferencesRow>();
     public DbSet<NotificationDeliveryRow> Deliveries => Set<NotificationDeliveryRow>();
     public DbSet<NotificationDigestRow> Digests => Set<NotificationDigestRow>();
+    public DbSet<NotificationWebhookRow> Webhooks => Set<NotificationWebhookRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,15 +71,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             {
                 t.HasCheckConstraint("ck_notification_delivery_state", "state in ('pending','sent','failed','skipped')");
                 t.HasCheckConstraint("ck_notification_delivery_round", "round >= 1");
-                t.HasCheckConstraint("ck_notification_delivery_target", "num_nonnulls(notification_id, digest_id) = 1");
+                t.HasCheckConstraint("ck_notification_delivery_target", "num_nonnulls(notification_id, digest_id) = 1 or (household_key is not null and num_nonnulls(notification_id, digest_id) <= 1)");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             // One message per opening and channel: a second evaluation, or a second process, cannot enqueue it twice.
             e.HasIndex(x => new { x.NotificationId, x.Channel, x.Round }).IsUnique();
             e.HasIndex(x => new { x.DigestId, x.Channel }).IsUnique();
+            // The household hears a key once, whichever adult opened it first.
+            e.HasIndex(x => x.HouseholdKey).IsUnique().HasFilter("household_key is not null");
             e.HasIndex(x => x.NextAttemptAt).HasFilter("state = 'pending'");
-            e.HasOne<NotificationRow>().WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<NotificationRow>().WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<NotificationDigestRow>().WithMany().HasForeignKey(x => x.DigestId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -110,6 +113,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.PersonId).ValueGeneratedNever();
             e.Property(x => x.LeadDays).HasColumnType("jsonb");
             e.Property(x => x.Version).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<NotificationWebhookRow>(e =>
+        {
+            e.ToTable("notification_webhook", t => t.HasCheckConstraint("ck_notification_webhook_status", "status in ('ok','broken')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // Null is the household's: one row each.
+            e.HasIndex(x => x.PersonId).IsUnique().AreNullsDistinct(false);
         });
 
         modelBuilder.MapAuditLog(ownedHere: true);

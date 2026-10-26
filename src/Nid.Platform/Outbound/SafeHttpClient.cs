@@ -8,11 +8,11 @@ public sealed class OutboundOptions
 {
     /// <summary>
     /// An array, not a list: configuration binding replaces an array but appends to a pre-filled list. The catalog and
-    /// the ECB (1C2a), and the hosts of the catalog's icons (1C2c design §5), the two price sources (holding prices spec §2) and INSEE (rental spec §3): an icon anywhere else is refused
+    /// the ECB (1C2a), and the hosts of the catalog's icons (1C2c design §5), the two price sources (holding prices spec §2), INSEE (rental spec §3) and Discord webhooks (notifications design §5.3): an icon anywhere else is refused
     /// <c>host_not_allowed</c> until the operator adds its host here.
     /// </summary>
     public string[] AllowedHosts { get; set; } =
-        ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr"];
+        ["raw.githubusercontent.com", "www.ecb.europa.eu", "1000logos.net", "upload.wikimedia.org", "www.nounou-top.fr", "www.boursorama.com", "query2.finance.yahoo.com", "bdm.insee.fr", "discord.com", "discordapp.com"];
 
     /// <summary>Sent on every request: <c>upload.wikimedia.org</c> refuses a request without one (403).</summary>
     public string UserAgent { get; set; } = "Nid/1.0 (+https://github.com/Mistribe/Nid)";
@@ -120,6 +120,41 @@ public sealed partial class SafeHttpClient(HttpMessageInvoker invoker, OutboundO
 
                 return new OutboundResponse(response.StatusCode, await ReadBoundedAsync(response.Content, maxBytes, current.Host, timeout.Token));
             }
+        }
+    }
+
+    /// <summary>
+    /// One POST with the same checks as <see cref="GetAsync"/>. A redirect is refused, never followed: a POST must not be replayed
+    /// elsewhere, and the webhook URL is a secret.
+    /// </summary>
+    public async Task<OutboundResponse> PostJsonAsync(Uri url, byte[] json, int maxBytes, CancellationToken ct)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(options.TimeoutSeconds));
+
+        Check(url);
+        using var content = new ByteArrayContent(json);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+        request.Headers.TryAddWithoutValidation("User-Agent", options.UserAgent);
+        HttpResponseMessage response;
+        try
+        {
+            response = await invoker.SendAsync(request, timeout.Token);
+        }
+        catch (HttpRequestException e) when (RefusalIn(e) is { } refused)
+        {
+            throw Refuse(refused.Reason, refused.Host);
+        }
+
+        using (response)
+        {
+            if (IsRedirect(response.StatusCode))
+                throw Refuse("redirect_on_post", url.Host);
+            if (response.Content.Headers.ContentLength > maxBytes)
+                throw Refuse("too_large", url.Host);
+
+            return new OutboundResponse(response.StatusCode, await ReadBoundedAsync(response.Content, maxBytes, url.Host, timeout.Token));
         }
     }
 

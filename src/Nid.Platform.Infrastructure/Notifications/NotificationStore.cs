@@ -43,7 +43,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         {
             var id = Guid.CreateVersion7();
             if (await InsertAsync(person, id, insert, now, ct) == 1 && insert.Open)
-                opened.Add(new OpenedNotification(id, insert.Kind.Level, 1));
+                opened.Add(new OpenedNotification(id, insert.Kind.Level, 1, insert.Signal.Key, insert.Signal.ItemIds));
         }
 
         var openedRows = new List<NotificationRow>();
@@ -61,7 +61,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         }
 
         await db.SaveChangesAsync(ct);
-        opened.AddRange(openedRows.Select(r => new OpenedNotification(r.Id, Enum.Parse<NotificationLevel>(r.Level, ignoreCase: true), r.Round)));
+        opened.AddRange(openedRows.Select(r => new OpenedNotification(r.Id, Enum.Parse<NotificationLevel>(r.Level, ignoreCase: true), r.Round, r.Key, r.ItemIds.Select(i => new ItemId(i)).ToList())));
         return opened;
     }
 
@@ -229,6 +229,13 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         return row is null ? null : ToRecord(row);
     }
 
+    public async Task<NotificationRecord?> FindOpenByKeyAsync(string key, CancellationToken ct)
+    {
+        var row = await db.Notifications.AsNoTracking().Where(n => n.Key == key && n.State == NotificationStates.Open)
+            .OrderBy(n => n.OpenedAt).ThenBy(n => n.Id).FirstOrDefaultAsync(ct);
+        return row is null ? null : ToRecord(row);
+    }
+
     public async Task MarkReadAsync(PersonId person, IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
     {
         var wanted = ids.ToArray();
@@ -280,9 +287,12 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
     }
 
     public async Task<int> PurgeAsync(Instant olderThan, CancellationToken ct)
-        => await db.Notifications
-            .Where(n => (n.State == NotificationStates.Resolved || n.State == NotificationStates.Dismissed) && n.ResolvedAt < olderThan)
-            .ExecuteDeleteAsync(ct);
+    {
+        var purged = db.Notifications.Where(n => (n.State == NotificationStates.Resolved || n.State == NotificationStates.Dismissed) && n.ResolvedAt < olderThan);
+        // The deliveries go with their notification, except the household's: it outlives the row (FK set null), so its key stays spent.
+        await db.Deliveries.Where(d => d.HouseholdKey == null && purged.Any(n => n.Id == d.NotificationId)).ExecuteDeleteAsync(ct);
+        return await purged.ExecuteDeleteAsync(ct);
+    }
 
     /// <summary>A row shows only when every item it concerns is visible: <c>item_ids &lt;@ visible</c>.</summary>
     private static IQueryable<NotificationRow> Visible(IQueryable<NotificationRow> query, IReadOnlySet<ItemId> visible)

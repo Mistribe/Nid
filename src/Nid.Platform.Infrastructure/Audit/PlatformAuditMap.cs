@@ -9,6 +9,7 @@ public sealed class PlatformAuditMap : IAuditMap
     {
         // A setting of the person, not of an item: audited, never shown in an item's history.
         [typeof(NotificationPreferencesRow)] = AuditRule.NoItem,
+        [typeof(NotificationWebhookRow)] = AuditRule.NoItem,
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(ImportSessionRow), typeof(ImportBatchRow), typeof(AuditEntryRow), typeof(NotificationRow), typeof(NotificationRunRow), typeof(NotificationDeliveryRow), typeof(NotificationDigestRow) };

@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem, type Presentation } from '@/api/errors';
 import { EmptyState } from '@/components/EmptyState';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
-import { channelErrorText } from '@/features/notifications/channelErrors';
+import { channelErrorText, discordFieldText } from '@/features/notifications/channelErrors';
+import { DiscordWebhookControl } from '@/features/notifications/DiscordWebhookControl';
+import { DISCORD_HOUSEHOLD, useWebhook } from '@/features/notifications/preferences';
+import { fieldErrorsOf } from '@/features/subscriptions/fieldErrors';
 import { AdminFrame, AdminSkeleton } from './AdminFrame';
 import { formatInstant } from './format';
 import '@/locales/admin';
+import '@/locales/notifications';
 
 type TestOutcome = { kind: 'sent' } | { kind: 'refused'; error: string } | { kind: 'problem'; problem: Presentation };
 
@@ -17,11 +22,29 @@ type TestOutcome = { kind: 'sent' } | { kind: 'refused'; error: string } | { kin
 export function NotificationsAdminPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const queryClient = useQueryClient();
   const view = $api.useQuery('get', '/api/v1/admin/notifications');
   const [outcome, setOutcome] = useState<TestOutcome | null>(null);
   const test = $api.useMutation('post', '/api/v1/admin/notifications/test', {
     onSuccess: (result) => setOutcome(result.sent ? { kind: 'sent' } : { kind: 'refused', error: result.error ?? '' }),
     onError: (error) => setOutcome({ kind: 'problem', problem: present(toProblem(error)) }),
+  });
+
+  const webhook = useWebhook(DISCORD_HOUSEHOLD, ['get', '/api/v1/admin/notifications']);
+  const [discordOutcome, setDiscordOutcome] = useState<string | null>(null);
+  const [discordProblem, setDiscordProblem] = useState<Presentation | null>(null);
+  const clearDiscord = () => { setDiscordOutcome(null); setDiscordProblem(null); };
+  const discordTest = $api.useMutation('post', '/api/v1/admin/notifications/test', {
+    onSuccess: (result) => {
+      setDiscordOutcome(result.sent ? t('discord.test_sent') : t('discord.test_failed', { error: channelErrorText(t, result.error ?? '') }));
+      // The send just marked the webhook broken: show it at once.
+      if (result.error?.startsWith('notifications.channel_broken')) void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/admin/notifications'] });
+    },
+    onError: (error) => {
+      const f = fieldErrorsOf(error)[0];
+      if (f) setDiscordOutcome(discordFieldText(t, f));
+      else setDiscordProblem(present(toProblem(error)));
+    },
   });
 
   const title = t('admin.notifications.title');
@@ -51,6 +74,15 @@ export function NotificationsAdminPage() {
           </div>
         ) : null}
         {outcome?.kind === 'problem' ? <ProblemMessage problem={outcome.problem} /> : null}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">{t('admin.notifications.discord_title')}</h2>
+        <p className="text-sm text-muted-foreground">{t('admin.notifications.discord_hint')}</p>
+        <DiscordWebhookControl webhook={view.data.discord ?? null} onSave={async (url) => { await webhook.save(url); clearDiscord(); }}
+          onRemove={async () => { await webhook.remove(); clearDiscord(); }} testProblem={discordProblem}
+          pending={discordTest.isPending} removeConfirmation={t('discord.remove_household')} testText={discordOutcome}
+          onTest={() => { clearDiscord(); discordTest.mutate({ body: { channel: 'discord_household' } }); }} />
       </section>
 
       <section className="space-y-2">

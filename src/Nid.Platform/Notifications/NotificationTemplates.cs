@@ -91,7 +91,7 @@ public static class NotificationTemplates
     };
 
     /// <summary>« 1er décembre 2027 », « 31 mars 2027 ».</summary>
-    private static string Day(LocalDate date)
+    internal static string Day(LocalDate date)
         => (date.Day == 1 ? "1er" : date.Day.ToString(French)) + " " + date.ToString("MMMM yyyy", French);
 
     /// <summary>The date a key ends with (<see cref="SignalKeys"/>): the month of arrears, the day of a valuation.</summary>

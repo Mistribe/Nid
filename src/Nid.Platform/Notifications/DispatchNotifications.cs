@@ -18,13 +18,16 @@ public interface INotificationRenderer
 {
     RenderedMessage One(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names);
 
+    /// <summary>The household's message: the title, the due date, the link; no item name.</summary>
+    RenderedMessage Household(NotificationRecord n, NotificationKind kind);
+
     RenderedMessage Digest(IReadOnlyList<(NotificationRecord Row, NotificationKind Kind)> rows, IReadOnlyDictionary<ItemId, string> names);
 }
 
 [RequestHandler<DispatchNotificationsCommand, DispatchSummary>]
 public sealed partial class DispatchNotificationsHandler(
     IDeliveryStore deliveries, IDigestStore digests, INotificationStore store, NotificationCatalog catalog, IEnumerable<INotificationChannel> channels,
-    IPersonRegistry persons, IItemRegistry items, IVisibleItems visible, INotificationRenderer renderer, IClock clock,
+    IPersonRegistry persons, IWebhookStore webhooks, IItemRegistry items, IVisibleItems visible, INotificationRenderer renderer, IClock clock,
     ILogger<DispatchNotificationsHandler> logger) : IRequestHandler<DispatchNotificationsCommand, DispatchSummary>
 {
     public const int BatchSize = 50;
@@ -98,17 +101,28 @@ public sealed partial class DispatchNotificationsHandler(
         if (await deliveries.ClaimAsync(due.Id, now, ct) is not { } delivery)
             return Outcome.None;
 
-        var readable = await visible.ForAsync(delivery.Person, VisibilityScope.Me, ct);
+        var household = delivery.Channel == ChannelAccess.DiscordHousehold;
         var rows = new List<(NotificationRecord Row, NotificationKind Kind)>();
         if (delivery is { DigestId: { } digestId })
         {
+            var readable = await visible.ForAsync(delivery.Person, VisibilityScope.Me, ct);
             // A digest says what is still open and readable; if nothing is, there is nothing to say.
             foreach (var open in await digests.OpenRowsAsync(digestId, ct))
                 if (catalog.Find(open.Kind) is { } openKind && open.ItemIds.All(readable.Contains))
                     rows.Add((open, openKind));
         }
+        else if (household)
+        {
+            // Any adult's open row for the key will do: the first opener's may be gone, snoozed or purged.
+            var found = delivery.HouseholdKey is { } key ? await store.FindOpenByKeyAsync(key, ct) : null;
+            var foundKind = found is null ? null : catalog.Find(found.Kind);
+            if (found is not null && foundKind is not null && found.ItemIds.Count > 0
+                && await HouseholdAccess.EveryAdultReadsAsync(persons, visible, found.ItemIds, ct))
+                rows.Add((found, foundKind));
+        }
         else if (delivery.NotificationId is { } notificationId)
         {
+            var readable = await visible.ForAsync(delivery.Person, VisibilityScope.Me, ct);
             var found = await store.FindAsync(delivery.Person, notificationId, ct);
             var foundKind = found is null ? null : catalog.Find(found.Kind);
             if (found is { State: NotificationStates.Open } && found.Round == delivery.Round && foundKind is not null && found.ItemIds.All(readable.Contains))
@@ -119,18 +133,25 @@ public sealed partial class DispatchNotificationsHandler(
             return await SkipAsync(delivery, ct);
 
         var channel = channels.FirstOrDefault(c => c.Name == delivery.Channel);
-        var address = channel is null
-            ? null
-            : ChannelAccess.AddressFor(channel, await persons.FindAsync(delivery.Person, ct), await store.PreferencesAsync(delivery.Person, ct));
+        var address = channel is null ? null
+            : household ? (channel.IsAvailable ? ChannelAccess.WebhookAddress(await webhooks.FindAsync(null, ct)) : null)
+            : ChannelAccess.AddressFor(
+                channel, await persons.FindAsync(delivery.Person, ct), await store.PreferencesAsync(delivery.Person, ct),
+                await webhooks.FindAsync(delivery.Person, ct));
         if (channel is null || address is null)
             return await SkipAsync(delivery, ct);
 
         RenderedMessage message;
         try
         {
-            var found = await items.FindManyAsync(rows.SelectMany(r => r.Row.ItemIds).Distinct().ToList(), ct);
-            var names = found.ToDictionary(f => f.Key, f => f.Value.DisplayName);
-            message = delivery.DigestId is null ? renderer.One(rows[0].Row, rows[0].Kind, names) : renderer.Digest(rows, names);
+            if (household)
+                message = renderer.Household(rows[0].Row, rows[0].Kind);
+            else
+            {
+                var found = await items.FindManyAsync(rows.SelectMany(r => r.Row.ItemIds).Distinct().ToList(), ct);
+                var names = found.ToDictionary(f => f.Key, f => f.Value.DisplayName);
+                message = delivery.DigestId is null ? renderer.One(rows[0].Row, rows[0].Kind, names) : renderer.Digest(rows, names);
+            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -151,7 +172,10 @@ public sealed partial class DispatchNotificationsHandler(
             return Outcome.Sent;
         }
 
-        var next = failed.Code == NotificationChannelCodes.Rejected ? null : OutboxRules.NextAttempt(delivery.Attempts, clock.GetCurrentInstant());
+        if (failed.Code == NotificationChannelCodes.Broken)
+            await webhooks.MarkBrokenAsync(household ? null : delivery.Person, ct); // the next pending messages for it are skipped
+
+        var next = failed.Code is NotificationChannelCodes.Rejected or NotificationChannelCodes.Broken ? null : OutboxRules.NextAttempt(delivery.Attempts, clock.GetCurrentInstant());
         if (next is null)
         {
             await deliveries.SettleAsync(delivery.Id, DeliveryStates.Failed, attempts, null, failed.Error, null, ct);

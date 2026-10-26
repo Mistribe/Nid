@@ -46,6 +46,9 @@ public interface INotificationStore
 
     Task<NotificationRecord?> FindAsync(PersonId person, Guid id, CancellationToken ct);
 
+    /// <summary>An open row with this key, whoever it belongs to (the household channel speaks for every adult); null when none is open.</summary>
+    Task<NotificationRecord?> FindOpenByKeyAsync(string key, CancellationToken ct);
+
     Task MarkReadAsync(PersonId person, IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
     Task SnoozeAsync(Guid id, LocalDate until, CancellationToken ct);

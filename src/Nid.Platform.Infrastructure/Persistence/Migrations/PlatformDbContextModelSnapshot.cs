@@ -243,6 +243,10 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("digest_id");
 
+                    b.Property<string>("HouseholdKey")
+                        .HasColumnType("text")
+                        .HasColumnName("household_key");
+
                     b.Property<string>("LastError")
                         .HasColumnType("text")
                         .HasColumnName("last_error");
@@ -275,6 +279,11 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_notification_delivery");
 
+                    b.HasIndex("HouseholdKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_delivery_household_key")
+                        .HasFilter("household_key is not null");
+
                     b.HasIndex("NextAttemptAt")
                         .HasDatabaseName("ix_notification_delivery_next_attempt_at")
                         .HasFilter("state = 'pending'");
@@ -293,7 +302,7 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_notification_delivery_state", "state in ('pending','sent','failed','skipped')");
 
-                            t.HasCheckConstraint("ck_notification_delivery_target", "num_nonnulls(notification_id, digest_id) = 1");
+                            t.HasCheckConstraint("ck_notification_delivery_target", "num_nonnulls(notification_id, digest_id) = 1 or (household_key is not null and num_nonnulls(notification_id, digest_id) <= 1)");
                         });
                 });
 
@@ -522,6 +531,45 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                     b.ToTable("notification_run", "platform");
                 });
 
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationWebhookRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Instant>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<byte[]>("Url")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_webhook");
+
+                    b.HasIndex("PersonId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_webhook_person_id");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("PersonId"), false);
+
+                    b.ToTable("notification_webhook", "platform", t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_webhook_status", "status in ('ok','broken')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.ImportBatchRow", b =>
                 {
                     b.HasOne("Nid.Platform.Infrastructure.Persistence.ImportSessionRow", null)
@@ -543,7 +591,7 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                     b.HasOne("Nid.Platform.Infrastructure.Persistence.NotificationRow", null)
                         .WithMany()
                         .HasForeignKey("NotificationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_notification_delivery_notification_notification_id");
                 });
 #pragma warning restore 612, 618

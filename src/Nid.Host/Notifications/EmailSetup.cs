@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
+using Nid.Platform.Outbound;
 
 namespace Nid.Host.Notifications;
 
@@ -15,7 +16,7 @@ public sealed class SmtpEmailAvailability(SmtpOptions options) : IEmailAvailabil
 public static class EmailSetup
 {
     /// <summary>
-    /// Registers the options, the availability, the absolute link base and, only when SMTP is configured, the email channel (a
+    /// Registers the options, the availability, the absolute link base, the Discord channels and, only when SMTP is configured, the email channel (a
     /// singleton transport, a scoped channel). <paramref name="publicUrl"/> is <c>Auth:PublicUrl</c>.
     /// </summary>
     public static IServiceCollection AddNidEmail(this IServiceCollection services, SmtpOptions options, string publicUrl)
@@ -29,6 +30,9 @@ public static class EmailSetup
             services.AddScoped<INotificationChannel, EmailChannel>();
         }
 
+        // The Discord channels need only the outbound client; each person (or the household) opts in with a webhook.
+        services.AddScoped<INotificationChannel>(sp => new DiscordChannel("discord_person", sp.GetRequiredService<SafeHttpClient>()));
+        services.AddScoped<INotificationChannel>(sp => new DiscordChannel("discord_household", sp.GetRequiredService<SafeHttpClient>()));
         return services;
     }
 }

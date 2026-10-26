@@ -504,6 +504,8 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     {
         public Task EnqueueAsync(IReadOnlyList<NewDelivery> deliveries, Instant now, CancellationToken ct) => inner.EnqueueAsync(deliveries, now, ct);
 
+        public Task EnqueueHouseholdAsync(IReadOnlyList<NewHouseholdDelivery> deliveries, Instant now, CancellationToken ct) => inner.EnqueueHouseholdAsync(deliveries, now, ct);
+
         public Task<IReadOnlyList<DeliveryRecord>> DueAsync(Instant now, int limit, CancellationToken ct) => inner.DueAsync(now, limit, ct);
 
         public Task<DeliveryRecord?> ClaimAsync(Guid id, Instant now, CancellationToken ct) => inner.ClaimAsync(id, now, ct);

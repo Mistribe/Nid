@@ -263,6 +263,10 @@ public static class RequestCatalogue
         new(typeof(TestChannelCommand), false, (_, _) => new TestChannelCommand("email")),
         new(typeof(GetAdminNotificationsQuery), false, (_, _) => new GetAdminNotificationsQuery()),
         new(typeof(AdminTestChannelCommand), false, (_, _) => new AdminTestChannelCommand("email")),
+        new(typeof(SetDiscordWebhookCommand), false, (_, _) => new SetDiscordWebhookCommand("https://discord.com/api/webhooks/1/x")),
+        new(typeof(RemoveDiscordWebhookCommand), false, (_, _) => new RemoveDiscordWebhookCommand()),
+        new(typeof(SetHouseholdWebhookCommand), false, (_, _) => new SetHouseholdWebhookCommand("https://discord.com/api/webhooks/1/x")),
+        new(typeof(RemoveHouseholdWebhookCommand), false, (_, _) => new RemoveHouseholdWebhookCommand()),
         new(typeof(GetNotificationPreferencesQuery), false, (_, _) => new GetNotificationPreferencesQuery()),
         new(typeof(SaveNotificationPreferencesCommand), false, (_, _) => new SaveNotificationPreferencesCommand(
             false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), 0)),

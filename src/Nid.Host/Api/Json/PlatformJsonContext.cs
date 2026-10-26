@@ -33,6 +33,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(NotificationEndpoints.SnoozeBody))]
 [JsonSerializable(typeof(NotificationEndpoints.NotificationPreferencesBody))]
 [JsonSerializable(typeof(NotificationEndpoints.TestChannelBody))]
+[JsonSerializable(typeof(NotificationEndpoints.DiscordWebhookBody))]
+[JsonSerializable(typeof(WebhookView))]
 [JsonSerializable(typeof(PreferencesView))]
 [JsonSerializable(typeof(TestChannelResult))]
 [JsonSerializable(typeof(AdminNotificationsView))]

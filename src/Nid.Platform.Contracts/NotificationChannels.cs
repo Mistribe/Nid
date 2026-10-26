@@ -18,6 +18,9 @@ public static class NotificationChannelCodes
     /// <summary>The channel refused the message: the delivery fails at once, a retry would be refused again.</summary>
     public const string Rejected = "notifications.channel_rejected";
 
+    /// <summary>The destination is gone or refuses us for good (a deleted webhook): the delivery fails at once and the destination is marked broken.</summary>
+    public const string Broken = "notifications.channel_broken";
+
     /// <summary>Metadata key of a failure: the protocol status (an SMTP code) that came with it, kept beside the code in <c>last_error</c>.</summary>
     public const string StatusKey = "status";
 
@@ -26,7 +29,7 @@ public static class NotificationChannelCodes
         => failure.Metadata.ContainsKey(StatusKey) && failure.Metadata[StatusKey] is int status ? status : null;
 }
 
-/// <summary>A way out of the application for notifications (notifications design §5.1). The first one is <c>email</c>.</summary>
+/// <summary>A way out of the application for notifications (notifications design §5.1). <c>email</c> and the Discord channels.</summary>
 public interface INotificationChannel
 {
     string Name { get; }
@@ -36,7 +39,7 @@ public interface INotificationChannel
 
     /// <summary>
     /// Sends the message. A failure carries <see cref="NotificationChannelCodes.Unreachable"/> (retry) or
-    /// <see cref="NotificationChannelCodes.Rejected"/> (no retry); its message never holds the content.
+    /// <see cref="NotificationChannelCodes.Rejected"/> (no retry) or <see cref="NotificationChannelCodes.Broken"/> (no retry, the destination is marked); its message never holds the content.
     /// </summary>
     Task<Result> SendAsync(RenderedMessage message, ChannelTarget target, CancellationToken ct);
 }

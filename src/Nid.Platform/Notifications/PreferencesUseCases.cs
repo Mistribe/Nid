@@ -13,7 +13,7 @@ namespace Nid.Platform.Notifications;
 /// </summary>
 public sealed record PreferencesView(
     bool EmailEnabled, bool EmailAvailable, bool HasEmail, string Action, string Info, string Frequency, int Weekday,
-    IReadOnlyList<LeadDayView> LeadDays, int Version);
+    IReadOnlyList<LeadDayView> LeadDays, int Version, WebhookView? Discord);
 
 /// <summary>One dated kind with the person's lead time and the kind's default.</summary>
 public sealed record LeadDayView(string Kind, string Title, int Days, int DefaultDays);
@@ -28,7 +28,7 @@ public sealed record SaveNotificationPreferencesCommand(
 internal static class PreferencesViews
 {
     public static async Task<PreferencesView> BuildAsync(
-        NotificationPreferences prefs, NotificationCatalog catalog, IEmailAvailability email, IPersonRegistry persons, PersonId me, CancellationToken ct)
+        NotificationPreferences prefs, NotificationCatalog catalog, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, PersonId me, CancellationToken ct)
     {
         var person = await persons.FindAsync(me, ct);
         var hasEmail = !string.IsNullOrWhiteSpace(person?.Email);
@@ -38,13 +38,14 @@ internal static class PreferencesViews
             .ToList();
         return new PreferencesView(
             prefs.EmailEnabled, available, hasEmail, prefs.Action.ToString().ToLowerInvariant(), prefs.Info.ToString().ToLowerInvariant(),
-            prefs.Frequency.ToString().ToLowerInvariant(), (int)prefs.Weekday, leads, prefs.Version);
+            prefs.Frequency.ToString().ToLowerInvariant(), (int)prefs.Weekday, leads, prefs.Version,
+            WebhookUrls.ViewOf(await webhooks.FindAsync(me, ct)));
     }
 }
 
 [RequestHandler<GetNotificationPreferencesQuery, PreferencesView>]
 public sealed class GetNotificationPreferencesHandler(
-    INotificationStore store, NotificationCatalog catalog, IEmailAvailability email, IPersonRegistry persons, IActorAccessor accessor)
+    INotificationStore store, NotificationCatalog catalog, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor)
     : IRequestHandler<GetNotificationPreferencesQuery, PreferencesView>
 {
     public async ValueTask<Result<PreferencesView>> HandleAsync(GetNotificationPreferencesQuery query, CancellationToken ct = default)
@@ -53,13 +54,13 @@ public sealed class GetNotificationPreferencesHandler(
             return Result.Failure<PreferencesView>(NotificationAccess.Unauthorized());
 
         var prefs = await store.PreferencesAsync(me, ct);
-        return Result.Success(await PreferencesViews.BuildAsync(prefs, catalog, email, persons, me, ct));
+        return Result.Success(await PreferencesViews.BuildAsync(prefs, catalog, email, persons, webhooks, me, ct));
     }
 }
 
 [RequestHandler<SaveNotificationPreferencesCommand, PreferencesView>]
 public sealed class SaveNotificationPreferencesHandler(
-    INotificationStore store, NotificationCatalog catalog, IEmailAvailability email, IPersonRegistry persons, IActorAccessor accessor)
+    INotificationStore store, NotificationCatalog catalog, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor)
     : IRequestHandler<SaveNotificationPreferencesCommand, PreferencesView>
 {
     public async ValueTask<Result<PreferencesView>> HandleAsync(SaveNotificationPreferencesCommand command, CancellationToken ct = default)
@@ -101,6 +102,6 @@ public sealed class SaveNotificationPreferencesHandler(
             return Result.Failure<PreferencesView>(new Failure(NotificationCodes.PreferencesConflict,
                 "Your preferences changed since you read them; read them again.", null));
 
-        return Result.Success(await PreferencesViews.BuildAsync(saved, catalog, email, persons, me, ct));
+        return Result.Success(await PreferencesViews.BuildAsync(saved, catalog, email, persons, webhooks, me, ct));
     }
 }

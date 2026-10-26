@@ -115,6 +115,32 @@ public class NotificationStoreTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task Purge_takes_the_deliveries_of_the_notification()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+            await InsertAsync(scope.ServiceProvider.GetRequiredService<INotificationStore>(), app.AdultA, SignalOf("old", new ItemId(Guid.NewGuid())));
+        var old = await IdOfAsync(app, app.AdultA, "old");
+        await SetAsync(app, old, n => { n.State = NotificationStates.Resolved; n.ResolvedAt = Now - NodaTime.Duration.FromDays(91); });
+        await using (var seed = PostgresFixture.NewPlatformContext(app.ConnectionString))
+        {
+            foreach (var channel in new[] { "email", "discord_person" })
+                seed.Deliveries.Add(new NotificationDeliveryRow
+                {
+                    Id = Guid.NewGuid(), NotificationId = old, PersonId = app.AdultA.Value, Channel = channel, State = "sent", CreatedAt = Now, SentAt = Now,
+                });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var purge = app.Services.CreateAsyncScope();
+        var purged = await purge.ServiceProvider.GetRequiredService<INotificationStore>().PurgeAsync(Now - NodaTime.Duration.FromDays(90), default);
+
+        Assert.Equal(1, purged);
+        await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
+        Assert.Empty(await db.Deliveries.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
     public async Task Visibility_filter_is_a_subset_test()
     {
         await using var app = await NidApp.StartAsync(fixture);

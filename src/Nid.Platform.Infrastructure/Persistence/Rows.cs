@@ -87,6 +87,9 @@ public sealed class NotificationDeliveryRow
     public string? LastError { get; set; }
     public Instant CreatedAt { get; set; }
     public Instant? SentAt { get; set; }
+
+    /// <summary>The notification key of a household message: one per key, ever. Null for any other message.</summary>
+    public string? HouseholdKey { get; set; }
 }
 
 /// <summary>
@@ -129,4 +132,20 @@ public sealed class NotificationPreferencesRow
 
     /// <summary>Optimistic concurrency: the saved version, 1 for the first save.</summary>
     public int Version { get; set; }
+}
+
+/// <summary>
+/// A Discord webhook: a person's, or the household's when <see cref="PersonId"/> is null (notifications design §2.3). Audited
+/// (a setting); the audit stores the encrypted bytes at most. No version: the last write wins.
+/// </summary>
+public sealed class NotificationWebhookRow
+{
+    public Guid Id { get; set; }
+    public Guid? PersonId { get; set; }
+
+    /// <summary>The URL, protected by Data Protection.</summary>
+    public byte[] Url { get; set; } = [];
+
+    public string Status { get; set; } = "ok";
+    public Instant UpdatedAt { get; set; }
 }

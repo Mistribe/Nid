@@ -42,3 +42,25 @@ export function useTestChannel() {
   const { $api } = useApi();
   return $api.useMutation('post', NOTIFICATION_TEST);
 }
+
+export const DISCORD_PERSON = '/api/v1/platform/notifications/discord' as const;
+export const DISCORD_HOUSEHOLD = '/api/v1/admin/notifications/discord' as const;
+
+/** Save and remove a Discord webhook; `invalidate` is the query key of the view that carries it. Never touches the preferences' version. */
+export function useWebhook(path: typeof DISCORD_PERSON | typeof DISCORD_HOUSEHOLD, invalidate: readonly unknown[]) {
+  const { fetchClient } = useApi();
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: invalidate });
+  return {
+    save: async (url: string) => {
+      const { error } = await fetchClient.PUT(path, { body: { url } });
+      if (error) throw new ProblemError(toProblem(error));
+      await refresh();
+    },
+    remove: async () => {
+      const { error } = await fetchClient.DELETE(path);
+      if (error) throw new ProblemError(toProblem(error));
+      await refresh();
+    },
+  };
+}

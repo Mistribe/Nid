@@ -4,8 +4,8 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { Button } from '@/components/ui/button';
 
 /** The alert dialog of `ConfirmAction`, loaded on the first click so Radix's dialog stays out of the initial bundle. */
-export default function ConfirmDialog({ label, confirmation, pending, onConfirm, onClose }: {
-  label: string; confirmation: string; pending?: boolean; onConfirm: () => void; onClose: () => void;
+export default function ConfirmDialog({ label, title, confirmation, pending, onConfirm, onClose }: {
+  label: string; title?: string; confirmation: string; pending?: boolean; onConfirm: () => void; onClose: () => void;
 }) {
   const { t } = useTranslation();
   const confirm = useRef<HTMLButtonElement>(null);
@@ -13,7 +13,7 @@ export default function ConfirmDialog({ label, confirmation, pending, onConfirm,
     <AlertDialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <AlertDialogContent onOpenAutoFocus={(event) => { event.preventDefault(); confirm.current?.focus(); }}>
         <AlertDialogHeader>
-          <AlertDialogTitle>{label}</AlertDialogTitle>
+          <AlertDialogTitle>{title ?? label}</AlertDialogTitle>
           <AlertDialogDescription>{confirmation}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

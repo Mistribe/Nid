@@ -11,7 +11,7 @@ namespace Nid.Platform.Admin;
 public sealed record FailedDeliveryView(Guid Id, string Channel, string Kind, DateTimeOffset At, string Error);
 
 /// <summary>Whether email can go out on this installation, and the last 30 days of messages that failed for good.</summary>
-public sealed record AdminNotificationsView(bool SmtpConfigured, string? SmtpHost, IReadOnlyList<FailedDeliveryView> Failures);
+public sealed record AdminNotificationsView(bool SmtpConfigured, string? SmtpHost, IReadOnlyList<FailedDeliveryView> Failures, WebhookView? Discord);
 
 public sealed record GetAdminNotificationsQuery : IQuery<AdminNotificationsView>, IAdminOnly;
 
@@ -19,7 +19,7 @@ public sealed record GetAdminNotificationsQuery : IQuery<AdminNotificationsView>
 public sealed record AdminTestChannelCommand(string Channel) : ICommand<TestChannelResult>, IAdminOnly;
 
 [RequestHandler<GetAdminNotificationsQuery, AdminNotificationsView>]
-public sealed class GetAdminNotificationsHandler(IEmailAvailability email, IDeliveryStore deliveries, IClock clock)
+public sealed class GetAdminNotificationsHandler(IEmailAvailability email, IDeliveryStore deliveries, IWebhookStore webhooks, IClock clock)
     : IRequestHandler<GetAdminNotificationsQuery, AdminNotificationsView>
 {
     public const int Days = 30;
@@ -31,15 +31,16 @@ public sealed class GetAdminNotificationsHandler(IEmailAvailability email, IDeli
         var failed = await deliveries.FailedSinceAsync(since, Limit, ct);
         return Result.Success(new AdminNotificationsView(
             email.IsConfigured, email.IsConfigured ? email.Host : null,
-            failed.Select(f => new FailedDeliveryView(f.Id, f.Channel, f.Kind, f.At.ToDateTimeOffset(), f.Error)).ToList()));
+            failed.Select(f => new FailedDeliveryView(f.Id, f.Channel, f.Kind, f.At.ToDateTimeOffset(), f.Error)).ToList(),
+            WebhookUrls.ViewOf(await webhooks.FindAsync(null, ct))));
     }
 }
 
 [RequestHandler<AdminTestChannelCommand, TestChannelResult>]
 public sealed class AdminTestChannelHandler(
-    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IActorAccessor accessor)
+    IEnumerable<INotificationChannel> channels, IEmailAvailability email, IPersonRegistry persons, IWebhookStore webhooks, IActorAccessor accessor)
     : IRequestHandler<AdminTestChannelCommand, TestChannelResult>
 {
     public async ValueTask<Result<TestChannelResult>> HandleAsync(AdminTestChannelCommand command, CancellationToken ct = default)
-        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, accessor, ct);
+        => await ChannelTests.SendAsync(command.Channel, channels, email, persons, webhooks, accessor, ChannelTests.Household, ct);
 }

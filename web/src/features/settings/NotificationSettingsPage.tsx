@@ -13,10 +13,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { channelErrorText } from '../notifications/channelErrors';
+import { DiscordWebhookControl } from '../notifications/DiscordWebhookControl';
+import { channelErrorText, discordFieldText } from '../notifications/channelErrors';
 import { fieldErrorsOf } from '../subscriptions/fieldErrors';
 import {
-  usePreferences, useReloadPreferences, useSavePreferences, useTestChannel,
+  DISCORD_PERSON, NOTIFICATION_PREFERENCES, usePreferences, useReloadPreferences, useWebhook, useSavePreferences, useTestChannel,
   type NotificationPreferencesBody, type PreferencesView,
 } from '../notifications/preferences';
 import { SettingsFrame } from './SettingsFrame';
@@ -53,6 +54,8 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
   const save = useSavePreferences();
   const reload = useReloadPreferences();
   const test = useTestChannel();
+  const discordTest = useTestChannel();
+  const webhook = useWebhook(DISCORD_PERSON, ['get', NOTIFICATION_PREFERENCES]);
   const [emailEnabled, setEmailEnabled] = useState(prefs.emailEnabled);
   const [action, setAction] = useState(prefs.action);
   const [info, setInfo] = useState(prefs.info);
@@ -99,6 +102,12 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
   const testFields = fieldErrorsOf(test.error);
   const testProblem = test.error && testFields.length === 0 ? present(toProblem(test.error)) : null;
 
+  const discordFields = fieldErrorsOf(discordTest.error);
+  const discordText = discordTest.data
+    ? (discordTest.data.sent ? t('discord.test_sent') : t('discord.test_failed', { error: channelErrorText(t, discordTest.data.error ?? '') }))
+    : discordFields[0] ? discordFieldText(t, discordFields[0]) : null;
+  const discordProblem = discordTest.error && discordFields.length === 0 ? present(toProblem(discordTest.error)) : null;
+
   return (
     <form noValidate className="space-y-8" onSubmit={(e) => { e.preventDefault(); submit(); }}>
       <Section title={t('notification_settings.channels')}>
@@ -121,6 +130,10 @@ function PreferencesForm({ prefs, saved, onSaved }: { prefs: PreferencesView; sa
           </p>
         </div>
         {testProblem ? <ProblemMessage problem={testProblem} /> : null}
+        <DiscordWebhookControl webhook={prefs.discord ?? null} onSave={async (url) => { await webhook.save(url); discordTest.reset(); }}
+          onRemove={async () => { await webhook.remove(); discordTest.reset(); }} testProblem={discordProblem}
+          pending={discordTest.isPending} removeConfirmation={t('discord.remove_person')}
+          onTest={() => { discordTest.reset(); discordTest.mutate({ body: { channel: 'discord_person' } }, { onSuccess: (r) => { if (r.error?.startsWith('notifications.channel_broken')) void reload(); } }); }} testText={discordText} />
       </Section>
 
       <Section title={t('notification_settings.rhythm')}>

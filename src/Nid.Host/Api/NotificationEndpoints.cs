@@ -112,14 +112,24 @@ public static class NotificationEndpoints
                 => (await invoker.InvokeAsync(new TestChannelCommand(body.Channel ?? ""), ct)).ToHttp(r => r))
             .Returns<TestChannelResult>();
 
+        api.MapPut("/discord", async (DiscordWebhookBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SetDiscordWebhookCommand(body.Url ?? ""), ct)).ToHttp(v => v))
+            .Returns<WebhookView>();
+
+        api.MapDelete("/discord", async (IInvoker invoker, CancellationToken ct)
+                => NoContent(await invoker.InvokeAsync(new RemoveDiscordWebhookCommand(), ct)))
+            .ReturnsNoContent();
+
         return routes;
     }
 
     // A 204 carries no body: ToHttp would write one.
-    private static IResult NoContent(Result<NotificationsUpdated> result)
+    internal static IResult NoContent(Result<NotificationsUpdated> result)
         => result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
 
     public sealed record TestChannelBody(string? Channel);
+
+    public sealed record DiscordWebhookBody(string? Url);
 
     public sealed record SnoozeBody(string? Until, string? Preset);
 

@@ -10,6 +10,8 @@ const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
  */
 export function ConfirmAction(props: {
   label: string;
+  /** The dialog's title when it is not the button's label. */
+  title?: string;
   confirmation: string;
   onConfirm: () => void;
   disabled?: boolean;
@@ -30,7 +32,7 @@ export function ConfirmAction(props: {
       <Button ref={triggerRef} variant="outline" size="sm" disabled={props.disabled || props.pending} onClick={() => setAsking(true)}>{props.label}</Button>
       {asking ? (
         <Suspense fallback={null}>
-          <ConfirmDialog label={props.label} confirmation={props.confirmation} pending={props.pending} onClose={() => setAsking(false)}
+          <ConfirmDialog label={props.label} title={props.title} confirmation={props.confirmation} pending={props.pending} onClose={() => setAsking(false)}
             onConfirm={() => { setAsking(false); props.onConfirm(); }} />
         </Suspense>
       ) : null}

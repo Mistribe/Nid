@@ -67,7 +67,7 @@ Vous pouvez le relancer : **il ne remplace jamais un secret existant**, sauf le 
 définissez `Auth__AccessGroup` et `Auth__AdminGroup` pour `nid-api` dans un `deploy/compose.override.yaml`.
 
 Une liste `Outbound:AllowedHosts` configurée remplace celle par défaut : elle doit contenir `www.boursorama.com` et
-`query2.finance.yahoo.com` pour la collecte des cours, et `bdm.insee.fr` pour celle de l'IRL.
+`query2.finance.yahoo.com` pour la collecte des cours, `bdm.insee.fr` pour celle de l'IRL et `discord.com` et `discordapp.com` pour les webhooks Discord des notifications.
 
 ## 3. Brancher le proxy
 
