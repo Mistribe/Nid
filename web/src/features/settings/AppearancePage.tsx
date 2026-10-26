@@ -9,7 +9,7 @@ import type { Preferences } from '@/app/session';
 import { applyTheme, rememberTheme, resolveMode, resolveTheme } from '@/app/theme';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Segmented } from '@/components/form/Segmented';
-import { PageHeader } from '@/components/page/PageHeader';
+import { SettingsFrame } from './SettingsFrame';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import { modes, themes, type Mode, type ThemeId } from '@/styles/themes';
@@ -107,8 +107,7 @@ export function AppearancePage() {
   const themeLabel = useId();
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <PageHeader title={t('settings.appearance.title')} />
+    <SettingsFrame title={t('settings.appearance.title')}>
       {problem ? <ProblemMessage problem={problem} /> : null}
 
       <section className="space-y-2">
@@ -152,6 +151,6 @@ export function AppearancePage() {
       </section>
 
       <PersonsSection />
-    </div>
+    </SettingsFrame>
   );
 }

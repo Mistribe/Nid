@@ -250,7 +250,7 @@ public static class RequestCatalogue
 
         // Notifications are the person's own rows, filtered by visibility on read (notifications design §4): B naming A's
         // notification id is the same 404 as a random id, which NotificationEndpointTests checks. The evaluation is admin-only
-        // and per person; it names no item.
+        // and per person; it names no item. The preferences are the person's own row, keyed by the actor.
         new(typeof(ListNotificationsQuery), false, (_, _) => new ListNotificationsQuery(NotificationList.Todo, null, null)),
         new(typeof(CountNotificationsQuery), false, (_, _) => new CountNotificationsQuery()),
         new(typeof(ReadNotificationCommand), false, (_, _) => new ReadNotificationCommand(Guid.NewGuid())),
@@ -258,6 +258,14 @@ public static class RequestCatalogue
         new(typeof(SnoozeNotificationCommand), false, (_, _) => new SnoozeNotificationCommand(Guid.NewGuid(), null, SnoozePreset.Week)),
         new(typeof(DismissNotificationCommand), false, (_, _) => new DismissNotificationCommand(Guid.NewGuid())),
         new(typeof(EvaluateNotificationsCommand), false, (_, _) => new EvaluateNotificationsCommand()),
+        new(typeof(DispatchNotificationsCommand), false, (_, _) => new DispatchNotificationsCommand()),
+        new(typeof(SendDigestsCommand), false, (_, _) => new SendDigestsCommand()),
+        new(typeof(TestChannelCommand), false, (_, _) => new TestChannelCommand("email")),
+        new(typeof(GetAdminNotificationsQuery), false, (_, _) => new GetAdminNotificationsQuery()),
+        new(typeof(AdminTestChannelCommand), false, (_, _) => new AdminTestChannelCommand("email")),
+        new(typeof(GetNotificationPreferencesQuery), false, (_, _) => new GetNotificationPreferencesQuery()),
+        new(typeof(SaveNotificationPreferencesCommand), false, (_, _) => new SaveNotificationPreferencesCommand(
+            false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), 0)),
 
         // The export is the reader's own view of what they can read; its views expose every exported item to the
         // output guard (1D2 design §6), and ExportPrivacyTests checks the content.

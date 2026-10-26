@@ -9,6 +9,7 @@ using Nid.Host.Api.Json;
 using Nid.Host.Auth;
 using Nid.Host.Jobs;
 using Nid.Host.Mcp;
+using Nid.Host.Notifications;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Contracts;
@@ -59,6 +60,10 @@ builder.Services.AddSingleton(Nid.Income.Application.PayslipTolerance.Parse(buil
 builder.Services.AddSingleton(builder.Configuration.GetSection("Assets").Get<AssetOptions>() ?? new AssetOptions());
 var connectionString = builder.Configuration.GetConnectionString("nid")
     ?? (generatingOpenApi ? "Host=openapi-generation" : throw new InvalidOperationException("ConnectionStrings:nid is not configured."));
+// Parsed here so an incomplete SMTP configuration stops the host at startup (notifications design §5.3).
+var smtpOptions = builder.Configuration.GetSection(SmtpOptions.Section).Get<SmtpOptions>() ?? new SmtpOptions();
+smtpOptions.Validate(builder.Configuration["Auth:PublicUrl"]);
+builder.Services.AddNidEmail(smtpOptions, builder.Configuration["Auth:PublicUrl"] ?? "");
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))

@@ -10,7 +10,7 @@ public sealed class ThrowingNotificationStore(INotificationStore inner, PersonId
     public Task<IReadOnlyList<StoredNotification>> ForSourceAsync(PersonId person, IReadOnlyCollection<string> kinds, CancellationToken ct)
         => inner.ForSourceAsync(person, kinds, ct);
 
-    public Task ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct)
+    public Task<IReadOnlyList<OpenedNotification>> ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct)
         => person == failFor ? throw new InvalidOperationException("The store is down for this person.") : inner.ApplyAsync(person, changes, ct);
 
     public Task<LocalDate?> LastEvaluatedAsync(PersonId person, CancellationToken ct) => inner.LastEvaluatedAsync(person, ct);
@@ -37,4 +37,9 @@ public sealed class ThrowingNotificationStore(INotificationStore inner, PersonId
     public Task DismissAsync(Guid id, Instant at, CancellationToken ct) => inner.DismissAsync(id, at, ct);
 
     public Task<int> PurgeAsync(Instant olderThan, CancellationToken ct) => inner.PurgeAsync(olderThan, ct);
+
+    public Task<NotificationPreferences> PreferencesAsync(PersonId person, CancellationToken ct) => inner.PreferencesAsync(person, ct);
+
+    public Task<NotificationPreferences?> SavePreferencesAsync(PersonId person, NotificationPreferences next, CancellationToken ct)
+        => inner.SavePreferencesAsync(person, next, ct);
 }

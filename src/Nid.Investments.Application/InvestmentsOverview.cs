@@ -69,18 +69,22 @@ public static class OverviewCodes
 }
 
 [RequestHandler<GetInvestmentsOverviewQuery, InvestmentsOverview>]
-public sealed class GetInvestmentsOverviewHandler(
-    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdings,
-    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, IPersonRegistry persons,
-    EnvelopeEstimator estimator)
+public sealed class GetInvestmentsOverviewHandler(InvestmentsOverviewReader overview, IHouseholdCalendar calendar, IActorAccessor actor)
     : IRequestHandler<GetInvestmentsOverviewQuery, InvestmentsOverview>
 {
     public async ValueTask<Result<InvestmentsOverview>> HandleAsync(GetInvestmentsOverviewQuery query, CancellationToken ct = default)
+        => Result.Success(await overview.ReadAsync(actor.Current!.PersonId!.Value, query.Scope, query.Span, await calendar.TodayAsync(ct), ct));
+}
+
+/// <summary>The overview of what a reader sees, shared by its endpoint and the notification source.</summary>
+public sealed class InvestmentsOverviewReader(
+    IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdings,
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, EnvelopeEstimator estimator)
+{
+    public async Task<InvestmentsOverview> ReadAsync(PersonId reader, VisibilityScope scope, OverviewSpan span, LocalDate today, CancellationToken ct)
     {
-        var reader = actor.Current!.PersonId!.Value;
-        var today = await calendar.TodayAsync(ct);
         // D9: the closed envelopes too, for the curve before their closing.
-        var ids = await visible.ForAsync(reader, query.Scope, includeArchived: true, ct);
+        var ids = await visible.ForAsync(reader, scope, includeArchived: true, ct);
         var found = await envelopes.FindManyAsync(ids.ToList(), ct);
         // Batched reads spec §3, as the list: a block that cannot be read falls back to each envelope's own read.
         var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
@@ -106,12 +110,12 @@ public sealed class GetInvestmentsOverviewHandler(
                 && HoldingMath.UcSharePct(snapshot, (await holdings.HoldingsAsync(f.Item.Id, ct)).ToDictionary(h => h.Holding.Id, h => h.Holding.Kind)) < f.Envelope.UcShareFloorPct)
                 watch.Add(new EnvelopeWatchView(HoldingWarnings.UcShareBelowFloor, f.Item.Id, null, snapshot.AsOf));
 
-        var grid = InvestmentsOverviewMath.Grid(query.Span, today);
+        var grid = InvestmentsOverviewMath.Grid(span, today);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], grid[0], today, ct);
-        return Result.Success(InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, query.Span, watch, await persons.ListAsync(ct), estimates));
+        return InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, span, watch, await persons.ListAsync(ct), estimates);
     }
 }
 

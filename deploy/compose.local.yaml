@@ -18,6 +18,13 @@ services:
     environment:
       STATIC_API_KEY: nid-local-smoke-api-key-0123456789abcdef
 
+  # The mail catcher: nid-api sends its notification emails here and the journeys read them from its API (8025). Never on a real
+  # deployment. `app` is internal, so `outside` carries the published port.
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports: ["127.0.0.1:8025:8025"]
+    networks: [app, outside]
+
   nid-api:
     networks: [app, data, egress, edge]
     environment:
@@ -25,6 +32,10 @@ services:
       Auth__TrustAnyIdentityProviderCertificate: "true"
       # A count requests a notification refresh at most every 5 s here (900 s by default), so the end-to-end journeys see their data evaluated.
       Notifications__RefreshThrottleSeconds: "5"
+      Nid__Smtp__Host: mailpit
+      Nid__Smtp__Port: "1025"
+      Nid__Smtp__From: nid@localtest.me
+      Nid__Smtp__Security: None
 
 networks:
   outside: {}

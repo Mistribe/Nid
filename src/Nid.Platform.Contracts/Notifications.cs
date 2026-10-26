@@ -51,6 +51,12 @@ public static class NotificationCodes
     public const string NotSnoozable = "notifications.not_snoozable";
     public const string NotDismissable = "notifications.not_dismissable";
     public const string InvalidSnooze = "notifications.invalid_snooze";
+    public const string UnknownKind = "notifications.unknown_kind";
+    public const string InvalidLeadDays = "notifications.invalid_lead_days";
+    public const string InvalidWeekday = "notifications.invalid_weekday";
+    public const string EmailUnavailable = "notifications.email_unavailable";
+    public const string PreferencesConflict = "notifications.preferences_conflict";
+    public const string UnknownChannel = "notifications.unknown_channel";
 }
 
 /// <summary>
@@ -64,6 +70,10 @@ public static class SignalKeys
 
     public static string Monthly(string kind, ItemId item, LocalDate today)
         => $"{kind}:{item.Value:D}:{today:yyyy-MM}";
+
+    /// <summary>A signal about the household and no item (a missing rate, the month's routine): the discriminator tells occurrences apart.</summary>
+    public static string Household(string kind, string discriminator)
+        => $"{kind}:{discriminator}";
 
     public static string Undated(string kind, ItemId item)
         => $"{kind}:{item.Value:D}";

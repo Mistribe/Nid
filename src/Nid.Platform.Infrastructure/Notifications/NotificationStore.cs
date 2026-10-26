@@ -16,7 +16,9 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
 
     [JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
     [JsonSerializable(typeof(Dictionary<string, string>))]
-    private sealed partial class ParamsJson : JsonSerializerContext;
+    [JsonSerializable(typeof(IReadOnlyDictionary<string, int>))]
+    [JsonSerializable(typeof(Dictionary<string, int>))]
+    private sealed partial class StoreJson : JsonSerializerContext;
 
     public async Task<IReadOnlyList<StoredNotification>> ForSourceAsync(PersonId person, IReadOnlyCollection<string> kinds, CancellationToken ct)
     {
@@ -27,8 +29,9 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
             .ToListAsync(ct);
     }
 
-    public async Task ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct)
+    public async Task<IReadOnlyList<OpenedNotification>> ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct)
     {
+        var opened = new List<OpenedNotification>();
         // The single-row commands write in SQL: a notification tracked by an earlier call would be stale. Only those are
         // detached; the context is shared (audit entries), its tracker is not ours to clear.
         foreach (var entry in db.ChangeTracker.Entries<NotificationRow>().ToList())
@@ -37,8 +40,13 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
 
         // Inserts go first and in SQL: a row another evaluation created meanwhile makes the insert a no-op, not a failure.
         foreach (var insert in changes.OfType<LifecycleChange.Insert>())
-            await InsertAsync(person, insert, now, ct);
+        {
+            var id = Guid.CreateVersion7();
+            if (await InsertAsync(person, id, insert, now, ct) == 1 && insert.Open)
+                opened.Add(new OpenedNotification(id, insert.Kind.Level, 1));
+        }
 
+        var openedRows = new List<NotificationRow>();
         var ids = changes.Where(c => c is not LifecycleChange.Insert).Select(IdOf).ToArray();
         if (ids.Length > 0)
         {
@@ -47,11 +55,14 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
             {
                 if (change is LifecycleChange.Insert || !rows.TryGetValue(IdOf(change), out var row))
                     continue;
-                Apply(row, change, now);
+                if (Apply(row, change, now))
+                    openedRows.Add(row);
             }
         }
 
         await db.SaveChangesAsync(ct);
+        opened.AddRange(openedRows.Select(r => new OpenedNotification(r.Id, Enum.Parse<NotificationLevel>(r.Level, ignoreCase: true), r.Round)));
+        return opened;
     }
 
     private static Guid IdOf(LifecycleChange change) => change switch
@@ -66,35 +77,36 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         _ => Guid.Empty,
     };
 
-    private static void Apply(NotificationRow row, LifecycleChange change, Instant now)
+    /// <summary>Applies one change to its row; true when the row opened.</summary>
+    private static bool Apply(NotificationRow row, LifecycleChange change, Instant now)
     {
         switch (change)
         {
             case LifecycleChange.Retime c when row.State == NotificationStates.Pending:
                 row.NotifyOn = c.NotifyOn;
                 row.DueOn = c.Signal.DueOn;
-                row.Params = JsonSerializer.Serialize(c.Signal.Params, ParamsJson.Default.IReadOnlyDictionaryStringString);
+                row.Params = JsonSerializer.Serialize(c.Signal.Params, StoreJson.Default.IReadOnlyDictionaryStringString);
                 row.ItemIds = c.Signal.ItemIds.Select(i => i.Value).ToArray();
                 if (c.Open)
                     Open(row, now);
-                break;
+                return c.Open;
             case LifecycleChange.OpenNow when row.State == NotificationStates.Pending:
                 Open(row, now);
-                break;
+                return true;
             case LifecycleChange.Resolve when row.State is NotificationStates.Pending or NotificationStates.Open or NotificationStates.Snoozed:
                 row.State = NotificationStates.Resolved;
                 row.ResolvedAt = now;
-                break;
+                return false;
             case LifecycleChange.Wake c when row.State == NotificationStates.Snoozed && row.SnoozedUntil is { } until && until <= c.Today:
                 // Unread again: waking is news, so it sorts as new.
                 Open(row, now);
                 row.SnoozedUntil = null;
                 row.ReadAt = null;
-                break;
+                return true;
             case LifecycleChange.Reopen c when row.State == NotificationStates.Resolved:
                 row.NotifyOn = c.NotifyOn;
                 row.DueOn = c.Signal.DueOn;
-                row.Params = JsonSerializer.Serialize(c.Signal.Params, ParamsJson.Default.IReadOnlyDictionaryStringString);
+                row.Params = JsonSerializer.Serialize(c.Signal.Params, StoreJson.Default.IReadOnlyDictionaryStringString);
                 row.ItemIds = c.Signal.ItemIds.Select(i => i.Value).ToArray();
                 row.ResolvedAt = null;
                 row.ReadAt = null;
@@ -102,35 +114,45 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
                     Open(row, now);
                 else
                     row.State = NotificationStates.Pending;
-                break;
+                return c.Open;
             case LifecycleChange.SettleDismissed when row.State == NotificationStates.Dismissed && row.ResolvedAt is null:
                 row.ResolvedAt = now;
-                break;
+                return false;
             case LifecycleChange.Unsettle when row.State == NotificationStates.Dismissed:
                 row.ResolvedAt = null;
-                break;
+                return false;
+            default:
+                return false;
         }
     }
 
+    /// <summary>A row that opens after it was already open (a wake, a reopen of a resolved key) starts a new round.</summary>
     private static void Open(NotificationRow row, Instant now)
     {
+        if (row.OpenedAt is not null)
+        {
+            row.Round++;
+            // A new round is news again: it may go in a later digest (never in two digests is per round).
+            row.DigestedAt = null;
+            row.DigestId = null;
+        }
         row.State = NotificationStates.Open;
         row.OpenedAt = now;
     }
 
-    private Task<int> InsertAsync(PersonId person, LifecycleChange.Insert insert, Instant now, CancellationToken ct)
+    private Task<int> InsertAsync(PersonId person, Guid id, LifecycleChange.Insert insert, Instant now, CancellationToken ct)
     {
         var signal = insert.Signal;
         var level = LevelText(insert.Kind.Level);
         var items = signal.ItemIds.Select(i => i.Value).ToArray();
         var state = insert.Open ? NotificationStates.Open : NotificationStates.Pending;
         var openedAt = insert.Open ? now : (Instant?)null;
-        var json = JsonSerializer.Serialize(signal.Params, ParamsJson.Default.IReadOnlyDictionaryStringString);
+        var json = JsonSerializer.Serialize(signal.Params, StoreJson.Default.IReadOnlyDictionaryStringString);
         return db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO platform.notification
                 (id, person_id, kind, key, level, item_ids, due_on, notify_on, params, state, created_at, opened_at)
             VALUES
-                ({Guid.CreateVersion7()}, {person.Value}, {insert.Kind.Kind}, {signal.Key}, {level}, {items}, {signal.DueOn}, {insert.NotifyOn},
+                ({id}, {person.Value}, {insert.Kind.Kind}, {signal.Key}, {level}, {items}, {signal.DueOn}, {insert.NotifyOn},
                  CAST({json} AS jsonb), {state}, {now}, {openedAt})
             ON CONFLICT (person_id, key) DO NOTHING
             """, ct);
@@ -222,6 +244,41 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         => await db.Notifications.Where(n => n.Id == id)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.State, NotificationStates.Dismissed).SetProperty(n => n.DismissedAt, at), ct);
 
+    public async Task<NotificationPreferences> PreferencesAsync(PersonId person, CancellationToken ct)
+    {
+        var row = await db.PreferenceRows.AsNoTracking().FirstOrDefaultAsync(r => r.PersonId == person.Value, ct);
+        return row is null ? NotificationPreferences.Defaults : ToPreferences(row);
+    }
+
+    public async Task<NotificationPreferences?> SavePreferencesAsync(PersonId person, NotificationPreferences next, CancellationToken ct)
+    {
+        var row = await db.PreferenceRows.FirstOrDefaultAsync(r => r.PersonId == person.Value, ct);
+        if ((row?.Version ?? 0) != next.Version)
+            return null;
+
+        if (row is null)
+            db.PreferenceRows.Add(row = new NotificationPreferencesRow { PersonId = person.Value });
+        row.EmailEnabled = next.EmailEnabled;
+        row.ActionMode = next.Action.ToString().ToLowerInvariant();
+        row.InfoMode = next.Info.ToString().ToLowerInvariant();
+        row.Frequency = next.Frequency.ToString().ToLowerInvariant();
+        row.Weekday = (int)next.Weekday;
+        row.LeadDays = JsonSerializer.Serialize(next.LeadDays, StoreJson.Default.IReadOnlyDictionaryStringInt32);
+        row.Version = next.Version + 1;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent save: the version moved (update) or the first row exists (insert). The stale entry must not be saved again.
+            db.Entry(row).State = EntityState.Detached;
+            return null;
+        }
+
+        return ToPreferences(row);
+    }
+
     public async Task<int> PurgeAsync(Instant olderThan, CancellationToken ct)
         => await db.Notifications
             .Where(n => (n.State == NotificationStates.Resolved || n.State == NotificationStates.Dismissed) && n.ResolvedAt < olderThan)
@@ -234,11 +291,16 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         return query.Where(n => n.ItemIds.All(i => allowed.Contains(i)));
     }
 
+    private static NotificationPreferences ToPreferences(NotificationPreferencesRow row) => new(
+        row.EmailEnabled, Enum.Parse<ActionMode>(row.ActionMode, ignoreCase: true), Enum.Parse<InfoMode>(row.InfoMode, ignoreCase: true),
+        Enum.Parse<DigestFrequency>(row.Frequency, ignoreCase: true), (IsoDayOfWeek)row.Weekday,
+        JsonSerializer.Deserialize(row.LeadDays, StoreJson.Default.DictionaryStringInt32) ?? [], row.Version);
+
     private static string LevelText(NotificationLevel level) => level.ToString().ToLowerInvariant();
 
-    private static NotificationRecord ToRecord(NotificationRow row) => new(
+    internal static NotificationRecord ToRecord(NotificationRow row) => new(
         row.Id, new PersonId(row.PersonId), row.Kind, row.Key, Enum.Parse<NotificationLevel>(row.Level, ignoreCase: true),
         row.ItemIds.Select(i => new ItemId(i)).ToList(), row.DueOn, row.NotifyOn,
-        JsonSerializer.Deserialize(row.Params, ParamsJson.Default.DictionaryStringString) ?? [],
-        row.State, row.ReadAt, row.SnoozedUntil, row.CreatedAt, row.OpenedAt, row.ResolvedAt);
+        JsonSerializer.Deserialize(row.Params, StoreJson.Default.DictionaryStringString) ?? [],
+        row.State, row.ReadAt, row.SnoozedUntil, row.CreatedAt, row.OpenedAt, row.ResolvedAt, row.Round);
 }

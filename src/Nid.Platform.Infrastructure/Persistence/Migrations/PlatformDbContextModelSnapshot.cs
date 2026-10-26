@@ -220,6 +220,166 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationDeliveryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("channel");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("DigestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("digest_id");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<Instant?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<Guid?>("NotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<int>("Round")
+                        .HasColumnType("integer")
+                        .HasColumnName("round");
+
+                    b.Property<Instant?>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_delivery");
+
+                    b.HasIndex("NextAttemptAt")
+                        .HasDatabaseName("ix_notification_delivery_next_attempt_at")
+                        .HasFilter("state = 'pending'");
+
+                    b.HasIndex("DigestId", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_delivery_digest_id_channel");
+
+                    b.HasIndex("NotificationId", "Channel", "Round")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_delivery_notification_id_channel_round");
+
+                    b.ToTable("notification_delivery", "platform", t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_delivery_round", "round >= 1");
+
+                            t.HasCheckConstraint("ck_notification_delivery_state", "state in ('pending','sent','failed','skipped')");
+
+                            t.HasCheckConstraint("ck_notification_delivery_target", "num_nonnulls(notification_id, digest_id) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationDigestRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("PeriodKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("period_key");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_digest");
+
+                    b.HasIndex("PersonId", "PeriodKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_digest_person_id_period_key");
+
+                    b.ToTable("notification_digest", "platform");
+                });
+
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationPreferencesRow", b =>
+                {
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<string>("ActionMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("action_mode");
+
+                    b.Property<bool>("EmailEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_enabled");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("frequency");
+
+                    b.Property<string>("InfoMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("info_mode");
+
+                    b.Property<string>("LeadDays")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("lead_days");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<int>("Weekday")
+                        .HasColumnType("integer")
+                        .HasColumnName("weekday");
+
+                    b.HasKey("PersonId")
+                        .HasName("pk_notification_preferences");
+
+                    b.ToTable("notification_preferences", "platform", t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_preferences_action", "action_mode in ('immediate','digest')");
+
+                            t.HasCheckConstraint("ck_notification_preferences_frequency", "frequency in ('daily','weekly')");
+
+                            t.HasCheckConstraint("ck_notification_preferences_info", "info_mode in ('digest','centre')");
+
+                            t.HasCheckConstraint("ck_notification_preferences_weekday", "weekday between 1 and 7");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -229,6 +389,10 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                     b.Property<Instant>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<Guid?>("DigestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("digest_id");
 
                     b.Property<Instant?>("DigestedAt")
                         .HasColumnType("timestamp with time zone")
@@ -289,6 +453,12 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("resolved_at");
 
+                    b.Property<int>("Round")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("round");
+
                     b.Property<LocalDate?>("SnoozedUntil")
                         .HasColumnType("date")
                         .HasColumnName("snoozed_until");
@@ -300,6 +470,10 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_notification");
+
+                    b.HasIndex("DigestId")
+                        .HasDatabaseName("ix_notification_digest_id")
+                        .HasFilter("digest_id is not null");
 
                     b.HasIndex("PersonId", "Key")
                         .IsUnique()
@@ -356,6 +530,21 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_import_batch_import_session_session_id");
+                });
+
+            modelBuilder.Entity("Nid.Platform.Infrastructure.Persistence.NotificationDeliveryRow", b =>
+                {
+                    b.HasOne("Nid.Platform.Infrastructure.Persistence.NotificationDigestRow", null)
+                        .WithMany()
+                        .HasForeignKey("DigestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_notification_delivery_notification_digest_digest_id");
+
+                    b.HasOne("Nid.Platform.Infrastructure.Persistence.NotificationRow", null)
+                        .WithMany()
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_notification_delivery_notification_notification_id");
                 });
 #pragma warning restore 612, 618
         }

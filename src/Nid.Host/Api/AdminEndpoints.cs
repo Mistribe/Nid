@@ -3,6 +3,7 @@ using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
 using Nid.Platform.Admin;
 using Nid.Platform.Audit;
+using Nid.Platform.Notifications;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Api;
@@ -61,6 +62,14 @@ public static class AdminEndpoints
         api.MapGet("/security-journal", async (string? @event, long? before, int? limit, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SecurityJournalQuery(@event, before, limit), ct)).ToHttp(p => p))
             .Returns<SecurityEventPage>();
+
+        api.MapGet("/notifications", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetAdminNotificationsQuery(), ct)).ToHttp(view => view))
+            .Returns<AdminNotificationsView>();
+
+        api.MapPost("/notifications/test", async (NotificationEndpoints.TestChannelBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new AdminTestChannelCommand(body.Channel ?? ""), ct)).ToHttp(result => result))
+            .Returns<TestChannelResult>();
 
         return routes;
     }

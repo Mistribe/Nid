@@ -8,7 +8,7 @@ namespace Nid.Platform.Notifications;
 public sealed record NotificationRecord(
     Guid Id, PersonId Person, string Kind, string Key, NotificationLevel Level, IReadOnlyList<ItemId> ItemIds, LocalDate? DueOn,
     LocalDate NotifyOn, IReadOnlyDictionary<string, string> Params, string State, Instant? ReadAt, LocalDate? SnoozedUntil,
-    Instant CreatedAt, Instant? OpenedAt, Instant? ResolvedAt);
+    Instant CreatedAt, Instant? OpenedAt, Instant? ResolvedAt, int Round = 1);
 
 /// <summary>The three lists of the centre: what to do, what is put off, what is over (notifications design §4).</summary>
 public enum NotificationList { Todo, Snoozed, History }
@@ -19,8 +19,12 @@ public interface INotificationStore
     /// <summary>The person's rows of the given kinds, in every state: the lifecycle needs the final ones to keep their keys.</summary>
     Task<IReadOnlyList<StoredNotification>> ForSourceAsync(PersonId person, IReadOnlyCollection<string> kinds, CancellationToken ct);
 
-    /// <summary>Applies the changes of <see cref="NotificationLifecycle.Plan"/>. An insert whose (person, key) exists is ignored. Inserts are applied before the other changes and not in the same transaction (safe: evaluation is idempotent).</summary>
-    Task ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct);
+    /// <summary>
+    /// Applies the changes of <see cref="NotificationLifecycle.Plan"/>. An insert whose (person, key) exists is ignored. Inserts are applied
+    /// before the other changes and not in the same transaction (safe: evaluation is idempotent). Returns the rows that opened, with the
+    /// round they opened in: a row that opens again after it was open (a wake, a reopen) is in its next round.
+    /// </summary>
+    Task<IReadOnlyList<OpenedNotification>> ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct);
 
     /// <summary>The oldest "last successful day" over the person's sources, null when one never succeeded or none ran.</summary>
     Task<LocalDate?> LastEvaluatedAsync(PersonId person, CancellationToken ct);
@@ -47,6 +51,15 @@ public interface INotificationStore
     Task SnoozeAsync(Guid id, LocalDate until, CancellationToken ct);
 
     Task DismissAsync(Guid id, Instant at, CancellationToken ct);
+
+    /// <summary>The person's preferences, <see cref="NotificationPreferences.Defaults"/> (version 0) when nothing was saved.</summary>
+    Task<NotificationPreferences> PreferencesAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>
+    /// Saves <paramref name="next"/> when the stored version is <c>next.Version</c> (0 for none) and returns it with the version
+    /// bumped; null when someone saved meanwhile.
+    /// </summary>
+    Task<NotificationPreferences?> SavePreferencesAsync(PersonId person, NotificationPreferences next, CancellationToken ct);
 
     /// <summary>Deletes the resolved and dismissed rows that ended before <paramref name="olderThan"/>.</summary>
     Task<int> PurgeAsync(Instant olderThan, CancellationToken ct);

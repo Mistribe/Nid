@@ -147,6 +147,20 @@ public static class JobsSetup
                 .WithIdentity("notifications-evaluate")
                 .WithCronSchedule("0 0 * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
 
+            // Every minute: the outbox sends what is due (notifications design §5.1).
+            q.AddJob<NotificationsDispatchJob>(job => job.WithIdentity(NotificationJobs.DispatchKey));
+            q.AddTrigger(t => t
+                .ForJob(NotificationJobs.DispatchKey)
+                .WithIdentity("notifications-dispatch")
+                .WithCronSchedule("0 * * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
+            // Hourly: each adult whose day it is gets one digest, from 08:00 on the household's clock (notifications design §5.2).
+            q.AddJob<NotificationsDigestJob>(job => job.WithIdentity(NotificationJobs.DigestKey));
+            q.AddTrigger(t => t
+                .ForJob(NotificationJobs.DigestKey)
+                .WithIdentity("notifications-digest")
+                .WithCronSchedule("0 0 * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
             // Durable: it has no trigger of its own, it is fired on demand and at startup.
             q.AddJob<FxBackfillJob>(job => job.WithIdentity(FxJobs.BackfillKey).StoreDurably());
 

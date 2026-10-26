@@ -31,6 +31,11 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(NotificationPage))]
 [JsonSerializable(typeof(NotificationCount))]
 [JsonSerializable(typeof(NotificationEndpoints.SnoozeBody))]
+[JsonSerializable(typeof(NotificationEndpoints.NotificationPreferencesBody))]
+[JsonSerializable(typeof(NotificationEndpoints.TestChannelBody))]
+[JsonSerializable(typeof(PreferencesView))]
+[JsonSerializable(typeof(TestChannelResult))]
+[JsonSerializable(typeof(AdminNotificationsView))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(JsonElement))]
 internal sealed partial class PlatformJsonContext : JsonSerializerContext;

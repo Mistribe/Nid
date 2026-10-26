@@ -14,6 +14,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AuditEntryRow> AuditLog => Set<AuditEntryRow>();
     public DbSet<NotificationRow> Notifications => Set<NotificationRow>();
     public DbSet<NotificationRunRow> NotificationRuns => Set<NotificationRunRow>();
+    public DbSet<NotificationPreferencesRow> PreferenceRows => Set<NotificationPreferencesRow>();
+    public DbSet<NotificationDeliveryRow> Deliveries => Set<NotificationDeliveryRow>();
+    public DbSet<NotificationDigestRow> Digests => Set<NotificationDigestRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,12 +60,56 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.Params).HasColumnType("jsonb");
             e.HasIndex(x => new { x.PersonId, x.Key }).IsUnique();
             e.HasIndex(x => new { x.PersonId, x.State });
+            e.HasIndex(x => x.DigestId).HasFilter("digest_id is not null");
+            e.Property(x => x.Round).HasDefaultValue(1);
+        });
+
+        modelBuilder.Entity<NotificationDeliveryRow>(e =>
+        {
+            e.ToTable("notification_delivery", t =>
+            {
+                t.HasCheckConstraint("ck_notification_delivery_state", "state in ('pending','sent','failed','skipped')");
+                t.HasCheckConstraint("ck_notification_delivery_round", "round >= 1");
+                t.HasCheckConstraint("ck_notification_delivery_target", "num_nonnulls(notification_id, digest_id) = 1");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // One message per opening and channel: a second evaluation, or a second process, cannot enqueue it twice.
+            e.HasIndex(x => new { x.NotificationId, x.Channel, x.Round }).IsUnique();
+            e.HasIndex(x => new { x.DigestId, x.Channel }).IsUnique();
+            e.HasIndex(x => x.NextAttemptAt).HasFilter("state = 'pending'");
+            e.HasOne<NotificationRow>().WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<NotificationDigestRow>().WithMany().HasForeignKey(x => x.DigestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotificationDigestRow>(e =>
+        {
+            e.ToTable("notification_digest");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // One digest per person and period: a second run, or a second process, cannot send it twice.
+            e.HasIndex(x => new { x.PersonId, x.PeriodKey }).IsUnique();
         });
 
         modelBuilder.Entity<NotificationRunRow>(e =>
         {
             e.ToTable("notification_run");
             e.HasKey(x => new { x.PersonId, x.Source });
+        });
+
+        modelBuilder.Entity<NotificationPreferencesRow>(e =>
+        {
+            e.ToTable("notification_preferences", t =>
+            {
+                t.HasCheckConstraint("ck_notification_preferences_action", "action_mode in ('immediate','digest')");
+                t.HasCheckConstraint("ck_notification_preferences_info", "info_mode in ('digest','centre')");
+                t.HasCheckConstraint("ck_notification_preferences_frequency", "frequency in ('daily','weekly')");
+                t.HasCheckConstraint("ck_notification_preferences_weekday", "weekday between 1 and 7");
+            });
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.Property(x => x.LeadDays).HasColumnType("jsonb");
+            e.Property(x => x.Version).IsConcurrencyToken();
         });
 
         modelBuilder.MapAuditLog(ownedHere: true);

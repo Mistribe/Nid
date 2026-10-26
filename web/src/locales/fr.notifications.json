@@ -58,5 +58,56 @@
     },
     "snoozed_done": "Notification reportée.",
     "more": "Voir plus"
+  },
+  "settings_frame": {
+    "nav": { "label": "Réglages", "appearance": "Apparence", "notifications": "Notifications" }
+  },
+  "channel_errors": {
+    "unreachable": "Le serveur d’envoi ne répond pas.",
+    "rejected": "Le serveur d’envoi a refusé l’email."
+  },
+  "notification_settings": {
+    "title": "Notifications",
+    "loading": "Chargement des réglages",
+    "channels": "Canaux",
+    "email": "Email",
+    "no_address": "Votre compte n’a pas d’adresse email.",
+    "email_unavailable": "L’hébergeur n’a pas configuré l’envoi d’emails.",
+    "test": "Envoyer un test",
+    "test_sent": "Email envoyé.",
+    "test_failed": "L’email n’est pas parti : {{error}}",
+    "rhythm": "Rythme",
+    "critical": "Critique : toujours tout de suite, sur tous vos canaux.",
+    "action": "À traiter",
+    "action_immediate": "Tout de suite",
+    "action_digest": "Dans le résumé",
+    "info": "Pour information",
+    "info_digest": "Dans le résumé",
+    "info_centre": "Dans Nid seulement",
+    "digest": "Résumé",
+    "frequency_daily": "Chaque jour",
+    "frequency_weekly": "Chaque semaine",
+    "weekday": "Jour du résumé",
+    "weekday_1": "lundi",
+    "weekday_2": "mardi",
+    "weekday_3": "mercredi",
+    "weekday_4": "jeudi",
+    "weekday_5": "vendredi",
+    "weekday_6": "samedi",
+    "weekday_7": "dimanche",
+    "lead_days": "Délais",
+    "default_days": "Par défaut : {{n}} jours",
+    "reset": "Rétablir",
+    "reset_of": "Rétablir : {{title}}",
+    "save": "Enregistrer",
+    "saved": "Réglages enregistrés.",
+    "conflict": "Ces réglages ont changé ailleurs.",
+    "reload": "Recharger",
+    "error": {
+      "notifications_invalid_lead_days": "Entre 0 et 365 jours.",
+      "notifications_unknown_kind": "Cette échéance n’existe pas.",
+      "notifications_invalid_weekday": "Choisissez un jour de la semaine.",
+      "notifications_email_unavailable": "L’envoi d’emails n’est pas disponible."
+    }
   }
 }

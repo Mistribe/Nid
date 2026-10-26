@@ -19,7 +19,7 @@ public sealed record EvaluationSummary(int Evaluated);
 [RequestHandler<EvaluateNotificationsCommand, EvaluationSummary>]
 public sealed partial class EvaluateNotificationsHandler(
     IPersonRegistry persons, IEnumerable<INotificationSource> sources, NotificationCatalog catalog, INotificationStore store,
-    IHouseholdCalendar calendar, IClock clock, IActorAccessor accessor, ILogger<EvaluateNotificationsHandler> logger) : IRequestHandler<EvaluateNotificationsCommand, EvaluationSummary>
+    IHouseholdCalendar calendar, IClock clock, IActorAccessor accessor, IDeliveryOutbox outbox, IUnitOfWork unitOfWork, ILogger<EvaluateNotificationsHandler> logger) : IRequestHandler<EvaluateNotificationsCommand, EvaluationSummary>
 {
     private const int FirstHour = 6;
     private const int HistoryDays = 90;
@@ -39,13 +39,34 @@ public sealed partial class EvaluateNotificationsHandler(
         {
             if (!command.Force && !await IsDueAsync(adult.Id, now, today, ct))
                 continue;
+            var prefs = await PreferencesOrNullAsync(adult.Id, ct);
+            if (prefs is null)
+                continue; // not evaluated on defaults: it would retime their rows to the wrong dates
             evaluated++;
             foreach (var source in sources)
-                await EvaluateIsolatedAsync(source, adult.Id, today, ct);
+                await EvaluateIsolatedAsync(source, adult.Id, prefs, today, ct);
         }
 
         await store.PurgeAsync(clock.GetCurrentInstant() - NodaTime.Duration.FromDays(HistoryDays), ct);
         return Result.Success(new EvaluationSummary(evaluated));
+    }
+
+    /// <summary>The person's preferences, read once for all the sources; a store failure is logged and skips the person until the next run.</summary>
+    private async Task<NotificationPreferences?> PreferencesOrNullAsync(PersonId person, CancellationToken ct)
+    {
+        try
+        {
+            return await store.PreferencesAsync(person, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            LogStoreFailed(e, "preferences", person.Value);
+            return null;
+        }
     }
 
     private async Task<bool> IsDueAsync(PersonId person, LocalDateTime now, LocalDate today, CancellationToken ct)
@@ -57,11 +78,11 @@ public sealed partial class EvaluateNotificationsHandler(
     }
 
     /// <summary>A store failure for one person and source is logged and recorded; the next source and person go on.</summary>
-    private async Task EvaluateIsolatedAsync(INotificationSource source, PersonId person, LocalDate today, CancellationToken ct)
+    private async Task EvaluateIsolatedAsync(INotificationSource source, PersonId person, NotificationPreferences prefs, LocalDate today, CancellationToken ct)
     {
         try
         {
-            await EvaluateAsync(source, person, today, ct);
+            await EvaluateAsync(source, person, prefs, today, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -85,9 +106,10 @@ public sealed partial class EvaluateNotificationsHandler(
         }
     }
 
-    private async Task EvaluateAsync(INotificationSource source, PersonId person, LocalDate today, CancellationToken ct)
+    private async Task EvaluateAsync(INotificationSource source, PersonId person, NotificationPreferences prefs, LocalDate today, CancellationToken ct)
     {
-        var horizon = today.PlusDays(source.Kinds.Select(k => k.LeadDays ?? 0).DefaultIfEmpty(0).Max());
+        var applied = source.Kinds.ToDictionary(k => k.Kind, k => prefs.Apply(k)); // the person's own lead times
+        var horizon = today.PlusDays(applied.Values.Select(k => k.LeadDays ?? 0).DefaultIfEmpty(0).Max());
         IReadOnlyList<Signal> signals;
         try
         {
@@ -123,7 +145,7 @@ public sealed partial class EvaluateNotificationsHandler(
             return;
         }
 
-        var kinds = source.Kinds.ToDictionary(k => k.Kind);
+        var kinds = applied;
         var known = new List<Signal>();
         foreach (var signal in signals)
         {
@@ -134,8 +156,15 @@ public sealed partial class EvaluateNotificationsHandler(
         }
 
         var existing = await store.ForSourceAsync(person, kinds.Keys, ct);
-        await store.ApplyAsync(person, NotificationLifecycle.Plan(existing, known, kinds, today), ct);
+
+        // One transaction: a row is never open without its deliveries. A failure rolls the whole (person, source) back, the
+        // caller records the run as failed and the next evaluation redoes it (idempotent).
+        await using var scope = await unitOfWork.BeginAsync(ct);
+        var opened = await store.ApplyAsync(person, NotificationLifecycle.Plan(existing, known, kinds, today), ct);
+        if (opened.Count > 0)
+            await outbox.EnqueueAsync(person, opened, prefs, ct);
         await store.RecordRunAsync(person, source.Name, today, true, ct);
+        await scope.CommitAsync(ct);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Notification source {Source} failed for person {Person}: {Code}")]

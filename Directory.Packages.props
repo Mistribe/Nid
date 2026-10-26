@@ -28,6 +28,9 @@
     <!-- Aspire.Hosting 13.6.1 brings 2.5.302, flagged by GHSA-qhrr-8q5h-9q3h (fixed in 2.5.303); the 2.5 line Aspire expects. -->
     <PackageVersion Include="MessagePack" Version="2.5.307" />
     <PackageVersion Include="Quartz" Version="4.1.1" />
+    <!-- MailKit 4.18.1 (MimeKit) brings Pkcs 10.0.0, flagged by GHSA-846f-f764-76mx (fixed in 10.0.13); Nid.Host references it to lift it. -->
+    <PackageVersion Include="MailKit" Version="4.18.1" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.8.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />

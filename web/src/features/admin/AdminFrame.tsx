@@ -17,6 +17,7 @@ const SECTIONS = [
   { to: '/admin/catalog', label: 'admin.nav.catalog' },
   { to: '/admin/jobs', label: 'admin.nav.jobs' },
   { to: '/admin/system', label: 'admin.nav.system' },
+  { to: '/admin/notifications', label: 'admin.nav.notifications' },
   { to: '/admin/security', label: 'admin.nav.security' },
 ] as const;
 

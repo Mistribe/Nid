@@ -18,6 +18,8 @@ public class NotificationTemplatesTests
         ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
         ("valuation_stale", "properties"),
         ("loan_phase_end", "loans"), ("loan_end", "loans"),
+        ("holding_maturity", "investments"), ("stale_value", "investments"), ("uc_share_below_floor", "investments"),
+        ("income_phase_end", "income"), ("income_gap_soon", "income"),
     ];
 
     private static NotificationRecord Record(string kind, LocalDate? dueOn = null, string key = "k")
@@ -64,5 +66,38 @@ public class NotificationTemplatesTests
         Assert.Equal($"/properties/{Item.Value:D}?tab=valuations", stale.Link);
         Assert.Equal("Élément — le 1er décembre 2027", loan.Body);
         Assert.Equal($"/loans/{Item.Value:D}", loan.Link);
+    }
+
+    [Fact]
+    public void Household_rows_have_no_name_line()
+    {
+        NotificationRecord Household(string kind, string key, Dictionary<string, string> parameters)
+            => Record(kind, key: key) with { ItemIds = [], Params = parameters };
+        var rate = NotificationTemplates.Render(Household("fx_rate_missing", "fx_rate_missing:USD", new() { ["currency"] = "USD" }), KindOf("fx_rate_missing", "core"),
+            new Dictionary<ItemId, string> { [Item] = "Maison" });
+        var routine = NotificationTemplates.Render(Household("routine_due", "routine_due:2027-03", []), KindOf("routine_due", "core"), new Dictionary<ItemId, string>());
+
+        Assert.Equal(("Un taux de change manque", "Devise USD", "/dashboard"), (rate.Title, rate.Body, rate.Link));
+        Assert.Equal(("La routine du mois est à faire", "Des valeurs sont à mettre à jour", "/routine"), (routine.Title, routine.Body, routine.Link));
+    }
+
+    [Fact]
+    public void Investments_and_income_open_their_screens_and_name_the_date()
+    {
+        var names = new Dictionary<ItemId, string> { [Item] = "Assurance-vie" };
+        var maturity = NotificationTemplates.Render(Record("holding_maturity", new LocalDate(2027, 12, 1)), KindOf("holding_maturity", "investments"), names);
+        var stale = NotificationTemplates.Render(Record("stale_value", key: $"stale_value:{Item.Value:D}:2025-06-15"), KindOf("stale_value", "investments"), names);
+        var floor = NotificationTemplates.Render(Record("uc_share_below_floor", key: $"uc_share_below_floor:{Item.Value:D}:2024-12-31"), KindOf("uc_share_below_floor", "investments"), names);
+        var phase = NotificationTemplates.Render(Record("income_phase_end", new LocalDate(2027, 3, 31)), KindOf("income_phase_end", "income"), names);
+        var gap = NotificationTemplates.Render(Record("income_gap_soon", new LocalDate(2027, 3, 31)), KindOf("income_gap_soon", "income"), names);
+
+        Assert.Equal(("Un support arrive à échéance", "Assurance-vie — le 1er décembre 2027", $"/investments/{Item.Value:D}?tab=holdings"),
+            (maturity.Title, maturity.Body, maturity.Link));
+        Assert.Equal(("Une valeur est à mettre à jour", "Assurance-vie — valeur du 15 juin 2025", $"/investments/{Item.Value:D}"),
+            (stale.Title, stale.Body, stale.Link));
+        Assert.Equal(("La part en unités de compte est sous le plancher", "Assurance-vie — relevé du 31 décembre 2024", $"/investments/{Item.Value:D}?tab=holdings"),
+            (floor.Title, floor.Body, floor.Link));
+        Assert.Equal(("Une phase de revenu se termine", "Assurance-vie — le 31 mars 2027", $"/income/{Item.Value:D}"), (phase.Title, phase.Body, phase.Link));
+        Assert.Equal(("Un trou de revenus approche", "Assurance-vie — le 31 mars 2027", $"/income/{Item.Value:D}"), (gap.Title, gap.Body, gap.Link));
     }
 }

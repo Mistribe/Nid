@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
@@ -10,25 +11,33 @@ namespace Nid.Core.Application.Dashboard;
 public sealed record GetDashboardQuery(VisibilityScope Scope) : IQuery<DashboardView>;
 
 [RequestHandler<GetDashboardQuery, DashboardView>]
-public sealed class GetDashboardHandler(
-    IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
-    IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming, IActorAccessor actor, IHouseholdCalendar calendar,
-    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
+public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccessor actor, IHouseholdCalendar calendar)
     : IRequestHandler<GetDashboardQuery, DashboardView>
 {
     public async ValueTask<Result<DashboardView>> HandleAsync(GetDashboardQuery query, CancellationToken ct = default)
     {
         var reader = actor.Current!.PersonId!.Value;
         var today = await calendar.TodayAsync(ct);
+        return await dashboard.ReadAsync(reader, query.Scope, today, ct);
+    }
+}
 
-        var worth = await Contributions.CollectAsync(netWorth, c => c.NetWorthAsync(reader, query.Scope, today, ct));
+/// <summary>The dashboard's composition for a reader on a day: the handler serves it, the notification source reads the same figures.</summary>
+public sealed class DashboardReader(
+    IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
+    IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming,
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons)
+{
+    public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    {
+        var worth = await Contributions.CollectAsync(netWorth, c => c.NetWorthAsync(reader, scope, today, ct));
         if (worth.TryGetFailure(out var failure)) return Result.Failure<DashboardView>(failure!);
-        var committed = await Contributions.CollectAsync(commitments, c => c.CommitmentsAsync(reader, query.Scope, today, ct));
+        var committed = await Contributions.CollectAsync(commitments, c => c.CommitmentsAsync(reader, scope, today, ct));
         if (committed.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
-        var earned = await Contributions.CollectAsync(income, c => c.IncomeAsync(reader, query.Scope, today, ct));
+        var earned = await Contributions.CollectAsync(income, c => c.IncomeAsync(reader, scope, today, ct));
         if (earned.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var until = today.PlusDays(DashboardMath.UpcomingDays);
-        var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, query.Scope, today, until, ct));
+        var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));
         if (dated.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         worth.TryGetValue(out var w);
         committed.TryGetValue(out var c);

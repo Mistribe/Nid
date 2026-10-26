@@ -12,6 +12,45 @@ namespace Nid.Host.Jobs;
 public static class NotificationJobs
 {
     public static readonly JobKey EvaluateKey = new("notifications-evaluate");
+    public static readonly JobKey DispatchKey = new("notifications-dispatch");
+    public static readonly JobKey DigestKey = new("notifications-digest");
+}
+
+/// <summary>
+/// The minute-by-minute outbox: sends the messages that are due (notifications design §5.1). Runs as the system actor like
+/// <see cref="NotificationsEvaluateJob"/>. Never throws.
+/// </summary>
+[DisallowConcurrentExecution]
+public sealed partial class NotificationsDispatchJob(IServiceScopeFactory scopes, ILogger<NotificationsDispatchJob> logger) : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new DispatchNotificationsCommand(), cancellationToken);
+            if (result.TryGetFailure(out var failure))
+                LogRefused(failure!.Code);
+        }
+        catch (OperationCanceledException)
+        {
+            LogInterrupted();
+        }
+        catch (Exception e)
+        {
+            LogCrashed(e);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "notifications-dispatch was interrupted")]
+    private partial void LogInterrupted();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "notifications-dispatch did not run: {Code}")]
+    private partial void LogRefused(string code);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "notifications-dispatch crashed")]
+    private partial void LogCrashed(Exception exception);
 }
 
 /// <summary>
@@ -114,4 +153,41 @@ public sealed partial class NotificationRefreshWorker(
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Notification refresh of {Person} crashed")]
     private partial void LogCrashed(Exception exception, Guid person);
+}
+
+/// <summary>
+/// The hourly digest: groups what waits for each person whose day it is, from 08:00 on the household's clock (notifications design
+/// §5.2). Runs as the system actor like <see cref="NotificationsEvaluateJob"/>. Never throws.
+/// </summary>
+[DisallowConcurrentExecution]
+public sealed partial class NotificationsDigestJob(IServiceScopeFactory scopes, ILogger<NotificationsDigestJob> logger) : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SendDigestsCommand(), cancellationToken);
+            if (result.TryGetFailure(out var failure))
+                LogRefused(failure!.Code);
+        }
+        catch (OperationCanceledException)
+        {
+            LogInterrupted();
+        }
+        catch (Exception e)
+        {
+            LogCrashed(e);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "notifications-digest was interrupted")]
+    private partial void LogInterrupted();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "notifications-digest did not run: {Code}")]
+    private partial void LogRefused(string code);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "notifications-digest crashed")]
+    private partial void LogCrashed(Exception exception);
 }

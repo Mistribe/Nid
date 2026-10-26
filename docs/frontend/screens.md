@@ -164,7 +164,14 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 | **Guides** | « Revoir tous les guides » : efface le « déjà vu » ; chaque guide se rejoue à la prochaine visite de son module |
 | Foyer | Fuseau, langue |
 | Personnes | Ajouter un enfant (`dependent`) |
-| Notifications | Préférences par type (`../architecture.md` §15) ; **pas encore livrées** : le centre (cloche, bandeau, page `/notifications`) n’a pas de réglages avant l’envoi (email : PR 2 de `../superpowers/specs/2026-10-24-notifications-design.md`) |
+| **Notifications** (`/settings/notifications`) | Voir ci-dessous ; une barre d’onglets « Apparence » / « Notifications » relie les pages de réglages |
+
+**Page « Notifications »** (livrée en PR 2 de `../superpowers/specs/2026-10-24-notifications-design.md`, §6.3) : un seul « Enregistrer » pour l’ensemble, « Réglages enregistrés. » en confirmation.
+
+- **Canaux** : case « Email » (désactivée avec une phrase d’explication quand le SMTP n’est pas configuré, refusée par le serveur sans adresse) et « Envoyer un test » (« Email envoyé. », ou l’erreur du serveur).
+- **Rythme** : niveau action « Tout de suite » / « Dans le résumé », niveau information « Dans le résumé » / « Dans Nid seulement », résumé « Chaque jour » / « Chaque semaine » avec le jour de la semaine.
+- **Délais d’avance** : un champ par type daté (0 à 365 jours, défaut indiqué en aide), dans une zone repliée ; « Rétablir » rend le défaut du type.
+- Les préférences sont versionnées : si elles ont changé ailleurs, un message propose de recharger.
 
 La devise de référence, le catalogue, les taux de change et l'IA sont techniques ou valent pour tout le foyer : ils sont dans l'**Administration** (§12).
 
@@ -184,7 +191,7 @@ Libellés en minuscules sauf noms propres ; verbe d'abord (« Ajouter un abonnem
 
 ## 12. Administration
 
-Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2). Routes `/admin/users` (défaut de `/admin`), `/admin/household`, `/admin/fx`, `/admin/catalog`, `/admin/jobs`, `/admin/system`, `/admin/security` (1F3a).
+Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2). Routes `/admin/users` (défaut de `/admin`), `/admin/household`, `/admin/fx`, `/admin/catalog`, `/admin/jobs`, `/admin/system`, `/admin/security` (1F3a), `/admin/notifications`.
 
 | Section | Contenu |
 |---|---|
@@ -195,6 +202,7 @@ Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2)
 | **Tâches** | Jobs planifiés : dernière et prochaine exécution, état ; lecture seule. `catalog-sync` y figure comme tout autre job |
 | **Système** | Version, démarrage, santé de la base et du fournisseur d'identité, taille de la base ; lecture seule |
 | **Journal de sécurité** (1F3a, `/admin/security`) | date, événement, personne visée, auteur, identifiants ; filtre par événement |
+| **Notifications** (`/admin/notifications`) | État de l’envoi d’emails (« Configuré : <serveur> » ou « Non configuré », avec les variables `Nid__Smtp__*` à définir), « M’envoyer un email de test », et « Envois en échec » des 30 derniers jours (canal, type, mise en file, erreur ; jamais le contenu) |
 | **IA** (étape 4) | Fournisseurs et clés, mode (local, gratuit puis local, avec payant), types de documents autorisés au cloud, budget mensuel, masquage, conditions avec date de revue, page « Utilisation IA » (`../ingestion/llm-providers.md` §13) |
 
 - Aucun libellé, montant ni compteur d'éléments : l'Administration ne dit rien des données du foyer.

@@ -32,6 +32,12 @@ var bootstrap = builder.AddExecutable("pocket-id-bootstrap", "node", Path.GetFul
     .WithEnvironment("NID_CLIENT_SECRET_FILE", Path.Combine(secretsPath, "Auth__ClientSecret"))
     .WaitFor(pocketId);
 
+// The mail catcher: nid-api sends its notification emails to it (SMTP 1025) and the end-to-end journeys read them from its API
+// (web/e2e/notifications-email.spec.ts, port 8025, also its web UI). Nothing leaves the machine. The tag is a release at least two weeks old.
+builder.AddContainer("mailpit", "axllent/mailpit", "v1.31.4")
+    .WithEndpoint(port: 1025, targetPort: 1025, name: "smtp", isProxied: false)
+    .WithHttpEndpoint(port: 8025, targetPort: 8025, name: "http", isProxied: false);
+
 var api = builder.AddProject<Projects.Nid_Host>("nid-api")
     .WithHttpEndpoint(port: 5080, name: "http", isProxied: false)
     .WithReference(nidDb)                       // injects ConnectionStrings__nid
@@ -45,6 +51,11 @@ var api = builder.AddProject<Projects.Nid_Host>("nid-api")
     .WithEnvironment("Assets__Root", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".data", "assets")))
     // Notifications: a count requests a refresh at most every 5 s here (900 s in production), so the end-to-end journey sees its data evaluated.
     .WithEnvironment("Notifications__RefreshThrottleSeconds", "5")
+    // Email through the mail catcher (nid-api runs on the host: the container's published port is on localhost).
+    .WithEnvironment("Nid__Smtp__Host", "localhost")
+    .WithEnvironment("Nid__Smtp__Port", "1025")
+    .WithEnvironment("Nid__Smtp__From", "nid@localtest.me")
+    .WithEnvironment("Nid__Smtp__Security", "None")
     // Aspire derives ASPNETCORE_URLS=http://localhost:5080 from the endpoint above, which binds loopback
     // only and refuses Caddy's host.docker.internal connection. Bind every interface instead.
     .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:5080")

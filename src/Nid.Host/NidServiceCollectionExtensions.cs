@@ -88,6 +88,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
+        services.AddScoped<Nid.Core.Application.Dashboard.DashboardReader>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Core.Application.Dashboard.CoreNotificationSource>();
         services.AddScoped<FactGate>();
         services.AddScoped<IValuations, Valuations>();
         services.AddScoped<IFlows, Flows>();
@@ -174,7 +176,10 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Investments.Contracts.IEnvelopeFunding, Nid.Investments.Application.EnvelopeFunding>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
         services.AddScoped<ISaleContribution, Nid.Investments.Application.EnvelopesSale>();
-        services.AddScoped<IUpcomingEvents, Nid.Investments.Application.InvestmentsUpcoming>();
+        services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
+        services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
+        services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Investments.Application.InvestmentsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.ValuationProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.StatementProposal>();
         services.AddScoped<IProposalHandler, Nid.Investments.Application.HoldingsSnapshotProposal>();
@@ -188,7 +193,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISourceStore, SourceStore>();
         services.AddScoped<IPhaseStore, PhaseStore>();
         services.AddScoped<IIncomeContribution, Nid.Income.Application.IncomeSourcesIncome>();
-        services.AddScoped<IUpcomingEvents, Nid.Income.Application.IncomeSourcesUpcoming>();
+        services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
+        services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
+        services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
 
@@ -261,6 +268,13 @@ public static class NidServiceCollectionExtensions
         // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
         services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();
+        services.TryAddSingleton<IEmailAvailability, NoEmailAvailability>();
+        services.AddScoped<IDeliveryStore, Nid.Platform.Infrastructure.Notifications.DeliveryStore>();
+        services.AddScoped<IDigestStore, Nid.Platform.Infrastructure.Notifications.DeliveryStore>();
+        services.AddScoped<IDeliveryOutbox, DeliveryOutbox>();
+        // The wording of the outside; the link base and the email availability come from AddNidEmail (Program).
+        services.TryAddSingleton(new NotificationLinkBase(""));
+        services.TryAddSingleton<INotificationRenderer, ExternalNotificationRenderer>();
         services.AddSingleton(new ImportOptions());
         services.AddScoped<ImportRunner>();
         services.AddScoped<ExportBuilder>();

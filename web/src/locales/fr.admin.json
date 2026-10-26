@@ -1,7 +1,7 @@
 {
   "admin": {
     "loading": "Chargement",
-    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "prices": "Cours", "irl": "IRL", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "security": "Journal de sécurité" },
+    "nav": { "label": "Sections de l'administration", "users": "Utilisateurs", "household": "Foyer", "fx": "Taux de change", "prices": "Cours", "irl": "IRL", "catalog": "Catalogue", "jobs": "Tâches", "system": "Système", "notifications": "Notifications", "security": "Journal de sécurité" },
     "users": {
       "title": "Utilisateurs",
       "name": "Nom",
@@ -202,6 +202,23 @@
       "unknown": "inconnue",
       "healthy": "disponible",
       "unhealthy": "injoignable"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email_title": "Envoi d'emails",
+      "configured": "Configuré : {{host}}",
+      "not_configured": "Non configuré",
+      "hint": "Pour activer l'envoi, définissez les variables d'environnement de l'API : <code>Nid__Smtp__Host</code>, <code>Nid__Smtp__Port</code>, <code>Nid__Smtp__From</code>, <code>Nid__Smtp__User</code>, <code>Nid__Smtp__Password</code> et <code>Nid__Smtp__Security</code>.",
+      "test": "M'envoyer un email de test",
+      "test_sent": "Email de test envoyé.",
+      "test_failed": "Email de test non envoyé",
+      "failures_title": "Envois en échec",
+      "no_failures": "Aucun envoi en échec ces 30 derniers jours.",
+      "channel": "Canal",
+      "kind": "Type",
+      "queued": "Mise en file",
+      "error": "Erreur",
+      "digest": "Résumé"
     },
     "security": {
       "title": "Journal de sécurité",

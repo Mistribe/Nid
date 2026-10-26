@@ -67,6 +67,51 @@ public static class NotificationEndpoints
             })
             .ReturnsNoContent();
 
+        api.MapGet("/preferences", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetNotificationPreferencesQuery(), ct)).ToHttp(p => p))
+            .Returns<PreferencesView>();
+
+        api.MapPut("/preferences", async (NotificationPreferencesBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var action = body.Action?.ToLowerInvariant() switch
+                {
+                    "immediate" => ActionMode.Immediate,
+                    "digest" => ActionMode.Digest,
+                    _ => (ActionMode?)null,
+                };
+                var info = body.Info?.ToLowerInvariant() switch
+                {
+                    "digest" => InfoMode.Digest,
+                    "centre" => InfoMode.Centre,
+                    _ => (InfoMode?)null,
+                };
+                var frequency = body.Frequency?.ToLowerInvariant() switch
+                {
+                    "daily" => DigestFrequency.Daily,
+                    "weekly" => DigestFrequency.Weekly,
+                    _ => (DigestFrequency?)null,
+                };
+                if (action is null)
+                    reader.Add("action", "request.invalid", "immediate or digest.");
+                if (info is null)
+                    reader.Add("info", "request.invalid", "digest or centre.");
+                if (frequency is null)
+                    reader.Add("frequency", "request.invalid", "daily or weekly.");
+                if (!reader.Ok)
+                    return reader.Problem();
+
+                var command = new SaveNotificationPreferencesCommand(
+                    body.EmailEnabled, action!.Value, info!.Value, frequency!.Value, body.Weekday,
+                    body.LeadDays ?? new Dictionary<string, int>(), body.Version);
+                return (await invoker.InvokeAsync(command, ct)).ToHttp(p => p);
+            })
+            .Returns<PreferencesView>();
+
+        api.MapPost("/test", async (TestChannelBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new TestChannelCommand(body.Channel ?? ""), ct)).ToHttp(r => r))
+            .Returns<TestChannelResult>();
+
         return routes;
     }
 
@@ -74,5 +119,10 @@ public static class NotificationEndpoints
     private static IResult NoContent(Result<NotificationsUpdated> result)
         => result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
 
+    public sealed record TestChannelBody(string? Channel);
+
     public sealed record SnoozeBody(string? Until, string? Preset);
+
+    public sealed record NotificationPreferencesBody(
+        bool EmailEnabled, string? Action, string? Info, string? Frequency, int Weekday, Dictionary<string, int>? LeadDays, int Version);
 }

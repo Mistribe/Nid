@@ -248,6 +248,31 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task Person_lead_days_retime_pending_rows()
+    {
+        await using var h = await StartAsync(After0600);
+        var item = new ItemId(Guid.NewGuid());
+        var due = new LocalDate(2026, 3, 31);
+        h.Source.Signals.Add(new Signal(SignalKeys.Dated(Dated.Kind, item, due), Dated.Kind, [item], due, new Dictionary<string, string>()));
+        await RunAsync(h, force: true);
+        var before = Assert.Single(await RowsAsync(h.App, h.App.AdultA));
+        Assert.Equal((NotificationStates.Pending, new LocalDate(2025, 12, 31)), (before.State, before.NotifyOn));
+
+        var saved = await h.App.RawAsync(h.App.AdultA, HttpMethod.Put, "/api/v1/platform/notifications/preferences", new
+        {
+            emailEnabled = false, action = "immediate", info = "digest", frequency = "weekly", weekday = 1,
+            leadDays = new Dictionary<string, int> { [Dated.Kind] = 30 }, version = 0,
+        });
+        Assert.True(saved.IsSuccessStatusCode, await saved.Content.ReadAsStringAsync());
+        h.Clock.Now = Later;
+        await RunAsync(h, force: true);
+
+        var after = Assert.Single(await RowsAsync(h.App, h.App.AdultA));
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal((NotificationStates.Pending, new LocalDate(2026, 3, 1)), (after.State, after.NotifyOn));
+    }
+
+    [Fact]
     public async Task Moved_due_date_is_a_new_occurrence()
     {
         await using var h = await StartAsync(After0600);

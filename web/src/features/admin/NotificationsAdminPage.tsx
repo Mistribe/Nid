@@ -1,0 +1,97 @@
+import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
+import { present, toProblem, type Presentation } from '@/api/errors';
+import { EmptyState } from '@/components/EmptyState';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { SortableTable } from '@/components/page/SortableTable';
+import { Button } from '@/components/ui/button';
+import { channelErrorText } from '@/features/notifications/channelErrors';
+import { AdminFrame, AdminSkeleton } from './AdminFrame';
+import { formatInstant } from './format';
+import '@/locales/admin';
+
+type TestOutcome = { kind: 'sent' } | { kind: 'refused'; error: string } | { kind: 'problem'; problem: Presentation };
+
+/** Administration › Notifications (spec §6.4): the email channel's state, a test send, the deliveries that failed. */
+export function NotificationsAdminPage() {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const view = $api.useQuery('get', '/api/v1/admin/notifications');
+  const [outcome, setOutcome] = useState<TestOutcome | null>(null);
+  const test = $api.useMutation('post', '/api/v1/admin/notifications/test', {
+    onSuccess: (result) => setOutcome(result.sent ? { kind: 'sent' } : { kind: 'refused', error: result.error ?? '' }),
+    onError: (error) => setOutcome({ kind: 'problem', problem: present(toProblem(error)) }),
+  });
+
+  const title = t('admin.notifications.title');
+  if (view.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(view.error))} /></AdminFrame>;
+  if (!view.data) return <AdminFrame title={title}><AdminSkeleton /></AdminFrame>;
+  const { smtpConfigured, smtpHost, failures } = view.data;
+
+  return (
+    <AdminFrame title={title}>
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">{t('admin.notifications.email_title')}</h2>
+        <p>{smtpConfigured ? t('admin.notifications.configured', { host: smtpHost }) : t('admin.notifications.not_configured')}</p>
+        {smtpConfigured ? null : (
+          <p className="text-sm text-muted-foreground">
+            <Trans i18nKey="admin.notifications.hint" components={{ code: <code className="font-mono" /> }} />
+          </p>
+        )}
+        <Button variant="outline" disabled={!smtpConfigured || test.isPending}
+          onClick={() => { setOutcome(null); test.mutate({ body: { channel: 'email' } }); }}>
+          {t('admin.notifications.test')}
+        </Button>
+        <p role="status">{outcome?.kind === 'sent' ? t('admin.notifications.test_sent') : null}</p>
+        {outcome?.kind === 'refused' ? (
+          <div role="alert" className="space-y-1 rounded-md border border-destructive p-3">
+            <p>{t('admin.notifications.test_failed')}</p>
+            {outcome.error ? <p className="text-sm">{channelErrorText(t, outcome.error)} <code className="font-mono">{outcome.error}</code></p> : null}
+          </div>
+        ) : null}
+        {outcome?.kind === 'problem' ? <ProblemMessage problem={outcome.problem} /> : null}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">{t('admin.notifications.failures_title')}</h2>
+        {failures.length === 0 ? (
+          <EmptyState title={t('admin.notifications.no_failures')} body="" />
+        ) : (
+          <SortableTable
+            caption={t('admin.notifications.failures_title')}
+            rows={failures}
+            rowKey={(f) => f.id}
+            initialSort={{ id: 'at', desc: true }}
+            columns={[
+              { id: 'channel', header: t('admin.notifications.channel'), cell: (f) => f.channel, sort: (f) => f.channel },
+              { id: 'kind', header: t('admin.notifications.kind'), cell: (f) => <Kind kind={f.kind} />, sort: (f) => f.kind },
+              { id: 'at', header: t('admin.notifications.queued'), cell: (f) => formatInstant(f.at), sort: (f) => Date.parse(f.at) },
+              { id: 'error', header: t('admin.notifications.error'), cell: (f) => <ErrorText error={f.error} /> },
+            ]}
+            mobile={(f) => (
+              <div className="space-y-1">
+                <p><Kind kind={f.kind} /> · {f.channel}</p>
+                <p className="text-sm text-muted-foreground">{formatInstant(f.at)}</p>
+                <p className="text-sm"><ErrorText error={f.error} /></p>
+              </div>
+            )}
+          />
+        )}
+      </section>
+    </AdminFrame>
+  );
+}
+
+/** « Résumé » for a digest, the kind's code otherwise: the admin page holds no notification row to name it. */
+function Kind({ kind }: { kind: string }) {
+  const { t } = useTranslation();
+  return kind === 'digest' ? <>{t('admin.notifications.digest')}</> : <code className="font-mono">{kind}</code>;
+}
+
+/** The sentence for the error code, then the code itself for whoever reads the logs. */
+function ErrorText({ error }: { error: string }) {
+  const { t } = useTranslation();
+  const text = channelErrorText(t, error);
+  return text === error ? <code className="font-mono">{error}</code> : <>{text} <code className="font-mono">{error}</code></>;
+}
