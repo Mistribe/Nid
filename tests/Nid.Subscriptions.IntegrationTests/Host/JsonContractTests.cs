@@ -24,11 +24,11 @@ public class JsonContractTests(PostgresFixture fixture) : IClassFixture<Postgres
             if (options.TypeInfoResolverChain[i] is System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver)
                 options.TypeInfoResolverChain.RemoveAt(i);
 
-        // /mcp answers through the SDK's own options; an upload body (a stream) is not JSON.
+        // /mcp answers through the SDK's own options; an upload body (a stream, a multipart form) is not JSON.
         var types = app.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .Where(e => e is not RouteEndpoint { RoutePattern.RawText: var route } || !route!.StartsWith("/mcp", StringComparison.Ordinal))
             .SelectMany(e => e.Metadata.OfType<IProducesResponseTypeMetadata>().Select(m => m.Type)
-                .Concat(e.Metadata.OfType<IAcceptsMetadata>().Select(m => m.RequestType)))
+                .Concat(e.Metadata.OfType<IAcceptsMetadata>().Where(m => !m.ContentTypes.Contains("multipart/form-data")).Select(m => m.RequestType)))
             .OfType<Type>()
             .Where(t => t != typeof(void) && t != typeof(Stream))
             .Distinct()

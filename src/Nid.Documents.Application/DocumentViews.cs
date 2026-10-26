@@ -5,7 +5,7 @@ using NodaTime;
 
 namespace Nid.Documents.Application;
 
-public sealed record DocumentLinkView(string TargetKind, Guid TargetId, string Role, string Label);
+public sealed record DocumentLinkView(string TargetKind, Guid TargetId, string Role, string Label, bool CanWrite);
 
 /// <summary>Design §7: <c>Links</c> holds only the links whose target the reader reads; the others are absent, not counted.</summary>
 public sealed record DocumentSummary(
@@ -18,7 +18,8 @@ public sealed record DocumentSummary(
         var d = read.Document;
         var links = read.Links.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), read.Actor))
             .OrderBy(l => l.LinkedAt)
-            .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), "")))
+            .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), ""),
+                DocumentRules.CanWriteLink(DocumentAccess.Facts(l), read.Actor)))
             .ToList();
         return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.ArchivedAt is not null, read.CanEdit, links);
     }
@@ -38,3 +39,19 @@ public sealed record DocumentList(IReadOnlyList<DocumentSummary> Items) : IExpos
 
 /// <summary>The stored bytes, for the download endpoint only; the caller disposes <paramref name="Content"/>.</summary>
 public sealed record DocumentContent(Stream Content, string MediaType, string FileName);
+
+/// <summary>
+/// Tranche 2 design §2.1: one target the page offers. <c>Module</c> and <c>ItemKind</c> are set for a <c>core.item</c> only;
+/// <c>CanWrite</c> says whether the actor may link a document to it.
+/// </summary>
+public sealed record DocumentTargetView(string Kind, Guid Id, string Label, string? Module, string? ItemKind, bool CanWrite);
+
+public sealed record DocumentTargetList(IReadOnlyList<DocumentTargetView> Items) : IExposesItems
+{
+    public IEnumerable<ItemId> ExposedItems() => Items.Where(t => t.Kind == TargetKinds.CoreItem).Select(t => new ItemId(t.Id));
+}
+
+public sealed record ReaderView(Guid Id, string Name);
+
+/// <summary>The adults a link would let read the document who cannot today; never by which link the others read it.</summary>
+public sealed record LinkPreview(IReadOnlyList<ReaderView> GainedReaders);

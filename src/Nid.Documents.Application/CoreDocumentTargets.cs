@@ -6,7 +6,7 @@ namespace Nid.Documents.Application;
 /// <summary>Design §6: the three Core targets. An item anchors its own link; a person and the household anchor none.</summary>
 public sealed class CoreDocumentTargets(IItemRegistry items, IPersonRegistry persons) : IDocumentTargets
 {
-    private const string HouseholdLabel = "Foyer";
+    public const string HouseholdLabel = "Foyer";
 
     public IReadOnlySet<string> Kinds { get; } = new HashSet<string> { TargetKinds.CoreItem, TargetKinds.CorePerson, TargetKinds.CoreHousehold };
 

@@ -46,11 +46,11 @@ Port `IDocumentStorage` : écrire un contenu sous son sha256 s'il n'existe pas, 
 
 ## 4. Dépôt et lecture
 
-**Dépôt** : `POST /api/v1/documents`, corps brut (`application/octet-stream`, pas de multipart), lu en mémoire et borné avant tout traitement. Le nom de fichier et les champs optionnels sont dans la requête : `fileName`, `title`, `date`, `note`, et un premier lien (`targetKind`, `targetId`, `role`) pour qu'un dépôt depuis un élément se fasse en un appel. Réponse `201 { id }`.
+**Dépôt** : `POST /api/v1/documents` en `multipart/form-data` : `file` (obligatoire) et `title`, `date`, `note`, `targetKind`, `targetId`, `role` (un premier lien, pour qu'un dépôt depuis un élément se fasse en un appel). Aucun nom de fichier ni titre dans l'URL ; un formulaire sans `file` répond `400`. Réponse `201 { id }`.
 
 Contrôles, dans cet ordre :
 
-1. Taille déclarée puis lue ≤ `Documents:MaxSizeBytes` (25 Mo par défaut), sinon `413` `documents.too_large` en Problem Details (le corps refusé n'est pas gardé).
+1. Taille déclarée puis lue (envoi par morceaux compris) ≤ `Documents:MaxSizeBytes` (25 Mo par défaut, limites de formulaire d'ASP.NET alignées), sinon `413` `documents.too_large` en Problem Details (le corps refusé n'est pas gardé).
 2. Octets magiques dans la liste blanche : PDF, PNG, JPEG, `.eml` (`message/rfc822`, reconnu par ses en-têtes en texte) ; HEIC est laissé de côté ; sinon `415` `documents.unsupported_type`.
 3. Le type déclaré par le client n'est pas cru : `media_type` vient du contenu.
 
@@ -98,12 +98,14 @@ Corps et réponses en camelCase. Toutes sous `/api/v1/documents`, authentifiées
 
 | Route | Rôle |
 |---|---|
-| `POST /` | Dépôt (§4) |
+| `POST /` | Dépôt multipart (§4) |
+| `GET /targets` | Cibles qu'un acteur peut choisir : `{ items: [{ kind, id, label, module, itemKind, canWrite }] }` (éléments actifs qu'il lit, personnes, foyer ; jamais l'élément privé de l'autre adulte ; pas de lignes de module) |
 | `GET /?scope=household\|me&archived=false\|true&inbox=false\|true` | Liste des documents lisibles : `{ items: [{ id, title, mediaType, sizeBytes, documentDate, uploadedAt, archived, canEdit, links }] }` |
 | `GET /{id}` | Fiche : le résumé, `originalFilename`, `note`, `uploadedBy` |
 | `GET /{id}/content` | Téléchargement (§4) |
 | `PUT /{id}` | Remplacement du titre, de `documentDate` et de la note |
 | `POST /{id}/archive`, `/unarchive` | Archivage, désarchivage |
+| `GET /{id}/links/preview?targetKind=&targetId=` | `{ gainedReaders: [{ id, name }] }` : les adultes qui gagneraient la lecture, sans rien écrire ; mêmes refus que l'ajout (404 cible ou document illisible, 403 lisible mais non modifiable) |
 | `POST /{id}/links` | Ajout d'un lien (`targetKind`, `targetId`, `role`) ; réponse `{ gainedReaders }` |
 | `PUT /{id}/links/{targetKind}/{targetId}` | Changement de rôle d'un lien |
 | `DELETE /{id}/links/{targetKind}/{targetId}` | Retrait d'un lien |
@@ -128,6 +130,12 @@ Un document illisible ou inexistant, ou un acteur sans droit : `404` et `403` g�
 - **S3** : restic **ne sauvegarde pas** le bucket. Le versionnement ou la réplication du fournisseur est la protection (`deploy/README.md`, « Les documents »). Au démarrage, l'API écrit une ligne `Information` quand `Kind = s3` (documents hors instantané). Pas d'état en échec (il alerterait chaque jour) ni d'écran : Administration › Système n'a pas de section sauvegarde.
 - Une base restaurée sans ses fichiers n'est pas réparée : un document dont le fichier manque répond `404` `documents.content_missing`.
 
-## 10. Hors de la tranche 1
+## 10. Écrans (tranche 2a)
 
-Tranche 2 : `IDocumentTargets` implémenté par Income, RealEstate, Subscriptions et Investments, `UnlinkTarget` appelé à la suppression d'une cible, page « Documents » (filtres, onglet « À classer »), confirmation quand un lien élargit les lecteurs. Tranche 3 : `document_id` sur `core.valuation`, `core.flow`, `core.proposal` (`core-data-model.md` §5.1), outils MCP de liste et de lecture, `document_id` accepté par les `propose_*`. Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.
+- **Liste** `/documents` : onglets « Tous » et « À classer », filtres (type, année, élément lié, archivés) appliqués dans le navigateur, dépôt par glisser-déposer ou « Déposer » (plusieurs fichiers, chacun part seul dans « À classer », erreur `413` ou `415` par fichier).
+- **Détail** `/documents/$id` : figures en ligne, « Télécharger », « Modifier », « Archiver », puis la section « Liés à » (rôle modifiable, « Retirer » confirmé). « Ajouter un lien » n'offre que les cibles `canWrite` de `GET /targets` ; avant l'ajout, l'aperçu dit qui gagnerait la lecture (« Bob pourra lire ce document ») et rien n'est écrit sans confirmation.
+- Pas d'aperçu dans l'application : téléchargement seulement.
+
+## 11. Hors de la tranche 2a
+
+Tranche 2b : `IDocumentTargets` implémenté par Income, RealEstate, Subscriptions et Investments, `UnlinkTarget` appelé à la suppression d'une cible. Tranche 3 : `document_id` sur `core.valuation`, `core.flow`, `core.proposal` (`core-data-model.md` §5.1), outils MCP de liste et de lecture, `document_id` accepté par les `propose_*`. Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.

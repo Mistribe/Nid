@@ -25,6 +25,11 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
 
     /// <summary>2B1b: the item's currency (ISO code), null when it has none.</summary>
     public string? Currency { get; init; }
+
+    /// <summary>The module that owns the item and its kind there (<c>subscriptions</c>, <c>subscription</c>); null when not read.</summary>
+    public string? Module { get; init; }
+
+    public string? Kind { get; init; }
 }
 
 /// <summary>

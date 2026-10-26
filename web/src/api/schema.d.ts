@@ -7945,22 +7945,14 @@ export interface paths {
         put?: never;
         post: {
             parameters: {
-                query?: {
-                    fileName?: string;
-                    title?: string;
-                    date?: string;
-                    note?: string;
-                    targetKind?: string;
-                    targetId?: string;
-                    role?: string;
-                };
+                query?: never;
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody: {
                 content: {
-                    "application/octet-stream": components["schemas"]["Stream"];
+                    "multipart/form-data": components["schemas"]["UploadDocumentForm"];
                 };
             };
             responses: {
@@ -8047,6 +8039,189 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentTargetList"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{id}/links/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    targetKind?: string;
+                    targetId?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkPreview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -19027,6 +19202,7 @@ export interface components {
             targetId: string;
             role: string;
             label: string;
+            canWrite: boolean;
         };
         DocumentList: {
             items: components["schemas"]["DocumentSummary"][];
@@ -19045,6 +19221,18 @@ export interface components {
             archived: boolean;
             canEdit: boolean;
             links: components["schemas"]["DocumentLinkView"][];
+        };
+        DocumentTargetList: {
+            items: components["schemas"]["DocumentTargetView"][];
+        };
+        DocumentTargetView: {
+            kind: string;
+            /** Format: uuid */
+            id: string;
+            label: string;
+            module?: null | string;
+            itemKind?: null | string;
+            canWrite: boolean;
         };
         DurationBody: {
             /** Format: int32 */
@@ -19698,6 +19886,8 @@ export interface components {
             /** Format: uuid */
             id: string;
         };
+        /** Format: binary */
+        IFormFile: string;
         ImportAuditView: {
             /** Format: date-time */
             committedAt: string;
@@ -20229,6 +20419,9 @@ export interface components {
             /** Format: uuid */
             targetId?: null | string;
             role?: null | string;
+        };
+        LinkPreview: {
+            gainedReaders: components["schemas"]["ReaderView"][];
         };
         LoanBalanceView: {
             /** Format: uuid */
@@ -21544,6 +21737,11 @@ export interface components {
             grants: components["schemas"]["GrantView"][];
             note?: null | string;
         };
+        ReaderView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         RejectProposalBody: {
             /** Format: uint32 */
             version: number;
@@ -22386,6 +22584,16 @@ export interface components {
             envelopeId: string;
             name: string;
             value?: null | components["schemas"]["AmountView"];
+        };
+        UploadDocumentForm: {
+            file: components["schemas"]["IFormFile"];
+            title?: null | string;
+            date?: null | string;
+            note?: null | string;
+            targetKind?: null | string;
+            /** Format: uuid */
+            targetId?: null | string;
+            role?: null | string;
         };
         ValuationBody: {
             asOf: string;

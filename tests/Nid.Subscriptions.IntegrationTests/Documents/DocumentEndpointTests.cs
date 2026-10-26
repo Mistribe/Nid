@@ -14,8 +14,26 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     internal const string Documents = "/api/v1/documents";
     internal static readonly byte[] Pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
 
+    /// <summary>A multipart upload; <paramref name="query"/> keeps the old spelling: <c>fileName</c> names the file, the others are form fields.</summary>
     internal static Task<HttpResponseMessage> UploadAsync(NidApp app, PersonId actor, byte[] body, string query = "fileName=bail.pdf")
-        => app.RawContentAsync(actor, HttpMethod.Post, $"{Documents}?{query}", new ByteArrayContent(body));
+        => app.RawContentAsync(actor, HttpMethod.Post, Documents, Multipart(body, query));
+
+    internal static MultipartFormDataContent Multipart(byte[] body, string query)
+    {
+        var fields = System.Web.HttpUtility.ParseQueryString(query);
+        var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(body);
+        file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        if (fields["fileName"] is { } name)
+        {
+            // filename*, so a name HttpClient would refuse to quote (a quote, a bidi mark) still travels.
+            file.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=file; filename*=UTF-8''{Uri.EscapeDataString(name)}");
+            form.Add(file);
+        }
+        foreach (var key in fields.AllKeys.Where(k => k != "fileName"))
+            form.Add(new StringContent(fields[key]!), key!);
+        return form;
+    }
 
     internal static async Task<Guid> UploadedAsync(NidApp app, PersonId actor, byte[] body, string query = "fileName=bail.pdf")
     {
@@ -121,13 +139,70 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
 
         await AssertRefusedAsync(await UploadAsync(app, app.AdultA, Encoding.ASCII.GetBytes(Pad(1025))),
             HttpStatusCode.RequestEntityTooLarge, DocumentsCodes.TooLarge);
-        await AssertRefusedAsync(
-            await app.RawContentAsync(app.AdultA, HttpMethod.Post, $"{Documents}?fileName=a.pdf", new ChunkedContent(Encoding.ASCII.GetBytes(Pad(1025)))),
-            HttpStatusCode.RequestEntityTooLarge, DocumentsCodes.TooLarge);
         Assert.Empty(StoredFiles(app));
 
         await UploadedAsync(app, app.AdultA, Encoding.ASCII.GetBytes(Pad(1024)));
         Assert.Single(StoredFiles(app));
+    }
+
+    [Fact]
+    public async Task Refuses_a_declared_multipart_body_far_over_the_limit()
+    {
+        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Documents:MaxSizeBytes"] = "1024" });
+
+        await AssertRefusedAsync(await UploadAsync(app, app.AdultA, Encoding.ASCII.GetBytes(Pad(200_000))),
+            HttpStatusCode.RequestEntityTooLarge, DocumentsCodes.TooLarge);
+        Assert.Empty(StoredFiles(app));
+    }
+
+    [Fact]
+    public async Task Refuses_a_chunked_multipart_body_over_the_limit_and_stores_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Documents:MaxSizeBytes"] = "1024" });
+        using var form = Multipart(Encoding.ASCII.GetBytes(Pad(1025)), "fileName=a.pdf");
+        var chunked = new ChunkedContent(await form.ReadAsByteArrayAsync());
+        chunked.Headers.ContentType = form.Headers.ContentType;
+
+        await AssertRefusedAsync(await app.RawContentAsync(app.AdultA, HttpMethod.Post, Documents, chunked),
+            HttpStatusCode.RequestEntityTooLarge, DocumentsCodes.TooLarge);
+        Assert.Empty(StoredFiles(app));
+    }
+
+    [Fact]
+    public async Task Uploads_with_a_title_a_date_and_a_note()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var id = await UploadedAsync(app, app.AdultA, Pdf, "fileName=bail.pdf&title=Mon%20bail&date=2025-03-01&note=Signe");
+
+        var detail = await JsonAsync(await GetAsync(app, app.AdultA, id));
+        var document = detail.GetProperty("document");
+        Assert.Equal(("Mon bail", "2025-03-01", "Signe"),
+            (document.GetProperty("title").GetString(), document.GetProperty("documentDate").GetString(), detail.GetProperty("note").GetString()));
+    }
+
+    [Fact]
+    public async Task Refuses_a_form_without_a_file_part()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await UploadAsync(app, app.AdultA, Pdf, "title=Sans%20fichier");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(StoredFiles(app));
+    }
+
+    [Fact]
+    public async Task Refuses_a_raw_octet_stream_upload()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var raw = new ByteArrayContent(Pdf);
+        raw.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+        var response = await app.RawContentAsync(app.AdultA, HttpMethod.Post, Documents, raw);
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Empty(StoredFiles(app));
     }
 
     [Fact]
@@ -146,6 +221,21 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
             (link.GetProperty("targetKind").GetString(), link.GetProperty("targetId").GetGuid(), link.GetProperty("role").GetString(),
                 link.GetProperty("label").GetString()));
         Assert.Equal(HttpStatusCode.NotFound, (await GetAsync(app, app.AdultB, closed)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_link_says_whether_the_reader_may_write_its_target()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);
+        var id = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=a.pdf&targetKind=core.item&targetId={shared.Value}&role=invoice");
+
+        async Task<bool> CanWriteAsync(PersonId actor)
+            => Assert.Single((await JsonAsync(await GetAsync(app, actor, id))).GetProperty("document").GetProperty("links").EnumerateArray())
+                .GetProperty("canWrite").GetBoolean();
+
+        Assert.True(await CanWriteAsync(app.AdultA));
+        Assert.False(await CanWriteAsync(app.AdultB)); // reads A's shared item, does not write it
     }
 
     [Fact]

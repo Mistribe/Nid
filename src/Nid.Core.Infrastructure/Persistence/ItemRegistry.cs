@@ -111,7 +111,9 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             row.Owners.Select(o => new Owner(new PersonId(o.PersonId), kinds[o.PersonId], o.ShareBp)).ToList())
         {
             ArchivedAt = row.ArchivedAt,
-            Currency = row.Currency?.Trim()
+            Currency = row.Currency?.Trim(),
+            Module = row.Module,
+            Kind = row.Kind,
         };
 
     public Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct) => SetArchivedAsync(id, at, ct);

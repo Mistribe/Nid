@@ -437,6 +437,11 @@ public static class RequestCatalogue
         // A document id is not an item: get, content, edit and archive take the row's seeded document, on every row, and are checked
         // against the document's own rules (LeakBenchTests). A core.item target makes upload, link, role and unlink item-scoped.
         new(typeof(ListDocumentsQuery), false, (_, _) => new ListDocumentsQuery(VisibilityScope.Me, true, false)),
+        // Every item the actor sees in « Moi », by name: the scan checks the other adult's private label never comes out.
+        new(typeof(ListDocumentTargetsQuery), false, (_, _) => new ListDocumentTargetsQuery()),
+        // As the link below, writing nothing: an allowed writer meets documents.already_linked, never an access refusal.
+        new(typeof(PreviewDocumentLinkQuery), true, (d, item) => new PreviewDocumentLinkQuery(d.Documents[item],
+            new DocumentTarget(TargetKinds.CoreItem, item.Value))),
         new(typeof(GetDocumentQuery), false, (d, item) => new GetDocumentQuery(d.Documents[item])) { OnEveryRow = true },
         new(typeof(GetDocumentContentQuery), false, (d, item) => new GetDocumentContentQuery(d.Documents[item])) { OnEveryRow = true },
         new(typeof(EditDocumentCommand), false, (d, item) => new EditDocumentCommand(d.Documents[item], "bench", null, null)) { OnEveryRow = true },

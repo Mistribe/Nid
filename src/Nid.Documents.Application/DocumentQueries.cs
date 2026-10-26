@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
@@ -18,6 +19,17 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
 /// household; <c>Me</c> keeps them all. <c>Inbox</c> keeps those with no visible link, whatever the scope.
 /// </summary>
 public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox) : IQuery<DocumentList>;
+
+/// <summary>Tranche 2 design §2.1: the Core targets the actor may pick from the page; module rows are linked from their own screen.</summary>
+public sealed record ListDocumentTargetsQuery() : IQuery<DocumentTargetList>;
+
+/// <summary>Tranche 2 design §2.1: the readers a link would add, after the same checks and refusals as the link; writes nothing.</summary>
+public sealed record PreviewDocumentLinkQuery(Guid Id, DocumentTarget Target) : IQuery<LinkPreview>, IOptionalItemScoped
+{
+    public ItemId? ItemId => Target.Kind == TargetKinds.CoreItem ? new ItemId(Target.Id) : null;
+
+    public AccessKind Access => AccessKind.Write;
+}
 
 [RequestHandler<GetDocumentQuery, DocumentDetail>]
 public sealed class GetDocumentHandler(DocumentAccess access, IActorAccessor actor) : IRequestHandler<GetDocumentQuery, DocumentDetail>
@@ -95,5 +107,57 @@ public sealed class GetDocumentContentHandler(
         }
 
         return Result.Success(new DocumentContent(content, d.MediaType, d.OriginalFilename));
+    }
+}
+
+[RequestHandler<ListDocumentTargetsQuery, DocumentTargetList>]
+public sealed class ListDocumentTargetsHandler(
+    DocumentAccess access, IVisibleItems visible, IItemRegistry items, IPersonRegistry persons, IActorAccessor actor)
+    : IRequestHandler<ListDocumentTargetsQuery, DocumentTargetList>
+{
+    private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
+
+    public async ValueTask<Result<DocumentTargetList>> HandleAsync(ListDocumentTargetsQuery query, CancellationToken ct = default)
+    {
+        var person = actor.Current!.PersonId!.Value;
+        // Active items in « Moi »: the shared ones and the actor's own private ones, never the other adult's.
+        var found = await items.FindManyAsync((await visible.ForAsync(person, VisibilityScope.Me, ct)).ToList(), ct);
+        var facts = await access.FactsAsync(person, found.Keys.Select(i => i.Value).ToList(), ct);
+        bool CanWrite(string kind, Guid id, Guid? anchor) => DocumentRules.CanWriteLink(new LinkFacts(kind, id, anchor), facts);
+
+        var targets = found.Values.OrderBy(i => i.DisplayName, French).ThenBy(i => i.Id.Value)
+            .Select(i => new DocumentTargetView(TargetKinds.CoreItem, i.Id.Value, i.DisplayName, i.Module, i.Kind,
+                CanWrite(TargetKinds.CoreItem, i.Id.Value, i.Id.Value)))
+            .Concat((await persons.ListAsync(ct)).Where(p => !p.IsPending)
+                .Select(p => new DocumentTargetView(TargetKinds.CorePerson, p.Id.Value, p.DisplayName, null, null,
+                    CanWrite(TargetKinds.CorePerson, p.Id.Value, null))))
+            .Append(new DocumentTargetView(TargetKinds.CoreHousehold, TargetKinds.Household, CoreDocumentTargets.HouseholdLabel, null, null,
+                CanWrite(TargetKinds.CoreHousehold, TargetKinds.Household, null)))
+            .ToList();
+        return Result.Success(new DocumentTargetList(targets));
+    }
+}
+
+[RequestHandler<PreviewDocumentLinkQuery, LinkPreview>]
+public sealed class PreviewDocumentLinkHandler(DocumentAccess access, IPersonRegistry persons, IActorAccessor actor)
+    : IRequestHandler<PreviewDocumentLinkQuery, LinkPreview>
+{
+    public async ValueTask<Result<LinkPreview>> HandleAsync(PreviewDocumentLinkQuery query, CancellationToken ct = default)
+    {
+        var person = actor.Current!.PersonId!.Value;
+        var read = await access.ReadAsync(query.Id, person, ct);
+        if (!read.TryGetValue(out var found))
+            return Result.Failure<LinkPreview>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+
+        // The link's own checks, role aside: the preview names none, and any known role passes them alike.
+        var d = found!.Document;
+        var checkedLink = await access.CheckLinkAsync(d.Id, d.UploadedBy, found.Links, query.Target, DocumentRoles.Other, person, ct);
+        if (!checkedLink.TryGetValue(out var link))
+            return Result.Failure<LinkPreview>(checkedLink.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+
+        var before = await access.ReadersAsync(d.UploadedBy, found.Links.Select(DocumentAccess.Facts).ToList(), ct);
+        var after = await access.ReadersAsync(d.UploadedBy, found.Links.Append(link!).Select(DocumentAccess.Facts).ToList(), ct);
+        var names = (await persons.ListAsync(ct)).ToDictionary(p => p.Id, p => p.DisplayName);
+        return Result.Success(new LinkPreview(after.Except(before).Select(p => new ReaderView(p.Value, names.GetValueOrDefault(p, ""))).ToList()));
     }
 }
