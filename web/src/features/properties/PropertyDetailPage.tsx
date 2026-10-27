@@ -18,7 +18,7 @@ import { PropertyCostDetail, PropertyStats } from './detail/PropertyFigures';
 import { FlowsSection } from './flows/FlowsSection';
 import { typeText, warningText } from './format';
 import { RentalSection } from './rental/RentalSection';
-import { SettingsSection } from './settings/SettingsForm';
+import { SettingsSection, SettingsSubmit } from './settings/SettingsForm';
 import { ValuationDialog } from './valuations/ValuationForm';
 import { ValuationsSection } from './valuations/ValuationsSection';
 import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
@@ -115,7 +115,7 @@ export function PropertyDetailPage() {
         { id: 'valuations', label: t('property_detail.tab.valuations'), content: <ValuationsSection property={property} /> },
         { id: 'expenses', label: t('property_detail.tab.expenses'), content: <><FlowsSection property={property} /><CostsSection property={property} /></> },
         { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={property.id} canWrite={property.canWrite} defaultRole="deed" /> },
-        ...(property.canWrite ? [{ id: 'settings' as const, label: t('property_detail.tab.settings'), content: <SettingsSection property={property} /> }] : []),
+        ...(property.canWrite ? [{ id: 'settings' as const, label: t('property_detail.tab.settings'), content: <SettingsSection property={property} />, action: <SettingsSubmit /> }] : []),
       ]} />
     </article>
   );

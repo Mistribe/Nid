@@ -14,13 +14,18 @@ export function useDetailTab<T extends string>(ids: readonly T[]): [T, (next: T)
 }
 
 export function DetailTabs<T extends string>({ value, onChange, tabs, guide }: {
-  value: T; onChange: (t: T) => void; tabs: { id: T; label: string; content: ReactNode; guide?: string }[]; guide?: string;
+  value: T; onChange: (t: T) => void; tabs: { id: T; label: string; content: ReactNode; guide?: string; action?: ReactNode }[]; guide?: string;
 }) {
+  // The open tab's own action (a settings form's submit) sits at the right of the list, not at the bottom of a long tab.
+  const action = tabs.find((tab) => tab.id === value)?.action;
   return (
     <Tabs value={value} onValueChange={(next) => onChange(next as T)}>
-      <TabsList variant="line" data-guide={guide} className="h-auto max-w-full justify-start print:hidden overflow-x-auto overflow-y-hidden pb-1.5">
-        {tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} data-guide={tab.guide} className="flex-none">{tab.label}</TabsTrigger>)}
-      </TabsList>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
+        <TabsList variant="line" data-guide={guide} className="h-auto min-w-0 max-w-full justify-start overflow-x-auto overflow-y-hidden pb-1.5">
+          {tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} data-guide={tab.guide} className="flex-none">{tab.label}</TabsTrigger>)}
+        </TabsList>
+        {action ? <div className="ml-auto flex-none">{action}</div> : null}
+      </div>
       {tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="animate-enter space-y-6 pt-4">{tab.content}</TabsContent>)}
     </Tabs>
   );

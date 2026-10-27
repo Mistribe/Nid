@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,16 @@ import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody,
 import '@/locales/loans';
 
 const ENERGY_CLASSES = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
+
+/** The settings form's id: its submit sits beside the tab list (`DetailTabs`' action), outside the form. */
+const FORM_ID = 'property-settings';
+
+/** « Enregistrer les réglages », at the right of the tabs; disabled while a save is on its way. */
+export function SettingsSubmit() {
+  const { t } = useTranslation();
+  const saving = useIsMutating({ mutationKey: ['patch', PROPERTY] }) > 0;
+  return <Button type="submit" form={FORM_ID} disabled={saving}>{t('loan_detail.settings.submit')}</Button>;
+}
 
 /**
  * 3D1 design §6: « Réglages », its live region and its focus. The form remounts on the stored property — its new values
@@ -81,7 +91,7 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
 
   return (
     <FormProvider {...form}>
-      <form aria-label={t('loan_detail.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
+      <form id={FORM_ID} aria-label={t('loan_detail.settings.title')} noValidate onSubmit={(ev) => void submit(ev)} className="max-w-md space-y-3">
         {problem ? (
           <>
             <ProblemMessage problem={problem} />
@@ -110,7 +120,6 @@ function SettingsForm({ property, onStart, onDone }: { property: PropertyDetail;
         <Field label={t('property_form.note')} error={e.note?.message}>
           {(c) => <Textarea {...c} {...form.register('note')} />}
         </Field>
-        <Button type="submit" disabled={save.isPending}>{t('loan_detail.settings.submit')}</Button>
       </form>
     </FormProvider>
   );

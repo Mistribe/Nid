@@ -46,7 +46,8 @@ function serve(initial: PropertyDetail = propertyDetail()) {
 
 const settings = () => screen.getByRole('form', { name: 'Réglages' });
 const settingsRegion = () => screen.getByRole('region', { name: 'Réglages' });
-const save = () => within(settings()).getByRole('button', { name: 'Enregistrer les réglages' });
+// Beside the tab list, outside the form it submits.
+const save = () => screen.getByRole('button', { name: 'Enregistrer les réglages' });
 const heading = (name = 'Maison de Nantes') => screen.findByRole('heading', { name, level: 1 });
 const FLAGS = { clearSurfaceM2: false, clearLocationLabel: false, clearStaleAfterDays: false, clearRentalStartsOn: false, clearNote: false, clearEnergyClass: false, clearPostalAddress: false };
 
@@ -58,6 +59,9 @@ describe('property settings', () => {
     const { user, container } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
     await heading();
+    // The submit sits beside the tab list, at the top, not at the bottom of the form.
+    expect(settings()).not.toContainElement(save());
+    expect(save()).toHaveAttribute('form', settings().id);
     await user.clear(within(settings()).getByLabelText('Prix d’achat'));
     await user.type(within(settings()).getByLabelText('Prix d’achat'), '255000');
     await user.clear(within(settings()).getByLabelText('Commune ou repère'));
