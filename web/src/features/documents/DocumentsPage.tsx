@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
 import type { RootSearch } from '@/app/router';
@@ -8,11 +8,13 @@ import { LocalDate } from '@/components/LocalDate';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { RowMenu } from '@/components/page/RowMenu';
-import { SortableTable } from '@/components/page/SortableTable';
+import { SortableTable, type Selection } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { contentUrl, useArchiveDocument, useDocuments, useUnarchiveDocument, type DocumentSummary, type Scope } from './api';
 import { applyFilters, DocumentFilters, keepOffered, NO_FILTER } from './DocumentFilters';
+import { FileDocumentsDialog, type Filed } from './FileDocumentsDialog';
 import { UploadList, UploadPicker, UploadZone, useUploads } from './DocumentUpload';
 import { fileSize, roleText, shownDate } from './format';
 import '@/locales/documents';
@@ -48,14 +50,53 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
   const { t } = useTranslation();
   const answer = useDocuments(scope, archived, inbox);
   const [filters, setFilters] = useState(NO_FILTER);
+  // « À classer » only (issue #183): the documents to file together, and those the last « Classer » refused, with why.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [refused, setRefused] = useState<Filed['refused']>([]);
+  const [filing, setFiling] = useState(false);
+  const [status, setStatus] = useState('');
+  const fileRef = useRef<HTMLButtonElement>(null);
   const all = answer.data?.items ?? [];
+  // The filters, and the archived switch below, start a new selection: what was ticked may no longer be shown.
+  const [shownArchived, setShownArchived] = useState(archived);
+  const clear = () => { setSelected(new Set()); setRefused([]); };
+  const filter = (next: typeof filters) => { setFilters(next); clear(); };
+  if (shownArchived !== archived) { setShownArchived(archived); clear(); }
   // A selection the new rows no longer offer is dropped, rather than hiding every row behind an option that is gone.
   const kept = keepOffered(filters, all);
-  if (answer.data && kept !== filters) setFilters(kept);
+  if (answer.data && kept !== filters) filter(kept);
+  const rows = applyFilters(all, filters);
+  // A filed document leaves the list: what is still selected is what is still shown.
+  const chosen = inbox ? rows.filter((d) => selected.has(d.id)) : [];
+  const filed = (message: string, outcome: Filed) => {
+    setFiling(false);
+    setStatus(message);
+    setSelected(new Set(outcome.refused.map((r) => r.id)));
+    setRefused(outcome.refused);
+    if (outcome.refused.length > 0) fileRef.current?.focus(); else focusTabs();
+  };
   // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (
     <>
-      <DocumentFilters rows={all} filters={filters} onChange={setFilters} archived={archived} onArchivedChange={onArchivedChange} />
+      <DocumentFilters rows={all} filters={filters} onChange={filter} archived={archived} onArchivedChange={onArchivedChange} />
+      {inbox ? <p role="status" aria-live="polite">{status}</p> : null}
+      {chosen.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
+          <span className="text-sm">{t('documents_page.file.selected', { count: chosen.length })}</span>
+          <Button ref={fileRef} type="button" size="sm" onClick={() => setFiling(true)}>{t('documents_page.file.open')}</Button>
+        </div>
+      ) : null}
+      {refused.length > 0 ? (
+        <ul aria-label={t('documents_page.file.refused')} className="space-y-2">
+          {refused.map((r) => (
+            <li key={r.id} className="space-y-1">
+              <p className="text-sm font-medium">{all.find((d) => d.id === r.id)?.title}</p>
+              <ProblemMessage problem={present(toProblem(r.problem))} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {filing ? <FileDocumentsDialog docs={chosen} onClose={() => setFiling(false)} onDone={filed} /> : null}
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data ? (
           <ul aria-busy="true" aria-label={t('documents_page.loading')} className="space-y-2">
@@ -65,19 +106,20 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
         : all.length === 0 ? (inbox
           ? <EmptyState title={t('documents_page.empty_inbox_title')} body={t('documents_page.empty_inbox_body')} />
           : <EmptyState title={t('documents_page.empty_title')} body={t('documents_page.empty_body')} />)
-        : <Table rows={applyFilters(all, filters)} />}
+        : <Table rows={rows} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
+          label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />}
     </>
   );
 }
 
-function Table({ rows }: { rows: DocumentSummary[] }) {
+function Table({ rows, selection }: { rows: DocumentSummary[]; selection?: Selection<DocumentSummary> }) {
   const { t } = useTranslation();
   if (rows.length === 0) return <p className="text-muted-foreground">{t('documents_page.no_match')}</p>;
   const types = (d: DocumentSummary) => [...new Set(d.links.map((l) => roleText(t, l.role)))].join(', ');
   const linked = (d: DocumentSummary) => [...new Set(d.links.map((l) => l.label))].join(', ');
   const date = (d: DocumentSummary) => <LocalDate value={shownDate(d)} style="short" />;
   return (
-    <SortableTable<DocumentSummary> caption={t('documents_page.list')} rows={rows} rowKey={(d) => d.id}
+    <SortableTable<DocumentSummary> caption={t('documents_page.list')} rows={rows} rowKey={(d) => d.id} selection={selection}
       columns={[
         { id: 'title', header: t('documents_page.col_title'), sort: (d) => d.title, cell: (d) => <Title doc={d} /> },
         { id: 'types', header: t('documents_page.col_types'), sort: types, cell: types },

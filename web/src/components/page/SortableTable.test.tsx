@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { amountKey } from './sortKey';
 import { SortableTable } from './SortableTable';
@@ -81,5 +82,35 @@ describe('SortableTable', () => {
     render(<Table expandable={false} rows={[{ id: 'a', name: 'A' }, { id: 'g', name: 'G', kids: [{ id: 'k', name: 'K' }] }]} />);
     expect(screen.queryByRole('button', { name: /Détail/ })).toBeNull();
     expect(names()).toEqual(['A', 'G']);
+  });
+
+  it('Select_all_ticks_the_selectable_rows_and_leaves_the_others', async () => {
+    const user = userEvent.setup();
+    function Selectable() {
+      const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+      return (
+        <>
+          <SortableTable caption="Lignes" rows={[{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }]} rowKey={(r: Row) => r.id}
+            columns={columns} mobile={(r) => r.name}
+            selection={{ selected, onChange: setSelected, allLabel: 'Tout', label: (r) => `Choisir ${r.name}`, disabled: (r) => r.id === 'c' }} />
+          <output>{[...selected].sort().join(',')}</output>
+        </>
+      );
+    }
+    render(<Selectable />);
+    const table = screen.getByRole('table');
+    const all = within(table).getByRole('checkbox', { name: 'Tout' });
+
+    await user.click(within(table).getByRole('checkbox', { name: 'Choisir B' }));
+    expect(all).toHaveAttribute('aria-checked', 'mixed');
+    expect(screen.getByRole('status')).toHaveTextContent('b');
+
+    await user.click(all);
+    expect(all).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('a,b');
+    expect(within(table).getByRole('checkbox', { name: 'Choisir C' })).toBeDisabled();
+
+    await user.click(all);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 });

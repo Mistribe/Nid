@@ -62,3 +62,32 @@ test('alice files a document under a shared item and bob sees it; a private link
   await expect(table.getByRole('row').filter({ hasText: first })).toBeVisible();
   await expect(bob.getByText(second)).toHaveCount(0);
 });
+
+test('alice files two uploaded documents at once from « À classer »', async ({ page }) => {
+  const stamp = Date.now();
+  const item = `Box classée ${stamp}`;
+  const first = `Janvier ${stamp}`;
+  const second = `Février ${stamp}`;
+  await signIn(page, 'alice', '/documents');
+  await addItem(page, item, 'private');
+
+  await page.goto('/documents?tab=inbox');
+  await page.getByLabel('Déposer').setInputFiles([pdf(`${first}.pdf`), pdf(`${second}.pdf`)]);
+  await expect(page.getByRole('list', { name: 'Dépôts' }).getByText('Déposé')).toHaveCount(2);
+  const table = page.getByRole('table', { name: 'Liste des documents' });
+  await table.getByRole('checkbox', { name: `Sélectionner ${first}` }).check();
+  await table.getByRole('checkbox', { name: `Sélectionner ${second}` }).check();
+  await expect(page.getByText('2 documents sélectionnés')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Classer', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Classer 2 documents' });
+  await pick(dialog, 'Élément', item);
+  await pick(dialog, 'Rôle', 'Facture');
+  await dialog.getByRole('button', { name: 'Classer', exact: true }).click();
+
+  await expect(page.getByRole('status').filter({ hasText: /\S/ })).toHaveText('2 documents classés.');
+  await expect(table.getByRole('link', { name: first })).toHaveCount(0);
+  await expect(table.getByRole('link', { name: second })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Tous' }).click();
+  for (const title of [first, second]) await expect(table.getByRole('row').filter({ hasText: title })).toContainText(item);
+});

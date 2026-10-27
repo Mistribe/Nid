@@ -96,6 +96,12 @@ export async function previewLink(fetchClient: Api['fetchClient'], id: string, t
   return data;
 }
 
+/** One link, written outside a mutation hook so that several can run at once; the caller invalidates. A refusal is thrown as a `ProblemError`. */
+export async function linkDocument(fetchClient: Api['fetchClient'], id: string, targetKind: string, targetId: string, role: string): Promise<void> {
+  const { error } = await fetchClient.POST(DOCUMENT_LINKS, { params: { path: { id } }, body: { targetKind, targetId, role } });
+  if (error !== undefined) throw new ProblemError(toProblem(error));
+}
+
 /**
  * One file, unlinked unless `fields` name a target (else it lands in « À classer »), as `multipart/form-data`: the name stays out of the URL. The
  * generated type says `file: string` (binary), so the `FormData` is passed as is; the client keeps the CSRF header and the

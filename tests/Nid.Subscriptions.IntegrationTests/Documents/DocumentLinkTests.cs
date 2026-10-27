@@ -274,4 +274,38 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(HttpStatusCode.Forbidden, (await UnlinkAsync(app, app.AdultB, id, TargetKinds.CoreItem, shared.Value)).StatusCode);
         Assert.Equal("lease", Assert.Single(await LinksAsync(app, app.AdultA, id)).GetProperty("role").GetString());
     }
+
+    /// <summary>Issue #183: « Classer » links each selected document on its own, so a refused one leaves the others filed.</summary>
+    [Fact]
+    public async Task Filing_several_documents_links_each_one_and_a_refused_one_leaves_the_others_filed()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var box = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Private);
+        var shared = await app.NewSubscriptionAsync("Partagé", app.AdultB, Visibility.Shared);
+        var first = await UploadedAsync(app, app.AdultA, Pdf);
+        var second = await UploadedAsync(app, app.AdultA, Pdf);
+        var already = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=a.pdf&targetKind=core.item&targetId={box.Value}&role=invoice");
+        // A reads B's document through the shared item, but cannot edit it.
+        var theirs = await UploadedAsync(app, app.AdultB, Pdf, $"fileName=b.pdf&targetKind=core.item&targetId={shared.Value}&role=invoice");
+        var before = await ListedAsync(app, app.AdultA, "inbox=true");
+        Assert.Contains(first, before);
+        Assert.Contains(second, before);
+
+        var answers = new List<HttpResponseMessage>();
+        foreach (var id in new[] { first, theirs, second, already })
+            answers.Add(await LinkAsync(app, app.AdultA, id, TargetKinds.CoreItem, box.Value, "payslip"));
+
+        Assert.Equal(HttpStatusCode.OK, answers[0].StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, answers[1].StatusCode);
+        Assert.Equal(HttpStatusCode.OK, answers[2].StatusCode);
+        await AssertRefusedAsync(answers[3], HttpStatusCode.Conflict, DocumentsCodes.AlreadyLinked);
+
+        var inbox = await ListedAsync(app, app.AdultA, "inbox=true");
+        Assert.DoesNotContain(first, inbox);
+        Assert.DoesNotContain(second, inbox);
+        foreach (var id in new[] { first, second })
+            Assert.Equal("payslip", Assert.Single(await LinksAsync(app, app.AdultA, id)).GetProperty("role").GetString());
+        Assert.Single(await LinksAsync(app, app.AdultB, theirs));
+        Assert.Equal("invoice", Assert.Single(await LinksAsync(app, app.AdultA, already)).GetProperty("role").GetString());
+    }
 }

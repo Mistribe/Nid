@@ -101,6 +101,23 @@
       "added": "Lien ajouté.",
       "widens_one": "{{names}} pourra lire ce document.",
       "widens_other": "{{names}} pourront lire ce document."
+    },
+    "file": {
+      "select_all": "Tout sélectionner",
+      "select": "Sélectionner {{title}}",
+      "selected_one": "{{count}} document sélectionné",
+      "selected_other": "{{count}} documents sélectionnés",
+      "open": "Classer",
+      "title_one": "Classer {{count}} document",
+      "title_other": "Classer {{count}} documents",
+      "submit": "Classer",
+      "confirm": "Classer quand même",
+      "widens_one": "{{names}} pourra lire ces documents.",
+      "widens_other": "{{names}} pourront lire ces documents.",
+      "filed_one": "{{count}} document classé.",
+      "filed_other": "{{count}} documents classés.",
+      "none": "Aucun document classé.",
+      "refused": "Documents non classés"
     }
   },
   "documents_item": {
