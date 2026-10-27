@@ -255,16 +255,17 @@ describe('IncomeSourceDetailPage', () => {
     const region = await screen.findByRole('region', { name: 'Versements' });
     const table = await within(region).findByRole('table', { name: 'Versements, mois par mois' });
     const groups = () => within(table).getAllByRole('rowgroup').slice(1).map((g) => within(g).getAllByRole('row').map(text));
+    await within(table).findByRole('columnheader', { name: 'Bulletin' });
     // Newest first: January before December, the one-off of the 20th before the salary of the 1st.
     expect(groups()).toEqual([
-      ['janvier 2026Total2 700,00 €', 'Revenu exceptionnel20 janvier 2026400,00 €', 'Salaire de base1 janvier 20262 300,00 €'],
-      ['décembre 2025Total4 100,00 €', 'Prime annuelle15 décembre 20251 800,00 €', 'Salaire de base1 décembre 20252 300,00 €'],
+      ['janvier 2026Total2 700,00 €Joindre', 'Revenu exceptionnel20 janvier 2026400,00 €', 'Salaire de base1 janvier 20262 300,00 €'],
+      ['décembre 2025Total4 100,00 €Joindre', 'Prime annuelle15 décembre 20251 800,00 €', 'Salaire de base1 décembre 20252 300,00 €'],
     ]);
     expect(within(region).getByRole('radio', { name: '12 derniers mois' })).toBeChecked();
     await expectNoAxeViolations(container);
 
     await user.click(within(region).getByRole('radio', { name: 'Prime annuelle' }));
-    expect(groups()).toEqual([['janvier 2026Aucun versement'], ['décembre 2025Prime annuelle15 décembre 20251 800,00 €']]);
+    expect(groups()).toEqual([['janvier 2026Aucun versementJoindre'], ['décembre 2025Prime annuelle15 décembre 20251 800,00 €Joindre']]);
   });
 
   it('has no axe violations with the chart as a table and the menus of a writer', async () => {

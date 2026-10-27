@@ -1,14 +1,17 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { File as NodeFile } from 'node:buffer';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { link, summary } from '../../documents/testData';
 import { todayIso } from '../../subscriptions/today';
 import type { IncomeSourceDetail } from '../api';
 import { detail, eur, SALARY } from '../testData';
 
+type Sent = { method: string; path: string; form?: Record<string, string> };
 type Body = components['schemas']['IncomeOneOffBody'];
 const PROJECT = { id: 'o1', occurredOn: '2026-03-10', amount: eur('400.00'), note: 'Prime de projet' };
 const OLDER = { id: 'o0', occurredOn: '2025-12-24', amount: eur('150.00'), note: null };
@@ -56,7 +59,13 @@ const choose = async (user: Awaited<ReturnType<typeof renderApp>>['user'], row: 
 const rows = async () => within(await screen.findByRole('table', { name: 'Revenus exceptionnels des 12 derniers mois' })).getAllByRole('row').slice(1);
 
 describe('one-off income', () => {
-  beforeAll(async () => { await import('../IncomeSourceDetailPage'); }, 30_000);
+  beforeAll(async () => {
+    // jsdom's FormData and File do not cross into Node's Request (MSW): a browser sends them as is, the tests use Node's.
+    const form = await new Response('a=1', { headers: { 'content-type': 'application/x-www-form-urlencoded' } }).formData();
+    vi.stubGlobal('FormData', form.constructor);
+    vi.stubGlobal('File', NodeFile);
+    await import('../IncomeSourceDetailPage');
+  }, 30_000);
 
   it('lists the last twelve months’ one-offs, newest first', async () => {
     serve();
@@ -244,5 +253,86 @@ describe('one-off income', () => {
     await user.type(within(form).getByLabelText('Date'), '2025-06-15');
     await user.click(within(form).getByRole('button', { name: 'Ajouter' }));
     await waitFor(() => expect(sent).toEqual([expect.objectContaining({ method: 'POST', body: { occurredOn: '2025-06-15', amount: { amount: '100', currency: 'EUR' } } })]));
+  });
+
+  describe('documents', () => {
+    const DOC = '0192f0aa-0000-7000-8000-00000000d0b1';
+    const prime = summary({ id: DOC, title: 'Avis de prime', links: [
+      link({ targetKind: 'income.one_off', targetId: 'o1', role: 'payslip', label: 'Prime' }),
+      link({ targetKind: 'core.item', targetId: SALARY, role: 'payslip', label: 'Salaire Alice' }),
+    ] });
+    const docs = (sent: Sent[]) => {
+      server.use(
+        http.get('*/api/v1/documents', () => HttpResponse.json({ items: [prime] })),
+        http.post('*/api/v1/documents', async ({ request }) => {
+          const form = Object.fromEntries([...(await request.formData()).entries()].filter(([key]) => key !== 'file')) as Record<string, string>;
+          sent.push({ method: 'POST', path: new URL(request.url).pathname, form });
+          return HttpResponse.json({ id: 'new' }, { status: 201 });
+        }),
+        http.delete('*/api/v1/documents/:id/links/:kind/:target', ({ request }) => {
+          sent.push({ method: 'DELETE', path: new URL(request.url).pathname });
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+    };
+
+    it('shows a linked document as a paperclip in the note cell', async () => {
+      serve();
+      docs([]);
+      await renderApp(`/income/${SALARY}?tab=oneoffs`);
+
+      expect(await within((await rows())[0]!).findByRole('link', { name: 'Avis de prime' })).toBeInTheDocument();
+      expect(within((await rows())[1]!).queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('keeps the paperclip when the one-off is corrected: its links move to the new id', async () => {
+      serve();
+      let anchoredOn = 'o1';
+      server.use(http.get('*/api/v1/documents', () => HttpResponse.json({ items: [{ ...prime, links: [link({ targetKind: 'income.one_off', targetId: anchoredOn, role: 'payslip', label: 'Prime' })] }] })));
+      const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+      expect(await within((await rows())[0]!).findByRole('link', { name: 'Avis de prime' })).toBeInTheDocument();
+
+      anchoredOn = 'o2'; // the correction gives the one-off a new id; the server moves the link with it
+      await choose(user, 0, 'Corriger');
+      await user.click(within(screen.getByRole('form', { name: 'Corriger le revenu exceptionnel' })).getByRole('button', { name: 'Enregistrer' }));
+
+      await waitFor(async () => expect(within(await region()).getByRole('status')).toHaveTextContent('Revenu exceptionnel corrigé.'));
+      expect(await within((await rows())[0]!).findByRole('link', { name: 'Avis de prime' })).toBeInTheDocument();
+    });
+
+    it('attaches a document to the one-off with its date and note', async () => {
+      serve();
+      const sent: Sent[] = [];
+      docs(sent);
+      const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+
+      await choose(user, 0, 'Joindre un document');
+      await user.upload(within((await rows())[0]!).getByLabelText('Joindre un document'), new File(['%PDF-1.7'], 'scan.pdf', { type: 'application/pdf' }));
+
+      await waitFor(() => expect(sent).toHaveLength(1));
+      expect(sent[0]).toMatchObject({ method: 'POST', form: { targetKind: 'income.one_off', targetId: 'o1', date: '2026-03-10', title: 'Prime de projet' } });
+    });
+
+    it('removes only the one-off link', async () => {
+      serve();
+      const sent: Sent[] = [];
+      docs(sent);
+      const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+
+      await user.click(await within((await rows())[0]!).findByRole('button', { name: 'Actions du bulletin Avis de prime' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Retirer' }));
+      await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+
+      await waitFor(() => expect(sent).toEqual([{ method: 'DELETE', path: `/api/v1/documents/${DOC}/links/income.one_off/o1` }]));
+    });
+
+    it('shows the paperclip without write entries to a read-only visitor', async () => {
+      serve(detail({ canWrite: false, oneOffs: [PROJECT] }));
+      docs([]);
+      const { user } = await renderApp(`/income/${SALARY}?tab=oneoffs`);
+
+      await user.click(await within((await rows())[0]!).findByRole('button', { name: 'Actions du bulletin Avis de prime' }));
+      expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Télécharger', 'Voir le document']);
+    });
   });
 });

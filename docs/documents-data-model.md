@@ -107,6 +107,7 @@ Corps et réponses en camelCase. Toutes sous `/api/v1/documents`, authentifiées
 | `GET /targets` | Cibles qu'un acteur peut choisir : `{ items: [{ kind, id, label, module, itemKind, canWrite }] }` (éléments actifs qu'il lit, personnes, foyer ; jamais l'élément privé de l'autre adulte ; pas de lignes de module) |
 | `GET /?scope=household\|me&archived=false\|true&inbox=false\|true` | Liste des documents lisibles : `{ items: [{ id, title, mediaType, sizeBytes, documentDate, uploadedAt, archived, canEdit, links }] }` |
 | `GET /?targetKind=&targetId=` | Les documents lisibles qui ont un lien **visible** vers cette cible, quelle que soit la portée Foyer / Moi (comme « À classer »). Une cible que l'acteur ne voit pas répond une liste vide, sans révéler qu'elle existe |
+| `GET /?anchor=` | Les documents lisibles non archivés (archivés avec `archived=true`) qui ont un lien **visible** dont l'ancre est cet élément : l'élément, ses phases, ses revenus exceptionnels. Portée ignorée ; `links` garde tous les liens visibles du document. Seul : 400 avec `inbox`, `targetKind` ou `targetId` |
 | `GET /{id}` | Fiche : le résumé, `originalFilename`, `note`, `uploadedBy` |
 | `GET /{id}/content` | Téléchargement (§4) |
 | `PUT /{id}` | Remplacement du titre, de `documentDate` et de la note |
@@ -154,4 +155,4 @@ Un document illisible ou inexistant, ou un acteur sans droit : `404` et `403` g�
 
 ## 12. Hors des tranches 2a, 2b et 3
 
-Reportés jusqu'à leur consommateur : les achats d'abonnements et les événements de crédit comme cibles (`IDocumentTargets` des modules concernés) ; Income est livré (§5). Aucun écran de phase ne lie encore : ils viennent avec #160. Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.
+Reportés jusqu'à leur consommateur : les achats d'abonnements et les événements de crédit comme cibles (`IDocumentTargets` des modules concernés) ; Income est livré (§5). Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.

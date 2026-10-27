@@ -56,6 +56,8 @@ export const handlers = [
   http.get('*/api/v1/realestate/properties/overview/valuation', () => HttpResponse.json(propertiesValuation())),
   // Every income source page reads its overview (figures, evolution, timeline).
   http.get('*/api/v1/income/sources/:id/overview', () => HttpResponse.json(sourceOverview())),
+  // ... and the history tab reads the documents anchored on it (the payslips).
+  http.get('*/api/v1/documents', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/income/sources/:id/expected', ({ params, request }) => {
     const url = new URL(request.url);
     return HttpResponse.json({ id: params.id, from: url.searchParams.get('from'), to: url.searchParams.get('to'), months: [] });

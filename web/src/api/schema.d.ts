@@ -7872,6 +7872,7 @@ export interface paths {
                     inbox?: boolean;
                     targetKind?: string;
                     targetId?: string;
+                    anchor?: string;
                 };
                 header?: never;
                 path?: never;

@@ -245,7 +245,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                      "/api/v1/documents?scope=me&archived=true",
                      "/api/v1/documents?inbox=true",
                  }.Concat(data.PrivatePhases.Values.Select(p => $"/api/v1/documents?targetKind=income.phase&targetId={p}"))
-                     .Concat(data.PrivateOneOffs.Values.Select(o => $"/api/v1/documents?targetKind=income.one_off&targetId={o}")).Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
+                     .Concat(data.PrivateOneOffs.Values.Select(o => $"/api/v1/documents?targetKind=income.one_off&targetId={o}"))
+                     .Concat(data.PrivatePhases.Keys.Select(n => $"/api/v1/documents?anchor={data.IncomeSources[n].Value}")).Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
                      .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" })))
         {
             var body = await app.GetRawAsync(actor, url);
@@ -259,6 +260,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
             Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.one_off&targetId={data.PrivateOneOffs[hidden]}"),
                 StringComparison.Ordinal);
+        foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
+            Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?anchor={data.IncomeSources[hidden].Value}"), StringComparison.Ordinal);
     }
 
     [Fact]

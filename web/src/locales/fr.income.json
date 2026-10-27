@@ -43,6 +43,15 @@
     "max_cycles_range": "Un nombre entier entre 1 et 1200."
   },
   "income_detail": {
+    "payslips": {
+      "title": "Bulletin de paie {{month}}", "one_off_title": "Revenu exceptionnel {{date}}",
+      "column": "Bulletin", "missing": "Pas de bulletin", "attach": "Joindre", "attach_one_off": "Joindre un document", "download": "Télécharger", "open": "Voir le document",
+      "replace": "Remplacer", "remove": "Retirer", "remove_confirm": "Retirer ce bulletin de ce revenu ? Il reste dans Documents.",
+      "undated": "Bulletins sans date", "menu": "Actions du bulletin {{title}}",
+      "bulk": "Déposer des bulletins", "bulk_title": "Déposer des bulletins", "bulk_month": "Mois de {{name}}", "bulk_none": "Choisir un mois",
+      "bulk_skip": "Écarter", "bulk_send": "Envoyer", "bulk_already": "Ce mois a déjà un bulletin", "bulk_done": "Envoyé",
+      "bulk_no_month": "Aucun versement ce mois-là", "bulk_hint": "Chaque fichier est rattaché au mois choisi."
+    },
     "back": "Retour aux revenus",
     "tab": { "overview": "Vue d’ensemble", "history": "Historique", "oneoffs": "Exceptionnels", "settings": "Réglages" },
     "more_actions": "Autres actions",

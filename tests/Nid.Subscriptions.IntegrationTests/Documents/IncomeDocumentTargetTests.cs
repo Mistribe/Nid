@@ -225,4 +225,59 @@ public class IncomeDocumentTargetTests(PostgresFixture fixture) : IClassFixture<
             Assert.Empty(await StoredLinksAsync(app, mine));
         }
     }
+
+    [Fact]
+    public async Task Anchor_lists_documents_linked_to_the_source_its_phases_and_its_one_offs()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        var other = await app.NewIncomeSourceAsync("Salaire B", app.AdultA);
+        var phase = await PhaseAsync(app, app.AdultA, source, "Salaire", "2025-01-01", null);
+        var flow = await OneOffAsync(app, app.AdultA, source, "2025-06-10");
+        var onPhase = await LinkedAsync(app, app.AdultA, Phase, phase);
+        var onOneOff = await LinkedAsync(app, app.AdultA, OneOff, flow);
+        var onItem = await LinkedAsync(app, app.AdultA, "core.item", source.Value);
+        await LinkedAsync(app, app.AdultA, "core.item", other.Value);
+
+        var listed = await ListedAsync(app, app.AdultA, $"anchor={source.Value}");
+
+        Assert.Equal(new[] { onPhase, onOneOff, onItem }.Order(), listed.Order());
+        Assert.Equal(Phase, (await LinksAsync(app, app.AdultA, onPhase)).Single().Kind);
+    }
+
+    [Fact]
+    public async Task Anchor_on_a_private_source_is_empty_for_the_other_adult()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA, visibility: "private");
+        var phase = await PhaseAsync(app, app.AdultA, source, "Salaire", "2025-01-01", null);
+        var payslip = await LinkedAsync(app, app.AdultA, Phase, phase);
+
+        Assert.Empty(await ListedAsync(app, app.AdultB, $"anchor={source.Value}"));
+        Assert.Equal([payslip], await ListedAsync(app, app.AdultA, $"anchor={source.Value}"));
+    }
+
+    [Fact]
+    public async Task Anchor_combined_with_inbox_or_target_is_a_bad_request()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+
+        foreach (var extra in new[] { "inbox=true", $"targetKind=core.item&targetId={source.Value}" })
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Root}?anchor={source.Value}&{extra}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Anchor_skips_archived_documents()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        var id = await LinkedAsync(app, app.AdultA, "core.item", source.Value);
+        Assert.Equal([id], await ListedAsync(app, app.AdultA, $"anchor={source.Value}"));
+
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/{id}/archive");
+
+        Assert.Empty(await ListedAsync(app, app.AdultA, $"anchor={source.Value}"));
+    }
 }

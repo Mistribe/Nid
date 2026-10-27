@@ -33,6 +33,21 @@ export function paymentWindow(today: string): { from: string; to: string } {
   return { from: firstDay(shift(now, -12)), to: lastDay(shift(now, 11)) };
 }
 
+/**
+ * Spec §6: from the oldest phase's start to the end of this month, as consecutive windows of 24 months at most: each ends
+ * before its start plus two years, the server's bound on one expected-income call.
+ */
+export function sinceWindows(start: string, today: string): { from: string; to: string }[] {
+  const index = ({ year, month }: Month) => year * 12 + month;
+  const last = monthOf(today);
+  const windows: { from: string; to: string }[] = [];
+  for (let m = monthOf(start), from = start; index(m) <= index(last); m = shift(m, 24), from = firstDay(m)) {
+    const end = shift(m, 23);
+    windows.push({ from, to: lastDay(index(end) < index(last) ? end : last) });
+  }
+  return windows;
+}
+
 /** « octobre 2026 » or « oct. 2026 », in UTC like `LocalDate`. */
 export function monthLabel(year: number, month: number, style: 'long' | 'short' = 'long', locale = 'fr-FR'): string {
   return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', month: style, year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));

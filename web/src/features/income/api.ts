@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { DASHBOARD } from '../dashboard/api';
+import { invalidateDocuments } from '../documents/api';
 import type { components } from '@/api/schema';
 
 export type IncomeSourceSummary = components['schemas']['IncomeSourceSummary'];
@@ -26,7 +27,7 @@ export const ONE_OFFS = '/api/v1/income/sources/{id}/one-offs' as const;
 export const ONE_OFF = '/api/v1/income/sources/{id}/one-offs/{flowId}' as const;
 export const PHASE = '/api/v1/income/sources/{id}/phases/{phaseId}' as const;
 
-/** Every write invalidates the list, every detail, every source overview and every expected income. */
+/** Every write invalidates the list, every detail, every source overview, every expected income and the documents (a correction or a deletion moves or drops their links). */
 export function invalidateIncome(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['get', SOURCES] }),
@@ -35,6 +36,7 @@ export function invalidateIncome(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ['get', SOURCE] }),
     queryClient.invalidateQueries({ queryKey: ['get', SOURCE_OVERVIEW] }),
     queryClient.invalidateQueries({ queryKey: ['get', EXPECTED] }),
+    invalidateDocuments(queryClient),
   ]).then(() => undefined);
 }
 export const CLOSE_SOURCE = '/api/v1/income/sources/{id}/close' as const;

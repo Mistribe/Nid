@@ -5,6 +5,8 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { todayIso } from '../../subscriptions/today';
+import { contentUrl, type DocumentSummary } from '../../documents/api';
+import { link, summary } from '../../documents/testData';
 import type { IncomeExpected, IncomeSourceDetail } from '../api';
 import { detail, eur, SALARY } from '../testData';
 import { expectedRange } from '../expected/months';
@@ -12,9 +14,13 @@ import { expectedRange } from '../expected/months';
 type Month = IncomeExpected['months'][number];
 const month = (year: number, m: number, over: Partial<Month> = {}): Month => ({ year, month: m, occurrences: [], oneOffs: [], total: eur('0'), ...over });
 
-function serve(months: Month[], seen: string[] = [], source: IncomeSourceDetail = detail()) {
+function serve(months: Month[], seen: string[] = [], source: IncomeSourceDetail = detail(), docs: DocumentSummary[] = [], anchors: string[] = []) {
   server.use(
     http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(source)),
+    http.get('*/api/v1/documents', ({ request }) => {
+      anchors.push(new URL(request.url).search);
+      return HttpResponse.json({ items: docs });
+    }),
     http.get('*/api/v1/income/sources/:id/expected', ({ request, params }) => {
       const url = new URL(request.url);
       seen.push(url.search);
@@ -28,6 +34,13 @@ const QUARTER = [
   month(2026, 11),
   month(2026, 12),
 ];
+
+const paid = (year: number, m: number, on: string): Month =>
+  month(year, m, { occurrences: [{ phaseId: 'p1', label: 'Salaire de base', on, amount: eur('2300.00') }], total: eur('2300.00') });
+const PAID = [paid(2026, 6, '2026-06-30'), paid(2026, 7, '2026-07-31'), paid(2026, 8, '2026-08-31')];
+const payslip = (id: string, title: string, documentDate: string | null) =>
+  summary({ id, title, documentDate, links: [link({ targetKind: 'income.phase', targetId: 'p1', role: 'payslip', label: 'Salaire de base' })] });
+const JULY = payslip('0192f0aa-0000-7000-8000-00000000d0b1', 'Bulletin de paie juillet 2026', '2026-07-31');
 
 const HISTORY = `/income/${SALARY}?tab=history`;
 const region = () => screen.findByRole('region', { name: 'Versements' });
@@ -131,5 +144,48 @@ describe('history', () => {
     await renderApp(HISTORY);
 
     expect(await groups()).toHaveLength(3);
+  });
+
+  describe('payslips', () => {
+    it('adds a « Bulletin » column, read from the documents anchored on the source', async () => {
+      const anchors: string[] = [];
+      serve(PAID, [], detail(), [JULY], anchors);
+      const { container } = await renderApp(HISTORY);
+
+      const table = await within(await region()).findByRole('table', { name: 'Versements, mois par mois' });
+      expect(within(table).getByRole('columnheader', { name: 'Bulletin' })).toBeInTheDocument();
+      await waitFor(() => expect(anchors).toEqual([`?anchor=${SALARY}`]));
+      await expectNoAxeViolations(container);
+    });
+
+    it('marks a salary’s uncovered past month from its oldest payslip on, and only offers to attach before it', async () => {
+      serve(PAID, [], detail(), [JULY]);
+      await renderApp(HISTORY);
+
+      const [august, july, june] = await groups();
+      expect(await within(august!).findByText('Pas de bulletin')).toBeInTheDocument();
+      expect(within(august!).getByRole('button', { name: 'Joindre' })).toBeInTheDocument();
+      expect(within(july!).getByRole('link', { name: 'Bulletin de paie juillet 2026' })).toBeInTheDocument();
+      expect(within(june!).queryByText('Pas de bulletin')).not.toBeInTheDocument();
+      expect(within(june!).getByRole('button', { name: 'Joindre' })).toBeInTheDocument();
+    });
+
+    it('never marks a pension’s month as missing', async () => {
+      serve(PAID, [], detail({ kind: 'pension' }), [JULY]);
+      await renderApp(HISTORY);
+
+      const [august] = await groups();
+      expect(await within(august!).findByRole('button', { name: 'Joindre' })).toBeInTheDocument();
+      expect(screen.queryByText('Pas de bulletin')).not.toBeInTheDocument();
+    });
+
+    it('lists the undated payslips above the table, each with its download link', async () => {
+      const undated = payslip('0192f0aa-0000-7000-8000-00000000d0b2', 'Bulletin sans date', null);
+      serve(PAID, [], detail(), [JULY, undated]);
+      await renderApp(HISTORY);
+
+      const list = await within(await region()).findByRole('list', { name: 'Bulletins sans date' });
+      expect(within(list).getByRole('link', { name: 'Bulletin sans date' })).toHaveAttribute('href', contentUrl(undated.id));
+    });
   });
 });

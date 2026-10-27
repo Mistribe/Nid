@@ -18,9 +18,10 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
 /// Design §7: the documents the actor reads. <c>Household</c> keeps those with a visible link to a shared item, a dependent or the
 /// household; <c>Me</c> keeps them all. <c>Inbox</c> keeps those with no visible link, whatever the scope.
 /// <c>Target</c> keeps those with a visible link to exactly that target, whatever the scope (design §3.3: every readable document of a
-/// row's screen, a private row's too); one the actor cannot see answers an empty list.
+/// row's screen, a private row's too); one the actor cannot see answers an empty list. <c>Anchor</c> keeps those with a visible link
+/// anchored on that item (the item, its phases, its one-offs), whatever the scope.
 /// </summary>
-public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null) : IQuery<DocumentList>;
+public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null, Guid? Anchor = null) : IQuery<DocumentList>;
 
 /// <summary>Tranche 3 design §4.1: the ids among <paramref name="Ids"/> the actor reads; one missing and one unreadable are both left out.</summary>
 public sealed record FilterReadableDocumentsQuery(IReadOnlyCollection<Guid> Ids) : IQuery<IReadOnlySet<Guid>>;
@@ -71,7 +72,7 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
         var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
         // One rights check for every anchor of every document: a constant number of queries.
         var facts = await access.FactsAsync(person, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
-        var household = query is { Scope: VisibilityScope.Household, Inbox: false, Target: null }
+        var household = query is { Scope: VisibilityScope.Household, Inbox: false, Target: null, Anchor: null }
             ? await visible.ForAsync(person, VisibilityScope.Household, includeArchived: true, ct)
             : null;
 
@@ -91,6 +92,9 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
                 continue;
             var seen = all.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), facts)).ToList();
             if (query.Target is { } t && !seen.Any(l => l.TargetKind == t.Kind && l.TargetId == t.Id))
+                continue;
+            // ponytail: filters the full list loaded above; add a store query by anchor when the lists grow.
+            if (query.Anchor is { } anchor && !seen.Any(l => l.AnchorItemId == anchor))
                 continue;
             if (query.Inbox ? seen.Count > 0 : household is not null && !seen.Any(Shared))
                 continue;

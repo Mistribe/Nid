@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultEffectiveDate, expectedRange, monthLabel, paymentDates, paymentWindow } from './months';
+import { defaultEffectiveDate, expectedRange, monthLabel, paymentDates, paymentWindow, sinceWindows } from './months';
 
 describe('expectedRange', () => {
   it.each([
@@ -23,6 +23,26 @@ describe('paymentWindow', () => {
   it('ends a February on its last day, leap year or not', () => {
     expect(paymentWindow('2027-03-10').to).toBe('2028-02-29');
     expect(paymentWindow('2026-03-10').to).toBe('2027-02-28');
+  });
+});
+
+describe('sinceWindows', () => {
+  it('is one window from the oldest phase to the end of this month when that is under two years', () => {
+    expect(sinceWindows('2025-03-15', '2026-10-27')).toEqual([{ from: '2025-03-15', to: '2026-10-31' }]);
+  });
+
+  it('cuts a longer span into consecutive windows of 24 months at most, each under the server’s two-year bound', () => {
+    expect(sinceWindows('2022-01-15', '2026-10-27')).toEqual([
+      { from: '2022-01-15', to: '2023-12-31' },
+      { from: '2024-01-01', to: '2025-12-31' },
+      { from: '2026-01-01', to: '2026-10-31' },
+    ]);
+  });
+
+  it('starts a new window on the month just past 24 months, and none when the start is to come', () => {
+    expect(sinceWindows('2024-10-01', '2026-10-27')).toEqual([{ from: '2024-10-01', to: '2026-09-30' }, { from: '2026-10-01', to: '2026-10-31' }]);
+    expect(sinceWindows('2024-11-01', '2026-10-27')).toEqual([{ from: '2024-11-01', to: '2026-10-31' }]);
+    expect(sinceWindows('2026-11-01', '2026-10-27')).toEqual([]);
   });
 });
 

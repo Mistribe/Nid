@@ -3,17 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { IncomeExpected } from '../api';
+import type { IncomeExpected, IncomeOneOff } from '../api';
 import { monthLabel } from './months';
 import '@/locales/income';
 
 type Months = IncomeExpected['months'];
 
+/** A last column with one cell per month, across the month's rows; `oneOff` adds to a one-off line's label. */
+export type PayslipColumn = { header: string; cell: (month: Months[number]) => ReactNode; oneOff?: (oneOff: IncomeOneOff) => ReactNode };
+
 /**
  * One row group per month, newest first: its total, then each payment and each one-off, newest first. Filtered on a
  * component (`label`), a month lists that component's payments only, without a total (the server's covers them all).
  */
-export function ExpectedTable({ months, label }: { months: Months; label?: string }) {
+export function ExpectedTable({ months, label, payslipColumn }: { months: Months; label?: string; payslipColumn?: PayslipColumn }) {
   const { t } = useTranslation();
   return (
     <Table aria-label={t('income_detail.expected.table')}>
@@ -23,6 +26,7 @@ export function ExpectedTable({ months, label }: { months: Months; label?: strin
           <TableHead>{t('income_detail.expected.col_line')}</TableHead>
           <TableHead>{t('income_detail.expected.col_date')}</TableHead>
           <TableHead className="text-right">{t('income_detail.expected.col_amount')}</TableHead>
+          {payslipColumn ? <TableHead>{payslipColumn.header}</TableHead> : null}
         </TableRow>
       </TableHeader>
       {[...months].reverse().map((m) => {
@@ -34,7 +38,7 @@ export function ExpectedTable({ months, label }: { months: Months; label?: strin
           ...(label ? [] : m.oneOffs).map((f): [string, string, ReactNode] => [
             f.id, f.occurredOn,
             <>
-              <TableCell>{f.note ? t('income_detail.expected.one_off_note', { note: f.note }) : t('income_detail.expected.one_off')}</TableCell>
+              <TableCell>{f.note ? t('income_detail.expected.one_off_note', { note: f.note }) : t('income_detail.expected.one_off')}{payslipColumn?.oneOff?.(f)}</TableCell>
               <TableCell><LocalDate value={f.occurredOn} /></TableCell>
               <TableCell className="text-right"><Money value={f.amount} tabular /></TableCell>
             </>,
@@ -54,6 +58,7 @@ export function ExpectedTable({ months, label }: { months: Months; label?: strin
               <TableRow key={key}>
                 {i === 0 ? <TableHead scope="rowgroup" rowSpan={rows.length} className="align-top">{monthLabel(m.year, m.month)}</TableHead> : null}
                 {cells}
+                {i === 0 && payslipColumn ? <TableCell rowSpan={rows.length} className="align-top">{payslipColumn.cell(m)}</TableCell> : null}
               </TableRow>
             ))}
           </TableBody>

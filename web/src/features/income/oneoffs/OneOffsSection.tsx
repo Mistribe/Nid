@@ -12,7 +12,11 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRowDialog } from '../../properties/useRowDialog';
-import { SOURCE, type IncomeSourceDetail } from '../api';
+import { useAnchoredDocuments, type DocumentSummary } from '../../documents/api';
+import { OneOffDocument } from '../payslips/OneOffDocument';
+import { PayslipProblem } from '../payslips/PayslipCell';
+import { usePayslipWrites } from '../payslips/usePayslipWrites';
+import { SOURCE, type IncomeOneOff, type IncomeSourceDetail } from '../api';
 import { Section } from '@/components/page/Section';
 import { OneOffForm } from './OneOffForm';
 import { OneOffRowActions } from './OneOffRowActions';
@@ -44,6 +48,7 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
   const { dialog, cancel } = row;
   // A source that turns read-only drops its open dialog, so it does not come back once writable again.
   useEffect(() => { if (!writable && dialog) cancel(); }, [writable, dialog, cancel]);
+  const documents = useAnchoredDocuments(source.id).data?.items ?? [];
   const cols = writable ? 4 : 3;
 
   return (
@@ -70,19 +75,31 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
           {listed && rows.length === 0 ? (
             <TableRow><TableCell colSpan={cols} className="text-muted-foreground">{all ? t('income_detail.one_offs.empty_all') : t('income_detail.one_offs.empty')}</TableCell></TableRow>
           ) : rows.map((f) => (
-            <TableRow key={f.id}>
-              <TableCell><LocalDate value={f.occurredOn} /></TableCell>
-              <TableCell className="text-right tabular-nums"><Money value={f.amount} tabular /></TableCell>
-              <TableCell className="whitespace-normal">{f.note}</TableCell>
-              {writable ? (
-                <TableCell>
-                  <OneOffRowActions source={source} oneOff={f} onEdit={() => row.open(f)} onDeleteStarted={() => row.setAnnouncement('')} onDeleted={row.announce} onReloaded={() => row.headingRef.current?.focus()} />
-                </TableCell>
-              ) : null}
-            </TableRow>
+            <OneOffRow key={f.id} source={source} oneOff={f} docs={documents} writable={writable} row={row} />
           ))}
         </TableBody>
       </Table>
     </Section>
+  );
+}
+
+/** One row: it owns the attach writes (« Joindre un document »), so a refused upload shows in the note cell, where there is room. */
+function OneOffRow({ source, oneOff, docs, writable, row }: {
+  source: IncomeSourceDetail; oneOff: IncomeOneOff; docs: DocumentSummary[]; writable: boolean; row: ReturnType<typeof useRowDialog<IncomeOneOff>>;
+}) {
+  const writes = usePayslipWrites();
+  return (
+    <TableRow>
+      <TableCell><LocalDate value={oneOff.occurredOn} /></TableCell>
+      <TableCell className="text-right tabular-nums"><Money value={oneOff.amount} tabular /></TableCell>
+      <TableCell className="whitespace-normal">
+        {oneOff.note}<OneOffDocument source={source} oneOff={oneOff} docs={docs} /><PayslipProblem writes={writes} />
+      </TableCell>
+      {writable ? (
+        <TableCell>
+          <OneOffRowActions source={source} oneOff={oneOff} writes={writes} onEdit={() => row.open(oneOff)} onDeleteStarted={() => row.setAnnouncement('')} onDeleted={row.announce} onReloaded={() => row.headingRef.current?.focus()} />
+        </TableCell>
+      ) : null}
+    </TableRow>
   );
 }

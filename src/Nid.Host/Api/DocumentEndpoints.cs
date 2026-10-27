@@ -96,12 +96,14 @@ public static class DocumentEndpoints
             .Returns<LinkPreview>();
 
         // inbox=true keeps the documents with no link the actor sees, whatever the scope; targetKind/targetId keep those linked to it.
-        // Both or neither: only targetKind=core.household may come without a targetId (a targetId alone is a 400).
-        api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, IInvoker invoker, CancellationToken ct)
-                => (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
+        // anchor=<item> keeps those linked to the item or anything anchored on it, alone. Both or neither: only targetKind=core.household may come without a targetId (a targetId alone is a 400).
+        api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, Guid? anchor, IInvoker invoker, CancellationToken ct)
+                => anchor is not null && (inbox == true || targetKind is not null || targetId is not null)
+                    ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Give anchor alone.")
+                    : (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
                     ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Give targetKind and targetId together.")
                     : (await invoker.InvokeAsync(new ListDocumentsQuery(ParseScope(scope), archived ?? false, inbox ?? false,
-                        targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household)), ct)).ToHttp(list => list))
+                        targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), anchor), ct)).ToHttp(list => list))
             .Returns<DocumentList>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)

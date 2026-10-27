@@ -56,6 +56,7 @@ Une période de revenu, sur le modèle d'une phase de facturation d'abonnement.
 - **Net versé** = montant reçu sur le compte, **après cotisations sociales et prélèvement à la source**, avant tout autre impôt. Aucun calcul fiscal (`Project.md` §11).
 - **Une augmentation ferme la période courante et en ouvre une nouvelle** : l'historique des changements est conservé.
 - **Pas de chevauchement** pour une même paire (`source_item_id`, `label`).
+- **Couverture d'un mois par un bulletin** (#160, `superpowers/specs/2026-10-27-payslips-design.md` §2) : un bulletin est un document de rôle `payslip`, lié à une phase (`income.phase`) ou à la source (`core.item`, cas de l'assistant) ; sa **date de document** donne le mois qu'il couvre, quelle que soit la phase visée (corriger les dates d'une phase ne le déplace pas). Un bulletin sans date, archivé ou illisible pour l'acteur ne couvre aucun mois. Le calcul se fait dans le navigateur, sur des dates seulement. Règle **« pas de bulletin »** : un mois est signalé manquant pour une source de genre `salary` seulement, s'il compte un versement passé, n'est couvert par aucun bulletin et tombe au plus tôt le mois du plus ancien bulletin de la source (pas de mur de manquants avant Nid).
 
 ### 3.3 Revenus exceptionnels
 
@@ -64,6 +65,8 @@ Une période de revenu, sur le modèle d'une phase de facturation d'abonnement.
 Prime ponctuelle, remboursement, indemnité : un `flow` du Core avec `kind = income` et `category = one_off`, posé sur la source (`core-data-model.md` §5.3). Il compte dans les revenus du mois où il tombe (§6) et prépare l'évolution vers « attendu + réel » (§14).
 
 Amendement 2026-10-25 (#159) : un revenu exceptionnel peut porter son **net imposable**, dans la table `income.one_off_taxable (flow_id pk, source_id → income_source on delete cascade, taxable_amount numeric(19,4) check > 0)`, propre au module (la table des flux du Core n'est pas modifiée). Elle suit le flux : écrite à l'ajout et à la correction, supprimée avec lui ou avec la source. Voir `superpowers/specs/2026-10-25-tax-taxable-income-and-per-design.md` §3.
+
+Un revenu exceptionnel porte aussi des documents (#160) : un document lisible lié à `income.one_off`, tout rôle, s'affiche sur sa ligne (icône trombone, menu « Télécharger », « Voir le document », « Remplacer », « Retirer »). « Joindre un document », dans le menu de la ligne, dépose un document de rôle `payslip` daté de `occurredOn`, titré par la note du revenu ou « Revenu exceptionnel <date> ». Un tel lien ne couvre aucun mois de bulletin (§3.2).
 
 Le détail d'une source liste ceux des 12 derniers mois, ou ceux d'une plage `from` / `to` (incluse, un côté absent restant ouvert) ; la fiche propose « 12 derniers mois » ou « Tout ». Une source terminée accepte encore l'ajout, la correction et la suppression d'un revenu exceptionnel daté au plus tard de sa fin (`income.source_ended` au-delà), sans la rouvrir.
 

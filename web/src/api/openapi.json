@@ -8646,6 +8646,14 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "anchor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {

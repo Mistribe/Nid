@@ -11,7 +11,7 @@ import '@/locales/documents';
 
 type Upload = { key: number; name: string; state: 'sending' | 'done' | Problem };
 
-const ACCEPT = '.pdf,.png,.jpg,.jpeg,.eml,application/pdf,image/png,image/jpeg,message/rfc822';
+export const ACCEPT = '.pdf,.png,.jpg,.jpeg,.eml,application/pdf,image/png,image/jpeg,message/rfc822';
 
 /** Each file goes alone, one after the other (the API spills each form to a size-limited tmpfs): one refused file shows its own error and does not stop the others. */
 export function useUploads() {
@@ -50,7 +50,7 @@ export function UploadPicker({ onFiles }: { onFiles: (files: File[]) => void }) 
 }
 
 /** The drop zone; the picker in the header is its keyboard way. */
-export function UploadZone({ onFiles }: { onFiles: (files: File[]) => void }) {
+export function UploadZone({ onFiles, hint }: { onFiles: (files: File[]) => void; hint?: string }) {
   const { t } = useTranslation();
   const [over, setOver] = useState(false);
   return (
@@ -61,12 +61,12 @@ export function UploadZone({ onFiles }: { onFiles: (files: File[]) => void }) {
       className={cn('flex flex-col items-center gap-1 rounded-lg border-2 border-dashed p-4 text-center transition-colors', over && 'border-primary bg-accent')}>
       <UploadIcon aria-hidden="true" className="size-6 text-muted-foreground" />
       <p>{t('documents_page.upload.drop')}</p>
-      <p className="text-sm text-muted-foreground">{t('documents_page.upload.hint')}</p>
+      <p className="text-sm text-muted-foreground">{hint ?? t('documents_page.upload.hint')}</p>
     </div>
   );
 }
 
-function refusal(problem: Problem): 'too_large' | 'unsupported_type' | 'failed' {
+export function refusal(problem: Problem): 'too_large' | 'unsupported_type' | 'failed' {
   if (problem.code === 'documents.too_large' || problem.status === 413) return 'too_large';
   if (problem.code === 'documents.unsupported_type' || problem.status === 415) return 'unsupported_type';
   return 'failed';
