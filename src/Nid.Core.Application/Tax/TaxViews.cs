@@ -66,14 +66,15 @@ public sealed record TaxPropertyView(ItemId Id, string Name, int AcquiredIn);
 /// <summary>
 /// <c>ContributionRates</c> in percent (<c>"23.5"</c>); an adult absent from it, <c>ActualExpenses</c> or <c>PerUnusedCeilings</c> keeps the default.
 /// <c>PerCeilings</c> and <c>PerCeilingsExpiring</c>: the notice's PER ceiling and the part lost on 31 December, by adult; an adult
-/// absent from <c>PerCeilings</c> has an estimated ceiling.
+/// absent from <c>PerCeilings</c> has an estimated ceiling. <c>ExemptIncomes</c>: the exempt income the reference income counts, by adult.
 /// </summary>
 public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime, IReadOnlyList<PinelCommitment> Pinel,
     string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid,
     IReadOnlyDictionary<Guid, string> ContributionRates, IReadOnlyDictionary<Guid, string> ActualExpenses,
     IReadOnlyDictionary<Guid, string> PerUnusedCeilings, string RentalDeficitCarried,
-    IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring, bool PerPooling)
+    IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring, bool PerPooling,
+    IReadOnlyDictionary<Guid, string> ExemptIncomes)
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
@@ -82,7 +83,8 @@ public sealed record TaxProfileView(
         (p.ActualExpenses ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
         (p.PerUnusedCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), Amount(p.RentalDeficitCarried),
         (p.PerCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
-        (p.PerCeilingsExpiring ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), p.PerPooling);
+        (p.PerCeilingsExpiring ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), p.PerPooling,
+        (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)));
 }
 
 /// <summary>
@@ -90,11 +92,13 @@ public sealed record TaxProfileView(
 /// the net taxable income entered, counted as it is beside the estimate from <c>SalaryGross</c>. Tax-per spec §4: <c>PerCeiling</c> the
 /// notice's ceiling, null for an estimated one; <c>PreviousYearIncome</c> last year's taxable income (the estimate's basis);
 /// <c>PerExpiring</c> the part of the ceiling lost on 31 December; <c>PerEnvelopes</c> the names of the PERs the contributions come from.
+/// <c>ExemptIncome</c>: the exempt income the reference income counts.
 /// </summary>
 public sealed record TaxDeclarantView(
     string Name, string SalaryGross, string Status, string OtherTaxable, string PerContributions, string PerUnusedCeiling,
     string? ContributionRate = null, string? ActualExpenses = null, string SalaryTaxable = "0.00",
-    string? PerCeiling = null, string PreviousYearIncome = "0.00", string PerExpiring = "0.00", IReadOnlyList<string>? PerEnvelopes = null);
+    string? PerCeiling = null, string PreviousYearIncome = "0.00", string PerExpiring = "0.00", IReadOnlyList<string>? PerEnvelopes = null,
+    string ExemptIncome = "0.00");
 
 /// <summary>What the calculation read, as the simulation sends it back once edited.</summary>
 public sealed record TaxInputsView(
@@ -108,7 +112,7 @@ public sealed record TaxInputsView(
         i.Year, i.Declarants.Select((d, n) => new TaxDeclarantView(d.Name, Amount(d.SalaryGross), Wire(d.Status), Amount(d.OtherTaxable), Amount(d.PerContributions), Amount(d.PerUnusedCeiling),
             d.ContributionRate is { } r ? Percent(r) : null, d.ActualExpenses is { } e ? Amount(e) : null, Amount(d.SalaryTaxable),
             d.PerCeiling is { } c ? Amount(c) : null, Amount(d.PreviousYearIncome), Amount(d.PerExpiring),
-            perEnvelopes is not null && n < perEnvelopes.Count ? perEnvelopes[n] : [])).ToList(),
+            perEnvelopes is not null && n < perEnvelopes.Count ? perEnvelopes[n] : [], Amount(d.ExemptIncome))).ToList(),
         i.Dependents, i.ChildrenUnder6, Amount(i.RentalGross), Amount(i.RentalInterest), Amount(i.RentalCharges),
         i.RentalRegime is { } r ? Wire(r) : null, Amount(i.CapitalIncome), Amount(i.NonTaxableIncome), Amount(i.PinelReduction),
         Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried), i.PerPooling);
@@ -134,7 +138,10 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
     public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket));
 }
 
-/// <summary>Spec §4, each step's figure as a decimal string; rates in percent (<c>"30"</c>, <c>"4.27"</c>).</summary>
+/// <summary>
+/// Spec §4, each step's figure as a decimal string; rates in percent (<c>"30"</c>, <c>"4.27"</c>). <c>ReferenceIncome</c>: the
+/// revenu fiscal de référence.
+/// </summary>
 public sealed record TaxResultView(
     int Year, int RulesYear, string Parts, IReadOnlyList<TaxDeclarantResultView> Declarants,
     string RentalRegime, string RentalTaxable, string RentalDeficitCarriedUsed, string RentalDeficit, string NetTaxableIncome,
@@ -142,7 +149,7 @@ public sealed record TaxResultView(
     string ChildcareCredit, string HomeEmploymentCredit, string NicheCapExcess,
     string IncomeTax, string CapitalFlatTax, string SocialLevies, string TotalTax,
     string MarginalRate, string? AverageRate, string NetBeforeTax, string NetAfterTax, string NetAfterTaxMonthly,
-    IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null)
+    IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00")
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -154,7 +161,7 @@ public sealed record TaxResultView(
         Amount(r.ChildcareCredit), Amount(r.HomeEmploymentCredit), Amount(r.NicheCapExcess),
         Amount(r.IncomeTax), Amount(r.CapitalFlatTax), Amount(r.SocialLevies), Amount(r.TotalTax),
         Rate(r.MarginalRate), r.AverageRate is { } a ? Rate(a) : null, Amount(r.NetBeforeTax), Amount(r.NetAfterTax), Amount(r.NetAfterTaxMonthly),
-        r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null);
+        r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null, Amount(r.ReferenceIncome));
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {

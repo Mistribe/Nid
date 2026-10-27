@@ -22440,6 +22440,8 @@ export interface components {
             /** @default 0.00 */
             perExpiring: string;
             perEnvelopes?: null | string[];
+            /** @default 0.00 */
+            exemptIncome: string;
         };
         TaxEstimateView: {
             /** Format: int32 */
@@ -22527,6 +22529,9 @@ export interface components {
             };
             /** @default false */
             perPooling: boolean;
+            exemptIncomes?: null | {
+                [key: string]: string;
+            };
         };
         TaxProfileView: {
             statuses: {
@@ -22559,6 +22564,9 @@ export interface components {
                 [key: string]: string;
             };
             perPooling: boolean;
+            exemptIncomes: {
+                [key: string]: string;
+            };
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -22599,6 +22607,8 @@ export interface components {
             warnings: string[];
             withholding: components["schemas"]["WithholdingView"];
             per?: null | components["schemas"]["TaxPerView"];
+            /** @default 0.00 */
+            referenceIncome: string;
         };
         TaxSalaryDetailView: {
             /** Format: uuid */

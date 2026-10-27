@@ -279,7 +279,8 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
             var declarant = new TaxDeclarant(adult.DisplayName, 0m, status, Sum(TaxLineCodes.OtherTaxable), Sum(TaxLineCodes.PerContribution), rate, expenses, unused,
                 Sum(TaxLineCodes.SalaryTaxable), PerCeiling: profile.PerCeilings?.TryGetValue(adult.Id.Value, out var ceiling) == true ? ceiling : null,
                 PreviousYearIncome: previousYearIncome?.GetValueOrDefault(adult.Id.Value) ?? 0m,
-                PerExpiring: profile.PerCeilingsExpiring?.GetValueOrDefault(adult.Id.Value) ?? 0m);
+                PerExpiring: profile.PerCeilingsExpiring?.GetValueOrDefault(adult.Id.Value) ?? 0m,
+                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m);
             // The profile's rate against the payslips': the notice sits on the first salary holding both figures (the adult is no item).
             if (rate is { } declared && ObservedRate(lines, adult.Id) is { } observed && Math.Abs(declared - observed) > 0.03m
                 && own.FirstOrDefault(l => l.Code == TaxLineCodes.SalaryRateGross) is { } source)
@@ -367,6 +368,7 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
                  && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried }.All(a => a is >= 0 and <= 10_000_000m)
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
+                 && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerCeilingsExpiring?.All(e => e.Value is >= 0 and <= 10_000_000m && p.PerCeilings?.TryGetValue(e.Key, out var ceiling) == true && e.Value <= ceiling) ?? true);
         return ok ? null : new Failure(TaxCodes.InvalidProfile,

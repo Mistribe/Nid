@@ -251,6 +251,39 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Contains("declarants[1].status", await refused.Content.ReadAsStringAsync());
     }
 
+    [Fact]
+    public async Task The_profiles_exempt_income_goes_into_the_reference_income_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire", app.AdultA);
+        await AddPhaseAsync(app, app.AdultA, source, "39000", "50000");
+        var adult = app.AdultA.Value.ToString();
+
+        var estimate = await PutProfileAsync(app, app.AdultA, 2025, new
+        {
+            pinel = Array.Empty<object>(), exemptIncomes = new Dictionary<string, string> { [adult] = "2500.40" },
+        });
+
+        var result = estimate.GetProperty("result");
+        var taxable = DecimalOf(result, "netTaxableIncome");
+        Assert.Equal(Math.Floor(taxable + 2_500.40m).ToString("0.00", CultureInfo.InvariantCulture), result.GetProperty("referenceIncome").GetString());
+        Assert.Equal("2500.40", estimate.GetProperty("profile").GetProperty("exemptIncomes").GetProperty(adult).GetString());
+        Assert.Equal("2500.40", estimate.GetProperty("inputs").GetProperty("declarants")[IndexOf(estimate, app.AdultA)].GetProperty("exemptIncome").GetString());
+
+        var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025,
+            declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "50000", perContributions = "0", exemptIncome = "1000" } },
+        });
+        Assert.Equal("46000.00", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync()).RootElement.GetProperty("referenceIncome").GetString());
+
+        var negative = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new
+        {
+            pinel = Array.Empty<object>(), exemptIncomes = new Dictionary<string, string> { [adult] = "-1" },
+        });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
+    }
+
     private static async Task ContributeAsync(NidApp app, PersonId owner, string envelope, string on, string amount)
         => (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/flows",
             new { occurredOn = on, kind = "contribution", amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();

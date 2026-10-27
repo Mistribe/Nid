@@ -449,4 +449,35 @@ public class TaxCalculatorTests
         Assert.Equal(275_000m, Pinel.Base(320_000m, 50m));
         Assert.Equal(300_000m, Pinel.Base(320_000m, null));
     }
+
+    [Fact]
+    public void The_reference_income_is_the_net_taxable_income_alone()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(50_000m)]));
+
+        Assert.Equal(45_000m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void The_reference_income_adds_back_the_per_deduction()
+    {
+        // Art. 1417 IV CGI: the PER deduction lowers the taxable income, not the reference income.
+        var result = TaxCalculator.Compute(Inputs([Other(50_000m) with { PerContributions = 3_000m, PerCeiling = 4_000m }]));
+
+        Assert.Equal(42_000m, result.NetTaxableIncome);
+        Assert.Equal(45_000m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void The_reference_income_adds_flat_taxed_capital_and_exempt_income_not_benefits()
+    {
+        var inputs = Inputs([Other(50_000m) with { ExemptIncome = 2_400.60m }, Other(0m) with { ExemptIncome = 500m }])
+            with { CapitalIncome = 1_200m, NonTaxableIncome = 3_000m };
+
+        var result = TaxCalculator.Compute(inputs);
+
+        Assert.Equal(45_000m, result.NetTaxableIncome);
+        // 45 000 + 1 200 of dividends and interest + 2 900.60 of exempt overtime, to the euro below; family benefits stay out.
+        Assert.Equal(49_100m, result.ReferenceIncome);
+    }
 }

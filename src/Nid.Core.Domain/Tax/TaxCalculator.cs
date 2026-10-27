@@ -11,12 +11,13 @@ public enum RentalRegime { Micro, Real }
 /// added to an estimated ceiling only. <c>SalaryTaxable</c>: the net taxable income (« net imposable ») entered on the payslips,
 /// counted as it is beside the estimate from <c>SalaryGross</c>. Spec §4.2: <c>PerCeiling</c> is the avis d'imposition's PER
 /// ceiling, already total; null, the ceiling is estimated on <c>PreviousYearIncome</c> (last year's taxable income). <c>PerExpiring</c>:
-/// the part of the ceiling lost on 31 December.
+/// the part of the ceiling lost on 31 December. <c>ExemptIncome</c>: the exempt income the reference income counts (overtime, the
+/// value-sharing bonus), outside the tax itself.
 /// </summary>
 public sealed record TaxDeclarant(
     string Name, decimal SalaryGross, EmploymentStatus Status, decimal OtherTaxable, decimal PerContributions,
     decimal? ContributionRate = null, decimal? ActualExpenses = null, decimal PerUnusedCeiling = 0m, decimal SalaryTaxable = 0m,
-    decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m)
+    decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m, decimal ExemptIncome = 0m)
 {
     public decimal EffectiveContributionRate => ContributionRate ?? TaxRules.ContributionRate(Status);
 }
@@ -62,7 +63,9 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// <summary>
 /// Spec §4, each step's figure. <c>IncomeTax</c> is negative for a refund; <c>AverageRate</c> null without taxable income.
 /// <c>RentalTaxable</c> is after <c>RentalDeficitCarriedUsed</c>, the part of the earlier deficits the year's rents absorb.
-/// <c>Per</c> is always set by <see cref="TaxCalculator.Compute"/> (nullable only for the record's default).
+/// <c>Per</c> is always set by <see cref="TaxCalculator.Compute"/> (nullable only for the record's default). <c>ReferenceIncome</c>:
+/// the revenu fiscal de référence (art. 1417 IV CGI), the net taxable income plus the PER deduction, the flat-taxed capital income
+/// and the exempt income, to the euro below.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -71,7 +74,7 @@ public sealed record TaxResult(
     decimal ChildcareCredit, decimal HomeEmploymentCredit, decimal NicheCapExcess,
     decimal IncomeTax, decimal CapitalFlatTax, decimal SocialLevies, decimal TotalTax,
     decimal MarginalRate, decimal? AverageRate, decimal NetBeforeTax, decimal NetAfterTax, decimal NetAfterTaxMonthly,
-    IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null);
+    IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -196,6 +199,8 @@ public static class TaxCalculator
             taxSaved = Math.Max(0m, Compute(withoutPer, withTaxSaved: false).IncomeTax - incomeTax);
         }
         var perHousehold = new PerHousehold(pooled, perRemaining, taxSaved, RoomInBracket(rules, taxable, parts));
+        var reference = Math.Floor(taxable + declarants.Sum(d => d.PerDeducted) + Math.Max(0m, inputs.CapitalIncome)
+            + inputs.Declarants.Sum(d => Math.Max(0m, d.ExemptIncome)));
         return new TaxResult(
             inputs.Year, rules.RulesYear, parts, declarants, regime, Euros(rentalTaxable), Euros(carriedUsed), Euros(deficit), taxable,
             Euros(grossTax), familyCapped, Euros(decote), Euros(pinel), Euros(donation), Euros(childcare), Euros(home), Euros(excess),
@@ -203,7 +208,7 @@ public static class TaxCalculator
             taxable == 0m ? null : Math.Round(Math.Max(0m, incomeTax) / taxable, 4, MidpointRounding.AwayFromZero),
             Euros(netBefore), Euros(netAfter), Euros(netAfter / 12), warnings,
             Withhold(rules, declarants, rentalTaxable, grossTax - decote, pinel + donation + childcare + home - excess, incomeTax),
-            perHousehold);
+            perHousehold, reference);
     }
 
     /// <summary>

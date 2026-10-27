@@ -36133,7 +36133,8 @@
           "perUnusedCeiling",
           "salaryTaxable",
           "previousYearIncome",
-          "perExpiring"
+          "perExpiring",
+          "exemptIncome"
         ],
         "type": "object",
         "properties": {
@@ -36193,6 +36194,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "exemptIncome": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -36518,6 +36523,15 @@
           "perPooling": {
             "type": "boolean",
             "default": false
+          },
+          "exemptIncomes": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -36536,7 +36550,8 @@
           "rentalDeficitCarried",
           "perCeilings",
           "perCeilingsExpiring",
-          "perPooling"
+          "perPooling",
+          "exemptIncomes"
         ],
         "type": "object",
         "properties": {
@@ -36616,6 +36631,12 @@
           },
           "perPooling": {
             "type": "boolean"
+          },
+          "exemptIncomes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -36664,6 +36685,7 @@
           "socialLevies",
           "totalTax",
           "marginalRate",
+          "referenceIncome",
           "netBeforeTax",
           "netAfterTax",
           "netAfterTaxMonthly",
@@ -36776,6 +36798,10 @@
                 "$ref": "#/components/schemas/TaxPerView"
               }
             ]
+          },
+          "referenceIncome": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },

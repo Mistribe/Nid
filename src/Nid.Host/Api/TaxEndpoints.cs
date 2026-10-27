@@ -57,7 +57,8 @@ public static class TaxEndpoints
         string? ChildcareOutsideHome, string? HomeEmployment, string? Donations, string? DonationsAid,
         IReadOnlyDictionary<Guid, string>? ContributionRates = null, IReadOnlyDictionary<Guid, string>? ActualExpenses = null,
         IReadOnlyDictionary<Guid, string>? PerUnusedCeilings = null, string? RentalDeficitCarried = null,
-        IReadOnlyDictionary<Guid, string>? PerCeilings = null, IReadOnlyDictionary<Guid, string>? PerCeilingsExpiring = null, bool PerPooling = false)
+        IReadOnlyDictionary<Guid, string>? PerCeilings = null, IReadOnlyDictionary<Guid, string>? PerCeilingsExpiring = null, bool PerPooling = false,
+        IReadOnlyDictionary<Guid, string>? ExemptIncomes = null)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
@@ -66,6 +67,7 @@ public static class TaxEndpoints
             var unused = (PerUnusedCeilings ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Amount(reader, x.Value, $"perUnusedCeilings.{x.Key}"));
             var ceilings = (PerCeilings ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Amount(reader, x.Value, $"perCeilings.{x.Key}"));
             var expiring = (PerCeilingsExpiring ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Amount(reader, x.Value, $"perCeilingsExpiring.{x.Key}"));
+            var exempt = (ExemptIncomes ?? new Dictionary<Guid, string>()).ToDictionary(x => x.Key, x => Amount(reader, x.Value, $"exemptIncomes.{x.Key}"));
             var carried = Amount(reader, RentalDeficitCarried, "rentalDeficitCarried");
             var childcare = Amount(reader, ChildcareOutsideHome, "childcareOutsideHome");
             var home = Amount(reader, HomeEmployment, "homeEmployment");
@@ -73,7 +75,7 @@ public static class TaxEndpoints
             var aid = Amount(reader, DonationsAid, "donationsAid");
             return reader.Ok
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
-                    rates, expenses, unused, carried, ceilings, expiring, PerPooling)
+                    rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt)
                 : null;
         }
     }
@@ -94,7 +96,8 @@ public static class TaxEndpoints
                 Amount(reader, d.SalaryTaxable, $"declarants[{i}].salaryTaxable"),
                 d.PerCeiling is null ? null : Amount(reader, d.PerCeiling, $"declarants[{i}].perCeiling"),
                 Amount(reader, d.PreviousYearIncome, $"declarants[{i}].previousYearIncome"),
-                Amount(reader, d.PerExpiring, $"declarants[{i}].perExpiring")));
+                Amount(reader, d.PerExpiring, $"declarants[{i}].perExpiring"),
+                Amount(reader, d.ExemptIncome, $"declarants[{i}].exemptIncome")));
         }
         RentalRegime? regime = null;
         if (body.RentalRegime is not null)

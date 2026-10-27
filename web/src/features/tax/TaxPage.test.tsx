@@ -22,6 +22,8 @@ describe('TaxPage', () => {
     expect(screen.getByText(/celui des revenus 2025 est repris/)).toBeInTheDocument();
     const table = screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' });
     expect(within(table).getByRole('row', { name: /Crédit garde hors du domicile/ })).toHaveTextContent('3 000,00 €');
+    expect(within(table).getByRole('row', { name: /^Revenu fiscal de référence/ })).toHaveTextContent('66 407,00 €');
+    expect(screen.getByText(/se compare à l’avis d’imposition de la même année de revenus/)).toBeInTheDocument();
     const people = screen.getByRole('table', { name: 'Revenus par déclarant' });
     expect(within(people).getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
     expect(within(people).getByRole('row', { name: /Abattement de 10 %/ })).toHaveTextContent('4 042,46 €');
@@ -169,12 +171,16 @@ describe('TaxPage', () => {
     await user.type(home, '9000');
     await user.type(screen.getByLabelText('Taux de cotisations de Alice (%)'), '23,5');
     await user.type(screen.getByLabelText('Plafonds PER non utilisés de Alice'), '4000');
+    expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Revenus exonérés \(heures supplémentaires/ }));
+    await user.type(screen.getByLabelText('Revenus exonérés de Alice'), '2400,50');
     await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
 
     expect(await screen.findByText('Profil enregistré.')).toBeInTheDocument();
     expect(sent[0]).toMatchObject({ year: '2026', body: {
       homeEmployment: '9000', childrenUnder6: 2, dependents: null, statuses: { [ADULT]: 'non_executive' },
       contributionRates: { [ADULT]: '23.5' }, actualExpenses: {}, perUnusedCeilings: { [ADULT]: '4000' },
+      exemptIncomes: { [ADULT]: '2400.50' },
     } });
   });
 

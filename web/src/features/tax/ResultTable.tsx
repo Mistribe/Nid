@@ -36,6 +36,7 @@ export function ResultTable({ columns, label, declarants = true }: {
       { title: t('tax.row.rental'), cell: (r) => t('tax.row.rental_value', { amount: eur(r.rentalTaxable), regime: regimeText(t, r.rentalRegime) }), amount: (r) => r.rentalTaxable },
       money(t('tax.row.deficit'), (r) => r.rentalDeficit),
       money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true),
+      money(t('tax.row.reference_income'), (r) => r.referenceIncome),
     ] },
     { title: t('tax.group.income_tax'), rows: [
       { title: t('tax.row.parts'), cell: (r) => r.parts },
@@ -90,6 +91,7 @@ export function ResultTable({ columns, label, declarants = true }: {
           ))}
         </TableBody>
       </Table>
+      <p className="text-xs text-muted-foreground">{t('tax.row.reference_income_note')}</p>
       {folded ? (
         <Button variant="link" className="h-auto p-0" aria-expanded={showZeros} onClick={() => setShowZeros(!showZeros)}>
           {showZeros ? t('tax.zeros.hide') : t('tax.zeros.show', { count: folded })}
