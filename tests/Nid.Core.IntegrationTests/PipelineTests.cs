@@ -33,13 +33,13 @@ public class PipelineTests(PostgresFixture postgres)
         await using var scope = provider.CreateAsyncScope();
 
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<CreateDependentCommand, PersonInfo>(scope));
         Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(OutputGuardBehavior<,>)],
+            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>)],
             ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
     }
 

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
 import { todayIso } from '../subscriptions/today';
+import { SourceLink } from '../documents/SourceLink';
 import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from './api';
 import { ValueChart } from './chart/ValueChart';
 import { PeriodPerformance } from './period/PeriodPerformance';
@@ -31,11 +32,13 @@ import { directionOf, flowKindText, kindText } from './format';
 import { percent } from './holdings/holdingFormat';
 import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
+import { ItemDocuments } from '@/features/documents/ItemDocuments';
+import '@/locales/documents';
 
 // The « Supports » tab and its dialogs load with the tab: most envelopes have no holdings.
 const HoldingsTab = lazy(() => import('./holdings/HoldingsTab'));
 
-const TABS = ['overview', 'values', 'flows', 'holdings', 'settings'] as const;
+const TABS = ['overview', 'values', 'flows', 'holdings', 'documents', 'settings'] as const;
 const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
   [...rows].sort((a, b) => (date(a) < date(b) ? 1 : date(a) > date(b) ? -1 : 0));
 
@@ -301,7 +304,7 @@ export function EnvelopeDetailPage() {
                     <TableRow key={v.id}>
                       <TableCell><LocalDate value={v.asOf} /></TableCell>
                       <TableCell><Money value={v.amount} tabular /></TableCell>
-                      <TableCell className="whitespace-normal">{v.note}</TableCell>
+                      <TableCell className="whitespace-normal">{v.note}<SourceLink documentId={v.documentId} /></TableCell>
                       {writable ? (
                         <TableCell><RowActions kind="value" envelope={detail} item={v} onEdit={() => { clearValues(); setValueDialog({ editing: v }); }} onDeleteStarted={clearValues} onDeleted={announceValues} /></TableCell>
                       ) : null}
@@ -334,7 +337,7 @@ export function EnvelopeDetailPage() {
                       <TableCell><LocalDate value={f.occurredOn} /></TableCell>
                       <TableCell>{flowKindText(t, f)}</TableCell>
                       <TableCell><Money value={f.amount} tabular /></TableCell>
-                      <TableCell className="whitespace-normal">{f.note}</TableCell>
+                      <TableCell className="whitespace-normal">{f.note}<SourceLink documentId={f.documentId} /></TableCell>
                       {writable ? (
                         <TableCell><RowActions kind="flow" envelope={detail} item={f} onEdit={() => { clearFlows(); setFlowDialog({ editing: f }); }} onDeleteStarted={clearFlows} onDeleted={announceFlows} /></TableCell>
                       ) : null}
@@ -353,6 +356,7 @@ export function EnvelopeDetailPage() {
             </Suspense>
           ),
         },
+        { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={detail.id} canWrite={detail.canWrite} defaultRole="statement" /> },
         ...(writable ? [{
           id: 'settings' as const, label: t('envelope.tab.settings'),
           content: (

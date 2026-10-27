@@ -6,6 +6,7 @@ import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SourceLink } from '../../documents/SourceLink';
 import { money } from '../../loans/format';
 import { FLOW, invalidateProperties, type PropertyDetail, type PropertyFlow } from '../api';
 import { categoryText, kindText } from '../format';
@@ -53,6 +54,7 @@ export function FlowsSection({ property }: { property: PropertyDetail }) {
               <TableCell className="text-right tabular-nums">{money(property.currency, f.amount)}</TableCell>
               <TableCell className="whitespace-normal">
                 {f.note}
+                <SourceLink documentId={f.documentId} />
                 {/* Readers get the receipt too: the link is in the row, not in the writer's menu. */}
                 {f.kind === 'income' && f.category === 'rent' && receiptMonth(f.occurredOn.slice(0, 7)) ? (
                   <Link to="/properties/$id/receipt" params={{ id: property.id }} search={{ month: f.occurredOn.slice(0, 7) }} className="ml-2 text-sm underline">

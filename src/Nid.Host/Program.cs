@@ -36,6 +36,7 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(AdminBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ScopeBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
 // 1F4: `nid admin …` runs one use case and stops (AdminCli).

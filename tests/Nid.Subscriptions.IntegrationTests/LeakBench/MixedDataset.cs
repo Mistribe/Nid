@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Documents.Application;
@@ -228,6 +229,17 @@ public sealed class MixedDataset
                 throw new InvalidOperationException($"Linking {shared}'s document to {hidden} failed: {refused.Code}");
         }
 
+        // #108: each adult's shared envelope and property twins cite that adult's private document on every value and flow, as an approved
+        // proposal would: the other adult reads the facts, never the document, so its id is in no read of theirs (ForbiddenDocument).
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            foreach (var (shared, hidden) in new[] { ("S-A", "P-A"), ("S-B", "P-B") })
+            {
+                var twins = new[] { envelopes[shared].Value, properties[shared].Value };
+                var document = documents[items[hidden]];
+                await core.Valuations.Where(v => twins.Contains(v.ItemId)).ExecuteUpdateAsync(s => s.SetProperty(v => v.DocumentId, document));
+                await core.Flows.Where(f => twins.Contains(f.ItemId)).ExecuteUpdateAsync(s => s.SetProperty(f => f.DocumentId, document));
+            }
+
         var privatePhases = new Dictionary<string, Guid>();
         var privateOneOffs = new Dictionary<string, Guid>();
         foreach (var (hidden, owner) in new[] { ("P-A", app.AdultA), ("P-B", app.AdultB) })
@@ -375,6 +387,9 @@ public sealed class MixedDataset
                            || (scope == VisibilityScope.Me && r.Owners.Contains(NameOf(actor))))
             .Select(r => (of ?? Items)[r.Name])
             .ToHashSet();
+
+    /// <summary>The private document of the adult who is not <paramref name="actor"/>, cited by that adult's shared envelope and property twins.</summary>
+    public Guid ForbiddenDocument(PersonId actor) => Documents[Items[actor == App.AdultA ? "P-B" : "P-A"]];
 
     /// <summary>The label of the private item of the adult who is not <paramref name="actor"/>.</summary>
     public string ForbiddenLabel(PersonId actor) => actor == App.AdultA ? PrivateLabelB : PrivateLabelA;

@@ -1,3 +1,4 @@
+import { link, list, summary } from '../documents/testData';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -381,5 +382,17 @@ describe('IncomeSourceDetailPage', () => {
     expect(within(article).queryAllByRole('button').map((b) => b.textContent)).toEqual(['Afficher en tableau']);
     expect(within(article).queryByRole('tab', { name: 'Réglages' })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('has a documents tab before the settings, listing the documents anchored on the source', async () => {
+    serve(detail());
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(list([summary({ title: 'Pièce du dossier', links: [link({ targetId: SALARY, anchorItemId: SALARY })] })]))));
+    const { user } = await renderApp(`/income/${SALARY}`);
+
+    await screen.findAllByRole('tab');
+    const names = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    expect(names.indexOf('Documents')).toBe(names.indexOf('Réglages') - 1);
+    await user.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
   });
 });

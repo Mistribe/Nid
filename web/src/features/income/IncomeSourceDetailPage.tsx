@@ -34,8 +34,10 @@ import { OneOffsSection } from './oneoffs/OneOffsSection';
 import { Section } from '@/components/page/Section';
 import { SettingsForm } from './settings/SettingsForm';
 import '@/locales/income';
+import { ItemDocuments } from '@/features/documents/ItemDocuments';
+import '@/locales/documents';
 
-const TABS = ['overview', 'history', 'oneoffs', 'settings'] as const;
+const TABS = ['overview', 'history', 'oneoffs', 'documents', 'settings'] as const;
 
 /**
  * Income dashboard §4: a source's key figures under the title, its gap warnings, then the overview (evolution, last
@@ -219,6 +221,7 @@ export function IncomeSourceDetailPage() {
         },
         { id: 'history', label: t('income_detail.tab.history'), content: <HistoryTab source={source} /> },
         { id: 'oneoffs', label: t('income_detail.tab.oneoffs'), content: <OneOffsSection source={source} writable={source.canWrite} /> },
+        { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={source.id} canWrite={source.canWrite} defaultRole="payslip" /> },
         ...(writable ? [{
           id: 'settings' as const, label: t('income_detail.tab.settings'),
           content: (

@@ -36,3 +36,21 @@ public interface IExposesItems
 {
     IEnumerable<ItemId> ExposedItems();
 }
+
+/// <summary>
+/// #108: a response that carries document ids (a fact's source). The host's document mask nulls every id the actor cannot read; a
+/// response that carries one without implementing this would show the id of a document its reader cannot open.
+/// </summary>
+public interface IExposesDocuments
+{
+    IEnumerable<Guid> ExposedDocuments();
+
+    /// The same response with every exposed id not in readable replaced by null.
+    object WithReadableDocuments(IReadOnlySet<Guid> readable);
+}
+
+public static class DocumentMask
+{
+    /// <summary>The id when the reader reads that document, else null.</summary>
+    public static Guid? Keep(this IReadOnlySet<Guid> readable, Guid? id) => id is { } d && readable.Contains(d) ? d : null;
+}

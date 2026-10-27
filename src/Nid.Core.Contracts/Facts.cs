@@ -25,7 +25,8 @@ public sealed record ImportMark(string Ref, string Hash, PersonId ImportedBy);
 
 public sealed record NewValuation(ItemId Item, LocalDate AsOf, Money Value, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null);
 
-public sealed record Valuation(Guid Id, ItemId Item, LocalDate AsOf, Money Value, string? Note);
+/// <summary><see cref="DocumentId"/>: the source an applied proposal cited (#172); shown only to a reader of it (<see cref="IExposesDocuments"/>).</summary>
+public sealed record Valuation(Guid Id, ItemId Item, LocalDate AsOf, Money Value, string? Note, Guid? DocumentId = null);
 
 /// <summary><see cref="Value"/> is null when the item has no value at that date: "unknown", never zero.</summary>
 public sealed record LatestValuation(Valuation? Value);
@@ -36,7 +37,7 @@ public sealed record NewFlow(
 
 public sealed record Flow(
     Guid Id, ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,
-    string? Category, string? ExternalRef, string? Note);
+    string? Category, string? ExternalRef, string? Note, Guid? DocumentId = null);
 
 /// <summary>
 /// 2A spec §4. Every call is made as the ambient actor, who must be a person: writes need write access to the item,

@@ -1,3 +1,4 @@
+import { link, list, summary } from '../documents/testData';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -246,5 +247,28 @@ describe('PropertyDetailPage', () => {
 
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Retour aux biens' })).toHaveAttribute('href', '/properties');
+  });
+
+  it('has a documents tab before the settings, listing the documents anchored on the property', async () => {
+    serve();
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(list([summary({ title: 'Pièce du dossier', links: [link({ targetId: PROPERTY, anchorItemId: PROPERTY })] })]))));
+    const { user } = await renderApp(`/properties/${PROPERTY}`);
+
+    await screen.findAllByRole('tab');
+    const names = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    expect(names.indexOf('Documents')).toBe(names.indexOf('Réglages') - 1);
+    await user.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Déposer' })).toBeInTheDocument();
+  });
+
+  it('shows a reader the documents without « Déposer »', async () => {
+    serve(propertyDetail({ canWrite: false, visibility: 'shared' }));
+    const { user } = await renderApp(`/properties/${PROPERTY}`);
+
+    await heading();
+    await user.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect(await screen.findByText('Aucun document.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Déposer' })).not.toBeInTheDocument();
   });
 });

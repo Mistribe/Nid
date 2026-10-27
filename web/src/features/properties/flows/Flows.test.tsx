@@ -109,6 +109,16 @@ describe('flows', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows the source document on the expense that has one only', async () => {
+    const base = propertyDetail();
+    serve({ ...base, flows: [{ ...base.flows[0]!, documentId: 'd1' }, base.flows[1]!] });
+    await renderApp(PAGE);
+
+    const [tax, works] = await rows();
+    expect(within(works!).getByRole('link', { name: 'Source du chiffre' })).toHaveAttribute('href', '/documents/d1');
+    expect(within(tax!).queryByRole('link', { name: 'Source du chiffre' })).not.toBeInTheDocument();
+  });
+
   it('names each row menu after its category when two flows share a date', async () => {
     const flow = (id: string, category: string): PropertyFlow =>
       ({ id, occurredOn: '2025-10-15', kind: 'expense', amount: '10.00', category, note: null });

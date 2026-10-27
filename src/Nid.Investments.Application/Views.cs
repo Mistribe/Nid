@@ -33,16 +33,24 @@ public sealed record EnvelopeList(IReadOnlyList<EnvelopeSummary> Items) : IExpos
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }
 
-public sealed record ValuationView(Guid Id, LocalDate AsOf, AmountView Amount, string? Note);
+public sealed record ValuationView(Guid Id, LocalDate AsOf, AmountView Amount, string? Note, Guid? DocumentId = null);
 
-public sealed record FlowView(Guid Id, LocalDate OccurredOn, string Kind, AmountView Amount, string? Category, string? ExternalRef, string? Note);
+public sealed record FlowView(Guid Id, LocalDate OccurredOn, string Kind, AmountView Amount, string? Category, string? ExternalRef, string? Note, Guid? DocumentId = null);
 
 public sealed record EnvelopeDetail(
     ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite,
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string ValuationCadence, int? StaleAfterDays, string? Note,
-    decimal? UcShareFloorPct, AmountView? PremiumsBefore2017, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows) : IExposesItems
+    decimal? UcShareFloorPct, AmountView? PremiumsBefore2017, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows) : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
+
+    public IEnumerable<Guid> ExposedDocuments() => Valuations.Select(v => v.DocumentId).Concat(Flows.Select(f => f.DocumentId)).OfType<Guid>();
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with
+    {
+        Valuations = Valuations.Select(v => v with { DocumentId = readable.Keep(v.DocumentId) }).ToList(),
+        Flows = Flows.Select(f => f with { DocumentId = readable.Keep(f.DocumentId) }).ToList(),
+    };
 }
 
 public sealed record PeriodView(

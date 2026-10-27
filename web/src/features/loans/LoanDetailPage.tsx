@@ -23,13 +23,15 @@ import { RepaymentsSection } from './repayments/RepaymentsSection';
 import { SettingsForm } from './settings/SettingsForm';
 import { SimulationSection } from './simulation/SimulationSection';
 import '@/locales/loans';
+import { ItemDocuments } from '@/features/documents/ItemDocuments';
+import '@/locales/documents';
 
 // Loaded on demand, as the dashboard's charts: Recharts stays out of the detail's own chunk.
 const ScheduleChart = lazy(() => import('./chart/ScheduleChart').then((m) => ({ default: m.ScheduleChart })));
 // 3F2: the bank's table, its own chunk too: the paste form and its preview load with the section only.
 const BankScheduleSection = lazy(() => import('./bank/BankScheduleSection').then((m) => ({ default: m.BankScheduleSection })));
 
-const TABS = ['overview', 'schedule', 'operations', 'contract'] as const;
+const TABS = ['overview', 'schedule', 'operations', 'contract', 'documents'] as const;
 
 /**
  * 3B1 design §7, 3B2, redesign §5.2–5.3: a loan as a tabbed page. Under the title, its figures today; the overview adds
@@ -145,6 +147,7 @@ export function LoanDetailPage() {
             </>
           ),
         },
+        { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={loan.id} canWrite={loan.canWrite} defaultRole="loan_offer" /> },
       ]} />
     </article>
   );

@@ -159,8 +159,8 @@ public sealed class GetEnvelopeHandler(
             e.Institution, e.AccountHint, e.OpenedOn, EnvelopeWire.Of(e.Cadence), e.StaleAfterDays, e.Note, e.UcShareFloorPct,
             e.PremiumsBefore2017 is { } premiums && Money.Create(premiums, f.Currency).TryGetValue(out var money) ? AmountView.From(money) : null,
             FiguresView.From(figures),
-            f.Values.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, AmountView.From(v.Value), v.Note)).ToList(),
-            f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note)).ToList()));
+            f.Values.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, AmountView.From(v.Value), v.Note, v.DocumentId)).ToList(),
+            f.Flows.Select(x => new FlowView(x.Id, x.OccurredOn, EnvelopeWire.FlowWire(x.Kind), AmountView.From(x.Amount), x.Category, x.ExternalRef, x.Note, x.DocumentId)).ToList()));
     }
 }
 

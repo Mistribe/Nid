@@ -19203,6 +19203,8 @@ export interface components {
             targetKind: string;
             /** Format: uuid */
             targetId: string;
+            /** Format: uuid */
+            anchorItemId?: null | string;
             role: string;
             label: string;
             canWrite: boolean;
@@ -19566,6 +19568,8 @@ export interface components {
             category?: null | string;
             externalRef?: null | string;
             note?: null | string;
+            /** Format: uuid */
+            documentId?: null | string;
         };
         FundingCandidateView: {
             /** Format: uuid */
@@ -21368,6 +21372,8 @@ export interface components {
             amount: string;
             category?: null | string;
             note?: null | string;
+            /** Format: uuid */
+            documentId?: null | string;
         };
         PropertyList: {
             items: components["schemas"]["PropertySummary"][];
@@ -21646,6 +21652,8 @@ export interface components {
             asOf: string;
             amount: string;
             note?: null | string;
+            /** Format: uuid */
+            documentId?: null | string;
         };
         PropertyWarningView: {
             code: string;
@@ -22706,6 +22714,8 @@ export interface components {
             asOf: string;
             amount: components["schemas"]["AmountView"];
             note?: null | string;
+            /** Format: uuid */
+            documentId?: null | string;
         };
         VersionView: {
             version: string;

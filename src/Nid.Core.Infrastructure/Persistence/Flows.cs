@@ -195,7 +195,7 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
     {
         if (!Currency.TryCreate(row.Currency.Trim(), out var currency) || !Money.Create(row.Amount, currency).TryGetValue(out var amount))
             throw new InvalidOperationException("A stored flow has an invalid amount or currency.");
-        return new Flow(row.Id, new ItemId(row.ItemId), row.OccurredOn, Kind(row.Kind), amount, row.Category, row.ExternalRef, row.Note);
+        return new Flow(row.Id, new ItemId(row.ItemId), row.OccurredOn, Kind(row.Kind), amount, row.Category, row.ExternalRef, row.Note, row.DocumentId);
     }
 
     private static Failure FailureOf<T>(Result<T> result) where T : notnull

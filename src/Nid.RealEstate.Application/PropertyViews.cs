@@ -20,9 +20,9 @@ public sealed record PropertyList(IReadOnlyList<PropertySummary> Items) : IExpos
 public sealed record PropertyOwnerView(Guid PersonId, int ShareBp);
 
 /// <summary>An estimate, under an envelope's member names (precision 1).</summary>
-public sealed record PropertyValuationView(Guid Id, LocalDate AsOf, string Amount, string? Note);
+public sealed record PropertyValuationView(Guid Id, LocalDate AsOf, string Amount, string? Note, Guid? DocumentId = null);
 
-public sealed record PropertyFlowView(Guid Id, LocalDate OccurredOn, string Kind, string Amount, string? Category, string? Note);
+public sealed record PropertyFlowView(Guid Id, LocalDate OccurredOn, string Kind, string Amount, string? Category, string? Note, Guid? DocumentId = null);
 
 /// <summary>A planned cost's period, <c>{ count, unit }</c> as the body sends it (<c>month</c> or <c>year</c>).</summary>
 public sealed record PropertyEveryView(int Count, string Unit);
@@ -63,10 +63,18 @@ public sealed record PropertyDetail(
     string? LocationLabel, string ValuationCadence, int? StaleAfterDays, LocalDate? RentalStartsOn, string? Note, string? EnergyClass, string? PostalAddress, IReadOnlyList<string> ReceiptMonths,
     uint Version, PropertyFiguresView Figures, IReadOnlyList<PropertyWarningView> Warnings, IReadOnlyList<PropertyValuationView> Valuations,
     IReadOnlyList<PropertyFlowView> Flows, IReadOnlyList<PropertyRecurringCostView> RecurringCosts, IReadOnlyList<PropertyTenancyView> Tenancies,
-    IReadOnlyList<PropertyLoanView> Loans, bool CanWrite) : IExposesItems
+    IReadOnlyList<PropertyLoanView> Loans, bool CanWrite) : IExposesItems, IExposesDocuments
 {
     /// <summary>The property and its readable linked loans; every warning's loan is one of them.</summary>
     public IEnumerable<ItemId> ExposedItems() => [Id, .. Loans.Select(l => l.Id)];
+
+    public IEnumerable<Guid> ExposedDocuments() => Valuations.Select(v => v.DocumentId).Concat(Flows.Select(f => f.DocumentId)).OfType<Guid>();
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with
+    {
+        Valuations = Valuations.Select(v => v with { DocumentId = readable.Keep(v.DocumentId) }).ToList(),
+        Flows = Flows.Select(f => f with { DocumentId = readable.Keep(f.DocumentId) }).ToList(),
+    };
 }
 
 /// <summary>Pure builders of the views; every amount written once, two decimals, invariant (precision 7).</summary>
@@ -93,8 +101,8 @@ internal static class PropertyViews
                 Amount(f.Rental.Arrears), f.Rental.VacantDays, Fraction(f.Rental.VacancyRate), Fraction(f.Rental.GrossYield),
                 Fraction(f.Rental.NetYieldBeforeTax)),
             f.Warnings.Select(w => new PropertyWarningView(w.Code, w.LoanId)).ToList(),
-            read.Values.OrderBy(v => v.AsOf).Select(v => new PropertyValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note)).ToList(),
-            read.Flows.Select(x => new PropertyFlowView(x.Id, x.OccurredOn, LoanWire.Of(x.Kind), Amount(x.Amount.Amount), x.Category, x.Note)).ToList(),
+            read.Values.OrderBy(v => v.AsOf).Select(v => new PropertyValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note, v.DocumentId)).ToList(),
+            read.Flows.Select(x => new PropertyFlowView(x.Id, x.OccurredOn, LoanWire.Of(x.Kind), Amount(x.Amount.Amount), x.Category, x.Note, x.DocumentId)).ToList(),
             property.Costs.Select(c => new PropertyRecurringCostView(c.Id, c.Version, c.Cost.Category, Amount(c.Cost.Amount),
                 new PropertyEveryView(c.Cost.Every.Count, LoanWire.Of(c.Cost.Every.Unit)), c.Cost.StartsOn, c.Cost.EndsOn, c.Cost.Note,
                 Amount(PropertyMath.MonthlyEquivalent(c.Cost)), PropertyMath.NextDueOn(c.Cost, today))).ToList(),

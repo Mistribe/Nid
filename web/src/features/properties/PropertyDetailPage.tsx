@@ -23,8 +23,10 @@ import { ValuationDialog } from './valuations/ValuationForm';
 import { ValuationsSection } from './valuations/ValuationsSection';
 import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/properties';
+import { ItemDocuments } from '@/features/documents/ItemDocuments';
+import '@/locales/documents';
 
-const TABS = ['overview', 'rental', 'valuations', 'expenses', 'settings'] as const;
+const TABS = ['overview', 'rental', 'valuations', 'expenses', 'documents', 'settings'] as const;
 
 /**
  * 3D1 design §6, redesign §5.2–5.3: a property as a tabbed page. Under the title, its figures today (and the rental ones
@@ -112,6 +114,7 @@ export function PropertyDetailPage() {
         { id: 'rental', label: t('property_detail.tab.rental'), content: <RentalSection property={property} /> },
         { id: 'valuations', label: t('property_detail.tab.valuations'), content: <ValuationsSection property={property} /> },
         { id: 'expenses', label: t('property_detail.tab.expenses'), content: <><FlowsSection property={property} /><CostsSection property={property} /></> },
+        { id: 'documents' as const, label: t('documents_item.title'), content: <ItemDocuments itemId={property.id} canWrite={property.canWrite} defaultRole="deed" /> },
         ...(property.canWrite ? [{ id: 'settings' as const, label: t('property_detail.tab.settings'), content: <SettingsSection property={property} /> }] : []),
       ]} />
     </article>

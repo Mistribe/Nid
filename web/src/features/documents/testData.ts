@@ -4,7 +4,7 @@ export const DOC = '0192f0aa-0000-7000-8000-00000000d001';
 export const ITEM = '0192f0aa-0000-7000-8000-00000000e001';
 
 export const link = (over: Partial<DocumentLink> = {}): DocumentLink => ({
-  targetKind: 'core.item', targetId: ITEM, role: 'lease', label: 'Appartement Lyon', canWrite: true, ...over,
+  targetKind: 'core.item', targetId: ITEM, anchorItemId: ITEM, role: 'lease', label: 'Appartement Lyon', canWrite: true, ...over,
 });
 
 export const summary = (over: Partial<DocumentSummary> = {}): DocumentSummary => ({

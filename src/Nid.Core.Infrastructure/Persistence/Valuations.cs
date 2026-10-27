@@ -154,7 +154,7 @@ public sealed class Valuations(CoreDbContext db, FactGate gate, IClock clock) : 
     {
         if (!Currency.TryCreate(row.Currency.Trim(), out var currency) || !Money.Create(row.Amount, currency).TryGetValue(out var value))
             throw new InvalidOperationException("A stored value has an invalid amount or currency.");
-        return new Valuation(row.Id, new ItemId(row.ItemId), row.AsOf, value, row.Note);
+        return new Valuation(row.Id, new ItemId(row.ItemId), row.AsOf, value, row.Note, row.DocumentId);
     }
 
     private static Failure FailureOf<T>(Result<T> result) where T : notnull

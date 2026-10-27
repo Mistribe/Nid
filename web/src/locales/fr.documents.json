@@ -102,5 +102,36 @@
       "widens_one": "{{names}} pourra lire ce document.",
       "widens_other": "{{names}} pourront lire ce document."
     }
+  },
+  "documents_item": {
+    "title": "Documents",
+    "empty": "Aucun document.",
+    "this_item": "Cette fiche",
+    "source": "Source",
+    "source_label": "Source du chiffre",
+    "col_title": "Titre",
+    "col_role": "Type",
+    "col_date": "Date",
+    "col_link": "Lié à",
+    "col_actions": "Actions",
+    "upload": "Déposer",
+    "upload_title": "Déposer un document",
+    "file": "Fichier",
+    "uploaded": "Document déposé.",
+    "link": "Relier un document",
+    "link_title": "Relier un document",
+    "link_submit": "Relier",
+    "link_anyway": "Relier quand même",
+    "document": "Document",
+    "document_pick": "Choisir un document",
+    "document_search": "Rechercher un document",
+    "document_empty": "Aucun document à relier.",
+    "linked": "Document relié.",
+    "remove": "Retirer",
+    "remove_confirm": "Retirer ce lien ? Le document reste dans Documents.",
+    "removed": "Lien retiré.",
+    "download": "Télécharger",
+    "open": "Voir le document",
+    "menu": "Actions du document {{title}}"
   }
 }

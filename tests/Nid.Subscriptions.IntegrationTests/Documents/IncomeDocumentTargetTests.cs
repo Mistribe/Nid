@@ -246,6 +246,23 @@ public class IncomeDocumentTargetTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
+    public async Task Each_link_carries_its_anchor_so_an_item_tab_keeps_its_own()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        var envelope = await app.NewEnvelopeAsync("PEA", app.AdultA, Visibility.Shared);
+        var phase = await PhaseAsync(app, app.AdultA, source, "Salaire", "2025-01-01", null);
+        var document = await LinkedAsync(app, app.AdultA, "core.item", envelope.Value);
+        Assert.True((await LinkAsync(app, app.AdultA, document, Phase, phase)).IsSuccessStatusCode);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Root}?anchor={envelope.Value}");
+        var links = (await JsonAsync(response)).GetProperty("items").EnumerateArray().Single().GetProperty("links").EnumerateArray()
+            .Select(l => (l.GetProperty("targetKind").GetString()!, l.GetProperty("anchorItemId").GetGuid())).ToArray();
+
+        Assert.Equal(new[] { ("core.item", envelope.Value), (Phase, source.Value) }.Order(), links.Order());
+    }
+
+    [Fact]
     public async Task Anchor_on_a_private_source_is_empty_for_the_other_adult()
     {
         await using var app = await NidApp.StartAsync(fixture);

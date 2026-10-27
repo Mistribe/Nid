@@ -1,3 +1,4 @@
+import { link, list, summary } from '../documents/testData';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -67,12 +68,12 @@ describe('LoanDetailPage', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('shows the four tabs, the first out of the URL', async () => {
+  it('shows the five tabs, the first out of the URL', async () => {
     serve();
     const { router } = await renderApp(`/loans/${LOAN}`);
 
     await heading();
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Échéancier', 'Opérations', 'Contrat et réglages']);
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Vue d’ensemble', 'Échéancier', 'Opérations', 'Contrat et réglages', 'Documents']);
     expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
     expect(router.state.location.search).not.toHaveProperty('tab');
   });
@@ -347,5 +348,17 @@ describe('LoanDetailPage', () => {
     await heading();
     // The line only: the settings' select keeps its label « Bien financé », without the colon.
     expect(screen.queryByText(/^Bien financé :/)).not.toBeInTheDocument();
+  });
+
+  it('has a documents tab, last, listing the documents anchored on the loan', async () => {
+    serve();
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(list([summary({ title: 'Pièce du dossier', links: [link({ targetId: LOAN, anchorItemId: LOAN })] })]))));
+    const { user } = await renderApp(`/loans/${LOAN}`);
+
+    await screen.findAllByRole('tab');
+    const names = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    expect(names.at(-1)).toBe('Documents');
+    await user.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
   });
 });

@@ -127,6 +127,59 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             + "check them:\n  " + string.Join("\n  ", blind));
     }
 
+    /// <summary>
+    /// A proposal view carries its <c>documentId</c> to the endpoints, which hide it from a non-reader (<c>ProposalEndpoints.HideDocumentsAsync</c>,
+    /// for REST and MCP alike): masked, just not by the pipeline. Exempt as a leaf, so anything else a proposal response holds is still walked.
+    /// </summary>
+    private static readonly Type MaskedAtTheEndpoint = typeof(Nid.Core.Application.ProposalView);
+
+    /// <summary>
+    /// Review Focus 2 of #108: a response that holds a document id, directly or in a list, implements <see cref="IExposesDocuments"/>, or the
+    /// document mask has nothing to null and the id of a document the reader cannot read goes out.
+    /// </summary>
+    [Fact]
+    public void Every_response_carrying_a_document_id_masks_it()
+    {
+        var unmasked = RequestCatalogue.Discover()
+            .Select(RequestCatalogue.ResponseTypeOf).OfType<Type>().Distinct()
+            .Where(r => !typeof(IExposesDocuments).IsAssignableFrom(r) && CarriesDocumentIds(r, []))
+            .Select(r => r.FullName).ToList();
+
+        Assert.True(unmasked.Count == 0,
+            "These responses carry a DocumentId without implementing IExposesDocuments, so the document mask cannot null it:\n  "
+            + string.Join("\n  ", unmasked));
+    }
+
+    /// <summary>The walk of <see cref="CarriesItemIds"/>, looking for a record with a <c>Guid? DocumentId</c>.</summary>
+    private static bool CarriesDocumentIds(Type type, HashSet<Type> seen)
+    {
+        if (type == MaskedAtTheEndpoint || !seen.Add(type))
+            return false;
+
+        IEnumerable<Type> elements = type.IsArray
+            ? [type.GetElementType()!]
+            : type.GetInterfaces().Concat([type])
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                .Select(i => i.GetGenericArguments()[0]);
+        if (elements.Concat(type.IsGenericType ? type.GetGenericArguments() : []).Any(e => CarriesDocumentIds(e, seen)))
+            return true;
+
+        if (type.Assembly.GetName().Name?.StartsWith("Nid.", StringComparison.Ordinal) != true)
+            return false;
+
+        var properties = type.GetProperties().Where(p => p.GetIndexParameters().Length == 0).ToList();
+        return properties.Any(p => p.Name == "DocumentId" && p.PropertyType == typeof(Guid?))
+            || properties.Any(p => CarriesDocumentIds(p.PropertyType, seen));
+    }
+
+    [Fact]
+    public void The_document_walk_sees_a_view_in_a_list()
+    {
+        Assert.True(CarriesDocumentIds(typeof(Nid.Investments.Application.EnvelopeDetail), []));
+        Assert.True(CarriesDocumentIds(typeof(Nid.RealEstate.Application.PropertyDetail), []));
+        Assert.False(CarriesDocumentIds(typeof(Nid.Investments.Application.EnvelopeList), []));
+    }
+
     [Fact]
     public async Task No_read_returns_an_item_outside_the_actors_visible_set()
     {
@@ -208,6 +261,10 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         }
     }
 
+    /// <summary>The details of a shared row's twins, whose values and flows cite their owner's private document (#108).</summary>
+    private static string[] StampedDetails(MixedDataset data, string shared)
+        => [$"/api/v1/investments/envelopes/{data.Envelopes[shared].Value}", $"/api/v1/realestate/properties/{data.Properties[shared].Value}"];
+
     /// <summary>Any module's list, read for its ids only.</summary>
     private sealed record IdListResponse(IReadOnlyList<IdListRow> Items);
 
@@ -247,11 +304,18 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                  }.Concat(data.PrivatePhases.Values.Select(p => $"/api/v1/documents?targetKind=income.phase&targetId={p}"))
                      .Concat(data.PrivateOneOffs.Values.Select(o => $"/api/v1/documents?targetKind=income.one_off&targetId={o}"))
                      .Concat(data.PrivatePhases.Keys.Select(n => $"/api/v1/documents?anchor={data.IncomeSources[n].Value}")).Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
-                     .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" })))
+                     .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" }))
+                     .Concat(StampedDetails(data, "S-A")).Concat(StampedDetails(data, "S-B")))
         {
             var body = await app.GetRawAsync(actor, url);
             Assert.DoesNotContain(data.ForbiddenLabel(actor), body, StringComparison.Ordinal);
+            Assert.DoesNotContain(data.ForbiddenDocument(actor).ToString(), body, StringComparison.Ordinal);
         }
+
+        // Positive control: each adult reads her own private document's id on her stamped shared twins, so the scan above reads a cited source.
+        foreach (var (shared, owner, other) in new[] { ("S-A", app.AdultA, app.AdultB), ("S-B", app.AdultB, app.AdultA) })
+        foreach (var url in StampedDetails(data, shared))
+            Assert.Contains(data.ForbiddenDocument(other).ToString(), await app.GetRawAsync(owner, url), StringComparison.Ordinal);
 
         // Positive control: each owner's by-target read finds her phase's document, so the scan above reads a filled list.
         foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
@@ -558,6 +622,10 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                             + "which the rules hide");
                 }
 
+                // #108: the document mask casts what the response masks into back to the response's type.
+                if (response is IExposesDocuments documents)
+                    Assert.IsType(response.GetType(), documents.WithReadableDocuments(new HashSet<Guid>()));
+
                 // Document ids carry no label for the textual scan: each must be one the actor reads, by its uploader or its row.
                 if (entry.RequestType == typeof(Nid.Documents.Application.FilterReadableDocumentsQuery))
                     foreach (var (row, document) in data.Documents.Concat(data.UnlinkDocuments))
@@ -591,6 +659,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                     propertyBodies[actor].Add(serialised);
 
                 Assert.DoesNotContain(data.ForbiddenLabel(actor), serialised, StringComparison.Ordinal);
+                Assert.DoesNotContain(data.ForbiddenDocument(actor).ToString(), serialised, StringComparison.Ordinal);
             }
         }
 

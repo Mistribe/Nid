@@ -1,3 +1,4 @@
+import { link, list, summary } from '../documents/testData';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -35,6 +36,20 @@ describe('EnvelopeDetailPage', () => {
     expect(flows[0]).toHaveTextContent('Versement');
     expect(flows[1]).toHaveTextContent('Versements antérieurs');
     await expectNoAxeViolations(container);
+  });
+
+  it('shows the source document next to a value or a flow that has one, and none otherwise', async () => {
+    const base = detail();
+    serve({ ...base, valuations: [{ ...base.valuations[0]!, documentId: 'd1' }, base.valuations[1]!], flows: [{ ...base.flows[0]!, documentId: 'd2' }, base.flows[1]!] });
+    const { user } = await renderApp(`/investments/${PEA}?tab=values`);
+
+    const values = within(await screen.findByRole('table', { name: 'Valeurs de l’enveloppe' })).getAllByRole('row').slice(1);
+    expect(within(values[1]!).getByRole('link', { name: 'Source du chiffre' })).toHaveAttribute('href', '/documents/d1');
+    expect(within(values[0]!).queryByRole('link', { name: 'Source du chiffre' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Flux (2)' }));
+    const flows = within(await screen.findByRole('table', { name: 'Flux de l’enveloppe' })).getAllByRole('row').slice(1);
+    expect(within(flows[1]!).getByRole('link', { name: 'Source du chiffre' })).toHaveAttribute('href', '/documents/d2');
+    expect(within(flows[0]!).queryByRole('link', { name: 'Source du chiffre' })).not.toBeInTheDocument();
   });
 
   it('shows the estimated value, converted or not, once the holdings carry one', async () => {
@@ -208,5 +223,18 @@ describe('EnvelopeDetailPage', () => {
 
     expect(await screen.findByText('Réglages enregistrés.')).toBeInTheDocument();
     expect(calls).toEqual([expect.objectContaining({ displayName: 'PEA Bourse' })]);
+  });
+
+  it('has a documents tab before the settings, listing the documents anchored on the envelope', async () => {
+    serve(detail());
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(list([summary({ title: 'Pièce du dossier', links: [link({ targetId: PEA, anchorItemId: PEA })] })]))));
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    await screen.findAllByRole('tab');
+    const names = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    expect(names.indexOf('Documents')).toBe(names.indexOf('Réglages') - 1);
+    await user.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect((await screen.findAllByText('Pièce du dossier')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Déposer' })).toBeInTheDocument();
   });
 });

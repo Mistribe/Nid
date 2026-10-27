@@ -5,6 +5,7 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate, LocalDate } from '@/components/LocalDate';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
+import { SourceLink } from '../../documents/SourceLink';
 import { money } from '../../loans/format';
 import { invalidateProperties, VALUATION, type PropertyDetail, type PropertyValuation } from '../api';
 import { RowActions } from '@/components/page/RowActions';
@@ -42,7 +43,7 @@ export function ValuationsSection({ property }: { property: PropertyDetail }) {
             <TableRow key={v.id}>
               <TableCell><LocalDate value={v.asOf} /></TableCell>
               <TableCell className="text-right tabular-nums">{money(property.currency, v.amount)}</TableCell>
-              <TableCell className="whitespace-normal">{v.note}</TableCell>
+              <TableCell className="whitespace-normal">{v.note}<SourceLink documentId={v.documentId} /></TableCell>
               {writable ? (
                 <TableCell>
                   <DeleteValuation property={property} valuation={v} onDeleteStarted={() => setAnnouncement('')}

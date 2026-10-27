@@ -5,7 +5,8 @@ using NodaTime;
 
 namespace Nid.Documents.Application;
 
-public sealed record DocumentLinkView(string TargetKind, Guid TargetId, string Role, string Label, bool CanWrite);
+/// <summary><c>AnchorItemId</c>: the item the link counts through (the item itself for a <c>core.item</c>), null for a person or the household.</summary>
+public sealed record DocumentLinkView(string TargetKind, Guid TargetId, Guid? AnchorItemId, string Role, string Label, bool CanWrite);
 
 /// <summary>Design §7: <c>Links</c> holds only the links whose target the reader reads; the others are absent, not counted.</summary>
 public sealed record DocumentSummary(
@@ -21,13 +22,15 @@ public sealed record DocumentSummary(
         var d = read.Document;
         var links = read.Links.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), read.Actor))
             .OrderBy(l => l.LinkedAt)
-            .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DeletedTargetLabel),
+            .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DeletedTargetLabel),
                 DocumentRules.CanWriteLink(DocumentAccess.Facts(l), read.Actor)))
             .ToList();
         return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.ArchivedAt is not null, read.CanEdit, links);
     }
 
-    internal IEnumerable<ItemId> Items() => Links.Where(l => l.TargetKind == TargetKinds.CoreItem).Select(l => new ItemId(l.TargetId));
+    /// <summary>Every item id the links name: a <c>core.item</c> target and every anchor.</summary>
+    internal IEnumerable<ItemId> Items() => Links.Where(l => l.TargetKind == TargetKinds.CoreItem).Select(l => l.TargetId)
+        .Concat(Links.Select(l => l.AnchorItemId).OfType<Guid>()).Distinct().Select(id => new ItemId(id));
 }
 
 public sealed record DocumentDetail(DocumentSummary Document, string OriginalFilename, string? Note, Guid UploadedBy) : IExposesItems

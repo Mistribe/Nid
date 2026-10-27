@@ -74,6 +74,16 @@ describe('estimates', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows the source document on the estimate that has one only', async () => {
+    const base = propertyDetail();
+    serve({ ...base, valuations: [{ ...base.valuations[0]!, documentId: 'd1' }, base.valuations[1]!] });
+    await renderApp(PAGE);
+
+    const [last, first] = await rows();
+    expect(within(first!).getByRole('link', { name: 'Source du chiffre' })).toHaveAttribute('href', '/documents/d1');
+    expect(within(last!).queryByRole('link', { name: 'Source du chiffre' })).not.toBeInTheDocument();
+  });
+
   it('says when there is none', async () => {
     serve(propertyDetail({ valuations: [] }));
     await renderApp(PAGE);

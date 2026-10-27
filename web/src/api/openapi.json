@@ -22160,6 +22160,13 @@
             "type": "string",
             "format": "uuid"
           },
+          "anchorItemId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "role": {
             "type": "string"
           },
@@ -23691,6 +23698,13 @@
               "null",
               "string"
             ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -31582,6 +31596,13 @@
               "null",
               "string"
             ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -32734,6 +32755,13 @@
               "null",
               "string"
             ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -37221,6 +37249,13 @@
               "null",
               "string"
             ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

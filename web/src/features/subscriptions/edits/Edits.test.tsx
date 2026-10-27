@@ -165,7 +165,7 @@ describe('Abonnements › modifications', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toEqual([PURCHASE]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Achat supprimé.'));
+    await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Achat supprimé.'));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Achats' })).toHaveFocus());
   });
 

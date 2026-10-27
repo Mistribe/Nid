@@ -1,3 +1,4 @@
+import { link, list, summary } from '../documents/testData';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
@@ -145,7 +146,7 @@ describe('Abonnements › détail', () => {
     await user.type(within(price).getByLabelText('Nouveau montant'), '15,99');
     await user.click(within(price).getByRole('button', { name: 'Changer le prix' }));
     await waitFor(() => expect(prices).toEqual([{ startsOn: '2026-02-28', price: { amount: '15.99', currency: 'EUR' } }]));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Modification enregistr\u00e9e.'));
+    await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Modification enregistr\u00e9e.'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Ajouter un achat' }));
@@ -166,5 +167,14 @@ describe('Abonnements › détail', () => {
     expect(within(screen.getByRole('article')).queryAllByRole('button')).toEqual([]);
     expect(container.querySelector('form')).toBeNull();
     await expectNoAxeViolations(container);
+  });
+
+  it('shows a Documents section listing the documents anchored on the subscription', async () => {
+    serveDetail(detail());
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(list([summary({ title: 'Facture janvier', links: [link({ targetId: SUB, anchorItemId: SUB })] })]))));
+    await renderApp(`/subscriptions/${SUB}`);
+
+    const section = await screen.findByRole('region', { name: 'Documents' });
+    expect((await within(section).findAllByText('Facture janvier')).length).toBeGreaterThan(0);
   });
 });

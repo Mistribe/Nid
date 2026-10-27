@@ -21,6 +21,9 @@ public static class PipelineOrder
     public const uint Scope = 30;
     public const uint ItemAccess = 40;
 
+    /// <summary>Nulls the document ids the actor cannot read (#108), on the response the output guard let through.</summary>
+    public const uint DocumentMask = 85;
+
     /// <summary>Innermost: it inspects exactly what the handler produced (architecture.md §166).</summary>
     public const uint OutputGuard = 90;
 }

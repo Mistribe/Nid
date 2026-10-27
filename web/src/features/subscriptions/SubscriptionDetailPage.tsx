@@ -24,6 +24,8 @@ import { SettingsForm } from './edits/SettingsForm';
 import { findingText, visibleFindings } from './findings';
 import { accessOf, durationText, kindText, payerText } from './format';
 import '@/locales/forms';
+import { ItemDocuments } from '@/features/documents/ItemDocuments';
+import '@/locales/documents';
 
 /**
  * 1E2a design §4, redesign §5.3: one page without tabs. Under the title the costs and the next charge; the findings in a
@@ -197,6 +199,8 @@ export function SubscriptionDetailPage() {
           </TableBody>
         </Table>
       </Section>
+
+      <Section title={t('documents_item.title')}><ItemDocuments itemId={detail.id} canWrite={detail.canWrite} defaultRole="invoice" /></Section>
 
       {detail.canWrite ? <Section title={t('edit.settings_title')}><SettingsForm detail={detail} /></Section> : null}
     </article>
