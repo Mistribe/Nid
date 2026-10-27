@@ -9,9 +9,9 @@ import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
+import { Folded } from '../loans/new/Folded';
 import { percentText, REGIMES, regimeText, ZERO } from './format';
 import { AMOUNT, toWireAmount } from '../subscriptions/edits/amount';
 import { DASHBOARD } from '../dashboard/api';
@@ -45,10 +45,13 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   const [rates, setRates] = useState<Record<string, string>>(p.contributionRates);
   const [expenses, setExpenses] = useState<Record<string, string>>(p.actualExpenses);
   const [unused, setUnused] = useState<Record<string, string>>(p.perUnusedCeilings);
+  // The unused ceilings are a fallback for a missing tax notice: folded unless already typed.
+  const [unusedOpen, setUnusedOpen] = useState<Record<string, boolean>>({});
   const [ceilings, setCeilings] = useState<Record<string, string>>(p.perCeilings);
   const [expiring, setExpiring] = useState<Record<string, string>>(p.perCeilingsExpiring);
   const [pooling, setPooling] = useState(p.perPooling);
   const [exempt, setExempt] = useState<Record<string, string>>(p.exemptIncomes);
+  const [exemptOpen, setExemptOpen] = useState(Object.values(p.exemptIncomes).some((v) => !ZERO.test(v)));
   // Only the adults' typed values go back: an empty one keeps the default.
   const filled = (values: Record<string, string>) =>
     Object.fromEntries(Object.entries(values).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, toWireAmount(v)]));
@@ -128,10 +131,6 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
                 error={optional(AMOUNT, expenses[a.id] ?? '') ? undefined : t('tax.amount_format')}>
                 {(c) => <Input inputMode="decimal" {...c} value={expenses[a.id] ?? ''} onChange={(e) => setExpenses({ ...expenses, [a.id]: e.target.value })} />}
               </Field>
-              <Field label={t('tax.profile.per_unused', { name: a.displayName })} hint={t('tax.profile.per_unused_hint')}
-                error={optional(AMOUNT, unused[a.id] ?? '') ? undefined : t('tax.amount_format')}>
-                {(c) => <Input inputMode="decimal" {...c} value={unused[a.id] ?? ''} onChange={(e) => setUnused({ ...unused, [a.id]: e.target.value })} />}
-              </Field>
             </div>
           ))}
           {estimate.adults.map((a) => (
@@ -144,6 +143,17 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
               <Field label={t('tax.profile.per_expiring')} error={optional(AMOUNT, expiring[a.id] ?? '') ? undefined : t('tax.amount_format')}>
                 {(c) => <Input inputMode="decimal" {...c} value={expiring[a.id] ?? ''} onChange={(e) => setExpiring({ ...expiring, [a.id]: e.target.value })} />}
               </Field>
+              <div className="sm:col-span-2">
+                <Folded label={t('tax.profile.per_no_notice')} hasError={!optional(AMOUNT, unused[a.id] ?? '')}
+                  open={unusedOpen[a.id] ?? Boolean(p.perUnusedCeilings[a.id])} onOpenChange={(open) => setUnusedOpen({ ...unusedOpen, [a.id]: open })}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t('tax.profile.per_unused', { name: a.displayName })} hint={t('tax.profile.per_unused_hint')}
+                      error={optional(AMOUNT, unused[a.id] ?? '') ? undefined : t('tax.amount_format')}>
+                      {(c) => <Input inputMode="decimal" {...c} value={unused[a.id] ?? ''} onChange={(e) => setUnused({ ...unused, [a.id]: e.target.value })} />}
+                    </Field>
+                  </div>
+                </Folded>
+              </div>
             </fieldset>
           ))}
           {estimate.adults.length > 1 ? (
@@ -152,19 +162,19 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
             </Field>
           ) : null}
           {/* Rare: folded unless a value is saved. */}
-          <Collapsible defaultOpen={Object.values(p.exemptIncomes).some((v) => !ZERO.test(v))} className="sm:col-span-2">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="link" className="h-auto p-0">{t('tax.profile.exempt_toggle')}</Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 grid gap-3 sm:grid-cols-2">
-              {estimate.adults.map((a) => (
-                <Field key={a.id} label={t('tax.profile.exempt', { name: a.displayName })} hint={t('tax.profile.exempt_hint')}
-                  error={optional(AMOUNT, exempt[a.id] ?? '') ? undefined : t('tax.amount_format')}>
-                  {(c) => <Input inputMode="decimal" {...c} value={exempt[a.id] ?? ''} onChange={(e) => setExempt({ ...exempt, [a.id]: e.target.value })} />}
-                </Field>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="sm:col-span-2">
+            <Folded label={t('tax.profile.exempt_toggle')} hasError={!Object.values(exempt).every((v) => optional(AMOUNT, v))}
+              open={exemptOpen} onOpenChange={setExemptOpen}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {estimate.adults.map((a) => (
+                  <Field key={a.id} label={t('tax.profile.exempt', { name: a.displayName })} hint={t('tax.profile.exempt_hint')}
+                    error={optional(AMOUNT, exempt[a.id] ?? '') ? undefined : t('tax.amount_format')}>
+                    {(c) => <Input inputMode="decimal" {...c} value={exempt[a.id] ?? ''} onChange={(e) => setExempt({ ...exempt, [a.id]: e.target.value })} />}
+                  </Field>
+                ))}
+              </div>
+            </Folded>
+          </div>
           <Field label={t('tax.profile.dependents')} hint={t('tax.profile.dependents_hint', { count: estimate.dependents })}
             error={dependents === '' || COUNT.test(dependents) ? undefined : t('tax.count_format')}>
             {(c) => <Input inputMode="numeric" {...c} value={dependents} onChange={(e) => setDependents(e.target.value)} />}

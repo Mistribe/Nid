@@ -170,6 +170,9 @@ describe('TaxPage', () => {
     await user.clear(home);
     await user.type(home, '9000');
     await user.type(screen.getByLabelText('Taux de cotisations de Alice (%)'), '23,5');
+    // A fallback for a missing tax notice: folded until asked for.
+    expect(screen.queryByLabelText('Plafonds PER non utilisés de Alice')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Pas d’avis d’imposition sous la main ?' }));
     await user.type(screen.getByLabelText('Plafonds PER non utilisés de Alice'), '4000');
     expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Revenus exonérés \(heures supplémentaires/ }));
