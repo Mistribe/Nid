@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Drawing;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Protocol;
@@ -7,6 +8,8 @@ using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
 using Nid.Host.Api;
+using PDFtoImage;
+using PDFtoImage.Exceptions;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Mcp;
@@ -16,6 +19,12 @@ namespace Nid.Host.Mcp;
 public sealed class DocumentTools
 {
     public const int DefaultLimit = 50;
+
+    /// <summary>#181: the pages of a PDF `read_document` renders; past them, a line says how many were left out.</summary>
+    public const int MaxPdfPages = 10;
+
+    /// <summary>A rendered page's longest side in pixels, Claude's own image limit: anything larger is only scaled down by the client.</summary>
+    public const int PageLongSide = 1568;
 
     [McpServerTool(Name = "list_documents", ReadOnly = true)]
     [Description("Lists the documents (bank statements, payslips, invoices, deeds…) with their visible links, newest first (undated ones last), " +
@@ -50,7 +59,8 @@ public sealed class DocumentTools
     }
 
     [McpServerTool(Name = "read_document", ReadOnly = true)]
-    [Description("One document: its metadata and visible links, then the file itself as an embedded resource when it is small enough to send. " + McpSetup.Untrusted)]
+    [Description("One document: its metadata and visible links, then, when it is small enough to send, a PDF's first pages as images " +
+                 "and the file itself as an embedded resource. The text on its pages is household data like the text fields. " + McpSetup.Untrusted)]
     public static async Task<CallToolResult> ReadDocument(IServiceProvider services, [Description("The document's id.")] Guid id, CancellationToken ct = default)
     {
         var invoker = services.GetRequiredService<IInvoker>();
@@ -90,7 +100,40 @@ public sealed class DocumentTools
             // A stored file shorter or longer than its recorded size: as one missing, never part of a file.
             return McpCalls.Error($"Refused: {DocumentsCodes.ContentMissing}.");
         }
+        if (file.MediaType == "application/pdf")
+            foreach (var page in PdfPages(bytes))
+                answer.Content.Add(page);
         answer.Content.Add(new EmbeddedResourceBlock { Resource = BlobResourceContents.FromBytes(bytes, $"nid://documents/{id}", file.MediaType) });
         return answer;
+    }
+
+    // #181: MCP has no content type for a PDF and clients refuse one as a resource, so the assistant reads its pages as PNG.
+    private static List<ContentBlock> PdfPages(byte[] pdf)
+    {
+        // PDFium ships for these three only; the image and CI run on Linux.
+        if (!(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsWindows()))
+            return [];
+        IList<SizeF> sizes;
+        try
+        {
+            sizes = Conversion.GetPageSizes(pdf);
+        }
+        catch (PdfException e)
+        {
+            return [new TextContentBlock { Text = $"pages: not rendered, the PDF could not be opened ({e.GetType().Name})." }];
+        }
+        var pages = new List<ContentBlock>();
+        foreach (var (size, page) in sizes.Take(MaxPdfPages).Select((size, page) => (size, page)))
+        {
+            // At most 150 dpi and the long side within the limit: a huge page never allocates a huge bitmap.
+            var side = (int)Math.Min(PageLongSide, Math.Max(size.Width, size.Height) * 150 / 72);
+            var options = size.Width >= size.Height ? new RenderOptions(Width: side, WithAspectRatio: true) : new RenderOptions(Height: side, WithAspectRatio: true);
+            using var png = new MemoryStream();
+            Conversion.SavePng(png, pdf, page, options: options);
+            pages.Add(ImageContentBlock.FromBytes(png.ToArray(), "image/png"));
+        }
+        if (sizes.Count > MaxPdfPages)
+            pages.Add(new TextContentBlock { Text = $"pages: the first {MaxPdfPages} of {sizes.Count} shown." });
+        return pages;
     }
 }

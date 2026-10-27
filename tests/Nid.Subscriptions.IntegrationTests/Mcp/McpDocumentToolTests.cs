@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
@@ -27,22 +29,63 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
 
     private static string Json(string text) => JsonDocument.Parse(text).RootElement.ToString();
 
+    /// <summary>A real A4 PDF of <paramref name="pages"/> pages, its number written on each: what PDFium opens, unlike <c>Pdf</c>.</summary>
+    internal static byte[] PdfOf(int pages)
+    {
+        var objects = new List<string> { "<< /Type /Catalog /Pages 2 0 R >>", "", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>" };
+        var kids = new List<string>();
+        for (var page = 1; page <= pages; page++)
+        {
+            var text = $"BT /F1 24 Tf 72 720 Td (Page {page}) Tj ET";
+            kids.Add($"{objects.Count + 1} 0 R");
+            objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents {objects.Count + 2} 0 R >>");
+            objects.Add($"<< /Length {text.Length} >>\nstream\n{text}\nendstream");
+        }
+        objects[1] = $"<< /Type /Pages /Kids [{string.Join(' ', kids)}] /Count {pages} >>";
+        var pdf = new StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int>();
+        foreach (var (body, number) in objects.Select((body, i) => (body, i + 1)))
+        {
+            offsets.Add(pdf.Length);
+            pdf.Append($"{number} 0 obj\n{body}\nendobj\n");
+        }
+        var xref = pdf.Length;
+        pdf.Append($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
+        foreach (var offset in offsets)
+            pdf.Append($"{offset:D10} 00000 n \n");
+        pdf.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(pdf.ToString());
+    }
+
+    /// <summary>A PNG's width and height, from its IHDR chunk.</summary>
+    private static (int Width, int Height) PngSize(ImageContentBlock image)
+    {
+        var png = image.DecodedData.Span;
+        Assert.True(png.StartsWith((byte[])[0x89, (byte)'P', (byte)'N', (byte)'G']));
+        return (BinaryPrimitives.ReadInt32BigEndian(png[16..]), BinaryPrimitives.ReadInt32BigEndian(png[20..]));
+    }
+
     [Fact]
-    public async Task Reads_a_document_as_its_rest_detail_with_its_bytes_as_an_embedded_resource()
+    public async Task Reads_a_document_as_its_rest_detail_with_its_page_as_an_image_and_its_bytes_as_an_embedded_resource()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var id = await UploadedAsync(app, app.AdultA, Pdf, "fileName=bail.pdf&title=Bail%20sign%C3%A9");
+        var pdf = PdfOf(1);
+        var id = await UploadedAsync(app, app.AdultA, pdf, "fileName=bail.pdf&title=Bail%20sign%C3%A9");
         await using var client = await ClientAsync(app);
 
         var result = await CallAsync(client, "read_document", new { id });
 
         Assert.NotEqual(true, result.IsError);
-        Assert.Equal(2, result.Content.Count);
+        Assert.Equal(3, result.Content.Count);
         var text = Assert.IsType<TextContentBlock>(result.Content[0]);
         Assert.Contains("Bail signé", text.Text);
         Assert.Equal(Json(await app.GetRawAsync(app.AdultA, $"{Root}/{id}")), Json(text.Text));
-        var blob = Assert.IsType<BlobResourceContents>(Assert.IsType<EmbeddedResourceBlock>(result.Content[1]).Resource);
-        Assert.Equal(Pdf, blob.DecodedData.ToArray());
+        // #181: A4 at 150 dpi is 1754 px high, so the long side is held to the limit and the width follows.
+        var page = Assert.IsType<ImageContentBlock>(result.Content[1]);
+        Assert.Equal("image/png", page.MimeType);
+        Assert.Equal((1108, DocumentTools.PageLongSide), PngSize(page));
+        var blob = Assert.IsType<BlobResourceContents>(Assert.IsType<EmbeddedResourceBlock>(result.Content[2]).Resource);
+        Assert.Equal(pdf, blob.DecodedData.ToArray());
         Assert.Equal(("application/pdf", $"nid://documents/{id}"), (blob.MimeType, blob.Uri));
     }
 
@@ -50,7 +93,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
     public async Task Sends_the_upload_instant_as_an_iso_string()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var id = await UploadedAsync(app, app.AdultA, Pdf);
+        var id = await UploadedAsync(app, app.AdultA, PdfOf(1));
         await using var client = await ClientAsync(app);
 
         var read = JsonDocument.Parse(McpHarness.TextOf(await CallAsync(client, "read_document", new { id }))).RootElement;
@@ -58,6 +101,39 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Equal(UploadInstant, read.GetProperty("document").GetProperty("uploadedAt").GetString());
         Assert.Equal(UploadInstant, list.GetProperty("items")[0].GetProperty("uploadedAt").GetString());
+    }
+
+    // #181.
+    [Fact]
+    public async Task Renders_at_most_the_first_pages_of_a_long_pdf_and_says_so()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, PdfOf(DocumentTools.MaxPdfPages + 2));
+        await using var client = await ClientAsync(app);
+
+        var result = await CallAsync(client, "read_document", new { id });
+
+        Assert.NotEqual(true, result.IsError);
+        Assert.Equal(DocumentTools.MaxPdfPages, result.Content.OfType<ImageContentBlock>().Count());
+        Assert.Equal($"pages: the first {DocumentTools.MaxPdfPages} of {DocumentTools.MaxPdfPages + 2} shown.",
+            Assert.IsType<TextContentBlock>(result.Content[^2]).Text);
+        Assert.IsType<EmbeddedResourceBlock>(result.Content[^1]);
+    }
+
+    // #181: a file that only looks like a PDF still goes whole, with a line instead of its pages.
+    [Fact]
+    public async Task A_pdf_that_does_not_open_is_sent_without_pages_and_the_answer_says_why()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, Pdf);
+        await using var client = await ClientAsync(app);
+
+        var result = await CallAsync(client, "read_document", new { id });
+
+        Assert.NotEqual(true, result.IsError);
+        Assert.Empty(result.Content.OfType<ImageContentBlock>());
+        Assert.StartsWith("pages: not rendered, the PDF could not be opened", Assert.IsType<TextContentBlock>(result.Content[1]).Text);
+        Assert.Equal(Pdf, Assert.IsType<BlobResourceContents>(Assert.IsType<EmbeddedResourceBlock>(result.Content[2]).Resource).DecodedData.ToArray());
     }
 
     // Review Focus 5.

@@ -45,5 +45,7 @@
          the Linux one (CI, the 1F image) is the no-dependencies build: it needs glibc and libstdc++, nothing else. -->
     <PackageVersion Include="SkiaSharp" Version="4.152.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.152.1" />
+    <!-- #181: read_document renders a PDF's pages for the assistant (MIT, PDFium + SkiaSharp). -->
+    <PackageVersion Include="PDFtoImage" Version="5.4.0" />
   </ItemGroup>
 </Project>
