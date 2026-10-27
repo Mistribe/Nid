@@ -63,7 +63,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
                 : new JsonObject
                 {
                     ["type"] = "string", ["format"] = "uuid",
-                    ["description"] = name == "id" ? "The item's id." : $"The line's id ({name}), from the item's get_* tool.",
+                    ["description"] = name == "id" ? action.Targeted ? "The item's id." : "The document's id." : $"The line's id ({name}), from the item's get_* tool.",
                 };
         foreach (var name in action.Query ?? [])
             properties[name] = new JsonObject { ["type"] = "integer", ["description"] = "The line's version, from the item's get_* tool." };

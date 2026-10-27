@@ -23,7 +23,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/subscriptions/catalog/sync", "/api/v1/investments/prices/sync", "/price/accept", "/api/v1/realestate/irl/sync", "PUT /api/v1/realestate/irl/{year:int}/{quarter:int}", "/api/v1/realestate/loans/{id:guid}/simulations", "/api/v1/realestate/loans/overview/simulations",
         "/api/v1/realestate/loans/{id:guid}/bank-schedule/preview", "PUT /api/v1/realestate/loans/{id:guid}/bank-schedule",
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
-        // Documents reach the assistant in their tranche 3, read-only: no tool uploads, edits or links one.
+        // Documents: the assistant links one (propose_link_document), never uploads, edits, archives or unlinks it.
         "/api/v1/documents",
     ];
 
@@ -149,6 +149,33 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
         Assert.Equal(5.5m, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{envelopes}/holdings/{holding}/cost-reports/2024")).RootElement
             .GetProperty("netReturnPct").GetDecimal());
+    }
+
+    /// <summary>Issue #179: a document already in Nid is linked to an income period, an ended one included, without a pay change.</summary>
+    [Fact]
+    public async Task A_document_link_is_proposed_without_a_target_item_and_linked_when_approved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var propose = await ClientAsync(app, TokenPresets.Propose);
+        var source = await app.NewIncomeSourceAsync("Salaire", Visibility.Shared, (app.AdultA, 10_000));
+        var phase = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source.Value}")).RootElement
+            .GetProperty("phases")[0].GetProperty("id").GetGuid();
+        var document = await Documents.DocumentEndpointTests.UploadedAsync(app, app.AdultA, Documents.DocumentEndpointTests.Pdf);
+        async Task<JsonElement> LinkedAsync() => JsonDocument.Parse(await app.GetRawAsync(app.AdultA,
+            $"{Documents.DocumentEndpointTests.Documents}?targetKind=income.phase&targetId={phase}")).RootElement.GetProperty("items");
+
+        var proposed = await AnswerAsync(propose, "propose_link_document",
+            new { id = document, body = new { targetKind = "income.phase", targetId = phase, role = "payslip" } });
+
+        var proposal = proposed.GetProperty("proposal");
+        Assert.Equal(("documents.link_document", JsonValueKind.Null), (proposal.GetProperty("kind").GetString(), proposal.GetProperty("targetItemId").ValueKind));
+        Assert.Equal(0, (await LinkedAsync()).GetArrayLength());
+
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposal.GetProperty("id").GetGuid())).StatusCode);
+        var linked = Assert.Single((await LinkedAsync()).EnumerateArray());
+        Assert.Equal(document, linked.GetProperty("id").GetGuid());
+        Assert.Equal("payslip", Assert.Single(linked.GetProperty("links").EnumerateArray()).GetProperty("role").GetString());
+        Assert.Single(JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source.Value}")).RootElement.GetProperty("phases").EnumerateArray());
     }
 
     [Fact]

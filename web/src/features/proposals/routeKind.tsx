@@ -58,8 +58,8 @@ function lines(value: unknown, path: string, out: [string, string][]) {
 export function RoutePayload({ p }: { p: ProposalView }) {
   const { t } = useTranslation();
   const { body, ...route } = payloadOf(p);
-  // The target is the « Élément » line already; a line's id (`flowId`) and a version stay.
-  const rows = [...lines(Object.fromEntries(Object.entries(route).filter(([k]) => k !== 'id')), '', []), ...lines(body ?? {}, '', [])];
+  // The target is the « Élément » line already; a line's id (`flowId`), a version and an id that is no target (a document's) stay.
+  const rows = [...lines(Object.fromEntries(Object.entries(route).filter(([k]) => k !== 'id' || !p.targetItemId)), '', []), ...lines(body ?? {}, '', [])];
   return (
     <section aria-label={t('proposal.route.fields')} className="max-w-2xl">
       <h2 className="mb-2 text-base font-medium">{t('proposal.route.fields')}</h2>

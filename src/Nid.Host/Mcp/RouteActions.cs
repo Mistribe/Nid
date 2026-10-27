@@ -1,4 +1,5 @@
 using static Nid.Host.Api.CatalogEndpoints;
+using static Nid.Host.Api.DocumentEndpoints;
 using static Nid.Host.Api.GoalEndpoints;
 using static Nid.Host.Api.IncomeEndpoints;
 using static Nid.Host.Api.InvestmentEndpoints;
@@ -11,10 +12,11 @@ namespace Nid.Host.Mcp;
 /// <summary>
 /// One web write the assistant may propose: the REST route it replays when approved (or applied), so validation, access and
 /// ownership rules stay the route's. <paramref name="Body"/> is the route's body type (null: none); <paramref name="Query"/>
-/// the query parameters it reads. A route with an <c>{id}</c> is about that item: its proposal targets it.
+/// the query parameters it reads. A route with an <c>{id}</c> is about that item: its proposal targets it, unless
+/// <paramref name="OnItem"/> is false (a document's <c>{id}</c> is no item).
 /// </summary>
 public sealed record RouteAction(
-    string Name, string Method, string Route, Type? Body, string Description, bool Destructive = false, string[]? Query = null)
+    string Name, string Method, string Route, Type? Body, string Description, bool Destructive = false, string[]? Query = null, bool OnItem = true)
 {
     public string Tool => "propose_" + Name;
 
@@ -24,7 +26,7 @@ public sealed record RouteAction(
     /// <summary>The route's parameters, in order: `{id:guid}` is `id`.</summary>
     public IReadOnlyList<string> RouteParameters { get; } = [.. Route.Split('/').Where(s => s.StartsWith('{')).Select(s => s.Trim('{', '}').Split(':')[0])];
 
-    public bool Targeted => RouteParameters.Contains("id");
+    public bool Targeted => OnItem && RouteParameters.Contains("id");
 
     /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); every other route parameter a UUID.</summary>
     public bool IsInteger(string parameter) => Route.Contains($"{{{parameter}:int}}", StringComparison.Ordinal);
@@ -37,7 +39,8 @@ public sealed record RouteAction(
 /// area, tokens and sessions, preferences, the import, the FX and catalog syncs (admin or browser-only), the reads sent as
 /// POST (simulations, the bank table's preview), the bank table (<c>propose_amortization</c>), and the tax profile and the
 /// target allocation (issue #104): household settings replaced whole, which no tool reads yet; the purchase scenarios (#122),
-/// hypothetical and read by no tool either; the stored documents, which reach the assistant later and read-only.
+/// hypothetical and read by no tool either; the stored documents, which the assistant reads and links (issue #179) but
+/// never uploads, edits, archives or unlinks.
 /// </summary>
 public static class RouteActions
 {
@@ -224,6 +227,14 @@ public static class RouteActions
             "Remove a purchase. " + Ids, Destructive: true),
         new("create_provider", "POST", "/api/v1/subscriptions/providers", typeof(CreateProviderBody),
             "Add a provider to the subscriptions catalog when the household's is not listed."),
+
+        // Documents (issue #179): the web's link, so a document already in Nid follows its element, history included.
+        new("link_document", "POST", "/api/v1/documents/{id:guid}/links", typeof(LinkDocumentBody),
+            "Link a document already in Nid to what it is about: id is the document's id (list_documents, inbox=true for those not filed "
+            + "yet); targetKind 'core.item' (an envelope, property, loan, income source, subscription…), 'income.phase' (an income "
+            + "period, get_income_source), 'income.one_off' (a one-off income), 'core.person' or 'core.household' (no targetId); role "
+            + "'payslip', 'statement', 'invoice', 'tax_notice', 'lease', 'loan_offer', 'deed', 'insurance', 'amortization_table' or "
+            + "'other'. Nothing else changes: a payslip linked to its period records no pay. " + Ids, OnItem: false),
 
         // Household.
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),
