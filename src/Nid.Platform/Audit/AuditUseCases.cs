@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -14,10 +15,58 @@ public sealed record ItemHistoryEntry(
     long Seq, DateTimeOffset At, string Action, string Entity, string EntityKey, AuditActorView Actor, string? Request,
     JsonElement? Before, JsonElement? After, IReadOnlyList<Guid> ItemIds);
 
-/// <summary>Carries item ids, so the output guard checks every one (spec §6).</summary>
-public sealed record ItemHistoryPage(IReadOnlyList<ItemHistoryEntry> Entries, long? Next) : IExposesItems
+/// <summary>
+/// Carries item ids, so the output guard checks every one (spec §6). Its before/after are raw columns: a <c>document_id</c>
+/// (a stamped value or flow, a proposal, a document link) goes out only to a reader of that document (issue #175). A
+/// document link's composite key (<c>EntityKey</c>, a JSON object) names its document too.
+/// </summary>
+public sealed record ItemHistoryPage(IReadOnlyList<ItemHistoryEntry> Entries, long? Next) : IExposesItems, IExposesDocuments
 {
+    private const string DocumentColumn = "document_id";
+
     public IEnumerable<ItemId> ExposedItems() => Entries.SelectMany(e => e.ItemIds).Distinct().Select(i => new ItemId(i));
+
+    public IEnumerable<Guid> ExposedDocuments()
+        => Entries.SelectMany(e => new[] { DocumentIn(e.Before), DocumentIn(e.After), DocumentIn(Key(e.EntityKey)) }).OfType<Guid>().Distinct();
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with
+    {
+        Entries = Entries.Select(e => e with
+        {
+            Before = Masked(e.Before, readable), After = Masked(e.After, readable),
+            EntityKey = DocumentIn(Key(e.EntityKey)) is { } id && !readable.Contains(id) ? Masked(Key(e.EntityKey), readable)!.Value.GetRawText() : e.EntityKey,
+        }).ToList(),
+    };
+
+    /// <summary>A composite key is a JSON object; a single key is the bare value.</summary>
+    private static JsonElement? Key(string entityKey)
+    {
+        if (!entityKey.StartsWith('{'))
+            return null;
+        try
+        {
+            using var key = JsonDocument.Parse(entityKey);
+            return key.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return null; // keys are written by AuditDiff; a broken one must not withhold the whole history
+        }
+    }
+
+    private static Guid? DocumentIn(JsonElement? side)
+        => side is { ValueKind: JsonValueKind.Object } row && row.TryGetProperty(DocumentColumn, out var value)
+            && value.ValueKind == JsonValueKind.String && Guid.TryParse(value.GetString(), out var id) ? id : null;
+
+    private static JsonElement? Masked(JsonElement? side, IReadOnlySet<Guid> readable)
+    {
+        if (DocumentIn(side) is not { } id || readable.Contains(id))
+            return side;
+        var row = JsonNode.Parse(side!.Value.GetRawText())!.AsObject();
+        row[DocumentColumn] = null;
+        using var masked = JsonDocument.Parse(row.ToJsonString());
+        return masked.RootElement.Clone();
+    }
 }
 
 /// <summary>No item id, ever (spec §5.1): <see cref="Details"/> holds only what each event may show.</summary>

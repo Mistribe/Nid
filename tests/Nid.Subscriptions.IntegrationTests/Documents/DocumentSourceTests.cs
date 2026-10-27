@@ -50,12 +50,9 @@ public class DocumentSourceTests(PostgresFixture fixture) : IClassFixture<Postgr
         return (shared, document);
     }
 
-    [Fact]
-    public async Task A_value_stamped_by_a_readable_document_shows_its_id()
+    /// <summary>A's statement citing the document, proposed through MCP and approved: the facts are stamped through the audited path.</summary>
+    private static async Task ApprovedStatementAsync(NidApp app, Guid envelope, Guid document)
     {
-        await using var app = await NidApp.StartAsync(fixture);
-        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
-        var document = await UploadedAsync(app, app.AdultA, Pdf, "fileName=releve.pdf");
         await using (var client = await McpHarness.ClientAsync(app, (await TokenRouteTests.CreateAsync(app, app.AdultA)).Secret))
         {
             var result = await client.CallToolAsync("propose_statement", JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(new
@@ -70,6 +67,15 @@ public class DocumentSourceTests(PostgresFixture fixture) : IClassFixture<Postgr
         var approved = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{ProposalRouteTests.Proposals}/{proposal.GetProperty("id").GetGuid()}/approve",
             new { version = proposal.GetProperty("version").GetUInt32() });
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_value_stamped_by_a_readable_document_shows_its_id()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var document = await UploadedAsync(app, app.AdultA, Pdf, "fileName=releve.pdf");
+        await ApprovedStatementAsync(app, envelope, document);
 
         var detail = await ReadAsync(app, app.AdultA, Envelope(envelope));
 
@@ -126,5 +132,25 @@ public class DocumentSourceTests(PostgresFixture fixture) : IClassFixture<Postgr
         await StampAsync(app, property, document);
 
         Assert.All(SourcesOf(await ReadAsync(app, app.AdultA, $"/api/v1/realestate/properties/{property}")), source => Assert.Equal(document, source));
+    }
+
+    // Issue #175: the history's before/after are raw columns, `document_id` included, and a document link's key names its document.
+    [Fact]
+    public async Task An_items_history_hides_a_source_the_reader_cannot_read()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var document = await UploadedAsync(app, app.AdultA, Pdf, "fileName=releve.pdf");
+        await ApprovedStatementAsync(app, envelope, document); // stamps the facts and links the document to the envelope
+        // Unlinked again, the document is A's alone; the stamped facts and the removed link stay in the history.
+        (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/documents/{document}/links/core.item/{envelope}")).EnsureSuccessStatusCode();
+        var history = $"/api/v1/platform/audit/items/{envelope}";
+
+        var forB = await app.GetRawAsync(app.AdultB, history);
+        var forA = await app.GetRawAsync(app.AdultA, history);
+
+        Assert.DoesNotContain(document.ToString(), forB, StringComparison.Ordinal);
+        Assert.Contains("documents.document_link", forB, StringComparison.Ordinal); // the link's entries are kept, masked
+        Assert.Contains(document.ToString(), forA, StringComparison.Ordinal);
     }
 }
