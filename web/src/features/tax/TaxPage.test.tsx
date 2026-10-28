@@ -214,6 +214,22 @@ describe('TaxPage', () => {
       expect(sent[0]).toMatchObject({ rentalDeficitCarried: '650' });
     });
 
+    it('does not suggest the 4BD of a household without rental property', async () => {
+      const sent: unknown[] = [];
+      const loaded = { ...carried(), rentalProperties: [] };
+      loaded.profile = { ...loaded.profile, rentalDeficitCarried: '0.00' };
+      server.use(
+        http.get('*/api/v1/tax', () => HttpResponse.json(loaded)),
+        http.put('*/api/v1/tax/profile/:year', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json(loaded); }),
+      );
+      const { user } = await renderApp('/tax?tab=profile');
+
+      await user.click(await screen.findByRole('button', { name: 'Enregistrer le profil' }));
+      await screen.findByText('Profil enregistré.');
+      expect(screen.queryByLabelText('Déficits fonciers antérieurs à reporter')).not.toBeInTheDocument();
+      expect(sent[0]).toMatchObject({ rentalDeficitCarried: '0.00' });
+    });
+
     it('locks nothing without a carried notice', async () => {
       server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       await renderApp('/tax?tab=profile');

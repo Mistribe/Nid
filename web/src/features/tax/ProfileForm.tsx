@@ -35,7 +35,9 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   // What the notice supplies shows its value, locked; the stored value (`p`, never the notice's) is what goes back on save.
   const carried = estimate.carriedFrom;
   // The notice's 4BD only suggests: it pre-fills an empty field, editable, and is saved when the user saves.
-  const suggested = carried?.rentalDeficitCarried != null && ZERO.test(p.rentalDeficitCarried.trim()) ? carried.rentalDeficitCarried : undefined;
+  // Only where the field shows (a rental property): a hidden suggestion would be saved unseen.
+  const suggested = estimate.rentalProperties.length && carried?.rentalDeficitCarried != null && ZERO.test(p.rentalDeficitCarried.trim())
+    ? carried.rentalDeficitCarried : undefined;
   const noticeHint = carried ? t('tax.profile.from_notice', { year: carried.year }) : undefined;
   const lock = (values: Record<string, string> | undefined, id: string) => values?.[id] !== undefined;
   const [statuses, setStatuses] = useState<Record<string, string>>(
