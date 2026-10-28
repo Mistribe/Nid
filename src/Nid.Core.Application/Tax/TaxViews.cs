@@ -7,11 +7,14 @@ namespace Nid.Core.Application.Tax;
 /// <summary>
 /// Spec §8. <c>ProfileFrom</c>: the earlier year whose profile stands in, null when the year has its own (or none). <c>Dependents</c>
 /// is the household's count of dependents (the profile may say otherwise); <c>RentalProperties</c> the visible ones Pinel may name.
+/// Tax assessments spec §5-§6: <c>CarriedFrom</c> what the previous year's notices lay over the profile (null: nothing), <c>Gaps</c> the
+/// year's own notice against the estimate (null: no notice for these adults).
 /// </summary>
 public sealed record TaxEstimateView(
     int Year, TaxProfileView Profile, int? ProfileFrom, TaxInputsView Inputs, TaxResultView Result, IReadOnlyList<TaxNoticeView> Notices,
     IReadOnlyList<TaxAdultView> Adults, int Dependents, IReadOnlyList<TaxPropertyView> RentalProperties,
-    IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates) : IExposesItems
+    IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates,
+    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id)).Concat(SalaryDetail.Select(d => d.Item));
 }
@@ -185,4 +188,28 @@ public sealed record WithholdingView(
         w.Rate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), Amount(w.TaxBase), Amount(w.Income),
         w.Declarants.Select(d => new DeclarantWithholdingView(d.Name, Amount(d.Salaries), Amount(d.Monthly))).ToList(),
         Amount(w.RentalDeclared), Amount(w.RentalMonthly), Amount(w.Annual), Amount(w.LeftOut), Amount(w.Balance));
+}
+
+/// <summary>Tax assessments spec §5: what the notices of <c>Year</c> handed to the estimate, in euros; only the figures they print. <c>RentalDeficitCarried</c> is a suggestion for the profile's field, not laid over the estimate.</summary>
+public sealed record TaxCarryView(
+    int Year, IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring,
+    IReadOnlyDictionary<Guid, string> PerUnusedCeilings, string? RentalDeficitCarried)
+{
+    public static TaxCarryView Of(TaxCarryOver c) => new(
+        c.Year - 1, c.PerCeilings.ToDictionary(x => x.Key, x => Amount(x.Value)), c.PerCeilingsExpiring.ToDictionary(x => x.Key, x => Amount(x.Value)),
+        c.PerUnusedCeilings.ToDictionary(x => x.Key, x => Amount(x.Value)), c.RentalDeficitCarried is { } d ? Amount(d) : null);
+}
+
+/// <summary>Tax assessments spec §6: one compared figure, <c>Gap</c> the notice minus Nid; <c>Nid</c> and <c>Gap</c> null for a line Nid does not compute.</summary>
+public sealed record TaxGapLineView(string Code, string Notice, string? Nid, string? Gap);
+
+public sealed record TaxDeclarantGapView(Guid Person, string Notice, string Nid, string Gap);
+
+/// <summary>Tax assessments spec §6: the notice <c>Assessment</c> against the estimate of its year, computed by the server.</summary>
+public sealed record TaxGapsView(Guid Assessment, IReadOnlyList<TaxGapLineView> Lines, IReadOnlyList<TaxDeclarantGapView> Declarants)
+{
+    public static TaxGapsView Of(Guid assessment, TaxGapsResult g) => new(
+        assessment,
+        g.Lines.Select(l => new TaxGapLineView(l.Code, Amount(l.Notice), l.Nid is { } n ? Amount(n) : null, l.Gap is { } d ? Amount(d) : null)).ToList(),
+        g.Declarants.Select(d => new TaxDeclarantGapView(d.Person, Amount(d.Notice), Amount(d.Nid), Amount(d.Gap))).ToList());
 }

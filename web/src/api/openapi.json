@@ -37549,6 +37549,69 @@
           }
         }
       },
+      "TaxCarryView": {
+        "required": [
+          "year",
+          "perCeilings",
+          "perCeilingsExpiring",
+          "perUnusedCeilings"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "perCeilings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "perCeilingsExpiring": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "perUnusedCeilings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "rentalDeficitCarried": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TaxDeclarantGapView": {
+        "required": [
+          "person",
+          "notice",
+          "nid",
+          "gap"
+        ],
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "notice": {
+            "type": "string"
+          },
+          "nid": {
+            "type": "string"
+          },
+          "gap": {
+            "type": "string"
+          }
+        }
+      },
       "TaxDeclarantPerView": {
         "required": [
           "ceiling",
@@ -37783,6 +37846,79 @@
             "type": "object",
             "additionalProperties": {
               "type": "string"
+            }
+          },
+          "carriedFrom": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxCarryView"
+              }
+            ]
+          },
+          "gaps": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxGapsView"
+              }
+            ]
+          }
+        }
+      },
+      "TaxGapLineView": {
+        "required": [
+          "code",
+          "notice"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "notice": {
+            "type": "string"
+          },
+          "nid": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TaxGapsView": {
+        "required": [
+          "assessment",
+          "lines",
+          "declarants"
+        ],
+        "type": "object",
+        "properties": {
+          "assessment": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxGapLineView"
+            }
+          },
+          "declarants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxDeclarantGapView"
             }
           }
         }

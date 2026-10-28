@@ -98,24 +98,25 @@ public sealed class SimulateTaxHandler(IHouseholdCalendar calendar) : IRequestHa
 }
 
 /// <summary>Spec §6 and §7: reads every module's lines, applies the profile, computes.</summary>
-public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, ITaxProfileStore store, IPersonRegistry persons, IActorAccessor actor)
+public sealed class TaxEstimates(
+    IEnumerable<ITaxContribution> contributions, ITaxProfileStore store, ITaxAssessmentStore assessments, IPersonRegistry persons, IActorAccessor actor)
 {
     public async Task<Result<TaxEstimateView>> EstimateAsync(int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
     {
         var read = await ReadAsync(year, scope, today, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxEstimateView>(failure!);
         read.TryGetValue(out var r);
-        var (lines, stored, people, previous) = r;
-        var profile = stored?.Profile ?? TaxProfile.Empty;
-        var (inputs, notices, _) = Assemble(year, lines, profile, people, previous);
+        var (lines, stored, people, previous) = (r!.Lines, r.Stored, r.People, r.PreviousYearIncome);
+        var (inputs, notices, _) = Assemble(year, lines, r.Effective, people, previous);
         var adults = Adults(people);
+        var result = TaxCalculator.Compute(inputs);
         // Tax-per spec §4.5: the PERs each declarant's contributions were read from.
         IReadOnlyList<IReadOnlyList<string>> perEnvelopes = adults
             .Select(a => (IReadOnlyList<string>)lines.Where(l => l.Code == TaxLineCodes.PerContribution && l.Person == a.Id)
                 .Select(l => l.Name).Distinct().Order(StringComparer.Ordinal).ToList()).ToList();
         return Result.Success(new TaxEstimateView(
-            year, TaxProfileView.Of(profile), stored is { } s && s.Year != year ? s.Year : null,
-            TaxInputsView.Of(inputs, perEnvelopes), TaxResultView.Of(TaxCalculator.Compute(inputs), adults.Select(a => a.Id.Value).ToList()), notices,
+            year, TaxProfileView.Of(stored?.Profile ?? TaxProfile.Empty), stored is { } s && s.Year != year ? s.Year : null,
+            TaxInputsView.Of(inputs, perEnvelopes), TaxResultView.Of(result, adults.Select(a => a.Id.Value).ToList()), notices,
             adults.Select(a => new TaxAdultView(a.Id.Value, a.DisplayName)).ToList(),
             people.Count(p => p.Kind == PersonKind.Dependent),
             lines.Where(l => l.Code == TaxLineCodes.RentalProperty).Select(l => new TaxPropertyView(l.Item, l.Name, l.On!.Value.Year)).ToList(),
@@ -123,8 +124,14 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
                 .OrderBy(l => l.Person!.Value.Value).ThenBy(l => l.On).ThenBy(l => l.Name, StringComparer.Ordinal)
                 .Select(l => new TaxSalaryDetailView(l.Person!.Value.Value, l.Item, l.Name, l.On!.Value, l.Note, l.Category!, Amount(l.Amount))).ToList(),
             adults.Select(a => (a.Id.Value, Rate: ObservedRate(lines, a.Id))).Where(x => x.Rate is not null)
-                .ToDictionary(x => x.Value, x => Percent(x.Rate!.Value))));
+                .ToDictionary(x => x.Value, x => Percent(x.Rate!.Value)),
+            r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList())));
     }
+
+    /// <summary>Tax assessments spec §6: the gaps of the year's notice whose declarants are the estimate's adults, if there is one.</summary>
+    private static TaxGapsView? GapsOf(IEnumerable<StoredTaxAssessment> yearNotices, TaxResult result, IReadOnlyList<Guid> adults)
+        => yearNotices.Select(n => (n.Id, Gaps: TaxGaps.Of(n.Assessment, result, adults))).Where(x => x.Gaps is not null)
+            .Select(x => TaxGapsView.Of(x.Id, x.Gaps!)).FirstOrDefault();
 
     /// <summary>
     /// Tax-per spec §3.4: the contributions a person's payslips show, as a fraction of the gross: what the gross loses to reach the net
@@ -144,7 +151,7 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
         var read = await ReadAsync(year, scope, today, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxInputs>(failure!);
         read.TryGetValue(out var r);
-        return Result.Success(Assemble(year, r.Lines, r.Stored?.Profile ?? TaxProfile.Empty, r.People, r.PreviousYearIncome).Inputs);
+        return Result.Success(Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome).Inputs);
     }
 
     /// <summary>
@@ -158,7 +165,7 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
         var read = await ReadAsync(year, scope, today, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxResult>(failure!);
         read.TryGetValue(out var r);
-        var (inputs, _, _) = Assemble(year, r.Lines, r.Stored?.Profile ?? TaxProfile.Empty, r.People, r.PreviousYearIncome);
+        var (inputs, _, _) = Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome);
         return Result.Success(computed[key] = TaxCalculator.Compute(inputs));
     }
 
@@ -174,8 +181,8 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
         var read = await ReadAsync(year, scope, today, ct, withPreviousYear: false);
         if (read.TryGetFailure(out var failure)) return Result.Failure<Rental2044View>(failure!);
         read.TryGetValue(out var r);
-        var (lines, stored, people, _) = r;
-        var (inputs, notices, columns) = Assemble(year, lines, stored?.Profile ?? TaxProfile.Empty, people);
+        var (lines, people) = (r!.Lines, r.People);
+        var (inputs, notices, columns) = Assemble(year, lines, r.Effective, people);
         var regime = TaxCalculator.Compute(inputs).RentalRegime;
         var t = Rental2044.Totals(columns, TaxRules.For(year).RentalDeficitCap);
         var micro = regime == RentalRegime.Micro;
@@ -199,16 +206,25 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
     }
 
     /// <summary>
-    /// Every module's lines for the year, the year's profile and the household, then (<paramref name="withPreviousYear"/>) each adult's
-    /// income of the year before, the basis of an estimated PER ceiling.
+    /// What an estimate reads: <c>Stored</c> is the profile as saved (what the profile view shows), <c>Effective</c> the one the
+    /// calculation runs on, the previous year's notices laid over it (<c>Carry</c>), and <c>YearNotices</c> the year's own notices the
+    /// reader sees in the scope, to compare with.
     /// </summary>
-    private async Task<Result<(IReadOnlyList<TaxLine> Lines, StoredTaxProfile? Stored, IReadOnlyList<PersonInfo> People, IReadOnlyDictionary<Guid, decimal> PreviousYearIncome)>> ReadAsync(
+    private sealed record Read(
+        IReadOnlyList<TaxLine> Lines, StoredTaxProfile? Stored, IReadOnlyList<PersonInfo> People, IReadOnlyDictionary<Guid, decimal> PreviousYearIncome,
+        TaxProfile Effective, TaxCarryOver? Carry, IReadOnlyList<StoredTaxAssessment> YearNotices);
+
+    /// <summary>
+    /// Every module's lines for the year, the year's profile (with the notices of the year before laid over it) and the household, then
+    /// (<paramref name="withPreviousYear"/>) each adult's income of the year before, the basis of an estimated PER ceiling.
+    /// </summary>
+    private async Task<Result<Read>> ReadAsync(
         int year, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct, bool withPreviousYear = true)
     {
         var reader = actor.Current!.PersonId!.Value;
         var collected = await Contributions.CollectAsync(contributions, c => c.TaxLinesAsync(reader, scope, year, today, ct));
         if (collected.TryGetFailure(out var failure))
-            return Result.Failure<(IReadOnlyList<TaxLine>, StoredTaxProfile?, IReadOnlyList<PersonInfo>, IReadOnlyDictionary<Guid, decimal>)>(failure!);
+            return Result.Failure<Read>(failure!);
         collected.TryGetValue(out var parts);
         var lines = parts!.SelectMany(p => p).ToList();
         var stored = await store.FindAsync(year, ct);
@@ -216,18 +232,23 @@ public sealed class TaxEstimates(IEnumerable<ITaxContribution> contributions, IT
         if (stored is { } earlier && earlier.Year != year)
             stored = earlier with { Profile = earlier.Profile with { PerCeilings = null, PerCeilingsExpiring = null } };
         var people = await persons.ListAsync(ct);
+        var adults = Adults(people);
+        // Tax assessments spec §5: the notices the reader declares, in the scope as the notices' list gives them (Foyer: both adults declare, or the only active adult).
+        var notices = (await assessments.ListForAsync(reader, null, ct)).Where(n => n.Assessment.Year == year - 1 || n.Assessment.Year == year)
+            .Where(n => scope != VisibilityScope.Household || TaxAssessmentAccess.InHousehold(n.Assessment, people)).ToList();
+        var carry = TaxCarryOver.From(year, notices.Where(n => n.Assessment.Year == year - 1).Select(n => n.Assessment), adults.Select(a => a.Id.Value).ToList());
+        var effective = carry?.Apply(stored?.Profile ?? TaxProfile.Empty) ?? stored?.Profile ?? TaxProfile.Empty;
         IReadOnlyDictionary<Guid, decimal> previous = new Dictionary<Guid, decimal>();
         // A notice ceiling for every adult needs no estimate: the year before is read only when one is estimated.
-        if (withPreviousYear && Adults(people).Any(a => stored?.Profile.PerCeilings?.ContainsKey(a.Id.Value) != true))
+        if (withPreviousYear && adults.Any(a => effective.PerCeilings?.ContainsKey(a.Id.Value) != true))
         {
             var income = await PreviousYearIncomeAsync(year, scope, today, people, ct);
             if (income.TryGetFailure(out var previousFailure))
-                return Result.Failure<(IReadOnlyList<TaxLine>, StoredTaxProfile?, IReadOnlyList<PersonInfo>, IReadOnlyDictionary<Guid, decimal>)>(previousFailure!);
+                return Result.Failure<Read>(previousFailure!);
             income.TryGetValue(out var value);
             previous = value!;
         }
-        return Result.Success<(IReadOnlyList<TaxLine>, StoredTaxProfile?, IReadOnlyList<PersonInfo>, IReadOnlyDictionary<Guid, decimal>)>(
-            (lines, stored, people, previous));
+        return Result.Success(new Read(lines, stored, people, previous, effective, carry, notices.Where(n => n.Assessment.Year == year).ToList()));
     }
 
     /// <summary>

@@ -7,7 +7,10 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Tax;
 
-/// <summary>Tax assessments spec §6: the reader's notices; <c>Household</c> keeps those both adults declare, <c>Me</c> all the reader's.</summary>
+/// <summary>
+/// Tax assessments spec §6: the reader's notices; <c>Household</c> keeps those both adults declare (or the only active adult's), <c>Me</c> all
+/// the reader's.
+/// </summary>
 public sealed record ListTaxAssessmentsQuery(VisibilityScope Scope, int? Year) : IQuery<TaxAssessmentList>;
 
 public sealed record GetTaxAssessmentQuery(Guid Id) : IQuery<TaxAssessmentView>;
@@ -29,7 +32,7 @@ public sealed class ListTaxAssessmentsHandler(ITaxAssessmentStore store, IPerson
         var stored = await store.ListForAsync(actor.Current!.PersonId!.Value, query.Year, ct);
         var people = (await persons.ListAsync(ct)).ToDictionary(p => p.Id.Value);
         if (query.Scope == VisibilityScope.Household)
-            stored = stored.Where(s => s.Assessment.Declarants.Count == 2).ToList(); // two declarants are both adults (validated)
+            stored = stored.Where(s => TaxAssessmentAccess.InHousehold(s.Assessment, people.Values.ToList())).ToList();
         string FirstName(StoredTaxAssessment s)
             => people.GetValueOrDefault(s.Assessment.Declarants.OrderBy(d => d.Rank).First().Person.Value)?.DisplayName ?? "";
         return Result.Success(new TaxAssessmentList(stored.OrderByDescending(s => s.Assessment.Year)
@@ -114,6 +117,18 @@ public sealed class DeleteTaxAssessmentHandler(ITaxAssessmentStore store, IActor
 internal static class TaxAssessmentAccess
 {
     public static Failure Changed { get; } = new(TaxAssessmentCodes.Conflict, "The tax assessment changed since it was read.", null);
+
+    /// <summary>
+    /// Whether the notice counts in the household scope: both adults declare it (two declarants are both adults, validated), or the household
+    /// has a single active adult (pending invitations excluded) and they are its only declarant.
+    /// </summary>
+    public static bool InHousehold(TaxAssessment a, IReadOnlyList<PersonInfo> people)
+    {
+        if (a.Declarants.Count == 2)
+            return true;
+        var active = people.Where(p => p is { Kind: PersonKind.Adult, IsPending: false }).ToList();
+        return active.Count == 1 && a.Declarants.All(d => d.Person.Value == active[0].Id.Value);
+    }
 
     public static Failure NotFound(Guid id) => new NotFoundFailure("tax assessment", id.ToString());
 

@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -18,6 +18,7 @@ import { PERSONS } from '../subscriptions/api';
 import { todayIso } from '../subscriptions/today';
 import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from './api';
 import { useTaxAssessments, type TaxAssessment } from './assessments/api';
+import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';
 import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
 import { PerSection, perWarningsInBlock, perWarningTexts } from './PerSection';
@@ -66,7 +67,7 @@ export function TaxPage() {
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows Détail.
   const tab = rawTab === 'assessment' && !notices.length ? 'detail' : rawTab;
-  const noticeViews = <Notices notices={notices} persons={people} />;
+  const noticeViews = <Notices notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
   const selector = years.length > MAX_SEGMENTS
     ? <Field label={t('tax.year')} inline>{(control) => <SelectField {...control} value={year} onValueChange={setYear} options={years} />}</Field>
     : <Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} />;
@@ -101,8 +102,15 @@ export function TaxPage() {
   );
 }
 
-function Notices({ notices, persons }: { notices: TaxAssessment[]; persons: React.ComponentProps<typeof AssessmentView>['persons'] }) {
-  return <>{notices.map((a) => <AssessmentView key={a.id} assessment={a} persons={persons} />)}</>;
+function Notices({ notices, persons, gaps, adults }: {
+  notices: TaxAssessment[]; persons: React.ComponentProps<typeof AssessmentView>['persons']; gaps: TaxEstimate['gaps']; adults: TaxEstimate['adults'];
+}) {
+  return <>{notices.map((a) => (
+    <Fragment key={a.id}>
+      {gaps && gaps.assessment === a.id ? <GapTable gaps={gaps} adults={adults} /> : null}
+      <AssessmentView assessment={a} persons={persons} />
+    </Fragment>
+  ))}</>;
 }
 
 /** The three figures that answer « combien, combien il reste, que faire en septembre », then the rest inline and the split. */

@@ -211,6 +211,8 @@
       "observed_rate": "Taux constaté sur vos bulletins : {{rate}}",
       "expenses_actual": "Frais réels de {{name}}",
       "expenses_actual_hint": "Vide : abattement de 10 %. Renseignés, ils le remplacent.",
+      "from_notice": "Avis {{year}}",
+      "deficit_suggested": "D’après l’avis {{year}}, à ajuster",
       "per_unused": "Plafonds PER non utilisés de {{name}}",
       "per_unused_hint": "Somme des plafonds non utilisés des 3 années précédentes : Nid y ajoute le plafond de l’année, estimé sur vos revenus. Ignoré quand le plafond de l’avis est saisi.",
       "per_no_notice": "Pas d’avis d’imposition sous la main ?",
@@ -392,6 +394,14 @@
         "declarant_required": "Choisissez le premier déclarant.",
         "declarant_twice": "Le second déclarant doit être une autre personne."
       }
+    },
+    "gaps": {
+      "table": "Écarts entre l’avis et l’estimation",
+      "line": "Ligne", "notice": "Avis", "nid": "Nid", "gap": "Écart",
+      "note": "Écart = avis − estimation de Nid",
+      "withholding_note": "Le solde et la retenue à la source peuvent différer de l’avis quand l’acompte du prélèvement forfaitaire de 12,8 % n’a pas été prélevé à la source, ou quand les revenus fonciers ont leurs propres acomptes.",
+      "code": { "net_tax": "Impôt net", "taxable_income": "Revenu imposable", "reference_income": "Revenu fiscal de référence", "withholding": "Retenue à la source", "balance": "Solde" },
+      "declarant": "Salaires nets — {{name}}"
     },
     "assessment": {
       "title": "Avis {{year}}",

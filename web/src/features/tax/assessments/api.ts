@@ -2,7 +2,8 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { components } from '@/api/schema';
 import { invalidateDocuments } from '@/features/documents/api';
-import { TAX } from '../api';
+import { DASHBOARD } from '@/features/dashboard/api';
+import { TAX, TAX_2044 } from '../api';
 
 export type TaxAssessment = components['schemas']['TaxAssessmentView'];
 export type TaxAssessmentBody = components['schemas']['AddTaxAssessmentBody'];
@@ -21,12 +22,12 @@ export function useTaxAssessment(id: string) {
   return $api.useQuery('get', TAX_ASSESSMENT, { params: { path: { id } } });
 }
 
-/** Every write invalidates the notices, the estimates (a notice feeds them) and the documents (the PDF's links). */
+/** Every write invalidates the notices, the estimates, the 2044 and the dashboard's PER deadline (a notice feeds them) and the documents (the PDF's links). */
 export function invalidateAssessments(queryClient: QueryClient): Promise<void> {
   return Promise.all([
     // The list is refetched even when no page shows it: the Tax page remounts on it right after the save and must not read the old one.
     queryClient.invalidateQueries({ queryKey: ['get', TAX_ASSESSMENTS], refetchType: 'all' }),
-    ...[TAX_ASSESSMENT, TAX].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
+    ...[TAX_ASSESSMENT, TAX, TAX_2044, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })),
     invalidateDocuments(queryClient),
   ]).then(() => undefined);
 }

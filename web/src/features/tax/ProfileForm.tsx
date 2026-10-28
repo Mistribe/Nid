@@ -32,6 +32,12 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const p = estimate.profile;
+  // What the notice supplies shows its value, locked; the stored value (`p`, never the notice's) is what goes back on save.
+  const carried = estimate.carriedFrom;
+  // The notice's 4BD only suggests: it pre-fills an empty field, editable, and is saved when the user saves.
+  const suggested = carried?.rentalDeficitCarried != null && ZERO.test(p.rentalDeficitCarried.trim()) ? carried.rentalDeficitCarried : undefined;
+  const noticeHint = carried ? t('tax.profile.from_notice', { year: carried.year }) : undefined;
+  const lock = (values: Record<string, string> | undefined, id: string) => values?.[id] !== undefined;
   const [statuses, setStatuses] = useState<Record<string, string>>(
     Object.fromEntries(estimate.adults.map((a) => [a.id, p.statuses[a.id] ?? 'non_executive'])));
   const [dependents, setDependents] = useState(p.dependents === null || p.dependents === undefined ? '' : String(p.dependents));
@@ -39,7 +45,7 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
   const [regime, setRegime] = useState(p.rentalRegime ?? 'auto');
   const [amounts, setAmounts] = useState({
     childcareOutsideHome: p.childcareOutsideHome, homeEmployment: p.homeEmployment, donations: p.donations, donationsAid: p.donationsAid,
-    rentalDeficitCarried: p.rentalDeficitCarried,
+    rentalDeficitCarried: suggested ?? p.rentalDeficitCarried,
   });
   const [pinel, setPinel] = useState<PinelCommitment[]>(p.pinel);
   const [rates, setRates] = useState<Record<string, string>>(p.contributionRates);
@@ -136,20 +142,24 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
           {estimate.adults.map((a) => (
             <fieldset key={a.id} className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
               <legend className="mb-2 text-sm text-muted-foreground">{t('tax.profile.per_legend', { name: a.displayName })}</legend>
-              <Field label={t('tax.profile.per_ceiling')} hint={t('tax.profile.per_ceiling_hint')}
+              <Field label={t('tax.profile.per_ceiling')} hint={lock(carried?.perCeilings, a.id) ? noticeHint : t('tax.profile.per_ceiling_hint')}
                 error={optional(AMOUNT, ceilings[a.id] ?? '') ? undefined : t('tax.amount_format')}>
-                {(c) => <Input inputMode="decimal" {...c} value={ceilings[a.id] ?? ''} onChange={(e) => setCeilings({ ...ceilings, [a.id]: e.target.value })} />}
+                {(c) => <Input inputMode="decimal" {...c} disabled={lock(carried?.perCeilings, a.id)}
+                  value={lock(carried?.perCeilings, a.id) ? carried!.perCeilings[a.id] : ceilings[a.id] ?? ''} onChange={(e) => setCeilings({ ...ceilings, [a.id]: e.target.value })} />}
               </Field>
-              <Field label={t('tax.profile.per_expiring')} error={optional(AMOUNT, expiring[a.id] ?? '') ? undefined : t('tax.amount_format')}>
-                {(c) => <Input inputMode="decimal" {...c} value={expiring[a.id] ?? ''} onChange={(e) => setExpiring({ ...expiring, [a.id]: e.target.value })} />}
+              <Field label={t('tax.profile.per_expiring')} hint={lock(carried?.perCeilingsExpiring, a.id) ? noticeHint : undefined}
+                error={optional(AMOUNT, expiring[a.id] ?? '') ? undefined : t('tax.amount_format')}>
+                {(c) => <Input inputMode="decimal" {...c} disabled={lock(carried?.perCeilingsExpiring, a.id)}
+                  value={lock(carried?.perCeilingsExpiring, a.id) ? carried!.perCeilingsExpiring[a.id] : expiring[a.id] ?? ''} onChange={(e) => setExpiring({ ...expiring, [a.id]: e.target.value })} />}
               </Field>
               <div className="sm:col-span-2">
                 <Folded label={t('tax.profile.per_no_notice')} hasError={!optional(AMOUNT, unused[a.id] ?? '')}
-                  open={unusedOpen[a.id] ?? Boolean(p.perUnusedCeilings[a.id])} onOpenChange={(open) => setUnusedOpen({ ...unusedOpen, [a.id]: open })}>
+                  open={unusedOpen[a.id] ?? (Boolean(p.perUnusedCeilings[a.id]) || lock(carried?.perUnusedCeilings, a.id))} onOpenChange={(open) => setUnusedOpen({ ...unusedOpen, [a.id]: open })}>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t('tax.profile.per_unused', { name: a.displayName })} hint={t('tax.profile.per_unused_hint')}
+                    <Field label={t('tax.profile.per_unused', { name: a.displayName })} hint={lock(carried?.perUnusedCeilings, a.id) ? noticeHint : t('tax.profile.per_unused_hint')}
                       error={optional(AMOUNT, unused[a.id] ?? '') ? undefined : t('tax.amount_format')}>
-                      {(c) => <Input inputMode="decimal" {...c} value={unused[a.id] ?? ''} onChange={(e) => setUnused({ ...unused, [a.id]: e.target.value })} />}
+                      {(c) => <Input inputMode="decimal" {...c} disabled={lock(carried?.perUnusedCeilings, a.id)}
+                        value={lock(carried?.perUnusedCeilings, a.id) ? carried!.perUnusedCeilings[a.id] : unused[a.id] ?? ''} onChange={(e) => setUnused({ ...unused, [a.id]: e.target.value })} />}
                     </Field>
                   </div>
                 </Folded>
@@ -195,7 +205,7 @@ export function ProfileForm({ estimate, scope }: { estimate: TaxEstimate; scope:
             <legend className="mb-2 font-medium">{t('tax.profile.rental')}</legend>
             <Segmented aria-label={t('tax.profile.regime')} value={regime} onValueChange={setRegime}
               options={REGIMES.map((r) => ({ value: r, label: regimeText(t, r) }))} />
-            <div className="grid gap-3 sm:grid-cols-2">{amountField('rentalDeficitCarried', t('tax.profile.deficit_carried_hint'))}</div>
+            <div className="grid gap-3 sm:grid-cols-2">{amountField('rentalDeficitCarried', suggested ? t('tax.profile.deficit_suggested', { year: carried!.year }) : t('tax.profile.deficit_carried_hint'))}</div>
             {estimate.rentalProperties.map((property) => (
               <div key={property.id} className="grid items-end gap-3 sm:grid-cols-2">
                 <Field label={t('tax.profile.pinel', { name: property.name, year: property.acquiredIn })}>

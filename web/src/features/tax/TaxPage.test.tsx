@@ -156,6 +156,72 @@ describe('TaxPage', () => {
     expect(await screen.findByText(/Taux constaté sur vos bulletins : 22,85 %/)).toBeInTheDocument();
   });
 
+  describe('profile fields a notice supplies', () => {
+    const carried = () => {
+      const loaded = estimate();
+      loaded.rentalProperties = [{ id: 'p1', name: 'Studio', acquiredIn: 2020 }];
+      loaded.profile = { ...loaded.profile, perCeilings: { [ADULT]: '1111.00' }, perUnusedCeilings: { [ADULT]: '222.00' }, rentalDeficitCarried: '33.00' };
+      loaded.carriedFrom = { year: 2025, perCeilings: { [ADULT]: '5843.13' }, perCeilingsExpiring: {}, perUnusedCeilings: { [ADULT]: '3500.00' }, rentalDeficitCarried: '800.00' };
+      return loaded;
+    };
+
+    it('Locks_only_the_fields_the_notice_supplies', async () => {
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(carried())));
+      await renderApp('/tax?tab=profile');
+
+      const ceiling = await screen.findByLabelText('Plafond épargne retraite (avis)');
+      expect(ceiling).toBeDisabled();
+      expect(ceiling).toHaveValue('5843.13');
+      expect(screen.getAllByText('Avis 2025')).toHaveLength(2);
+      expect(screen.getByLabelText('dont perdu au 31 décembre')).toBeEnabled();
+      expect(screen.getByLabelText('Plafonds PER non utilisés de Alice')).toBeDisabled();
+      expect(screen.getByLabelText('Plafonds PER non utilisés de Alice')).toHaveValue('3500.00');
+      expect(screen.getByLabelText('Déficits fonciers antérieurs à reporter')).toBeEnabled();
+      expect(screen.getByLabelText('Emploi à domicile')).toBeEnabled();
+    });
+
+    it('Saving_the_profile_keeps_the_stored_values_behind_locked_fields', async () => {
+      const sent: unknown[] = [];
+      server.use(
+        http.get('*/api/v1/tax', () => HttpResponse.json(carried())),
+        http.put('*/api/v1/tax/profile/:year', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json(carried()); }),
+      );
+      const { user } = await renderApp('/tax?tab=profile');
+
+      await user.click(await screen.findByRole('button', { name: 'Enregistrer le profil' }));
+      await screen.findByText('Profil enregistré.');
+      expect(sent[0]).toMatchObject({ perCeilings: { [ADULT]: '1111.00' }, perUnusedCeilings: { [ADULT]: '222.00' }, rentalDeficitCarried: '33.00' });
+    });
+
+    it('The_notice_4BD_pre_fills_an_empty_field_and_is_saved_as_edited', async () => {
+      const sent: unknown[] = [];
+      const loaded = carried();
+      loaded.profile = { ...loaded.profile, rentalDeficitCarried: '0.00' };
+      server.use(
+        http.get('*/api/v1/tax', () => HttpResponse.json(loaded)),
+        http.put('*/api/v1/tax/profile/:year', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json(loaded); }),
+      );
+      const { user } = await renderApp('/tax?tab=profile');
+
+      const field = await screen.findByLabelText('Déficits fonciers antérieurs à reporter');
+      expect(field).toBeEnabled();
+      expect(field).toHaveValue('800.00');
+      expect(screen.getByText('D’après l’avis 2025, à ajuster')).toBeInTheDocument();
+      await user.clear(field);
+      await user.type(field, '650');
+      await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
+      await screen.findByText('Profil enregistré.');
+      expect(sent[0]).toMatchObject({ rentalDeficitCarried: '650' });
+    });
+
+    it('locks nothing without a carried notice', async () => {
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      await renderApp('/tax?tab=profile');
+
+      expect(await screen.findByLabelText('Plafond épargne retraite (avis)')).toBeEnabled();
+    });
+  });
+
   it('saves the profile for the year', async () => {
     const sent: unknown[] = [];
     server.use(
@@ -347,6 +413,41 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
       await user.click(await screen.findByRole('tab', { name: 'Avis' }));
       expect(await screen.findByRole('region', { name: 'Avis 2025' })).toBeInTheDocument();
+    });
+
+    it('Shows_the_gaps_above_their_notice', async () => {
+      const loaded = estimate();
+      const a = jointAssessment({ year: 2025 });
+      loaded.gaps = {
+        assessment: a.id,
+        lines: [
+          { code: 'balance', notice: '-312.00', nid: null, gap: null },
+          { code: 'net_tax', notice: '2688.00', nid: '2500.00', gap: '188.00' },
+        ],
+        declarants: [{ person: ADULT, notice: '46800.00', nid: '46000.00', gap: '800.00' }],
+      };
+      // The names come from the estimate's adults, not from the persons list.
+      server.use(notices(a), http.get('*/api/v1/tax', () => HttpResponse.json(loaded)), http.get('*/api/v1/core/persons', () => HttpResponse.json([])));
+      const { user } = await renderApp('/tax?year=2025');
+
+      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
+      const table = await screen.findByRole('table', { name: 'Écarts entre l’avis et l’estimation' });
+      const rows = within(table).getAllByRole('row').slice(1);
+      expect(rows.map((r) => r.firstChild?.textContent)).toEqual(['Impôt net', 'Solde', 'Salaires nets — Alice']);
+      expect(rows[0]).toHaveTextContent('188,00 €');
+      expect(rows[1]).toHaveTextContent('—');
+      expect(screen.getByText('Écart = avis − estimation de Nid')).toBeInTheDocument();
+      expect(screen.getByText(/prélèvement forfaitaire de 12,8 %/)).toBeInTheDocument();
+      expect(table.compareDocumentPosition(screen.getByRole('region', { name: 'Avis 2025' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('No_gap_table_without_gaps', async () => {
+      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      const { user } = await renderApp('/tax?year=2025');
+
+      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
+      await screen.findByRole('region', { name: 'Avis 2025' });
+      expect(screen.queryByRole('table', { name: 'Écarts entre l’avis et l’estimation' })).not.toBeInTheDocument();
     });
 
     it('falls back to Détail when the year switched to has no notice', async () => {

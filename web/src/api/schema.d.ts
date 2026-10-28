@@ -23040,6 +23040,27 @@ export interface components {
             /** Format: uuid */
             documentId?: null | string;
         };
+        TaxCarryView: {
+            /** Format: int32 */
+            year: number;
+            perCeilings: {
+                [key: string]: string;
+            };
+            perCeilingsExpiring: {
+                [key: string]: string;
+            };
+            perUnusedCeilings: {
+                [key: string]: string;
+            };
+            rentalDeficitCarried?: null | string;
+        };
+        TaxDeclarantGapView: {
+            /** Format: uuid */
+            person: string;
+            notice: string;
+            nid: string;
+            gap: string;
+        };
         TaxDeclarantPerView: {
             ceiling: string;
             source: string;
@@ -23098,6 +23119,20 @@ export interface components {
             observedRates: {
                 [key: string]: string;
             };
+            carriedFrom?: null | components["schemas"]["TaxCarryView"];
+            gaps?: null | components["schemas"]["TaxGapsView"];
+        };
+        TaxGapLineView: {
+            code: string;
+            notice: string;
+            nid?: null | string;
+            gap?: null | string;
+        };
+        TaxGapsView: {
+            /** Format: uuid */
+            assessment: string;
+            lines: components["schemas"]["TaxGapLineView"][];
+            declarants: components["schemas"]["TaxDeclarantGapView"][];
         };
         TaxInputsView: {
             /** Format: int32 */
