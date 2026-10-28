@@ -60,7 +60,7 @@
     "more": "Voir plus"
   },
   "settings_frame": {
-    "nav": { "label": "Réglages", "appearance": "Apparence", "notifications": "Notifications" }
+    "nav": { "label": "Réglages", "appearance": "Apparence", "notifications": "Notifications", "projection": "Projection" }
   },
   "channel_errors": {
     "unreachable": "Le serveur d’envoi ne répond pas.",

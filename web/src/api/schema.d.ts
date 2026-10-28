@@ -254,6 +254,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/persons/{id}/retirement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RetirementBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/me/preferences": {
         parameters: {
             query?: never;
@@ -13539,6 +13634,264 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/projection-assumptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectionAssumptionsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssumptionsBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectionAssumptionsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    horizon?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectionView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tax": {
         parameters: {
             query?: never;
@@ -19261,6 +19614,15 @@ export interface components {
             overdue: boolean;
             inLetter: boolean;
         };
+        AssumptionsBody: {
+            classRates?: null | {
+                [key: string]: string;
+            };
+            inflation?: null | string;
+            monthlySavings?: null | string;
+            savingsClass?: null | string;
+            freedPaymentsToSavings?: null | boolean;
+        };
         AuditActorView: {
             kind: string;
             /** Format: uuid */
@@ -20439,6 +20801,18 @@ export interface components {
             pricesEnabled?: null | boolean;
             irlEnabled?: null | boolean;
         };
+        HouseholdPointView: {
+            /** Format: date */
+            on: string;
+            nominal: string;
+            real: string;
+            savings: string;
+            property: string;
+            debt: string;
+            realSavings: string;
+            realProperty: string;
+            realDebt: string;
+        };
         HouseholdSettingsView: {
             /** Format: int32 */
             maxAdults: number;
@@ -21567,6 +21941,9 @@ export interface components {
             kind: string;
             displayName: string;
             email?: null | string;
+            birthDate?: null | string;
+            /** Format: int32 */
+            retirementAge: number;
         };
         PersonEnvelopeShareView: {
             /** Format: uuid */
@@ -21745,11 +22122,46 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        ProjectionAssumptionsView: {
+            classRates: {
+                [key: string]: string;
+            };
+            inflation: string;
+            monthlySavings?: null | string;
+            savingsClass: string;
+            freedPaymentsToSavings: boolean;
+            currency: string;
+        };
+        ProjectionMilestoneView: {
+            /** Format: date */
+            on: string;
+            kind: string;
+            label: string;
+            /** Format: uuid */
+            item?: null | string;
+        };
         ProjectionPointView: {
             /** Format: date */
             on: string;
             without: components["schemas"]["DashboardMoneyView"];
             with: components["schemas"]["DashboardMoneyView"];
+        };
+        ProjectionView: {
+            currency: string;
+            horizon: string;
+            /** Format: date */
+            horizonOn: string;
+            assumptions: components["schemas"]["ProjectionAssumptionsView"];
+            monthlySavings: string;
+            savingsOrigin: string;
+            points: components["schemas"]["HouseholdPointView"][];
+            milestones: components["schemas"]["ProjectionMilestoneView"][];
+            warnings: components["schemas"]["ProjectionWarningView"][];
+            retirementHorizons: components["schemas"]["RetirementHorizonView"][];
+        };
+        ProjectionWarningView: {
+            code: string;
+            detail?: null | string;
         };
         PropertiesCosts: {
             currency: string;
@@ -22435,6 +22847,18 @@ export interface components {
         };
         RentRevisionBody: {
             effectiveOn?: null | string;
+        };
+        RetirementBody: {
+            birthDate?: null | string;
+            /** Format: int32 */
+            retirementAge: number;
+        };
+        RetirementHorizonView: {
+            /** Format: uuid */
+            person: string;
+            name: string;
+            /** Format: date */
+            on: string;
         };
         ReturnReferenceView: {
             /** Format: double */

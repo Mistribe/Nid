@@ -11,9 +11,9 @@ type Refusal = { status: number; code: string; title: string };
 export const SESSION_ID = '0192aaaa-0000-7000-8000-000000000001';
 
 export const householdPersons: Person[] = [
-  { id: '01926b9e-0000-7000-8000-00000000000a', kind: 'adult', displayName: 'Alice Dev', email: 'alice@example.test' },
-  { id: '01926b9e-0000-7000-8000-00000000000b', kind: 'adult', displayName: 'Bob Dev', email: 'bob@example.test' },
-  { id: '01926b9e-0000-7000-8000-00000000000c', kind: 'dependent', displayName: 'Léo', email: null },
+  { id: '01926b9e-0000-7000-8000-00000000000a', kind: 'adult', displayName: 'Alice Dev', email: 'alice@example.test', retirementAge: 64 },
+  { id: '01926b9e-0000-7000-8000-00000000000b', kind: 'adult', displayName: 'Bob Dev', email: 'bob@example.test', retirementAge: 64 },
+  { id: '01926b9e-0000-7000-8000-00000000000c', kind: 'dependent', displayName: 'Léo', email: null, retirementAge: 64 },
 ];
 
 export function session(overrides: Partial<Session> = {}): Session {

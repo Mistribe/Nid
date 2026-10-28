@@ -26,4 +26,10 @@ public interface IHouseholdSettings
 
     /// <summary>Issue #104: replaces the target; checked by the caller (<c>AllocationTarget.Check</c>).</summary>
     Task SaveAllocationTargetAsync(IReadOnlyDictionary<string, decimal> target, CancellationToken ct);
+
+    /// <summary>Net worth projection spec §2.1: the household's assumptions; <see cref="ProjectionDefaults.Assumptions"/> until it chose some.</summary>
+    Task<ProjectionAssumptions> ProjectionAssumptionsAsync(CancellationToken ct);
+
+    /// <summary>Replaces the assumptions; checked by the caller (<c>ProjectionRules.Check</c>).</summary>
+    Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct);
 }

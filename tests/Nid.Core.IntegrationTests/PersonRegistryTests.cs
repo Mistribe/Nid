@@ -260,4 +260,32 @@ public class PersonRegistryTests(PostgresFixture postgres)
         Assert.IsType<UnambitiousFx.Functional.Failures.NotFoundFailure>(
             (await registry.RevokeSessionsAsync(PersonId.New(), default)).TryGetFailure(out var missing) ? missing : null);
     }
+
+    [Fact]
+    public async Task Retirement_is_saved_and_listed()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+        var alice = (await registry.ProvisionAdultAsync("sub-a", "Alice", null, isAdmin: false, default)).Ok();
+        var kid = (await registry.CreateDependentAsync("Kid", default)).Ok();
+        Assert.Equal((null, 64), (kid.BirthDate, kid.RetirementAge));
+
+        Assert.True((await registry.SetRetirementAsync(alice.Id, new NodaTime.LocalDate(1985, 3, 14), 62, default)).IsSuccess);
+
+        var listed = await registry.ListAsync(default);
+        var saved = listed.Single(p => p.Id == alice.Id);
+        Assert.Equal((new NodaTime.LocalDate(1985, 3, 14), 62), (saved.BirthDate, saved.RetirementAge));
+        var untouched = listed.Single(p => p.Id == kid.Id);
+        Assert.Equal((null, 64), (untouched.BirthDate, untouched.RetirementAge));
+    }
+
+    [Fact]
+    public async Task Retirement_of_an_unknown_person_is_not_found()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var registry = new PersonRegistry(db, PostgresFixture.Clock);
+
+        Assert.IsType<UnambitiousFx.Functional.Failures.NotFoundFailure>(
+            (await registry.SetRetirementAsync(PersonId.New(), null, 64, default)).TryGetFailure(out var missing) ? missing : null);
+    }
 }

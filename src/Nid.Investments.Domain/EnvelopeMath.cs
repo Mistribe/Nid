@@ -60,6 +60,14 @@ public static class EnvelopeMath
             .ToList();
 
     /// <summary>
+    /// Projection spec §2.1: the contributions minus the withdrawals dated in [<paramref name="from"/>, <paramref name="to"/>]. Openings are
+    /// left out: an envelope created in Nid would otherwise count its whole value as a period of savings.
+    /// </summary>
+    public static decimal SavedBetween(IReadOnlyList<Flow> flows, LocalDate from, LocalDate to)
+        => Total(flows, f => f.OccurredOn >= from && f.OccurredOn <= to && f.Kind == FlowKind.Contribution)
+           - Total(flows, f => f.OccurredOn >= from && f.OccurredOn <= to && f.Kind == FlowKind.Withdrawal);
+
+    /// <summary>
     /// <c>investments-data-model.md</c> §6: the money-weighted annual return (XIRR, Actual/365) up to the value at <c>v</c>, in percent;
     /// null when not meaningful (under 12 months, or cash flows all of one sign).
     /// </summary>

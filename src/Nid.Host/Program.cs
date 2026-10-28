@@ -163,6 +163,7 @@ app.MapGoalEndpoints();
 app.MapDocumentEndpoints();
 app.MapRealEstateEndpoints();
 app.MapDashboardEndpoints();
+app.MapProjectionEndpoints();
 app.MapTaxEndpoints();
 app.MapScenarioEndpoints();
 app.MapImportEndpoints();

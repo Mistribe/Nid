@@ -10,18 +10,8 @@ public static class ScenarioRules
     public const int MinLoanMonths = 12;
     public const int MaxLoanMonths = 420;
 
-    /// <summary>The pre-filled annual rates per class, as fractions.</summary>
-    public static readonly IReadOnlyDictionary<string, decimal> Defaults = new Dictionary<string, decimal>
-    {
-        [AllocationClasses.Cash] = 0.02m,
-        [AllocationClasses.MoneyMarket] = 0.025m,
-        [AllocationClasses.Bond] = 0.03m,
-        [AllocationClasses.Equity] = 0.06m,
-        [AllocationClasses.Mixed] = 0.04m,
-        [AllocationClasses.CapitalGuaranteed] = 0.025m,
-        [AllocationClasses.RealEstate] = 0.02m,
-        [AllocationClasses.Other] = 0m,
-    };
+    /// <summary>The pre-filled annual rates per class, as fractions: the household's defaults.</summary>
+    public static IReadOnlyDictionary<string, decimal> Defaults => ProjectionDefaults.ClassRates;
 
     /// <summary>Every refusal of the document; empty when valid. A purchase date in the past is not refused (it is warned about).</summary>
     public static IReadOnlyList<(string Field, string Message)> Check(PropertyPurchase doc, LocalDate today)

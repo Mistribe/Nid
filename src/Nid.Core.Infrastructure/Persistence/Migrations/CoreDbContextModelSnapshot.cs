@@ -297,6 +297,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("prices_enabled");
 
+                    b.Property<string>("ProjectionAssumptions")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("projection_assumptions");
+
                     b.Property<string>("ReferenceCurrency")
                         .IsRequired()
                         .HasColumnType("char(3)")
@@ -406,6 +410,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<LocalDate?>("BirthDate")
+                        .HasColumnType("date")
+                        .HasColumnName("birth_date");
+
                     b.Property<Instant>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -439,6 +447,12 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("preferences");
 
+                    b.Property<int>("RetirementAge")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(64)
+                        .HasColumnName("retirement_age");
+
                     b.Property<int>("SessionEpoch")
                         .HasColumnType("integer")
                         .HasColumnName("session_epoch");
@@ -462,6 +476,8 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_person_admin", "kind = 'adult' or not is_admin");
 
                             t.HasCheckConstraint("ck_person_kind", "kind in ('adult','dependent')");
+
+                            t.HasCheckConstraint("ck_person_retirement_age", "retirement_age between 50 and 75");
 
                             t.HasCheckConstraint("ck_person_subject", "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
                         });

@@ -227,7 +227,7 @@ public sealed class SimulateScenarioHandler(ScenarioFactsReader facts, IHousehol
 }
 
 [RequestHandler<GetScenarioDefaultsQuery, ScenarioDefaultsView>]
-public sealed class GetScenarioDefaultsHandler(ScenarioFactsReader facts) : IRequestHandler<GetScenarioDefaultsQuery, ScenarioDefaultsView>
+public sealed class GetScenarioDefaultsHandler(ScenarioFactsReader facts, IHouseholdSettings household) : IRequestHandler<GetScenarioDefaultsQuery, ScenarioDefaultsView>
 {
     public async ValueTask<Result<ScenarioDefaultsView>> HandleAsync(GetScenarioDefaultsQuery query, CancellationToken ct = default)
     {
@@ -236,7 +236,7 @@ public sealed class GetScenarioDefaultsHandler(ScenarioFactsReader facts) : IReq
         read.TryGetValue(out var today);
         var currency = today!.Reference;
         return Result.Success(new ScenarioDefaultsView(
-            ScenarioRules.Defaults.ToDictionary(r => r.Key, r => PropertyPurchaseView.Rate(r.Value)),
+            (await household.ProjectionAssumptionsAsync(ct)).ClassRates.ToDictionary(r => r.Key, r => PropertyPurchaseView.Rate(r.Value)),
             today.MonthlyIncome is { } income ? CapacityView.Money(income, currency) : null,
             CapacityView.Money(today.Commitments, currency),
             ScenarioResults.ByName(today.Savings.Where(s => s.Converted is not null), s => s.Holding.Name)

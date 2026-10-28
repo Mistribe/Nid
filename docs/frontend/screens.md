@@ -68,6 +68,8 @@ Il doit répondre en moins d'une minute aux quatre questions de `Project.md` §1
 
 **Livré le 2026-10-21** (« Où part le revenu du mois », remplace « Le mois du foyer ») : sur ordinateur, un Sankey relie chaque source de revenu en cours (un bloc « Revenus » sans le module Revenus) au revenu du mois, puis aux abonnements, crédits, charges des biens et au « Reste » ; le nom d'une source ouvre sa fiche (un loyer, l'onglet Location du bien) ; sur téléphone et dans le panneau de la marge, deux barres « D'où il vient » et « Où il part » ; chaque engagement et le « Reste » portent leur part du revenu (`commitmentSources[].pct`, `marginPct` du tableau de bord) ; les sources viennent de `nowSplit` de `/api/v1/income/overview` (montant mensuel du jour, part, au-delà de six sources les plus petites réunies en « Autres ») ; une infobulle au survol d’un flux donne le montant et la part ; « Afficher en tableau » donne les mêmes chiffres ; une marge négative garde les deux barres, une marge ou un revenu inconnus en disent la raison.
 
+**Livré le 2026-10-27** (« Projection du patrimoine », tranche 1 de la #102, `../superpowers/specs/2026-10-27-networth-projection-design.md` §8) : une carte pleine largeur sous la courbe du patrimoine, chargée à la demande (`GET /api/v1/projection`). Une courbe du patrimoine net projeté (une fin de mois par point) ; l'horizon se choisit dans l'en-tête (5, 10, 20, 30 ans, ou « Retraite de … » pour chaque retraite que le serveur accepte : un adulte avec une date de naissance, retraite à 40 ans au plus) et se garde dans l'URL (`?projection=`, 10 ans par défaut hors URL) ; la bascule « Valeur d’aujourd’hui » / « Valeur courante » (`?real=0` pour la courante), suivie par toutes les colonnes du tableau ; les jalons (fin d’un crédit, bien libéré, épargne épuisée, retraite) sont des points avec une bulle et une liste dessous ; « Afficher en tableau » donne les fins d’année (et le dernier mois) avec épargne, biens et dettes ; les avertissements (revenu prolongé, taux de change manquant, épargne épuisée) et la ligne d’hypothèses (avec le lien vers les réglages) suivent, puis le rappel « Chiffres indicatifs : rendements supposés, pas d’impôt futur ». Sans aucune donnée, la carte n’est pas montrée. Tous les chiffres sont ceux du serveur.
+
 **Refonte du 2026-10-23** (passe « Sankey et À venir ») : le Sankey met ses libellés en HTML de part et d’autre du dessin (tronqués avec une infobulle plutôt que coupés au bord), colore les sources dans l’accent du thème et chaque flux en dégradé ; « À venir » regroupe les évènements par jour (« Aujourd’hui », « Demain », puis le jour et la date, l’année seulement si ce n’est pas celle-ci), chaque ligne avec une icône teintée de la couleur de son module (abonnements, crédits et charges des biens comme dans le Sankey, revenus dans l’accent), l’évènement en premier et l’élément en lien discret dessous.
 
 ### Grammaire des écrans (refonte)
@@ -165,7 +167,8 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 | **Guides** | « Revoir tous les guides » : efface le « déjà vu » ; chaque guide se rejoue à la prochaine visite de son module |
 | Foyer | Fuseau, langue |
 | Personnes | Ajouter un enfant (`dependent`) |
-| **Notifications** (`/settings/notifications`) | Voir ci-dessous ; une barre d’onglets « Apparence » / « Notifications » relie les pages de réglages |
+| **Notifications** (`/settings/notifications`) | Voir ci-dessous ; une barre d’onglets « Apparence » / « Notifications » / « Projection » relie les pages de réglages |
+| **Projection** (`/settings/projection`) | Voir ci-dessous |
 
 **Page « Notifications »** (livrée en PR 2 de `../superpowers/specs/2026-10-24-notifications-design.md`, §6.3) : un seul « Enregistrer » pour l’ensemble, « Réglages enregistrés. » en confirmation.
 
@@ -174,6 +177,8 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 - **Rythme** : niveau action « Tout de suite » / « Dans le résumé », niveau information « Dans le résumé » / « Dans Nid seulement », résumé « Chaque jour » / « Chaque semaine » avec le jour de la semaine.
 - **Délais d’avance** : un champ par type daté (0 à 365 jours, défaut indiqué en aide), dans une zone repliée ; « Rétablir » rend le défaut du type.
 - Les préférences sont versionnées : si elles ont changé ailleurs, un message propose de recharger.
+
+**Page « Projection »** (livrée le 2026-10-27, tranche 1 de la #102) : ouverte à tout adulte (la page du foyer est réservée à l’administrateur). « Hypothèses de projection » : rendement annuel par classe d’actifs, inflation, épargne mensuelle (« Automatique » = moyenne des 12 derniers mois, ou un montant fixe dans la devise du foyer), classe d’actifs de l’épargne, mensualités terminées versées à l’épargne ; lecture en ligne, modification dans un dialogue. « Personnes » : pour chaque adulte, la date de naissance (jj/mm/aaaa, passée) et l’âge de retraite (50 à 75, 64 par défaut) ; sans date de naissance, pas d’horizon « Retraite de … » sur le tableau de bord.
 
 La devise de référence, le catalogue, les taux de change et l'IA sont techniques ou valent pour tout le foyer : ils sont dans l'**Administration** (§12).
 

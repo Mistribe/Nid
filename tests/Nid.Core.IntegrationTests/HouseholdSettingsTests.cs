@@ -46,6 +46,47 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
         Assert.Equal(Currency.Usd, await settings.ReferenceCurrencyAsync(default));
     }
 
+    [Fact]
+    public async Task Projection_assumptions_round_trip()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var settings = new HouseholdSettings(db);
+
+        Assert.Equal(ProjectionDefaults.Assumptions, await settings.ProjectionAssumptionsAsync(default));
+
+        var saved = ProjectionDefaults.Assumptions with
+        {
+            ClassRates = new Dictionary<string, decimal>(ProjectionDefaults.ClassRates) { [AllocationClasses.Equity] = 0.07m },
+            MonthlySavings = 500m,
+        };
+        await settings.SaveProjectionAssumptionsAsync(saved, default);
+
+        var read = await settings.ProjectionAssumptionsAsync(default);
+        Assert.Equal(0.07m, read.ClassRates[AllocationClasses.Equity]);
+        Assert.Equal(500m, read.MonthlySavings);
+        Assert.Equal(saved.Inflation, read.Inflation);
+        Assert.Equal(saved.SavingsClass, read.SavingsClass);
+        Assert.Equal(saved.FreedPaymentsToSavings, read.FreedPaymentsToSavings);
+    }
+
+    [Fact]
+    public async Task Projection_assumptions_missing_a_class_take_its_default_rate()
+    {
+        await using var db = await postgres.NewDatabaseAsync();
+        var settings = new HouseholdSettings(db);
+        await settings.SaveProjectionAssumptionsAsync(ProjectionDefaults.Assumptions with
+        {
+            ClassRates = new Dictionary<string, decimal> { [AllocationClasses.Equity] = 0.07m, [AllocationClasses.Cash] = 0m },
+        }, default);
+
+        var read = await settings.ProjectionAssumptionsAsync(default);
+
+        Assert.Equal(ProjectionDefaults.ClassRates.Keys.Order(StringComparer.Ordinal), read.ClassRates.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal((0.07m, 0m), (read.ClassRates[AllocationClasses.Equity], read.ClassRates[AllocationClasses.Cash]));
+        Assert.Equal(ProjectionDefaults.ClassRates[AllocationClasses.Bond], read.ClassRates[AllocationClasses.Bond]);
+        Assert.Equal(ProjectionDefaults.ClassRates[AllocationClasses.RealEstate], read.ClassRates[AllocationClasses.RealEstate]);
+    }
+
     private sealed class FixedClock(Instant now) : IClock
     {
         public Instant GetCurrentInstant() => now;

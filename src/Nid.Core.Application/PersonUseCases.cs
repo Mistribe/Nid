@@ -1,6 +1,8 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application;
@@ -9,6 +11,9 @@ namespace Nid.Core.Application;
 public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email, bool IsAdmin = false) : ICommand<PersonInfo>;
 
 public sealed record CreateDependentCommand(string DisplayName) : ICommand<PersonInfo>;
+
+/// <summary>A null birth date clears it. Any adult sets any person's, a dependent's included: the household plans together.</summary>
+public sealed record SetRetirementCommand(PersonId Person, LocalDate? BirthDate, int RetirementAge) : ICommand<PersonInfo>;
 
 public sealed record ListPersonsQuery : IQuery<IReadOnlyList<PersonInfo>>;
 
@@ -24,6 +29,26 @@ public sealed class CreateDependentHandler(IPersonRegistry persons) : IRequestHa
 {
     public async ValueTask<Result<PersonInfo>> HandleAsync(CreateDependentCommand command, CancellationToken ct = default)
         => await persons.CreateDependentAsync(command.DisplayName, ct);
+}
+
+[RequestHandler<SetRetirementCommand, PersonInfo>]
+public sealed class SetRetirementHandler(IPersonRegistry persons, IHouseholdCalendar calendar) : IRequestHandler<SetRetirementCommand, PersonInfo>
+{
+    public const int MinAge = 50;
+    public const int MaxAge = 75;
+    private static readonly LocalDate Earliest = new(1900, 1, 1);
+
+    public async ValueTask<Result<PersonInfo>> HandleAsync(SetRetirementCommand command, CancellationToken ct = default)
+    {
+        if (command.RetirementAge is < MinAge or > MaxAge)
+            return Result.Failure<PersonInfo>(FieldErrors.At(
+                new Failure(PersonCodes.InvalidRetirementAge, $"The retirement age is between {MinAge} and {MaxAge}.", null), "retirementAge"));
+        if (command.BirthDate is { } birth && (birth < Earliest || birth > await calendar.TodayAsync(ct)))
+            return Result.Failure<PersonInfo>(FieldErrors.At(
+                new Failure(PersonCodes.InvalidBirthDate, "The birth date is between 1900-01-01 and today.", null), "birthDate"));
+
+        return await persons.SetRetirementAsync(command.Person, command.BirthDate, command.RetirementAge, ct);
+    }
 }
 
 /// <summary>Whether the actor owns an active private item or a solo tax notice: without one, « Moi » shows exactly « Foyer » and the selector is hidden.</summary>

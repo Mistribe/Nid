@@ -31,6 +31,14 @@ test('alice lands on the dashboard and finds her net worth there', async ({ brow
   const lastRow = table.getByRole('row').last();
   await expect(lastRow).toContainText('Aujourd’hui');
   await expect(lastRow).toContainText('€');
+
+  const projection = alice.getByRole('region', { name: 'Projection du patrimoine' });
+  await expect(projection).toBeVisible();
+  await projection.getByRole('radio', { name: '20 ans' }).click();
+  await expect(alice).toHaveURL(/projection=20y/);
+  await projection.getByRole('button', { name: 'Afficher en tableau' }).click();
+  const horizonYear = String(new Date().getFullYear() + 20);
+  await expect(projection.getByRole('table', { name: 'Projection du patrimoine en tableau' }).getByRole('row', { name: new RegExp(horizonYear) })).toBeVisible();
 });
 
 test('alice shares an envelope 50/50 with bob and finds it in the split, keeping Moi through its link', async ({ browser }) => {

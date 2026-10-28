@@ -39,6 +39,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.ReferenceCurrency).HasColumnType("char(3)");
             e.Property(x => x.AllocationTarget).HasColumnType("jsonb");
+            e.Property(x => x.ProjectionAssumptions).HasColumnType("jsonb");
             e.Property(x => x.MaxAdults).HasDefaultValue(2);
             e.Property(x => x.PricesEnabled).HasDefaultValue(false);
             e.Property(x => x.IrlEnabled).HasDefaultValue(false);
@@ -95,11 +96,13 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
                 t.HasCheckConstraint("ck_person_subject",
                     "(kind = 'adult' and (oidc_subject is not null or email is not null)) or (kind = 'dependent' and oidc_subject is null)");
                 t.HasCheckConstraint("ck_person_admin", "kind = 'adult' or not is_admin");
+                t.HasCheckConstraint("ck_person_retirement_age", "retirement_age between 50 and 75");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Preferences).HasColumnType("jsonb");
             e.Property(x => x.IsAdmin).HasDefaultValue(false);
+            e.Property(x => x.RetirementAge).HasDefaultValue(64);
             e.HasIndex(x => x.OidcSubject).IsUnique().HasFilter("oidc_subject is not null");
             // ix_person_adult_email (unique on lower(email) among adults) is an expression index: created by the
             // AdminArea migration in SQL, EF Core has no model for it.

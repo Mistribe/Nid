@@ -15,7 +15,7 @@ import { ALICE, BOB, DOCUMENT, jointAssessment, soloAssessment } from './testDat
 
 type Person = components['schemas']['PersonDto'];
 const persons: Person[] = [
-  { id: ALICE, kind: 'adult', displayName: 'Alice', email: null }, { id: BOB, kind: 'adult', displayName: 'Bob', email: null },
+  { id: ALICE, kind: 'adult', displayName: 'Alice', email: null, retirementAge: 64 }, { id: BOB, kind: 'adult', displayName: 'Bob', email: null, retirementAge: 64 },
 ];
 
 /** The view on a bare router (it links) with the API and the persons it reads. */

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { emptyDashboard, netWorth } from '@/features/dashboard/testData';
+import { emptyDashboard, emptyProjection, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
 import { holdings as investmentsHoldings, overview as investmentsOverview, performance as investmentsPerformance } from '@/features/investments/testData';
 import { overview as loansOverview } from '@/features/loans/testData';
@@ -29,6 +29,8 @@ export const handlers = [
   // The home page's goals card reads the open goals (none: it stays absent).
   http.get('*/api/v1/goals', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/dashboard/net-worth', () => HttpResponse.json(netWorth([]))),
+  // ... and the projection card below it, hidden while the household has nothing.
+  http.get('*/api/v1/projection', () => HttpResponse.json(emptyProjection())),
   // The subscriptions list is read by every test that lands on it.
   http.get('*/api/v1/subscriptions', () => HttpResponse.json({
     items: [], householdCashCost: [], householdAmortizedCost: [], householdCashCostConverted: null,

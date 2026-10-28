@@ -8,14 +8,14 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests.Mcp;
 
-/// <summary>Spec 4B §3: the 18 tools, the same JSON as REST, the same rights.</summary>
+/// <summary>Spec 4B §3: the read and document tools (<see cref="Expected"/>) and one per web write, the same JSON as REST, the same rights.</summary>
 public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly string[] Expected =
     [
         "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
         "get_net_worth_history", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "list_envelopes",
-        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_subscriptions", "list_tax_years", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment",
+        "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_subscriptions", "list_tax_years", "get_projection", "propose_amortization", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment",
     ];
 
     private static async Task<(NidApp App, McpClient Client)> StartAsync(PostgresFixture fixture)

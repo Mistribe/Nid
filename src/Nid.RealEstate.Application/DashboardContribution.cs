@@ -99,6 +99,10 @@ public sealed class RealEstateNetWorth(IVisibleItems visible, IItemRegistry item
         return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings, withoutStart));
     }
 
+    /// <summary>Projection spec §2.1: a property is no savings; the loans' principal repaid is counted apart by the projection.</summary>
+    public Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+        => Task.FromResult(Result.Success<IReadOnlyDictionary<Currency, decimal>>(new Dictionary<Currency, decimal>()));
+
     /// <summary>
     /// 3E1 spec §2: at each date, each property's latest estimate on or before it, and each loan's
     /// − remaining balance from its disbursement on, its principal repaid so far paid in — still after its end, so the

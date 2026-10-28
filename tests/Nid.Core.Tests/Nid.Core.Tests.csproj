@@ -9,6 +9,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Nid.Core.Application\Nid.Core.Application.csproj" />
     <ProjectReference Include="..\..\src\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Nid.Core.Domain\Nid.Core.Domain.csproj" />
   </ItemGroup>

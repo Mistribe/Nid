@@ -38,6 +38,27 @@ public class EnvelopeMathTests
     }
 
     [Fact]
+    public void SavedBetween_counts_contributions_minus_withdrawals_in_the_window()
+    {
+        var flows = new[]
+        {
+            Flow(2025, 1, 1, FlowKind.Contribution, 300m), Flow(2025, 6, 30, FlowKind.Contribution, 200m),
+            Flow(2025, 3, 10, FlowKind.Withdrawal, 100m), Flow(2024, 12, 31, FlowKind.Contribution, 50m),
+            Flow(2025, 7, 1, FlowKind.Contribution, 75m), Flow(2025, 2, 1, FlowKind.Expense, 20m), Flow(2025, 2, 1, FlowKind.Income, 30m),
+        };
+
+        Assert.Equal(400m, EnvelopeMath.SavedBetween(flows, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30)));
+    }
+
+    [Fact]
+    public void SavedBetween_leaves_openings_out()
+    {
+        var flows = new[] { Flow(2025, 3, 1, FlowKind.Opening, 10_000m) };
+
+        Assert.Equal(0m, EnvelopeMath.SavedBetween(flows, new LocalDate(2025, 1, 1), new LocalDate(2025, 6, 30)));
+    }
+
+    [Fact]
     public void The_golden_year_performance_is_plus_2000()
     {
         var p = EnvelopeMath.Period(PeaValues, PeaFlows, Currency.Eur, new LocalDate(2024, 12, 31), new LocalDate(2025, 12, 31));

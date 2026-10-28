@@ -61,6 +61,19 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
         return Result.Success(new IncomePart(count, sums));
     }
 
+    /// <summary>
+    /// Projection spec §3.2, §5.1: rents are assumed to continue, so today's rent repeats for every month and nothing is reported
+    /// extended; a tenancy starting later is not anticipated (the rent changes the savings only through a revision the user records).
+    /// </summary>
+    public async Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct)
+    {
+        var income = await IncomeAsync(reader, scope, today, ct);
+        if (income.TryGetFailure(out var failure))
+            return Result.Failure<IncomeTimeline>(failure!);
+        income.TryGetValue(out var part);
+        return Result.Success(new IncomeTimeline(Enumerable.Repeat(part!.MonthlyEquivalent, months + 1).ToList(), []));
+    }
+
     /// <summary>The end of the tenancy covering <paramref name="today"/> when it has one and no tenancy follows it.</summary>
     private static LocalDate? EndOf(IReadOnlyList<Tenancy> tenancies, LocalDate today)
         => tenancies.FirstOrDefault(t => PropertyMath.Covers(t, today))?.EndsOn is { } end && !tenancies.Any(t => t.StartsOn >= end) ? end : null;

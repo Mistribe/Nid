@@ -143,6 +143,24 @@ public sealed class EnvelopesNetWorth(
         return Result.Success<IReadOnlyList<NetWorthPoint>>(points);
     }
 
+    /// <summary>
+    /// Projection spec §2.1: the contributions minus the withdrawals of every visible envelope, closed ones included, dated in the window,
+    /// in the envelope's currency; one whose facts cannot be read counts for nothing.
+    /// </summary>
+    public async Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(
+        PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+    {
+        var ids = await visible.ForAsync(reader, scope, includeArchived: true, ct);
+        var found = await envelopes.FindManyAsync(ids.ToList(), ct);
+        var facts = await performance.FactsManyAsync(found, await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct), ct)
+            ?? new Dictionary<ItemId, EnvelopePerformance.Facts>();
+        var sums = new Dictionary<Currency, decimal>();
+        foreach (var envelope in found)
+            if (facts.TryGetValue(envelope.ItemId, out var f))
+                Add(sums, f.Currency, EnvelopeMath.SavedBetween(f.Flows, from, to));
+        return Result.Success<IReadOnlyDictionary<Currency, decimal>>(sums);
+    }
+
     private static void Add(Dictionary<Currency, decimal> sums, Currency currency, decimal amount)
         => sums[currency] = sums.GetValueOrDefault(currency) + amount;
 }

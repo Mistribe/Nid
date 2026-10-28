@@ -7,6 +7,7 @@ using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
+using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Domain.Scenarios;
 using Nid.Core.Contracts;
@@ -137,6 +138,8 @@ public static class RequestCatalogue
     [
         new(typeof(ListPersonsQuery), false, (_, _) => new ListPersonsQuery()),
         new(typeof(CreateDependentCommand), false, (_, _) => new CreateDependentCommand("bench-dependent")),
+        new(typeof(SetRetirementCommand), false,
+            (_, _) => new SetRetirementCommand(PersonId.New(), null, 64)),
         new(typeof(ProvisionAdultCommand), false, (_, _) => new ProvisionAdultCommand("bench-subject", "bench", null)),
         new(typeof(UpdatePreferencesCommand), false,
             (_, _) => new UpdatePreferencesCommand(new PreferencesChange("sauge", null, null, null))),
@@ -362,6 +365,9 @@ public static class RequestCatalogue
         new(typeof(GetDashboardQuery), false, (_, _) => new GetDashboardQuery(VisibilityScope.Me)),
         new(typeof(GetNetWorthHistoryQuery), false, (_, _) => new GetNetWorthHistoryQuery(VisibilityScope.Me, NetWorthPeriod.All)),
         new(typeof(SaveAllocationTargetCommand), false, (_, _) => new SaveAllocationTargetCommand(new Dictionary<string, decimal>())),
+        new(typeof(GetProjectionAssumptionsQuery), false, (_, _) => new GetProjectionAssumptionsQuery()),
+        new(typeof(SaveProjectionAssumptionsCommand), false, (_, _) => new SaveProjectionAssumptionsCommand(ProjectionDefaults.Assumptions)),
+        new(typeof(GetProjectionQuery), false, (_, _) => new GetProjectionQuery(VisibilityScope.Me, ProjectionHorizon.Default)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
         new(typeof(GetSaleTaxQuery), true, (_, item) => new GetSaleTaxQuery(VisibilityScope.Me, item)),

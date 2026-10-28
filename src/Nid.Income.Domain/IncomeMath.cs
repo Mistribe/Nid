@@ -69,6 +69,36 @@ public static class IncomeMath
     public static decimal MonthlyEquivalent(IEnumerable<IncomePhase> phases, LocalDate on)
         => phases.Where(p => IsActive(p, on)).Sum(MonthlyEquivalent);
 
+    /// <summary>
+    /// Projection spec §3.2: the monthly equivalent on <paramref name="on"/> (a future date) as the plan reads it. A phase active on
+    /// that date counts; a phase starting after <paramref name="today"/> counts from its start. A phase running today (or starting
+    /// later) that ended by <paramref name="on"/> with no phase of its label to continue it is extended — often a contract end date,
+    /// not a real loss — and <c>Extended</c> reports it. Each chain of phases is extended once: a later phase of the source (any
+    /// label) that started on or after its end and is active on <paramref name="on"/>, or is itself extended there, stands in for
+    /// it. A phase with a single occurrence (a one-off bonus) is never extended. A closed source extends nothing.
+    /// </summary>
+    public static (decimal Amount, bool Extended) MonthlyEquivalentExtended(IReadOnlyList<IncomePhase> phases, LocalDate today, LocalDate on, bool sourceClosed)
+    {
+        var amount = MonthlyEquivalent(phases, on);
+        if (sourceClosed)
+            return (amount, false);
+        // Latest start first: a successor starts strictly after the end of the phase it replaces, so it is decided before it.
+        var extended = new HashSet<Guid>();
+        foreach (var phase in phases.OrderByDescending(p => p.StartsOn))
+        {
+            if (!(IsActive(phase, today) || phase.StartsOn > today) || EffectiveEnd(phase) is not { } end || end > on
+                || IsOneShot(phase, end) || IsContinued(phase, phases))
+                continue;
+            if (phases.Any(q => q.Id != phase.Id && q.StartsOn >= end && q.StartsOn <= on && (IsActive(q, on) || extended.Contains(q.Id))))
+                continue;
+            extended.Add(phase.Id);
+            amount += MonthlyEquivalent(phase);
+        }
+        return (amount, extended.Count > 0);
+    }
+
+    private static bool IsOneShot(IncomePhase phase, LocalDate end) => end <= phase.Every.AddTo(phase.StartsOn, 1);
+
     public static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>Every calendar month from <paramref name="from"/>'s to <paramref name="to"/>'s, inclusive.</summary>

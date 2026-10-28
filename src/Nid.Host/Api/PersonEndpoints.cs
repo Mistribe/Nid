@@ -9,6 +9,7 @@ using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Contracts;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 using IResult = Microsoft.AspNetCore.Http.IResult;
 using UnambitiousFx.Functional.Failures;
@@ -18,7 +19,10 @@ namespace Nid.Host.Api;
 
 public static class PersonEndpoints
 {
-    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email);
+    public sealed record PersonDto(Guid Id, string Kind, string DisplayName, string? Email, string? BirthDate, int RetirementAge);
+
+    /// <summary>A null <c>birthDate</c> clears it.</summary>
+    public sealed record RetirementBody(string? BirthDate, int RetirementAge);
 
     public sealed record CreateDependentBody(string DisplayName);
 
@@ -38,6 +42,16 @@ public static class PersonEndpoints
         api.MapPost("/persons/dependents", async (CreateDependentBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new CreateDependentCommand(body.DisplayName), ct)).ToHttp(ToDto, StatusCodes.Status201Created))
             .Returns<PersonDto>(StatusCodes.Status201Created);
+
+        api.MapPut("/persons/{id:guid}/retirement", async (Guid id, RetirementBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var birthDate = body.BirthDate is null ? null : reader.Date(body.BirthDate, "birthDate");
+                if (!reader.Ok)
+                    return reader.Problem();
+                return (await invoker.InvokeAsync(new SetRetirementCommand(new PersonId(id), birthDate, body.RetirementAge), ct)).ToHttp(ToDto);
+            })
+            .Returns<PersonDto>();
 
         api.MapPatch("/me/preferences", async (PreferencesBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new UpdatePreferencesCommand(new PreferencesChange(body.Theme, body.Mode, body.ChartPatterns, body.GuidesSeen)), ct))
@@ -77,7 +91,8 @@ public static class PersonEndpoints
         return routes;
     }
 
-    internal static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email);
+    internal static PersonDto ToDto(PersonInfo p) => new(p.Id.Value, p.Kind.ToString().ToLowerInvariant(), p.DisplayName, p.Email,
+        p.BirthDate is { } birth ? LocalDatePattern.Iso.Format(birth) : null, p.RetirementAge);
 }
 
 /// <summary>

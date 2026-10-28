@@ -9,6 +9,7 @@ import '@/locales/notifications';
 const SECTIONS = [
   { to: '/settings/appearance', label: 'settings_frame.nav.appearance' },
   { to: '/settings/notifications', label: 'settings_frame.nav.notifications' },
+  { to: '/settings/projection', label: 'settings_frame.nav.projection' },
 ] as const;
 
 /** Every settings screen: the title, the links between the settings pages, the content. */

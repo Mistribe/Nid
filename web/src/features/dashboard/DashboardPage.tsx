@@ -17,6 +17,7 @@ import { KeyFigures, type Panel } from './KeyFigures';
 
 // The home page is in the initial bundle; Recharts is not (spec 2D2a §5).
 const NetWorthCurve = lazy(() => import('./NetWorthCurve').then((m) => ({ default: m.NetWorthCurve })));
+const ProjectionCurve = lazy(() => import('./ProjectionCurve').then((m) => ({ default: m.ProjectionCurve })));
 const GoalsCard = lazy(() => import('./GoalsCard').then((m) => ({ default: m.GoalsCard })));
 const FigurePanel = lazy(() => import('./panels/FigurePanel').then((m) => ({ default: m.FigurePanel })));
 
@@ -72,6 +73,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
           </Suspense>
         </div>
       ) : null}
+      <div className="md:col-span-3 empty:hidden"><Suspense fallback={null}><ProjectionCurve /></Suspense></div>
       {capabilities.modules.includes('goals') ? (
         <div className="md:col-span-3 empty:hidden"><Suspense fallback={null}><GoalsCard scope={scope} /></Suspense></div>
       ) : null}

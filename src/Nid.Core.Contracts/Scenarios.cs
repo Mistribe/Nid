@@ -49,7 +49,22 @@ public interface ILoanSimulator
 /// <summary>Spec §4.2 step 3: month 0 is this month at today's figures; amounts converted to the reference at today's rate.</summary>
 public sealed record RealEstateMonth(YearMonth Month, decimal PropertyValue, decimal Debt, decimal LoanPayments);
 
-public sealed record RealEstateProjection(IReadOnlyList<RealEstateMonth> Months, IReadOnlyList<string> MissingCurrencies);
+/// <summary>Projection spec §3.5 and §5.2: a running visible loan's last schedule row, and the property it is linked to.</summary>
+public sealed record LoanEnd(ItemId Loan, string Name, LocalDate On, ItemId? Property);
+
+/// <summary>Projection spec §3.5: a visible property's last loan ends, every one of its loans ending within the projection.</summary>
+public sealed record PropertyFree(ItemId Property, string Name, LocalDate On);
+
+/// <summary>
+/// <c>LoanEnds</c> and <c>PropertiesFree</c> are the projection's milestones (projection spec §5.2); the purchase scenario does not
+/// read them.
+/// </summary>
+public sealed record RealEstateProjection(IReadOnlyList<RealEstateMonth> Months, IReadOnlyList<string> MissingCurrencies)
+{
+    public IReadOnlyList<LoanEnd> LoanEnds { get; init; } = [];
+
+    public IReadOnlyList<PropertyFree> PropertiesFree { get; init; } = [];
+}
 
 public interface IRealEstateProjection
 {

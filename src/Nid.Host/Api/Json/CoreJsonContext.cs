@@ -4,6 +4,7 @@ using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Fx;
+using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
@@ -28,6 +29,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(FxRateView))]
 [JsonSerializable(typeof(FxSyncRequested))]
 [JsonSerializable(typeof(PrivateItemsView))]
+[JsonSerializable(typeof(ProjectionAssumptionsView))]
+[JsonSerializable(typeof(ProjectionView))]
 [JsonSerializable(typeof(ProposalDetail))]
 [JsonSerializable(typeof(ProposalList))]
 [JsonSerializable(typeof(ProposalView))]
@@ -50,6 +53,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(PersonEndpoints.CreateDependentBody))]
 [JsonSerializable(typeof(PersonEndpoints.PersonDto))]
 [JsonSerializable(typeof(PersonEndpoints.PreferencesBody))]
+[JsonSerializable(typeof(PersonEndpoints.RetirementBody))]
+[JsonSerializable(typeof(ProjectionEndpoints.AssumptionsBody))]
 [JsonSerializable(typeof(ProposalEndpoints.ApproveProposalBody))]
 [JsonSerializable(typeof(ProposalEndpoints.RejectProposalBody))]
 [JsonSerializable(typeof(ProposalEndpoints.SubmitProposalBody))]

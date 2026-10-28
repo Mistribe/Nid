@@ -1,4 +1,4 @@
-import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, NetWorthHistory, NetWorthPointView } from './api';
+import type { Allocation, AllocationLine, DashboardEnvelope, DashboardEvent, DashboardFigure, DashboardPerson, DashboardTodo, DashboardView, HouseholdPoint, NetWorthHistory, NetWorthPointView, Projection } from './api';
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
@@ -60,4 +60,31 @@ export const allocation = (over: Partial<Allocation> = {}): Allocation => ({
   classes: [allocationLine('equity', '9375.00', 2.9), allocationLine('capital_guaranteed', '15625.00', 4.8), allocationLine('real_estate', '300000.00', 92.3)],
   liquidity: [allocationLine('available', '25000.00', 7.7), allocationLine('locked', '300000.00', 92.3)],
   target: {}, ...over,
+});
+
+export const projectionPoint = (on: string, over: Partial<HouseholdPoint> = {}): HouseholdPoint => ({
+  on, nominal: '10000.00', real: '9500.00', savings: '4000.00', property: '8000.00', debt: '-2000.00',
+  realSavings: '3800.00', realProperty: '7600.00', realDebt: '-1900.00', ...over,
+});
+
+/** The projection of a household with savings: today (Oct 2026), two December 31sts and a last month end. */
+export const projection = (over: Partial<Projection> = {}): Projection => ({
+  currency: 'EUR', horizon: '10y', horizonOn: '2028-03-31',
+  assumptions: { currency: 'EUR', classRates: { equity: '6.0', cash: '1.5' }, inflation: '2.0', monthlySavings: null, savingsClass: 'equity', freedPaymentsToSavings: true },
+  monthlySavings: '500.00', savingsOrigin: 'auto',
+  points: [
+    projectionPoint('2026-10-27', { nominal: '10000.00', real: '10000.00', realSavings: '4000.00', realProperty: '8000.00', realDebt: '-2000.00' }),
+    projectionPoint('2026-12-31', {
+      nominal: '11000.00', real: '10800.00', savings: '4500.00', property: '8300.00', debt: '-1800.00',
+      realSavings: '4400.00', realProperty: '8150.00', realDebt: '-1750.00',
+    }),
+    projectionPoint('2027-12-31', { nominal: '17000.00', real: '16100.00', savings: '9000.00', property: '8700.00', debt: '-700.00' }),
+    projectionPoint('2028-03-31', { nominal: '18000.00', real: '17000.00', savings: '10500.00', property: '8900.00', debt: '-600.00' }),
+  ],
+  milestones: [], warnings: [], retirementHorizons: [],
+  ...over,
+});
+
+export const emptyProjection = (): Projection => projection({
+  points: [projectionPoint('2026-10-27', { nominal: '0', real: '0', savings: '0', property: '0', debt: '0', realSavings: '0', realProperty: '0', realDebt: '0' })],
 });

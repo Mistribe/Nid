@@ -11,6 +11,7 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
 {
     [JsonSerializable(typeof(Dictionary<string, decimal>))]
     [JsonSerializable(typeof(IReadOnlyDictionary<string, decimal>))]
+    [JsonSerializable(typeof(ProjectionAssumptions))]
     private sealed partial class HouseholdJson : JsonSerializerContext;
 
     public async Task<Currency> ReferenceCurrencyAsync(CancellationToken ct)
@@ -82,6 +83,26 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         if (row is null)
             db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
         row.AllocationTarget = target.Count == 0 ? null : JsonSerializer.Serialize(target, HouseholdJson.Default.IReadOnlyDictionaryStringDecimal);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<ProjectionAssumptions> ProjectionAssumptionsAsync(CancellationToken ct)
+    {
+        var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.ProjectionAssumptions).FirstOrDefaultAsync(ct);
+        var saved = json is null ? null : JsonSerializer.Deserialize(json, HouseholdJson.Default.ProjectionAssumptions);
+        if (saved is null) return ProjectionDefaults.Assumptions;
+        // A class saved before it existed (or left out) takes its default rate, never a silent 0 %.
+        var rates = new Dictionary<string, decimal>(ProjectionDefaults.ClassRates);
+        foreach (var (name, rate) in saved.ClassRates) rates[name] = rate;
+        return saved with { ClassRates = rates };
+    }
+
+    public async Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct)
+    {
+        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
+        if (row is null)
+            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
+        row.ProjectionAssumptions = JsonSerializer.Serialize(assumptions, HouseholdJson.Default.ProjectionAssumptions);
         await db.SaveChangesAsync(ct);
     }
 

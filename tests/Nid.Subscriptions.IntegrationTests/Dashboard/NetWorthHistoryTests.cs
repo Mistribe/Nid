@@ -46,6 +46,8 @@ public class NetWorthHistoryTests(PostgresFixture fixture) : IClassFixture<Postg
                 new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(), [], 0)));
         public Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct)
             => Task.FromResult(history(dates));
+        public Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+            => Task.FromResult(Result.Success<IReadOnlyDictionary<Currency, decimal>>(new Dictionary<Currency, decimal>()));
     }
 
     [Fact]

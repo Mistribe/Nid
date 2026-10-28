@@ -25,6 +25,10 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
         // Documents: the assistant links one (propose_link_document), never uploads, edits, archives or unlinks it.
         "/api/v1/documents",
+        // The net worth projection's MCP surface is read-only (spec §7): the birth date and retirement age are set in the web app.
+        "PUT /api/v1/core/persons/{id:guid}/retirement",
+        // So are the household's projection assumptions (spec §7): read in the web app, which is where they are set.
+        "/api/v1/core/projection-assumptions",
     ];
 
     private static async Task<McpClient> ClientAsync(NidApp app, string preset, PersonId? person = null)
@@ -82,6 +86,29 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var tools = (await client.ListToolsAsync()).ToDictionary(t => t.Name);
         Assert.All(RouteActions.All, a => Assert.Contains(a.Tool, tools.Keys));
         Assert.Equal(RouteActions.All.Count, RouteActions.All.Select(a => a.Tool).Distinct().Count());
+    }
+
+    /// <summary>Net worth projection §7: the read tool answers as its route does, its points trimmed to today, the year ends and the last.</summary>
+    [Fact]
+    public async Task Get_projection_returns_the_route_answer_at_year_ends()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var client = await ClientAsync(app, TokenPresets.Read);
+
+        var rest = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/projection?scope=me&horizon=5y")).RootElement;
+        var mcp = await AnswerAsync(client, "get_projection", new { scope = "me", horizon = "5y" });
+
+        var all = rest.GetProperty("points").EnumerateArray().ToList();
+        var kept = all.Where((p, i) => i == 0 || i == all.Count - 1 || p.GetProperty("on").GetString()!.EndsWith("-12-31", StringComparison.Ordinal))
+            .Select(p => p.ToString()).ToList();
+        Assert.Equal(7, kept.Count); // 2025-10-15, five December 31sts, 2030-10-31
+        Assert.Equal(kept, mcp.GetProperty("points").EnumerateArray().Select(p => p.ToString()));
+        Assert.Equal(rest.EnumerateObject().Where(p => p.Name != "points").Select(p => p.ToString()),
+            mcp.EnumerateObject().Where(p => p.Name != "points").Select(p => p.ToString()));
+
+        var (error, text) = await CallAsync(client, "get_projection", new { horizon = "41y" });
+        Assert.True(error);
+        Assert.NotEmpty(text);
     }
 
     /// <summary>« À valider » names each action from <c>proposals.action</c> of the web's locale.</summary>

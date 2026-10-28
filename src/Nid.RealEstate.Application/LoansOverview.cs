@@ -359,6 +359,16 @@ internal static partial class LoansOverviewMath
             .ToList();
     }
 
+    /// <summary>
+    /// Projection spec §3.5 and §5.2: each running loan's last payment, the due date of its schedule's last row, with the property
+    /// it is linked to. A loan in a currency without a rate is in: its end needs no rate.
+    /// </summary>
+    internal static IReadOnlyList<LoanEnd> Ends(IReadOnlyList<OverviewLoan> set, LocalDate today)
+        => set.Select(l => new Reading(l, today))
+            .Where(r => !r.Ended && r.Schedule.Rows.Count > 0)
+            .Select(r => new LoanEnd(r.Source.Item.Id, r.Source.Item.DisplayName, r.Schedule.Rows[^1].DueDate, r.Source.Loan.PropertyId))
+            .ToList();
+
     /// <summary>A loan's balance at each month of <paramref name="from"/>..<paramref name="to"/>, the rows walked once.</summary>
     private static List<decimal> Balances(Reading r, YearMonth from, YearMonth to)
     {

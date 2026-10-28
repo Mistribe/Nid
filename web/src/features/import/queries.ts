@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { DASHBOARD, NET_WORTH } from '../dashboard/api';
+import { DASHBOARD, NET_WORTH, PROJECTION } from '../dashboard/api';
 
 /**
  * Marks the import list and every session as stale after a step changed one on the server (start, cancel,
@@ -14,5 +14,6 @@ export function useRefreshImports(): () => void {
     void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/platform/imports/{id}'] });
     void queryClient.invalidateQueries({ queryKey: ['get', DASHBOARD] });
     void queryClient.invalidateQueries({ queryKey: ['get', NET_WORTH] });
+    void queryClient.invalidateQueries({ queryKey: ['get', PROJECTION] });
   }, [queryClient]);
 }

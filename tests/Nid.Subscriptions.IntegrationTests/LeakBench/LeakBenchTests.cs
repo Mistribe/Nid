@@ -297,6 +297,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                      "/api/v1/dashboard?scope=me",
                      "/api/v1/dashboard/net-worth?scope=household&period=all",
                      "/api/v1/dashboard/net-worth?scope=me&period=all",
+                     "/api/v1/projection?scope=household",
+                     "/api/v1/projection?scope=me",
                      "/api/v1/core/persons",
                      "/api/v1/goals?scope=household",
                      "/api/v1/goals?scope=me",

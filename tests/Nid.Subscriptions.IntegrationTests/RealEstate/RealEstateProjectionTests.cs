@@ -5,6 +5,7 @@ using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using NodaTime.Text;
 using static Nid.Subscriptions.IntegrationTests.RealEstate.LoanApi;
 using static Nid.Subscriptions.IntegrationTests.RealEstate.PropertyApi;
 
@@ -94,5 +95,67 @@ public class RealEstateProjectionTests(PostgresFixture fixture) : IClassFixture<
         Assert.All((await ProjectAsync(app, app.AdultA)).Months, m => Assert.Equal(0m, m.PropertyValue));
         // A private item is in its owner's « Moi » only, as the rents.
         Assert.Equal(300_000m, (await ProjectAsync(app, app.AdultB, VisibilityScope.Me)).Months[0].PropertyValue);
+    }
+
+    private static async Task<List<JsonElement>> ScheduleAsync(NidApp app, Guid loan)
+        => (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Loans}/{loan}/schedule"))).GetProperty("rows").EnumerateArray().ToList();
+
+    [Fact]
+    public async Task Loan_end_is_the_last_schedule_row() // projection spec §3.5, §5.2
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await NewAsync(app, Golden(app));
+
+        var projection = await ProjectAsync(app, app.AdultA);
+
+        var end = Assert.Single(projection.LoanEnds);
+        var last = (await ScheduleAsync(app, loan))[^1];
+        Assert.Equal(new ItemId(loan), end.Loan);
+        Assert.Equal("Prêt maison", end.Name);
+        Assert.Equal(LocalDatePattern.Iso.Parse(S(last, "dueDate")!).Value, end.On);
+        Assert.Equal(new LocalDate(2040, 10, 15), end.On); // 240 payments from 2020-11-15
+        Assert.Null(end.Property);
+    }
+
+    [Fact]
+    public async Task Property_free_when_its_last_loan_ends()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await ValuedHomeAsync(app);
+        var works = Short(app); // last payment 2025-12-15
+        works["propertyId"] = home;
+        await NewAsync(app, works);
+        var longer = Short(app, "Prêt relais"); // 24 payments: the last one on 2026-12-15
+        longer["totalPayments"] = 24;
+        longer["propertyId"] = home;
+        await NewAsync(app, longer);
+
+        var projection = await ProjectAsync(app, app.AdultA, months: 24);
+
+        Assert.Equal(2, projection.LoanEnds.Count);
+        Assert.All(projection.LoanEnds, e => Assert.Equal(new ItemId(home), e.Property));
+        var free = Assert.Single(projection.PropertiesFree);
+        Assert.Equal((new ItemId(home), "Maison", new LocalDate(2026, 12, 15)), (free.Property, free.Name, free.On));
+        // A loan still running past the projection's last month leaves the property owing.
+        Assert.Empty((await ProjectAsync(app, app.AdultA, months: 12)).PropertiesFree);
+    }
+
+    [Fact]
+    public async Task Debt_matches_the_schedule_every_month()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var loan = await NewAsync(app, Golden(app));
+
+        var projection = await ProjectAsync(app, app.AdultA);
+
+        var rows = (await ScheduleAsync(app, loan))
+            .Select(r => (Due: LocalDatePattern.Iso.Parse(S(r, "dueDate")!).Value,
+                Balance: decimal.Parse(S(r, "balance")!, CultureInfo.InvariantCulture)))
+            .ToList();
+        for (var k = 1; k <= 24; k++)
+        {
+            var end = NidApp.GoldenCaseToday.ToYearMonth().PlusMonths(k).ToDateInterval().End;
+            Assert.Equal(rows.Last(r => r.Due <= end).Balance, projection.Months[k].Debt);
+        }
     }
 }

@@ -30,6 +30,41 @@ public sealed class IncomeSourcesIncome(IVisibleItems visible, IItemRegistry ite
         }
         return Result.Success(new IncomePart(count, sums));
     }
+
+    /// <summary>
+    /// Projection spec §3.2, §5.1: <c>Monthly[k]</c> on the last day of month (this month + k), <c>Monthly[0]</c> on today, over the
+    /// reader's visible open sources (as <see cref="IncomeAsync"/>). A phase ending without a successor is extended and its source
+    /// reported by name; an ended source (<c>EndedOn</c>) stops.
+    /// </summary>
+    public async Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct)
+    {
+        var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
+        var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
+        var accesses = await items.FindManyAsync(found.Select(s => s.ItemId).ToList(), ct); // batched reads spec §3
+        var dates = new List<LocalDate> { today };
+        var thisMonth = new YearMonth(today.Year, today.Month);
+        for (var k = 1; k <= months; k++)
+            dates.Add(thisMonth.PlusMonths(k).ToDateInterval().End);
+        var monthly = dates.Select(_ => new Dictionary<Currency, decimal>()).ToList();
+        var extended = new List<ExtendedSource>();
+        foreach (var source in found)
+        {
+            if (!accesses.TryGetValue(source.ItemId, out var item) || item.ArchivedAt is not null)
+                continue;
+            var currency = SourceCheck.CurrencyOf(item);
+            var list = bySource[source.ItemId].ToList();
+            var wasExtended = false;
+            for (var k = 0; k < dates.Count; k++)
+            {
+                var (amount, isExtended) = IncomeMath.MonthlyEquivalentExtended(list, today, dates[k], source.EndedOn is not null);
+                monthly[k][currency] = monthly[k].GetValueOrDefault(currency) + amount;
+                wasExtended |= isExtended;
+            }
+            if (wasExtended)
+                extended.Add(new ExtendedSource(source.ItemId, item.DisplayName));
+        }
+        return Result.Success(new IncomeTimeline(monthly.Select(m => (IReadOnlyDictionary<Currency, decimal>)m).ToList(), extended));
+    }
 }
 
 /// <summary>2D2a spec §4: the end of each running period of an open source that no phase of its label continues, and each <c>income_gap_soon</c> (shown in « À faire »).</summary>

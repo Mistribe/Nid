@@ -19,3 +19,10 @@ export type NetWorthHistory = components['schemas']['NetWorthHistoryView'];
 export type NetWorthPointView = components['schemas']['NetWorthPointView'];
 
 export const NET_WORTH = '/api/v1/dashboard/net-worth' as const;
+
+export type Projection = components['schemas']['ProjectionView'];
+export type HouseholdPoint = components['schemas']['HouseholdPointView'];
+export type ProjectionMilestone = components['schemas']['ProjectionMilestoneView'];
+
+/** The household's net worth projection (issue 102); the settings page invalidates it too. */
+export const PROJECTION = '/api/v1/projection' as const;

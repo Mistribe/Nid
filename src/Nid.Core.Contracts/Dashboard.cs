@@ -83,6 +83,12 @@ public interface INetWorthContribution
 
     /// <summary>2D2b spec §4: one point per date of <paramref name="dates"/>, over the visible holdings, closed ones included until their closing.</summary>
     Task<Result<IReadOnlyList<NetWorthPoint>>> NetWorthHistoryAsync(PersonId reader, VisibilityScope scope, IReadOnlyList<LocalDate> dates, CancellationToken ct);
+
+    /// <summary>
+    /// Projection spec §2.1: the contributions minus the withdrawals dated in [<paramref name="from"/>, <paramref name="to"/>], per currency,
+    /// over the visible holdings, closed ones included; openings are not savings. A module with nothing to save into returns an empty map.
+    /// </summary>
+    Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct);
 }
 
 /// <summary>2D2b spec §4: a module's part of the curve at one date; <c>Envelopes</c> counts the holdings with a reading on or before it.</summary>
@@ -97,7 +103,19 @@ public interface ICommitmentsContribution
 public interface IIncomeContribution
 {
     Task<Result<IncomePart>> IncomeAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
+
+    /// <summary>
+    /// Projection spec §3.2, §5.1: the monthly equivalent over the next <paramref name="months"/> months, per currency;
+    /// <c>Monthly[k]</c> is read on the last day of month (this month + k), <c>Monthly[0]</c> on <paramref name="today"/> (= <see cref="IncomeAsync"/>).
+    /// </summary>
+    Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, CancellationToken ct);
 }
+
+/// <summary>An open source whose phase ends without a successor: the timeline keeps it running (projection spec §3.2) and names it so the screen can warn.</summary>
+public sealed record ExtendedSource(ItemId Source, string Name);
+
+/// <summary><c>Monthly</c> has months + 1 entries (see <see cref="IIncomeContribution.TimelineAsync"/>); <c>Extended</c> lists the sources whose income was carried on.</summary>
+public sealed record IncomeTimeline(IReadOnlyList<IReadOnlyDictionary<Currency, decimal>> Monthly, IReadOnlyList<ExtendedSource> Extended);
 
 /// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IncomeGapSoon"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
 public sealed record UpcomingEvent(LocalDate On, string Kind, ItemId Item, string Module, string Name, string? Label, Money? Amount);

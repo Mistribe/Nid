@@ -149,6 +149,18 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         return Result.Success(ToInfo(row));
     }
 
+    public async Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, CancellationToken ct)
+    {
+        var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
+        if (row is null)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
+
+        row.BirthDate = birthDate;
+        row.RetirementAge = retirementAge;
+        await db.SaveChangesAsync(ct);
+        return Result.Success(ToInfo(row));
+    }
+
     public async Task<PersonInfo?> FindAsync(PersonId id, CancellationToken ct)
     {
         var row = await db.Persons.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id.Value, ct);
@@ -284,5 +296,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         row.Email,
         row.SessionEpoch,
         row.IsAdmin,
-        row.Kind == "adult" && row.OidcSubject is null);
+        row.Kind == "adult" && row.OidcSubject is null,
+        row.BirthDate,
+        row.RetirementAge);
 }
