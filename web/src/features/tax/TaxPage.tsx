@@ -22,7 +22,9 @@ import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';
 import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
 import { PerSection, perWarningsInBlock, perWarningTexts } from './PerSection';
-import { ProfileForm } from './ProfileForm';
+import { ProfileForm } from './profile/ProfileForm';
+import { ProfileSubmit } from './profile/ProfileSubmit';
+import { useProfileDraft } from './profile/useProfileDraft';
 import { DeclarantTable, eur, ResultTable } from './ResultTable';
 import { SaleTotalSection } from './SaleTotalSection';
 import { SimulationForm } from './SimulationForm';
@@ -71,6 +73,8 @@ export function TaxPage() {
   const selector = years.length > MAX_SEGMENTS
     ? <Field label={t('tax.year')} inline>{(control) => <SelectField {...control} value={year} onValueChange={setYear} options={years} />}</Field>
     : <Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} />;
+  // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
+  const draft = useProfileDraft(estimate, scope);
 
   return (
     <div className="space-y-6">
@@ -92,7 +96,8 @@ export function TaxPage() {
           { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
-          { id: 'profile', label: t('tax.tab.profile'), content: <ProfileForm key={`${estimate.year}-${scope}`} estimate={estimate} scope={scope} /> },
+          { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
+            action: draft ? <ProfileSubmit draft={draft} /> : undefined },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
           { id: '2044', label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
           { id: 'sale', label: t('tax.tab.sale'), content: <SaleTotalSection scope={scope} /> },

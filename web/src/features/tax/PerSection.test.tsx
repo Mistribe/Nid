@@ -112,11 +112,11 @@ describe('TaxPage, PER', () => {
     );
     const { user } = await renderApp('/tax?tab=profile');
 
-    const alice = await screen.findByRole('group', { name: 'Épargne retraite de Alice' });
-    expect(within(alice).getByText('Avis d’imposition, rubrique Plafond épargne retraite.')).toBeInTheDocument();
-    await user.type(within(alice).getByLabelText('Plafond épargne retraite (avis)'), '5843,13');
-    await user.type(within(alice).getByLabelText('dont perdu au 31 décembre'), '1200');
-    await user.click(screen.getByRole('checkbox', { name: 'Mutualiser les plafonds des deux déclarants (case 6QR)' }));
+    const ceiling = await screen.findByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' });
+    expect(ceiling).toHaveAccessibleDescription('Avis d’imposition, rubrique Plafond épargne retraite.');
+    await user.type(ceiling, '5843,13');
+    await user.type(screen.getByRole('textbox', { name: 'dont perdu au 31 décembre Alice' }), '1200');
+    await user.click(screen.getByRole('checkbox', { name: 'Mutualiser les plafonds des deux déclarants' }));
     await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
 
     expect(await screen.findByText('Profil enregistré.')).toBeInTheDocument();
@@ -191,9 +191,8 @@ describe('TaxPage, PER', () => {
     );
     const { user } = await renderApp('/tax?tab=profile');
 
-    const alice = await screen.findByRole('group', { name: 'Épargne retraite de Alice' });
-    await user.clear(within(alice).getByLabelText('Plafond épargne retraite (avis)'));
-    await user.clear(within(alice).getByLabelText('dont perdu au 31 décembre'));
+    await user.clear(await screen.findByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' }));
+    await user.clear(screen.getByRole('textbox', { name: 'dont perdu au 31 décembre Alice' }));
     await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
 
     expect(await screen.findByText('Profil enregistré.')).toBeInTheDocument();

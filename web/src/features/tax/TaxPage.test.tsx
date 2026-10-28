@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
+import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import type { Rental2044, TaxEstimate } from './api';
 import { jointAssessment, soloAssessment } from './assessments/testData';
@@ -147,13 +148,138 @@ describe('TaxPage', () => {
     expect(await screen.findByText('Alice : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins (22,85 %).')).toBeInTheDocument();
   });
 
-  it('shows the rate seen on the payslips in the profile', async () => {
+  it('offers the rate seen on the payslips and shows the status’s rate as the default', async () => {
     const loaded = estimate();
     loaded.observedRates = { [ADULT]: '22.85' };
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { user } = await renderApp('/tax?tab=profile');
+
+    const rate = await screen.findByRole('textbox', { name: 'Taux de cotisations (%) Alice' });
+    expect(rate).toHaveAttribute('placeholder', '22 · celui du statut');
+    expect(screen.getByText('Constaté sur vos bulletins : 22,85 %')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Utiliser' }));
+    expect(rate).toHaveValue('22,85');
+    await pick(user, 'Statut Alice', 'Salarié cadre');
+    expect(rate).toHaveAttribute('placeholder', '25 · celui du statut');
+    expect(screen.getByRole('textbox', { name: 'Frais réels Alice' })).toHaveAttribute('placeholder', 'Abattement de 10 %');
+  });
+
+  it('shows where the PER ceiling comes from', async () => {
+    const per = (source: string) => ({ ceiling: '3980.00', source, expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3980.00' });
+    const loaded = estimate();
+    loaded.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, per: per('estimated') }] });
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
     await renderApp('/tax?tab=profile');
 
-    expect(await screen.findByText(/Taux constaté sur vos bulletins : 22,85 %/)).toBeInTheDocument();
+    expect(await screen.findByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' })).toHaveAttribute('placeholder', expect.stringMatching(/^Estimé : 3\s980\s€$/));
+    expect(screen.getByText('Estimé par Nid : saisissez celui de l’avis')).toBeInTheDocument();
+  });
+
+  it('says a ceiling was typed from the notice', async () => {
+    const loaded = estimate();
+    loaded.profile.perCeilings = { [ADULT]: '4637.00' };
+    loaded.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, per: { ceiling: '4637.00', source: 'notice', expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '4637.00' } }] });
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax?tab=profile');
+
+    expect(await screen.findByText('Saisi depuis l’avis')).toBeInTheDocument();
+  });
+
+  it('explains the rental regime chosen and lists the Pinel commitments', async () => {
+    const loaded = estimate();
+    loaded.rentalProperties = [{ id: 'p1', name: 'Studio', acquiredIn: 2021 }];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { user } = await renderApp('/tax?tab=profile');
+
+    expect(await screen.findByText('Micro-foncier si les loyers du foyer ne dépassent pas 15 000 €, sinon réel.')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'réel' }));
+    expect(screen.getByText('Loyers moins intérêts, assurance d’emprunt et charges.')).toBeInTheDocument();
+    const pinel = screen.getByRole('table', { name: 'Réductions Pinel' });
+    expect(within(pinel).getByRole('row', { name: /Studio 2021/ })).toHaveTextContent('Sans objet');
+  });
+
+  it('lists the profile’s sections and what to review in a profile carried over', async () => {
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json({ ...estimate(), profileFrom: 2025 })));
+    await renderApp('/tax?tab=profile');
+
+    const nav = await screen.findByRole('navigation', { name: 'Rubriques du profil' });
+    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#foyer', '#activite', '#retraite', '#depenses', '#exoneres']);
+    expect(within(nav).getByRole('link', { name: /Dépenses de l’année/ })).toHaveTextContent('à revoir');
+    expect(within(nav).getByRole('link', { name: /Foyer/ })).not.toHaveTextContent('à revoir');
+    expect(screen.getByText(/Repris du profil de 2025/)).toBeInTheDocument();
+  });
+
+  it('sends nothing and focuses the first invalid field on save', async () => {
+    const sent: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.put('*/api/v1/tax/profile/:year', () => { sent.push(1); return HttpResponse.json(estimate()); }),
+    );
+    const { user } = await renderApp('/tax?tab=profile');
+
+    await user.click(await screen.findByRole('button', { name: /Revenus exonérés \(heures supplémentaires/ }));
+    await user.type(screen.getByLabelText('Revenus exonérés de Alice'), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
+
+    expect(screen.getByLabelText('Revenus exonérés de Alice')).toHaveFocus();
+    expect(sent).toEqual([]);
+  });
+
+  it('keeps the unused ceiling’s field while a saved value is cleared, and focuses it when asked for', async () => {
+    const loaded = estimate();
+    loaded.profile.perUnusedCeilings = { [ADULT]: '4000.00' };
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    const { user } = await renderApp('/tax?tab=profile');
+
+    const unused = await screen.findByRole('textbox', { name: 'Plafonds non utilisés Alice' });
+    await user.clear(unused);
+    expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toHaveFocus();
+  });
+
+  it('focuses the unused ceiling’s field once « + Saisir » is pressed', async () => {
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+    const { user } = await renderApp('/tax?tab=profile');
+
+    await user.click(await screen.findByRole('button', { name: '+ Saisir les plafonds non utilisés' }));
+    expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toHaveFocus();
+  });
+
+  it('leaves a refused save’s message behind on another year already loaded', async () => {
+    server.use(
+      http.get('*/api/v1/tax', ({ request }) => HttpResponse.json({ ...estimate(), year: Number(new URL(request.url).searchParams.get('year')) })),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, title: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
+    );
+    const { user } = await renderApp('/tax?tab=profile');
+
+    await screen.findByLabelText('Emploi à domicile');
+    await user.click(screen.getByRole('radio', { name: '2025' }));
+    await screen.findByLabelText('Emploi à domicile');
+    await user.click(screen.getByRole('radio', { name: '2026' }));
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le profil' }));
+    expect(await screen.findByText(/Profil refusé/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2025' }));
+
+    expect(await screen.findByLabelText('Emploi à domicile')).toBeInTheDocument();
+    expect(screen.queryByText(/Profil refusé/)).not.toBeInTheDocument();
+  });
+
+  it('folds the exempt incomes again on a year already loaded that has none', async () => {
+    server.use(http.get('*/api/v1/tax', ({ request }) => {
+      const year = Number(new URL(request.url).searchParams.get('year'));
+      const loaded = { ...estimate(), year };
+      if (year === 2026) loaded.profile = { ...loaded.profile, exemptIncomes: { [ADULT]: '1200.00' } };
+      return HttpResponse.json(loaded);
+    }));
+    const { user } = await renderApp('/tax?tab=profile&year=2025');
+
+    await screen.findByLabelText('Emploi à domicile');
+    expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2026' }));
+    expect(await screen.findByLabelText('Revenus exonérés de Alice')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2025' }));
+
+    await screen.findByLabelText('Emploi à domicile');
+    expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
   });
 
   describe('profile fields a notice supplies', () => {
@@ -169,13 +295,13 @@ describe('TaxPage', () => {
       server.use(http.get('*/api/v1/tax', () => HttpResponse.json(carried())));
       await renderApp('/tax?tab=profile');
 
-      const ceiling = await screen.findByLabelText('Plafond épargne retraite (avis)');
+      const ceiling = await screen.findByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' });
       expect(ceiling).toBeDisabled();
       expect(ceiling).toHaveValue('5843.13');
       expect(screen.getAllByText('Avis 2025')).toHaveLength(2);
-      expect(screen.getByLabelText('dont perdu au 31 décembre')).toBeEnabled();
-      expect(screen.getByLabelText('Plafonds PER non utilisés de Alice')).toBeDisabled();
-      expect(screen.getByLabelText('Plafonds PER non utilisés de Alice')).toHaveValue('3500.00');
+      expect(screen.getByRole('textbox', { name: 'dont perdu au 31 décembre Alice' })).toBeEnabled();
+      expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toBeDisabled();
+      expect(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' })).toHaveValue('3500.00');
       expect(screen.getByLabelText('Déficits fonciers antérieurs à reporter')).toBeEnabled();
       expect(screen.getByLabelText('Emploi à domicile')).toBeEnabled();
     });
@@ -234,7 +360,7 @@ describe('TaxPage', () => {
       server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       await renderApp('/tax?tab=profile');
 
-      expect(await screen.findByLabelText('Plafond épargne retraite (avis)')).toBeEnabled();
+      expect(await screen.findByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' })).toBeEnabled();
     });
   });
 
@@ -247,19 +373,23 @@ describe('TaxPage', () => {
         return HttpResponse.json(estimate());
       }),
     );
-    const { user } = await renderApp('/tax?tab=profile');
+    const { user, container } = await renderApp('/tax?tab=profile');
 
     const home = await screen.findByLabelText('Emploi à domicile');
     await user.clear(home);
     await user.type(home, '9000');
-    await user.type(screen.getByLabelText('Taux de cotisations de Alice (%)'), '23,5');
+    await user.type(screen.getByRole('textbox', { name: 'Taux de cotisations (%) Alice' }), '23,5');
     // A fallback for a missing tax notice: folded until asked for.
-    expect(screen.queryByLabelText('Plafonds PER non utilisés de Alice')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Pas d’avis d’imposition sous la main ?' }));
-    await user.type(screen.getByLabelText('Plafonds PER non utilisés de Alice'), '4000');
+    expect(screen.queryByRole('textbox', { name: 'Plafonds non utilisés Alice' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '+ Saisir les plafonds non utilisés' }));
+    await user.type(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' }), '4000');
     expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Revenus exonérés \(heures supplémentaires/ }));
     await user.type(screen.getByLabelText('Revenus exonérés de Alice'), '2400,50');
+    expect(screen.getByText('4 modifications non enregistrées')).toBeInTheDocument();
+    // Beside the tab list, outside the form it submits.
+    expect(within(screen.getByRole('form', { name: 'Profil fiscal' })).queryByRole('button', { name: 'Enregistrer le profil' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
     await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
 
     expect(await screen.findByText('Profil enregistré.')).toBeInTheDocument();
@@ -268,6 +398,57 @@ describe('TaxPage', () => {
       contributionRates: { [ADULT]: '23.5' }, actualExpenses: {}, perUnusedCeilings: { [ADULT]: '4000' },
       exemptIncomes: { [ADULT]: '2400.50' },
     } });
+  });
+
+  it('keeps the profile draft across tabs and resets it on another year', async () => {
+    server.use(http.get('*/api/v1/tax', ({ request }) => HttpResponse.json({ ...estimate(), year: Number(new URL(request.url).searchParams.get('year')) })));
+    const { user } = await renderApp('/tax?tab=profile');
+
+    const home = await screen.findByLabelText('Emploi à domicile');
+    await user.clear(home);
+    await user.type(home, '9000');
+    await user.click(screen.getByRole('tab', { name: 'Détail' }));
+    await user.click(screen.getByRole('tab', { name: 'Profil fiscal' }));
+
+    expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('9000');
+    expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2025' }));
+    expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('0.00');
+    expect(screen.queryByText(/non enregistrée/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the draft when the server refuses the profile', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, title: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
+    );
+    const { user } = await renderApp('/tax?tab=profile');
+
+    const home = await screen.findByLabelText('Emploi à domicile');
+    await user.clear(home);
+    await user.type(home, '9000');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
+
+    expect(await screen.findByText(/Profil refusé/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Emploi à domicile')).toHaveValue('9000');
+    expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
+  });
+
+  it('offers to pool the PER ceilings only to a couple', async () => {
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+    await renderApp('/tax?tab=profile');
+    await screen.findByLabelText('Emploi à domicile');
+    expect(screen.queryByRole('checkbox', { name: /Mutualiser/ })).not.toBeInTheDocument();
+  });
+
+  it('shows one column per declarant and the pooling of a couple', async () => {
+    const couple = estimate();
+    couple.adults = [...couple.adults, { id: 'b', displayName: 'Bob' }];
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(couple)));
+    await renderApp('/tax?tab=profile');
+
+    expect(await screen.findByRole('textbox', { name: 'Taux de cotisations (%) Bob' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Mutualiser les plafonds des deux déclarants/ })).toBeInTheDocument();
   });
 
   it('marks every read of the profile stale once saved: the estimate, the 2044, the dashboard and the goals', async () => {
