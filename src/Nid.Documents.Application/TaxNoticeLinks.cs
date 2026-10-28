@@ -46,3 +46,42 @@ public sealed class LinkTaxNoticeHandler(
         return Result.Success(new LinkAdded(after.Except(before).Select(p => p.Value).ToList()));
     }
 }
+
+/// <summary>
+/// What <see cref="LinkTaxNoticeCommand"/> would add, before the notice is saved: the household adults among the declarants who cannot
+/// read the document today and would through a <c>tax_notice</c> person link. Writes nothing.
+/// </summary>
+public sealed record PreviewTaxNoticeLinkQuery(Guid DocumentId, IReadOnlyList<Guid> Declarants) : IQuery<LinkPreview>;
+
+[RequestHandler<PreviewTaxNoticeLinkQuery, LinkPreview>]
+public sealed class PreviewTaxNoticeLinkHandler(DocumentAccess access, IPersonRegistry persons, IActorAccessor actor, IClock clock)
+    : IRequestHandler<PreviewTaxNoticeLinkQuery, LinkPreview>
+{
+    public async ValueTask<Result<LinkPreview>> HandleAsync(PreviewTaxNoticeLinkQuery query, CancellationToken ct = default)
+    {
+        var person = actor.Current!.PersonId!.Value;
+        if (!query.Declarants.Contains(person.Value))
+            return Result.Failure<LinkPreview>(new NotFoundFailure("declarants", person.Value.ToString()));
+
+        var adults = (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult).ToDictionary(p => p.Id.Value);
+        if (query.Declarants.Any(d => !adults.ContainsKey(d)))
+            return Result.Failure<LinkPreview>(new NotFoundFailure("declarants", string.Join(',', query.Declarants.Where(d => !adults.ContainsKey(d)))));
+
+        var read = await access.ReadAsync(query.DocumentId, person, ct);
+        if (!read.TryGetValue(out var found))
+            return Result.Failure<LinkPreview>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        if (!found!.CanEdit)
+            return Result.Failure<LinkPreview>(new UnauthorizedFailure("The document is read-only for this person.", null));
+
+        var now = clock.GetCurrentInstant();
+        var links = found.Links.ToList();
+        links.AddRange(query.Declarants.Where(d => !links.Any(l => l.TargetKind == TargetKinds.CorePerson && l.TargetId == d))
+            .Select(d => new LinkRecord(query.DocumentId, TargetKinds.CorePerson, d, null, DocumentRoles.TaxNotice, person.Value, now)));
+
+        var uploadedBy = found.Document.UploadedBy;
+        var before = await access.ReadersAsync(uploadedBy, found.Links.Select(DocumentAccess.Facts).ToList(), ct);
+        var after = await access.ReadersAsync(uploadedBy, links.Select(DocumentAccess.Facts).ToList(), ct);
+        return Result.Success(new LinkPreview(after.Except(before).Where(p => adults.ContainsKey(p.Value))
+            .Select(p => new ReaderView(p.Value, adults[p.Value].DisplayName)).ToList()));
+    }
+}

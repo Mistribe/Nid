@@ -1,4 +1,4 @@
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -6,14 +6,19 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { TaxSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
+import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { toPlot } from '../investments/chart/plot';
 import { Section } from '@/components/page/Section';
+import { PERSONS } from '../subscriptions/api';
 import { todayIso } from '../subscriptions/today';
-import { TAX, type TaxEstimate } from './api';
+import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from './api';
+import { useTaxAssessments, type TaxAssessment } from './assessments/api';
+import { AssessmentView } from './assessments/AssessmentView';
 import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
 import { PerSection, perWarningsInBlock, perWarningTexts } from './PerSection';
 import { ProfileForm } from './ProfileForm';
@@ -24,7 +29,10 @@ import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-const TABS = ['detail', 'withholding', 'profile', 'simulation', '2044', 'sale'] as const;
+const TABS = ['detail', 'assessment', 'withholding', 'profile', 'simulation', '2044', 'sale'] as const;
+
+/** Past this many years the selector is a list, not a row of buttons. */
+const MAX_SEGMENTS = 6;
 
 /**
  * Tax estimate spec §9: the year's figures inline, then the calculation step by step, the household's profile, and a
@@ -38,29 +46,50 @@ export function TaxPage() {
   const scope = search.scope === 'me' ? 'me' : 'household';
   const thisYear = todayIso().slice(0, 4);
   const lastYear = String(Number(thisYear) - 1);
-  const [tab, setTab] = useDetailTab(TABS);
+  const [rawTab, setTab] = useDetailTab(TABS);
   // The 2044 is filed for the year just ended; the estimate opens on the current one. The default stays out of the URL.
-  const defaultYear = tab === '2044' ? lastYear : thisYear;
-  const years = [lastYear, thisYear].map((y) => ({ value: y, label: y }));
+  const defaultYear = rawTab === '2044' ? lastYear : thisYear;
+  const list = useTaxAssessments(scope);
+  const assessments = list.data?.items ?? [];
+  const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, label: y }));
   // A year the page does not offer (the server refuses it) falls back to the tab's default.
-  const year = years.some((y) => y.value === search.year) ? search.year! : defaultYear;
+  // Until the notices are known, a past year in the URL is kept (and not estimated: the server would refuse it).
+  const awaiting = list.isPending && Number(search.year) < FIRST_ESTIMATE_YEAR;
+  const year = awaiting || years.some((y) => y.value === search.year) ? search.year! : defaultYear;
   const setYear = (next: string) => {
     void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, year: next === defaultYear ? undefined : next })) as never });
   };
-  const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } });
-  const estimate = answer.data;
+  const past = Number(year) < FIRST_ESTIMATE_YEAR;
+  const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past });
+  const estimate = past ? undefined : answer.data;
+  const people = $api.useQuery('get', PERSONS).data ?? [];
+  const notices = assessments.filter((a) => String(a.year) === year);
+  // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows Détail.
+  const tab = rawTab === 'assessment' && !notices.length ? 'detail' : rawTab;
+  const noticeViews = <Notices notices={notices} persons={people} />;
+  const selector = years.length > MAX_SEGMENTS
+    ? <Field label={t('tax.year')} inline>{(control) => <SelectField {...control} value={year} onValueChange={setYear} options={years} />}</Field>
+    : <Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} />;
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('tax.title')} actions={tab === 'sale' ? undefined : <div className="print:hidden"><Segmented aria-label={t('tax.year')} value={year} onValueChange={setYear} options={years} /></div>}>
+      <PageHeader title={t('tax.title')} actions={tab === 'sale' && !past ? undefined : (
+        <div className="flex flex-wrap items-center gap-3 print:hidden">
+          {selector}
+          <Button asChild variant="outline"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
+        </div>
+      )}>
         {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       </PageHeader>
-      {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-      {!estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
+      {past && awaiting ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
+      {past && !awaiting ? noticeViews : null}
+      {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
+      {!past && !estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {estimate ? <Notes estimate={estimate} inBlock={tab === 'detail'} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
+          ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: <ProfileForm key={`${estimate.year}-${scope}`} estimate={estimate} scope={scope} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
@@ -70,6 +99,10 @@ export function TaxPage() {
       ) : null}
     </div>
   );
+}
+
+function Notices({ notices, persons }: { notices: TaxAssessment[]; persons: React.ComponentProps<typeof AssessmentView>['persons'] }) {
+  return <>{notices.map((a) => <AssessmentView key={a.id} assessment={a} persons={persons} />)}</>;
 }
 
 /** The three figures that answer « combien, combien il reste, que faire en septembre », then the rest inline and the split. */

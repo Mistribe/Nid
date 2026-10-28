@@ -15,6 +15,8 @@ export const handlers = [
   // The shell's token banner reads the list (4A).
   // Every list row names its owners from the household's persons.
   http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
+  // The tax page's year selector reads the past notices.
+  http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
   // The shell's Foyer / Moi selector shows only to an owner of a private item (issue 85).
   http.get('*/api/v1/core/me/private-items', () => HttpResponse.json({ owns: true })),

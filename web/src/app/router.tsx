@@ -240,6 +240,20 @@ const taxRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/tax/TaxPage'), 'TaxPage'),
 });
 
+const taxAssessmentNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/tax/assessments/new',
+  beforeLoad: requireModule('income'),
+  component: lazyRouteComponent(() => import('@/features/tax/assessments/AssessmentForm'), 'NewAssessment'),
+});
+
+const taxAssessmentEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/tax/assessments/$id/edit',
+  beforeLoad: requireModule('income'),
+  component: lazyRouteComponent(() => import('@/features/tax/assessments/AssessmentForm'), 'EditAssessment'),
+});
+
 // Property purchase scenarios spec §7: list, creation in steps, detail.
 const scenariosRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -485,7 +499,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, documentsRoute, documentDetailRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, scenariosRoute, scenarioNewRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute,
   securityRoute, moreRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminCatalogRoute, adminJobsRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,

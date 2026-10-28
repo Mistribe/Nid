@@ -1,10 +1,11 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { Rental2044, TaxEstimate } from './api';
+import { jointAssessment, soloAssessment } from './assessments/testData';
 import { ADULT, estimate, result } from './taxTestData';
 
 describe('TaxPage', () => {
@@ -313,5 +314,82 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     await renderApp('/tax?tab=2044');
 
     expect(await screen.findByText('Aucun revenu foncier cette année-là')).toBeInTheDocument();
+  });
+
+  describe('past notices', () => {
+    const notices = (...items: ReturnType<typeof jointAssessment>[]) => http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items }));
+    const taxCalls = () => {
+      const years: (string | null)[] = [];
+      server.use(http.get('*/api/v1/tax', ({ request }) => { years.push(new URL(request.url).searchParams.get('year')); return HttpResponse.json(estimate()); }));
+      return years;
+    };
+
+    it('offers the years that have a notice', async () => {
+      server.use(notices(soloAssessment({ year: 2018 }), jointAssessment({ year: 2023 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      await renderApp('/tax');
+
+      const group = await screen.findByRole('radiogroup', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['2018', '2023', '2025', '2026']));
+    });
+
+    it('shows a past year’s notices without calling the estimate', async () => {
+      const years = taxCalls();
+      server.use(notices(jointAssessment({ year: 2023 })));
+      await renderApp('/tax?year=2023');
+
+      expect(await screen.findByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
+      expect(years).toEqual([]);
+    });
+
+    it('has an Avis tab beside the estimate of a year that has a notice', async () => {
+      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      const { user } = await renderApp('/tax?year=2025');
+
+      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
+      expect(await screen.findByRole('region', { name: 'Avis 2025' })).toBeInTheDocument();
+    });
+
+    it('falls back to Détail when the year switched to has no notice', async () => {
+      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      const { user } = await renderApp('/tax?year=2025&tab=assessment');
+
+      await screen.findByRole('region', { name: 'Avis 2025' });
+      await user.click(screen.getByRole('radio', { name: '2026' }));
+      expect(await screen.findByRole('tab', { name: 'Détail', selected: true })).toBeInTheDocument();
+      expect(screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' })).toBeInTheDocument();
+    });
+
+    it('has no Avis tab when the year has no notice', async () => {
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      await renderApp('/tax');
+
+      await screen.findByText('Net fiscal');
+      expect(screen.queryByRole('tab', { name: 'Avis' })).not.toBeInTheDocument();
+    });
+
+    it('does not offer a year without a readable notice', async () => {
+      const years = taxCalls();
+      await renderApp('/tax?year=2018');
+
+      await screen.findByText('Net fiscal');
+      expect(years).toEqual(['2026']);
+    });
+
+    it('shows the solo notices of « Moi »', async () => {
+      server.use(
+        http.get('*/api/v1/tax/assessments', ({ request }) => HttpResponse.json({ items: new URL(request.url).searchParams.get('scope') === 'me' ? [soloAssessment({ year: 2024 })] : [] })),
+        http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      );
+      await renderApp('/tax?scope=me&year=2024');
+
+      expect(await screen.findByRole('region', { name: 'Avis 2024' })).toBeInTheDocument();
+    });
+
+    it('adds a notice from the header', async () => {
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      await renderApp('/tax');
+
+      expect(await screen.findByRole('link', { name: 'Ajouter un avis' })).toHaveAttribute('href', '/tax/assessments/new');
+    });
   });
 });

@@ -93,6 +93,20 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task A_solo_notice_makes_its_declarant_an_owner_of_private_items_and_a_joint_one_does_not()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        async Task<bool> OwnsAsync(PersonId who) => (await JsonOf(await app.RawAsync(who, HttpMethod.Get, "/api/v1/core/me/private-items"))).GetProperty("owns").GetBoolean();
+        Assert.False(await OwnsAsync(app.AdultA));
+
+        await AddAsync(app, app.AdultA, 2018, Declarant(app.AdultA, 1));
+        await AddAsync(app, app.AdultA, 2019, Declarant(app.AdultA, 1), Declarant(app.AdultB, 2));
+
+        Assert.True(await OwnsAsync(app.AdultA));
+        Assert.False(await OwnsAsync(app.AdultB));
+    }
+
+    [Fact]
     public async Task Two_separate_notices_share_a_year_but_not_a_person()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -1,6 +1,6 @@
-/** What a person types (`15,99`) as the API reads it (`15.99`): the text only, never a number (no arithmetic). */
+/** What a person types (`15,99`, or `72 800` with a thousands space, U+00A0 or U+202F) as the API reads it (`15.99`): the text only, never a number (no arithmetic). */
 export function toWireAmount(text: string): string {
-  return text.trim().replace(',', '.');
+  return text.replace(/\s/g, '').replace(',', '.');
 }
 
 /** An amount as typed: digits, then a comma or a dot and at most four decimals. */

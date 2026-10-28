@@ -151,7 +151,7 @@ public class VisibleItemsTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
 
         async Task<bool> OwnsAsync(Guid person) => (await new GetMyPrivateItemsHandler(new VisibleItems(db),
-            new ActorAccessor { Current = Actor.Browser(new PersonId(person)) }).HandleAsync(new GetMyPrivateItemsQuery())).Ok().Owns;
+            new ActorAccessor { Current = Actor.Browser(new PersonId(person)) }, new TaxAssessmentStore(db)).HandleAsync(new GetMyPrivateItemsQuery())).Ok().Owns;
 
         Assert.True(await OwnsAsync(a));
         Assert.False(await OwnsAsync(d));

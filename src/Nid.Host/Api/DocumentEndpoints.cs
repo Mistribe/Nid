@@ -95,6 +95,11 @@ public static class DocumentEndpoints
                     .ToHttp(preview => preview))
             .Returns<LinkPreview>();
 
+        // Tax assessments spec §4: the adults among the declarants who would start reading the notice's PDF; writes nothing.
+        api.MapGet("/{id:guid}/tax-notice-preview", async (Guid id, Guid[] declarants, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new PreviewTaxNoticeLinkQuery(id, declarants), ct)).ToHttp(preview => preview))
+            .Returns<LinkPreview>();
+
         // inbox=true keeps the documents with no link the actor sees, whatever the scope; targetKind/targetId keep those linked to it.
         // anchor=<item> keeps those linked to the item or anything anchored on it, alone. Both or neither: only targetKind=core.household may come without a targetId (a targetId alone is a 400).
         api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, Guid? anchor, IInvoker invoker, CancellationToken ct)

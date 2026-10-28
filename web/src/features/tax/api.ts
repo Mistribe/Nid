@@ -7,6 +7,8 @@ export type TaxResult = components['schemas']['TaxResultView'];
 export type PinelCommitment = components['schemas']['PinelCommitment'];
 
 export const TAX = '/api/v1/tax' as const;
+/** The estimate starts with the 2025 incomes: the server refuses an earlier year, which shows its notices only. */
+export const FIRST_ESTIMATE_YEAR = 2025;
 export const TAX_PROFILE = '/api/v1/tax/profile/{year}' as const;
 export const TAX_SIMULATE = '/api/v1/tax/simulate' as const;
 

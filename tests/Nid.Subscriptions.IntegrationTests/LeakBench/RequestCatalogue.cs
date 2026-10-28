@@ -463,6 +463,8 @@ public static class RequestCatalogue
             new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Other)),
         // Tax assessments spec §5: B's notice and its PDF; A, not a declarant, meets « not found ».
         new(typeof(LinkTaxNoticeCommand), false, (d, _) => new LinkTaxNoticeCommand(d.NoticeB.Document, d.NoticeB.Notice)),
+        // Names B: A is no declarant of B's notice and meets « not found », B reads its own preview.
+        new(typeof(PreviewTaxNoticeLinkQuery), false, (d, _) => new PreviewTaxNoticeLinkQuery(d.NoticeB.Document, [d.App.AdultB.Value])),
         // A document of its own: the first allowed unlink removes the row's only link, and the second allowed actor meets a document it
         // no longer reads (« document » not found, not « item »); no other entry meets an unlinked document.
         new(typeof(UnlinkDocumentCommand), true, (d, item) => new UnlinkDocumentCommand(d.UnlinkDocuments[item],

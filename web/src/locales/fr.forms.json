@@ -1,5 +1,8 @@
 {
   "field_error": {
+    "tax_declarant_taken": "Cette personne a déjà un avis pour cette année.",
+    "tax_declarant_required": "Vous devez être l’un des déclarants.",
+    "tax_invalid_assessment": "Valeur refusée par le contrôle de l’avis.",
     "income_one_off_after_end": "La date est après la fin de la source.",
     "core_external_ref_taken": "Un mouvement est déjà enregistré avec cette référence : décochez-le.",
     "core_external_ref_taken_movement": "Le mouvement {{n}} est déjà enregistré avec cette référence : décochez-le.",
