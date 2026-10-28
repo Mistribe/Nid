@@ -27,4 +27,12 @@ public sealed class TaxTools
         [Description("'household' (default) or 'me'.")] string? scope = null,
         [Description("One property or envelope's id, for its page instead of the total.")] Guid? item = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetSaleTaxQuery(SubscriptionEndpoints.ParseScope(scope), item is { } g ? new ItemId(g) : null), ct);
+
+    /// <summary>Tax assessments spec §6: the same view as <c>GET /api/v1/tax/assessments</c>.</summary>
+    [McpServerTool(Name = "list_tax_years", ReadOnly = true)]
+    [Description("The entered tax notices (avis d'imposition) with their ids and versions: by default the household's joint notices only. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> ListTaxYears(IServiceProvider services,
+        [Description("'household' (default): joint notices only; 'me': every notice you declare, solo ones included.")] string? scope = null,
+        [Description("One revenue year only.")] int? year = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new ListTaxAssessmentsQuery(SubscriptionEndpoints.ParseScope(scope), year), ct);
 }

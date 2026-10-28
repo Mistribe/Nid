@@ -12,7 +12,9 @@ using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
+using Nid.Subscriptions.IntegrationTests.Admin;
 using Nid.Subscriptions.IntegrationTests.Audit;
+using Nid.Subscriptions.IntegrationTests.Mcp;
 using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 
@@ -541,6 +543,46 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             Assert.All(all["loans"], l => Assert.Contains(l.GetProperty("property").GetString()!, properties.Values));
             Assert.DoesNotContain(other, JsonSerializer.Serialize(all["loans"]));
         }
+    }
+
+    /// <summary>
+    /// Tax assessments spec §6: B's solo 2018 notice and its private PDF reach B alone. A's reads of the notices, the documents and the
+    /// export carry neither its figure nor its ids; B's own read does (positive control).
+    /// </summary>
+    [Fact]
+    public async Task A_solo_tax_notice_and_its_pdf_reach_their_declarant_only()
+    {
+        var data = await MixedDataset.CreateAsync(fixture);
+        await using var app = data.App;
+        var (notice, document) = data.NoticeB;
+        await using var mcp = await McpHarness.ClientAsync(app, (await TokenRouteTests.CreateAsync(app, app.AdultA, TokenPresets.Read)).Secret);
+        await using var mcpB = await McpHarness.ClientAsync(app, (await TokenRouteTests.CreateAsync(app, app.AdultB, TokenPresets.Read)).Secret);
+
+        async Task<string[]> ReadsAsync(PersonId actor, Func<string, Task<string>> tool)
+            => [
+                await app.GetRawAsync(actor, "/api/v1/tax/assessments?scope=household"),
+                await app.GetRawAsync(actor, "/api/v1/tax/assessments?scope=me"),
+                await app.GetRawAsync(actor, "/api/v1/documents?scope=household"),
+                await app.GetRawAsync(actor, "/api/v1/documents?scope=me&archived=true"),
+                await tool("list_tax_years"),
+                await tool("list_documents"),
+                JsonSerializer.Serialize(await new Nid.Subscriptions.IntegrationTests.Export.ExportClient(app).ExportAllAsync(actor)),
+            ];
+        async Task<string> Call(ModelContextProtocol.Client.McpClient client, string name)
+            => McpHarness.TextOf(await client.CallToolAsync(name, name == "list_tax_years" ? new Dictionary<string, object?> { ["scope"] = "me" } : new Dictionary<string, object?>()));
+
+        foreach (var body in await ReadsAsync(app.AdultA, t => Call(mcp, t)))
+        {
+            Assert.DoesNotContain("987654", body, StringComparison.Ordinal);
+            Assert.DoesNotContain(notice.ToString(), body, StringComparison.Ordinal);
+            Assert.DoesNotContain(document.ToString(), body, StringComparison.Ordinal);
+        }
+
+        var own = await app.GetRawAsync(app.AdultB, "/api/v1/tax/assessments?scope=me");
+        Assert.Contains("987654", own, StringComparison.Ordinal);
+        Assert.Contains(notice.ToString(), own, StringComparison.Ordinal);
+        Assert.Contains("987654", await Call(mcpB, "list_tax_years"), StringComparison.Ordinal);
+        Assert.Contains(document.ToString(), await app.GetRawAsync(app.AdultB, "/api/v1/documents?scope=me"), StringComparison.Ordinal);
     }
 
     /// <summary>

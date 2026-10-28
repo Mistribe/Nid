@@ -366,6 +366,12 @@ public static class RequestCatalogue
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
         new(typeof(GetSaleTaxQuery), true, (_, item) => new GetSaleTaxQuery(VisibilityScope.Me, item)),
         new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
+        // Tax assessments spec §6: the notices are the declarants' own, no item involved.
+        new(typeof(ListTaxAssessmentsQuery), false, (_, _) => new ListTaxAssessmentsQuery(VisibilityScope.Me, null)),
+        new(typeof(GetTaxAssessmentQuery), false, (_, _) => new GetTaxAssessmentQuery(Guid.NewGuid())),
+        new(typeof(AddTaxAssessmentCommand), false, (d, _) => new AddTaxAssessmentCommand(BenchAssessment(d.App.AdultA))),
+        new(typeof(CorrectTaxAssessmentCommand), false, (d, _) => new CorrectTaxAssessmentCommand(Guid.NewGuid(), BenchAssessment(d.App.AdultA), 0)),
+        new(typeof(DeleteTaxAssessmentCommand), false, (_, _) => new DeleteTaxAssessmentCommand(Guid.NewGuid())),
         new(typeof(SimulateTaxQuery), false, (_, _) => new SimulateTaxQuery(new TaxInputs(
             2025, [new TaxDeclarant("bench", 1m, EmploymentStatus.NonExecutive, 0m, 0m)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m, 0m, 0m, 0m, 0m))),
         // Scenario spec §5: the scenario requests run against the scenario twins; a replace may name a funding envelope, which the
@@ -455,6 +461,8 @@ public static class RequestCatalogue
             new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Statement)),
         new(typeof(SetLinkRoleCommand), true, (d, item) => new SetLinkRoleCommand(d.Documents[item],
             new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.Other)),
+        // Tax assessments spec §5: B's notice and its PDF; A, not a declarant, meets « not found ».
+        new(typeof(LinkTaxNoticeCommand), false, (d, _) => new LinkTaxNoticeCommand(d.NoticeB.Document, d.NoticeB.Notice)),
         // A document of its own: the first allowed unlink removes the row's only link, and the second allowed actor meets a document it
         // no longer reads (« document » not found, not « item »); no other entry meets an unlinked document.
         new(typeof(UnlinkDocumentCommand), true, (d, item) => new UnlinkDocumentCommand(d.UnlinkDocuments[item],
@@ -540,6 +548,10 @@ public static class RequestCatalogue
     ];
 
     /// <summary>A scenario that computes: 100 000 borrowed at 3 % over 20 years, from 2025-12-01.</summary>
+    private static TaxAssessment BenchAssessment(PersonId declarant) => new(
+        2020, 2021, [new TaxAssessmentDeclarant(declarant, 1, null, null, null, null, null, null, null, null, null, null)],
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+
     internal static PropertyPurchase BenchScenario(IReadOnlyList<FundingLine> funding) => new(
         1, PurchaseUse.Primary, new LocalDate(2025, 12, 1), 100_000m, 0m, 0m, 0m, 0m, 0m, 0m, 0, null, funding,
         [new ScenarioLoan("bench", 100_000m, 0.03m, 240, null, new ScenarioInsurance(ScenarioInsuranceKind.FixedMonthly, 0m), 0m, 0m)],

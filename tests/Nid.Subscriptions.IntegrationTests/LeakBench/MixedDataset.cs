@@ -24,6 +24,9 @@ public sealed class MixedDataset
     public const string PrivateLabelA = "ZZPRIVATEALPHA";
     public const string PrivateLabelB = "ZZPRIVATEBETA";
 
+    /// <summary>The reference income of B's solo 2018 notice: distinctive, so the textual scan finds it in a read of A.</summary>
+    public const string NoticeFigureB = "987654.32";
+
     /// <summary>
     /// One row of the table in access-tests.md §2, transcribed. <see cref="Readers"/> and
     /// <see cref="Writers"/> are the columns of that table — the specification — and are NOT computed by
@@ -120,6 +123,9 @@ public sealed class MixedDataset
     /// to that phase alone, and its title carries the private label, so the scans catch it if it is ever shown to the other adult.
     /// </summary>
     public IReadOnlyDictionary<string, Guid> PrivatePhases { get; private init; } = new Dictionary<string, Guid>();
+
+    /// <summary>Tax assessments spec §6: B's solo 2018 notice and its source PDF, B's private document (linked to B alone).</summary>
+    public (Guid Notice, Guid Document) NoticeB { get; private init; }
 
     /// <summary>As <see cref="PrivatePhases"/> for each private source's one-off income, by the source's row name.</summary>
     public IReadOnlyDictionary<string, Guid> PrivateOneOffs { get; private init; } = new Dictionary<string, Guid>();
@@ -308,8 +314,22 @@ public sealed class MixedDataset
         foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
             proposals[name] = await SeedProposalsAsync(app, owner, label, envelopes[name], incomeSources[name], items[name], loans[name]);
 
+        // B's solo notice, its private PDF as source: only B reads it (the notices are the declarants' own).
+        var noticeDocument = await DocumentEndpointTests.UploadedAsync(app, app.AdultB, DocumentEndpointTests.Pdf, "fileName=avis-2018.pdf");
+        var noticeResponse = await app.RawAsync(app.AdultB, HttpMethod.Post, "/api/v1/tax/assessments", new
+        {
+            year = 2018,
+            declarants = new[] { new { personId = app.AdultB.Value, rank = 1 } },
+            referenceIncome = new { amount = NoticeFigureB, currency = "EUR" },
+            documentId = noticeDocument,
+        });
+        if (noticeResponse.StatusCode != System.Net.HttpStatusCode.Created)
+            throw new InvalidOperationException($"Seeding B's tax notice failed: {noticeResponse.StatusCode}");
+        var notice = JsonDocument.Parse(await noticeResponse.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
         return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, goals, proposals, documents, unlinkDocuments)
         {
+            NoticeB = (notice, noticeDocument),
             PrivatePhases = privatePhases,
             PrivateOneOffs = privateOneOffs,
         };

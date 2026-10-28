@@ -154,6 +154,32 @@ Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and
 | `created_at`, `revoked_at?` | timestamptz | |
 - La première connexion crée aussi `household_settings` avec les valeurs par défaut, modifiables ensuite.
 
+### 4.6 Avis d'imposition (`tax_assessment`)
+
+Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou proposé par un assistant (`superpowers/specs/2026-10-27-tax-assessments-design.md`). Les montants vivent dans un document JSON ; une table de jointure porte ce qu'il faut pour les droits et l'unicité.
+
+**`tax_assessment`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id` | uuid | Clé primaire (`pk_tax_assessment`) |
+| `year` | int | Année des revenus, de 2000 à 2100 (`ck_tax_assessment_year`) |
+| `data` | jsonb | L'avis : année d'émission, parts, revenu fiscal de référence, impôts, crédits, solde, déclarants et `documentId` du PDF source |
+| `xmin` | xid | Version de ligne : une correction l'envoie en retour, un écart répond en conflit |
+
+**`tax_assessment_declarant`**
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `assessment_id` | uuid | Clé étrangère vers `tax_assessment`, `ON DELETE CASCADE` ; clé primaire composite avec `person_id` |
+| `person_id` | uuid | Clé étrangère vers `person`, `ON DELETE RESTRICT` (`fk_tax_assessment_declarant_person_person_id`) ; indexé |
+| `year` | int | Recopie de l'année de l'avis |
+| `rank` | int | 1 ou 2 (`ck_tax_assessment_declarant_rank`) |
+
+- Index unique `(year, person_id)` : une personne a au plus un avis par année, seule ou à deux ; un doublon répond 422 `tax.declarant_taken` à `declarants[i].personId`.
+- Les avis appartiennent à leurs déclarants, sans élément ni propriété : seuls les déclarants les lisent (« Foyer » = les avis à deux déclarants, « Moi » = les siens). Une personne qui figure sur un avis ne peut plus être supprimée.
+- Les deux tables sont auditées sans élément (`AuditRule.NoItem`) ; le PDF source est relié à chaque déclarant (`core.person`, rôle `tax_notice`, `documents-data-model.md` §5).
+
 ## 5. Valorisations et flux
 
 Core **stocke** des faits datés ; il ne calcule aucun gain. Investments définit le gain, RealEstate le coût réel du bien.

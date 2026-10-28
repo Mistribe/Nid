@@ -13912,6 +13912,420 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tax/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                    year?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxAssessmentList"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AddTaxAssessmentBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxAssessmentView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tax/assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxAssessmentView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CorrectTaxAssessmentBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxAssessmentView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/scenarios": {
         parameters: {
             query?: never;
@@ -18656,6 +19070,36 @@ export interface components {
         AcceptPriceBody: {
             onDate?: null | string;
         };
+        AddTaxAssessmentBody: {
+            /** Format: int32 */
+            year?: null | number;
+            /** Format: int32 */
+            issuedYear?: null | number;
+            declarants?: null | components["schemas"]["TaxAssessmentDeclarantBody"][];
+            shares?: null | string;
+            referenceIncome?: null | components["schemas"]["MoneyBody"];
+            averageRate?: null | string;
+            marginalRate?: null | string;
+            grossIncome?: null | components["schemas"]["MoneyBody"];
+            taxableIncome?: null | components["schemas"]["MoneyBody"];
+            capitalIncomeDeclared?: null | components["schemas"]["MoneyBody"];
+            capitalIncomeTaxable?: null | components["schemas"]["MoneyBody"];
+            rentalIncomeNet?: null | components["schemas"]["MoneyBody"];
+            flatRateIncome?: null | components["schemas"]["MoneyBody"];
+            exemptIncomeDeclared?: null | components["schemas"]["MoneyBody"];
+            exemptIncomeNet?: null | components["schemas"]["MoneyBody"];
+            scaleTax?: null | components["schemas"]["MoneyBody"];
+            proportionalTax?: null | components["schemas"]["MoneyBody"];
+            taxBeforeCredits?: null | components["schemas"]["MoneyBody"];
+            creditsDeclared?: null | components["schemas"]["MoneyBody"];
+            creditsRetained?: null | components["schemas"]["MoneyBody"];
+            netTax?: null | components["schemas"]["MoneyBody"];
+            withholding?: null | components["schemas"]["MoneyBody"];
+            balance?: null | components["schemas"]["MoneyBody"];
+            rentalDeficitCarried?: null | components["schemas"]["MoneyBody"];
+            /** Format: uuid */
+            documentId?: null | string;
+        };
         AdminNotificationsView: {
             smtpConfigured: boolean;
             smtpHost?: null | string;
@@ -18876,6 +19320,38 @@ export interface components {
             /** Format: double */
             sharePct?: null | number;
             envelopeIds: unknown[];
+        };
+        CorrectTaxAssessmentBody: {
+            /** Format: int32 */
+            year?: null | number;
+            /** Format: int32 */
+            issuedYear?: null | number;
+            declarants?: null | components["schemas"]["TaxAssessmentDeclarantBody"][];
+            shares?: null | string;
+            referenceIncome?: null | components["schemas"]["MoneyBody"];
+            averageRate?: null | string;
+            marginalRate?: null | string;
+            grossIncome?: null | components["schemas"]["MoneyBody"];
+            taxableIncome?: null | components["schemas"]["MoneyBody"];
+            capitalIncomeDeclared?: null | components["schemas"]["MoneyBody"];
+            capitalIncomeTaxable?: null | components["schemas"]["MoneyBody"];
+            rentalIncomeNet?: null | components["schemas"]["MoneyBody"];
+            flatRateIncome?: null | components["schemas"]["MoneyBody"];
+            exemptIncomeDeclared?: null | components["schemas"]["MoneyBody"];
+            exemptIncomeNet?: null | components["schemas"]["MoneyBody"];
+            scaleTax?: null | components["schemas"]["MoneyBody"];
+            proportionalTax?: null | components["schemas"]["MoneyBody"];
+            taxBeforeCredits?: null | components["schemas"]["MoneyBody"];
+            creditsDeclared?: null | components["schemas"]["MoneyBody"];
+            creditsRetained?: null | components["schemas"]["MoneyBody"];
+            netTax?: null | components["schemas"]["MoneyBody"];
+            withholding?: null | components["schemas"]["MoneyBody"];
+            balance?: null | components["schemas"]["MoneyBody"];
+            rentalDeficitCarried?: null | components["schemas"]["MoneyBody"];
+            /** Format: uint32 */
+            version?: null | number;
+            /** Format: uuid */
+            documentId?: null | string;
         };
         CostCategoryView: {
             category: string;
@@ -22401,6 +22877,75 @@ export interface components {
             /** Format: uuid */
             id: string;
             displayName: string;
+        };
+        TaxAssessmentDeclarantBody: {
+            /** Format: uuid */
+            personId?: null | string;
+            /** Format: int32 */
+            rank?: null | number;
+            grossSalaries?: null | components["schemas"]["MoneyBody"];
+            deduction?: null | string;
+            deductionAmount?: null | components["schemas"]["MoneyBody"];
+            netSalaries?: null | components["schemas"]["MoneyBody"];
+            perCeilingYear?: null | components["schemas"]["MoneyBody"];
+            perUnusedOldest?: null | components["schemas"]["MoneyBody"];
+            perUnusedMiddle?: null | components["schemas"]["MoneyBody"];
+            perUnusedLatest?: null | components["schemas"]["MoneyBody"];
+            perCeilingComputed?: null | components["schemas"]["MoneyBody"];
+            perCeilingNext?: null | components["schemas"]["MoneyBody"];
+        };
+        TaxAssessmentDeclarantView: {
+            /** Format: uuid */
+            personId: string;
+            /** Format: int32 */
+            rank: number;
+            grossSalaries?: null | components["schemas"]["DashboardMoneyView"];
+            deduction?: null | string;
+            deductionAmount?: null | components["schemas"]["DashboardMoneyView"];
+            netSalaries?: null | components["schemas"]["DashboardMoneyView"];
+            perCeilingYear?: null | components["schemas"]["DashboardMoneyView"];
+            perUnusedOldest?: null | components["schemas"]["DashboardMoneyView"];
+            perUnusedMiddle?: null | components["schemas"]["DashboardMoneyView"];
+            perUnusedLatest?: null | components["schemas"]["DashboardMoneyView"];
+            perCeilingComputed?: null | components["schemas"]["DashboardMoneyView"];
+            perCeilingNext?: null | components["schemas"]["DashboardMoneyView"];
+        };
+        TaxAssessmentList: {
+            items: components["schemas"]["TaxAssessmentView"][];
+        };
+        TaxAssessmentView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uint32 */
+            version: number;
+            /** Format: int32 */
+            year: number;
+            /** Format: int32 */
+            issuedYear: number;
+            declarants: components["schemas"]["TaxAssessmentDeclarantView"][];
+            shares?: null | string;
+            referenceIncome?: null | components["schemas"]["DashboardMoneyView"];
+            averageRate?: null | string;
+            marginalRate?: null | string;
+            grossIncome?: null | components["schemas"]["DashboardMoneyView"];
+            taxableIncome?: null | components["schemas"]["DashboardMoneyView"];
+            capitalIncomeDeclared?: null | components["schemas"]["DashboardMoneyView"];
+            capitalIncomeTaxable?: null | components["schemas"]["DashboardMoneyView"];
+            rentalIncomeNet?: null | components["schemas"]["DashboardMoneyView"];
+            flatRateIncome?: null | components["schemas"]["DashboardMoneyView"];
+            exemptIncomeDeclared?: null | components["schemas"]["DashboardMoneyView"];
+            exemptIncomeNet?: null | components["schemas"]["DashboardMoneyView"];
+            scaleTax?: null | components["schemas"]["DashboardMoneyView"];
+            proportionalTax?: null | components["schemas"]["DashboardMoneyView"];
+            taxBeforeCredits?: null | components["schemas"]["DashboardMoneyView"];
+            creditsDeclared?: null | components["schemas"]["DashboardMoneyView"];
+            creditsRetained?: null | components["schemas"]["DashboardMoneyView"];
+            netTax?: null | components["schemas"]["DashboardMoneyView"];
+            withholding?: null | components["schemas"]["DashboardMoneyView"];
+            balance?: null | components["schemas"]["DashboardMoneyView"];
+            rentalDeficitCarried?: null | components["schemas"]["DashboardMoneyView"];
+            /** Format: uuid */
+            documentId?: null | string;
         };
         TaxDeclarantPerView: {
             ceiling: string;

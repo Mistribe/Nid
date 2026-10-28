@@ -1,6 +1,9 @@
 using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Core.Domain.Tax;
+using Nid.Documents.Application;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 
@@ -48,7 +51,73 @@ public static class TaxEndpoints
             })
             .Returns<TaxResultView>();
 
+        // Tax assessments spec §6.
+        api.MapGet("/assessments", async (string? scope, int? year, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListTaxAssessmentsQuery(ParseScope(scope), year), ct)).ToHttp(list => list))
+            .Returns<TaxAssessmentList>();
+
+        api.MapGet("/assessments/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetTaxAssessmentQuery(id), ct)).ToHttp(view => view))
+            .Returns<TaxAssessmentView>();
+
+        api.MapPost("/assessments", async (AddTaxAssessmentBody body, IInvoker invoker, ILoggerFactory logs, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var assessment = body.Read(reader);
+                if (assessment is null)
+                    return reader.Problem();
+                if (await UnreadableSourceAsync(invoker, assessment.DocumentId, ct) is { } refused)
+                    return refused;
+                var added = await invoker.InvokeAsync(new AddTaxAssessmentCommand(assessment), ct);
+                if (added.TryGetValue(out var view))
+                    await LinkSourceAsync(invoker, logs, view!.DocumentId, view.Id, ct);
+                return added.ToHttp(v => v, StatusCodes.Status201Created);
+            })
+            .Returns<TaxAssessmentView>(StatusCodes.Status201Created);
+
+        api.MapPut("/assessments/{id:guid}", async (Guid id, CorrectTaxAssessmentBody body, IInvoker invoker, ILoggerFactory logs, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var assessment = body.Read(reader);
+                if (assessment is null)
+                    return reader.Problem();
+                if (await UnreadableSourceAsync(invoker, assessment.DocumentId, ct) is { } refused)
+                    return refused;
+                var corrected = await invoker.InvokeAsync(new CorrectTaxAssessmentCommand(id, assessment, body.Version!.Value), ct);
+                // The effective source (stored or given) follows the declarants a correction may have added; existing links are skipped.
+                if (corrected.TryGetValue(out var view))
+                    await LinkSourceAsync(invoker, logs, view!.DocumentId, id, ct);
+                return corrected.ToHttp(v => v);
+            })
+            .Returns<TaxAssessmentView>();
+
+        api.MapDelete("/assessments/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new DeleteTaxAssessmentCommand(id), ct)).ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
         return routes;
+    }
+
+    /// <summary>Tax assessments spec §5: a source the author cannot read answers 404 before anything is written.</summary>
+    private static async Task<Microsoft.AspNetCore.Http.IResult?> UnreadableSourceAsync(IInvoker invoker, Guid? documentId, CancellationToken ct)
+        => documentId is { } d && !(await invoker.InvokeAsync(new GetDocumentQuery(d), ct)).TryGetValue(out _)
+            ? Result.Failure<TaxAssessmentView>(new NotFoundFailure("document", d.ToString())).ToHttp(v => v)
+            : null;
+
+    /// <summary>Links the source to each declarant after the write; a refusal (read-only document) leaves the notice saved with its source.</summary>
+    private static async Task LinkSourceAsync(IInvoker invoker, ILoggerFactory logs, Guid? documentId, Guid assessmentId, CancellationToken ct)
+    {
+        if (documentId is not { } d)
+            return;
+        try
+        {
+            await invoker.InvokeAsync(new LinkTaxNoticeCommand(d, assessmentId), ct);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // A link failure never fails the write: the notice is saved with its source.
+            logs.CreateLogger("Nid.Host.Api.TaxEndpoints").LogWarning(e, "Linking the source of tax assessment {Assessment} failed", assessmentId);
+        }
     }
 
     /// <summary>The year's whole profile: a field left out is emptied, not kept.</summary>
@@ -77,6 +146,95 @@ public static class TaxEndpoints
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
                     rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt)
                 : null;
+        }
+    }
+
+    /// <summary>
+    /// Tax assessments spec §6: one declarant of a notice. <c>Deduction</c> is <c>allowance</c> or <c>actual</c>; amounts are euros.
+    /// Every figure left out stays absent.
+    /// </summary>
+    public sealed record TaxAssessmentDeclarantBody(
+        Guid? PersonId, int? Rank, MoneyBody? GrossSalaries, string? Deduction, MoneyBody? DeductionAmount, MoneyBody? NetSalaries,
+        MoneyBody? PerCeilingYear, MoneyBody? PerUnusedOldest, MoneyBody? PerUnusedMiddle, MoneyBody? PerUnusedLatest,
+        MoneyBody? PerCeilingComputed, MoneyBody? PerCeilingNext);
+
+    /// <summary>
+    /// Tax assessments spec §6: a notice, field names as the view's. <c>IssuedYear</c> left out is <c>Year + 1</c>; rates are percent strings.
+    /// </summary>
+    public sealed record AddTaxAssessmentBody(
+        int? Year, int? IssuedYear, IReadOnlyList<TaxAssessmentDeclarantBody>? Declarants, string? Shares, MoneyBody? ReferenceIncome,
+        string? AverageRate, string? MarginalRate, MoneyBody? GrossIncome, MoneyBody? TaxableIncome, MoneyBody? CapitalIncomeDeclared,
+        MoneyBody? CapitalIncomeTaxable, MoneyBody? RentalIncomeNet, MoneyBody? FlatRateIncome, MoneyBody? ExemptIncomeDeclared,
+        MoneyBody? ExemptIncomeNet, MoneyBody? ScaleTax, MoneyBody? ProportionalTax, MoneyBody? TaxBeforeCredits, MoneyBody? CreditsDeclared,
+        MoneyBody? CreditsRetained, MoneyBody? NetTax, MoneyBody? Withholding, MoneyBody? Balance, MoneyBody? RentalDeficitCarried, Guid? DocumentId = null)
+    {
+        internal TaxAssessment? Read(FieldReader reader)
+        {
+            if (Year is null) reader.Add("year", "request.required", "The revenue year is required.");
+            var declarants = new List<TaxAssessmentDeclarant>();
+            for (var i = 0; i < (Declarants?.Count ?? 0); i++)
+            {
+                var d = Declarants![i];
+                var p = $"declarants[{i}]";
+                if (d is null) { reader.Add(p, "request.required", "A declarant is required."); continue; }
+                if (d.PersonId is null) reader.Add($"{p}.personId", "request.required", "A declarant is a person.");
+                if (d.Rank is null) reader.Add($"{p}.rank", "request.required", "A rank is 1 or 2.");
+                SalaryDeduction? deduction = null;
+                if (d.Deduction is not null)
+                {
+                    if (Enum.TryParse<SalaryDeduction>(d.Deduction, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)) deduction = parsed;
+                    else reader.Add($"{p}.deduction", "request.deduction", "A deduction is allowance or actual.");
+                }
+                declarants.Add(new TaxAssessmentDeclarant(
+                    new PersonId(d.PersonId ?? Guid.Empty), d.Rank ?? 0, Euros(reader, d.GrossSalaries, $"{p}.grossSalaries"), deduction,
+                    Euros(reader, d.DeductionAmount, $"{p}.deductionAmount"), Euros(reader, d.NetSalaries, $"{p}.netSalaries"),
+                    Euros(reader, d.PerCeilingYear, $"{p}.perCeilingYear"), Euros(reader, d.PerUnusedOldest, $"{p}.perUnusedOldest"),
+                    Euros(reader, d.PerUnusedMiddle, $"{p}.perUnusedMiddle"), Euros(reader, d.PerUnusedLatest, $"{p}.perUnusedLatest"),
+                    Euros(reader, d.PerCeilingComputed, $"{p}.perCeilingComputed"), Euros(reader, d.PerCeilingNext, $"{p}.perCeilingNext")));
+            }
+            var assessment = new TaxAssessment(
+                Year ?? 0, IssuedYear ?? (Year ?? 0) + 1, declarants, reader.Decimal(Shares, "shares"), Euros(reader, ReferenceIncome, "referenceIncome"),
+                reader.Decimal(AverageRate, "averageRate"), reader.Decimal(MarginalRate, "marginalRate"), Euros(reader, GrossIncome, "grossIncome"),
+                Euros(reader, TaxableIncome, "taxableIncome"), Euros(reader, CapitalIncomeDeclared, "capitalIncomeDeclared"),
+                Euros(reader, CapitalIncomeTaxable, "capitalIncomeTaxable"), Euros(reader, RentalIncomeNet, "rentalIncomeNet"),
+                Euros(reader, FlatRateIncome, "flatRateIncome"), Euros(reader, ExemptIncomeDeclared, "exemptIncomeDeclared"),
+                Euros(reader, ExemptIncomeNet, "exemptIncomeNet"), Euros(reader, ScaleTax, "scaleTax"), Euros(reader, ProportionalTax, "proportionalTax"),
+                Euros(reader, TaxBeforeCredits, "taxBeforeCredits"), Euros(reader, CreditsDeclared, "creditsDeclared"),
+                Euros(reader, CreditsRetained, "creditsRetained"), Euros(reader, NetTax, "netTax"), Euros(reader, Withholding, "withholding"),
+                Euros(reader, Balance, "balance"), Euros(reader, RentalDeficitCarried, "rentalDeficitCarried"), DocumentId);
+            return reader.Ok ? assessment : null;
+        }
+
+        /// <summary>An amount in euros, null when absent; another currency is refused at its <c>currency</c>.</summary>
+        private static decimal? Euros(FieldReader reader, MoneyBody? body, string path)
+        {
+            if (body is null) return null;
+            if (reader.Money(body, path) is not { } money) return null;
+            if (money.Currency.Code == "EUR") return money.Amount;
+            reader.Add(path + ".currency", "request.currency", "A tax notice is in EUR.");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Tax assessments spec §6: the notice's fields again and the <c>version</c> read with it. A missing version answers 422 at
+    /// <c>version</c>: it would otherwise bind to 0 and pass for a conflict.
+    /// </summary>
+    public sealed record CorrectTaxAssessmentBody(
+        int? Year, int? IssuedYear, IReadOnlyList<TaxAssessmentDeclarantBody>? Declarants, string? Shares, MoneyBody? ReferenceIncome,
+        string? AverageRate, string? MarginalRate, MoneyBody? GrossIncome, MoneyBody? TaxableIncome, MoneyBody? CapitalIncomeDeclared,
+        MoneyBody? CapitalIncomeTaxable, MoneyBody? RentalIncomeNet, MoneyBody? FlatRateIncome, MoneyBody? ExemptIncomeDeclared,
+        MoneyBody? ExemptIncomeNet, MoneyBody? ScaleTax, MoneyBody? ProportionalTax, MoneyBody? TaxBeforeCredits, MoneyBody? CreditsDeclared,
+        MoneyBody? CreditsRetained, MoneyBody? NetTax, MoneyBody? Withholding, MoneyBody? Balance, MoneyBody? RentalDeficitCarried, uint? Version, Guid? DocumentId = null)
+    {
+        internal TaxAssessment? Read(FieldReader reader)
+        {
+            var assessment = new AddTaxAssessmentBody(
+                Year, IssuedYear, Declarants, Shares, ReferenceIncome, AverageRate, MarginalRate, GrossIncome, TaxableIncome, CapitalIncomeDeclared,
+                CapitalIncomeTaxable, RentalIncomeNet, FlatRateIncome, ExemptIncomeDeclared, ExemptIncomeNet, ScaleTax, ProportionalTax, TaxBeforeCredits,
+                CreditsDeclared, CreditsRetained, NetTax, Withholding, Balance, RentalDeficitCarried, DocumentId).Read(reader);
+            if (Version is null) reader.Add("version", "request.required", "The version read with the tax assessment is required.");
+            return reader.Ok ? assessment : null;
         }
     }
 

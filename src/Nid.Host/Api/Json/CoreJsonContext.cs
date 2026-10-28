@@ -57,5 +57,9 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ScenarioEndpoints.ScenarioBody))]
 [JsonSerializable(typeof(ScenarioEndpoints.SimulateBody))]
 [JsonSerializable(typeof(TaxEndpoints.TaxProfileBody))]
+[JsonSerializable(typeof(TaxEndpoints.AddTaxAssessmentBody))]
+[JsonSerializable(typeof(TaxEndpoints.CorrectTaxAssessmentBody))]
+[JsonSerializable(typeof(TaxAssessmentView))]
+[JsonSerializable(typeof(TaxAssessmentList))]
 [JsonSerializable(typeof(SessionResponse))]
 internal sealed partial class CoreJsonContext : JsonSerializerContext;

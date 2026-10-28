@@ -218,6 +218,9 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         if (await db.Ownerships.AnyAsync(o => o.PersonId == row.Id, ct))
             return Result.Failure(new Failure(PersonCodes.PersonActive, "This adult already owns items: they cannot be removed.", null));
 
+        if (await db.TaxAssessmentDeclarants.AnyAsync(d => d.PersonId == row.Id, ct))
+            return Result.Failure(new Failure(PersonCodes.PersonActive, "This adult declares a tax assessment: they cannot be removed.", null));
+
         db.Persons.Remove(row);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

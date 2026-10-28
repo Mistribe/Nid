@@ -6,6 +6,7 @@ using static Nid.Host.Api.InvestmentEndpoints;
 using static Nid.Host.Api.PersonEndpoints;
 using static Nid.Host.Api.RealEstateEndpoints;
 using static Nid.Host.Api.SubscriptionEndpoints;
+using static Nid.Host.Api.TaxEndpoints;
 
 namespace Nid.Host.Mcp;
 
@@ -47,6 +48,10 @@ public static class RouteActions
     private const string Ids = "Ids come from the list_* and get_* tools. ";
     private const string Amounts = "Amounts are decimal strings with a point, dates ISO (yyyy-mm-dd). ";
     private const string Owners = "Owners' (a loan's borrowers') shares are basis points summing to 10000 (list_persons gives the person ids); visibility is 'shared' or 'private'. ";
+    private const string TaxNotice = "Copy a French tax notice (avis d'imposition) as printed: year is the revenue year, issuedYear the notice's year; "
+        + "one or two declarants (list_persons), rank 1 for D1, 2 for D2. Leave out any figure the notice does not print: never compute or guess one. "
+        + "balance is positive when tax is due, negative when refunded. documentId (list_documents) is the notice's PDF: it is linked to each declarant, "
+        + "so a joint notice's PDF becomes readable by both. ";
     private const string Versioned = "version is the one get_* returned for that line. ";
 
     public static readonly IReadOnlyList<RouteAction> All =
@@ -235,6 +240,14 @@ public static class RouteActions
             + "period, get_income_source), 'income.one_off' (a one-off income), 'core.person' or 'core.household' (no targetId); role "
             + "'payslip', 'statement', 'invoice', 'tax_notice', 'lease', 'loan_offer', 'deed', 'insurance', 'amortization_table' or "
             + "'other'. Nothing else changes: a payslip linked to its period records no pay. " + Ids, OnItem: false),
+
+        // Tax notices (issue #182): the route links the source PDF, so an approved proposal does too.
+        new("add_tax_year", "POST", "/api/v1/tax/assessments", typeof(AddTaxAssessmentBody), TaxNotice + Ids + Amounts),
+        new("correct_tax_year", "PUT", "/api/v1/tax/assessments/{id:guid}", typeof(CorrectTaxAssessmentBody),
+            TaxNotice + "Replaces the whole notice: send every field again with the version list_tax_years gave. " + Ids + Amounts,
+            Destructive: true, OnItem: false),
+        new("delete_tax_year", "DELETE", "/api/v1/tax/assessments/{id:guid}", null, "Delete a tax notice entered by mistake. " + Ids,
+            Destructive: true, OnItem: false),
 
         // Household.
         new("create_dependent", "POST", "/api/v1/core/persons/dependents", typeof(CreateDependentBody),

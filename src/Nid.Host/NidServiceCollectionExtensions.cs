@@ -135,6 +135,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IFxRates, FxRates>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
+        services.AddScoped<TaxAssessmentStore>();
+        services.AddScoped<ITaxAssessmentStore>(sp => sp.GetRequiredService<TaxAssessmentStore>());
+        services.AddScoped<ITaxAssessmentDeclarants>(sp => sp.GetRequiredService<TaxAssessmentStore>());
         services.AddScoped<IScenarioStore, ScenarioStore>();
         services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
         services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
