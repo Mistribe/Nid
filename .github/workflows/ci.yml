@@ -96,6 +96,9 @@ jobs:
           if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" = push ]; then version=$NEXT; else version="$NEXT-ci.$GITHUB_RUN_NUMBER"; fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "Version: $version" >> "$GITHUB_STEP_SUMMARY"
+      # The version list a click on the version shows: web/changelog/ dated by the tags (web/changelog/README.md).
+      - name: Changelog
+        run: node web/scripts/changelog.mjs "$VERSION" > web/public/changelog.json
       - name: Build images
         run: |
           docker build -f src/Nid.Host/Dockerfile --build-arg VERSION="$VERSION" -t nid-api:local .

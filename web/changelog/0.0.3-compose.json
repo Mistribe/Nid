@@ -1,0 +1,5 @@
+{
+  "version": "0.0.3",
+  "en": "Nid installs with one compose file, Postgres and Pocket ID included or not.",
+  "fr": "Nid s'installe avec un seul fichier compose, Postgres et Pocket ID inclus ou non."
+}

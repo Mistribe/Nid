@@ -13,6 +13,7 @@
 - [ ] `dotnet test Nid.slnx --configuration Release -m:1`
 - [ ] `pnpm --dir web check` (and `check:api` if the API contract changed)
 - [ ] Checked in the running app (`aspire run`)
+- [ ] `web/changelog/<slug>.json` added, or the household sees no change (label `no-changelog`)
 
 ## Notes for the reviewer
 

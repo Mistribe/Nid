@@ -1,0 +1,5 @@
+{
+  "version": "0.12.0",
+  "en": "Holding prices are fetched by ISIN every weekday evening, and envelope values estimated from them.",
+  "fr": "Les cours des lignes sont récupérés par ISIN chaque soir de semaine, et la valeur des enveloppes en est estimée."
+}

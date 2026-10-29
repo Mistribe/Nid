@@ -40,6 +40,31 @@ describe('the shell', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('API : 1.2.3');
   });
 
+  it('lists what changed in each version on a click on the version', async () => {
+    server.use(http.get('*/changelog.json', () => HttpResponse.json([
+      { version: '0.19.0', date: '2026-10-29', changes: [{ en: 'A click on the version lists the changes.', fr: 'Un clic sur la version liste les nouveautés.' }] },
+      { version: '0.18.0', date: '2026-10-20', changes: [{ en: 'The tax page keeps its scroll.', fr: 'La page Impôts garde sa position.' }] },
+    ])));
+    const { user } = await renderApp('/subscriptions');
+    await user.click(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nouveautés' });
+    expect(await within(dialog).findAllByRole('heading', { level: 3 })).toHaveLength(2);
+    expect(within(dialog).getAllByRole('heading', { level: 3 })[0]).toHaveTextContent('Version 0.19.0');
+    expect(dialog).toHaveTextContent('29 octobre 2026');
+    expect(dialog).toHaveTextContent('Un clic sur la version liste les nouveautés.');
+    expect(dialog).not.toHaveTextContent('The tax page');
+    await expectNoAxeViolations(dialog);
+    await user.click(within(dialog).getByRole('button', { name: 'Fermer' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('says there is nothing to show without a changelog (a dev server)', async () => {
+    server.use(http.get('*/changelog.json', () => new HttpResponse('<!doctype html>', { headers: { 'Content-Type': 'text/html' } })));
+    const { user } = await renderApp('/subscriptions');
+    await user.click(await within(sidebar()).findByRole('button', { name: 'Version dev' }));
+    expect(await screen.findByText('Aucune nouveauté à afficher.')).toBeInTheDocument();
+  });
+
   it('puts account pages in the person menu', async () => {
     const { user } = await renderApp('/subscriptions');
     await user.click(await openerReady());

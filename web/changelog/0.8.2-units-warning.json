@@ -1,0 +1,5 @@
+{
+  "version": "0.8.2",
+  "en": "Holdings warn on units and values only beyond what the statement's rounding allows.",
+  "fr": "Les lignes n'alertent sur les parts et les valeurs qu'au-delà de l'arrondi du relevé."
+}

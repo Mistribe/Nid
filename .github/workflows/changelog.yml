@@ -1,0 +1,33 @@
+name: changelog
+
+# A pull request that changes the app (src/, web/src/ but its tests) adds its line to the version list, web/changelog/<slug>.json
+# (web/changelog/README.md), or carries the `no-changelog` label: a change the household does not see. Its own workflow, so
+# adding the label reruns this check alone, not ci.yml. No checkout: the pull request's file list is enough (seconds).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changelog:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: A line in web/changelog/, or the no-changelog label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | select(.status != "removed") | .filename')
+          app=$(printf '%s\n' "$files" | grep -E '^(src|web/src)/' | grep -vE '\.test\.tsx?$|^web/src/test/' || true)
+          if [ -z "$app" ]; then echo "No app change."; exit 0; fi
+          if printf '%s\n' "$files" | grep -qE '^web/changelog/[^/]+\.json$'; then echo "Changelog line added."; exit 0; fi
+          echo "::error::This pull request changes the app but adds no web/changelog/<slug>.json (web/changelog/README.md). If the household sees no change, add the no-changelog label."
+          exit 1

@@ -4,3 +4,6 @@ dist
 test-results/
 playwright-report/
 *.tsbuildinfo
+
+# Written by scripts/changelog.mjs in the images job of ci.yml.
+public/changelog.json

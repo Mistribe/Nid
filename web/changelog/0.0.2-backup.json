@@ -1,0 +1,5 @@
+{
+  "version": "0.0.2",
+  "en": "Backups work with an external Postgres or Pocket ID.",
+  "fr": "Les sauvegardes fonctionnent avec un Postgres ou un Pocket ID externe."
+}
