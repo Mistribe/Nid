@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
@@ -143,8 +143,13 @@ function Payments({ name, payments }: { name: string; payments: SalaryDetail }) 
   );
 }
 
-/** Each declarant's salary steps side by side, one column per person; a line at 0 € for everyone is left out. */
-export function DeclarantTable({ result, detail = [], adults = [] }: { result: TaxResult; detail?: SalaryDetail; adults?: TaxEstimate['adults'] }) {
+/**
+ * Each declarant's salary steps side by side, one column per person; a line at 0 € for everyone is left out. `children`
+ * are more rows in the same columns (the PER's), after the salaries.
+ */
+export function DeclarantTable({ result, detail = [], adults = [], children }: {
+  result: TaxResult; detail?: SalaryDetail; adults?: TaxEstimate['adults']; children?: ReactNode;
+}) {
   const { t } = useTranslation();
   // `origin`: the line that says where the salaries come from (the method, the payments behind it).
   const rows: { title: string; amount: (d: TaxResult['declarants'][number]) => string; strong?: boolean; origin?: boolean }[] = [
@@ -166,6 +171,9 @@ export function DeclarantTable({ result, detail = [], adults = [] }: { result: T
           </TableRow>
         </TableHeader>
         <TableBody>
+          <TableRow className="hover:bg-transparent">
+            <TableHead colSpan={result.declarants.length + 1} scope="colgroup" className="pt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('tax.declarant.salaries')}</TableHead>
+          </TableRow>
           {rows.filter(({ amount, strong }) => strong || !result.declarants.every((d) => ZERO.test(amount(d)))).map(({ title, amount, strong, origin }) => (
             <TableRow key={title} className={strong ? 'font-semibold' : undefined}>
               <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>{title}</TableHead>
@@ -180,6 +188,7 @@ export function DeclarantTable({ result, detail = [], adults = [] }: { result: T
               })}
             </TableRow>
           ))}
+          {children}
         </TableBody>
       </Table>
     </div>

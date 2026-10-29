@@ -72,7 +72,7 @@ Communs à tous les modules, dans `components/`.
 | `PageHeader` (`components/page/`) | Titre, retour, chiffres clés en ligne, actions de la page : l'en-tête commun des listes et des fiches |
 | `StatLine` | Ligne de chiffres sous le titre ; seulement quand le serveur donne les totaux (abonnements) |
 | `SortableTable` | Tableau dense triable, colonne « Propriétaires » (`OwnerChips`, initiales) ; base de toutes les listes |
-| `DetailTabs` / `useDetailTab` | Onglets d'une fiche, onglet courant dans l'URL (`?tab=`) |
+| `DetailTabs` / `useDetailTab` | Onglets d'une fiche, onglet courant dans l'URL (`?tab=`) ; `side` en fait un menu à gauche, onglets groupés par `group`, le nom de l'onglet ouvert en titre (pour une page aux nombreuses vues : Impôts) |
 | `RowMenu` | Menu « … » d'une ligne : modifier, supprimer, actions propres à la ligne |
 | `StepForm` | Formulaire en étapes (crédit, revenu, bien, assistant d'abonnement) ; `reveal` replie les champs rares, `onAdvance` valide l'étape avant d'avancer |
 | `components/form/` | `Field`, `SelectField`, `ComboboxField` (devises cherchables), `CurrencyField`, `DateField` (`max`), `Segmented` |

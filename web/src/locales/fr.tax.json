@@ -13,7 +13,8 @@
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
-    "tab": { "assessment": "Avis", "2044": "Déclaration 2044", "detail": "Détail", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation", "sale": "Si tout était vendu" },
+    "tab_group": { "year": "Cette année", "declare": "Déclarer", "what_if": "Et si…" },
+    "tab": { "assessment": "Avis reçus", "2044": "Déclaration 2044", "detail": "Détail du calcul", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation", "sale": "Si tout était vendu" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
@@ -39,6 +40,7 @@
     "declarant": {
       "title": "Revenus par déclarant",
       "info": "Infos",
+      "salaries": "Salaires",
       "salary_net": "Salaires nets imposables",
       "allowance": "Abattement de 10 %",
       "per": "Versements PER déduits",
@@ -125,7 +127,10 @@
     "per": {
       "title": "PER",
       "scale": "Barème {{rulesYear}}",
+      "ceiling": "Plafond",
       "ceiling_notice": "Plafond (avis)",
+      "source_notice": "avis",
+      "source_estimated": "estimé",
       "ceiling_estimated": "Plafond (estimé)",
       "expiring": "dont {{amount}} perdus au 31 décembre",
       "contributions": "Versements",
@@ -134,6 +139,7 @@
       "excess": "Non déduit",
       "remaining": "Reste à verser avant le 31 décembre",
       "household": "Foyer (plafonds mutualisés)",
+      "household_remaining": "{{amount}} à verser avant le 31 décembre",
       "tax_saved": "Économie d’impôt",
       "room": "encore {{room}} déductibles à {{rate}}",
       "over_ceiling": "{{name}} : {{excess}} versés ne sont pas déduits, le plafond de {{ceiling}} est atteint.",

@@ -1,9 +1,8 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '@/components/Money';
-import { Section } from '@/components/page/Section';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
+import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import type { TaxResult } from './api';
 import { percentText, ZERO } from './format';
 import { eur } from './ResultTable';
@@ -37,26 +36,69 @@ export function perWarningTexts(t: TFunction, result: TaxResult, code: string, y
   return named.length ? named.map((d) => estimatedText(t, d, year)) : [t('tax.warning.per_ceiling_estimated')];
 }
 
+/** The ceiling's source when every declarant shown shares it, else none: each cell then tells its own. */
+const sharedSource = (per: NonNullable<Declarant['per']>[]) => (per.every((p) => p.source === per[0]!.source) ? per[0]!.source : undefined);
+const ceilingLabel = (t: TFunction, source: string | undefined) => (source === undefined ? t('tax.per.ceiling') : t(source === 'notice' ? 'tax.per.ceiling_notice' : 'tax.per.ceiling_estimated'));
+
 /**
- * Tax spec §4.5: the PER of each declarant (ceiling from the notice or estimated, contributions, deducted, left to pay before
- * December 31st), then the household's tax saved and room in the bracket. Every figure is the server's; `names[i]` is the
- * envelopes the i-th declarant's contributions are read from, and `onProfile` opens the tax profile where the ceiling is typed.
+ * Tax spec §4.5, the declarants' part: each one's PER (ceiling from the notice or estimated, contributions, deducted, left to
+ * pay before December 31st) as rows of the `DeclarantTable`, so the figures sit in the same column as the person's income.
+ * Every figure is the server's; `names[i]` is the envelopes the i-th declarant's contributions are read from.
  */
-export function PerSection({ result, names, year, rulesYear, onProfile }: {
-  result: TaxResult; names: string[]; year: number; rulesYear: number; onProfile?: () => void;
-}) {
+export function PerRows({ result, names }: { result: TaxResult; names: string[] }) {
   const { t } = useTranslation();
-  const people = result.declarants.map((d, i) => ({ d, per: d.per, flows: names[i] ?? '', key: d.person ?? `${i}` }));
-  const shown = people.filter((p) => p.per);
-  if (!shown.length && !result.per) return null;
+  const shown = result.declarants.map((d) => d.per).filter((per) => per !== null && per !== undefined);
+  if (!shown.length) return null;
+  const source = sharedSource(shown);
+  type Line = { label: string; cell: (per: NonNullable<Declarant['per']>, i: number) => string; note?: (per: NonNullable<Declarant['per']>, i: number) => string | undefined; strong?: boolean };
+  const lines: Line[] = [
+    { label: ceilingLabel(t, source), cell: (per) => eur(per.ceiling),
+      note: (per) => [source === undefined ? t(per.source === 'notice' ? 'tax.per.source_notice' : 'tax.per.source_estimated') : undefined,
+        ZERO.test(per.expiring) ? undefined : t('tax.per.expiring', { amount: eur(per.expiring) })].filter(Boolean).join(' · ') || undefined },
+    { label: t('tax.per.contributions'), cell: (per) => eur(per.contributions), note: (_, i) => (names[i] ? t('tax.per.flows', { names: names[i] }) : undefined) },
+    { label: t('tax.per.deducted'), cell: (per) => eur(per.deducted) },
+    ...(shown.every((per) => ZERO.test(per.excess)) ? [] : [{ label: t('tax.per.excess'), cell: (per: NonNullable<Declarant['per']>) => eur(per.excess) }]),
+    { label: t('tax.per.remaining'), cell: (per) => eur(per.remaining), strong: true },
+  ];
+  return (
+    <>
+      <TableRow className="hover:bg-transparent">
+        <TableHead colSpan={result.declarants.length + 1} scope="colgroup" className="pt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('tax.per.title')} · {t('tax.per.scale', { rulesYear: result.rulesYear })}
+        </TableHead>
+      </TableRow>
+      {lines.map(({ label, cell, note, strong }) => (
+        <TableRow key={label} className={strong ? 'font-semibold' : undefined}>
+          <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>{label}</TableHead>
+          {result.declarants.map((d, i) => {
+            const text = d.per && note ? note(d.per, i) : undefined;
+            return (
+              <TableCell key={d.person ?? i} className="text-right tabular-nums">
+                {d.per ? cell(d.per, i) : '—'}
+                {text ? <span className="block text-xs font-normal text-muted-foreground">{text}</span> : null}
+              </TableCell>
+            );
+          })}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Tax spec §4.5, the household's part, under the declarants' table: the PER warnings the figures tell, the pooled ceiling's
+ * remainder, the tax saved and the room in the bracket. `onProfile` opens the tax profile where the ceiling is typed.
+ */
+export function PerSummary({ result, year, onProfile }: { result: TaxResult; year: number; onProfile?: () => void }) {
+  const { t } = useTranslation();
   const household = result.per;
   const over = overCeiling(result);
   const estimated = estimatedCeiling(result);
+  if (!household && !over.length && !estimated.length) return null;
   return (
-    <Section title={t('tax.per.title')}>
-      <p className="text-sm text-muted-foreground">{t('tax.per.scale', { rulesYear })}</p>
+    <div className="max-w-3xl space-y-2 text-sm">
       {over.length || estimated.length ? (
-        <ul className="list-disc space-y-1 pl-5 text-sm">
+        <ul className="list-disc space-y-1 pl-5">
           {over.map((d, i) => (
             <li key={`over-${d.person ?? i}`}>
               <span>{overText(t, d)}</span>
@@ -68,51 +110,17 @@ export function PerSection({ result, names, year, rulesYear, onProfile }: {
           {estimated.map((d, i) => <li key={`est-${d.person ?? i}`}>{estimatedText(t, d, year)}</li>)}
         </ul>
       ) : null}
-      <div className="grid max-w-3xl gap-6 sm:grid-cols-2">
-        {shown.map(({ d, per, flows, key }) => {
-          const lines: { label: string; value: string; note?: string; strong?: boolean }[] = [
-            { label: t(per!.source === 'notice' ? 'tax.per.ceiling_notice' : 'tax.per.ceiling_estimated'), value: eur(per!.ceiling),
-              note: ZERO.test(per!.expiring) ? undefined : t('tax.per.expiring', { amount: eur(per!.expiring) }) },
-            { label: t('tax.per.contributions'), value: eur(per!.contributions), note: flows ? t('tax.per.flows', { names: flows }) : undefined },
-            { label: t('tax.per.deducted'), value: eur(per!.deducted) },
-            ...(ZERO.test(per!.excess) ? [] : [{ label: t('tax.per.excess'), value: eur(per!.excess) }]),
-            { label: t('tax.per.remaining'), value: eur(per!.remaining), strong: true },
-          ];
-          return (
-            <div key={key} role="group" aria-label={d.name}>
-              <h3 className="mb-1 font-medium">{d.name}</h3>
-              <Table>
-                <TableBody>{lines.map((l) => <PerRow key={l.label} {...l} />)}</TableBody>
-              </Table>
-            </div>
-          );
-        })}
-        {household?.pooled ? (
-          <div role="group" aria-label={t('tax.per.household')}>
-            <h3 className="mb-1 font-medium">{t('tax.per.household')}</h3>
-            <Table><TableBody><PerRow label={t('tax.per.remaining')} value={eur(household.remaining)} strong /></TableBody></Table>
-          </div>
-        ) : null}
-      </div>
       {household ? (
-        <dl className="space-y-1 text-sm">
+        <dl className="flex flex-wrap gap-x-6 gap-y-1">
+          {household.pooled ? (
+            <div className="flex gap-1.5"><dt className="text-muted-foreground">{t('tax.per.household')}</dt><dd className="font-medium tabular-nums">{t('tax.per.household_remaining', { amount: eur(household.remaining) })}</dd></div>
+          ) : null}
           <div className="flex gap-1.5"><dt className="text-muted-foreground">{t('tax.per.tax_saved')}</dt><dd className="font-medium tabular-nums">{eur(household.taxSaved)}</dd></div>
           {ZERO.test(household.roomInBracket) ? null : (
             <div><dd className="text-muted-foreground">{t('tax.per.room', { room: wholeEur(household.roomInBracket), rate: percentText(t, result.marginalRate) })}</dd></div>
           )}
         </dl>
       ) : null}
-    </Section>
-  );
-}
-
-function PerRow({ label, value, note, strong }: { label: string; value: string; note?: string; strong?: boolean }) {
-  return (
-    <TableRow className={strong ? 'font-semibold' : undefined}>
-      <TableHead scope="row" className={strong ? 'font-semibold' : 'font-normal'}>
-        {label}{note ? <span className="block text-xs font-normal text-muted-foreground">{note}</span> : null}
-      </TableHead>
-      <TableCell className="text-right tabular-nums">{value}</TableCell>
-    </TableRow>
+    </div>
   );
 }

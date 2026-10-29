@@ -21,7 +21,7 @@ import { useTaxAssessments, type TaxAssessment } from './assessments/api';
 import { GapTable } from './assessments/GapTable';
 import { AssessmentView } from './assessments/AssessmentView';
 import { noticeAmount, noticeText, percentText, PER_WARNINGS, warningText, ZERO } from './format';
-import { PerSection, perWarningsInBlock, perWarningTexts } from './PerSection';
+import { PerRows, PerSummary, perWarningsInBlock, perWarningTexts } from './PerSection';
 import { ProfileForm } from './profile/ProfileForm';
 import { ProfileSubmit } from './profile/ProfileSubmit';
 import { useProfileDraft } from './profile/useProfileDraft';
@@ -92,15 +92,15 @@ export function TaxPage() {
       {!past && !estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {estimate ? <Notes estimate={estimate} inBlock={tab === 'detail'} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
       {estimate ? (
-        <DetailTabs value={tab} onChange={setTab} tabs={[
-          { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
-          ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
-          { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
-          { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
+        <DetailTabs side value={tab} onChange={setTab} tabs={[
+          { id: 'detail', group: t('tax.tab_group.year'), label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
+          { id: 'withholding', group: t('tax.tab_group.year'), label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
+          ...(notices.length ? [{ id: 'assessment' as const, group: t('tax.tab_group.year'), label: t('tax.tab.assessment'), content: noticeViews }] : []),
+          { id: 'profile', group: t('tax.tab_group.declare'), label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
-          { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
-          { id: '2044', label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
-          { id: 'sale', label: t('tax.tab.sale'), content: <SaleTotalSection scope={scope} /> },
+          { id: '2044', group: t('tax.tab_group.declare'), label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
+          { id: 'simulation', group: t('tax.tab_group.what_if'), label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
+          { id: 'sale', group: t('tax.tab_group.what_if'), label: t('tax.tab.sale'), content: <SaleTotalSection scope={scope} /> },
         ]} />
       ) : null}
     </div>
@@ -211,9 +211,10 @@ function Detail({ estimate, onProfile }: { estimate: TaxEstimate; onProfile: () 
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('tax.disclaimer', { year: estimate.result.rulesYear })}</p>
-      <DeclarantTable result={estimate.result} detail={estimate.salaryDetail} adults={estimate.adults} />
-      <PerSection result={estimate.result} year={estimate.year} rulesYear={estimate.result.rulesYear} onProfile={onProfile}
-        names={estimate.result.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
+      <DeclarantTable result={estimate.result} detail={estimate.salaryDetail} adults={estimate.adults}>
+        <PerRows result={estimate.result} names={estimate.result.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
+      </DeclarantTable>
+      <PerSummary result={estimate.result} year={estimate.year} onProfile={onProfile} />
       <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
       <p className="text-sm text-muted-foreground">{t('tax.out_of_scope')}</p>
     </>

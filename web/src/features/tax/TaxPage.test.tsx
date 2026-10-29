@@ -407,7 +407,7 @@ describe('TaxPage', () => {
     const home = await screen.findByLabelText('Emploi à domicile');
     await user.clear(home);
     await user.type(home, '9000');
-    await user.click(screen.getByRole('tab', { name: 'Détail' }));
+    await user.click(screen.getByRole('tab', { name: 'Détail du calcul' }));
     await user.click(screen.getByRole('tab', { name: 'Profil fiscal' }));
 
     expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('9000');
@@ -608,7 +608,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025');
 
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
+      await user.click(await screen.findByRole('tab', { name: 'Avis reçus' }));
       expect(await screen.findByRole('region', { name: 'Avis 2025' })).toBeInTheDocument();
     });
 
@@ -627,7 +627,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       server.use(notices(a), http.get('*/api/v1/tax', () => HttpResponse.json(loaded)), http.get('*/api/v1/core/persons', () => HttpResponse.json([])));
       const { user } = await renderApp('/tax?year=2025');
 
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
+      await user.click(await screen.findByRole('tab', { name: 'Avis reçus' }));
       const table = await screen.findByRole('table', { name: 'Écarts entre l’avis et l’estimation' });
       const rows = within(table).getAllByRole('row').slice(1);
       expect(rows.map((r) => r.firstChild?.textContent)).toEqual(['Impôt net', 'Solde', 'Salaires nets — Alice']);
@@ -642,7 +642,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025');
 
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
+      await user.click(await screen.findByRole('tab', { name: 'Avis reçus' }));
       await screen.findByRole('region', { name: 'Avis 2025' });
       expect(screen.queryByRole('table', { name: 'Écarts entre l’avis et l’estimation' })).not.toBeInTheDocument();
     });
@@ -653,7 +653,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
       await screen.findByRole('region', { name: 'Avis 2025' });
       await user.click(screen.getByRole('radio', { name: '2026' }));
-      expect(await screen.findByRole('tab', { name: 'Détail', selected: true })).toBeInTheDocument();
+      expect(await screen.findByRole('tab', { name: 'Détail du calcul', selected: true })).toBeInTheDocument();
       expect(screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' })).toBeInTheDocument();
     });
 
@@ -662,7 +662,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       await renderApp('/tax');
 
       await screen.findByText('Net fiscal');
-      expect(screen.queryByRole('tab', { name: 'Avis' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Avis reçus' })).not.toBeInTheDocument();
     });
 
     it('does not offer a year without a readable notice', async () => {

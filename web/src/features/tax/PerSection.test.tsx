@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxResult } from './api';
-import { PerSection } from './PerSection';
+import { PerRows, PerSummary } from './PerSection';
+import { DeclarantTable } from './ResultTable';
 import { ADULT, estimate, result } from './taxTestData';
 
 const declarantPer = (over: Partial<NonNullable<TaxResult['declarants'][number]['per']>> = {}) => ({
@@ -16,16 +17,20 @@ const withPer = (over: Partial<TaxResult> = {}, per = declarantPer()) => result(
   per: { pooled: false, remaining: '3220.80', taxSaved: '900.00', roomInBracket: '10421.00' },
   ...over,
 });
-const show = (r: TaxResult, names = ['']) => render(<PerSection result={r} names={names} year={2026} rulesYear={2025} onProfile={() => undefined} />);
+const block = (r: TaxResult, names: string[], onProfile: () => void) => (
+  <><DeclarantTable result={r}><PerRows result={r} names={names} /></DeclarantTable><PerSummary result={r} year={2026} onProfile={onProfile} /></>
+);
+const show = (r: TaxResult, names = ['']) => render(block(r, names, () => undefined));
+const cell = (row: RegExp) => screen.getByRole('row', { name: row });
 
-describe('PerSection', () => {
+describe('PerRows and PerSummary', () => {
   it('shows the ceiling, the deduction and what is left to pay', () => {
     show(withPer());
-    const alice = screen.getByRole('group', { name: 'Alice' });
-    expect(within(alice).getByRole('row', { name: /Plafond \(avis\)/ })).toHaveTextContent('5 843,13 €');
-    expect(within(alice).getByRole('row', { name: /Déduit/ })).toHaveTextContent('3 000,00 €');
-    expect(within(alice).getByRole('row', { name: /Reste à verser avant le 31 décembre/ })).toHaveTextContent('3 220,80 €');
-    expect(screen.getByText('Barème 2025')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
+    expect(cell(/Plafond \(avis\)/)).toHaveTextContent('5 843,13 €');
+    expect(cell(/^Déduit/)).toHaveTextContent('3 000,00 €');
+    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('3 220,80 €');
+    expect(screen.getByText('PER · Barème 2025')).toBeInTheDocument();
   });
 
   it('says what expires on December 31st', () => {
@@ -35,8 +40,7 @@ describe('PerSection', () => {
 
   it('warns when contributions go beyond the ceiling, with a way to the profile', async () => {
     const onProfile = vi.fn();
-    render(<PerSection result={withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ source: 'estimated', contributions: '8000.00', deducted: '5843.13', excess: '2156.87', remaining: '0.00' }))}
-      names={['']} year={2026} rulesYear={2025} onProfile={onProfile} />);
+    render(block(withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ source: 'estimated', contributions: '8000.00', deducted: '5843.13', excess: '2156.87', remaining: '0.00' })), [''], onProfile));
     expect(screen.getByText('Alice : 2 156,87 € versés ne sont pas déduits, le plafond de 5 843,13 € est atteint.')).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Saisissez le plafond de votre avis dans Profil fiscal.' }));
     expect(onProfile).toHaveBeenCalled();
@@ -61,7 +65,7 @@ describe('PerSection', () => {
 
   it('shows the household line when pooled', () => {
     show(withPer({ per: { pooled: true, remaining: '5000.00', taxSaved: '900.00', roomInBracket: '10421.00' } }));
-    expect(within(screen.getByRole('group', { name: 'Foyer (plafonds mutualisés)' })).getByRole('row', { name: /Reste à verser/ })).toHaveTextContent('5 000,00 €');
+    expect(screen.getByText('5 000,00 € à verser avant le 31 décembre')).toBeInTheDocument();
   });
 
   it('shows no household line when not pooled', () => {
@@ -81,9 +85,26 @@ describe('PerSection', () => {
     expect(screen.getByText('encore 10 421 € déductibles à 11 %')).toBeInTheDocument();
   });
 
-  it('renders nothing without PER figures', () => {
-    const { container } = show(result());
-    expect(container).toBeEmptyDOMElement();
+  it('adds no row nor summary without PER figures', () => {
+    show(result());
+    expect(screen.queryByText(/PER/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Économie d’impôt')).not.toBeInTheDocument();
+  });
+
+  it('tells each ceiling’s source in its cell when the declarants’ differ', () => {
+    const r = withPer();
+    r.declarants = [r.declarants[0]!, { ...r.declarants[0]!, person: 'b', name: 'Bob', per: declarantPer({ source: 'estimated' }) }];
+    show(r, ['', '']);
+    const row = cell(/^Plafond/);
+    expect(within(row).getByText('avis')).toBeInTheDocument();
+    expect(within(row).getByText('estimé')).toBeInTheDocument();
+  });
+
+  it('shows a dash for a declarant without PER figures', () => {
+    const r = withPer();
+    r.declarants = [r.declarants[0]!, { ...r.declarants[0]!, person: 'b', name: 'Bob', per: null }];
+    show(r, ['', '']);
+    expect(cell(/^Versements/)).toHaveTextContent('—');
   });
 });
 
