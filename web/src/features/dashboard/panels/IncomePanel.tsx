@@ -11,7 +11,7 @@ import { OVERVIEW } from '../../income/api';
 import type { DashboardView } from '../api';
 import { Value } from '../KeyFigures';
 
-/** Spec §4.2: the sources and rents behind « Revenus / mois », each with its monthly equivalent and owners. */
+/** Spec §4.2: the sources and rents behind « Revenus nets / mois », each with its monthly equivalent and owners. */
 export function IncomePanel({ d, scope }: { d: DashboardView; scope: 'me' | 'household' }) {
   const { t } = useTranslation();
   const { $api } = useApi();

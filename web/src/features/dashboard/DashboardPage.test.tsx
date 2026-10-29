@@ -40,7 +40,7 @@ describe('DashboardPage', () => {
     expect(worth).toHaveTextContent('+9,1 %');
     expect(worth).toHaveTextContent('en hausse');
     expect(worth).toHaveTextContent('depuis le 1er janvier');
-    expect(await tile('Revenus / mois')).toHaveTextContent('2 500,00 €');
+    expect(await tile('Revenus nets / mois')).toHaveTextContent('2 500,00 €');
     const commitments = await tile('Engagements / mois');
     expect(commitments).toHaveTextContent('250,56 €');
     expect(commitments).toHaveTextContent('10 % des revenus');
@@ -65,7 +65,7 @@ describe('DashboardPage', () => {
     expect(worth).toHaveTextContent('Inconnu : aucune valeur saisie');
     expect(worth).toHaveTextContent('Inconnue : aucune valeur au 1er janvier');
     expect(worth).not.toHaveTextContent('0,00 €');
-    expect(await tile('Revenus / mois')).toHaveTextContent('Inconnu : aucun revenu déclaré');
+    expect(await tile('Revenus nets / mois')).toHaveTextContent('Inconnu : aucun revenu déclaré');
     expect(await tile('Reste à vivre')).toHaveTextContent('Marge inconnue tant qu’aucun revenu n’est déclaré');
     expect(await tile('Engagements / mois')).not.toHaveTextContent('% des revenus');
     await expectNoAxeViolations(container);

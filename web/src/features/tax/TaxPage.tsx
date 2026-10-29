@@ -1,3 +1,4 @@
+import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Fragment, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -63,7 +64,9 @@ export function TaxPage() {
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, year: next === defaultYear ? undefined : next })) as never });
   };
   const past = Number(year) < FIRST_ESTIMATE_YEAR;
-  const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past });
+  // The year changes with the tab (the 2044's is last year): the page stays on the previous estimate while the next loads, so the
+  // menu does not vanish under the pointer.
+  const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past, placeholderData: keepPreviousData });
   const estimate = past ? undefined : answer.data;
   const people = $api.useQuery('get', PERSONS).data ?? [];
   const notices = assessments.filter((a) => String(a.year) === year);
@@ -77,10 +80,11 @@ export function TaxPage() {
   const draft = useProfileDraft(estimate, scope);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t('tax.title')} actions={tab === 'sale' && !past ? undefined : (
+    <div className="space-y-6" aria-busy={answer.isPlaceholderData || undefined}>
+      {/* The sale is always today's: no year to pick, but the header keeps its height so the page does not move. */}
+      <PageHeader title={t('tax.title')} actions={(
         <div className="flex flex-wrap items-center gap-3 print:hidden">
-          {selector}
+          {tab === 'sale' && !past ? null : selector}
           <Button asChild variant="outline"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
         </div>
       )}>

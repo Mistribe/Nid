@@ -2,13 +2,16 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useId, type ReactNode } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-/** The `tab` of the URL, validated against the screen's own ids: unknown or absent is the first, which stays out of the URL. */
+/**
+ * The `tab` of the URL, validated against the screen's own ids: unknown or absent is the first, which stays out of the URL.
+ * A tab change keeps the scroll: the page does not jump back to its top under the pointer.
+ */
 export function useDetailTab<T extends string>(ids: readonly T[]): [T, (next: T) => void] {
   const { tab } = useSearch({ strict: false });
   const navigate = useNavigate();
   const current = ids.find((id) => id === tab) ?? ids[0]!;
   const set = (next: T) => {
-    void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, tab: next === ids[0] ? undefined : next })) as never });
+    void navigate({ to: '.', replace: true, resetScroll: false, search:((prev: Record<string, unknown>) => ({ ...prev, tab: next === ids[0] ? undefined : next })) as never });
   };
   return [current, set];
 }
@@ -29,7 +32,8 @@ export function DetailTabs<T extends string>({ value, onChange, tabs, guide, sid
   if (side) {
     const groups = [...new Set(tabs.map((tab) => tab.group ?? ''))];
     return (
-      <Tabs value={value} onValueChange={(next) => onChange(next as T)} orientation="vertical" className="flex-row flex-wrap items-start gap-x-10 gap-y-6">
+      // At least a screen tall: a short tab opened from low on the page keeps the scroll, so the menu stays under the pointer.
+      <Tabs value={value} onValueChange={(next) => onChange(next as T)} orientation="vertical" className="min-h-dvh flex-row flex-wrap items-start gap-x-10 gap-y-6">
         <nav data-guide={guide} className="flex max-w-full flex-[1_1_12rem] flex-col gap-5 sm:max-w-56 print:hidden">
           {groups.map((group) => <SideGroup key={group} title={group} tabs={tabs.filter((tab) => (tab.group ?? '') === group)} />)}
         </nav>

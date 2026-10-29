@@ -141,7 +141,8 @@
     "loading": "Chargement du tableau de bord",
     "key": {
       "net_worth": "Patrimoine net",
-      "income": "Revenus / mois",
+      "income": "Revenus nets / mois",
+      "income_hint": "lissés sur l'année, loyers compris",
       "commitments": "Engagements / mois",
       "margin": "Reste à vivre",
       "margin_hint": "avant dépenses courantes"

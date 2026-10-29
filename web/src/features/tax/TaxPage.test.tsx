@@ -516,6 +516,25 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('keeps the page while last year’s estimate loads: the menu does not vanish under the pointer', async () => {
+    let release = () => {};
+    const lastYear = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      http.get('*/api/v1/tax', async ({ request }) => {
+        if (new URL(request.url).searchParams.get('year') !== String(new Date().getFullYear())) await lastYear;
+        return HttpResponse.json(estimate());
+      }),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
+    );
+    const { user } = await renderApp('/tax');
+
+    await user.click(await screen.findByRole('tab', { name: 'Déclaration 2044' }));
+    expect(screen.getByRole('tab', { name: 'Déclaration 2044', selected: true })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Calcul de l’impôt')).not.toBeInTheDocument();
+    release();
+    expect(await screen.findByRole('region', { name: 'Studio' })).toBeInTheDocument();
+  });
+
   it('shows case 4BE and no form to fill under the micro-foncier', async () => {
     // The server always sends the columns; under micro none is shown, nor the to-check list.
     const micro = view2044({

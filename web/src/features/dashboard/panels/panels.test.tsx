@@ -255,7 +255,7 @@ describe('key figure panels', () => {
     );
     const { container, user } = await renderApp('/dashboard?panel=income');
 
-    const panel = await dialog('Revenus / mois');
+    const panel = await dialog('Revenus nets / mois');
     const item = (await within(panel).findByRole('link', { name: 'Salaire Alice' })).closest('li')!;
     expect(item).toHaveTextContent('2 450,00 €');
     expect(await within(item).findByText('Alice Dev')).toBeInTheDocument();

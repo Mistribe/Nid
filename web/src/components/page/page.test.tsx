@@ -51,6 +51,16 @@ describe('page grammar', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({}));
   });
 
+  it('useDetailTab keeps the scroll: a tab low on the page stays under the pointer', async () => {
+    const user = userEvent.setup();
+    const router = await renderTabs('/investments/x');
+    const navigate = vi.spyOn(router, 'navigate');
+    await user.click(await screen.findByRole('tab', { name: 'Valeurs' }));
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'values' }));
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ resetScroll: false }));
+  });
+
   it('StepForm stops on the first invalid step', async () => {
     const user = userEvent.setup();
     const trigger = vi.fn<(fields: string[]) => Promise<boolean>>().mockResolvedValueOnce(false).mockResolvedValue(true);
