@@ -144,7 +144,7 @@ pour `Nid.Subscriptions.Domain` ; les autres projets `Domain` restent à vérifi
 
 ## 9ter. Migrations EF de plusieurs `DbContext` sur des schémas distincts (vérifié le 2026-09-22)
 
-`SchemaTests` (`tests/Nid.Subscriptions.IntegrationTests/SchemaTests.cs`) part d'une base PostgreSQL vide et
+`SchemaTests` (`tests/Nid.Host.IntegrationTests/SchemaTests.cs`) part d'une base PostgreSQL vide et
 applique les migrations réelles des deux `DbContext` — `core.Database.MigrateAsync()` puis
 `subs.Database.MigrateAsync()` (`Nid.TestSupport`) — plutôt que de créer les tables sans elles comme au
 premier essai du §9. Chaque module obtient sa propre table `__ef_migrations_history` dans son propre schéma

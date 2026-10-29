@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
+using static Nid.TestSupport.SubscriptionApi;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
@@ -99,18 +100,4 @@ public class ReadEndpointTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal("20", list.HouseholdCashCost.Single(m => m.Currency == "EUR").Amount); // the money left once
         Assert.Single(list.SharedPurchaseIds);
     }
-
-    public sealed record MoneyResponse(string Amount, string Currency);
-    public sealed record FindingResponse(string Code, string Message, string? Reference);
-    public sealed record SummaryResponse(Guid Id, string DisplayName, IReadOnlyList<MoneyResponse> CashCost);
-    public sealed record ListResponse(
-        IReadOnlyList<SummaryResponse> Items,
-        IReadOnlyList<MoneyResponse> HouseholdCashCost,
-        IReadOnlyList<Guid> SharedPurchaseIds);
-    public sealed record CoverageResponse(string Start, string EndBefore, string Source, bool IsProjected);
-    public sealed record ChargeResponse(string Date, MoneyResponse Price, bool IsProjected, Guid? PurchaseId);
-    public sealed record DetailResponse(
-        Guid Id, string DisplayName, string? NextChargeOn, MoneyResponse? NextChargeAmount,
-        IReadOnlyList<CoverageResponse> Coverage, IReadOnlyList<ChargeResponse> Charges,
-        IReadOnlyList<FindingResponse> Findings);
 }

@@ -38,7 +38,7 @@ public class PurchaseRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", Purchase());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(
             app.AdultA, $"/api/v1/subscriptions/{id.Value}?from=2025-01-01&to=2026-01-01");
         var paid = Assert.Single(detail.Coverage);
         Assert.Equal(("2025-01-01", "2026-01-01", "paid"), (paid.Start, paid.EndBefore, paid.Source));

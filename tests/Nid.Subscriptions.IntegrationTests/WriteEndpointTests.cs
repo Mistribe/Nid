@@ -14,7 +14,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         var id = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
 
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id.Value}");
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id.Value}");
         Assert.Equal("Netflix", detail.DisplayName);
     }
 
@@ -44,7 +44,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
 
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(
             app.AdultA, $"/api/v1/subscriptions/{id.Value}?horizon=2025-12-01");
         Assert.Contains(detail.Charges, c => c.Price.Amount == "15.17");
         Assert.Contains(detail.Charges, c => c.Price.Amount == "17.20");
@@ -108,7 +108,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}",
             new { cancelledAt = "2025-04-01" })).EnsureSuccessStatusCode();
 
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(
             app.AdultA, $"/api/v1/subscriptions/{id.Value}?horizon=2025-12-01");
         Assert.NotEmpty(detail.Charges);
         Assert.All(detail.Charges, c => Assert.True(string.CompareOrdinal(c.Date, "2025-04-01") < 0));
@@ -132,7 +132,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/subscriptions/{id.Value}/purchases/{purchaseId}"))
             .EnsureSuccessStatusCode();
 
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id.Value}");
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id.Value}");
         Assert.Empty(detail.Coverage);
     }
 
@@ -158,7 +158,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         var response = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/subscriptions/{second.Value}/purchases/{purchaseId}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{first.Value}");
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{first.Value}");
         Assert.NotEmpty(detail.Coverage);
     }
 }

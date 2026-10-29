@@ -42,8 +42,8 @@ public class CreateWithOffersTests(PostgresFixture fixture) : IClassFixture<Post
         => (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").EnumerateArray()
             .Select(e => (e.GetProperty("path").GetString()!, e.GetProperty("code").GetString()!)).ToList();
 
-    private static Task<ReadEndpointTests.DetailResponse> Detail(NidApp app, Guid id, string to = "2027-06-01")
-        => app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id}?from=2025-01-01&to={to}");
+    private static Task<SubscriptionApi.DetailResponse> Detail(NidApp app, Guid id, string to = "2027-06-01")
+        => app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, $"/api/v1/subscriptions/{id}?from=2025-01-01&to={to}");
 
     private static async Task<(int Items, int Subscriptions, int Purchases)> Counts(NidApp app)
     {

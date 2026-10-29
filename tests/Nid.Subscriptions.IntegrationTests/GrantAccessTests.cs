@@ -32,7 +32,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal("subscriptions.not_found", errors[0].GetProperty("code").GetString());
 
         // And nothing was written on the way out: B's subscription still renews.
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{secret.Value}");
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{secret.Value}");
         Assert.Empty(detail.Coverage);
     }
 
@@ -51,7 +51,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
         Assert.Equal("subscriptions.not_found", errors[0].GetProperty("code").GetString());
 
-        var detail = await app.GetAsync<ReadEndpointTests.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{theirs.Value}");
+        var detail = await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultB, $"/api/v1/subscriptions/{theirs.Value}");
         Assert.Empty(detail.Coverage);
     }
 
@@ -67,7 +67,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         foreach (var item in new[] { first, second })
-            Assert.NotEmpty((await app.GetAsync<ReadEndpointTests.DetailResponse>(
+            Assert.NotEmpty((await app.GetAsync<SubscriptionApi.DetailResponse>(
                 app.AdultA, $"/api/v1/subscriptions/{item.Value}")).Coverage);
     }
 
@@ -92,12 +92,12 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
-        var secretDetail = await app.GetAsync<ReadEndpointTests.DetailResponse>(
+        var secretDetail = await app.GetAsync<SubscriptionApi.DetailResponse>(
             app.AdultB, $"/api/v1/subscriptions/{secret.Value}");
         Assert.NotEmpty(secretDetail.Coverage);
 
         // Refused whole: the joint side is untouched too.
-        var jointDetail = await app.GetAsync<ReadEndpointTests.DetailResponse>(
+        var jointDetail = await app.GetAsync<SubscriptionApi.DetailResponse>(
             app.AdultA, $"/api/v1/subscriptions/{joint.Value}");
         Assert.NotEmpty(jointDetail.Coverage);
     }
@@ -118,7 +118,7 @@ public class GrantAccessTests(PostgresFixture fixture) : IClassFixture<PostgresF
         (await app.RawAsync(app.AdultB, HttpMethod.Delete, $"/api/v1/subscriptions/{joint.Value}/purchases/{purchaseId}"))
             .EnsureSuccessStatusCode();
 
-        Assert.Empty((await app.GetAsync<ReadEndpointTests.DetailResponse>(
+        Assert.Empty((await app.GetAsync<SubscriptionApi.DetailResponse>(
             app.AdultB, $"/api/v1/subscriptions/{secret.Value}")).Coverage);
     }
 

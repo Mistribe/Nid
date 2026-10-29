@@ -3,7 +3,7 @@ name: ci
 # The monthly Actions minutes are the budget (1000), so each commit is paid for once:
 #  - a pull request builds the solution and checks the web app (`build`, `web`), with no test but the module boundaries and the
 #    handler attributes (seconds): the .NET suite alone was about 25 minutes. Tests run on the developer's machine
-#    (`dotnet test Nid.slnx`, `pnpm --dir web test`);
+#    (`dotnet test Nid.slnx -m:1`, `pnpm --dir web test`);
 #  - `main` runs only `images` (build the images, push them, tag the release), which a pull request does not: the pull request
 #    already ran its checks on the tree being merged, and running them again on landing doubled the minutes for a verdict nobody
 #    acted on. The smoke test and the backup test (`deploy/smoke.sh`, `deploy/backup-smoke.sh`) run on the developer's machine;
@@ -41,7 +41,7 @@ jobs:
       # The module boundaries (architecture.md §5.1), read from the csproj references: cheap enough to run here.
       - run: dotnet test tests/Nid.Platform.Tests --configuration Release --no-build --filter "FullyQualifiedName~ModuleBoundaryTests"
       # Every Synapse handler carries the attribute the generator registers it from (architecture.md §13): reflection, no database.
-      - run: dotnet test tests/Nid.Subscriptions.IntegrationTests --configuration Release --no-build --filter "FullyQualifiedName~HandlerAttributeTests"
+      - run: dotnet test tests/Nid.Host.IntegrationTests --configuration Release --no-build --filter "FullyQualifiedName~HandlerAttributeTests"
 
   web:
     if: github.event_name != 'push'

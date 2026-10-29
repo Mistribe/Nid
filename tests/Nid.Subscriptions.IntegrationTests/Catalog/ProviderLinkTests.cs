@@ -50,7 +50,7 @@ public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         await using var app = await NidApp.StartAsync(fixture);
         await app.SeedProviderAsync("hulu", "Hulu", ProviderOrigin.Catalog, archived: true);
-        var hidden = await ProviderVisibilityTests.CreateCustomAsync(app, app.AdultA, "Tinder"); // A's alone: unused
+        var hidden = await ProviderApi.CreateCustomAsync(app, app.AdultA, "Tinder"); // A's alone: unused
 
         var answers = new List<(HttpStatusCode, string?, string?)>();
         foreach (var key in new[] { "nope", hidden, "hulu" })
@@ -94,13 +94,13 @@ public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
     public async Task Linking_a_shared_subscription_to_a_custom_provider_shows_it_to_the_other_adult()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var tinder = await ProviderVisibilityTests.CreateCustomAsync(app, app.AdultA, "Tinder");
-        Assert.DoesNotContain(tinder, await ProviderVisibilityTests.VisibleAsync(app, app.AdultB));
+        var tinder = await ProviderApi.CreateCustomAsync(app, app.AdultA, "Tinder");
+        Assert.DoesNotContain(tinder, await ProviderApi.VisibleAsync(app, app.AdultB));
 
         var shared = await CreatedAsync(app, app.AdultA, null);
         (await EditAsync(app, app.AdultA, shared, new { providerKey = tinder })).EnsureSuccessStatusCode();
 
-        Assert.Contains(tinder, await ProviderVisibilityTests.VisibleAsync(app, app.AdultB));
+        Assert.Contains(tinder, await ProviderApi.VisibleAsync(app, app.AdultB));
     }
 
     /// <summary>Review Focus 1.</summary>
@@ -109,14 +109,14 @@ public class ProviderLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         await using var app = await NidApp.StartAsync(fixture);
         await app.SeedProviderAsync("netflix", "Netflix", ProviderOrigin.Catalog);
-        var custom = await ProviderVisibilityTests.CreateCustomAsync(app, app.AdultA, "Mon Netflix");
+        var custom = await ProviderApi.CreateCustomAsync(app, app.AdultA, "Mon Netflix");
         var shared = await CreatedAsync(app, app.AdultA, custom);
-        Assert.Contains(custom, await ProviderVisibilityTests.VisibleAsync(app, app.AdultB));
+        Assert.Contains(custom, await ProviderApi.VisibleAsync(app, app.AdultB));
 
         (await EditAsync(app, app.AdultA, shared, new { providerKey = "netflix" })).EnsureSuccessStatusCode();
 
-        Assert.Contains(custom, await ProviderVisibilityTests.VisibleAsync(app, app.AdultA));
-        Assert.DoesNotContain(custom, await ProviderVisibilityTests.VisibleAsync(app, app.AdultB));
+        Assert.Contains(custom, await ProviderApi.VisibleAsync(app, app.AdultA));
+        Assert.DoesNotContain(custom, await ProviderApi.VisibleAsync(app, app.AdultB));
     }
 
     [Fact]

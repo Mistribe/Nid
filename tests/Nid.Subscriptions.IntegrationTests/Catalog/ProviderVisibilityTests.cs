@@ -3,26 +3,13 @@ using Nid.Core.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
+using static Nid.TestSupport.ProviderApi;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>Design §3.5, computed from IVisibleItems: a provider can say no more than the subscriptions that use it.</summary>
 public class ProviderVisibilityTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    internal static async Task<string> CreateCustomAsync(NidApp app, PersonId actor, string name)
-    {
-        var (created, failure) = await app.InvokeAsync(actor, new CreateProviderCommand(name, null, null, [CatalogLimits.OtherLabel]));
-        Assert.Null(failure);
-        return ((ProviderView)created!).Key;
-    }
-
-    internal static async Task<List<string>> VisibleAsync(NidApp app, PersonId actor, string? q = null)
-    {
-        var (list, failure) = await app.InvokeAsync(actor, new ListProvidersQuery(q));
-        Assert.Null(failure);
-        return ((IReadOnlyList<ProviderView>)list!).Select(p => p.Key).ToList();
-    }
-
     [Fact]
     public async Task A_custom_provider_of_a_private_subscription_is_invisible_to_the_other_adult()
     {

@@ -10,7 +10,7 @@
 
 <!-- What you ran and what you saw. Delete the lines that do not apply. -->
 
-- [ ] `dotnet test Nid.slnx --configuration Release`
+- [ ] `dotnet test Nid.slnx --configuration Release -m:1`
 - [ ] `pnpm --dir web check` (and `check:api` if the API contract changed)
 - [ ] Checked in the running app (`aspire run`)
 
