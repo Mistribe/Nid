@@ -1,0 +1,4140 @@
+{
+  "format": "nid.data",
+  "version": 1,
+  "persons": [
+    {
+      "ref": "adult-1",
+      "kind": "adult",
+      "display_name": "Alice Dev",
+      "email": "alice@example.test"
+    },
+    {
+      "ref": "adult-2",
+      "kind": "adult",
+      "display_name": "Bob Dev",
+      "email": "bob@example.test"
+    },
+    {
+      "ref": "dependent-1",
+      "kind": "dependent",
+      "display_name": "Léa"
+    }
+  ],
+  "providers": [
+    {
+      "key": "demo-spotify",
+      "name": "Spotify",
+      "website": "https://www.spotify.com",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-netflix",
+      "name": "Netflix",
+      "website": "https://www.netflix.com",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-box",
+      "name": "Fibre maison",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-mobile",
+      "name": "Forfait mobile",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-icloud",
+      "name": "iCloud+",
+      "website": "https://www.apple.com/icloud/",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-vpn",
+      "name": "NordVPN",
+      "website": "https://nordvpn.com",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-disney",
+      "name": "Disney+",
+      "website": "https://www.disneyplus.com",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-assurance",
+      "name": "Assurance habitation",
+      "label_keys": [
+        "other"
+      ]
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "sub-spotify",
+      "provider_key": "demo-spotify",
+      "name": "Spotify Premium Duo",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "auto_renew": true,
+      "service_users": [
+        "adult-1",
+        "adult-2"
+      ]
+    },
+    {
+      "id": "sub-netflix",
+      "provider_key": "demo-netflix",
+      "name": "Netflix Standard",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "auto_renew": true,
+      "service_users": [
+        "adult-1",
+        "adult-2",
+        "dependent-1"
+      ]
+    },
+    {
+      "id": "sub-box",
+      "provider_key": "demo-box",
+      "name": "Box fibre",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "auto_renew": true
+    },
+    {
+      "id": "sub-mobile-alice",
+      "provider_key": "demo-mobile",
+      "name": "Forfait mobile 100 Go",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "auto_renew": true,
+      "visibility": "private",
+      "service_users": [
+        "adult-1"
+      ]
+    },
+    {
+      "id": "sub-icloud",
+      "provider_key": "demo-icloud",
+      "name": "iCloud+ 200 Go",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "auto_renew": true,
+      "service_users": [
+        "adult-1",
+        "adult-2"
+      ]
+    },
+    {
+      "id": "sub-vpn",
+      "provider_key": "demo-vpn",
+      "name": "NordVPN",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "auto_renew": true,
+      "service_users": [
+        "adult-1"
+      ]
+    },
+    {
+      "id": "sub-disney",
+      "provider_key": "demo-disney",
+      "name": "Disney+",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "auto_renew": false,
+      "service_users": [
+        "dependent-1"
+      ],
+      "cancelled_at": "2026-02-14"
+    },
+    {
+      "id": "sub-home-insurance",
+      "provider_key": "demo-assurance",
+      "name": "Assurance habitation",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "auto_renew": true
+    }
+  ],
+  "billing_phases": [
+    {
+      "id": "ph-spotify-1",
+      "subscription_id": "sub-spotify",
+      "starts_on": "2023-03-12",
+      "ends_on": "2025-07-12",
+      "price": {
+        "amount": "14.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "household"
+      }
+    },
+    {
+      "id": "ph-spotify-2",
+      "subscription_id": "sub-spotify",
+      "starts_on": "2025-07-12",
+      "ends_on": null,
+      "price": {
+        "amount": "17.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "household"
+      }
+    },
+    {
+      "id": "ph-netflix-1",
+      "subscription_id": "sub-netflix",
+      "starts_on": "2022-11-05",
+      "ends_on": "2025-01-05",
+      "price": {
+        "amount": "13.49",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "household"
+      }
+    },
+    {
+      "id": "ph-netflix-2",
+      "subscription_id": "sub-netflix",
+      "starts_on": "2025-01-05",
+      "ends_on": null,
+      "price": {
+        "amount": "14.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "household"
+      }
+    },
+    {
+      "id": "ph-box-1",
+      "subscription_id": "sub-box",
+      "starts_on": "2024-02-20",
+      "ends_on": "2025-02-20",
+      "price": {
+        "amount": "24.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "household"
+      },
+      "note": "Prix de lancement la première année"
+    },
+    {
+      "id": "ph-box-2",
+      "subscription_id": "sub-box",
+      "starts_on": "2025-02-20",
+      "ends_on": null,
+      "price": {
+        "amount": "39.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "household"
+      }
+    },
+    {
+      "id": "ph-mobile-alice",
+      "subscription_id": "sub-mobile-alice",
+      "starts_on": "2024-09-01",
+      "ends_on": null,
+      "price": {
+        "amount": "9.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "person",
+        "person": "adult-1"
+      }
+    },
+    {
+      "id": "ph-icloud",
+      "subscription_id": "sub-icloud",
+      "starts_on": "2023-01-15",
+      "ends_on": null,
+      "price": {
+        "amount": "2.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "person",
+        "person": "adult-1"
+      }
+    },
+    {
+      "id": "ph-disney",
+      "subscription_id": "sub-disney",
+      "starts_on": "2024-02-14",
+      "ends_on": "2026-02-14",
+      "price": {
+        "amount": "89.90",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "year"
+      },
+      "payer": {
+        "type": "household"
+      }
+    },
+    {
+      "id": "ph-home-insurance",
+      "subscription_id": "sub-home-insurance",
+      "starts_on": "2021-09-01",
+      "ends_on": null,
+      "price": {
+        "amount": "312.40",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "year"
+      },
+      "payer": {
+        "type": "household"
+      }
+    }
+  ],
+  "purchases": [
+    {
+      "id": "pu-vpn",
+      "date": "2025-11-03",
+      "label": "NordVPN 2 ans + 3 mois offerts",
+      "kind": "prepaid_term",
+      "price": {
+        "amount": "118.03",
+        "currency": "EUR"
+      },
+      "payer": {
+        "type": "person",
+        "person": "adult-1"
+      },
+      "grants": [
+        {
+          "subscription_id": "sub-vpn",
+          "duration": {
+            "count": 24,
+            "unit": "month"
+          },
+          "source": "paid",
+          "starts_on": "2025-11-03"
+        },
+        {
+          "subscription_id": "sub-vpn",
+          "duration": {
+            "count": 3,
+            "unit": "month"
+          },
+          "source": "bonus"
+        }
+      ]
+    },
+    {
+      "id": "pu-spotify-gift",
+      "date": "2025-12-24",
+      "label": "Carte cadeau Spotify",
+      "kind": "gift",
+      "price": {
+        "amount": "0.00",
+        "currency": "EUR"
+      },
+      "payer": {
+        "type": "external"
+      },
+      "grants": [
+        {
+          "subscription_id": "sub-spotify",
+          "duration": {
+            "count": 3,
+            "unit": "month"
+          },
+          "source": "gift"
+        }
+      ]
+    }
+  ],
+  "envelopes": [
+    {
+      "id": "env-joint",
+      "name": "Compte joint",
+      "kind": "checking",
+      "institution": "Banque Exemple",
+      "account_hint": "4821",
+      "opened_on": "2019-06-01",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ]
+    },
+    {
+      "id": "env-livret-a",
+      "name": "Livret A",
+      "kind": "savings",
+      "institution": "Banque Exemple",
+      "opened_on": "2016-04-10",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    },
+    {
+      "id": "env-pea",
+      "name": "PEA",
+      "kind": "pea",
+      "institution": "Courtier en ligne",
+      "account_hint": "0937",
+      "opened_on": "2020-01-15",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "visibility": "private"
+    },
+    {
+      "id": "env-av",
+      "name": "Assurance-vie",
+      "kind": "life_insurance",
+      "institution": "Assureur Exemple",
+      "opened_on": "2022-03-01",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    },
+    {
+      "id": "env-cto",
+      "name": "Compte-titres commun",
+      "kind": "brokerage",
+      "institution": "Courtier en ligne",
+      "opened_on": "2023-05-02",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ]
+    },
+    {
+      "id": "env-old-livret",
+      "name": "Ancien livret jeune",
+      "kind": "savings",
+      "institution": "Banque Exemple",
+      "opened_on": "2012-02-01",
+      "closed_on": "2025-03-31",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    }
+  ],
+  "valuations": [
+    {
+      "id": "val-joint-2024-11",
+      "item": "env-joint",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "3331.69",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2024-12",
+      "item": "env-joint",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "3364.71",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-01",
+      "item": "env-joint",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "4062.78",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-02",
+      "item": "env-joint",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "4466.45",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-03",
+      "item": "env-joint",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "5031.64",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-04",
+      "item": "env-joint",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "5508.22",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-05",
+      "item": "env-joint",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "5566.38",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-06",
+      "item": "env-joint",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "4597.33",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-07",
+      "item": "env-joint",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "3560.78",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-08",
+      "item": "env-joint",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "3073.51",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-09",
+      "item": "env-joint",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "2746.74",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-10",
+      "item": "env-joint",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "3429.35",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-11",
+      "item": "env-joint",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "3790.13",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2025-12",
+      "item": "env-joint",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "4114.91",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-01",
+      "item": "env-joint",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "3830.74",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-02",
+      "item": "env-joint",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "3364.02",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-03",
+      "item": "env-joint",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "2698.91",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-04",
+      "item": "env-joint",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "3237.96",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-05",
+      "item": "env-joint",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "3804.32",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-06",
+      "item": "env-joint",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "4450.58",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-07",
+      "item": "env-joint",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "4342.02",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-08",
+      "item": "env-joint",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "3866.95",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-09",
+      "item": "env-joint",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "4527.39",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-joint-2026-10",
+      "item": "env-joint",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "3498.51",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2024-11",
+      "item": "env-livret-a",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "14378.40",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2024-12",
+      "item": "env-livret-a",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "14557.16",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-01",
+      "item": "env-livret-a",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "14736.27",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-02",
+      "item": "env-livret-a",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "14915.74",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-03",
+      "item": "env-livret-a",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "15095.58",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-04",
+      "item": "env-livret-a",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "15275.77",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-05",
+      "item": "env-livret-a",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "15456.32",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-06",
+      "item": "env-livret-a",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "15637.23",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-07",
+      "item": "env-livret-a",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "15818.50",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-08",
+      "item": "env-livret-a",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "16000.14",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-09",
+      "item": "env-livret-a",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "16182.14",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-10",
+      "item": "env-livret-a",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "16364.51",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-11",
+      "item": "env-livret-a",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "16547.24",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2025-12",
+      "item": "env-livret-a",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "16730.33",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-01",
+      "item": "env-livret-a",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "16913.79",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-02",
+      "item": "env-livret-a",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "17097.62",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-03",
+      "item": "env-livret-a",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "17281.81",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-04",
+      "item": "env-livret-a",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "17466.38",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-05",
+      "item": "env-livret-a",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "17651.31",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-06",
+      "item": "env-livret-a",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "17836.61",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-07",
+      "item": "env-livret-a",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "18022.29",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-08",
+      "item": "env-livret-a",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "18208.33",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-09",
+      "item": "env-livret-a",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "18394.75",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-livret-a-2026-10",
+      "item": "env-livret-a",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "18581.54",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2024-11",
+      "item": "env-pea",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "32643.80",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2024-12",
+      "item": "env-pea",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "32728.18",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-01",
+      "item": "env-pea",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "32277.26",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-02",
+      "item": "env-pea",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "32749.07",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-03",
+      "item": "env-pea",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "32313.53",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-04",
+      "item": "env-pea",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "32136.77",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-05",
+      "item": "env-pea",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "33472.38",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-06",
+      "item": "env-pea",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "33452.87",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-07",
+      "item": "env-pea",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "33603.29",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-08",
+      "item": "env-pea",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "34335.30",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-09",
+      "item": "env-pea",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "35321.60",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-10",
+      "item": "env-pea",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "36012.97",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-11",
+      "item": "env-pea",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "37192.22",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2025-12",
+      "item": "env-pea",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "37956.16",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-01",
+      "item": "env-pea",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "38757.20",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-02",
+      "item": "env-pea",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "38333.56",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-03",
+      "item": "env-pea",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "38333.23",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-04",
+      "item": "env-pea",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "37896.82",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-05",
+      "item": "env-pea",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "39333.90",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-06",
+      "item": "env-pea",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "40993.39",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-07",
+      "item": "env-pea",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "40897.78",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-08",
+      "item": "env-pea",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "42214.09",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-09",
+      "item": "env-pea",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "42062.14",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-pea-2026-10",
+      "item": "env-pea",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "42417.77",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2024-11",
+      "item": "env-cto",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "8290.22",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2024-12",
+      "item": "env-cto",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "8156.57",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-01",
+      "item": "env-cto",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "8095.77",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-02",
+      "item": "env-cto",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "8154.46",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-03",
+      "item": "env-cto",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "8319.67",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-04",
+      "item": "env-cto",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "8749.10",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-05",
+      "item": "env-cto",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "8846.20",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-06",
+      "item": "env-cto",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "8915.95",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-07",
+      "item": "env-cto",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "8969.99",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-08",
+      "item": "env-cto",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "9196.26",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-09",
+      "item": "env-cto",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "9287.94",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-10",
+      "item": "env-cto",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "9123.97",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-11",
+      "item": "env-cto",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "9433.78",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2025-12",
+      "item": "env-cto",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "9536.16",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-01",
+      "item": "env-cto",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "9903.88",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-02",
+      "item": "env-cto",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "9825.27",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-03",
+      "item": "env-cto",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "10099.64",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-04",
+      "item": "env-cto",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "10271.24",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-05",
+      "item": "env-cto",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "10612.37",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-06",
+      "item": "env-cto",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "10861.04",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-07",
+      "item": "env-cto",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "11004.91",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-08",
+      "item": "env-cto",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "11096.41",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-09",
+      "item": "env-cto",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "11045.61",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-cto-2026-10",
+      "item": "env-cto",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "10822.99",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-old-livret-2024-11",
+      "item": "env-old-livret",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "2304.60",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-old-livret-2024-12",
+      "item": "env-old-livret",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "2309.21",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-old-livret-2025-01",
+      "item": "env-old-livret",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "2313.83",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-old-livret-2025-02",
+      "item": "env-old-livret",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "2318.46",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2024-12",
+      "item": "env-av",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "13367.07",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2025-03",
+      "item": "env-av",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "14645.33",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2025-06",
+      "item": "env-av",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "15630.27",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2025-09",
+      "item": "env-av",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "17197.41",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2025-12",
+      "item": "env-av",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "18549.89",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2026-03",
+      "item": "env-av",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "19939.79",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2026-06",
+      "item": "env-av",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "20939.13",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-av-2026-09",
+      "item": "env-av",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "21912.42",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-home-2023",
+      "item": "prop-home",
+      "as_of": "2023-12-31",
+      "amount": {
+        "amount": "338000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-home-2024",
+      "item": "prop-home",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "331000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-home-2025",
+      "item": "prop-home",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "342000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-studio-2023",
+      "item": "prop-studio",
+      "as_of": "2023-12-31",
+      "amount": {
+        "amount": "149000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-studio-2024",
+      "item": "prop-studio",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "146500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-studio-2025",
+      "item": "prop-studio",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "151000.00",
+        "currency": "EUR"
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "fl-joint-open",
+      "item": "env-joint",
+      "occurred_on": "2019-06-01",
+      "kind": "opening",
+      "amount": {
+        "amount": "1500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-open",
+      "item": "env-livret-a",
+      "occurred_on": "2016-04-10",
+      "kind": "opening",
+      "amount": {
+        "amount": "5000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-open",
+      "item": "env-pea",
+      "occurred_on": "2020-01-15",
+      "kind": "opening",
+      "amount": {
+        "amount": "10000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-open",
+      "item": "env-cto",
+      "occurred_on": "2023-05-02",
+      "kind": "opening",
+      "amount": {
+        "amount": "5000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-old-open",
+      "item": "env-old-livret",
+      "occurred_on": "2012-02-01",
+      "kind": "opening",
+      "amount": {
+        "amount": "1600.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-old-close",
+      "item": "env-old-livret",
+      "occurred_on": "2025-03-31",
+      "kind": "withdrawal",
+      "amount": {
+        "amount": "2318.40",
+        "currency": "EUR"
+      },
+      "note": "Clôture, versé sur le Livret A"
+    },
+    {
+      "id": "fl-livret-from-old",
+      "item": "env-livret-a",
+      "occurred_on": "2025-03-31",
+      "kind": "contribution",
+      "amount": {
+        "amount": "2318.40",
+        "currency": "EUR"
+      },
+      "category": "transfer"
+    },
+    {
+      "id": "fl-pea-fees-2025",
+      "item": "env-pea",
+      "occurred_on": "2025-12-31",
+      "kind": "expense",
+      "amount": {
+        "amount": "18.90",
+        "currency": "EUR"
+      },
+      "category": "fees"
+    },
+    {
+      "id": "fl-livret-2024-11",
+      "item": "env-livret-a",
+      "occurred_on": "2024-11-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2024-11",
+      "item": "env-pea",
+      "occurred_on": "2024-11-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2024-11",
+      "item": "env-cto",
+      "occurred_on": "2024-11-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2024-12",
+      "item": "env-livret-a",
+      "occurred_on": "2024-12-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2024-12",
+      "item": "env-pea",
+      "occurred_on": "2024-12-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2024-12",
+      "item": "env-cto",
+      "occurred_on": "2024-12-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-01",
+      "item": "env-livret-a",
+      "occurred_on": "2025-01-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-01",
+      "item": "env-pea",
+      "occurred_on": "2025-01-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-01",
+      "item": "env-cto",
+      "occurred_on": "2025-01-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-02",
+      "item": "env-livret-a",
+      "occurred_on": "2025-02-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-02",
+      "item": "env-pea",
+      "occurred_on": "2025-02-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-02",
+      "item": "env-cto",
+      "occurred_on": "2025-02-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-03",
+      "item": "env-livret-a",
+      "occurred_on": "2025-03-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-03",
+      "item": "env-pea",
+      "occurred_on": "2025-03-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-03",
+      "item": "env-cto",
+      "occurred_on": "2025-03-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-04",
+      "item": "env-livret-a",
+      "occurred_on": "2025-04-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-04",
+      "item": "env-pea",
+      "occurred_on": "2025-04-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-04",
+      "item": "env-cto",
+      "occurred_on": "2025-04-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-05",
+      "item": "env-livret-a",
+      "occurred_on": "2025-05-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-05",
+      "item": "env-pea",
+      "occurred_on": "2025-05-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-05",
+      "item": "env-cto",
+      "occurred_on": "2025-05-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-06",
+      "item": "env-livret-a",
+      "occurred_on": "2025-06-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-06",
+      "item": "env-pea",
+      "occurred_on": "2025-06-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-06",
+      "item": "env-cto",
+      "occurred_on": "2025-06-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-07",
+      "item": "env-livret-a",
+      "occurred_on": "2025-07-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-07",
+      "item": "env-pea",
+      "occurred_on": "2025-07-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-07",
+      "item": "env-cto",
+      "occurred_on": "2025-07-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-08",
+      "item": "env-livret-a",
+      "occurred_on": "2025-08-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-08",
+      "item": "env-pea",
+      "occurred_on": "2025-08-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-08",
+      "item": "env-cto",
+      "occurred_on": "2025-08-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-09",
+      "item": "env-livret-a",
+      "occurred_on": "2025-09-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-09",
+      "item": "env-pea",
+      "occurred_on": "2025-09-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-09",
+      "item": "env-cto",
+      "occurred_on": "2025-09-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-10",
+      "item": "env-livret-a",
+      "occurred_on": "2025-10-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-10",
+      "item": "env-pea",
+      "occurred_on": "2025-10-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-10",
+      "item": "env-cto",
+      "occurred_on": "2025-10-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-11",
+      "item": "env-livret-a",
+      "occurred_on": "2025-11-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-11",
+      "item": "env-pea",
+      "occurred_on": "2025-11-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-11",
+      "item": "env-cto",
+      "occurred_on": "2025-11-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2025-12",
+      "item": "env-livret-a",
+      "occurred_on": "2025-12-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2025-12",
+      "item": "env-pea",
+      "occurred_on": "2025-12-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2025-12",
+      "item": "env-cto",
+      "occurred_on": "2025-12-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-01",
+      "item": "env-livret-a",
+      "occurred_on": "2026-01-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-01",
+      "item": "env-pea",
+      "occurred_on": "2026-01-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-01",
+      "item": "env-cto",
+      "occurred_on": "2026-01-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-02",
+      "item": "env-livret-a",
+      "occurred_on": "2026-02-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-02",
+      "item": "env-pea",
+      "occurred_on": "2026-02-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-02",
+      "item": "env-cto",
+      "occurred_on": "2026-02-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-03",
+      "item": "env-livret-a",
+      "occurred_on": "2026-03-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-03",
+      "item": "env-pea",
+      "occurred_on": "2026-03-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-03",
+      "item": "env-cto",
+      "occurred_on": "2026-03-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-04",
+      "item": "env-livret-a",
+      "occurred_on": "2026-04-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-04",
+      "item": "env-pea",
+      "occurred_on": "2026-04-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-04",
+      "item": "env-cto",
+      "occurred_on": "2026-04-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-05",
+      "item": "env-livret-a",
+      "occurred_on": "2026-05-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-05",
+      "item": "env-pea",
+      "occurred_on": "2026-05-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-05",
+      "item": "env-cto",
+      "occurred_on": "2026-05-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-06",
+      "item": "env-livret-a",
+      "occurred_on": "2026-06-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-06",
+      "item": "env-pea",
+      "occurred_on": "2026-06-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-06",
+      "item": "env-cto",
+      "occurred_on": "2026-06-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-07",
+      "item": "env-livret-a",
+      "occurred_on": "2026-07-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-07",
+      "item": "env-pea",
+      "occurred_on": "2026-07-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-07",
+      "item": "env-cto",
+      "occurred_on": "2026-07-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-08",
+      "item": "env-livret-a",
+      "occurred_on": "2026-08-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-08",
+      "item": "env-pea",
+      "occurred_on": "2026-08-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-08",
+      "item": "env-cto",
+      "occurred_on": "2026-08-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-09",
+      "item": "env-livret-a",
+      "occurred_on": "2026-09-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-09",
+      "item": "env-pea",
+      "occurred_on": "2026-09-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-09",
+      "item": "env-cto",
+      "occurred_on": "2026-09-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-livret-2026-10",
+      "item": "env-livret-a",
+      "occurred_on": "2026-10-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "150.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-pea-2026-10",
+      "item": "env-pea",
+      "occurred_on": "2026-10-08",
+      "kind": "contribution",
+      "amount": {
+        "amount": "300.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-cto-2026-10",
+      "item": "env-cto",
+      "occurred_on": "2026-10-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-open",
+      "item": "env-av",
+      "occurred_on": "2022-03-01",
+      "kind": "opening",
+      "amount": {
+        "amount": "12000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2024-12",
+      "item": "env-av",
+      "occurred_on": "2024-12-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2025-03",
+      "item": "env-av",
+      "occurred_on": "2025-03-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2025-06",
+      "item": "env-av",
+      "occurred_on": "2025-06-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2025-09",
+      "item": "env-av",
+      "occurred_on": "2025-09-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2025-12",
+      "item": "env-av",
+      "occurred_on": "2025-12-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2026-03",
+      "item": "env-av",
+      "occurred_on": "2026-03-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2026-06",
+      "item": "env-av",
+      "occurred_on": "2026-06-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-av-2026-09",
+      "item": "env-av",
+      "occurred_on": "2026-09-15",
+      "kind": "contribution",
+      "amount": {
+        "amount": "1000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-05",
+      "item": "prop-studio",
+      "occurred_on": "2025-05-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-05",
+      "item": "prop-studio",
+      "occurred_on": "2025-05-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-05",
+      "item": "prop-home",
+      "occurred_on": "2025-05-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "172.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-06",
+      "item": "prop-studio",
+      "occurred_on": "2025-06-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-06",
+      "item": "prop-studio",
+      "occurred_on": "2025-06-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-06",
+      "item": "prop-home",
+      "occurred_on": "2025-06-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "159.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-07",
+      "item": "prop-studio",
+      "occurred_on": "2025-07-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-07",
+      "item": "prop-studio",
+      "occurred_on": "2025-07-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-condo-2025-07",
+      "item": "prop-studio",
+      "occurred_on": "2025-07-10",
+      "kind": "expense",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-07",
+      "item": "prop-home",
+      "occurred_on": "2025-07-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "142.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-08",
+      "item": "prop-studio",
+      "occurred_on": "2025-08-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-08",
+      "item": "prop-studio",
+      "occurred_on": "2025-08-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-08",
+      "item": "prop-home",
+      "occurred_on": "2025-08-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "167.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-09",
+      "item": "prop-studio",
+      "occurred_on": "2025-09-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-09",
+      "item": "prop-studio",
+      "occurred_on": "2025-09-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-09",
+      "item": "prop-home",
+      "occurred_on": "2025-09-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "156.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-10",
+      "item": "prop-studio",
+      "occurred_on": "2025-10-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-10",
+      "item": "prop-studio",
+      "occurred_on": "2025-10-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-condo-2025-10",
+      "item": "prop-studio",
+      "occurred_on": "2025-10-10",
+      "kind": "expense",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-10",
+      "item": "prop-home",
+      "occurred_on": "2025-10-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "174.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-11",
+      "item": "prop-studio",
+      "occurred_on": "2025-11-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-11",
+      "item": "prop-studio",
+      "occurred_on": "2025-11-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-11",
+      "item": "prop-home",
+      "occurred_on": "2025-11-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "132.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2025-12",
+      "item": "prop-studio",
+      "occurred_on": "2025-12-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2025-12",
+      "item": "prop-studio",
+      "occurred_on": "2025-12-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2025-12",
+      "item": "prop-home",
+      "occurred_on": "2025-12-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "115.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-01",
+      "item": "prop-studio",
+      "occurred_on": "2026-01-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-01",
+      "item": "prop-studio",
+      "occurred_on": "2026-01-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-condo-2026-01",
+      "item": "prop-studio",
+      "occurred_on": "2026-01-10",
+      "kind": "expense",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-01",
+      "item": "prop-home",
+      "occurred_on": "2026-01-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "142.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-02",
+      "item": "prop-studio",
+      "occurred_on": "2026-02-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-02",
+      "item": "prop-studio",
+      "occurred_on": "2026-02-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-02",
+      "item": "prop-home",
+      "occurred_on": "2026-02-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "110.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-03",
+      "item": "prop-studio",
+      "occurred_on": "2026-03-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-03",
+      "item": "prop-studio",
+      "occurred_on": "2026-03-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-03",
+      "item": "prop-home",
+      "occurred_on": "2026-03-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "177.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-04",
+      "item": "prop-studio",
+      "occurred_on": "2026-04-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-04",
+      "item": "prop-studio",
+      "occurred_on": "2026-04-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-condo-2026-04",
+      "item": "prop-studio",
+      "occurred_on": "2026-04-10",
+      "kind": "expense",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-04",
+      "item": "prop-home",
+      "occurred_on": "2026-04-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "132.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-05",
+      "item": "prop-studio",
+      "occurred_on": "2026-05-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-05",
+      "item": "prop-studio",
+      "occurred_on": "2026-05-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-05",
+      "item": "prop-home",
+      "occurred_on": "2026-05-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "162.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-06",
+      "item": "prop-studio",
+      "occurred_on": "2026-06-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-06",
+      "item": "prop-studio",
+      "occurred_on": "2026-06-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-06",
+      "item": "prop-home",
+      "occurred_on": "2026-06-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "146.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-07",
+      "item": "prop-studio",
+      "occurred_on": "2026-07-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-07",
+      "item": "prop-studio",
+      "occurred_on": "2026-07-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-condo-2026-07",
+      "item": "prop-studio",
+      "occurred_on": "2026-07-10",
+      "kind": "expense",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-07",
+      "item": "prop-home",
+      "occurred_on": "2026-07-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "110.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-09",
+      "item": "prop-studio",
+      "occurred_on": "2026-09-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-09",
+      "item": "prop-studio",
+      "occurred_on": "2026-09-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-09",
+      "item": "prop-home",
+      "occurred_on": "2026-09-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "112.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-rent-2026-10",
+      "item": "prop-studio",
+      "occurred_on": "2026-10-03",
+      "kind": "income",
+      "category": "rent",
+      "amount": {
+        "amount": "665.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-charges-2026-10",
+      "item": "prop-studio",
+      "occurred_on": "2026-10-03",
+      "kind": "income",
+      "category": "recoverable_charges",
+      "amount": {
+        "amount": "45.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-condo-2026-10",
+      "item": "prop-studio",
+      "occurred_on": "2026-10-10",
+      "kind": "expense",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-energy-2026-10",
+      "item": "prop-home",
+      "occurred_on": "2026-10-12",
+      "kind": "expense",
+      "category": "energy",
+      "amount": {
+        "amount": "148.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-home-tax-2025",
+      "item": "prop-home",
+      "occurred_on": "2025-10-15",
+      "kind": "expense",
+      "category": "property_tax",
+      "amount": {
+        "amount": "1812.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-studio-tax-2025",
+      "item": "prop-studio",
+      "occurred_on": "2025-10-15",
+      "kind": "expense",
+      "category": "property_tax",
+      "amount": {
+        "amount": "704.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-home-works-roof",
+      "item": "prop-home",
+      "occurred_on": "2022-04-20",
+      "kind": "expense",
+      "category": "works",
+      "amount": {
+        "amount": "14200.00",
+        "currency": "EUR"
+      },
+      "note": "Isolation des combles"
+    },
+    {
+      "id": "fl-home-works-kitchen",
+      "item": "prop-home",
+      "occurred_on": "2025-03-11",
+      "kind": "expense",
+      "category": "works",
+      "amount": {
+        "amount": "8650.00",
+        "currency": "EUR"
+      },
+      "note": "Cuisine"
+    },
+    {
+      "id": "fl-studio-maintenance",
+      "item": "prop-studio",
+      "occurred_on": "2026-01-22",
+      "kind": "expense",
+      "category": "maintenance",
+      "amount": {
+        "amount": "380.00",
+        "currency": "EUR"
+      },
+      "note": "Chauffe-eau"
+    },
+    {
+      "id": "fl-studio-management",
+      "item": "prop-studio",
+      "occurred_on": "2025-12-31",
+      "kind": "expense",
+      "category": "management_fees",
+      "amount": {
+        "amount": "540.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-alice-oneoff",
+      "item": "inc-alice-salary",
+      "occurred_on": "2026-06-30",
+      "kind": "income",
+      "category": "one_off",
+      "amount": {
+        "amount": "1500.00",
+        "currency": "EUR"
+      },
+      "note": "Prime de projet"
+    }
+  ],
+  "holdings": [
+    {
+      "id": "h-av-euro",
+      "item": "env-av",
+      "name": "Fonds euros",
+      "kind": "euro_fund"
+    },
+    {
+      "id": "h-av-world",
+      "item": "env-av",
+      "name": "ETF MSCI World",
+      "kind": "etf",
+      "isin": "IE00B4L5Y983"
+    }
+  ],
+  "holding_snapshots": [
+    {
+      "id": "hs-av-2024-12",
+      "item": "env-av",
+      "as_of": "2024-12-31",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "6536.00",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "86.6667",
+          "unit_price": "78.82",
+          "value": {
+            "amount": "6831.07",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2025-03",
+      "item": "env-av",
+      "as_of": "2025-03-31",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "7075.22",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "93.0103",
+          "unit_price": "81.39",
+          "value": {
+            "amount": "7570.11",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2025-06",
+      "item": "env-av",
+      "as_of": "2025-06-30",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "7617.67",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "99.1536",
+          "unit_price": "80.81",
+          "value": {
+            "amount": "8012.60",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2025-09",
+      "item": "env-av",
+      "as_of": "2025-09-30",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "8163.37",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "105.3410",
+          "unit_price": "85.76",
+          "value": {
+            "amount": "9034.04",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2025-12",
+      "item": "env-av",
+      "as_of": "2025-12-31",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "8712.35",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "111.1712",
+          "unit_price": "88.49",
+          "value": {
+            "amount": "9837.54",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2026-03",
+      "item": "env-av",
+      "as_of": "2026-03-31",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "9264.63",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "116.8216",
+          "unit_price": "91.38",
+          "value": {
+            "amount": "10675.16",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2026-06",
+      "item": "env-av",
+      "as_of": "2026-06-30",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "9820.22",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "122.2933",
+          "unit_price": "90.92",
+          "value": {
+            "amount": "11118.91",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-av-2026-09",
+      "item": "env-av",
+      "as_of": "2026-09-30",
+      "lines": [
+        {
+          "holding": "h-av-euro",
+          "value": {
+            "amount": "10379.14",
+            "currency": "EUR"
+          }
+        },
+        {
+          "holding": "h-av-world",
+          "units": "127.7926",
+          "unit_price": "90.25",
+          "value": {
+            "amount": "11533.28",
+            "currency": "EUR"
+          }
+        }
+      ]
+    }
+  ],
+  "holding_movements": [
+    {
+      "id": "hm-av-open-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2022-03-01",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "6000.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-open"
+    },
+    {
+      "id": "hm-av-open-world",
+      "holding": "h-av-world",
+      "occurred_on": "2022-03-01",
+      "kind": "allocation_in",
+      "units": "80",
+      "unit_price": "75",
+      "amount": {
+        "amount": "6000.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-open"
+    },
+    {
+      "id": "hm-fl-av-2024-12-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2024-12-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2024-12"
+    },
+    {
+      "id": "hm-fl-av-2024-12-world",
+      "holding": "h-av-world",
+      "occurred_on": "2024-12-15",
+      "kind": "allocation_in",
+      "units": "6.6667",
+      "unit_price": "75.00",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2024-12"
+    },
+    {
+      "id": "hm-fl-av-2025-03-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2025-03-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-03"
+    },
+    {
+      "id": "hm-fl-av-2025-03-world",
+      "holding": "h-av-world",
+      "occurred_on": "2025-03-15",
+      "kind": "allocation_in",
+      "units": "6.3436",
+      "unit_price": "78.82",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-03"
+    },
+    {
+      "id": "hm-fl-av-2025-06-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2025-06-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-06"
+    },
+    {
+      "id": "hm-fl-av-2025-06-world",
+      "holding": "h-av-world",
+      "occurred_on": "2025-06-15",
+      "kind": "allocation_in",
+      "units": "6.1433",
+      "unit_price": "81.39",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-06"
+    },
+    {
+      "id": "hm-fl-av-2025-09-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2025-09-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-09"
+    },
+    {
+      "id": "hm-fl-av-2025-09-world",
+      "holding": "h-av-world",
+      "occurred_on": "2025-09-15",
+      "kind": "allocation_in",
+      "units": "6.1874",
+      "unit_price": "80.81",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-09"
+    },
+    {
+      "id": "hm-fl-av-2025-12-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2025-12-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-12"
+    },
+    {
+      "id": "hm-fl-av-2025-12-world",
+      "holding": "h-av-world",
+      "occurred_on": "2025-12-15",
+      "kind": "allocation_in",
+      "units": "5.8302",
+      "unit_price": "85.76",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2025-12"
+    },
+    {
+      "id": "hm-fl-av-2026-03-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2026-03-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2026-03"
+    },
+    {
+      "id": "hm-fl-av-2026-03-world",
+      "holding": "h-av-world",
+      "occurred_on": "2026-03-15",
+      "kind": "allocation_in",
+      "units": "5.6504",
+      "unit_price": "88.49",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2026-03"
+    },
+    {
+      "id": "hm-fl-av-2026-06-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2026-06-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2026-06"
+    },
+    {
+      "id": "hm-fl-av-2026-06-world",
+      "holding": "h-av-world",
+      "occurred_on": "2026-06-15",
+      "kind": "allocation_in",
+      "units": "5.4717",
+      "unit_price": "91.38",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2026-06"
+    },
+    {
+      "id": "hm-fl-av-2026-09-euro",
+      "holding": "h-av-euro",
+      "occurred_on": "2026-09-15",
+      "kind": "allocation_in",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2026-09"
+    },
+    {
+      "id": "hm-fl-av-2026-09-world",
+      "holding": "h-av-world",
+      "occurred_on": "2026-09-15",
+      "kind": "allocation_in",
+      "units": "5.4993",
+      "unit_price": "90.92",
+      "amount": {
+        "amount": "500.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-av-2026-09"
+    }
+  ],
+  "properties": [
+    {
+      "id": "prop-home",
+      "name": "Maison de Nantes",
+      "property_type": "primary_residence",
+      "currency": "EUR",
+      "purchase_date": "2021-09-01",
+      "purchase_price": {
+        "amount": "320000.00",
+        "currency": "EUR"
+      },
+      "notary_fees": {
+        "amount": "24500.00",
+        "currency": "EUR"
+      },
+      "agency_fees": {
+        "amount": "9000.00",
+        "currency": "EUR"
+      },
+      "surface_m2": "112",
+      "location_label": "Nantes",
+      "energy_class": "C",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "visibility": "shared"
+    },
+    {
+      "id": "prop-studio",
+      "name": "Studio Lyon 7e",
+      "property_type": "rental",
+      "currency": "EUR",
+      "purchase_date": "2019-05-03",
+      "purchase_price": {
+        "amount": "135000.00",
+        "currency": "EUR"
+      },
+      "notary_fees": {
+        "amount": "10200.00",
+        "currency": "EUR"
+      },
+      "surface_m2": "24.5",
+      "location_label": "Lyon 7e",
+      "rental_starts_on": "2019-06-01",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    }
+  ],
+  "property_recurring_costs": [
+    {
+      "id": "cost-home-tax",
+      "property": "prop-home",
+      "category": "property_tax",
+      "amount": {
+        "amount": "1840.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "year"
+      },
+      "starts_on": "2021-10-15"
+    },
+    {
+      "id": "cost-home-energy",
+      "property": "prop-home",
+      "category": "energy",
+      "amount": {
+        "amount": "145.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "starts_on": "2021-09-01"
+    },
+    {
+      "id": "cost-studio-tax",
+      "property": "prop-studio",
+      "category": "property_tax",
+      "amount": {
+        "amount": "720.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "year"
+      },
+      "starts_on": "2019-10-15"
+    },
+    {
+      "id": "cost-studio-condo",
+      "property": "prop-studio",
+      "category": "condo_fees",
+      "amount": {
+        "amount": "285.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 3,
+        "unit": "month"
+      },
+      "starts_on": "2019-07-01",
+      "note": "Appels de fonds du syndic"
+    },
+    {
+      "id": "cost-studio-insurance",
+      "property": "prop-studio",
+      "category": "insurance",
+      "amount": {
+        "amount": "96.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "year"
+      },
+      "starts_on": "2019-05-03",
+      "note": "Propriétaire non occupant"
+    }
+  ],
+  "tenancies": [
+    {
+      "id": "ten-studio-1",
+      "property": "prop-studio",
+      "label": "Studio meublé",
+      "starts_on": "2019-06-01",
+      "ends_on": "2023-06-01",
+      "rent_monthly": {
+        "amount": "610.00",
+        "currency": "EUR"
+      },
+      "charges_monthly": {
+        "amount": "40.00",
+        "currency": "EUR"
+      },
+      "deposit": {
+        "amount": "1220.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "ten-studio-2",
+      "property": "prop-studio",
+      "label": "Studio meublé",
+      "starts_on": "2023-07-15",
+      "rent_monthly": {
+        "amount": "665.00",
+        "currency": "EUR"
+      },
+      "charges_monthly": {
+        "amount": "45.00",
+        "currency": "EUR"
+      },
+      "deposit": {
+        "amount": "1330.00",
+        "currency": "EUR"
+      },
+      "indexed": true,
+      "irl_reference_quarter": 2
+    }
+  ],
+  "loans": [
+    {
+      "id": "loan-home",
+      "name": "Prêt immobilier",
+      "lender": "Banque Exemple",
+      "currency": "EUR",
+      "principal": {
+        "amount": "265000.00",
+        "currency": "EUR"
+      },
+      "disbursed_on": "2021-08-25",
+      "first_payment_date": "2021-10-05",
+      "total_payments": 300,
+      "property": "prop-home",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "visibility": "shared"
+    },
+    {
+      "id": "loan-ptz",
+      "name": "Prêt à taux zéro",
+      "lender": "Banque Exemple",
+      "currency": "EUR",
+      "principal": {
+        "amount": "40000.00",
+        "currency": "EUR"
+      },
+      "disbursed_on": "2021-08-25",
+      "first_payment_date": "2021-10-05",
+      "total_payments": 240,
+      "property": "prop-home",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "visibility": "shared"
+    },
+    {
+      "id": "loan-studio",
+      "name": "Prêt du studio",
+      "lender": "Crédit Exemple",
+      "currency": "EUR",
+      "principal": {
+        "amount": "118000.00",
+        "currency": "EUR"
+      },
+      "disbursed_on": "2019-04-30",
+      "first_payment_date": "2019-06-10",
+      "total_payments": 240,
+      "property": "prop-studio",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    }
+  ],
+  "loan_phases": [
+    {
+      "id": "lp-home-1",
+      "loan": "loan-home",
+      "seq": 1,
+      "mode": "annuity",
+      "annual_rate": "0.0135",
+      "rate_type": "fixed"
+    },
+    {
+      "id": "lp-ptz-1",
+      "loan": "loan-ptz",
+      "seq": 1,
+      "mode": "deferred_total",
+      "annual_rate": "0",
+      "rate_type": "fixed",
+      "payments": 120
+    },
+    {
+      "id": "lp-ptz-2",
+      "loan": "loan-ptz",
+      "seq": 2,
+      "mode": "annuity",
+      "annual_rate": "0",
+      "rate_type": "fixed"
+    },
+    {
+      "id": "lp-studio-1",
+      "loan": "loan-studio",
+      "seq": 1,
+      "mode": "annuity",
+      "annual_rate": "0.0115",
+      "rate_type": "fixed"
+    }
+  ],
+  "loan_insurances": [
+    {
+      "id": "li-home",
+      "loan": "loan-home",
+      "mode": "rate_on_initial",
+      "annual_rate": "0.0028",
+      "starts_on": "2021-10-05"
+    },
+    {
+      "id": "li-studio",
+      "loan": "loan-studio",
+      "mode": "rate_on_initial",
+      "annual_rate": "0.0022",
+      "starts_on": "2019-06-10"
+    }
+  ],
+  "loan_fees": [
+    {
+      "id": "fee-home-file",
+      "loan": "loan-home",
+      "kind": "file",
+      "amount": {
+        "amount": "950.00",
+        "currency": "EUR"
+      },
+      "on_date": "2021-08-25"
+    },
+    {
+      "id": "fee-studio-file",
+      "loan": "loan-studio",
+      "kind": "file",
+      "amount": {
+        "amount": "600.00",
+        "currency": "EUR"
+      },
+      "on_date": "2019-04-30"
+    }
+  ],
+  "loan_events": [
+    {
+      "id": "ev-studio-2024",
+      "loan": "loan-studio",
+      "on_date": "2024-02-10",
+      "amount": {
+        "amount": "10000.00",
+        "currency": "EUR"
+      },
+      "effect": "reduce_term",
+      "note": "Prime placée sur le prêt"
+    }
+  ],
+  "income_sources": [
+    {
+      "id": "inc-alice-salary",
+      "name": "Salaire Alice",
+      "kind": "salary",
+      "payer_label": "Entreprise Exemple",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "visibility": "shared"
+    },
+    {
+      "id": "inc-caf",
+      "name": "Allocations familiales",
+      "kind": "family_allowance",
+      "payer_label": "CAF",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ]
+    }
+  ],
+  "income_phases": [
+    {
+      "id": "ip-alice-1",
+      "source": "inc-alice-salary",
+      "label": "Salaire de base",
+      "starts_on": "2024-01-01",
+      "ends_on": "2025-04-01",
+      "net_amount": {
+        "amount": "3120.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "gross_amount": {
+        "amount": "4010.00",
+        "currency": "EUR"
+      },
+      "taxable_amount": {
+        "amount": "3290.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "ip-alice-2",
+      "source": "inc-alice-salary",
+      "label": "Salaire de base",
+      "starts_on": "2025-04-01",
+      "net_amount": {
+        "amount": "3285.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "gross_amount": {
+        "amount": "4225.00",
+        "currency": "EUR"
+      },
+      "taxable_amount": {
+        "amount": "3465.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "ip-alice-bonus",
+      "source": "inc-alice-salary",
+      "label": "Prime annuelle",
+      "starts_on": "2024-12-20",
+      "net_amount": {
+        "amount": "2400.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "year"
+      }
+    },
+    {
+      "id": "ip-caf",
+      "source": "inc-caf",
+      "label": "Allocations",
+      "starts_on": "2020-03-05",
+      "net_amount": {
+        "amount": "148.52",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      }
+    }
+  ],
+  "income_one_off_taxable": [
+    {
+      "flow_id": "fl-alice-oneoff",
+      "taxable_amount": {
+        "amount": "1590.00",
+        "currency": "EUR"
+      }
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal-japan",
+      "name": "Voyage au Japon",
+      "kind": "savings",
+      "target_amount": "7000.00",
+      "target_date": "2027-09-01",
+      "note": "Trois semaines, été 2027",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "funding": [
+        {
+          "envelope": "env-livret-a",
+          "share_bp": 4000
+        },
+        {
+          "envelope": "env-cto",
+          "share_bp": 3000
+        }
+      ]
+    },
+    {
+      "id": "goal-emergency",
+      "name": "Épargne de précaution",
+      "kind": "emergency_fund",
+      "months": 6,
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "funding": [
+        {
+          "envelope": "env-livret-a",
+          "share_bp": 6000
+        },
+        {
+          "envelope": "env-joint",
+          "share_bp": 5000
+        }
+      ]
+    },
+    {
+      "id": "goal-bike",
+      "name": "Vélo cargo",
+      "kind": "savings",
+      "target_amount": "4200.00",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "entries": [
+        {
+          "on": "2026-03-01",
+          "amount": "600.00"
+        },
+        {
+          "on": "2026-06-01",
+          "amount": "1350.00"
+        },
+        {
+          "on": "2026-09-01",
+          "amount": "2100.00"
+        }
+      ]
+    }
+  ]
+}

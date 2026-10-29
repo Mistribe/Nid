@@ -20,6 +20,20 @@ L'AppHost ne sert qu'au développement ; le déploiement est le compose de réf�
 
 Pour repartir d'une base vide : `docker volume rm nid-dev-pgdata nid-dev-pocket-id`.
 
+### Données de démonstration
+
+`deploy/local/demo/` remplit les écrans d'un foyer fictif (Alice, Bob et Léa) : abonnements, comptes et placements, deux biens et
+trois crédits, revenus, objectifs. Les utilisateurs de développement n'ont pas de passkey : un lien à usage unique les connecte.
+
+```bash
+node deploy/local/demo/sign-in-link.mjs bob     # ouvrir le lien, puis https://nid.localtest.me : Bob existe dans Nid
+node deploy/local/demo/sign-in-link.mjs alice   # dans une autre fenêtre privée : chaque lien sert une fois
+```
+
+Puis, connecté en Alice, menu Import : `deploy/local/demo/alice.nid.json` ; connecté en Bob, `deploy/local/demo/bob.nid.json` (ses
+éléments à lui, facultatif). Bob doit s'être connecté une fois avant l'import d'Alice, qui partage des éléments avec lui. Les
+fichiers sortent de `node deploy/local/demo/generate.mjs` ; `DemoFileTests` vérifie qu'ils s'importent sans erreur ni avertissement.
+
 ### Frontend (`web/`)
 
 Prérequis : Node ≥ 24 et pnpm 12 (`corepack enable`, ou installé à part).

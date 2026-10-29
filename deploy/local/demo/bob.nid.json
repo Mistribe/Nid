@@ -1,0 +1,1140 @@
+{
+  "format": "nid.data",
+  "version": 1,
+  "persons": [
+    {
+      "ref": "adult-1",
+      "kind": "adult",
+      "display_name": "Bob Dev",
+      "email": "bob@example.test"
+    }
+  ],
+  "providers": [
+    {
+      "key": "demo-gamepass",
+      "name": "Xbox Game Pass",
+      "website": "https://www.xbox.com",
+      "label_keys": [
+        "other"
+      ]
+    },
+    {
+      "key": "demo-mobile-bob",
+      "name": "Forfait mobile",
+      "label_keys": [
+        "other"
+      ]
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "bob-sub-gamepass",
+      "provider_key": "demo-gamepass",
+      "name": "Game Pass Ultimate",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "service_users": [
+        "adult-1"
+      ],
+      "auto_renew": true
+    },
+    {
+      "id": "bob-sub-mobile",
+      "provider_key": "demo-mobile-bob",
+      "name": "Forfait mobile 40 Go",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "visibility": "private",
+      "service_users": [
+        "adult-1"
+      ],
+      "auto_renew": true
+    }
+  ],
+  "billing_phases": [
+    {
+      "id": "bob-ph-gamepass",
+      "subscription_id": "bob-sub-gamepass",
+      "starts_on": "2024-10-01",
+      "ends_on": null,
+      "price": {
+        "amount": "17.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "person",
+        "person": "adult-1"
+      }
+    },
+    {
+      "id": "bob-ph-mobile",
+      "subscription_id": "bob-sub-mobile",
+      "starts_on": "2023-05-18",
+      "ends_on": null,
+      "price": {
+        "amount": "7.99",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      },
+      "payer": {
+        "type": "person",
+        "person": "adult-1"
+      }
+    }
+  ],
+  "envelopes": [
+    {
+      "id": "bob-env-ldds",
+      "name": "LDDS",
+      "kind": "savings",
+      "institution": "Banque Exemple",
+      "opened_on": "2018-09-01",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    },
+    {
+      "id": "bob-env-per",
+      "name": "PER",
+      "kind": "per",
+      "institution": "Assureur Exemple",
+      "opened_on": "2023-01-10",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "visibility": "private"
+    }
+  ],
+  "valuations": [
+    {
+      "id": "val-bob-env-ldds-2024-11",
+      "item": "bob-env-ldds",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "7894.82",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2024-12",
+      "item": "bob-env-ldds",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "7989.82",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-01",
+      "item": "bob-env-ldds",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "8085.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-02",
+      "item": "bob-env-ldds",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "8180.36",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-03",
+      "item": "bob-env-ldds",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "8275.91",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-04",
+      "item": "bob-env-ldds",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "8371.63",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-05",
+      "item": "bob-env-ldds",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "8467.54",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-06",
+      "item": "bob-env-ldds",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "8563.62",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-07",
+      "item": "bob-env-ldds",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "8659.89",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-08",
+      "item": "bob-env-ldds",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "8756.35",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-09",
+      "item": "bob-env-ldds",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "8852.99",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-10",
+      "item": "bob-env-ldds",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "8949.81",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-11",
+      "item": "bob-env-ldds",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "9046.81",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2025-12",
+      "item": "bob-env-ldds",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "9144.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-01",
+      "item": "bob-env-ldds",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "9241.37",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-02",
+      "item": "bob-env-ldds",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "9338.93",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-03",
+      "item": "bob-env-ldds",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "9436.68",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-04",
+      "item": "bob-env-ldds",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "9534.61",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-05",
+      "item": "bob-env-ldds",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "9632.72",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-06",
+      "item": "bob-env-ldds",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "9731.02",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-07",
+      "item": "bob-env-ldds",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "9829.51",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-08",
+      "item": "bob-env-ldds",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "9928.19",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-09",
+      "item": "bob-env-ldds",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "10027.05",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-ldds-2026-10",
+      "item": "bob-env-ldds",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "10126.10",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2024-11",
+      "item": "bob-env-per",
+      "as_of": "2024-11-30",
+      "amount": {
+        "amount": "10002.08",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2024-12",
+      "item": "bob-env-per",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "10337.06",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-01",
+      "item": "bob-env-per",
+      "as_of": "2025-01-31",
+      "amount": {
+        "amount": "10428.35",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-02",
+      "item": "bob-env-per",
+      "as_of": "2025-02-28",
+      "amount": {
+        "amount": "10845.56",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-03",
+      "item": "bob-env-per",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "11385.69",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-04",
+      "item": "bob-env-per",
+      "as_of": "2025-04-30",
+      "amount": {
+        "amount": "11417.25",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-05",
+      "item": "bob-env-per",
+      "as_of": "2025-05-31",
+      "amount": {
+        "amount": "11353.62",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-06",
+      "item": "bob-env-per",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "11435.45",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-07",
+      "item": "bob-env-per",
+      "as_of": "2025-07-31",
+      "amount": {
+        "amount": "11473.43",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-08",
+      "item": "bob-env-per",
+      "as_of": "2025-08-31",
+      "amount": {
+        "amount": "11697.28",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-09",
+      "item": "bob-env-per",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "11774.17",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-10",
+      "item": "bob-env-per",
+      "as_of": "2025-10-31",
+      "amount": {
+        "amount": "12223.48",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-11",
+      "item": "bob-env-per",
+      "as_of": "2025-11-30",
+      "amount": {
+        "amount": "12309.95",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2025-12",
+      "item": "bob-env-per",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "12243.73",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-01",
+      "item": "bob-env-per",
+      "as_of": "2026-01-31",
+      "amount": {
+        "amount": "12284.50",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-02",
+      "item": "bob-env-per",
+      "as_of": "2026-02-28",
+      "amount": {
+        "amount": "12429.55",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-03",
+      "item": "bob-env-per",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "12351.88",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-04",
+      "item": "bob-env-per",
+      "as_of": "2026-04-30",
+      "amount": {
+        "amount": "12849.38",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-05",
+      "item": "bob-env-per",
+      "as_of": "2026-05-31",
+      "amount": {
+        "amount": "12735.32",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-06",
+      "item": "bob-env-per",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "13284.73",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-07",
+      "item": "bob-env-per",
+      "as_of": "2026-07-31",
+      "amount": {
+        "amount": "13209.79",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-08",
+      "item": "bob-env-per",
+      "as_of": "2026-08-31",
+      "amount": {
+        "amount": "13635.95",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-09",
+      "item": "bob-env-per",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "13653.46",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-env-per-2026-10",
+      "item": "bob-env-per",
+      "as_of": "2026-10-28",
+      "amount": {
+        "amount": "14150.09",
+        "currency": "EUR"
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "bob-fl-ldds-open",
+      "item": "bob-env-ldds",
+      "occurred_on": "2018-09-01",
+      "kind": "opening",
+      "amount": {
+        "amount": "2000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-open",
+      "item": "bob-env-per",
+      "occurred_on": "2023-01-10",
+      "kind": "opening",
+      "amount": {
+        "amount": "3000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2024-11",
+      "item": "bob-env-ldds",
+      "occurred_on": "2024-11-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2024-11",
+      "item": "bob-env-per",
+      "occurred_on": "2024-11-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2024-12",
+      "item": "bob-env-ldds",
+      "occurred_on": "2024-12-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2024-12",
+      "item": "bob-env-per",
+      "occurred_on": "2024-12-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-01",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-01-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-01",
+      "item": "bob-env-per",
+      "occurred_on": "2025-01-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-02",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-02-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-02",
+      "item": "bob-env-per",
+      "occurred_on": "2025-02-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-03",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-03-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-03",
+      "item": "bob-env-per",
+      "occurred_on": "2025-03-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-04",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-04-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-04",
+      "item": "bob-env-per",
+      "occurred_on": "2025-04-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-05",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-05-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-05",
+      "item": "bob-env-per",
+      "occurred_on": "2025-05-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-06",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-06-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-06",
+      "item": "bob-env-per",
+      "occurred_on": "2025-06-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-07",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-07-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-07",
+      "item": "bob-env-per",
+      "occurred_on": "2025-07-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-08",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-08-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-08",
+      "item": "bob-env-per",
+      "occurred_on": "2025-08-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-09",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-09-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-09",
+      "item": "bob-env-per",
+      "occurred_on": "2025-09-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-10",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-10-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-10",
+      "item": "bob-env-per",
+      "occurred_on": "2025-10-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-11",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-11-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-11",
+      "item": "bob-env-per",
+      "occurred_on": "2025-11-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2025-12",
+      "item": "bob-env-ldds",
+      "occurred_on": "2025-12-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2025-12",
+      "item": "bob-env-per",
+      "occurred_on": "2025-12-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-01",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-01-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-01",
+      "item": "bob-env-per",
+      "occurred_on": "2026-01-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-02",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-02-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-02",
+      "item": "bob-env-per",
+      "occurred_on": "2026-02-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-03",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-03-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-03",
+      "item": "bob-env-per",
+      "occurred_on": "2026-03-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-04",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-04-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-04",
+      "item": "bob-env-per",
+      "occurred_on": "2026-04-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-05",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-05-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-05",
+      "item": "bob-env-per",
+      "occurred_on": "2026-05-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-06",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-06-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-06",
+      "item": "bob-env-per",
+      "occurred_on": "2026-06-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-07",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-07-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-07",
+      "item": "bob-env-per",
+      "occurred_on": "2026-07-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-08",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-08-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-08",
+      "item": "bob-env-per",
+      "occurred_on": "2026-08-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-09",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-09-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-09",
+      "item": "bob-env-per",
+      "occurred_on": "2026-09-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-ldds-2026-10",
+      "item": "bob-env-ldds",
+      "occurred_on": "2026-10-05",
+      "kind": "contribution",
+      "amount": {
+        "amount": "80.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "bob-fl-per-2026-10",
+      "item": "bob-env-per",
+      "occurred_on": "2026-10-20",
+      "kind": "contribution",
+      "amount": {
+        "amount": "200.00",
+        "currency": "EUR"
+      }
+    }
+  ],
+  "income_sources": [
+    {
+      "id": "bob-inc-salary",
+      "name": "Salaire Bob",
+      "kind": "salary",
+      "payer_label": "Collectivité Exemple",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    },
+    {
+      "id": "bob-inc-freelance",
+      "name": "Missions de traduction",
+      "kind": "self_employment",
+      "currency": "EUR",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ]
+    }
+  ],
+  "income_phases": [
+    {
+      "id": "bob-ip-salary-1",
+      "source": "bob-inc-salary",
+      "label": "Traitement",
+      "starts_on": "2024-01-01",
+      "ends_on": "2026-01-01",
+      "net_amount": {
+        "amount": "2480.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      }
+    },
+    {
+      "id": "bob-ip-salary-2",
+      "source": "bob-inc-salary",
+      "label": "Traitement",
+      "starts_on": "2026-01-01",
+      "net_amount": {
+        "amount": "2560.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 1,
+        "unit": "month"
+      }
+    },
+    {
+      "id": "bob-ip-freelance",
+      "source": "bob-inc-freelance",
+      "label": "Missions",
+      "starts_on": "2025-01-01",
+      "ends_on": "2026-12-31",
+      "net_amount": {
+        "amount": "900.00",
+        "currency": "EUR"
+      },
+      "every": {
+        "count": 3,
+        "unit": "month"
+      }
+    }
+  ]
+}
