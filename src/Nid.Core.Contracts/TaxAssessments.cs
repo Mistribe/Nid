@@ -5,23 +5,29 @@ public enum SalaryDeduction { Allowance, Actual }
 
 /// <summary>
 /// Tax assessments spec §2: one declarant of a notice, <c>Rank</c> 1 or 2 (the notice's column). Every figure is nullable: absent
-/// on the notice, absent here, never 0.
+/// on the notice, absent here, never 0. <c>OvertimeExempt</c>, <c>Withholding</c> and <c>CreditsAdvance</c> are the notice's
+/// detail lines (heures supplémentaires et jours RTT, RAS sur salaires et pensions, avance de 60 %).
 /// </summary>
 public sealed record TaxAssessmentDeclarant(
     PersonId Person, int Rank, decimal? GrossSalaries, SalaryDeduction? Deduction, decimal? DeductionAmount, decimal? NetSalaries,
     decimal? PerCeilingYear, decimal? PerUnusedOldest, decimal? PerUnusedMiddle, decimal? PerUnusedLatest,
-    decimal? PerCeilingComputed, decimal? PerCeilingNext);
+    decimal? PerCeilingComputed, decimal? PerCeilingNext, decimal? OvertimeExempt = null, decimal? Withholding = null,
+    decimal? CreditsAdvance = null);
 
 /// <summary>
 /// Tax assessments spec §2: a tax notice (avis d'imposition) of revenue year <c>Year</c>, issued in <c>IssuedYear</c>, in euros.
-/// Rates are percents (0 to 100); <c>Balance</c> is signed (positive: to pay, negative: refunded).
+/// Rates are percents (0 to 100); <c>Balance</c> is signed (positive: to pay, negative: refunded). The figures after
+/// <c>DocumentId</c> are the notice's detail lines (dividendes, RCM déjà soumis aux prélèvements sociaux, crédit d'impôt
+/// prélèvement forfaitaire, déficits fonciers imputables, Pinel, frais de garde).
 /// </summary>
 public sealed record TaxAssessment(
     int Year, int IssuedYear, IReadOnlyList<TaxAssessmentDeclarant> Declarants, decimal? Shares, decimal? ReferenceIncome, decimal? AverageRate,
     decimal? MarginalRate, decimal? GrossIncome, decimal? TaxableIncome, decimal? CapitalIncomeDeclared, decimal? CapitalIncomeTaxable,
     decimal? RentalIncomeNet, decimal? FlatRateIncome, decimal? ExemptIncomeDeclared, decimal? ExemptIncomeNet, decimal? ScaleTax,
     decimal? ProportionalTax, decimal? TaxBeforeCredits, decimal? CreditsDeclared, decimal? CreditsRetained, decimal? NetTax,
-    decimal? Withholding, decimal? Balance, decimal? RentalDeficitCarried, Guid? DocumentId);
+    decimal? Withholding, decimal? Balance, decimal? RentalDeficitCarried, Guid? DocumentId, decimal? DividendsEligible = null,
+    decimal? CapitalIncomeAlreadyLevied = null, decimal? FlatRatePrepaidCredit = null, decimal? RentalDeficitOnRentalIncome = null,
+    decimal? RentalDeficitOnGlobalIncome = null, decimal? PinelReduction = null, decimal? ChildcareExpenses = null);
 
 /// <summary>A stored notice: its id and its version (optimistic concurrency).</summary>
 public sealed record StoredTaxAssessment(Guid Id, uint Version, TaxAssessment Assessment);

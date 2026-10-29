@@ -28,9 +28,10 @@ import {
 } from './assessmentSchema';
 import { TAX_NOTICE_PREVIEW, useAddTaxAssessment, useCorrectTaxAssessment, useTaxAssessment, type TaxAssessment } from './api';
 import { useQueryClient } from '@tanstack/react-query';
-import tax from '@/locales/fr.tax.json';
+import tax from '@/locales/fr.tax-assessments.json';
 import '@/locales/documents';
 import '@/locales/tax';
+import '@/locales/taxAssessments';
 
 type Form = UseFormReturn<AssessmentValues>;
 type FieldKey = keyof typeof tax.tax.assessment.field;
@@ -92,6 +93,7 @@ function DeclarantStep({ form, count }: { form: Form; count: number }) {
           <fieldset key={i} className="space-y-4">
             <legend className="mb-2 text-sm font-medium">{t('tax.assessment.declarant', { rank: i + 1 })}</legend>
             <Amount form={form} name={at('grossSalaries')} label={label('grossSalaries')} />
+            <Amount form={form} name={at('overtimeExempt')} label={label('overtimeExempt')} />
             <div className="space-y-1">
               <span id={`${id}-${i}`} className="block text-sm">{label('deduction')}</span>
               <Controller control={form.control} name={`declarants.${i}.deduction`} render={({ field }) => (
@@ -101,6 +103,8 @@ function DeclarantStep({ form, count }: { form: Form; count: number }) {
             </div>
             <Amount form={form} name={at('deductionAmount')} label={label('deductionAmount')} />
             <Amount form={form} name={at('netSalaries')} label={label('netSalaries')} />
+            <Amount form={form} name={at('withholding')} label={label('withholding_declarant')} />
+            <Amount form={form} name={at('creditsAdvance')} label={label('creditsAdvance')} />
             <Folded label={t('tax.assessment_form.per')} hasError={PER_AMOUNTS.some((k) => Boolean(errorOf(form, at(k))))}>
               {PER_AMOUNTS.map((k) => <Amount key={k} form={form} name={at(k)} label={label(k)} />)}
             </Folded>
@@ -186,7 +190,7 @@ function SourceStep({ form, stored, onUploading }: { form: Form; stored?: string
       <Field label={t('tax.assessment_form.field.upload')}>
         {(c) => <Input {...c} type="file" accept={ACCEPT} onChange={(e) => { const picked = e.currentTarget.files?.[0]; if (picked) void upload(picked); }} />}
       </Field>
-      <Amount form={form} name="rentalDeficitCarried" label={t('tax.assessment.field.rentalDeficitCarried')} />
+      {NOTICE_AMOUNTS.carried.map((k) => <Amount key={k} form={form} name={k} label={t(`tax.assessment.field.${k}`)} />)}
       {gained.length > 0 ? <p className="text-sm text-muted-foreground">{t('tax.assessment_form.also_reads', { names: new Intl.ListFormat('fr').format(gained.map((r) => r.name)) })}</p> : null}
     </>
   );

@@ -48,6 +48,9 @@ public static class TaxAssessmentRules
             Amount($"{p}.perUnusedLatest", d.PerUnusedLatest);
             Amount($"{p}.perCeilingComputed", d.PerCeilingComputed);
             Amount($"{p}.perCeilingNext", d.PerCeilingNext);
+            Amount($"{p}.overtimeExempt", d.OvertimeExempt);
+            Amount($"{p}.withholding", d.Withholding);
+            Amount($"{p}.creditsAdvance", d.CreditsAdvance);
         }
 
         Amount("shares", a.Shares);
@@ -71,6 +74,13 @@ public static class TaxAssessmentRules
         Amount("withholding", a.Withholding);
         Amount("balance", a.Balance, signed: true);
         Amount("rentalDeficitCarried", a.RentalDeficitCarried);
+        Amount("dividendsEligible", a.DividendsEligible);
+        Amount("capitalIncomeAlreadyLevied", a.CapitalIncomeAlreadyLevied);
+        Amount("flatRatePrepaidCredit", a.FlatRatePrepaidCredit);
+        Amount("rentalDeficitOnRentalIncome", a.RentalDeficitOnRentalIncome);
+        Amount("rentalDeficitOnGlobalIncome", a.RentalDeficitOnGlobalIncome);
+        Amount("pinelReduction", a.PinelReduction);
+        Amount("childcareExpenses", a.ChildcareExpenses);
         return errors;
     }
 }

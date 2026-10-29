@@ -19545,6 +19545,13 @@ export interface components {
             rentalDeficitCarried?: null | components["schemas"]["MoneyBody"];
             /** Format: uuid */
             documentId?: null | string;
+            dividendsEligible?: null | components["schemas"]["MoneyBody"];
+            capitalIncomeAlreadyLevied?: null | components["schemas"]["MoneyBody"];
+            flatRatePrepaidCredit?: null | components["schemas"]["MoneyBody"];
+            rentalDeficitOnRentalIncome?: null | components["schemas"]["MoneyBody"];
+            rentalDeficitOnGlobalIncome?: null | components["schemas"]["MoneyBody"];
+            pinelReduction?: null | components["schemas"]["MoneyBody"];
+            childcareExpenses?: null | components["schemas"]["MoneyBody"];
         };
         AdminNotificationsView: {
             smtpConfigured: boolean;
@@ -19807,6 +19814,13 @@ export interface components {
             version?: null | number;
             /** Format: uuid */
             documentId?: null | string;
+            dividendsEligible?: null | components["schemas"]["MoneyBody"];
+            capitalIncomeAlreadyLevied?: null | components["schemas"]["MoneyBody"];
+            flatRatePrepaidCredit?: null | components["schemas"]["MoneyBody"];
+            rentalDeficitOnRentalIncome?: null | components["schemas"]["MoneyBody"];
+            rentalDeficitOnGlobalIncome?: null | components["schemas"]["MoneyBody"];
+            pinelReduction?: null | components["schemas"]["MoneyBody"];
+            childcareExpenses?: null | components["schemas"]["MoneyBody"];
         };
         CostCategoryView: {
             category: string;
@@ -23410,6 +23424,9 @@ export interface components {
             perUnusedLatest?: null | components["schemas"]["MoneyBody"];
             perCeilingComputed?: null | components["schemas"]["MoneyBody"];
             perCeilingNext?: null | components["schemas"]["MoneyBody"];
+            overtimeExempt?: null | components["schemas"]["MoneyBody"];
+            withholding?: null | components["schemas"]["MoneyBody"];
+            creditsAdvance?: null | components["schemas"]["MoneyBody"];
         };
         TaxAssessmentDeclarantView: {
             /** Format: uuid */
@@ -23426,6 +23443,9 @@ export interface components {
             perUnusedLatest?: null | components["schemas"]["DashboardMoneyView"];
             perCeilingComputed?: null | components["schemas"]["DashboardMoneyView"];
             perCeilingNext?: null | components["schemas"]["DashboardMoneyView"];
+            overtimeExempt?: null | components["schemas"]["DashboardMoneyView"];
+            withholding?: null | components["schemas"]["DashboardMoneyView"];
+            creditsAdvance?: null | components["schemas"]["DashboardMoneyView"];
         };
         TaxAssessmentList: {
             items: components["schemas"]["TaxAssessmentView"][];
@@ -23463,6 +23483,13 @@ export interface components {
             rentalDeficitCarried?: null | components["schemas"]["DashboardMoneyView"];
             /** Format: uuid */
             documentId?: null | string;
+            dividendsEligible?: null | components["schemas"]["DashboardMoneyView"];
+            capitalIncomeAlreadyLevied?: null | components["schemas"]["DashboardMoneyView"];
+            flatRatePrepaidCredit?: null | components["schemas"]["DashboardMoneyView"];
+            rentalDeficitOnRentalIncome?: null | components["schemas"]["DashboardMoneyView"];
+            rentalDeficitOnGlobalIncome?: null | components["schemas"]["DashboardMoneyView"];
+            pinelReduction?: null | components["schemas"]["DashboardMoneyView"];
+            childcareExpenses?: null | components["schemas"]["DashboardMoneyView"];
         };
         TaxCarryView: {
             /** Format: int32 */

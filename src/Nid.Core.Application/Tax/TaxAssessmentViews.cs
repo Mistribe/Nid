@@ -11,7 +11,8 @@ namespace Nid.Core.Application.Tax;
 public sealed record TaxAssessmentDeclarantView(
     Guid PersonId, int Rank, DashboardMoneyView? GrossSalaries, string? Deduction, DashboardMoneyView? DeductionAmount, DashboardMoneyView? NetSalaries,
     DashboardMoneyView? PerCeilingYear, DashboardMoneyView? PerUnusedOldest, DashboardMoneyView? PerUnusedMiddle, DashboardMoneyView? PerUnusedLatest,
-    DashboardMoneyView? PerCeilingComputed, DashboardMoneyView? PerCeilingNext);
+    DashboardMoneyView? PerCeilingComputed, DashboardMoneyView? PerCeilingNext, DashboardMoneyView? OvertimeExempt, DashboardMoneyView? Withholding,
+    DashboardMoneyView? CreditsAdvance);
 
 /// <summary>Tax assessments spec §2: a stored notice, its <c>Version</c> to send back with a correction. Rates are percent strings.</summary>
 public sealed record TaxAssessmentView(
@@ -20,7 +21,9 @@ public sealed record TaxAssessmentView(
     DashboardMoneyView? CapitalIncomeTaxable, DashboardMoneyView? RentalIncomeNet, DashboardMoneyView? FlatRateIncome, DashboardMoneyView? ExemptIncomeDeclared,
     DashboardMoneyView? ExemptIncomeNet, DashboardMoneyView? ScaleTax, DashboardMoneyView? ProportionalTax, DashboardMoneyView? TaxBeforeCredits,
     DashboardMoneyView? CreditsDeclared, DashboardMoneyView? CreditsRetained, DashboardMoneyView? NetTax, DashboardMoneyView? Withholding,
-    DashboardMoneyView? Balance, DashboardMoneyView? RentalDeficitCarried, Guid? DocumentId) : IExposesDocuments
+    DashboardMoneyView? Balance, DashboardMoneyView? RentalDeficitCarried, Guid? DocumentId, DashboardMoneyView? DividendsEligible,
+    DashboardMoneyView? CapitalIncomeAlreadyLevied, DashboardMoneyView? FlatRatePrepaidCredit, DashboardMoneyView? RentalDeficitOnRentalIncome,
+    DashboardMoneyView? RentalDeficitOnGlobalIncome, DashboardMoneyView? PinelReduction, DashboardMoneyView? ChildcareExpenses) : IExposesDocuments
 {
     public IEnumerable<Guid> ExposedDocuments() => DocumentId is { } d ? [d] : [];
 
@@ -34,13 +37,15 @@ public sealed record TaxAssessmentView(
             Plain(a.AverageRate), Plain(a.MarginalRate), Euros(a.GrossIncome), Euros(a.TaxableIncome), Euros(a.CapitalIncomeDeclared),
             Euros(a.CapitalIncomeTaxable), Euros(a.RentalIncomeNet), Euros(a.FlatRateIncome), Euros(a.ExemptIncomeDeclared), Euros(a.ExemptIncomeNet),
             Euros(a.ScaleTax), Euros(a.ProportionalTax), Euros(a.TaxBeforeCredits), Euros(a.CreditsDeclared), Euros(a.CreditsRetained), Euros(a.NetTax),
-            Euros(a.Withholding), Euros(a.Balance), Euros(a.RentalDeficitCarried), a.DocumentId);
+            Euros(a.Withholding), Euros(a.Balance), Euros(a.RentalDeficitCarried), a.DocumentId, Euros(a.DividendsEligible),
+            Euros(a.CapitalIncomeAlreadyLevied), Euros(a.FlatRatePrepaidCredit), Euros(a.RentalDeficitOnRentalIncome),
+            Euros(a.RentalDeficitOnGlobalIncome), Euros(a.PinelReduction), Euros(a.ChildcareExpenses));
     }
 
     private static TaxAssessmentDeclarantView Of(TaxAssessmentDeclarant d)
         => new(d.Person.Value, d.Rank, Euros(d.GrossSalaries), d.Deduction?.ToString().ToLowerInvariant(), Euros(d.DeductionAmount), Euros(d.NetSalaries),
             Euros(d.PerCeilingYear), Euros(d.PerUnusedOldest), Euros(d.PerUnusedMiddle), Euros(d.PerUnusedLatest), Euros(d.PerCeilingComputed),
-            Euros(d.PerCeilingNext));
+            Euros(d.PerCeilingNext), Euros(d.OvertimeExempt), Euros(d.Withholding), Euros(d.CreditsAdvance));
 
     private static DashboardMoneyView? Euros(decimal? v) => v is { } x ? new DashboardMoneyView(TaxEstimates.Amount(x), "EUR") : null;
 

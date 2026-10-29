@@ -156,7 +156,8 @@ public static class TaxEndpoints
     public sealed record TaxAssessmentDeclarantBody(
         Guid? PersonId, int? Rank, MoneyBody? GrossSalaries, string? Deduction, MoneyBody? DeductionAmount, MoneyBody? NetSalaries,
         MoneyBody? PerCeilingYear, MoneyBody? PerUnusedOldest, MoneyBody? PerUnusedMiddle, MoneyBody? PerUnusedLatest,
-        MoneyBody? PerCeilingComputed, MoneyBody? PerCeilingNext);
+        MoneyBody? PerCeilingComputed, MoneyBody? PerCeilingNext, MoneyBody? OvertimeExempt = null, MoneyBody? Withholding = null,
+        MoneyBody? CreditsAdvance = null);
 
     /// <summary>
     /// Tax assessments spec §6: a notice, field names as the view's. <c>IssuedYear</c> left out is <c>Year + 1</c>; rates are percent strings.
@@ -166,7 +167,10 @@ public static class TaxEndpoints
         string? AverageRate, string? MarginalRate, MoneyBody? GrossIncome, MoneyBody? TaxableIncome, MoneyBody? CapitalIncomeDeclared,
         MoneyBody? CapitalIncomeTaxable, MoneyBody? RentalIncomeNet, MoneyBody? FlatRateIncome, MoneyBody? ExemptIncomeDeclared,
         MoneyBody? ExemptIncomeNet, MoneyBody? ScaleTax, MoneyBody? ProportionalTax, MoneyBody? TaxBeforeCredits, MoneyBody? CreditsDeclared,
-        MoneyBody? CreditsRetained, MoneyBody? NetTax, MoneyBody? Withholding, MoneyBody? Balance, MoneyBody? RentalDeficitCarried, Guid? DocumentId = null)
+        MoneyBody? CreditsRetained, MoneyBody? NetTax, MoneyBody? Withholding, MoneyBody? Balance, MoneyBody? RentalDeficitCarried, Guid? DocumentId = null,
+        MoneyBody? DividendsEligible = null, MoneyBody? CapitalIncomeAlreadyLevied = null, MoneyBody? FlatRatePrepaidCredit = null,
+        MoneyBody? RentalDeficitOnRentalIncome = null, MoneyBody? RentalDeficitOnGlobalIncome = null, MoneyBody? PinelReduction = null,
+        MoneyBody? ChildcareExpenses = null)
     {
         internal TaxAssessment? Read(FieldReader reader)
         {
@@ -190,7 +194,9 @@ public static class TaxEndpoints
                     Euros(reader, d.DeductionAmount, $"{p}.deductionAmount"), Euros(reader, d.NetSalaries, $"{p}.netSalaries"),
                     Euros(reader, d.PerCeilingYear, $"{p}.perCeilingYear"), Euros(reader, d.PerUnusedOldest, $"{p}.perUnusedOldest"),
                     Euros(reader, d.PerUnusedMiddle, $"{p}.perUnusedMiddle"), Euros(reader, d.PerUnusedLatest, $"{p}.perUnusedLatest"),
-                    Euros(reader, d.PerCeilingComputed, $"{p}.perCeilingComputed"), Euros(reader, d.PerCeilingNext, $"{p}.perCeilingNext")));
+                    Euros(reader, d.PerCeilingComputed, $"{p}.perCeilingComputed"), Euros(reader, d.PerCeilingNext, $"{p}.perCeilingNext"),
+                    Euros(reader, d.OvertimeExempt, $"{p}.overtimeExempt"), Euros(reader, d.Withholding, $"{p}.withholding"),
+                    Euros(reader, d.CreditsAdvance, $"{p}.creditsAdvance")));
             }
             var assessment = new TaxAssessment(
                 Year ?? 0, IssuedYear ?? (Year ?? 0) + 1, declarants, reader.Decimal(Shares, "shares"), Euros(reader, ReferenceIncome, "referenceIncome"),
@@ -201,7 +207,11 @@ public static class TaxEndpoints
                 Euros(reader, ExemptIncomeNet, "exemptIncomeNet"), Euros(reader, ScaleTax, "scaleTax"), Euros(reader, ProportionalTax, "proportionalTax"),
                 Euros(reader, TaxBeforeCredits, "taxBeforeCredits"), Euros(reader, CreditsDeclared, "creditsDeclared"),
                 Euros(reader, CreditsRetained, "creditsRetained"), Euros(reader, NetTax, "netTax"), Euros(reader, Withholding, "withholding"),
-                Euros(reader, Balance, "balance"), Euros(reader, RentalDeficitCarried, "rentalDeficitCarried"), DocumentId);
+                Euros(reader, Balance, "balance"), Euros(reader, RentalDeficitCarried, "rentalDeficitCarried"), DocumentId,
+                Euros(reader, DividendsEligible, "dividendsEligible"), Euros(reader, CapitalIncomeAlreadyLevied, "capitalIncomeAlreadyLevied"),
+                Euros(reader, FlatRatePrepaidCredit, "flatRatePrepaidCredit"), Euros(reader, RentalDeficitOnRentalIncome, "rentalDeficitOnRentalIncome"),
+                Euros(reader, RentalDeficitOnGlobalIncome, "rentalDeficitOnGlobalIncome"), Euros(reader, PinelReduction, "pinelReduction"),
+                Euros(reader, ChildcareExpenses, "childcareExpenses"));
             return reader.Ok ? assessment : null;
         }
 
@@ -225,14 +235,19 @@ public static class TaxEndpoints
         string? AverageRate, string? MarginalRate, MoneyBody? GrossIncome, MoneyBody? TaxableIncome, MoneyBody? CapitalIncomeDeclared,
         MoneyBody? CapitalIncomeTaxable, MoneyBody? RentalIncomeNet, MoneyBody? FlatRateIncome, MoneyBody? ExemptIncomeDeclared,
         MoneyBody? ExemptIncomeNet, MoneyBody? ScaleTax, MoneyBody? ProportionalTax, MoneyBody? TaxBeforeCredits, MoneyBody? CreditsDeclared,
-        MoneyBody? CreditsRetained, MoneyBody? NetTax, MoneyBody? Withholding, MoneyBody? Balance, MoneyBody? RentalDeficitCarried, uint? Version, Guid? DocumentId = null)
+        MoneyBody? CreditsRetained, MoneyBody? NetTax, MoneyBody? Withholding, MoneyBody? Balance, MoneyBody? RentalDeficitCarried, uint? Version, Guid? DocumentId = null,
+        MoneyBody? DividendsEligible = null, MoneyBody? CapitalIncomeAlreadyLevied = null, MoneyBody? FlatRatePrepaidCredit = null,
+        MoneyBody? RentalDeficitOnRentalIncome = null, MoneyBody? RentalDeficitOnGlobalIncome = null, MoneyBody? PinelReduction = null,
+        MoneyBody? ChildcareExpenses = null)
     {
         internal TaxAssessment? Read(FieldReader reader)
         {
             var assessment = new AddTaxAssessmentBody(
                 Year, IssuedYear, Declarants, Shares, ReferenceIncome, AverageRate, MarginalRate, GrossIncome, TaxableIncome, CapitalIncomeDeclared,
                 CapitalIncomeTaxable, RentalIncomeNet, FlatRateIncome, ExemptIncomeDeclared, ExemptIncomeNet, ScaleTax, ProportionalTax, TaxBeforeCredits,
-                CreditsDeclared, CreditsRetained, NetTax, Withholding, Balance, RentalDeficitCarried, DocumentId).Read(reader);
+                CreditsDeclared, CreditsRetained, NetTax, Withholding, Balance, RentalDeficitCarried, DocumentId, DividendsEligible,
+                CapitalIncomeAlreadyLevied, FlatRatePrepaidCredit, RentalDeficitOnRentalIncome, RentalDeficitOnGlobalIncome, PinelReduction,
+                ChildcareExpenses).Read(reader);
             if (Version is null) reader.Add("version", "request.required", "The version read with the tax assessment is required.");
             return reader.Ok ? assessment : null;
         }

@@ -14,17 +14,21 @@ import { ZERO, percentText } from '../format';
 import { eur } from '../ResultTable';
 import { invalidateAssessments, useDeleteTaxAssessment, type TaxAssessment } from './api';
 import '@/locales/tax';
+import '@/locales/taxAssessments';
 
 type Person = components['schemas']['PersonDto'];
 type Declarant = TaxAssessment['declarants'][number];
 type FieldKey = (typeof DECLARANT_ROWS)[number] | (typeof MONEY_GROUPS)[number][1][number] | 'shares' | 'referenceIncome' | 'averageRate' | 'marginalRate';
 type Money = { amount: string; currency: string } | null | undefined;
 
-const DECLARANT_ROWS = ['grossSalaries', 'deduction', 'deductionAmount', 'netSalaries', 'perCeilingYear', 'perUnusedOldest', 'perUnusedMiddle', 'perUnusedLatest', 'perCeilingComputed', 'perCeilingNext'] as const;
+const DECLARANT_ROWS = [
+  'grossSalaries', 'overtimeExempt', 'deduction', 'deductionAmount', 'netSalaries', 'withholding', 'creditsAdvance',
+  'perCeilingYear', 'perUnusedOldest', 'perUnusedMiddle', 'perUnusedLatest', 'perCeilingComputed', 'perCeilingNext',
+] as const;
 const MONEY_GROUPS = [
-  ['household', ['grossIncome', 'taxableIncome', 'capitalIncomeDeclared', 'capitalIncomeTaxable', 'rentalIncomeNet', 'flatRateIncome', 'exemptIncomeDeclared', 'exemptIncomeNet']],
-  ['tax', ['scaleTax', 'proportionalTax', 'taxBeforeCredits', 'creditsDeclared', 'creditsRetained', 'netTax', 'withholding', 'balance']],
-  ['carried', ['rentalDeficitCarried']],
+  ['household', ['grossIncome', 'taxableIncome', 'capitalIncomeDeclared', 'capitalIncomeTaxable', 'dividendsEligible', 'capitalIncomeAlreadyLevied', 'rentalIncomeNet', 'flatRateIncome', 'exemptIncomeDeclared', 'exemptIncomeNet']],
+  ['tax', ['scaleTax', 'proportionalTax', 'taxBeforeCredits', 'flatRatePrepaidCredit', 'pinelReduction', 'childcareExpenses', 'creditsDeclared', 'creditsRetained', 'netTax', 'withholding', 'balance']],
+  ['carried', ['rentalDeficitOnRentalIncome', 'rentalDeficitOnGlobalIncome', 'rentalDeficitCarried']],
 ] as const;
 
 /** The server's balance, signed: a refund is negative. The sign is read from the string, nothing is computed. */
@@ -49,7 +53,8 @@ export function AssessmentView({ assessment: a, persons }: { assessment: TaxAsse
   };
   const declarantRows = DECLARANT_ROWS.flatMap((key) => {
     const cells = declarants.map((d) => declarantCell(d, key));
-    return cells.every((c) => c === null) ? [] : [{ key, label: label(key), cells }];
+    // The declarant's withholding is the notice's « RAS sur salaires et pensions », not the household's total.
+    return cells.every((c) => c === null) ? [] : [{ key, label: t(`tax.assessment.field.${key === 'withholding' ? 'withholding_declarant' : key}`), cells }];
   });
   const groups = [
     { key: 'declarants' as const, rows: declarantRows },

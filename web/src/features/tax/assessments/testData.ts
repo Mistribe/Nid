@@ -12,11 +12,13 @@ export const jointAssessment = (over: Partial<TaxAssessment> = {}): TaxAssessmen
   declarants: [
     { personId: ALICE, rank: 1, grossSalaries: eur('52000.00'), deduction: 'allowance', deductionAmount: eur('5200.00'), netSalaries: eur('46800.00'),
       perCeilingYear: eur('5843.13'), perUnusedOldest: eur('1000.00'), perUnusedMiddle: null, perUnusedLatest: eur('2500.00') },
-    { personId: BOB, rank: 2, grossSalaries: eur('30000.00'), deduction: 'actual', deductionAmount: eur('4000.00'), netSalaries: eur('26000.00') },
+    { personId: BOB, rank: 2, grossSalaries: eur('30000.00'), overtimeExempt: eur('1250.00'), deduction: 'actual', deductionAmount: eur('4000.00'),
+      netSalaries: eur('26000.00'), withholding: eur('6100.00'), creditsAdvance: eur('1250.00') },
   ],
   shares: '3', referenceIncome: eur('72800.00'), averageRate: '4.5', marginalRate: '11',
   grossIncome: eur('72800.00'), taxableIncome: eur('70000.00'),
-  scaleTax: eur('3200.00'), taxBeforeCredits: eur('3200.00'), netTax: eur('2688.00'), withholding: eur('3000.00'), balance: eur('-312.00'),
+  scaleTax: eur('3200.00'), taxBeforeCredits: eur('3200.00'), childcareExpenses: eur('1800.00'), netTax: eur('2688.00'), withholding: eur('3000.00'),
+  balance: eur('-312.00'),
   documentId: DOCUMENT,
   ...over,
 });

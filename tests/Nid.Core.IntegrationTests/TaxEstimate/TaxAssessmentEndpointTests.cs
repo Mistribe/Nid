@@ -77,6 +77,42 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task Keeps_the_notice_detail_lines_through_a_correction()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var detail = new
+        {
+            dividendsEligible = Eur("5.00"), capitalIncomeAlreadyLevied = Eur("5.00"), flatRatePrepaidCredit = Eur("1.00"),
+            rentalDeficitOnRentalIncome = Eur("35.00"), rentalDeficitOnGlobalIncome = Eur("3200.00"), pinelReduction = Eur("4000.00"),
+            childcareExpenses = Eur("1800.00"), withholding = Eur("8800.00"),
+        };
+        var declarants = new[]
+        {
+            Declarant(app.AdultA, 1, new { withholding = Eur("2700.00"), creditsAdvance = Eur("1250.00") }),
+            Declarant(app.AdultB, 2, new { overtimeExempt = Eur("1250.00"), withholding = Eur("6100.00"), creditsAdvance = Eur("1250.00") }),
+        };
+        var created = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Route, Body(2023, declarants, detail)));
+        var id = created.GetProperty("id").GetGuid();
+
+        static string? Amount(JsonElement e, string name) => e.GetProperty(name).ValueKind == JsonValueKind.Null ? null : e.GetProperty(name).GetProperty("amount").GetString();
+        Assert.Equal("4000.00", Amount(created, "pinelReduction"));
+        Assert.Equal("3200.00", Amount(created, "rentalDeficitOnGlobalIncome"));
+        Assert.Equal("8800.00", Amount(created, "withholding"));
+        Assert.Equal("2700.00", Amount(created.GetProperty("declarants")[0], "withholding"));
+        Assert.Null(Amount(created.GetProperty("declarants")[0], "overtimeExempt"));
+        Assert.Equal("1250.00", Amount(created.GetProperty("declarants")[1], "overtimeExempt"));
+
+        var corrected = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{id}",
+            Body(2023, declarants, Merge(detail, new { childcareExpenses = Eur("1900.00"), version = created.GetProperty("version").GetUInt32() })));
+
+        Assert.Equal(HttpStatusCode.OK, corrected.StatusCode);
+        var read = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/{id}"));
+        Assert.Equal("1900.00", Amount(read, "childcareExpenses"));
+        Assert.Equal("5.00", Amount(read, "capitalIncomeAlreadyLevied"));
+        Assert.Equal("1250.00", Amount(read.GetProperty("declarants")[1], "creditsAdvance"));
+    }
+
+    [Fact]
     public async Task A_solo_assessment_is_absent_for_the_other_adult()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -57,6 +57,21 @@ public class TaxAssessmentRulesTests
     }
 
     [Fact]
+    public void The_detail_lines_are_not_negative()
+    {
+        var declarant = Declarant(A, 1) with { OvertimeExempt = -1m, Withholding = -1m, CreditsAdvance = -1m };
+        var notice = Notice(declarants: [declarant]) with
+        {
+            DividendsEligible = -1m, CapitalIncomeAlreadyLevied = -1m, FlatRatePrepaidCredit = -1m, RentalDeficitOnRentalIncome = -1m,
+            RentalDeficitOnGlobalIncome = -1m, PinelReduction = -1m, ChildcareExpenses = -1m,
+        };
+        Assert.Equal(
+            ["declarants[0].overtimeExempt", "declarants[0].withholding", "declarants[0].creditsAdvance", "dividendsEligible", "capitalIncomeAlreadyLevied",
+                "flatRatePrepaidCredit", "rentalDeficitOnRentalIncome", "rentalDeficitOnGlobalIncome", "pinelReduction", "childcareExpenses"],
+            Paths(notice));
+    }
+
+    [Fact]
     public void Amounts_have_two_decimals_at_most() => Assert.Equal(["netTax"], Paths(Notice(netTax: 10.001m)));
 
     [Fact]

@@ -92,7 +92,7 @@ describe('AssessmentForm', () => {
 
     await pick(user, 'Année des revenus', '2025');
     await next(user);
-    await user.type(within(screen.getByRole('group', { name: 'Déclarant 1' })).getByLabelText('Salaires déclarés'), '52 000,5');
+    await user.type(within(screen.getByRole('group', { name: 'Déclarant 1' })).getByLabelText('Salaires'), '52 000,5');
     await next(user);
     await user.type(screen.getByLabelText('Revenu brut global'), '1 234,50');
     await user.type(screen.getByLabelText('Revenu imposable'), '72\u202f800');
@@ -104,6 +104,38 @@ describe('AssessmentForm', () => {
     expect(sent.post[0]).toMatchObject({
       grossIncome: eur('1234.50'), taxableIncome: eur('72800'), scaleTax: null, referenceIncome: null, shares: null, balance: null, documentId: null,
       declarants: [{ personId: SESSION_PERSON, rank: 1, grossSalaries: eur('52000.5'), netSalaries: null, deduction: null, perCeilingYear: null }],
+    });
+  });
+
+  it('Sends_the_detail_lines_under_the_notice_s_own_names', async () => {
+    const sent = serve(household);
+    const { user } = await renderApp('/tax/assessments/new');
+
+    await pick(user, 'Année des revenus', '2025');
+    await next(user);
+    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
+    await user.type(first.getByLabelText('Heures supplémentaires et jours RTT'), '1250');
+    await user.type(first.getByLabelText('RAS sur salaires et pensions'), '2700');
+    await user.type(first.getByLabelText('Avance de 60 % de réductions et crédits d’impôt'), '1250');
+    await next(user);
+    await user.type(screen.getByLabelText('Dividendes ouvrant droit à abattement'), '5');
+    await user.type(screen.getByLabelText('RCM déjà soumis aux prélèvements sociaux avec CSG déductible'), '5');
+    await next(user);
+    await user.type(screen.getByLabelText('Crédit d’impôt prélèvement forfaitaire déjà versé'), '1');
+    await user.type(screen.getByLabelText('Investissements locatifs Pinel'), '4000');
+    await user.type(screen.getByLabelText('Frais de garde des enfants de moins de 6 ans'), '1800');
+    await next(user);
+    await user.type(screen.getByLabelText('Déficit foncier imputable sur revenus fonciers'), '35');
+    await user.type(screen.getByLabelText('Déficit foncier imputable sur revenu global'), '3200');
+    await user.type(screen.getByLabelText('Déficits fonciers antérieurs non encore imputés'), '4300');
+    await submit(user);
+
+    await waitFor(() => expect(sent.post).toHaveLength(1));
+    expect(sent.post[0]).toMatchObject({
+      dividendsEligible: eur('5'), capitalIncomeAlreadyLevied: eur('5'), flatRatePrepaidCredit: eur('1'), pinelReduction: eur('4000'),
+      childcareExpenses: eur('1800'), rentalDeficitOnRentalIncome: eur('35'), rentalDeficitOnGlobalIncome: eur('3200'), rentalDeficitCarried: eur('4300'),
+      withholding: null,
+      declarants: [{ rank: 1, overtimeExempt: eur('1250'), withholding: eur('2700'), creditsAdvance: eur('1250') }],
     });
   });
 
@@ -223,7 +255,10 @@ describe('AssessmentForm', () => {
     await submit(user);
 
     await waitFor(() => expect(sent.put).toHaveLength(1));
-    expect(sent.put[0]).toMatchObject({ version: 1, year: 2025, netTax: null, scaleTax: eur('3200.00'), balance: eur('-312.00'), documentId: DOCUMENT });
+    expect(sent.put[0]).toMatchObject({
+      version: 1, year: 2025, netTax: null, scaleTax: eur('3200.00'), balance: eur('-312.00'), documentId: DOCUMENT, childcareExpenses: eur('1800.00'),
+      declarants: [{ rank: 1 }, { rank: 2, overtimeExempt: eur('1250.00'), withholding: eur('6100.00'), creditsAdvance: eur('1250.00') }],
+    });
     await waitFor(() => expect(router.state.location.pathname).toBe('/tax'));
   });
 

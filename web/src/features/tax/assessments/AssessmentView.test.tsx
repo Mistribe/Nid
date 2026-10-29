@@ -52,6 +52,17 @@ describe('AssessmentView', () => {
     expect(within(table).getByRole('row', { name: /Taux marginal/ })).toHaveTextContent('11 %');
   });
 
+  it('Shows_the_detail_lines_under_the_notice_s_own_names', async () => {
+    await show(jointAssessment());
+    const table = screen.getByRole('table');
+    expect(within(table).getByRole('row', { name: /^Salaires 52/ })).toHaveTextContent('52 000,00 €30 000,00 €');
+    expect(within(table).getByRole('row', { name: /Heures supplémentaires et jours RTT/ })).toHaveTextContent('—1 250,00 €');
+    expect(within(table).getByRole('row', { name: /RAS sur salaires et pensions/ })).toHaveTextContent('—6 100,00 €');
+    expect(within(table).getByRole('row', { name: /Avance de 60 %/ })).toHaveTextContent('—1 250,00 €');
+    expect(within(table).getByRole('row', { name: /Frais de garde des enfants de moins de 6 ans/ })).toHaveTextContent('1 800,00 €');
+    expect(within(table).getByRole('row', { name: /Retenue à la source prélevée/ })).toHaveTextContent('3 000,00 €');
+  });
+
   it('Shows_a_single_declarant_without_an_empty_column', async () => {
     await show(soloAssessment());
     const table = screen.getByRole('table');
