@@ -39,7 +39,7 @@ export function SourceChart({ months, changes }: { months: Months; changes: Inco
   const choose = (next: string) => {
     const chosen: IncomeDetailSearch['period'] = next === '3y' || next === 'all' ? next : undefined;
     void navigate({
-      from: '/income/$id', to: '/income/$id', params: { id }, replace: true,
+      from: '/income/$id', to: '/income/$id', params: { id }, replace: true, resetScroll: false,
       search: (prev: RootSearch & IncomeDetailSearch) => ({ ...prev, period: chosen }),
     });
   };

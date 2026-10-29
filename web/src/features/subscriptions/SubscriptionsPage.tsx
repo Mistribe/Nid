@@ -113,7 +113,7 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
     { enabled: bare && answer.data?.items.length === 0 });
 
   const setSearch = (change: SubscriptionsSearch) =>
-    void navigate({ to: '.', search: (prev) => ({ ...prev, ...change }), replace: true });
+    void navigate({ to: '.', search: (prev) => ({ ...prev, ...change }), replace: true, resetScroll: false });
   const toggle = (key: string) =>
     setSearch({ label: labelParam(active.includes(key) ? active.filter((k) => k !== key) : [...active, key]) });
 

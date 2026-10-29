@@ -74,7 +74,7 @@ function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) 
   const closed = search.closed === 1;
   const answer = useEnvelopes(scope, closed);
   const setClosed = (checked: boolean) =>
-    void navigate({ to: '/investments', search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, closed: checked ? (1 as const) : undefined }), replace: true });
+    void navigate({ to: '/investments', search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, closed: checked ? (1 as const) : undefined }), replace: true, resetScroll: false });
 
   // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (

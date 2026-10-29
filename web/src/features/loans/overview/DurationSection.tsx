@@ -42,7 +42,7 @@ export function DurationSection({ d }: { d: LoansOverview }) {
   const labelId = useId();
   const window: Window = search.span ?? 'all';
   const choose = (next: string) => void navigate({
-    to: '/loans', replace: true,
+    to: '/loans', replace: true, resetScroll: false,
     search: (prev: RootSearch & LoansSearch) => ({ ...prev, span: next === '5y' ? ('5y' as const) : next === '10y' ? ('10y' as const) : undefined }),
   });
   const today = todayIso();

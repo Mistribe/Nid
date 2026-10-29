@@ -109,7 +109,7 @@ function MonthsCard({ d, scope, property }: { d: PropertiesRental; scope: Scope;
   const one = $api.useQuery('get', PROPERTIES_RENTAL, { params: { query: { scope, property } } }, { enabled: !!property });
   const months = property ? one.data?.months : d.months;
   const choose = (next: string) =>
-    void navigate({ to: '/properties', replace: true, search: (prev: RootSearch & PropertiesSearch) => ({ ...prev, property: next || undefined }) });
+    void navigate({ to: '/properties', replace: true, resetScroll: false, search: (prev: RootSearch & PropertiesSearch) => ({ ...prev, property: next || undefined }) });
   const options = [{ value: '', label: t('properties_rental.all') }, ...d.properties.map((p) => ({ value: p.id, label: p.name }))];
   return (
     <SectionCard title={t('properties_rental.chart_title')} actions={

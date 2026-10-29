@@ -36,7 +36,7 @@ export function ValueChart({ d, span }: { d: InvestmentsOverview; span: Span }) 
   const [asTable, setAsTable] = useState(false);
   const choose = (next: string) => {
     const curve: InvestmentsSearch['curve'] = next === '3y' ? '3y' : next === 'all' ? 'all' : undefined;
-    void navigate({ to: '/investments', replace: true, search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, curve }) });
+    void navigate({ to: '/investments', replace: true, resetScroll: false, search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, curve }) });
   };
   const known = d.points.filter((p) => p.value).length;
   const label = (p: OverviewPoint, i: number) => {

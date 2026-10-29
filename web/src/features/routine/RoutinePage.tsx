@@ -56,7 +56,7 @@ export function RoutinePage() {
               if (!ISO_DATE.test(v) || v > today) { setTyped(v); return; }
               setTyped(null);
               setSaved(null); setRestored(null); setUndone(false);
-              void navigate({ to: '/routine', replace: true,
+              void navigate({ to: '/routine', replace: true, resetScroll: false,
                 search: (prev: RootSearch & RoutineSearch) => ({ ...prev, on: v === defaultRoutineDate(today) ? undefined : v }) });
             }} />
           )}

@@ -19,7 +19,7 @@ export function OverviewFilters() {
   const persons = $api.useQuery('get', PERSONS).data?.filter((p) => p.kind === 'adult') ?? [];
 
   const set = (patch: Partial<IncomeSearch>) =>
-    void navigate({ from: '/income', to: '/income', replace: true, search: (prev: RootSearch & IncomeSearch) => ({ ...prev, source: undefined, ...patch }) });
+    void navigate({ from: '/income', to: '/income', replace: true, resetScroll: false, search: (prev: RootSearch & IncomeSearch) => ({ ...prev, source: undefined, ...patch }) });
 
   const kinds = [...new Set([...(data?.kinds ?? []), ...(search.kind ? [search.kind] : [])])];
   const kindLabel = (k: string) => (k === 'rent' ? t('income.overview.kind_rent') : kindText(t, k));

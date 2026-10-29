@@ -43,7 +43,7 @@ export function HistoryTab({ source }: { source: IncomeSourceDetail }) {
   const labels = [...new Set(source.phases.map((p) => p.label))].sort((a, b) => a.localeCompare(b, 'fr'));
   const choose = (next: ExpectedPreset) =>
     void navigate({
-      from: '/income/$id', to: '/income/$id', params: { id: source.id }, replace: true,
+      from: '/income/$id', to: '/income/$id', params: { id: source.id }, replace: true, resetScroll: false,
       search: (prev: RootSearch & IncomeDetailSearch) => ({ ...prev, expected: next === 'last12' ? undefined : next }),
     });
   const { data, error } = answer;

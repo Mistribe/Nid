@@ -60,7 +60,7 @@ export function TaxPage() {
   const awaiting = list.isPending && Number(search.year) < FIRST_ESTIMATE_YEAR;
   const year = awaiting || years.some((y) => y.value === search.year) ? search.year! : defaultYear;
   const setYear = (next: string) => {
-    void navigate({ to: '.', replace: true, search: ((prev: Record<string, unknown>) => ({ ...prev, year: next === defaultYear ? undefined : next })) as never });
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, year: next === defaultYear ? undefined : next })) as never });
   };
   const past = Number(year) < FIRST_ESTIMATE_YEAR;
   const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past });

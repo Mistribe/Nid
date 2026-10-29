@@ -40,7 +40,7 @@ export function OneOffsSection({ source, writable }: { source: IncomeSourceDetai
   const listed = all ? everything.data?.oneOffs : source.oneOffs;
   const choose = (next: string) =>
     void navigate({
-      from: '/income/$id', to: '/income/$id', params: { id: source.id }, replace: true,
+      from: '/income/$id', to: '/income/$id', params: { id: source.id }, replace: true, resetScroll: false,
       search: (prev: RootSearch & IncomeDetailSearch) => ({ ...prev, oneOffs: next === 'all' ? ('all' as const) : undefined }),
     });
   const rows = [...(listed ?? [])].sort((a, b) => (a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0));

@@ -26,7 +26,7 @@ export function ProposalsPage() {
   const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
   const message = useAnnouncement();
   const setStatus = (s: string) =>
-    void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'approved' || s === 'rejected' ? s : undefined }), replace: true });
+    void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'approved' || s === 'rejected' ? s : undefined }), replace: true, resetScroll: false });
 
   const summary = (p: ProposalView) =>
     kindOf(p.kind)?.summary(t, p) ?? (isRouteKind(p.kind) ? routeSummary(t, p)

@@ -56,7 +56,7 @@ function Body({ data, error, scope, panel }: { data?: DashboardView; error: unkn
     );
   const open = (panel: Panel) => void navigate({ to: '/dashboard', search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel }) });
   // Closing drops `panel` without a history entry, so Back leaves the page rather than reopening it.
-  const close = () => void navigate({ to: '/dashboard', replace: true, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel: undefined }) });
+  const close = () => void navigate({ to: '/dashboard', replace: true, resetScroll: false, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, panel: undefined }) });
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div className="space-y-4 md:col-span-3">

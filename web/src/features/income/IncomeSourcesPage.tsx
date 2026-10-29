@@ -24,9 +24,9 @@ export function IncomeSourcesPage() {
   // An empty list without the ended sources asks once more with them, to tell « nothing yet » from « nothing running » (spec §10.4).
   const withEnded = useOverview({ ended: true, enabled: !ended && data?.sources.length === 0 });
   const setEnded = (checked: boolean) =>
-    void navigate({ from: '/income', to: '/income', search: (prev: RootSearch & IncomeSearch) => ({ ...prev, ended: checked ? (1 as const) : undefined }), replace: true });
+    void navigate({ from: '/income', to: '/income', search: (prev: RootSearch & IncomeSearch) => ({ ...prev, ended: checked ? (1 as const) : undefined }), replace: true, resetScroll: false });
   const select = (source?: string) =>
-    void navigate({ from: '/income', to: '/income', replace: true, search: (prev: RootSearch & IncomeSearch) => ({ ...prev, source }) });
+    void navigate({ from: '/income', to: '/income', replace: true, resetScroll: false, search: (prev: RootSearch & IncomeSearch) => ({ ...prev, source }) });
   const period = data?.period as '12m' | 'year' | '3y' | undefined;
   const filtered = Boolean(search.person || search.kind || search.source);
   // A brand-new household (no row, no share, no ended source) gets the invitation alone, without 0,00 € figures (spec §4).

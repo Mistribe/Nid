@@ -30,7 +30,7 @@ export function NetValueChart({ d, span }: { d: PropertiesOverview; span: Span }
   const [asTable, setAsTable] = useState(false);
   const choose = (next: string) => {
     const history: PropertiesSearch['history'] = next === '12m' ? '12m' : next === 'all' ? 'all' : undefined;
-    void navigate({ to: '/properties', replace: true, search: (prev: RootSearch & PropertiesSearch) => ({ ...prev, history }) });
+    void navigate({ to: '/properties', replace: true, resetScroll: false, search: (prev: RootSearch & PropertiesSearch) => ({ ...prev, history }) });
   };
   const drawn = d.points.filter((p) => p.netValue).length;
   const label = (p: PropertyPoint, i: number) => {

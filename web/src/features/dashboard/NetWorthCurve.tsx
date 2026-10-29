@@ -34,7 +34,7 @@ export function NetWorthCurve() {
   const answer = $api.useQuery('get', NET_WORTH, { params: { query: { scope, period } } });
   const choose = (next: string) => {
     const curve: DashboardSearch['curve'] = next === '3y' ? '3y' : next === 'all' ? 'all' : undefined;
-    void navigate({ to: '/dashboard', replace: true, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, curve }) });
+    void navigate({ to: '/dashboard', replace: true, resetScroll: false, search: (prev: RootSearch & DashboardSearch) => ({ ...prev, curve }) });
   };
   const data = answer.data;
   const known = data ? data.points.filter((p) => p.value).length : 0;

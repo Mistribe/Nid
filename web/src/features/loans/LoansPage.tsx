@@ -71,7 +71,7 @@ function ListTab({ scope }: { scope: 'me' | 'household' }) {
   // to tell « nothing yet » from « nothing running » (spec §5).
   const withEnded = useLoans(scope, true, !ended && answer.data?.items.length === 0);
   const setEnded = (checked: boolean) =>
-    void navigate({ to: '/loans', search: (prev: RootSearch & LoansSearch) => ({ ...prev, ended: checked ? (1 as const) : undefined }), replace: true });
+    void navigate({ to: '/loans', search: (prev: RootSearch & LoansSearch) => ({ ...prev, ended: checked ? (1 as const) : undefined }), replace: true, resetScroll: false });
 
   // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
   return (

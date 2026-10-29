@@ -46,7 +46,7 @@ export function CalendarTab({ scope }: { scope: 'household' | 'me' }) {
 
   const go = (by: number) => {
     const next = shiftMonth(month, by);
-    void navigate({ to: '.', replace: true, search: (prev) => ({ ...prev, month: next === current ? undefined : next }) });
+    void navigate({ to: '.', replace: true, resetScroll: false, search: (prev) => ({ ...prev, month: next === current ? undefined : next }) });
   };
 
   const header = (

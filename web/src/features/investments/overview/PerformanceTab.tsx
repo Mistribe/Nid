@@ -49,7 +49,7 @@ function usePeriod(scope: Scope) {
   const range = search.from && search.to ? { from: search.from, to: search.to } : ranges.ytd!;
   const preset: Preset = PRESETS.find((p) => ranges[p]?.from === range.from && ranges[p]?.to === range.to) ?? 'custom';
   const choose = (next: { from: string; to: string } | null) =>
-    void navigate({ to: '/investments', replace: true, search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, from: next?.from, to: next?.to }) });
+    void navigate({ to: '/investments', replace: true, resetScroll: false, search: (prev: RootSearch & InvestmentsSearch) => ({ ...prev, from: next?.from, to: next?.to }) });
   return { today, range, preset, ranges, choose };
 }
 
