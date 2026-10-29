@@ -303,9 +303,11 @@ describe('the shell', () => {
       server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ todo: [todoItem(), todoItem()] }))));
       localStorage.setItem('nid.sidebar', 'rail');
       const { user } = await renderApp('/subscriptions');
-      const routine = within(sidebar()).getByRole('link', { name: /Routine/ });
-      await waitFor(() => expect(routine).toHaveTextContent('2 à faire'));
-      await user.hover(routine);
+      // The tooltip loads lazily and replaces the bare link it falls back to: query the link again, once wrapped.
+      const routine = () => within(sidebar()).getByRole('link', { name: /Routine/ });
+      await waitFor(() => expect(routine()).toHaveTextContent('2 à faire'));
+      await waitFor(() => expect(routine()).toHaveAttribute('data-state'));
+      await user.hover(routine());
       expect(await screen.findByRole('tooltip')).toHaveTextContent('Routine2');
     });
 

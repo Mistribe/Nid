@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import '@/app/i18n';
 import { cleanup, configure } from '@testing-library/react';
-import { afterAll, afterEach, beforeAll } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { server } from './server';
 
 Object.defineProperty(window, 'matchMedia', {
@@ -53,7 +53,17 @@ afterEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   document.documentElement.className = '';
+  // Files share their worker's window (isolate: false): a Radix modal's scroll lock and focus guards, or Recharts'
+  // measuring span, would otherwise reach the next file's body.
+  document.body.innerHTML = '';
+  for (const name of document.body.getAttributeNames()) document.body.removeAttribute(name);
   server.resetHandlers();
 });
 
-afterAll(() => server.close());
+afterAll(() => {
+  server.close();
+  // The next file runs in the same worker (isolate: false): undo what this one stubbed, spied on or froze.
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});

@@ -20,6 +20,10 @@ export default defineConfig({
   build: { manifest: true },
   test: {
     environment: 'jsdom',
+    // One jsdom per worker rather than per file (it was a quarter of the run): files share a worker's window and modules,
+    // so src/test/setup.ts resets what a test leaves behind.
+    pool: 'threads',
+    isolate: false,
     setupFiles: ['./src/test/setup.ts'],
     // A form test typing through jsdom takes 1–3 s on an idle machine, a cold import of a lazy part (calendar, cmdk) more:
     // the 5 s and 10 s defaults timed out under load (two suites at once, CI runners).

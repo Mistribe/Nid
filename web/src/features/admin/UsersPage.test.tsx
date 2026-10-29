@@ -126,6 +126,7 @@ describe('Administration › Utilisateurs', () => {
     const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
     await user.click(within(aliceRow).getByRole('button', { name: 'Déconnecter partout' }));
 
-    expect(screen.getByText(/vous devrez vous reconnecter/)).toBeInTheDocument();
+    // The confirmation loads lazily: it may not be there yet when the click returns.
+    expect(await screen.findByText(/vous devrez vous reconnecter/)).toBeInTheDocument();
   });
 });

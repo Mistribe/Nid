@@ -171,7 +171,7 @@ describe('early repayments', () => {
 
     await rowAction(user, (await rows())[0]!, 'Supprimer');
 
-    expect(screen.getByText('Ce remboursement anticipé sera supprimé.')).toBeInTheDocument();
+    expect(await screen.findByText('Ce remboursement anticipé sera supprimé.')).toBeInTheDocument();
   });
 
   it('shows a refusal under the field it names', async () => {

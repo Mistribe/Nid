@@ -1,7 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import fr from '@/locales/fr.json';
 
 const root = join(__dirname);
 const locales = join(root, 'locales');
@@ -33,6 +32,8 @@ describe('module string bundles', () => {
   });
 
   it('do not reuse a key of the initial bundle or of another module', () => {
+    // Read from disk, not imported: i18next merges the loaded module bundles into the imported object.
+    const fr = JSON.parse(readFileSync(join(locales, 'fr.json'), 'utf8')) as object;
     const all = [...Object.keys(fr), ...bundles.flatMap(({ keys }) => keys)];
     expect(all.filter((key, i) => all.indexOf(key) !== i)).toEqual([]);
   });
