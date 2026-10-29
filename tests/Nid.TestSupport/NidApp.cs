@@ -130,6 +130,9 @@ public sealed class NidApp : IAsyncDisposable
                 builder.UseSetting("Jobs:Enabled", "false");
                 builder.UseSetting("Assets:Root", assetsRoot);
                 builder.UseSetting("Documents:Storage:Path", documentsRoot);
+                // The database is a copy of the template PostgresFixture migrated once: checking eight migration
+                // histories again cost every test about 0.2 s.
+                builder.UseSetting("Health:SkipMigrations", "true");
                 foreach (var (key, value) in settings ?? new Dictionary<string, string>())
                     builder.UseSetting(key, value);
                 // The golden-case fixtures (NewSpotifyGoldenCaseAsync) are dated around October 2025, matching

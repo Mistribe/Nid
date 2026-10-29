@@ -131,7 +131,8 @@ if (adminMode)
 }
 
 // EF Core takes a database lock while migrating, so several instances starting together are safe.
-// Health:SkipMigrations is for the readiness test only (HostingTests): it starts a host whose database is unreachable.
+// Health:SkipMigrations is for tests only: the readiness test (HostingTests) starts a host whose database is unreachable,
+// and NidApp runs on a copy of an already migrated template.
 if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigrations"))
 {
     await using var scope = app.Services.CreateAsyncScope();

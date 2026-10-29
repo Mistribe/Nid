@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Documents.Infrastructure.Persistence;
+using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Persistence;
@@ -33,7 +35,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     public async Task<CoreDbContext> NewDatabaseAsync() => NewCoreContext(await NewConnectionStringAsync());
 
     /// <summary>Creates a database with every module's migrations applied, and returns its connection string.</summary>
-    /// <remarks>A copy of a template migrated once for the process: six migrations per test cost more than the copy.</remarks>
+    /// <remarks>A copy of a template migrated once for the process: eight migrations per test cost more than the copy.</remarks>
     public async Task<string> NewConnectionStringAsync()
     {
         await Template.Value;
@@ -71,6 +73,10 @@ public sealed class PostgresFixture : IAsyncLifetime
             await realEstate.Database.MigrateAsync();
         await using (var platform = NewPlatformContext(connectionString))
             await platform.Database.MigrateAsync();
+        await using (var goals = NewGoalsContext(connectionString))
+            await goals.Database.MigrateAsync();
+        await using (var documents = NewDocumentsContext(connectionString))
+            await documents.Database.MigrateAsync();
     }
 
     private static async Task<string> NewDatabaseAsync(string? template)
@@ -112,6 +118,12 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static PlatformDbContext NewPlatformContext(string connectionString)
         => new(new DbContextOptionsBuilder<PlatformDbContext>().Configure(connectionString).Options);
+
+    public static GoalsDbContext NewGoalsContext(string connectionString)
+        => new(new DbContextOptionsBuilder<GoalsDbContext>().Configure(connectionString).Options);
+
+    public static DocumentsDbContext NewDocumentsContext(string connectionString)
+        => new(new DbContextOptionsBuilder<DocumentsDbContext>().Configure(connectionString).Options);
 
     public static IClock Clock { get; } = SystemClock.Instance;
 }

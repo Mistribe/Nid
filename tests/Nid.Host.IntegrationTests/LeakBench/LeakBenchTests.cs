@@ -182,87 +182,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.False(CarriesDocumentIds(typeof(Nid.Investments.Application.EnvelopeList), []));
     }
 
-    [Fact]
-    public async Task No_read_returns_an_item_outside_the_actors_visible_set()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        foreach (var actor in new[] { app.AdultA, app.AdultB })
-        foreach (var scope in Scopes)
-        {
-            var list = await app.GetAsync<SubscriptionApi.ListResponse>(actor, $"/api/v1/subscriptions?scope={scope}");
-            var allowed = data.ExpectedReadable(actor);
-
-            foreach (var item in list.Items)
-                Assert.True(allowed.Contains(new ItemId(item.Id)),
-                    $"{scope} as {data.NameOf(actor)} returned {data.NameOf(new ItemId(item.Id))}, which the rules hide");
-
-            // Equality, not containment: this also catches an item that wrongly disappears.
-            var expected = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household);
-            Assert.Equal(
-                expected.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                list.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
-
-            // The same, exactly, for the envelope twins (2B1a): the table expects of them what it expects of their rows.
-            var envelopes = await app.GetAsync<IdListResponse>(actor, $"/api/v1/investments/envelopes?scope={scope}");
-            var expectedEnvelopes = data.ExpectedVisible(
-                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Envelopes);
-            Assert.Equal(
-                expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                envelopes.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
-
-            // And for the income twins (2C1).
-            var sources = await app.GetAsync<IdListResponse>(actor, $"/api/v1/income/sources?scope={scope}");
-            var expectedSources = data.ExpectedVisible(
-                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.IncomeSources);
-            Assert.Equal(
-                expectedSources.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                sources.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
-
-            // And for the loan twins (3A2): none has ended, so the default list holds them all.
-            var loans = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/loans?scope={scope}");
-            var expectedLoans = data.ExpectedVisible(
-                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Loans);
-            Assert.Equal(
-                expectedLoans.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                loans.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
-
-            // And for the property twins (3C1).
-            var properties = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/properties?scope={scope}");
-            var expectedProperties = data.ExpectedVisible(
-                actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Properties);
-            Assert.Equal(
-                expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                properties.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
-
-            // And for the goal twins.
-            var goals = await app.GetAsync<IdListResponse>(actor, $"/api/v1/goals?scope={scope}");
-            var expectedGoals = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Goals);
-            Assert.Equal(
-                expectedGoals.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                goals.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
-
-            // And the dashboard (2D2a, 3E1): its split lists exactly the visible open envelopes, properties and loans (a private
-            // loan only in « me »), and every item named in « À venir » or « À faire » is one this actor may read.
-            var dashboard = System.Text.Json.JsonDocument.Parse(await app.GetRawAsync(actor, $"/api/v1/dashboard?scope={scope}")).RootElement;
-            Assert.Equal(
-                expectedEnvelopes.Concat(expectedProperties).Concat(expectedLoans).Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                dashboard.GetProperty("envelopeSplit").EnumerateArray()
-                    .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
-            foreach (var section in new[] { "upcoming", "todo" })
-            foreach (var entry in dashboard.GetProperty(section).EnumerateArray())
-                Assert.Contains(new ItemId(entry.GetProperty("id").GetGuid()), data.ExpectedReadable(actor));
-
-            // 3E1: each visible property twin's tax and tenancy end are in « À venir », and no other property's.
-            foreach (var kind in new[] { "property_cost_due", "tenancy_end" })
-                Assert.Equal(
-                    expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
-                    dashboard.GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == kind)
-                        .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
-        }
-    }
-
     /// <summary>The details of a shared row's twins, whose values and flows cite their owner's private document (#108).</summary>
     private static string[] StampedDetails(MixedDataset data, string shared)
         => [$"/api/v1/investments/envelopes/{data.Envelopes[shared].Value}", $"/api/v1/realestate/properties/{data.Properties[shared].Value}"];
@@ -271,137 +190,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     private sealed record IdListResponse(IReadOnlyList<IdListRow> Items);
 
     private sealed record IdListRow(Guid Id);
-
-    [Fact]
-    public async Task No_read_leaks_the_label_of_the_other_adults_private_item()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        foreach (var actor in new[] { app.AdultA, app.AdultB })
-        foreach (var url in new[]
-                 {
-                     "/api/v1/subscriptions?scope=household",
-                     "/api/v1/subscriptions?scope=me",
-                     "/api/v1/investments/envelopes?scope=household",
-                     "/api/v1/investments/envelopes?scope=me",
-                     "/api/v1/investments/routine",
-                     "/api/v1/income/sources?scope=household",
-                     "/api/v1/income/sources?scope=me",
-                     "/api/v1/realestate/loans?scope=household",
-                     "/api/v1/realestate/loans?scope=me",
-                     "/api/v1/realestate/properties?scope=household",
-                     "/api/v1/realestate/properties?scope=me",
-                     "/api/v1/realestate/routine",
-                     "/api/v1/dashboard?scope=household",
-                     "/api/v1/dashboard?scope=me",
-                     "/api/v1/dashboard/net-worth?scope=household&period=all",
-                     "/api/v1/dashboard/net-worth?scope=me&period=all",
-                     "/api/v1/projection?scope=household",
-                     "/api/v1/projection?scope=me",
-                     "/api/v1/core/persons",
-                     "/api/v1/goals?scope=household",
-                     "/api/v1/goals?scope=me",
-                     "/api/v1/documents?scope=household",
-                     "/api/v1/documents?scope=me&archived=true",
-                     "/api/v1/documents?inbox=true",
-                 }.Concat(data.PrivatePhases.Values.Select(p => $"/api/v1/documents?targetKind=income.phase&targetId={p}"))
-                     .Concat(data.PrivateOneOffs.Values.Select(o => $"/api/v1/documents?targetKind=income.one_off&targetId={o}"))
-                     .Concat(data.PrivatePhases.Keys.Select(n => $"/api/v1/documents?anchor={data.IncomeSources[n].Value}")).Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
-                     .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" }))
-                     .Concat(StampedDetails(data, "S-A")).Concat(StampedDetails(data, "S-B")))
-        {
-            var body = await app.GetRawAsync(actor, url);
-            Assert.DoesNotContain(data.ForbiddenLabel(actor), body, StringComparison.Ordinal);
-            Assert.DoesNotContain(data.ForbiddenDocument(actor).ToString(), body, StringComparison.Ordinal);
-        }
-
-        // Positive control: each adult reads her own private document's id on her stamped shared twins, so the scan above reads a cited source.
-        foreach (var (shared, owner, other) in new[] { ("S-A", app.AdultA, app.AdultB), ("S-B", app.AdultB, app.AdultA) })
-        foreach (var url in StampedDetails(data, shared))
-            Assert.Contains(data.ForbiddenDocument(other).ToString(), await app.GetRawAsync(owner, url), StringComparison.Ordinal);
-
-        // Positive control: each owner's by-target read finds her phase's document, so the scan above reads a filled list.
-        foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
-            Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.phase&targetId={data.PrivatePhases[hidden]}"),
-                StringComparison.Ordinal);
-        foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
-            Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.one_off&targetId={data.PrivateOneOffs[hidden]}"),
-                StringComparison.Ordinal);
-        foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
-            Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?anchor={data.IncomeSources[hidden].Value}"), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Every_item_scoped_request_matches_what_the_rules_say()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        foreach (var (name, item) in data.Items)
-        foreach (var actor in new[] { app.AdultA, app.AdultB })
-        {
-            var readable = data.ExpectedReadable(actor).Contains(item);
-            var response = await app.RawAsync(actor, HttpMethod.Get, $"/api/v1/subscriptions/{item.Value}");
-
-            Assert.True(readable == (response.StatusCode == HttpStatusCode.OK),
-                $"{name} read by {data.NameOf(actor)}: expected readable={readable}, got {response.StatusCode}");
-
-            if (!readable)
-                Assert.Equal(HttpStatusCode.NotFound, response.StatusCode); // existence is never disclosed
-        }
-    }
-
-    /// <summary>
-    /// access-tests.md §3.3: every item-scoped request, run on every item of the dataset by every actor,
-    /// through the real pipeline. The expected outcome is read off the table of §2, never computed by the
-    /// code under test.
-    /// </summary>
-    [Fact]
-    public async Task Every_catalogued_item_scoped_request_is_refused_exactly_as_the_rules_say()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        foreach (var entry in RequestCatalogue.Entries.Where(e => e.IsItemScoped))
-        foreach (var (name, item) in data.ItemsFor(entry.RequestType))
-        foreach (var actor in new[] { app.AdultA, app.AdultB })
-        {
-            var request = entry.Build(data, item);
-            var access = request switch
-            {
-                IItemScoped scoped => scoped.Access,
-                IOptionalItemScoped { ItemId: not null } optional => optional.Access,
-                _ => throw new Xunit.Sdk.XunitException($"{entry.RequestType.Name} is catalogued item-scoped but carries no item."),
-            };
-            var where = $"{entry.RequestType.Name} on {name} by {data.NameOf(actor)}";
-
-            var (_, failure) = await app.InvokeAsync(actor, request);
-
-            if (!data.ExpectedReadable(actor).Contains(item))
-            {
-                Assert.True(failure is NotFoundFailure { Resource: "item" },
-                    $"{where}: the rules hide this item, so it must be 'not found' — existence is never "
-                    + $"disclosed — but the pipeline answered {Describe(failure)}");
-                continue;
-            }
-
-            if (access == AccessKind.Write && !data.ExpectedWritable(name, actor))
-            {
-                Assert.True(failure is UnauthorizedFailure,
-                    $"{where}: the rules let this actor read but not write, so it must be forbidden, "
-                    + $"but the pipeline answered {Describe(failure)}");
-                continue;
-            }
-
-            // Allowed. The request may still fail on its own merits — the bench invents phase and purchase
-            // ids — but it must never be turned away by the access rules.
-            Assert.False(failure is UnauthorizedFailure,
-                $"{where}: refused although the rules allow it — {Describe(failure)}");
-            Assert.False(failure is NotFoundFailure { Resource: "item" },
-                $"{where}: hidden although the rules allow it — {Describe(failure)}");
-        }
-    }
 
     /// <summary>
     /// The bench's second axis, and the reason it exists: <see cref="RequestCatalogue.Entries"/> builds each
@@ -434,69 +222,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             "These item-scoped requests can name a second item in their payload but have no "
             + "BuildNamingAnother entry, so nothing checks the actor against that second item:\n  "
             + string.Join("\n  ", missing));
-    }
-
-    /// <summary>
-    /// Each second-axis request, aimed at every item of the dataset while naming every other one, as A and
-    /// as B. A write reaching two items needs the right to write both: the target's refusal is the usual one
-    /// (§6: hidden is not found, readable-but-not-writable is forbidden), while a second item the actor may
-    /// not write is always <em>not found</em> — it was never disclosed to them in the first place.
-    /// </summary>
-    [Fact]
-    public async Task No_request_touches_a_second_item_the_actor_may_not_write()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildNamingAnother is not null))
-        foreach (var (targetName, target) in data.ItemsFor(entry.RequestType))
-        foreach (var (otherName, other) in data.ItemsFor(entry.RequestType))
-        {
-            if (target == other)
-                continue;
-
-            foreach (var actor in new[] { app.AdultA, app.AdultB })
-            {
-                var request = await entry.BuildNamingAnother!(data, target, other);
-                var where = $"{entry.RequestType.Name} on {targetName} naming {otherName} by {data.NameOf(actor)}";
-
-                var (_, failure) = await app.InvokeAsync(actor, request);
-
-                if (!data.ExpectedReadable(actor).Contains(target))
-                {
-                    Assert.True(failure is NotFoundFailure { Resource: "item" },
-                        $"{where}: the rules hide the target, so it must be 'not found' — but the pipeline "
-                        + $"answered {Describe(failure)}");
-                    continue;
-                }
-
-                if (!data.ExpectedWritable(targetName, actor))
-                {
-                    Assert.True(failure is UnauthorizedFailure,
-                        $"{where}: the rules let this actor read but not write the target, so it must be "
-                        + $"forbidden, but the pipeline answered {Describe(failure)}");
-                    continue;
-                }
-
-                // A link needs only the second item's read access (spec 3C1 §3); every other second item, its write access.
-                if (entry.SecondItemAccess == AccessKind.Read
-                        ? !data.ExpectedReadable(actor).Contains(other)
-                        : !data.ExpectedWritable(otherName, actor))
-                {
-                    // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
-                    // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
-                    // exist at all, so the ruling here is indistinguishability, checked against that case.
-                    var missing = await entry.BuildNamingAnother!(data, target, new ItemId(Guid.NewGuid()));
-                    var (_, missingFailure) = await app.InvokeAsync(actor, missing);
-                    Assert.Equal(Signature(missingFailure), Signature(failure));
-                    continue;
-                }
-
-                // The rules never turn this away: it must succeed.
-                Assert.True(failure is null,
-                    $"{where}: the rules let this actor write both items, yet it was refused — {Describe(failure)}");
-            }
-        }
     }
 
     /// <summary>
@@ -585,143 +310,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Contains(notice.ToString(), own, StringComparison.Ordinal);
         Assert.Contains("987654", await Call(mcpB, "list_tax_years"), StringComparison.Ordinal);
         Assert.Contains(document.ToString(), await app.GetRawAsync(app.AdultB, "/api/v1/documents?scope=me"), StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// access-tests.md §3.2: every read of the catalogue, run as A and as B. No item outside the actor's
-    /// set of §2 may appear in what the handler returns.
-    /// </summary>
-    [Fact]
-    public async Task No_catalogued_read_returns_an_item_or_a_label_the_actor_may_not_see()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        // Every serialised read, per actor: what the textual scan below looks through.
-        var bodies = new Dictionary<PersonId, List<string>>
-        {
-            [app.AdultA] = [],
-            [app.AdultB] = [],
-        };
-        var envelopeBodies = new Dictionary<PersonId, List<string>>
-        {
-            [app.AdultA] = [],
-            [app.AdultB] = [],
-        };
-        var incomeBodies = new Dictionary<PersonId, List<string>>
-        {
-            [app.AdultA] = [],
-            [app.AdultB] = [],
-        };
-        var loanBodies = new Dictionary<PersonId, List<string>>
-        {
-            [app.AdultA] = [],
-            [app.AdultB] = [],
-        };
-        var propertyBodies = new Dictionary<PersonId, List<string>>
-        {
-            [app.AdultA] = [],
-            [app.AdultB] = [],
-        };
-        var documentBodies = new Dictionary<PersonId, List<string>>
-        {
-            [app.AdultA] = [],
-            [app.AdultB] = [],
-        };
-
-        foreach (var entry in RequestCatalogue.Entries)
-        {
-            // The catalogue is the contract a new request's author fills in: check it builds what it claims
-            // before anything downstream relies on it.
-            var rows = data.ItemsFor(entry.RequestType);
-            var sample = entry.Build(data, rows["S-A"]);
-            Assert.IsType(entry.RequestType, sample);
-
-            if (typeof(ICommandMarker).IsAssignableFrom(entry.RequestType))
-                continue;
-
-            List<ItemId> targets = entry.IsItemScoped || entry.OnEveryRow ? [.. rows.Values] : [rows["S-A"]];
-
-            foreach (var actor in new[] { app.AdultA, app.AdultB })
-            foreach (var target in targets)
-            {
-                var (response, failure) = await app.InvokeAsync(actor, entry.Build(data, target));
-
-                // A row's document is read by its uploader and by whoever reads the row; anyone else meets « not found ».
-                if (entry.OnEveryRow)
-                    Assert.True(
-                        data.ExpectedReadable(actor).Contains(target) || data.UploaderOf(target) == actor ? failure is null : failure is NotFoundFailure,
-                        $"{entry.RequestType.Name} on {data.NameOf(target)}'s document as {data.NameOf(actor)}: got {Describe(failure)}");
-
-                if (response is null)
-                    continue;
-
-                // Identifiers: nothing outside the actor's set of §2.
-                if (response is IExposesItems exposing)
-                {
-                    var allowed = data.ExpectedReadable(actor);
-                    foreach (var exposed in exposing.ExposedItems())
-                        Assert.True(allowed.Contains(exposed),
-                            $"{entry.RequestType.Name} as {data.NameOf(actor)} exposed {data.NameOf(exposed)}, "
-                            + "which the rules hide");
-                }
-
-                // #108: the document mask casts what the response masks into back to the response's type.
-                if (response is IExposesDocuments documents)
-                    Assert.IsType(response.GetType(), documents.WithReadableDocuments(new HashSet<Guid>()));
-
-                // Document ids carry no label for the textual scan: each must be one the actor reads, by its uploader or its row.
-                if (entry.RequestType == typeof(Nid.Documents.Application.FilterReadableDocumentsQuery))
-                    foreach (var (row, document) in data.Documents.Concat(data.UnlinkDocuments))
-                        Assert.True(((IReadOnlySet<Guid>)response).Contains(document) == (data.ExpectedReadable(actor).Contains(row) || data.UploaderOf(row) == actor),
-                            $"FilterReadableDocumentsQuery as {data.NameOf(actor)} on {data.NameOf(row)}'s document");
-
-                // A download holds a stream, which does not serialise: its bytes are checked, and what it names is scanned.
-                if (response is Nid.Documents.Application.DocumentContent content)
-                    await using (content.Content)
-                    {
-                        using var bytes = new MemoryStream();
-                        await content.Content.CopyToAsync(bytes);
-                        Assert.Equal("application/pdf", content.MediaType);
-                        Assert.Equal(DocumentApi.Pdf.Length, bytes.Length);
-                        response = new { content.MediaType, content.FileName, bytes.Length };
-                    }
-
-                // Text: not just the ids. A finding message or a catalogue join naming another item would
-                // carry a label the identifier check cannot see. Every read gets this for free.
-                var serialised = JsonSerializer.Serialize(response, ResponseJson);
-                bodies[actor].Add(serialised);
-                if (entry.RequestType.Assembly == typeof(Nid.Documents.Application.ListDocumentsQuery).Assembly)
-                    documentBodies[actor].Add(serialised);
-                if (rows == data.Envelopes)
-                    envelopeBodies[actor].Add(serialised);
-                if (rows == data.IncomeSources)
-                    incomeBodies[actor].Add(serialised);
-                if (rows == data.Loans)
-                    loanBodies[actor].Add(serialised);
-                if (rows == data.Properties)
-                    propertyBodies[actor].Add(serialised);
-
-                Assert.DoesNotContain(data.ForbiddenLabel(actor), serialised, StringComparison.Ordinal);
-                Assert.DoesNotContain(data.ForbiddenDocument(actor).ToString(), serialised, StringComparison.Ordinal);
-            }
-        }
-
-        // Positive control: without it, a rename or a [JsonIgnore] would empty the scan above and nothing
-        // would fail. "shared-a" is a label BOTH adults are entitled to read.
-        // The envelope and income reads get their own: the subscriptions' bodies alone would satisfy the one above.
-        foreach (var actor in new[] { app.AdultA, app.AdultB })
-        {
-            Assert.Contains(bodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
-            Assert.Contains(envelopeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
-            Assert.Contains(incomeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
-            Assert.Contains(loanBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
-            Assert.Contains(propertyBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
-            Assert.Contains(documentBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
-            // 3C2: a tenancy labelled and a recurring cost noted with the row's label reach the property reads, so the scan above looks through them.
-            Assert.Contains(propertyBodies[actor], body => body.Contains("\"label\":\"shared-a\"", StringComparison.Ordinal)
-                && body.Contains("\"note\":\"shared-a\",\"monthlyEquivalent\"", StringComparison.Ordinal));
-        }
     }
 
     /// <summary>
@@ -846,23 +434,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         foreach (var actor in new[] { app.AdultA, app.AdultB })
             Assert.All(JsonDocument.Parse(await app.GetRawAsync(actor, "/api/v1/realestate/routine")).RootElement.GetProperty("estimates").EnumerateArray(),
                 e => Assert.Equal("2025-03-31", e.GetProperty("lastAsOf").GetString()));
-    }
-
-    [Fact]
-    public async Task A_write_on_an_item_the_actor_may_only_read_is_forbidden_not_silently_applied()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        // S-A is shared: B may read it, and per AccessRules only its owners write it.
-        var response = await app.RawAsync(app.AdultB, HttpMethod.Patch,
-            $"/api/v1/subscriptions/{data["S-A"].Value}", new { autoRenew = false });
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-
-        // Refused, and nothing was written on the way out: the value B tried to set is still what A left.
-        var detail = await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{data["S-A"].Value}");
-        Assert.Contains("\"autoRenew\":true", detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1003,49 +574,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.True(missing.Count == 0,
             "These requests carry a ProviderKey but have no BuildLinkingProvider entry, so nothing checks that a "
             + "provider only a hidden item uses cannot be linked:\n  " + string.Join("\n  ", missing));
-    }
-
-    /// <summary>
-    /// The provider axis: every write that links a provider, as A and as B, naming a provider only <c>other</c> uses.
-    /// The target's own refusal comes first, as on the item axes; then the link succeeds exactly when the actor may
-    /// read <c>other</c>, and is otherwise the same <c>subscriptions.unknown_provider</c> as a key that does not exist.
-    /// </summary>
-    [Fact]
-    public async Task No_write_links_a_provider_only_a_hidden_item_makes_visible()
-    {
-        var data = await MixedDataset.CreateAsync(fixture);
-        await using var app = data.App;
-
-        foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildLinkingProvider is not null))
-        {
-            List<(string Name, ItemId Id)> targets = entry.IsItemScoped ? [.. data.Items.Select(i => (i.Key, i.Value))] : [("new", default)];
-            foreach (var (targetName, target) in targets)
-            foreach (var (otherName, other) in data.Items)
-            foreach (var actor in new[] { app.AdultA, app.AdultB })
-            {
-                var key = await app.SeedCustomProviderUsedByAsync(other); // fresh each time: nothing else makes it visible
-                var where = $"{entry.RequestType.Name} on {targetName} linking {otherName}'s provider by {data.NameOf(actor)}";
-
-                var (_, failure) = await app.InvokeAsync(actor, entry.BuildLinkingProvider!(data, actor, target, key));
-
-                if (entry.IsItemScoped && !data.ExpectedReadable(actor).Contains(target))
-                {
-                    Assert.True(failure is NotFoundFailure { Resource: "item" }, $"{where}: expected 'not found', got {Describe(failure)}");
-                    continue;
-                }
-                if (entry.IsItemScoped && !data.ExpectedWritable(targetName, actor))
-                {
-                    Assert.True(failure is UnauthorizedFailure, $"{where}: expected forbidden, got {Describe(failure)}");
-                    continue;
-                }
-
-                if (data.ExpectedReadable(actor).Contains(other))
-                    Assert.True(failure is null, $"{where}: the actor can see {otherName}, yet the link was refused — {Describe(failure)}");
-                else
-                    Assert.True(failure?.Code == CatalogCodes.UnknownProvider,
-                        $"{where}: only a hidden item uses this provider, so it must be unknown — got {Describe(failure)}");
-            }
-        }
     }
 
     private static string Describe(Failure? failure)
@@ -1234,5 +762,491 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         denied = await AuditApi.EventsAsync(app, SecurityEventNames.AccessDenied);
         foreach (var target in new[] { data.Envelopes["P-B"], data.IncomeSources["P-B"], data["P-B"], data.Loans["P-B"] })
             Assert.Contains(denied, e => e.PersonId == app.AdultA.Value && e.ItemIds.Contains(target.Value) && e.Data.Contains("\"read\""));
+    }
+
+    // The slowest walks, split into nested test classes that run alongside this one: xunit runs the tests of one
+    // class one after another, and this class alone was the tail of the run.
+    /// <summary>What a read answers each actor.</summary>
+    public class Reads(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+    {
+        [Fact]
+        public async Task No_read_leaks_the_label_of_the_other_adults_private_item()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            foreach (var url in new[]
+                     {
+                         "/api/v1/subscriptions?scope=household",
+                         "/api/v1/subscriptions?scope=me",
+                         "/api/v1/investments/envelopes?scope=household",
+                         "/api/v1/investments/envelopes?scope=me",
+                         "/api/v1/investments/routine",
+                         "/api/v1/income/sources?scope=household",
+                         "/api/v1/income/sources?scope=me",
+                         "/api/v1/realestate/loans?scope=household",
+                         "/api/v1/realestate/loans?scope=me",
+                         "/api/v1/realestate/properties?scope=household",
+                         "/api/v1/realestate/properties?scope=me",
+                         "/api/v1/realestate/routine",
+                         "/api/v1/dashboard?scope=household",
+                         "/api/v1/dashboard?scope=me",
+                         "/api/v1/dashboard/net-worth?scope=household&period=all",
+                         "/api/v1/dashboard/net-worth?scope=me&period=all",
+                         "/api/v1/projection?scope=household",
+                         "/api/v1/projection?scope=me",
+                         "/api/v1/core/persons",
+                         "/api/v1/goals?scope=household",
+                         "/api/v1/goals?scope=me",
+                         "/api/v1/documents?scope=household",
+                         "/api/v1/documents?scope=me&archived=true",
+                         "/api/v1/documents?inbox=true",
+                     }.Concat(data.PrivatePhases.Values.Select(p => $"/api/v1/documents?targetKind=income.phase&targetId={p}"))
+                         .Concat(data.PrivateOneOffs.Values.Select(o => $"/api/v1/documents?targetKind=income.one_off&targetId={o}"))
+                         .Concat(data.PrivatePhases.Keys.Select(n => $"/api/v1/documents?anchor={data.IncomeSources[n].Value}")).Concat(data.Goals.Values.Where(g => data.ExpectedReadable(actor).Contains(g))
+                         .SelectMany(g => new[] { $"/api/v1/goals/{g.Value}?scope=household", $"/api/v1/goals/{g.Value}?scope=me" }))
+                         .Concat(StampedDetails(data, "S-A")).Concat(StampedDetails(data, "S-B")))
+            {
+                var body = await app.GetRawAsync(actor, url);
+                Assert.DoesNotContain(data.ForbiddenLabel(actor), body, StringComparison.Ordinal);
+                Assert.DoesNotContain(data.ForbiddenDocument(actor).ToString(), body, StringComparison.Ordinal);
+            }
+
+            // Positive control: each adult reads her own private document's id on her stamped shared twins, so the scan above reads a cited source.
+            foreach (var (shared, owner, other) in new[] { ("S-A", app.AdultA, app.AdultB), ("S-B", app.AdultB, app.AdultA) })
+            foreach (var url in StampedDetails(data, shared))
+                Assert.Contains(data.ForbiddenDocument(other).ToString(), await app.GetRawAsync(owner, url), StringComparison.Ordinal);
+
+            // Positive control: each owner's by-target read finds her phase's document, so the scan above reads a filled list.
+            foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
+                Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.phase&targetId={data.PrivatePhases[hidden]}"),
+                    StringComparison.Ordinal);
+            foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
+                Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?targetKind=income.one_off&targetId={data.PrivateOneOffs[hidden]}"),
+                    StringComparison.Ordinal);
+            foreach (var (hidden, owner, label) in new[] { ("P-A", app.AdultA, MixedDataset.PrivateLabelA), ("P-B", app.AdultB, MixedDataset.PrivateLabelB) })
+                Assert.Contains(label, await app.GetRawAsync(owner, $"/api/v1/documents?anchor={data.IncomeSources[hidden].Value}"), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public async Task No_read_returns_an_item_outside_the_actors_visible_set()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            foreach (var scope in Scopes)
+            {
+                var list = await app.GetAsync<SubscriptionApi.ListResponse>(actor, $"/api/v1/subscriptions?scope={scope}");
+                var allowed = data.ExpectedReadable(actor);
+
+                foreach (var item in list.Items)
+                    Assert.True(allowed.Contains(new ItemId(item.Id)),
+                        $"{scope} as {data.NameOf(actor)} returned {data.NameOf(new ItemId(item.Id))}, which the rules hide");
+
+                // Equality, not containment: this also catches an item that wrongly disappears.
+                var expected = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household);
+                Assert.Equal(
+                    expected.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    list.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+                // The same, exactly, for the envelope twins (2B1a): the table expects of them what it expects of their rows.
+                var envelopes = await app.GetAsync<IdListResponse>(actor, $"/api/v1/investments/envelopes?scope={scope}");
+                var expectedEnvelopes = data.ExpectedVisible(
+                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Envelopes);
+                Assert.Equal(
+                    expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    envelopes.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+                // And for the income twins (2C1).
+                var sources = await app.GetAsync<IdListResponse>(actor, $"/api/v1/income/sources?scope={scope}");
+                var expectedSources = data.ExpectedVisible(
+                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.IncomeSources);
+                Assert.Equal(
+                    expectedSources.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    sources.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+                // And for the loan twins (3A2): none has ended, so the default list holds them all.
+                var loans = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/loans?scope={scope}");
+                var expectedLoans = data.ExpectedVisible(
+                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Loans);
+                Assert.Equal(
+                    expectedLoans.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    loans.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+                // And for the property twins (3C1).
+                var properties = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/properties?scope={scope}");
+                var expectedProperties = data.ExpectedVisible(
+                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Properties);
+                Assert.Equal(
+                    expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    properties.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+                // And for the goal twins.
+                var goals = await app.GetAsync<IdListResponse>(actor, $"/api/v1/goals?scope={scope}");
+                var expectedGoals = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Goals);
+                Assert.Equal(
+                    expectedGoals.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    goals.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
+
+                // And the dashboard (2D2a, 3E1): its split lists exactly the visible open envelopes, properties and loans (a private
+                // loan only in « me »), and every item named in « À venir » or « À faire » is one this actor may read.
+                var dashboard = System.Text.Json.JsonDocument.Parse(await app.GetRawAsync(actor, $"/api/v1/dashboard?scope={scope}")).RootElement;
+                Assert.Equal(
+                    expectedEnvelopes.Concat(expectedProperties).Concat(expectedLoans).Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                    dashboard.GetProperty("envelopeSplit").EnumerateArray()
+                        .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
+                foreach (var section in new[] { "upcoming", "todo" })
+                foreach (var entry in dashboard.GetProperty(section).EnumerateArray())
+                    Assert.Contains(new ItemId(entry.GetProperty("id").GetGuid()), data.ExpectedReadable(actor));
+
+                // 3E1: each visible property twin's tax and tenancy end are in « À venir », and no other property's.
+                foreach (var kind in new[] { "property_cost_due", "tenancy_end" })
+                    Assert.Equal(
+                        expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
+                        dashboard.GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == kind)
+                            .Select(e => data.NameOf(new ItemId(e.GetProperty("id").GetGuid()))).OrderBy(n => n, StringComparer.Ordinal));
+            }
+        }
+    }
+
+    /// <summary>Every catalogued request, run as each adult against the rules.</summary>
+    public class Catalogue(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+    {
+        /// <summary>
+        /// access-tests.md §3.2: every read of the catalogue, run as A and as B. No item outside the actor's
+        /// set of §2 may appear in what the handler returns.
+        /// </summary>
+        [Fact]
+        public async Task No_catalogued_read_returns_an_item_or_a_label_the_actor_may_not_see()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            // Every serialised read, per actor: what the textual scan below looks through.
+            var bodies = new Dictionary<PersonId, List<string>>
+            {
+                [app.AdultA] = [],
+                [app.AdultB] = [],
+            };
+            var envelopeBodies = new Dictionary<PersonId, List<string>>
+            {
+                [app.AdultA] = [],
+                [app.AdultB] = [],
+            };
+            var incomeBodies = new Dictionary<PersonId, List<string>>
+            {
+                [app.AdultA] = [],
+                [app.AdultB] = [],
+            };
+            var loanBodies = new Dictionary<PersonId, List<string>>
+            {
+                [app.AdultA] = [],
+                [app.AdultB] = [],
+            };
+            var propertyBodies = new Dictionary<PersonId, List<string>>
+            {
+                [app.AdultA] = [],
+                [app.AdultB] = [],
+            };
+            var documentBodies = new Dictionary<PersonId, List<string>>
+            {
+                [app.AdultA] = [],
+                [app.AdultB] = [],
+            };
+
+            foreach (var entry in RequestCatalogue.Entries)
+            {
+                // The catalogue is the contract a new request's author fills in: check it builds what it claims
+                // before anything downstream relies on it.
+                var rows = data.ItemsFor(entry.RequestType);
+                var sample = entry.Build(data, rows["S-A"]);
+                Assert.IsType(entry.RequestType, sample);
+
+                if (typeof(ICommandMarker).IsAssignableFrom(entry.RequestType))
+                    continue;
+
+                List<ItemId> targets = entry.IsItemScoped || entry.OnEveryRow ? [.. rows.Values] : [rows["S-A"]];
+
+                foreach (var actor in new[] { app.AdultA, app.AdultB })
+                foreach (var target in targets)
+                {
+                    var (response, failure) = await app.InvokeAsync(actor, entry.Build(data, target));
+
+                    // A row's document is read by its uploader and by whoever reads the row; anyone else meets « not found ».
+                    if (entry.OnEveryRow)
+                        Assert.True(
+                            data.ExpectedReadable(actor).Contains(target) || data.UploaderOf(target) == actor ? failure is null : failure is NotFoundFailure,
+                            $"{entry.RequestType.Name} on {data.NameOf(target)}'s document as {data.NameOf(actor)}: got {Describe(failure)}");
+
+                    if (response is null)
+                        continue;
+
+                    // Identifiers: nothing outside the actor's set of §2.
+                    if (response is IExposesItems exposing)
+                    {
+                        var allowed = data.ExpectedReadable(actor);
+                        foreach (var exposed in exposing.ExposedItems())
+                            Assert.True(allowed.Contains(exposed),
+                                $"{entry.RequestType.Name} as {data.NameOf(actor)} exposed {data.NameOf(exposed)}, "
+                                + "which the rules hide");
+                    }
+
+                    // #108: the document mask casts what the response masks into back to the response's type.
+                    if (response is IExposesDocuments documents)
+                        Assert.IsType(response.GetType(), documents.WithReadableDocuments(new HashSet<Guid>()));
+
+                    // Document ids carry no label for the textual scan: each must be one the actor reads, by its uploader or its row.
+                    if (entry.RequestType == typeof(Nid.Documents.Application.FilterReadableDocumentsQuery))
+                        foreach (var (row, document) in data.Documents.Concat(data.UnlinkDocuments))
+                            Assert.True(((IReadOnlySet<Guid>)response).Contains(document) == (data.ExpectedReadable(actor).Contains(row) || data.UploaderOf(row) == actor),
+                                $"FilterReadableDocumentsQuery as {data.NameOf(actor)} on {data.NameOf(row)}'s document");
+
+                    // A download holds a stream, which does not serialise: its bytes are checked, and what it names is scanned.
+                    if (response is Nid.Documents.Application.DocumentContent content)
+                        await using (content.Content)
+                        {
+                            using var bytes = new MemoryStream();
+                            await content.Content.CopyToAsync(bytes);
+                            Assert.Equal("application/pdf", content.MediaType);
+                            Assert.Equal(DocumentApi.Pdf.Length, bytes.Length);
+                            response = new { content.MediaType, content.FileName, bytes.Length };
+                        }
+
+                    // Text: not just the ids. A finding message or a catalogue join naming another item would
+                    // carry a label the identifier check cannot see. Every read gets this for free.
+                    var serialised = JsonSerializer.Serialize(response, ResponseJson);
+                    bodies[actor].Add(serialised);
+                    if (entry.RequestType.Assembly == typeof(Nid.Documents.Application.ListDocumentsQuery).Assembly)
+                        documentBodies[actor].Add(serialised);
+                    if (rows == data.Envelopes)
+                        envelopeBodies[actor].Add(serialised);
+                    if (rows == data.IncomeSources)
+                        incomeBodies[actor].Add(serialised);
+                    if (rows == data.Loans)
+                        loanBodies[actor].Add(serialised);
+                    if (rows == data.Properties)
+                        propertyBodies[actor].Add(serialised);
+
+                    Assert.DoesNotContain(data.ForbiddenLabel(actor), serialised, StringComparison.Ordinal);
+                    Assert.DoesNotContain(data.ForbiddenDocument(actor).ToString(), serialised, StringComparison.Ordinal);
+                }
+            }
+
+            // Positive control: without it, a rename or a [JsonIgnore] would empty the scan above and nothing
+            // would fail. "shared-a" is a label BOTH adults are entitled to read.
+            // The envelope and income reads get their own: the subscriptions' bodies alone would satisfy the one above.
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                Assert.Contains(bodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+                Assert.Contains(envelopeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+                Assert.Contains(incomeBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+                Assert.Contains(loanBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+                Assert.Contains(propertyBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+                Assert.Contains(documentBodies[actor], body => body.Contains("shared-a", StringComparison.Ordinal));
+                // 3C2: a tenancy labelled and a recurring cost noted with the row's label reach the property reads, so the scan above looks through them.
+                Assert.Contains(propertyBodies[actor], body => body.Contains("\"label\":\"shared-a\"", StringComparison.Ordinal)
+                    && body.Contains("\"note\":\"shared-a\",\"monthlyEquivalent\"", StringComparison.Ordinal));
+            }
+        }
+
+        /// <summary>
+        /// access-tests.md §3.3: every item-scoped request, run on every item of the dataset by every actor,
+        /// through the real pipeline. The expected outcome is read off the table of §2, never computed by the
+        /// code under test.
+        /// </summary>
+        [Fact]
+        public async Task Every_catalogued_item_scoped_request_is_refused_exactly_as_the_rules_say()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            foreach (var entry in RequestCatalogue.Entries.Where(e => e.IsItemScoped))
+            foreach (var (name, item) in data.ItemsFor(entry.RequestType))
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                var request = entry.Build(data, item);
+                var access = request switch
+                {
+                    IItemScoped scoped => scoped.Access,
+                    IOptionalItemScoped { ItemId: not null } optional => optional.Access,
+                    _ => throw new Xunit.Sdk.XunitException($"{entry.RequestType.Name} is catalogued item-scoped but carries no item."),
+                };
+                var where = $"{entry.RequestType.Name} on {name} by {data.NameOf(actor)}";
+
+                var (_, failure) = await app.InvokeAsync(actor, request);
+
+                if (!data.ExpectedReadable(actor).Contains(item))
+                {
+                    Assert.True(failure is NotFoundFailure { Resource: "item" },
+                        $"{where}: the rules hide this item, so it must be 'not found' — existence is never "
+                        + $"disclosed — but the pipeline answered {Describe(failure)}");
+                    continue;
+                }
+
+                if (access == AccessKind.Write && !data.ExpectedWritable(name, actor))
+                {
+                    Assert.True(failure is UnauthorizedFailure,
+                        $"{where}: the rules let this actor read but not write, so it must be forbidden, "
+                        + $"but the pipeline answered {Describe(failure)}");
+                    continue;
+                }
+
+                // Allowed. The request may still fail on its own merits — the bench invents phase and purchase
+                // ids — but it must never be turned away by the access rules.
+                Assert.False(failure is UnauthorizedFailure,
+                    $"{where}: refused although the rules allow it — {Describe(failure)}");
+                Assert.False(failure is NotFoundFailure { Resource: "item" },
+                    $"{where}: hidden although the rules allow it — {Describe(failure)}");
+            }
+        }
+
+        [Fact]
+        public async Task Every_item_scoped_request_matches_what_the_rules_say()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            foreach (var (name, item) in data.Items)
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                var readable = data.ExpectedReadable(actor).Contains(item);
+                var response = await app.RawAsync(actor, HttpMethod.Get, $"/api/v1/subscriptions/{item.Value}");
+
+                Assert.True(readable == (response.StatusCode == HttpStatusCode.OK),
+                    $"{name} read by {data.NameOf(actor)}: expected readable={readable}, got {response.StatusCode}");
+
+                if (!readable)
+                    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode); // existence is never disclosed
+            }
+        }
+    }
+
+    /// <summary>What a write may touch.</summary>
+    public class Writes(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+    {
+        /// <summary>
+        /// The provider axis: every write that links a provider, as A and as B, naming a provider only <c>other</c> uses.
+        /// The target's own refusal comes first, as on the item axes; then the link succeeds exactly when the actor may
+        /// read <c>other</c>, and is otherwise the same <c>subscriptions.unknown_provider</c> as a key that does not exist.
+        /// </summary>
+        [Fact]
+        public async Task No_write_links_a_provider_only_a_hidden_item_makes_visible()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildLinkingProvider is not null))
+            {
+                List<(string Name, ItemId Id)> targets = entry.IsItemScoped ? [.. data.Items.Select(i => (i.Key, i.Value))] : [("new", default)];
+                foreach (var (targetName, target) in targets)
+                foreach (var (otherName, other) in data.Items)
+                foreach (var actor in new[] { app.AdultA, app.AdultB })
+                {
+                    var key = await app.SeedCustomProviderUsedByAsync(other); // fresh each time: nothing else makes it visible
+                    var where = $"{entry.RequestType.Name} on {targetName} linking {otherName}'s provider by {data.NameOf(actor)}";
+
+                    var (_, failure) = await app.InvokeAsync(actor, entry.BuildLinkingProvider!(data, actor, target, key));
+
+                    if (entry.IsItemScoped && !data.ExpectedReadable(actor).Contains(target))
+                    {
+                        Assert.True(failure is NotFoundFailure { Resource: "item" }, $"{where}: expected 'not found', got {Describe(failure)}");
+                        continue;
+                    }
+                    if (entry.IsItemScoped && !data.ExpectedWritable(targetName, actor))
+                    {
+                        Assert.True(failure is UnauthorizedFailure, $"{where}: expected forbidden, got {Describe(failure)}");
+                        continue;
+                    }
+
+                    if (data.ExpectedReadable(actor).Contains(other))
+                        Assert.True(failure is null, $"{where}: the actor can see {otherName}, yet the link was refused — {Describe(failure)}");
+                    else
+                        Assert.True(failure?.Code == CatalogCodes.UnknownProvider,
+                            $"{where}: only a hidden item uses this provider, so it must be unknown — got {Describe(failure)}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Each second-axis request, aimed at every item of the dataset while naming every other one, as A and
+        /// as B. A write reaching two items needs the right to write both: the target's refusal is the usual one
+        /// (§6: hidden is not found, readable-but-not-writable is forbidden), while a second item the actor may
+        /// not write is always <em>not found</em> — it was never disclosed to them in the first place.
+        /// </summary>
+        [Fact]
+        public async Task No_request_touches_a_second_item_the_actor_may_not_write()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildNamingAnother is not null))
+            foreach (var (targetName, target) in data.ItemsFor(entry.RequestType))
+            foreach (var (otherName, other) in data.ItemsFor(entry.RequestType))
+            {
+                if (target == other)
+                    continue;
+
+                foreach (var actor in new[] { app.AdultA, app.AdultB })
+                {
+                    var request = await entry.BuildNamingAnother!(data, target, other);
+                    var where = $"{entry.RequestType.Name} on {targetName} naming {otherName} by {data.NameOf(actor)}";
+
+                    var (_, failure) = await app.InvokeAsync(actor, request);
+
+                    if (!data.ExpectedReadable(actor).Contains(target))
+                    {
+                        Assert.True(failure is NotFoundFailure { Resource: "item" },
+                            $"{where}: the rules hide the target, so it must be 'not found' — but the pipeline "
+                            + $"answered {Describe(failure)}");
+                        continue;
+                    }
+
+                    if (!data.ExpectedWritable(targetName, actor))
+                    {
+                        Assert.True(failure is UnauthorizedFailure,
+                            $"{where}: the rules let this actor read but not write the target, so it must be "
+                            + $"forbidden, but the pipeline answered {Describe(failure)}");
+                        continue;
+                    }
+
+                    // A link needs only the second item's read access (spec 3C1 §3); every other second item, its write access.
+                    if (entry.SecondItemAccess == AccessKind.Read
+                            ? !data.ExpectedReadable(actor).Contains(other)
+                            : !data.ExpectedWritable(otherName, actor))
+                    {
+                        // 1E2b1 design §3.2: a purchase's refused grant is now a located 422, not a typed
+                        // NotFoundFailure — but §6 still requires it to read exactly like a target that does not
+                        // exist at all, so the ruling here is indistinguishability, checked against that case.
+                        var missing = await entry.BuildNamingAnother!(data, target, new ItemId(Guid.NewGuid()));
+                        var (_, missingFailure) = await app.InvokeAsync(actor, missing);
+                        Assert.Equal(Signature(missingFailure), Signature(failure));
+                        continue;
+                    }
+
+                    // The rules never turn this away: it must succeed.
+                    Assert.True(failure is null,
+                        $"{where}: the rules let this actor write both items, yet it was refused — {Describe(failure)}");
+                }
+            }
+        }
+
+        [Fact]
+        public async Task A_write_on_an_item_the_actor_may_only_read_is_forbidden_not_silently_applied()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            // S-A is shared: B may read it, and per AccessRules only its owners write it.
+            var response = await app.RawAsync(app.AdultB, HttpMethod.Patch,
+                $"/api/v1/subscriptions/{data["S-A"].Value}", new { autoRenew = false });
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+            // Refused, and nothing was written on the way out: the value B tried to set is still what A left.
+            var detail = await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{data["S-A"].Value}");
+            Assert.Contains("\"autoRenew\":true", detail, StringComparison.Ordinal);
+        }
     }
 }
