@@ -9,7 +9,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
 /// <summary>Design §3.3: a custom key is generated, never chosen, so it can neither collide with nor reveal another one.</summary>
-public class ProviderCreationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class ProviderCreationTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private sealed class QueuedSuffixes(params string[] suffixes) : IProviderKeySuffix
     {
@@ -50,7 +50,7 @@ public class ProviderCreationTests(PostgresFixture fixture) : IClassFixture<Post
     [InlineData("empty element")]
     public async Task Missing_label_keys_are_an_invalid_provider_not_a_crash(string @case)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         IReadOnlyList<string> labelKeys = @case switch
         {
             "null list" => null!,
@@ -137,7 +137,7 @@ public class ProviderCreationTests(PostgresFixture fixture) : IClassFixture<Post
     [MemberData(nameof(Invalid))]
     public async Task An_invalid_provider_is_refused_and_nothing_is_created(string? name, string? website, string? pricingPage, string[] labels)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
 
         Assert.Equal(CatalogCodes.InvalidProvider, (await CreateAsync(app, new CreateProviderCommand(name, website, pricingPage, labels))).Code);
 

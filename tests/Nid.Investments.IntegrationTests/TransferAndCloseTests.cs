@@ -9,7 +9,7 @@ using NodaTime;
 
 namespace Nid.Investments.IntegrationTests;
 
-public class TransferAndCloseTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class TransferAndCloseTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 
@@ -67,7 +67,7 @@ public class TransferAndCloseTests(PostgresFixture fixture) : IClassFixture<Post
     [InlineData(false, true, "investments.transfer_currency_mismatch")]
     public async Task A_transfer_to_itself_or_across_currencies_is_refused(bool same, bool usd, string code)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var from = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
         var to = same ? from : await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, usd ? "USD" : "EUR");
 

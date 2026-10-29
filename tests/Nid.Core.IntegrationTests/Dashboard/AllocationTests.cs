@@ -8,7 +8,7 @@ using static Nid.TestSupport.PropertyApi;
 namespace Nid.Core.IntegrationTests.Dashboard;
 
 /// <summary>Issue #104: the dashboard's allocation by asset class and liquidity, and the household's target.</summary>
-public class AllocationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class AllocationTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Target = "/api/v1/dashboard/allocation-target";
 
@@ -99,7 +99,7 @@ public class AllocationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     [InlineData("equity", 50.05, "bond", 49.95)] // beyond 0.1 %
     public async Task A_target_not_adding_up_to_100_or_naming_an_unknown_class_is_refused(string a, decimal pa, string b, decimal pb)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Target, new { target = new Dictionary<string, decimal> { [a] = pa, [b] = pb } });
 

@@ -6,7 +6,7 @@ using Nid.TestSupport;
 
 namespace Nid.Investments.IntegrationTests;
 
-public class RoutineTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Url = "/api/v1/investments/routine";
 
@@ -178,7 +178,7 @@ public class RoutineTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
     [InlineData("duplicate", "lines[1]", "investments.routine_duplicate")]
     public async Task A_bad_line_is_named_and_nothing_is_written(string kind, string path, string code)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var first = await EnvelopeAsync(app, "Premier", "monthly");
         var second = await EnvelopeAsync(app, "Second", "monthly");
         object bad = kind switch

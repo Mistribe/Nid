@@ -11,7 +11,7 @@ namespace Nid.RealEstate.IntegrationTests;
 /// Spec 3E2 §2–§3: the real estate routine — what it proposes for a month, recording all or nothing, undoing. The host's today is
 /// 2025-10-15: the default month is September 2025.
 /// </summary>
-public class PropertyRoutineTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class PropertyRoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Url = "/api/v1/realestate/routine";
 
@@ -276,7 +276,7 @@ public class PropertyRoutineTests(PostgresFixture fixture) : IClassFixture<Postg
     [InlineData("no amount", "estimates[1].amount", "request.required")]
     public async Task A_refusal_names_its_field_and_nothing_is_written(string why, string path, string code)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var first = await NewPropertyAsync(app, Home(app, "Premier"));
         var second = await NewPropertyAsync(app, Home(app, "Second"));
         var good = Estimate(first, "300000");

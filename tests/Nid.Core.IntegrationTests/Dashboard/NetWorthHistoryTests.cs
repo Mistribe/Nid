@@ -9,7 +9,7 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.IntegrationTests.Dashboard;
 
-public class NetWorthHistoryTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class NetWorthHistoryTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private static readonly LocalDate Today = new(2025, 10, 15);
 
@@ -193,7 +193,7 @@ public class NetWorthHistoryTests(PostgresFixture fixture) : IClassFixture<Postg
     [InlineData("?scope=everyone")]
     public async Task An_unknown_period_or_scope_is_a_bad_request(string query)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth" + query)).StatusCode);
     }
 

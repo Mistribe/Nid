@@ -7,7 +7,7 @@ using Nid.TestSupport;
 
 namespace Nid.Investments.IntegrationTests;
 
-public class EnvelopeEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private static object Create(NidApp app, string name = "PEA", object? opening = null, object? firstValuation = null, string visibility = "shared")
         => new
@@ -81,7 +81,7 @@ public class EnvelopeEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     [InlineData("accountHint", "12345", "investments.invalid_envelope")]
     public async Task A_bad_attribute_is_refused(string field, string value, string code)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var body = JsonSerializer.SerializeToElement(Create(app));
         var patched = JsonSerializer.Deserialize<Dictionary<string, object?>>(body.GetRawText())!;
         patched[field] = value;
@@ -97,7 +97,7 @@ public class EnvelopeEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     [InlineData("   ")]
     public async Task An_empty_or_blank_name_is_refused(string name)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", Create(app, name: name));
 
@@ -130,7 +130,7 @@ public class EnvelopeEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     [InlineData("kind", true, "investments.unknown_kind")]
     public async Task A_missing_or_null_required_field_is_refused_not_crashed(string field, bool omit, string code)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var body = JsonSerializer.SerializeToElement(Create(app));
         var patched = JsonSerializer.Deserialize<Dictionary<string, object?>>(body.GetRawText())!;
         if (omit) patched.Remove(field); else patched[field] = null;

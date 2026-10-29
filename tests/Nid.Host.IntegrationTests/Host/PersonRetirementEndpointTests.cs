@@ -5,7 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Host.IntegrationTests.Host;
 
-public class PersonRetirementEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private static string Url(Guid person) => $"/api/v1/core/persons/{person}/retirement";
 
@@ -62,7 +62,7 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture) : IClassFixt
     [InlineData(76)]
     public async Task Age_outside_50_to_75_is_refused(int age)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Url(app.AdultB.Value), new { birthDate = (string?)null, retirementAge = age });
 

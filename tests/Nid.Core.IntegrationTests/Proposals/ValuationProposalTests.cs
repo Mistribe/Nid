@@ -7,7 +7,7 @@ using Nid.TestSupport;
 namespace Nid.Core.IntegrationTests.Proposals;
 
 /// <summary>Spec 4C1 §6: an envelope's value, proposed by a token and approved in the browser.</summary>
-public class ValuationProposalTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class ValuationProposalTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Kind = "investments.record_valuation";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -181,7 +181,7 @@ public class ValuationProposalTests(PostgresFixture fixture) : IClassFixture<Pos
     [InlineData("""{"kind":"investments.record_valuation","targetItemId":"{target}","payload":{"asOf":"2025-09-30","amount":{"amount":"1.00","currency":"EUR"},"x":1e400}}""")]
     public async Task Hostile_submissions_are_refused_or_cleaned_never_a_500(string raw)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals,

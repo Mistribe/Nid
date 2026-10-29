@@ -14,7 +14,7 @@ using Duration = NodaTime.Duration;
 
 namespace Nid.Subscriptions.IntegrationTests.Catalog;
 
-public class CatalogEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class CatalogEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Root = "/api/v1/subscriptions";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -75,7 +75,7 @@ public class CatalogEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
     [InlineData("""{"name":"Tinder"}""")]
     public async Task An_invalid_provider_is_422(string body)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var response = await app.RawTextAsync(app.AdultA, HttpMethod.Post, $"{Root}/providers", body);
         Assert.Equal((HttpStatusCode.UnprocessableEntity, CatalogCodes.InvalidProvider), (response.StatusCode, await CodeOf(response)));
     }
@@ -215,7 +215,7 @@ public class CatalogEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
     [InlineData("/catalog/runs")]
     public async Task Every_catalog_endpoint_requires_a_session(string path)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         Assert.Equal(HttpStatusCode.Unauthorized, (await app.RawAnonymousAsync(HttpMethod.Get, Root + path)).StatusCode);
     }
 }

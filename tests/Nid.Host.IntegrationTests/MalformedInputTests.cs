@@ -12,7 +12,7 @@ namespace Nid.Host.IntegrationTests;
 /// question asked was not the question answered. A present-but-malformed value is a bad request; an absent
 /// one keeps its documented default.
 /// </summary>
-public class MalformedInputTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class MalformedInputTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     [Theory]
     [InlineData("?from=oops&to=oops")]
@@ -23,7 +23,7 @@ public class MalformedInputTests(PostgresFixture fixture) : IClassFixture<Postgr
     [InlineData("?scope=")]
     public async Task A_malformed_query_parameter_is_a_bad_request_on_the_list(string query)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         await app.NewMonthlyAsync(app.AdultA, 10m);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions" + query);
@@ -36,7 +36,7 @@ public class MalformedInputTests(PostgresFixture fixture) : IClassFixture<Postgr
     [InlineData("?horizon=2025-13-45")]
     public async Task A_malformed_query_parameter_is_a_bad_request_on_the_detail(string query)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var id = await app.NewMonthlyAsync(app.AdultA, 10m);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{id.Value}" + query);
@@ -51,7 +51,7 @@ public class MalformedInputTests(PostgresFixture fixture) : IClassFixture<Postgr
     [InlineData("?from=2025-01-01&to=2025-02-01&horizon=2025-12-01")]
     public async Task What_the_api_documents_still_answers(string query)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         await app.NewMonthlyAsync(app.AdultA, 10m);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions" + query);

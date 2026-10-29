@@ -5,7 +5,7 @@ using Nid.TestSupport;
 
 namespace Nid.Investments.IntegrationTests;
 
-public class FactEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 
@@ -77,7 +77,7 @@ public class FactEndpointTests(PostgresFixture fixture) : IClassFixture<Postgres
     [InlineData("flows", "{\"occurredOn\":\"2025-09-30\",\"kind\":\"contribution\",\"amount\":{\"amount\":\"0.00\",\"currency\":\"EUR\"}}", 422, "core.amount_not_positive")]
     public async Task A_refused_fact_answers_with_the_core_code(string path, string body, int status, string code)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
 
         var refused = await app.RawTextAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/{path}", body);

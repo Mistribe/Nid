@@ -6,7 +6,7 @@ using Nid.TestSupport;
 namespace Nid.Core.IntegrationTests.Scenarios;
 
 /// <summary>Property purchase scenario spec §6, through the real API. Today is 2025-10-15.</summary>
-public class ScenarioEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class ScenarioEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Url = "/api/v1/scenarios";
 
@@ -68,7 +68,7 @@ public class ScenarioEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     [InlineData("purchaseOn", "missing")]
     public async Task Each_refusal_names_its_field(string field, string value)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var json = JsonSerializer.Serialize(Document(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var doc = System.Text.Json.Nodes.JsonNode.Parse(json)!;
         switch (field)

@@ -8,7 +8,7 @@ using static Nid.TestSupport.PropertyApi;
 namespace Nid.Core.IntegrationTests.Projection;
 
 /// <summary>Net worth projection spec §3 and §7: <c>GET /api/v1/projection</c>, the household's base projection. Today is 2025-10-15.</summary>
-public class ProjectionEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Url = "/api/v1/projection";
 
@@ -212,7 +212,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     [InlineData("retire:nobody")]
     public async Task Unknown_horizon_is_400(string horizon)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
 
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}?horizon={horizon}")).StatusCode);
     }

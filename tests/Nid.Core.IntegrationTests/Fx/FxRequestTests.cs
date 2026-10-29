@@ -7,7 +7,7 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Core.IntegrationTests.Fx;
 
-public class FxRequestTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class FxRequestTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private sealed class RecordingTrigger : IFxJobTrigger
     {
@@ -44,7 +44,7 @@ public class FxRequestTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     [InlineData("eur", "1")]
     public async Task A_manual_rate_is_refused_when_invalid(string quote, string rate)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var (_, failure) = await app.InvokeAsync(app.AdultA, new SetManualFxRateCommand(Day, quote, rate));
         Assert.Equal(FxCodes.InvalidRate, failure?.Code);
     }

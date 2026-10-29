@@ -9,7 +9,7 @@ using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Income.IntegrationTests;
 
-public class SourceEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class SourceEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string Sources = "/api/v1/income/sources";
 
@@ -136,7 +136,7 @@ public class SourceEndpointTests(PostgresFixture fixture) : IClassFixture<Postgr
     [MemberData(nameof(Rules))]
     public async Task Every_rule_answers_at_its_field(string rule, string code, string field)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, Sources, Breaking(app, rule));
         var (_, failure) = await app.InvokeAsync(app.AdultA, BreakingCommand(app, rule));

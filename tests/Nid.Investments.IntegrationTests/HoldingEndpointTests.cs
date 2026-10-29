@@ -6,7 +6,7 @@ using Nid.TestSupport;
 namespace Nid.Investments.IntegrationTests;
 
 /// <summary>Holdings spec (issue #34, PR 1): holdings and snapshots of an envelope through the API.</summary>
-public class HoldingEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     private const string FundIsin = "FR0000120271";
 
@@ -148,7 +148,7 @@ public class HoldingEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
     [InlineData("""{ "name": "X", "kind": "fund", "isin": "FR0000120271" }""", "investments.invalid_holding", "isin")] // already fund A's
     public async Task A_holding_out_of_its_rules_is_refused_at_its_field(string body, string code, string field)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var (id, _, _) = await GoldenAsync(app);
 
         var refused = await app.RawTextAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holdings", body);

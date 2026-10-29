@@ -10,7 +10,7 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// Amounts cross the HTTP API as decimal strings, both ways (frontend/README.md §2, principle 1): a JSON
 /// number is read by a browser as a binary double, and 0.1 + 0.2 is where a household's totals start lying.
 /// </summary>
-public class AmountWireTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class AmountWireTests(PostgresFixture fixture, SharedNidApp shared) : IClassFixture<PostgresFixture>, IClassFixture<SharedNidApp>
 {
     [Fact]
     public async Task Amounts_leave_the_api_as_strings_with_their_scale()
@@ -58,7 +58,7 @@ public class AmountWireTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     [InlineData("12.34567")] // more than the four decimals numeric(19,4) keeps
     public async Task An_unreadable_amount_string_is_refused(string amount)
     {
-        await using var app = await NidApp.StartAsync(fixture);
+        var app = shared.App;
         var id = await app.NewSubscriptionAsync("strings", app.AdultA, Visibility.Shared);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
