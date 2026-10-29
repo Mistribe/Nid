@@ -23,6 +23,7 @@ export const SECTIONS = [
   'billing_phases', 'purchases', 'valuations', 'flows', 'property_recurring_costs', 'tenancies', 'loan_phases',
   'loan_insurances', 'loan_fees', 'loan_events', 'loan_bank_schedule', 'income_phases', 'income_one_off_taxable',
   'holdings', 'holding_snapshots', 'holding_movements',
+  'goals',
 ] as const;
 const RESERVED = new Set(['documents']);
 const ENVELOPE = new Set(['format', 'version', 'exported_at']);

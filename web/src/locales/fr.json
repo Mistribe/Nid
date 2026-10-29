@@ -334,7 +334,8 @@
       "income_one_off_taxable": "Net imposable des revenus ponctuels",
       "holdings": "Supports",
       "holding_snapshots": "Relevés par support",
-      "holding_movements": "Mouvements par support"
+      "holding_movements": "Mouvements par support",
+      "goals": "Objectifs"
     }
   },
   "shell": { "sign_out": "Se déconnecter", "guide_help": "Guide de cette page" },

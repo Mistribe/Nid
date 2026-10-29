@@ -18,5 +18,7 @@ async function api(method, path, body) {
 const users = await api('GET', '/api/users?pagination[limit]=100');
 const user = (users.data ?? users).find((u) => u.username === username);
 if (!user) throw new Error(`No user ${username} in Pocket ID (deploy/local/bootstrap-pocket-id.mjs creates alice, bob and carol).`);
-const { token } = await api('POST', `/api/users/${user.id}/one-time-access-token`, {});
+// An hour, not the default 15 minutes: Pocket ID makes a token that short-lived 6 characters long, and its sign-in page asks for
+// the 12 of a longer-lived one unless email sign-in is on.
+const { token } = await api('POST', `/api/users/${user.id}/one-time-access-token`, { ttl: '1h' });
 console.log(`${publicUrl}/lc/${token}`);

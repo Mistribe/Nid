@@ -106,6 +106,12 @@ describe('prepareFile against the batches the server computes (tests/vectors/imp
       '{"format":"nid.data","version":1,"income_one_off_taxable":[{"flow_id":"f","taxable_amount":{"amount":"1","currency":"EUR"}}],"flows":[{"id":"f"}]}')));
     expect(prepared.batches.map((b) => b.section)).toEqual(['flows', 'income_one_off_taxable']);
   });
+
+  it('accepts the goals section, last, after the envelopes it funds from', async () => {
+    const prepared = ready(await prepareFile(bytesOf(
+      '{"format":"nid.data","version":1,"goals":[{"id":"g","funding":[{"envelope":"e","share_bp":5000}]}],"holdings":[{"id":"h"}],"envelopes":[{"id":"e"}]}')));
+    expect(prepared.batches.map((b) => b.section)).toEqual(['envelopes', 'holdings', 'goals']);
+  });
 });
 
 describe('the local check', () => {
