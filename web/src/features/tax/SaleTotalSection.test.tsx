@@ -37,7 +37,7 @@ describe('SaleTotalSection', () => {
 
   it('shows the totals, the note and one row per item with its detail in a dialog', async () => {
     serve(view());
-    const { container, user } = await renderApp('/tax?tab=sale');
+    const { container, user } = await renderApp('/tax?tab=simulation');
 
     expect(await screen.findByText('340 000,00 €')).toBeInTheDocument();
     expect(screen.getByText('335 882,00 €')).toBeInTheDocument();
@@ -60,35 +60,32 @@ describe('SaleTotalSection', () => {
 
   it('says the previous year’s rates are used, and the scope follows the page', async () => {
     serve(view({ carriedForward: true }));
-    await renderApp('/tax?tab=sale&scope=me');
+    await renderApp('/tax?tab=simulation&scope=me');
     expect(await screen.findByText(/Taux de l’année précédente repris/)).toBeInTheDocument();
     expect(seen.at(-1)).toBe('me');
   });
 
   it('says « approximatif », « valeur estimée » and « valeur à mettre à jour » on the row of an estimated item', async () => {
     serve(view({ items: [item({ approximate: true, estimated: true, stale: true })] }));
-    await renderApp('/tax?tab=sale');
+    await renderApp('/tax?tab=simulation');
 
     const row = within(await screen.findByRole('table', { name: 'Impôt par bien et par enveloppe' })).getAllByRole('row')[1]!;
     expect(row).toHaveTextContent('Imposable · approximatif · valeur estimée · valeur à mettre à jour');
   });
 
-  it('has no year picker and leaves the income tax\'s carried-forward scale out, while the other tabs keep both', async () => {
+  it('sits under the simulation in « Simuler », the year picker and the notes above unchanged', async () => {
     serve(view());
-    const { unmount } = await renderApp('/tax?tab=sale');
+    await renderApp('/tax?tab=simulation');
     await screen.findByText('340 000,00 €');
-    expect(screen.queryByRole('radiogroup', { name: 'Année des revenus' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Le barème de cette année n’est pas encore connu/)).not.toBeInTheDocument();
-    unmount();
-
-    await renderApp('/tax');
-    expect(await screen.findByText(/Le barème de cette année n’est pas encore connu/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Simulation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Si tout était vendu' })).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Année des revenus' })).toBeInTheDocument();
+    expect(screen.getByText(/Le barème de cette année n’est pas encore connu/)).toBeInTheDocument();
   });
 
   it('shows an empty state without item', async () => {
     serve(view({ items: [], totals: null, notes: [] }));
-    await renderApp('/tax?tab=sale');
+    await renderApp('/tax?tab=simulation');
     expect(await screen.findByRole('heading', { name: 'Rien à vendre' })).toBeInTheDocument();
   });
 });

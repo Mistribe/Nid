@@ -33,7 +33,8 @@ import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-const TABS = ['detail', 'assessment', 'withholding', 'profile', 'simulation', '2044', 'sale'] as const;
+// Four views in the row; the profile and the 2044 are opened from the header, beside the year.
+const TABS = ['detail', 'withholding', 'assessment', 'simulation', 'profile', '2044'] as const;
 
 /** Past this many years the selector is a list, not a row of buttons. */
 const MAX_SEGMENTS = 6;
@@ -81,10 +82,12 @@ export function TaxPage() {
 
   return (
     <div className="space-y-6" aria-busy={answer.isPlaceholderData || undefined}>
-      {/* The sale is always today's: no year to pick, but the header keeps its height so the page does not move. */}
       <PageHeader title={t('tax.title')} actions={(
         <div className="flex flex-wrap items-center gap-3 print:hidden">
-          {tab === 'sale' && !past ? null : selector}
+          {selector}
+          {estimate ? (['profile', '2044'] as const).map((id) => (
+            <Button key={id} variant={tab === id ? 'secondary' : 'outline'} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>{t(`tax.tab.${id}`)}</Button>
+          )) : null}
           <Button asChild variant="outline"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
         </div>
       )}>
@@ -94,17 +97,21 @@ export function TaxPage() {
       {past && !awaiting ? noticeViews : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!past && !estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
-      {estimate ? <Notes estimate={estimate} inBlock={tab === 'detail'} printed={tab !== '2044'} sale={tab === 'sale'} /> : null}
+      {estimate ? <Notes estimate={estimate} inBlock={tab === 'detail'} printed={tab !== '2044'} /> : null}
       {estimate ? (
-        <DetailTabs side value={tab} onChange={setTab} tabs={[
-          { id: 'detail', group: t('tax.tab_group.year'), label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
-          { id: 'withholding', group: t('tax.tab_group.year'), label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
-          ...(notices.length ? [{ id: 'assessment' as const, group: t('tax.tab_group.year'), label: t('tax.tab.assessment'), content: noticeViews }] : []),
-          { id: 'profile', group: t('tax.tab_group.declare'), label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
+        <DetailTabs value={tab} onChange={setTab} tabs={[
+          { id: 'detail', label: t('tax.tab.detail'), content: <Detail estimate={estimate} onProfile={() => setTab('profile')} /> },
+          { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
+          ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
+          { id: 'simulation', label: t('tax.tab.simulation'), content: (
+            <>
+              <SimulationForm key={estimate.year} estimate={estimate} />
+              <Section title={t('tax.tab.sale')}><SaleTotalSection scope={scope} /></Section>
+            </>
+          ) },
+          { id: 'profile', trigger: false, label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
-          { id: '2044', group: t('tax.tab_group.declare'), label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
-          { id: 'simulation', group: t('tax.tab_group.what_if'), label: t('tax.tab.simulation'), content: <SimulationForm key={estimate.year} estimate={estimate} /> },
-          { id: 'sale', group: t('tax.tab_group.what_if'), label: t('tax.tab.sale'), content: <SaleTotalSection scope={scope} /> },
+          { id: '2044', trigger: false, label: t('tax.tab.2044'), content: <Rental2044Section year={Number(year)} scope={scope} /> },
         ]} />
       ) : null}
     </div>
@@ -189,11 +196,10 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
 }
 
 /** The server's warnings and notices, above the tabs: they matter whichever tab is open. */
-/** On the sale tab the estimate is always today's: the income tax's carried-forward scale is not its business (the sale section says its own). */
-function Notes({ estimate, printed, sale, inBlock }: { estimate: TaxEstimate; printed: boolean; sale: boolean; /** The Détail tab, whose PER block tells the PER warnings it can. */ inBlock: boolean }) {
+function Notes({ estimate, printed, inBlock }: { estimate: TaxEstimate; printed: boolean; /** The Détail tab, whose PER block tells the PER warnings it can. */ inBlock: boolean }) {
   const { t } = useTranslation();
   const notes = [
-    ...estimate.result.warnings.filter((w) => !PER_WARNINGS.includes(w) && !(sale && w === 'rules_carried_forward')).map((w) => warningText(t, w, estimate.result.rulesYear)),
+    ...estimate.result.warnings.filter((w) => !PER_WARNINGS.includes(w)).map((w) => warningText(t, w, estimate.result.rulesYear)),
     // The server names a PER warning once per declarant it concerns; perWarningTexts already tells one sentence per declarant.
     ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !(inBlock && perWarningsInBlock(estimate.result).has(w)))
       .flatMap((w) => perWarningTexts(t, estimate.result, w, estimate.year)),

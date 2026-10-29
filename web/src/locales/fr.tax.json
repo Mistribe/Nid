@@ -13,8 +13,7 @@
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
-    "tab_group": { "year": "Cette année", "declare": "Déclarer", "what_if": "Et si…" },
-    "tab": { "assessment": "Avis reçus", "2044": "Déclaration 2044", "detail": "Détail du calcul", "withholding": "Prélèvement à la source", "profile": "Profil fiscal", "simulation": "Simulation", "sale": "Si tout était vendu" },
+    "tab": { "assessment": "Avis", "2044": "Déclaration 2044", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
