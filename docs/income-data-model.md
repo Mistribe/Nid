@@ -74,7 +74,7 @@ Le détail d'une source liste ceux des 12 derniers mois, ou ceux d'une plage `fr
 
 Fonctions pures dans `Domain`, **décimal exact**.
 
-**Occurrences attendues** d'une phase : `starts_on` + k × `every` (arithmétique de mois du Core, jour d'ancrage écrasé en fin de mois), tant que la date est avant `ends_on` et que k < `max_cycles`. C'est la vue **trésorerie**, utilisée pour « à venir ».
+**Occurrences attendues** d'une phase : `starts_on` + k × `every` (arithmétique de mois du Core, jour d'ancrage écrasé en fin de mois ; une phase mensuelle ou annuelle qui commence le dernier jour d'un mois tombe le dernier jour de chaque mois, si bien qu'une phase changée le 28/02 garde la cadence de fin de mois), tant que la date est avant `ends_on` et que k < `max_cycles`. C'est la vue **trésorerie**, utilisée pour « à venir ».
 
 **Équivalent mensuel** d'une phase = `net_amount ÷ (count × 12 si l'unité est l'année, sinon count)`. C'est la vue **lissée** : une prime annuelle de 1 800 € compte 150 € par mois. Précision pleine en interne, arrondi à 0,01 (demi supérieur) à l'affichage.
 

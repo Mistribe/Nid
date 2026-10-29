@@ -59,6 +59,25 @@ public class IncomeMathTests
         Assert.Equal([D(2024, 1, 31), D(2024, 2, 29), D(2024, 3, 31), D(2024, 4, 30), D(2024, 5, 31)], dates);
     }
 
+    [Theory]
+    [InlineData(2025, 2, 28)]
+    [InlineData(2025, 4, 30)]
+    public void A_payslip_phase_from_a_months_last_day_to_the_next_pays_once(int y, int m, int d)
+    {
+        var start = D(y, m, d);
+        var phase = P("x", start, start.PlusMonths(1).With(DateAdjusters.EndOfMonth), 100m, Months(1));
+        Assert.Equal([start], IncomeMath.Occurrences(phase, D(2025, 1, 1), D(2026, 1, 1)).Select(o => o.On).ToList());
+    }
+
+    [Fact]
+    public void A_phase_changed_on_a_clamped_month_end_keeps_paying_on_the_last_day()
+    {
+        var phase = P("x", D(2024, 2, 29), null, 100m, Months(1), max: 3);
+        Assert.Equal([D(2024, 2, 29), D(2024, 3, 31), D(2024, 4, 30)], IncomeMath.Occurrences(phase, D(2024, 1, 1), D(2025, 1, 1)).Select(o => o.On).ToList());
+        Assert.Equal(D(2024, 5, 31), IncomeMath.EffectiveEnd(phase));
+        Assert.Equal(D(2024, 5, 31), Assert.Single(IncomeMath.Next([phase with { MaxCycles = null }], D(2024, 4, 30))).On);
+    }
+
     [Fact]
     public void Occurrences_stop_before_the_end_and_after_max_cycles()
     {

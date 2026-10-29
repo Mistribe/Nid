@@ -23,12 +23,24 @@ public static class IncomeMath
     {
         for (var k = 0; phase.MaxCycles is not { } max || k < max; k++)
         {
-            var on = phase.Every.AddTo(phase.StartsOn, k);
+            var on = Nth(phase.StartsOn, phase.Every, k);
             if (phase.EndsOn is { } end && on >= end || on >= toExclusive)
                 yield break;
             if (on >= from)
                 yield return new Occurrence(phase.Id, phase.Label, on, phase.NetAmount);
         }
+    }
+
+    /// <summary>
+    /// The k-th payment date: a phase starting on a month's last day pays on each month's last day, so a phase changed on a
+    /// clamped date (28/02) keeps a month-end salary's cadence instead of paying on the 28th from then on.
+    /// </summary>
+    private static LocalDate Nth(LocalDate startsOn, Duration every, int k)
+    {
+        var on = every.AddTo(startsOn, k);
+        return every.Unit is DurationUnit.Month or DurationUnit.Year && startsOn == startsOn.With(DateAdjusters.EndOfMonth)
+            ? on.With(DateAdjusters.EndOfMonth)
+            : on;
     }
 
     /// <summary>Full precision; a phase repeats every month(s) or year(s) only.</summary>
@@ -52,7 +64,7 @@ public static class IncomeMath
         LocalDate? capped = null;
         if (maxCycles is { } max)
         {
-            try { capped = every.AddTo(startsOn, max); }
+            try { capped = Nth(startsOn, every, max); }
             catch (Exception e) when (e is OverflowException or ArgumentOutOfRangeException) { }
         }
         return (endsOn, capped) switch
@@ -139,7 +151,7 @@ public static class IncomeMath
 
     /// <summary>The occurrences of the first date after today with any; a phase's next one is at most one cadence after today or after its start.</summary>
     public static IReadOnlyList<Occurrence> Next(IEnumerable<IncomePhase> phases, LocalDate today)
-        => phases.SelectMany(p => Occurrences(p, today.PlusDays(1), p.Every.AddTo(LocalDate.Max(p.StartsOn, today), 1).PlusDays(1)))
+        => phases.SelectMany(p => Occurrences(p, today.PlusDays(1), p.Every.AddTo(LocalDate.Max(p.StartsOn, today), 1).With(DateAdjusters.EndOfMonth).PlusDays(1))) // a month-end phase pays up to the month's last day
             .GroupBy(o => o.On).MinBy(g => g.Key)?.OrderBy(o => o.Label, StringComparer.Ordinal).ToList() ?? [];
 
     /// <summary>
