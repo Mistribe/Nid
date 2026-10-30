@@ -130,13 +130,15 @@ public sealed record TaxDeclarantResultView(string Name, string NetSalary, strin
 
 /// <summary>
 /// Tax-per spec §4.2: a declarant's PER, in euros. <c>Source</c> <c>notice</c> (the avis d'imposition's ceiling) or <c>estimated</c> (on
-/// last year's income); <c>Remaining</c> is the household's under pooling.
+/// last year's income); <c>Remaining</c> is the household's under pooling. Spec §4.3: <c>Minimum</c> what to pay before 31 December
+/// so that <c>Expiring</c> is not lost, <c>MinimumEstimated</c> when the year's own ceiling in it is estimated.
 /// </summary>
-public sealed record TaxDeclarantPerView(string Ceiling, string Source, string Expiring, string Contributions, string Deducted, string Excess, string Remaining)
+public sealed record TaxDeclarantPerView(
+    string Ceiling, string Source, string Expiring, string Contributions, string Deducted, string Excess, string Remaining, string Minimum, bool MinimumEstimated)
 {
     public static TaxDeclarantPerView Of(PerDeclarant p) => new(
         Amount(p.Ceiling), p.Source == PerCeilingSource.Notice ? "notice" : "estimated", Amount(p.Expiring), Amount(p.Contributions),
-        Amount(p.Deducted), Amount(p.Excess), Amount(p.Remaining));
+        Amount(p.Deducted), Amount(p.Excess), Amount(p.Remaining), Amount(p.Minimum), p.MinimumEstimated);
 }
 
 /// <summary>Tax-per spec §4.3: the household's PER. <c>TaxSaved</c> the tax the deductions save; <c>RoomInBracket</c> the income left in the marginal bracket.</summary>

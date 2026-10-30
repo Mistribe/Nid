@@ -46,10 +46,13 @@ public enum PerCeilingSource { Notice, Estimated }
 /// <summary>
 /// Spec §4.3, a declarant's PER: <c>Deducted</c> includes the part the spouse's free ceiling covers under pooling, <c>Excess</c> is
 /// what stays undeducted, <c>Remaining</c> the declarant's own ceiling still free; pooled, the household's free ceiling (the same
-/// figure on each declarant and in <see cref="PerHousehold.Remaining"/>).
+/// figure on each declarant and in <see cref="PerHousehold.Remaining"/>). <c>Minimum</c>: what is still to pay before 31 December so
+/// that <c>Expiring</c> is not lost, the year's own ceiling being used first; <c>MinimumEstimated</c> when that year's ceiling is
+/// estimated on last year's income (a notice ceiling entered without the unused ceilings it holds).
 /// </summary>
 public sealed record PerDeclarant(
-    decimal Ceiling, PerCeilingSource Source, decimal Expiring, decimal Contributions, decimal Deducted, decimal Excess, decimal Remaining);
+    decimal Ceiling, PerCeilingSource Source, decimal Expiring, decimal Contributions, decimal Deducted, decimal Excess, decimal Remaining,
+    decimal Minimum = 0m, bool MinimumEstimated = false);
 
 /// <summary>
 /// <c>PerDeducted</c> is <c>Per.Deducted</c>, deducted from this declarant's income. <c>ExemptNet</c>: the exempt income after the
@@ -224,7 +227,8 @@ public static class TaxCalculator
     /// <summary>
     /// Spec §4.2–§4.3: each declarant's ceiling (the notice's as it is, or estimated on last year's income with last year's PASS,
     /// plus the unused ceilings), then <c>min(contributions, ceiling)</c>; pooled, each excess goes against the other's free ceiling
-    /// and every declarant's <c>Remaining</c> is the household's free ceiling, also returned on its own.
+    /// and every declarant's <c>Remaining</c> is the household's free ceiling, also returned on its own. The minimum to pay: the
+    /// year's own ceiling is used first, then the oldest unused one, so keeping the expiring part takes both (spec §4.3).
     /// </summary>
     private static (IReadOnlyList<PerDeclarant> Declarants, decimal Remaining) PerDeductions(TaxInputs inputs, bool pooled)
     {
@@ -233,12 +237,17 @@ public static class TaxCalculator
         var (floor, cap) = (Math.Round(0.10m * passN1, 0, MidpointRounding.AwayFromZero), Math.Round(0.80m * passN1, 0, MidpointRounding.AwayFromZero));
         var own = inputs.Declarants.Select(d =>
         {
-            var ceiling = Euros(d.PerCeiling is { } notice
-                ? Math.Max(0m, notice)
-                : Math.Max(Math.Min(0.10m * d.PreviousYearIncome, cap), floor) + Math.Max(0m, d.PerUnusedCeiling));
+            var unused = Math.Max(0m, d.PerUnusedCeiling);
+            var estimatedYear = Math.Max(Math.Min(0.10m * d.PreviousYearIncome, cap), floor);
+            var ceiling = Euros(d.PerCeiling is { } notice ? Math.Max(0m, notice) : estimatedYear + unused);
+            var expiring = Math.Min(Math.Max(0m, d.PerExpiring), ceiling);
+            // The year's own ceiling: the notice's without its unused ceilings, or estimated when they are not known.
+            var exact = d.PerCeiling is not null && unused > 0m;
+            var year = exact ? Math.Max(0m, ceiling - unused) : d.PerCeiling is null ? estimatedYear : Math.Min(estimatedYear, ceiling - expiring);
             var contributions = Math.Max(0m, d.PerContributions);
             return (Ceiling: ceiling, Source: d.PerCeiling is null ? PerCeilingSource.Estimated : PerCeilingSource.Notice,
-                Expiring: Math.Min(Math.Max(0m, d.PerExpiring), ceiling), Contributions: contributions, Deducted: Math.Min(contributions, ceiling));
+                Expiring: expiring, Contributions: contributions, Deducted: Math.Min(contributions, ceiling),
+                KeepExpiring: Math.Min(Euros(year) + expiring, ceiling), YearEstimated: !exact);
         }).ToList();
 
         var covered = new decimal[own.Count];
@@ -256,7 +265,9 @@ public static class TaxCalculator
         var household = remaining.Sum();
         return (own.Select((p, i) => new PerDeclarant(
             p.Ceiling, p.Source, Euros(p.Expiring), Euros(p.Contributions), Euros(p.Deducted + covered[i]),
-            Euros(p.Contributions - p.Deducted - covered[i]), pooled ? household : remaining[i])).ToList(), household);
+            Euros(p.Contributions - p.Deducted - covered[i]), pooled ? household : remaining[i],
+            // Only while some of the expiring part is still free: without it, nothing is lost on 31 December.
+            p.Expiring > 0m ? Euros(Math.Max(0m, p.KeepExpiring - p.Deducted - lent[i])) : 0m, p.YearEstimated)).ToList(), household);
     }
 
     /// <summary>

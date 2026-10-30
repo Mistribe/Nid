@@ -165,7 +165,7 @@ describe('TaxPage', () => {
   });
 
   it('shows where the PER ceiling comes from', async () => {
-    const per = (source: string) => ({ ceiling: '3980.00', source, expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3980.00' });
+    const per = (source: string) => ({ ceiling: '3980.00', source, expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3980.00', minimum: '0.00', minimumEstimated: false });
     const loaded = estimate();
     loaded.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, per: per('estimated') }] });
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
@@ -178,7 +178,7 @@ describe('TaxPage', () => {
   it('says a ceiling was typed from the notice', async () => {
     const loaded = estimate();
     loaded.profile.perCeilings = { [ADULT]: '4637.00' };
-    loaded.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, per: { ceiling: '4637.00', source: 'notice', expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '4637.00' } }] });
+    loaded.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, per: { ceiling: '4637.00', source: 'notice', expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '4637.00', minimum: '0.00', minimumEstimated: false } }] });
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
     await renderApp('/tax?tab=profile');
 

@@ -259,6 +259,55 @@ public class TaxCalculatorTests
     }
 
     [Theory]
+    [InlineData(0, 8_824)] // the year's 4 710 first, then the 4 114 expiring
+    [InlineData(5_000, 3_824)]
+    [InlineData(8_824, 0)] // reached: nothing is lost
+    [InlineData(12_000, 0)]
+    public void The_minimum_keeps_the_expiring_ceiling_after_the_years_own(double paid, double minimum)
+    {
+        // The 2026 notice: 4 114 + 4 399 + 4 637 unused, 4 710 on 2025's income.
+        var declarant = Other(50_000m) with { PerContributions = (decimal)paid, PerCeiling = 17_860m, PerUnusedCeiling = 13_150m, PerExpiring = 4_114m };
+
+        var per = TaxCalculator.Compute(Inputs([declarant])).Declarants[0].Per!;
+
+        Assert.Equal((decimal)minimum, per.Minimum);
+        Assert.False(per.MinimumEstimated);
+        Assert.Equal(17_860m - (decimal)paid, per.Remaining);
+    }
+
+    [Fact]
+    public void Nothing_expiring_needs_no_minimum()
+    {
+        var declarant = Other(50_000m) with { PerCeiling = 17_860m, PerUnusedCeiling = 13_150m };
+
+        Assert.Equal(0m, TaxCalculator.Compute(Inputs([declarant])).Declarants[0].Per!.Minimum);
+    }
+
+    [Fact]
+    public void Without_the_unused_ceilings_the_years_own_is_estimated()
+    {
+        // The year's own ceiling on last year's income: 10 % × 40 000 is under the 4 637 floor.
+        var declarant = Other(50_000m) with { PerCeiling = 17_860m, PerExpiring = 4_114m, PreviousYearIncome = 40_000m, PerContributions = 1_000m };
+
+        var per = TaxCalculator.Compute(Inputs([declarant])).Declarants[0].Per!;
+
+        Assert.Equal(4_637m + 4_114m - 1_000m, per.Minimum);
+        Assert.True(per.MinimumEstimated);
+    }
+
+    [Fact]
+    public void The_spouses_use_of_the_ceiling_counts_towards_the_minimum()
+    {
+        var a = Other(50_000m) with { PerCeiling = 10_000m, PerUnusedCeiling = 6_000m, PerExpiring = 2_000m, PerContributions = 1_000m };
+        var b = Other(50_000m) with { PerCeiling = 5_000m, PerContributions = 8_000m };
+
+        var pooled = TaxCalculator.Compute(Inputs([a, b]) with { PerPooling = true });
+
+        // a keeps 4 000 + 2 000; a's own 1 000 and b's 3 000 excess on a's ceiling leave 2 000.
+        Assert.Equal(2_000m, pooled.Declarants[0].Per!.Minimum);
+    }
+
+    [Theory]
     [InlineData(58_431.27, 5_843.13)] // 10 % × 58 431.27 = 5 843.127
     [InlineData(0, 4_637)] // the floor: 10 % × the 2024 PASS, 46 368
     [InlineData(500_000, 37_094)] // capped at 8 PASS: 10 % × 370 944

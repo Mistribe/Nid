@@ -36,7 +36,10 @@ public class PerDeadlineTests(PostgresFixture fixture) : IClassFixture<PostgresF
                 services.AddScoped<ITaxProfileStore>(sp => new CountingProfiles(new TaxProfileStore(sp.GetRequiredService<CoreDbContext>()), reads));
         });
 
-    /// <summary>Adult A pays 8 000 into a PER in 2025; the notices give A 12 000 (1 000 of it lost on 31 December) and B 8 000.</summary>
+    /// <summary>
+    /// Adult A pays 8 000 into a PER in 2025; the notices give A 12 000 (10 500 of the year's own, 1 500 unused, 1 000 of it lost on
+    /// 31 December) and B 8 000.
+    /// </summary>
     private static async Task SeedAsync(NidApp app, bool pooling)
     {
         var per = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
@@ -52,6 +55,7 @@ public class PerDeadlineTests(PostgresFixture fixture) : IClassFixture<PostgresF
             pinel = Array.Empty<object>(), perPooling = pooling,
             perCeilings = new Dictionary<string, string> { [app.AdultA.Value.ToString()] = "12000", [app.AdultB.Value.ToString()] = "8000" },
             perCeilingsExpiring = new Dictionary<string, string> { [app.AdultA.Value.ToString()] = "1000" },
+            perUnusedCeilings = new Dictionary<string, string> { [app.AdultA.Value.ToString()] = "1500" },
         });
         Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
     }
@@ -79,11 +83,12 @@ public class PerDeadlineTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var household = await PerEventsAsync(app, app.AdultA, "household");
         var me = await PerEventsAsync(app, app.AdultA, "me");
 
+        // 10 500 + 1 000 − 8 000: the year's own ceiling goes first, so keeping the expiring 1 000 takes 2 420 more.
         Assert.Equal(
-            [("per_ceiling_expiring", null, "1000.00"), ("per_deadline", null, "2920.00"), ("per_deadline", null, "8000.00")],
+            [("per_ceiling_expiring", null, "2420.00"), ("per_deadline", null, "2920.00"), ("per_deadline", null, "8000.00")],
             household.Order().ToList());
         // Moi: the reader's own deadline only.
-        Assert.Equal([("per_ceiling_expiring", null, "1000.00"), ("per_deadline", null, "2920.00")], me.Order().ToList());
+        Assert.Equal([("per_ceiling_expiring", null, "2420.00"), ("per_deadline", null, "2920.00")], me.Order().ToList());
     }
 
     [Fact]
@@ -96,8 +101,8 @@ public class PerDeadlineTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var me = await PerEventsAsync(app, app.AdultA, "me");
 
         // 12 000 + 8 000 − 8 000: the household's free ceiling, one event.
-        Assert.Equal([("per_ceiling_expiring", null, "1000.00"), ("per_deadline", "household", "10920.00")], household.Order().ToList());
-        Assert.Equal([("per_ceiling_expiring", null, "1000.00")], me);
+        Assert.Equal([("per_ceiling_expiring", null, "2420.00"), ("per_deadline", "household", "10920.00")], household.Order().ToList());
+        Assert.Equal([("per_ceiling_expiring", null, "2420.00")], me);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { estimate, result } from '../taxTestData';
 import { reviewReasons } from './review';
 
-const per = (source: string) => ({ ceiling: '3980.00', source, expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3980.00' });
+const per = (source: string) => ({ ceiling: '3980.00', source, expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3980.00', minimum: '0.00', minimumEstimated: false });
 
 describe('reviewReasons', () => {
   it('asks nothing of a profile saved for the year', () => {

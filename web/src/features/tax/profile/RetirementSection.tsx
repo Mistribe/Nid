@@ -10,7 +10,7 @@ import { DeclarantGrid } from './DeclarantGrid';
 import { AdultInput, errorText, type SectionProps } from './fields';
 import '@/locales/tax';
 
-/** Each declarant's retirement savings ceiling, from the tax notice; the unused ceilings only stand in for a missing notice. */
+/** Each declarant's retirement savings ceiling, from the tax notice; the unused ceilings stand in for a missing notice, or split the notice's for the minimum to pay. */
 export function RetirementSection({ estimate, draft }: SectionProps) {
   const { t } = useTranslation();
   const d = draft.value;

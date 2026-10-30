@@ -478,9 +478,8 @@ public sealed class PerDeadline(TaxEstimates estimates, IPersonRegistry persons)
         {
             if (d.Per is not { } per || scope == VisibilityScope.Me && adult.Id != reader) continue;
             if (!pooled && per.Remaining > 0m) events.Add(Event(UpcomingKinds.PerDeadline, adult.DisplayName, null, per.Remaining));
-            // No more is lost than the ceiling still free.
-            var lost = Math.Min(per.Expiring, per.Remaining);
-            if (lost > 0m) events.Add(Event(UpcomingKinds.PerCeilingExpiring, adult.DisplayName, null, lost));
+            // What keeps the expiring ceiling: the year's own ceiling is used first (spec §4.3).
+            if (per.Minimum > 0m) events.Add(Event(UpcomingKinds.PerCeilingExpiring, adult.DisplayName, null, per.Minimum));
         }
         if (pooled && scope == VisibilityScope.Household && r.Per!.Remaining > 0m)
             events.Add(Event(UpcomingKinds.PerDeadline, "", Household, r.Per.Remaining));

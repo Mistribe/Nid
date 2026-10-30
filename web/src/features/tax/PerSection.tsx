@@ -41,8 +41,8 @@ const sharedSource = (per: NonNullable<Declarant['per']>[]) => (per.every((p) =>
 const ceilingLabel = (t: TFunction, source: string | undefined) => (source === undefined ? t('tax.per.ceiling') : t(source === 'notice' ? 'tax.per.ceiling_notice' : 'tax.per.ceiling_estimated'));
 
 /**
- * Tax spec §4.5, the declarants' part: each one's PER (ceiling from the notice or estimated, contributions, deducted, left to
- * pay before December 31st) as rows of the `DeclarantTable`, so the figures sit in the same column as the person's income.
+ * Tax spec §4.5, the declarants' part: each one's PER (ceiling from the notice or estimated, contributions, deducted, the minimum
+ * that keeps the expiring ceiling, left to pay before December 31st) as rows of the `DeclarantTable`, so the figures sit in the same column as the person's income.
  * Every figure is the server's; `names[i]` is the envelopes the i-th declarant's contributions are read from.
  */
 export function PerRows({ result, names }: { result: TaxResult; names: string[] }) {
@@ -54,10 +54,16 @@ export function PerRows({ result, names }: { result: TaxResult; names: string[] 
   const lines: Line[] = [
     { label: ceilingLabel(t, source), cell: (per) => eur(per.ceiling),
       note: (per) => [source === undefined ? t(per.source === 'notice' ? 'tax.per.source_notice' : 'tax.per.source_estimated') : undefined,
-        ZERO.test(per.expiring) ? undefined : t('tax.per.expiring', { amount: eur(per.expiring) })].filter(Boolean).join(' · ') || undefined },
+        // Once the minimum is paid, nothing is lost any more.
+        ZERO.test(per.minimum) ? undefined : t('tax.per.expiring', { amount: eur(per.expiring) })].filter(Boolean).join(' · ') || undefined },
     { label: t('tax.per.contributions'), cell: (per) => eur(per.contributions), note: (_, i) => (names[i] ? t('tax.per.flows', { names: names[i] }) : undefined) },
     { label: t('tax.per.deducted'), cell: (per) => eur(per.deducted) },
     ...(shown.every((per) => ZERO.test(per.excess)) ? [] : [{ label: t('tax.per.excess'), cell: (per: NonNullable<Declarant['per']>) => eur(per.excess) }]),
+    // While a declarant has a ceiling expiring: the year's own ceiling goes first, then the expiring part.
+    ...(shown.every((per) => ZERO.test(per.expiring)) ? [] : [{ label: t('tax.per.minimum'), cell: (per: NonNullable<Declarant['per']>) => eur(per.minimum),
+      note: (per: NonNullable<Declarant['per']>) => (ZERO.test(per.minimum) ? undefined
+        : [t('tax.per.minimum_keeps', { amount: eur(per.expiring) }), per.minimumEstimated && per.source === 'notice' ? t('tax.per.minimum_estimated') : undefined].filter(Boolean).join(' · ')),
+      strong: true }]),
     { label: t('tax.per.remaining'), cell: (per) => eur(per.remaining), strong: true },
   ];
   return (

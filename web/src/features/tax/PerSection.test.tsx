@@ -10,7 +10,7 @@ import { DeclarantTable } from './ResultTable';
 import { ADULT, estimate, result } from './taxTestData';
 
 const declarantPer = (over: Partial<NonNullable<TaxResult['declarants'][number]['per']>> = {}) => ({
-  ceiling: '5843.13', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '3220.80', ...over,
+  ceiling: '5843.13', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '3220.80', minimum: '0.00', minimumEstimated: false, ...over,
 });
 const withPer = (over: Partial<TaxResult> = {}, per = declarantPer()) => result({
   declarants: [{ ...result().declarants[0]!, person: ADULT, per }],
@@ -33,9 +33,27 @@ describe('PerRows and PerSummary', () => {
     expect(screen.getByText('PER · Barème 2025')).toBeInTheDocument();
   });
 
-  it('says what expires on December 31st', () => {
-    show(withPer({}, declarantPer({ expiring: '1200.00' })));
+  it('says what expires on December 31st and the minimum that keeps it', () => {
+    show(withPer({}, declarantPer({ expiring: '1200.00', minimum: '1700.00' })));
     expect(screen.getByText('dont 1 200,00 € perdus au 31 décembre')).toBeInTheDocument();
+    expect(cell(/Minimum à verser avant le 31 décembre/)).toHaveTextContent('1 700,00 €pour ne pas perdre 1 200,00 €');
+    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('3 220,80 €');
+  });
+
+  it('drops the loss once the minimum is paid', () => {
+    show(withPer({}, declarantPer({ expiring: '1200.00' })));
+    expect(screen.queryByText(/perdus au 31 décembre/)).not.toBeInTheDocument();
+    expect(cell(/Minimum à verser/)).toHaveTextContent(/^Minimum à verser avant le 31 décembre0,00 €$/);
+  });
+
+  it('tells when the year’s own ceiling in the minimum is estimated', () => {
+    show(withPer({}, declarantPer({ expiring: '1200.00', minimum: '1700.00', minimumEstimated: true })));
+    expect(cell(/Minimum à verser/)).toHaveTextContent('pour ne pas perdre 1 200,00 € · plafond de l’année estimé');
+  });
+
+  it('shows no minimum when nothing expires', () => {
+    show(withPer());
+    expect(screen.queryByRole('row', { name: /Minimum à verser/ })).not.toBeInTheDocument();
   });
 
   it('warns when contributions go beyond the ceiling, with a way to the profile', async () => {

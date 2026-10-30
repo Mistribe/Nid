@@ -295,7 +295,7 @@
       "tenancy_end": "Fin du bail « {{label}} »",
       "holding_maturity": "Échéance de « {{label}} » : vérifier où ira le capital",
       "per_deadline": "PER : reste à verser avant le 31 décembre pour utiliser le plafond",
-      "per_ceiling_expiring": "PER : part du plafond perdue le 31 décembre",
+      "per_ceiling_expiring": "PER : minimum à verser avant le 31 décembre pour ne rien perdre",
       "per_household": "Foyer (plafonds mutualisés)"
     }
   },

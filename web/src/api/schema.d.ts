@@ -24052,6 +24052,8 @@ export interface components {
             deducted: string;
             excess: string;
             remaining: string;
+            minimum: string;
+            minimumEstimated: boolean;
         };
         TaxDeclarantResultView: {
             name: string;

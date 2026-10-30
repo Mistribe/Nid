@@ -39386,7 +39386,9 @@
           "contributions",
           "deducted",
           "excess",
-          "remaining"
+          "remaining",
+          "minimum",
+          "minimumEstimated"
         ],
         "type": "object",
         "properties": {
@@ -39410,6 +39412,12 @@
           },
           "remaining": {
             "type": "string"
+          },
+          "minimum": {
+            "type": "string"
+          },
+          "minimumEstimated": {
+            "type": "boolean"
           }
         }
       },
