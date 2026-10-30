@@ -20,6 +20,7 @@
       "overtime_hint": "La ligne « Déclarés » de l’avis (case 1GH), pas la ligne « Nets ».",
       "rates": "Taux (facultatif)",
       "per": "Plafond épargne retraite",
+      "per_year_hint": "Repris de l’avis de l’année précédente quand il est saisi. Les salaires nets et le plafond de l’année suivante sont calculés par Nid.",
       "exempt": "Revenus exonérés",
       "balance_due": "À payer",
       "balance_refund": "Remboursé",

@@ -6,8 +6,8 @@ import type { TaxAssessment, TaxAssessmentBody } from './api';
 import '@/locales/tax';
 import '@/locales/taxAssessments';
 
-/** Money fields of a declarant, then of the notice, in the order the form shows them. */
-export const DECLARANT_AMOUNTS = ['grossSalaries', 'deductionAmount', 'netSalaries'] as const;
+/** Money fields of a declarant, then of the notice, in the order the form shows them (the net salaries are the server's). */
+export const DECLARANT_AMOUNTS = ['grossSalaries', 'deductionAmount'] as const;
 export const PER_AMOUNTS = ['perCeilingYear', 'perUnusedOldest', 'perUnusedMiddle', 'perUnusedLatest', 'perCeilingComputed', 'perCeilingNext'] as const;
 /** The year each PER line names on the notice of the revenue year `year` (revenus 2025: total 2024, unused 2023–2025, next 2026). */
 const PER_YEAR_OFFSET: Record<(typeof PER_AMOUNTS)[number], number> = {
@@ -27,9 +27,12 @@ export const NOTICE_AMOUNTS = {
 const AMOUNT_FIELDS = [...NOTICE_AMOUNTS.household, ...NOTICE_AMOUNTS.income, ...NOTICE_AMOUNTS.incomeFolded, ...NOTICE_AMOUNTS.tax, 'balance', ...NOTICE_AMOUNTS.carried] as const;
 export const RATES = ['averageRate', 'marginalRate'] as const;
 
-type DeclarantAmount = (typeof DECLARANT_AMOUNTS)[number] | (typeof PER_AMOUNTS)[number] | (typeof DECLARANT_DETAIL)[number];
-/** Every money field of a declarant. */
-const DECLARANT_MONEY = [...DECLARANT_AMOUNTS, ...DECLARANT_DETAIL, ...PER_AMOUNTS] as const;
+/** The PER lines the form asks for: the ceiling for next year's contributions is the server's sum of the others. */
+type PerTyped = Exclude<(typeof PER_AMOUNTS)[number], 'perCeilingNext'>;
+export const PER_TYPED = PER_AMOUNTS.filter((k): k is PerTyped => k !== 'perCeilingNext');
+type DeclarantAmount = (typeof DECLARANT_AMOUNTS)[number] | PerTyped | (typeof DECLARANT_DETAIL)[number];
+/** Every money field of a declarant the form asks for. */
+const DECLARANT_MONEY = [...DECLARANT_AMOUNTS, ...DECLARANT_DETAIL, ...PER_TYPED];
 export type DeclarantValues = { personId: string; deduction: '' | 'allowance' | 'actual' } & Record<DeclarantAmount, string>;
 /** Every amount is the text the person typed (`''` is « not on the notice »); `balanceSign` only chooses the sign the body carries. */
 export type AssessmentValues = {

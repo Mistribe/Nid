@@ -23,7 +23,7 @@ import { useSubmitErrors } from '../../subscriptions/edits/useSubmitErrors';
 import { todayIso } from '../../subscriptions/today';
 import { FIRST_ESTIMATE_YEAR } from '../api';
 import {
-  assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_AMOUNTS, perLineYear, RATES, stepFields, stepOf, toBody,
+  assessmentDefaults, assessmentPath, assessmentSchema, fromView, NOTICE_AMOUNTS, PER_TYPED, perLineYear, RATES, stepFields, stepOf, toBody,
   type AssessmentValues, type StepId,
 } from './assessmentSchema';
 import { TAX_NOTICE_PREVIEW, useAddTaxAssessment, useCorrectTaxAssessment, useTaxAssessment, type TaxAssessment } from './api';
@@ -103,11 +103,11 @@ function DeclarantStep({ form, count }: { form: Form; count: number }) {
               )} />
             </div>
             <Amount form={form} name={at('deductionAmount')} label={label('deductionAmount')} />
-            <Amount form={form} name={at('netSalaries')} label={label('netSalaries')} />
             <Amount form={form} name={at('withholding')} label={label('withholding_declarant')} />
             <Amount form={form} name={at('creditsAdvance')} label={label('creditsAdvance')} />
-            <Folded label={t('tax.assessment_form.per')} hasError={PER_AMOUNTS.some((k) => Boolean(errorOf(form, at(k))))}>
-              {PER_AMOUNTS.map((k) => <Amount key={k} form={form} name={at(k)} label={t(`tax.assessment.field.${k}`, { year: perLineYear(k, year) })} />)}
+            <Folded label={t('tax.assessment_form.per')} hasError={PER_TYPED.some((k) => Boolean(errorOf(form, at(k))))}>
+              {PER_TYPED.map((k) => <Amount key={k} form={form} name={at(k)} label={t(`tax.assessment.field.${k}`, { year: perLineYear(k, year) })}
+                hint={k === 'perCeilingYear' ? t('tax.assessment_form.per_year_hint') : undefined} />)}
             </Folded>
           </fieldset>
         );

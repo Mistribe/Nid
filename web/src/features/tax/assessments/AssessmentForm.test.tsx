@@ -103,8 +103,29 @@ describe('AssessmentForm', () => {
     await waitFor(() => expect(sent.post).toHaveLength(1));
     expect(sent.post[0]).toMatchObject({
       grossIncome: eur('1234.50'), taxableIncome: eur('72800'), scaleTax: null, referenceIncome: null, shares: null, balance: null, documentId: null,
-      declarants: [{ personId: SESSION_PERSON, rank: 1, grossSalaries: eur('52000.5'), netSalaries: null, deduction: null, perCeilingYear: null }],
+      declarants: [{ personId: SESSION_PERSON, rank: 1, grossSalaries: eur('52000.5'), deduction: null, perCeilingYear: null }],
     });
+  });
+
+  it('Leaves_the_lines_the_notice_only_adds_up_to_the_server', async () => {
+    const sent = serve([adult(ALICE, 'Alice'), adult(BOB, 'Bob')]);
+    const { user } = await renderApp(`/tax/assessments/${NOTICE}/edit`);
+
+    expect(await screen.findByRole('combobox', { name: 'Année des revenus' })).toHaveTextContent('2025');
+    await next(user);
+    const first = within(screen.getByRole('group', { name: 'Déclarant 1' }));
+    expect(first.queryByLabelText('Salaires, pensions et rentes nets')).toBeNull();
+    await user.click(first.getByRole('button', { name: 'Plafond épargne retraite' }));
+    expect(first.getByLabelText('Plafond calculé sur les revenus de 2025')).toBeInTheDocument();
+    expect(first.queryByLabelText('Plafond pour les cotisations versées en 2026')).toBeNull();
+    for (let i = 0; i < 3; i += 1) await next(user);
+    await submit(user);
+
+    await waitFor(() => expect(sent.put).toHaveLength(1));
+    const [declarant] = (sent.put[0] as { declarants: object[] }).declarants;
+    expect(declarant).toMatchObject({ grossSalaries: eur('52000.00'), deductionAmount: eur('5200.00'), perCeilingYear: eur('5843.13') });
+    expect(declarant).not.toHaveProperty('netSalaries');
+    expect(declarant).not.toHaveProperty('perCeilingNext');
   });
 
   it('Sends_the_detail_lines_under_the_notice_s_own_names', async () => {
@@ -150,7 +171,7 @@ describe('AssessmentForm', () => {
 
     for (const label of [
       'Plafond total de 2024', 'Plafond non utilisé pour les revenus de 2023', 'Plafond non utilisé pour les revenus de 2024',
-      'Plafond non utilisé pour les revenus de 2025', 'Plafond calculé sur les revenus de 2025', 'Plafond pour les cotisations versées en 2026',
+      'Plafond non utilisé pour les revenus de 2025', 'Plafond calculé sur les revenus de 2025',
     ]) expect(first.getByLabelText(label)).toBeInTheDocument();
   });
 

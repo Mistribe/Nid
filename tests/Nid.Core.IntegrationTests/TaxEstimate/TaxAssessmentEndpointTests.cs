@@ -77,6 +77,43 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task Computes_the_lines_the_notice_only_adds_up()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        static string? Amount(JsonElement d, string name) => d.GetProperty(name).ValueKind == JsonValueKind.Null ? null : d.GetProperty(name).GetProperty("amount").GetString();
+        // B's solo notice of 2023 is not A's to read: A's joint notice of 2024 never takes B's ceiling from it.
+        await AddAsync(app, app.AdultA, 2023, Declarant(app.AdultA, 1, new { perCeilingNext = Eur("17264.00") }));
+        await AddAsync(app, app.AdultB, 2023, Declarant(app.AdultB, 1, new { perCeilingNext = Eur("17287.00") }));
+        var printed = new
+        {
+            grossSalaries = Eur("40036.00"), deduction = "allowance", deductionAmount = Eur("4004.00"), perCeilingYear = Eur("1.00"),
+            perUnusedOldest = Eur("4114.00"), perUnusedMiddle = Eur("4399.00"), perUnusedLatest = Eur("4637.00"), perCeilingComputed = Eur("4710.00"),
+        };
+
+        var created = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Route,
+            Body(2024, [Declarant(app.AdultA, 1, printed), Declarant(app.AdultB, 2, new { perCeilingYear = Eur("17000.00") })])));
+
+        var a = created.GetProperty("declarants")[0];
+        Assert.Equal("36032.00", Amount(a, "netSalaries"));
+        Assert.Equal("17860.00", Amount(a, "perCeilingNext"));
+        Assert.Equal("17264.00", Amount(a, "perCeilingYear"));
+        Assert.Equal("17000.00", Amount(created.GetProperty("declarants")[1], "perCeilingYear"));
+
+        var corrected = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{created.GetProperty("id").GetGuid()}",
+            Merge(Body(2024, [Declarant(app.AdultA, 1, Merge(printed, new { grossSalaries = Eur("41036.00") }))]), new { version = created.GetProperty("version").GetUInt32() }));
+        Assert.Equal("37032.00", Amount((await JsonOf(corrected)).GetProperty("declarants")[0], "netSalaries"));
+    }
+
+    [Fact]
+    public async Task A_deduction_above_the_salaries_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Route,
+            Body(2023, [Declarant(app.AdultA, 1, new { grossSalaries = Eur("400.00"), deduction = "allowance", deductionAmount = Eur("509.00") })]));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, TaxAssessmentCodes.InvalidAssessment, "declarants[0].deductionAmount"), await ProblemOf(response));
+    }
+
+    [Fact]
     public async Task Keeps_the_notice_detail_lines_through_a_correction()
     {
         await using var app = await NidApp.StartAsync(fixture);

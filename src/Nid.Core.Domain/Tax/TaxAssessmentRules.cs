@@ -39,6 +39,7 @@ public static class TaxAssessmentRules
             if (a.Declarants.Take(i).Any(o => o.Person == d.Person)) Fail($"{p}.personId", "A person is declarant once.");
             else if (!adults.Contains(d.Person.Value)) Fail($"{p}.personId", "Must be an adult of the household.");
             if (d.DeductionAmount is not null && d.Deduction is null) Fail($"{p}.deduction", "Needed with the deduction amount.");
+            if (d is { GrossSalaries: { } gross, DeductionAmount: { } deducted } && deducted > gross) Fail($"{p}.deductionAmount", "Must not exceed the salaries.");
             Amount($"{p}.grossSalaries", d.GrossSalaries);
             Amount($"{p}.deductionAmount", d.DeductionAmount);
             Amount($"{p}.netSalaries", d.NetSalaries);
@@ -82,5 +83,27 @@ public static class TaxAssessmentRules
         Amount("pinelReduction", a.PinelReduction);
         Amount("childcareExpenses", a.ChildcareExpenses);
         return errors;
+    }
+
+    /// <summary>
+    /// Tax assessments spec §4: the lines the notice only adds up, worked out from the ones it adds; a line whose sources are not typed
+    /// keeps the value sent. A declarant's net salaries are the salaries less the deduction; the ceiling for next year's contributions
+    /// is the three unused ceilings plus the one computed on the revenues (an unused one left blank counts 0); the year's total ceiling
+    /// is the one the <paramref name="previousYear"/> notice where the same person declares gave for this year.
+    /// </summary>
+    public static TaxAssessment Complete(TaxAssessment a, IEnumerable<TaxAssessment> previousYear)
+    {
+        var earlier = previousYear.Where(n => n.Year == a.Year - 1).SelectMany(n => n.Declarants).ToList();
+        return a with
+        {
+            Declarants = a.Declarants.Select(d => d with
+            {
+                NetSalaries = d is { GrossSalaries: { } gross, DeductionAmount: { } deducted } ? gross - deducted : d.NetSalaries,
+                PerCeilingNext = d.PerCeilingComputed is { } computed
+                    ? (d.PerUnusedOldest ?? 0m) + (d.PerUnusedMiddle ?? 0m) + (d.PerUnusedLatest ?? 0m) + computed
+                    : d.PerCeilingNext,
+                PerCeilingYear = earlier.FirstOrDefault(e => e.Person == d.Person && e.PerCeilingNext is not null)?.PerCeilingNext ?? d.PerCeilingYear,
+            }).ToList(),
+        };
     }
 }

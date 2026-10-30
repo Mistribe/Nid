@@ -80,4 +80,44 @@ public class TaxAssessmentRulesTests
     [Fact]
     public void A_deduction_amount_needs_its_kind()
         => Assert.Equal(["declarants[0].deduction"], Paths(Notice(declarants: [Declarant(A, 1, deductionAmount: 4100m)])));
+
+    [Fact]
+    public void A_deduction_above_the_salaries_is_refused()
+        => Assert.Equal(["declarants[0].deductionAmount"], Paths(Notice(declarants: [Declarant(A, 1, gross: 400m, deductionAmount: 509m, deduction: SalaryDeduction.Allowance)])));
+
+    // The household's notice of 2025: salaries 40 036 less 4 004; unused 4 114, 4 399, 4 637 and 4 710 computed make 17 860.
+    private static TaxAssessmentDeclarant Printed(Guid person, int rank) => Declarant(person, rank, 40_036m, 4_004m, SalaryDeduction.Allowance) with
+    {
+        PerUnusedOldest = 4_114m, PerUnusedMiddle = 4_399m, PerUnusedLatest = 4_637m, PerCeilingComputed = 4_710m,
+    };
+
+    [Fact]
+    public void The_net_salaries_and_the_next_ceiling_are_computed()
+    {
+        var d = TaxAssessmentRules.Complete(Notice(2025, declarants: [Printed(A, 1) with { NetSalaries = 1m, PerCeilingNext = 1m }]), []).Declarants[0];
+        Assert.Equal(36_032m, d.NetSalaries);
+        Assert.Equal(17_860m, d.PerCeilingNext);
+    }
+
+    [Fact]
+    public void A_blank_unused_ceiling_counts_zero()
+        => Assert.Equal(13_461m, TaxAssessmentRules.Complete(Notice(2025, declarants: [Printed(A, 1) with { PerUnusedMiddle = null }]), []).Declarants[0].PerCeilingNext);
+
+    [Fact]
+    public void A_line_without_its_sources_keeps_the_value_sent()
+    {
+        var sent = Declarant(A, 1, gross: 40_036m) with { NetSalaries = 36_032m, PerUnusedOldest = 300m, PerCeilingNext = 4_200m, PerCeilingYear = 16_000m };
+        Assert.Equal(sent, TaxAssessmentRules.Complete(Notice(2025, declarants: [sent]), []).Declarants[0]);
+    }
+
+    [Fact]
+    public void The_year_ceiling_comes_from_the_previous_notice_of_the_same_person()
+    {
+        var previous = Notice(2024, declarants: [Declarant(B, 1) with { PerCeilingNext = 17_287m }, Declarant(A, 2) with { PerCeilingNext = 17_264m }]);
+        var older = Notice(2023, declarants: [Declarant(A, 1) with { PerCeilingNext = 16_741m }]);
+        var notice = Notice(2025, declarants: [Printed(A, 1) with { PerCeilingYear = 1m }, Printed(B, 2)]);
+        var done = TaxAssessmentRules.Complete(notice, [previous, older]);
+        Assert.Equal([17_264m, 17_287m], done.Declarants.Select(d => d.PerCeilingYear));
+        Assert.Equal(1m, TaxAssessmentRules.Complete(notice, [older]).Declarants[0].PerCeilingYear);
+    }
 }

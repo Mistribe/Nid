@@ -58,6 +58,7 @@ public sealed class AddTaxAssessmentHandler(ITaxAssessmentStore store, IPersonRe
         var a = command.Assessment;
         if (await TaxAssessmentAccess.CheckAsync(store, persons, calendar, actor, a, null, ct) is { } failure)
             return Result.Failure<TaxAssessmentView>(failure);
+        a = await TaxAssessmentAccess.CompleteAsync(store, actor, a, ct);
         Guid id;
         try
         {
@@ -85,6 +86,7 @@ public sealed class CorrectTaxAssessmentHandler(ITaxAssessmentStore store, IPers
         var a = command.Assessment with { DocumentId = command.Assessment.DocumentId ?? own.Assessment.DocumentId };
         if (await TaxAssessmentAccess.CheckAsync(store, persons, calendar, actor, a, command.Id, ct) is { } failure)
             return Result.Failure<TaxAssessmentView>(failure);
+        a = await TaxAssessmentAccess.CompleteAsync(store, actor, a, ct);
         try
         {
             await store.UpdateAsync(command.Id, a, command.Version, ct);
@@ -154,6 +156,10 @@ internal static class TaxAssessmentAccess
             ? await TakenAsync(store, a, except, ct)
             : null;
     }
+
+    /// <summary>The notice with its computed lines, from the previous year's notices the actor declares (never one they do not read).</summary>
+    public static async Task<TaxAssessment> CompleteAsync(ITaxAssessmentStore store, IActorAccessor actor, TaxAssessment a, CancellationToken ct)
+        => TaxAssessmentRules.Complete(a, (await store.ListForAsync(actor.Current!.PersonId!.Value, a.Year - 1, ct)).Select(s => s.Assessment));
 
     /// <summary>The declarant already in another notice of the year, located; the first one when a concurrent write took them meanwhile.</summary>
     public static async Task<Failure> TakenAsync(ITaxAssessmentStore store, TaxAssessment a, Guid? except, CancellationToken ct)
