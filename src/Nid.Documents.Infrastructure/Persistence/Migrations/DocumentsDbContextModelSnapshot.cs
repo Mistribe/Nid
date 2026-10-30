@@ -66,7 +66,7 @@ namespace Nid.Documents.Infrastructure.Persistence.Migrations
 
                     b.ToTable("document_link", "documents", t =>
                         {
-                            t.HasCheckConstraint("ck_document_link_role", "role in ('amortization_table', 'deed', 'insurance', 'invoice', 'lease', 'loan_offer', 'other', 'payslip', 'statement', 'tax_notice')");
+                            t.HasCheckConstraint("ck_document_link_role", "role in ('amortization_table', 'copro_accounts', 'copro_call', 'copro_minutes', 'deed', 'insurance', 'invoice', 'lease', 'loan_offer', 'other', 'payslip', 'statement', 'tax_notice')");
                         });
                 });
 
@@ -107,6 +107,11 @@ namespace Nid.Documents.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
 
+                    b.Property<string>("SourceRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source_ref");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text")
@@ -122,6 +127,11 @@ namespace Nid.Documents.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_document");
+
+                    b.HasIndex("SourceRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_document_source_ref")
+                        .HasFilter("source_ref is not null");
 
                     b.ToTable("document", "documents");
                 });

@@ -155,7 +155,7 @@ public static partial class McpCalls
     private static object Applied(DirectWrite w, bool? sourceLinked) => new AppliedAnswer("applied", w.AppliedRefs, w.Skipped, w.Summary, sourceLinked);
 
     /// <summary>Not found and unauthorized stay « Not found. »; any other refusal names its code, then each field (`payload.movements[3].amount: …`) or its message.</summary>
-    private static CallToolResult Refusal(Failure failure)
+    internal static CallToolResult Refusal(Failure failure)
     {
         if (failure is NotFoundFailure or UnauthorizedFailure)
             return Error(NotFound);

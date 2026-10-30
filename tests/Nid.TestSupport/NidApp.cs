@@ -252,6 +252,15 @@ public sealed class NidApp : IAsyncDisposable
         return await client.SendAsync(request);
     }
 
+    /// <summary>Like <see cref="BearerAsync"/>, with any content (a multipart form).</summary>
+    public async Task<HttpResponseMessage> BearerContentAsync(string token, HttpMethod method, string url, HttpContent content)
+    {
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(method, url) { Content = content };
+        request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
+        return await client.SendAsync(request);
+    }
+
     /// <summary>Like <see cref="RawAsync"/>, with a body sent exactly as given.</summary>
     public async Task<HttpResponseMessage> RawTextAsync(PersonId actor, HttpMethod method, string url, string json)
     {

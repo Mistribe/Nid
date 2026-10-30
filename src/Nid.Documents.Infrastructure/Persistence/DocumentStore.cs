@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
 using NodaTime;
+using Npgsql;
 
 namespace Nid.Documents.Infrastructure.Persistence;
 
@@ -12,11 +13,23 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         var row = new DocumentRow { Id = document.Id };
         Apply(row, document);
         db.Documents.Add(row);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException
+                                          { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: DocumentsDbContext.SourceRefIndex })
+        {
+            db.Entry(row).State = EntityState.Detached;
+            throw new DuplicateSourceRefException(e);
+        }
     }
 
     public async Task<DocumentRecord?> FindAsync(Guid id, CancellationToken ct)
         => await db.Documents.AsNoTracking().SingleOrDefaultAsync(d => d.Id == id, ct) is { } row ? ToRecord(row) : null;
+
+    public async Task<DocumentRecord?> FindBySourceRefAsync(string sourceRef, CancellationToken ct)
+        => await db.Documents.AsNoTracking().SingleOrDefaultAsync(d => d.SourceRef == sourceRef, ct) is { } row ? ToRecord(row) : null;
 
     // ponytail: a household holds hundreds of documents, not millions; filtering moves to SQL if listing gets slow.
     public async Task<IReadOnlyList<DocumentRecord>> ListAsync(bool includeArchived, CancellationToken ct)
@@ -124,9 +137,10 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         row.UploadedByPersonId = d.UploadedBy;
         row.UploadedAt = d.UploadedAt;
         row.ArchivedAt = d.ArchivedAt;
+        row.SourceRef = d.SourceRef;
     }
 
     private static DocumentRecord ToRecord(DocumentRow r)
         => new(r.Id, r.Sha256.Trim(), r.SizeBytes, r.MediaType, r.OriginalFilename, r.Title, r.DocumentDate, r.Note,
-            r.UploadedByPersonId, r.UploadedAt, r.ArchivedAt);
+            r.UploadedByPersonId, r.UploadedAt, r.ArchivedAt, r.SourceRef);
 }

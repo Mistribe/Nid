@@ -20171,6 +20171,7 @@ export interface components {
             archived: boolean;
             canEdit: boolean;
             links: components["schemas"]["DocumentLinkView"][];
+            sourceRef?: null | string;
         };
         DocumentTargetList: {
             items: components["schemas"]["DocumentTargetView"][];

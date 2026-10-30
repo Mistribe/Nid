@@ -9,6 +9,8 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
 {
     public const string Schema = "documents";
 
+    public const string SourceRefIndex = "ix_document_source_ref";
+
     public DbSet<DocumentRow> Documents => Set<DocumentRow>();
 
     public DbSet<DocumentLinkRow> Links => Set<DocumentLinkRow>();
@@ -23,6 +25,8 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Sha256).HasColumnType("char(64)");
+            e.Property(x => x.SourceRef).HasMaxLength(200);
+            e.HasIndex(x => x.SourceRef).IsUnique().HasFilter("source_ref is not null").HasDatabaseName(SourceRefIndex);
         });
 
         modelBuilder.Entity<DocumentLinkRow>(e =>

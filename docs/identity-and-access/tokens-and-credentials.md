@@ -35,7 +35,7 @@
 | Préréglage | Portées | Usage |
 |---|---|---|
 | Lecture seule | `read` | Consultation par un assistant |
-| **Lecture + propositions** (défaut) | `read`, `write` | Un assistant qui soumet des propositions (`write`) et ne peut plus écrire directement ; l’humain valide |
+| **Lecture + propositions** (défaut) | `read`, `write` | Un assistant qui soumet des propositions (`write`) et ne peut plus écrire directement ; l’humain valide. Seule exception : l'outil MCP `upload_document` dépose un document (aucun chiffre ne change), sous `Documents:McpMaxBytes` ; le dépôt REST garde `write:direct` (`documents-data-model.md` §11) |
 | Écriture directe | `read`, `write`, `write:direct` | Seul préréglage qui écrit directement : saisie dictée par l'utilisateur lui-même |
 
 - `write:direct` inclut `write`, qui inclut `read`.

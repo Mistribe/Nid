@@ -222,7 +222,7 @@ public sealed class MixedDataset
             {
                 var (document, documentRefused) = await app.InvokeAsync(writer, new UploadDocumentCommand(DocumentApi.Pdf,
                     $"{row.Label}.pdf", row.Label, null, null, new DocumentTarget(TargetKinds.CoreItem, items[row.Name].Value), DocumentRoles.Statement));
-                seeded[items[row.Name]] = (Guid?)document ?? throw new InvalidOperationException($"Seeding {row.Name}'s document failed: {documentRefused!.Code}");
+                seeded[items[row.Name]] = (document as UploadedDocument)?.Id ?? throw new InvalidOperationException($"Seeding {row.Name}'s document failed: {documentRefused!.Code}");
             }
         }
 

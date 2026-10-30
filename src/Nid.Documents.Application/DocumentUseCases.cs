@@ -11,16 +11,27 @@ namespace Nid.Documents.Application;
 
 /// <summary>
 /// Design §5: a file and, optionally, its first link. The access behavior checks a <c>core.item</c> target for writing before the
-/// handler runs; the handler checks every other rule before the bytes are stored.
+/// handler runs; the handler checks every other rule before the bytes are stored. Syndic documents design §2.1: a
+/// <paramref name="SourceRef"/> already stored answers with that document, when the actor reads it.
 /// </summary>
 public sealed record UploadDocumentCommand(
-    ReadOnlyMemory<byte> Content, string? FileName, string? Title, LocalDate? DocumentDate, string? Note, DocumentTarget? Link, string? Role)
-    : ICommand<Guid>, IOptionalItemScoped
+    ReadOnlyMemory<byte> Content, string? FileName, string? Title, LocalDate? DocumentDate, string? Note, DocumentTarget? Link, string? Role,
+    string? SourceRef = null, bool FromAssistant = false)
+    : ICommand<UploadedDocument>, IOptionalItemScoped, IRequiresScope
 {
     public ItemId? ItemId => Link is { Kind: TargetKinds.CoreItem } link ? new ItemId(link.Id) : null;
 
     public AccessKind Access => AccessKind.Write;
+
+    /// <summary>
+    /// Syndic documents design §2.3: the assistant's `upload_document` (<paramref name="FromAssistant"/>, set by the MCP host only)
+    /// files with the proposals' scope, under its own size cap; the REST upload keeps `write:direct` for a token.
+    /// </summary>
+    public string RequiredScope => FromAssistant ? ScopeNames.Write : ScopeNames.WriteDirect;
 }
+
+/// <summary><paramref name="Existing"/>: the source reference was already stored, nothing was written.</summary>
+public sealed record UploadedDocument(Guid Id, bool Existing);
 
 /// <summary>Replaces the title, the date and the note.</summary>
 public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? DocumentDate, string? Note) : ICommand<Guid>;
@@ -32,6 +43,7 @@ internal static class DocumentFields
     // Builder's choice: 255, as a cleaned file name, so the title taken from one always fits.
     public const int MaxTitle = 255;
     public const int MaxNote = 2000;
+    public const int MaxSourceRef = 200;
 
     public static Failure? Check(string? title, LocalDate? date, string? note, LocalDate today)
     {
@@ -46,29 +58,38 @@ internal static class DocumentFields
 
     public static string? Note(string? note) => string.IsNullOrWhiteSpace(note) ? null : note;
 
+    public static string? SourceRef(string? sourceRef) => string.IsNullOrWhiteSpace(sourceRef) ? null : sourceRef.Trim();
+
+    public static Failure? CheckSourceRef(string? sourceRef)
+        => sourceRef?.Length > MaxSourceRef ? Invalid($"A source reference is at most {MaxSourceRef} characters.", "sourceRef") : null;
+
     private static Failure Invalid(string message, string field)
         => new(DocumentsCodes.InvalidField, message, new Dictionary<string, object?> { ["field"] = field });
 }
 
-[RequestHandler<UploadDocumentCommand, Guid>]
+[RequestHandler<UploadDocumentCommand, UploadedDocument>]
 public sealed class UploadDocumentHandler(
     IDocumentStore store, IDocumentStorage storage, DocumentAccess access, DocumentsOptions options, IHouseholdCalendar calendar,
     IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock)
-    : IRequestHandler<UploadDocumentCommand, Guid>
+    : IRequestHandler<UploadDocumentCommand, UploadedDocument>
 {
-    public async ValueTask<Result<Guid>> HandleAsync(UploadDocumentCommand command, CancellationToken ct = default)
+    public async ValueTask<Result<UploadedDocument>> HandleAsync(UploadDocumentCommand command, CancellationToken ct = default)
     {
         if (command.Content.Length > options.MaxSizeBytes)
-            return Result.Failure<Guid>(new Failure(DocumentsCodes.TooLarge, $"A document is at most {options.MaxSizeBytes} bytes.", null));
+            return Result.Failure<UploadedDocument>(new Failure(DocumentsCodes.TooLarge, $"A document is at most {options.MaxSizeBytes} bytes.", null));
 
         var fileName = FileNames.Clean(command.FileName);
         var title = string.IsNullOrWhiteSpace(command.Title) ? FileNames.TitleOf(fileName) : command.Title;
-        if (DocumentFields.Check(title, command.DocumentDate, command.Note, await calendar.TodayAsync(ct)) is { } invalid)
-            return Result.Failure<Guid>(invalid);
+        var sourceRef = DocumentFields.SourceRef(command.SourceRef);
+        if ((DocumentFields.Check(title, command.DocumentDate, command.Note, await calendar.TodayAsync(ct)) ?? DocumentFields.CheckSourceRef(sourceRef)) is { } invalid)
+            return Result.Failure<UploadedDocument>(invalid);
         if (ContentSniffer.MediaTypeOf(command.Content.Span) is not { } mediaType)
-            return Result.Failure<Guid>(new Failure(DocumentsCodes.UnsupportedType, "Only PDF, PNG, JPEG and .eml files are accepted.", null));
+            return Result.Failure<UploadedDocument>(new Failure(DocumentsCodes.UnsupportedType, "Only PDF, PNG, JPEG and .eml files are accepted.", null));
 
         var person = actor.Current!.PersonId!.Value;
+        if (sourceRef is not null && await ExistingAsync(sourceRef, person, ct) is { } known)
+            return known;
+
         var id = Guid.CreateVersion7();
         LinkRecord? link = null;
         if (command.Link is { } target)
@@ -76,18 +97,36 @@ public sealed class UploadDocumentHandler(
             // A brand-new document: its uploader edits it, and it has no link yet.
             var checkedLink = await access.CheckLinkAsync(id, person.Value, [], target, command.Role, person, ct);
             if (!checkedLink.TryGetValue(out link))
-                return Result.Failure<Guid>(checkedLink.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+                return Result.Failure<UploadedDocument>(checkedLink.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         }
 
         // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
         var sha256 = await storage.PutAsync(command.Content, ct);
-        await using var transaction = await unitOfWork.BeginAsync(ct);
-        await store.CreateAsync(new DocumentRecord(id, sha256, command.Content.Length, mediaType, fileName, title.Trim(), command.DocumentDate,
-            DocumentFields.Note(command.Note), person.Value, clock.GetCurrentInstant(), null), ct);
-        if (link is not null)
-            await store.AddLinkAsync(link, ct);
-        await transaction.CommitAsync(ct);
-        return Result.Success(id);
+        try
+        {
+            await using var transaction = await unitOfWork.BeginAsync(ct);
+            await store.CreateAsync(new DocumentRecord(id, sha256, command.Content.Length, mediaType, fileName, title.Trim(), command.DocumentDate,
+                DocumentFields.Note(command.Note), person.Value, clock.GetCurrentInstant(), null, sourceRef), ct);
+            if (link is not null)
+                await store.AddLinkAsync(link, ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (DuplicateSourceRefException)
+        {
+            // A concurrent upload stored the reference first: answered as if it had come before this one.
+            return await ExistingAsync(sourceRef!, person, ct) ?? throw new InvalidOperationException("The source reference vanished.");
+        }
+        return Result.Success(new UploadedDocument(id, false));
+    }
+
+    // A document the actor does not read is refused without its id: the reference alone says it exists, nothing more.
+    private async Task<Result<UploadedDocument>?> ExistingAsync(string sourceRef, PersonId person, CancellationToken ct)
+    {
+        if (await store.FindBySourceRefAsync(sourceRef, ct) is not { } found)
+            return null;
+        return (await access.ReadAsync(found.Id, person, ct)).TryGetValue(out _)
+            ? Result.Success(new UploadedDocument(found.Id, true))
+            : Result.Failure<UploadedDocument>(new Failure(DocumentsCodes.SourceRefTaken, "Another document already has this source reference.", null));
     }
 }
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Nid.Core.Contracts;
+using Nid.Documents.Application;
 using Nid.Documents.Contracts;
 using Nid.Host.Mcp;
 using Nid.Platform.Contracts;
@@ -229,6 +230,61 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.DoesNotContain(others, listed);
         Assert.DoesNotContain("CoffreSecretB", text);
         Assert.DoesNotContain(theirs.Value.ToString(), text);
+    }
+
+    private static async Task<Guid> SourcedAsync(NidApp app, ItemId item, string? sourceRef)
+    {
+        var (uploaded, failure) = await app.InvokeAsync(app.AdultA, new UploadDocumentCommand(Pdf, "a.pdf", "Appel", null, null,
+            new DocumentTarget(TargetKinds.CoreItem, item.Value), DocumentRoles.CoproCall, sourceRef));
+        Assert.Null(failure);
+        return ((UploadedDocument)uploaded!).Id;
+    }
+
+    private static string[] SourceRefs(CallToolResult result)
+        => JsonDocument.Parse(McpHarness.TextOf(result)).RootElement.GetProperty("items").EnumerateArray()
+            .Select(d => d.GetProperty("sourceRef").GetString()!).Order().ToArray();
+
+    /// <summary>Syndic documents design §2.1: the routine finds what it already filed.</summary>
+    [Fact]
+    public async Task Lists_only_the_documents_of_a_source_ref_prefix()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await app.NewSubscriptionAsync("Copro", app.AdultA, Visibility.Shared);
+        foreach (var sourceRef in new[] { "powimo:7028:1", "powimo:7028:2", "other:1", null })
+            await SourcedAsync(app, home, sourceRef);
+        await using var client = await ClientAsync(app);
+
+        var result = await CallAsync(client, "list_documents", new { scope = "me", sourceRefPrefix = "powimo:7028:" });
+
+        Assert.NotEqual(true, result.IsError);
+        Assert.Equal(["powimo:7028:1", "powimo:7028:2"], SourceRefs(result));
+    }
+
+    /// <summary>Review M4: the prefix is read as the reference is stored, trimmed, blank meaning none.</summary>
+    [Fact]
+    public async Task Prefix_is_trimmed_and_blank_means_no_filter()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await app.NewSubscriptionAsync("Copro", app.AdultA, Visibility.Shared);
+        await SourcedAsync(app, home, "powimo:7028:1");
+        await SourcedAsync(app, home, null);
+        await using var client = await ClientAsync(app);
+
+        Assert.Equal(["powimo:7028:1"], SourceRefs(await CallAsync(client, "list_documents", new { scope = "me", sourceRefPrefix = " powimo:7028: " })));
+        var all = await CallAsync(client, "list_documents", new { scope = "me", sourceRefPrefix = "  " });
+        Assert.Equal(2, JsonDocument.Parse(McpHarness.TextOf(all)).RootElement.GetProperty("items").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Unknown_prefix_lists_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await app.NewSubscriptionAsync("Copro", app.AdultA, Visibility.Shared);
+        await SourcedAsync(app, home, "powimo:7028:1");
+        await SourcedAsync(app, home, null);
+        await using var client = await ClientAsync(app);
+
+        Assert.Empty(SourceRefs(await CallAsync(client, "list_documents", new { scope = "me", sourceRefPrefix = "nexity:" })));
     }
 
     [Fact]

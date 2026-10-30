@@ -76,7 +76,7 @@ public static class DocumentEndpoints
                 await stream.ReadExactlyAsync(content, ct);
                 return (await invoker.InvokeAsync(
                         new UploadDocumentCommand(content, file.FileName, Text("title"), documentDate, Text("note"), link, Text("role")), ct))
-                    .ToHttp(id => new IdResponse(id), StatusCodes.Status201Created);
+                    .ToHttp(uploaded => new IdResponse(uploaded.Id), StatusCodes.Status201Created);
             })
             .Accepts<UploadDocumentForm>("multipart/form-data")
             .Returns<IdResponse>(StatusCodes.Status201Created)

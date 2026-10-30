@@ -5,7 +5,10 @@ namespace Nid.Documents.Application;
 
 public sealed record DocumentRecord(
     Guid Id, string Sha256, long SizeBytes, string MediaType, string OriginalFilename, string Title,
-    LocalDate? DocumentDate, string? Note, Guid UploadedBy, Instant UploadedAt, Instant? ArchivedAt);
+    LocalDate? DocumentDate, string? Note, Guid UploadedBy, Instant UploadedAt, Instant? ArchivedAt, string? SourceRef = null);
+
+/// <summary>Syndic documents design §2.1: a concurrent upload stored the same source reference first.</summary>
+public sealed class DuplicateSourceRefException(Exception inner) : Exception("The source reference is already taken.", inner);
 
 public sealed record LinkRecord(
     Guid DocumentId, string TargetKind, Guid TargetId, Guid? AnchorItemId, string Role, Guid LinkedBy, Instant LinkedAt);
@@ -15,6 +18,8 @@ public interface IDocumentStore
     Task CreateAsync(DocumentRecord document, CancellationToken ct);
 
     Task<DocumentRecord?> FindAsync(Guid id, CancellationToken ct);
+
+    Task<DocumentRecord?> FindBySourceRefAsync(string sourceRef, CancellationToken ct);
 
     Task<IReadOnlyList<DocumentRecord>> ListAsync(bool includeArchived, CancellationToken ct);
 

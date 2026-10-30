@@ -275,6 +275,21 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal("lease", Assert.Single(await LinksAsync(app, app.AdultA, id)).GetProperty("role").GetString());
     }
 
+    /// <summary>Syndic documents design §2.2: the copropriété roles.</summary>
+    [Theory]
+    [InlineData("copro_call")]
+    [InlineData("copro_minutes")]
+    [InlineData("copro_accounts")]
+    public async Task Links_with_each_copropriete_role(string role)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);
+        var id = await UploadedAsync(app, app.AdultA, Pdf);
+
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, id, TargetKinds.CoreItem, shared.Value, role)).StatusCode);
+        Assert.Equal(role, Assert.Single(await LinksAsync(app, app.AdultA, id)).GetProperty("role").GetString());
+    }
+
     /// <summary>Issue #183: « Classer » links each selected document on its own, so a refused one leaves the others filed.</summary>
     [Fact]
     public async Task Filing_several_documents_links_each_one_and_a_refused_one_leaves_the_others_filed()

@@ -22,7 +22,7 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
 
         var tools = await client.ListToolsAsync();
-        var reads = tools.Where(t => !IsWrite(t.Name)).ToList();
+        var reads = tools.Where(t => IsRead(t.Name)).ToList();
         Assert.Contains(reads, t => t.Name == "list_persons");
         Assert.All(reads, t => Assert.True(t.ProtocolTool.Annotations?.ReadOnlyHint));
         Assert.All(reads, t => Assert.EndsWith(McpServerSentence, t.Description));
@@ -38,6 +38,9 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
     /// <summary>4D1: the write tools, by name; every other tool is a read.</summary>
     internal static bool IsWrite(string name) => name.StartsWith("propose_", StringComparison.Ordinal);
+
+    /// <summary>Syndic documents design §2.3: `upload_document` writes without proposing, so it is neither a read nor a `propose_*`.</summary>
+    internal static bool IsRead(string name) => !IsWrite(name) && name != "upload_document";
 
     [Fact]
     public async Task The_write_tools_declare_their_writes_and_ask_to_copy_the_document()

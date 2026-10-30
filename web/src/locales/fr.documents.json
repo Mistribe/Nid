@@ -42,6 +42,9 @@
       "insurance": "Assurance",
       "invoice": "Facture",
       "amortization_table": "Tableau d’amortissement",
+      "copro_call": "Appel de fonds",
+      "copro_minutes": "Assemblée générale",
+      "copro_accounts": "Comptes de copropriété",
       "other": "Autre"
     },
     "upload": {

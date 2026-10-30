@@ -15,6 +15,7 @@ public sealed class DocumentRow
     public Guid UploadedByPersonId { get; set; }
     public Instant UploadedAt { get; set; }
     public Instant? ArchivedAt { get; set; }
+    public string? SourceRef { get; set; }
 }
 
 public sealed class DocumentLinkRow

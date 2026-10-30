@@ -21,7 +21,9 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
 /// row's screen, a private row's too); one the actor cannot see answers an empty list. <c>Anchor</c> keeps those with a visible link
 /// anchored on that item (the item, its phases, its one-offs), whatever the scope.
 /// </summary>
-public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null, Guid? Anchor = null) : IQuery<DocumentList>;
+/// <summary><paramref name="SourceRefPrefix"/>: syndic documents design §2.1, the documents whose source reference starts with it.</summary>
+public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null, Guid? Anchor = null,
+    string? SourceRefPrefix = null) : IQuery<DocumentList>;
 
 /// <summary>Tranche 3 design §4.1: the ids among <paramref name="Ids"/> the actor reads; one missing and one unreadable are both left out.</summary>
 public sealed record FilterReadableDocumentsQuery(IReadOnlyCollection<Guid> Ids) : IQuery<IReadOnlySet<Guid>>;
@@ -68,6 +70,9 @@ public sealed class ListDocumentsHandler(IDocumentStore store, DocumentAccess ac
             var linked = await store.DocumentsLinkedToAsync(target, ct);
             documents = documents.Where(d => linked.Contains(d.Id)).ToList();
         }
+        // Read as a reference is stored: trimmed, blank meaning no filter.
+        if (DocumentFields.SourceRef(query.SourceRefPrefix) is { } prefix)
+            documents = documents.Where(d => d.SourceRef?.StartsWith(prefix, StringComparison.Ordinal) == true).ToList();
 
         var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
         // One rights check for every anchor of every document: a constant number of queries.

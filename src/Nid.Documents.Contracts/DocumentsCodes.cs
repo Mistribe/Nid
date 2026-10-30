@@ -10,6 +10,7 @@ public static class DocumentsCodes
     public const string InvalidField = "documents.invalid_field";
     public const string ContentMissing = "documents.content_missing";
     public const string AlreadyLinked = "documents.already_linked";
+    public const string SourceRefTaken = "documents.source_ref_taken";
 }
 
 public static class DocumentRoles
@@ -23,10 +24,13 @@ public static class DocumentRoles
     public const string Insurance = "insurance";
     public const string Invoice = "invoice";
     public const string AmortizationTable = "amortization_table";
+    public const string CoproCall = "copro_call";
+    public const string CoproMinutes = "copro_minutes";
+    public const string CoproAccounts = "copro_accounts";
     public const string Other = "other";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>
     {
-        Lease, LoanOffer, Deed, TaxNotice, Statement, Payslip, Insurance, Invoice, AmortizationTable, Other,
+        Lease, LoanOffer, Deed, TaxNotice, Statement, Payslip, Insurance, Invoice, AmortizationTable, CoproCall, CoproMinutes, CoproAccounts, Other,
     };
 }

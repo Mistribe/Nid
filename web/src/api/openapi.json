@@ -23814,6 +23814,12 @@
             "items": {
               "$ref": "#/components/schemas/DocumentLinkView"
             }
+          },
+          "sourceRef": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

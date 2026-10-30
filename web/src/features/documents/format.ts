@@ -12,7 +12,7 @@ export function fileSize(t: TFunction, bytes: number): string {
 }
 
 /** The roles a link can take, in the order the role select offers them. */
-export const ROLES = ['lease', 'loan_offer', 'deed', 'tax_notice', 'statement', 'payslip', 'insurance', 'invoice', 'amortization_table', 'other'] as const;
+export const ROLES = ['lease', 'loan_offer', 'deed', 'tax_notice', 'statement', 'payslip', 'insurance', 'invoice', 'amortization_table', 'copro_call', 'copro_minutes', 'copro_accounts', 'other'] as const;
 
 export const roleText = (t: TFunction, role: string) => t(`documents_page.role.${role}`, { defaultValue: role });
 
