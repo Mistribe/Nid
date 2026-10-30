@@ -80,7 +80,7 @@ describe('SaleTotalSection', () => {
     expect(screen.getByRole('heading', { name: 'Simulation' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Si tout était vendu' })).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Année des revenus' })).toBeInTheDocument();
-    expect(screen.getByText(/Le barème de cette année n’est pas encore connu/)).toBeInTheDocument();
+    expect(screen.getByText('Estimation selon le barème 2025')).toBeInTheDocument();
   });
 
   it('shows an empty state without item', async () => {

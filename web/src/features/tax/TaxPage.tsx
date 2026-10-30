@@ -129,6 +129,9 @@ function Notices({ notices, persons, gaps, adults }: {
   ))}</>;
 }
 
+/** The previous year's scale in use: said under the total, where the scale is named every year, rather than among the notes. */
+const CARRIED = 'rules_carried_forward';
+
 /** The three figures that answer « combien, combien il reste, que faire en septembre », then the rest inline and the split. */
 function Figures({ estimate, onAdjust }: { estimate: TaxEstimate; onAdjust: () => void }) {
   const { t } = useTranslation();
@@ -139,7 +142,11 @@ function Figures({ estimate, onAdjust }: { estimate: TaxEstimate; onAdjust: () =
     <div className="space-y-6">
       <dl className="grid gap-6 border-b pb-6 sm:grid-cols-3">
         <Figure label={t('tax.figure.total_tax')} value={eur(r.totalTax)}
-          hint={r.averageRate ? t('tax.figure.average_rate', { rate: percentText(t, r.averageRate) }) : null} />
+          hint={<>
+            {/* Both lines show every year, so changing the year does not move the screen. */}
+            <span className="block min-h-5">{r.averageRate ? t('tax.figure.average_rate', { rate: percentText(t, r.averageRate) }) : null}</span>
+            <span className="block">{t(r.warnings.includes(CARRIED) ? 'tax.figure.carried' : 'tax.figure.scale', { year: r.rulesYear })}</span>
+          </>} />
         <Figure label={t('tax.figure.left_monthly')} value={eur(r.netAfterTaxMonthly)} hint={t('tax.figure.per_year', { amount: eur(r.netAfterTax) })} />
         <Figure label={t('tax.figure.balance', { year: estimate.year + 1 })}
           value={ZERO.test(balance) ? t('tax.figure.no_balance') : (
@@ -199,7 +206,7 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
 function Notes({ estimate, printed, inBlock }: { estimate: TaxEstimate; printed: boolean; /** The Détail tab, whose PER block tells the PER warnings it can. */ inBlock: boolean }) {
   const { t } = useTranslation();
   const notes = [
-    ...estimate.result.warnings.filter((w) => !PER_WARNINGS.includes(w)).map((w) => warningText(t, w, estimate.result.rulesYear)),
+    ...estimate.result.warnings.filter((w) => w !== CARRIED && !PER_WARNINGS.includes(w)).map((w) => warningText(t, w, estimate.result.rulesYear)),
     // The server names a PER warning once per declarant it concerns; perWarningTexts already tells one sentence per declarant.
     ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !(inBlock && perWarningsInBlock(estimate.result).has(w)))
       .flatMap((w) => perWarningTexts(t, estimate.result, w, estimate.year)),

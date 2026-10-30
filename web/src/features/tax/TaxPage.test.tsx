@@ -21,7 +21,7 @@ describe('TaxPage', () => {
     expect(screen.getAllByText('5 729,42 €').length).toBeGreaterThan(0);
     expect(screen.getAllByText('11 %').length).toBeGreaterThan(0);
     expect(screen.getByText(/Prime : pas de brut renseigné, le net versé \(1 000,00 €\)/)).toBeInTheDocument();
-    expect(screen.getByText(/celui des revenus 2025 est repris/)).toBeInTheDocument();
+    expect(screen.getByText('Estimation selon le barème 2025')).toBeInTheDocument();
     const table = screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' });
     expect(within(table).getByRole('row', { name: /Crédit garde hors du domicile/ })).toHaveTextContent('3 000,00 €');
     expect(within(table).getByRole('row', { name: /^Revenu fiscal de référence/ })).toHaveTextContent('66 407,00 €');

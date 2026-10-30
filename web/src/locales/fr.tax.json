@@ -26,6 +26,8 @@
       "left_monthly": "Reste après impôt, par mois",
       "per_year": "{{amount}} sur l’année",
       "average_rate": "Taux moyen {{rate}}",
+      "carried": "Estimation selon le barème {{year}}",
+      "scale": "Barème {{year}}",
       "balance": "Solde à la déclaration {{year}}",
       "to_pay": "à payer",
       "refund": "remboursés",
